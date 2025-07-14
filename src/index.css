@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom Tippy theme for Falcon */
+.tippy-box[data-theme~='falcon'] {
+  background-color: white;
+  color: #1f2937; /* gray-800 */
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+  font-size: 0.9rem;
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb; /* gray-200 */
+  transition: all 0.2s ease-in-out;
+}
+
+.tippy-box[data-theme~='falcon'] .tippy-arrow {
+  color: #e5e7eb;
+}
+
+
+
