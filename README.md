@@ -687,6 +687,13 @@ These are the top-level routed pages for the Falcon platform. Each one correspon
 | `created_at`  | timestamp   | Timestamp of action                          |
 
 
+## 🚀 Local Dev Quickstart
+
+```bash
+git clone https://github.com/Chrisrossi92/project-falcon.git
+cd project-falcon
+npm install
+npm run dev
 
 
 
