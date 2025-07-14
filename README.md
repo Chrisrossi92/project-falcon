@@ -1,5 +1,3 @@
-# Define the Falcon project overview (reloaded after kernel reset)
-project_falcon_overview = """
 # 🛠️ Project Falcon Overview
 
 ## 📌 What Is Falcon?
