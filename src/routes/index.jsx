@@ -15,6 +15,7 @@ import ClientDetail from '../pages/ClientDetail';
 import Layout from '../layout/Layout';
 import { useSession } from '@/lib/hooks/useSession';
 import NewOrder from '@/pages/NewOrder';
+import ProtectedRoute from '@/lib/hooks/ProtectedRoute'; // Add this (adjust alias if needed)
 
 const ProtectedRoutes = () => {
   const { user, loading } = useSession();
@@ -23,10 +24,9 @@ const ProtectedRoutes = () => {
 
   return (
     <Routes>
-      {/* 🔓 Public route */}
+      {/* Public route */}
       <Route path="/login" element={<Login />} />
-
-      {/* 🔐 Protected app */}
+      {/* Protected app */}
       {user ? (
         <Route path="/" element={<Layout />}>
           <Route index element={<Navigate to="/dashboard" />} />
@@ -37,15 +37,59 @@ const ProtectedRoutes = () => {
           <Route path="orders" element={<Orders />} />
           <Route path="orders/:id" element={<OrderDetail />} />
           <Route path="orders/:id/edit" element={<OrderDetailForm />} />
-          <Route path="clients" element={<Clients />} />
-          <Route path="clients/:clientId" element={<ClientDetail />} />
-          <Route path="clients/new" element={<EditClient />} />
-          <Route path="users" element={<Users />} />
-          <Route path="users/:userId" element={<UserDetail />} />
-          <Route path="users/new" element={<UserDetail />} />
           <Route path="calendar" element={<Calendar />} />
           <Route path="*" element={<Navigate to="/dashboard" />} />
           <Route path="/orders/new" element={<NewOrder />} />
+
+          {/* Role-guarded routes */}
+          <Route
+            path="clients"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <Clients />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="clients/:clientId"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <ClientDetail />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="clients/new"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <EditClient />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="users"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <Users />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="users/:userId"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <UserDetail />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="users/new"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <UserDetail />
+              </ProtectedRoute>
+            }
+          />
         </Route>
       ) : (
         <Route path="*" element={<Navigate to="/login" />} />
