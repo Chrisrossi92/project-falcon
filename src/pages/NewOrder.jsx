@@ -52,56 +52,52 @@ const NewOrder = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    const payload = {
-  address: formData.address,
-  due_date: formData.due_date,
-  status: formData.status,
-  base_fee: parseFloat(formData.base_fee || 0),
-  notes: formData.notes || '',
-  appraiser_id: formData.appraiser_id || null, // ✅ FIXED
-  appraiser_split: parseFloat(formData.appraiser_split) || 0,
-  client_id: formData.client_id ? parseInt(formData.client_id) : null,
-  manual_client: formData.manual_client || '',
-};
+  const payload = {
+    address: formData.address,
+    due_date: formData.due_date,
+    status: formData.status,
+    base_fee: parseFloat(formData.base_fee || 0),
+    notes: formData.notes || '',
+    appraiser_id: formData.appraiser_id || null,
+    appraiser_split: parseFloat(formData.appraiser_split) || 0,
+    client_id: formData.client_id ? parseInt(formData.client_id) : null,
+    manual_client: formData.manual_client || '',
+  };
 
-    };
+  console.log('🚨 Submitting order payload:', payload);
 
-    console.log('🚨 Submitting order payload:', payload);
+  const {
+    appraiser,
+    client,
+    appraiser_name,
+    client_name,
+    ...cleanedPayload
+  } = formData;
 
-    const {
-  appraiser,          // remove unwanted keys
-  client,
-  appraiser_name,
-  client_name,
-  ...cleanedPayload
-} = formData;
-
-const { data: insertedOrder, error } = await (
-  supabase.from('orders')
+  const { data: insertedOrder, error } = await supabase
+    .from('orders')
     .insert([payload])
     .select()
-    .single()
-);
+    .single();
 
-    if (error) {
-      console.error('Order insert error:', error);
-      return;
-    }
+  if (error) {
+    console.error('Order insert error:', error);
+    return;
+  }
 
-    // ✅ Call helper to log activity
-    await logActivity({
-      user_id: currentUser.id,
-      order_id: insertedOrder.id,
-      role: currentUser.role,
-      action: 'created',
-      visible_to: currentUser.role === 'admin' ? ['admin'] : ['admin', 'appraiser'],
-      context: { address: insertedOrder.address },
-    });
+  await logActivity({
+    user_id: user.id,
+    order_id: insertedOrder.id,
+    role: user.role,
+    action: 'created',
+    visible_to: user.role === 'admin' ? ['admin'] : ['admin', 'appraiser'],
+    context: { address: insertedOrder.address },
+  });
 
-    navigate('/orders');
-  };
+  navigate('/orders');
+};
 
   return (
     <div className="max-w-2xl mx-auto p-6 bg-white shadow-2xl rounded-2xl">
@@ -210,8 +206,10 @@ const { data: insertedOrder, error } = await (
         </button>
       </form>
     </div>
-  );
+   );
+};
 
 export default NewOrder;
+
 
 
