@@ -41,15 +41,15 @@ const NewOrder = () => {
   };
 
   const handleAppraiserSelect = (e) => {
-    const selectedId = parseInt(e.target.value);
-    const appraiser = appraisers.find((a) => a.id === selectedId);
-    setFormData((prev) => ({
-      ...prev,
-      appraiser_id: selectedId,
-      appraiser_split: appraiser?.split || 0,
-      appraiser: appraiser?.name || '',
-    }));
-  };
+  const selectedId = e.target.value; // Keep as string (UUID)
+  const appraiser = appraisers.find((a) => a.id === selectedId);
+  setFormData((prev) => ({
+    ...prev,
+    appraiser_id: selectedId || null,
+    appraiser_split: appraiser?.split || 0,
+    appraiser: appraiser?.name || '',
+  }));
+};
 
   const handleSubmit = async (e) => {
   e.preventDefault();
