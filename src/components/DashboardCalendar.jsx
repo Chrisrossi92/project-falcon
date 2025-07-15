@@ -20,54 +20,50 @@ const DashboardCalendar = ({ onOrderSelect = null, compact = false }) => {
     holidays: !compact,
   });
   const [orders, setOrders] = useState([]);
-  const [appointments, setAppointments] = useState([]);
 
   useEffect(() => {
     const fetchData = async () => {
-      const [ordersRes, appointmentsRes] = await Promise.all([
-        supabase.from('orders').select('*'),
-        supabase.from('appointments').select('*')
-      ]);
+      let query = supabase.from('orders').select('*');
 
-      if (ordersRes.error || appointmentsRes.error) {
-        console.error('Fetch error:', ordersRes.error || appointmentsRes.error);
-        return;
+      if (user.role === 'appraiser') {
+        query = query.eq('appraiser_id', user.id);
+      } else if (user.role === 'reviewer') {
+        query = query.in('status', ['In Review', 'Needs Review']);
       }
 
-      setOrders(ordersRes.data);
-      setAppointments(appointmentsRes.data);
-    };
+      const { data, error } = await query;
 
+      if (error) {
+        console.error('Fetch error:', error);
+        return;
+      }
+      setOrders(data || []);
+    };
     fetchData();
   }, [user]);
 
   useEffect(() => {
     const allEvents = [];
-
     if (filters.site) {
-      appointments.forEach(app => {
-        if (user.role === 'admin' || (user.role === 'appraiser' && app.user_id === user.id)) {
-          const order = orders.find(o => o.id === app.order_id);
-          if (order) {
-            allEvents.push({
-              title: compact ? '📍' : `📍 ${order.address}`,
-              date: app.date,
-              backgroundColor: '#6EE7B7',
-              borderColor: '#059669',
-              textColor: '#065F46',
-              extendedProps: { type: 'site', orderId: order.id }
-            });
-          }
+      orders.forEach(order => {
+        if (order.site_visit_date && (user.role === 'admin' || (user.role === 'appraiser' && order.appraiser_id === user.id))) {
+          allEvents.push({
+            title: `📍 ${order.address}`,
+            date: order.site_visit_date,
+            backgroundColor: '#6EE7B7',
+            borderColor: '#059669',
+            textColor: '#065F46',
+            extendedProps: { type: 'site', orderId: order.id }
+          });
         }
       });
     }
-
     if (filters.review) {
       orders.forEach(order => {
-        if ((user.role === 'admin' || user.role === 'reviewer') && ['Review', 'Needs Review'].includes(order.status)) {
+        if (order.review_due_date && (user.role === 'admin' || user.role === 'reviewer') && ['Needs Review'].includes(order.status)) {
           allEvents.push({
-            title: compact ? '🔍' : `🔍 ${order.address}`,
-            date: order.updated_at || order.created_at,
+            title: `🔍 ${order.address}`,
+            date: order.review_due_date,
             backgroundColor: '#FDE68A',
             borderColor: '#F59E0B',
             textColor: '#92400E',
@@ -76,12 +72,11 @@ const DashboardCalendar = ({ onOrderSelect = null, compact = false }) => {
         }
       });
     }
-
     if (filters.due) {
       orders.forEach(order => {
-        if (user.role === 'admin' || (user.role === 'appraiser' && order.appraiser_id === user.id)) {
+        if (order.due_date && (user.role === 'admin' || (user.role === 'appraiser' && order.appraiser_id === user.id))) {
           allEvents.push({
-            title: compact ? '⏰' : `⏰ ${order.address}`,
+            title: `⏰ ${order.address}`,
             date: order.due_date,
             backgroundColor: '#BFDBFE',
             borderColor: '#2563EB',
@@ -91,7 +86,6 @@ const DashboardCalendar = ({ onOrderSelect = null, compact = false }) => {
         }
       });
     }
-
     if (filters.holidays && !compact) {
       holidays.forEach(holiday => {
         allEvents.push({
@@ -103,14 +97,12 @@ const DashboardCalendar = ({ onOrderSelect = null, compact = false }) => {
         });
       });
     }
-
     setEvents(allEvents);
-  }, [filters, orders, appointments, user, compact]);
+  }, [filters, orders, user, compact]);
 
   const handleEventClick = (info) => {
     const orderId = info.event.extendedProps.orderId;
     if (!orderId) return;
-
     if (onOrderSelect) {
       onOrderSelect(orderId);
     } else {
@@ -119,49 +111,58 @@ const DashboardCalendar = ({ onOrderSelect = null, compact = false }) => {
   };
 
   return (
-    <div className={`${compact ? 'bg-transparent shadow-none p-0 mt-0' : 'bg-white shadow-lg p-4 mt-4'} rounded-xl`}>
+    <div className="relative">
       {!compact && (
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold text-gray-800">Calendar</h2>
-          <span className="text-sm text-gray-500">
-            {calendarRef.current?.getApi()?.view?.title}
-          </span>
-        </div>
+        <>
+          <h2>Calendar</h2>
+          <h3>{calendarRef.current?.getApi()?.view?.title}</h3>
+        </>
       )}
-
-      <FullCalendar
-        ref={calendarRef}
-        plugins={[dayGridPlugin, interactionPlugin]}
-        initialView={compact ? 'dayGridTwoWeek' : 'dayGridTwoWeek'}
-        views={{
-          dayGridTwoWeek: {
-            type: 'dayGrid',
-            duration: { weeks: 2 },
-            buttonText: '2 week'
-          }
-        }}
-        headerToolbar={
-          compact
-            ? false
-            : {
-                start: 'dayGridDay,dayGridWeek,dayGridTwoWeek,dayGridMonth',
-                center: '',
-                end: '',
-              }
-        }
-        events={events}
-        eventClick={handleEventClick}
-        height={compact ? 250 : 'auto'}
-        eventDisplay={compact ? 'auto' : 'block'}
-      />
-
       {compact && (
-        <div className="mt-2 text-sm text-gray-600 space-x-4 flex flex-wrap justify-center">
+        <div>
           <span>📍 Site Visit</span>
           <span>🔍 Review</span>
           <span>⏰ Due</span>
         </div>
       )}
+      <FullCalendar
+        ref={calendarRef}
+        plugins={[dayGridPlugin, interactionPlugin]}
+        initialView="dayGridTwoWeek"
+        events={events}
+        eventClick={handleEventClick}
+        height={compact ? 'auto' : '600px'}
+        customButtons={{
+          twoWeekButton: {
+            text: 'Two Weeks',
+            click: () => {
+              calendarRef.current.getApi().changeView('dayGridTwoWeek');
+            }
+          }
+        }}
+        headerToolbar={{
+          left: 'prev,next today',
+          center: 'title',
+          right: 'dayGridMonth,dayGridWeek,twoWeekButton'
+        }}
+        views={{
+          dayGridTwoWeek: {
+            type: 'dayGrid',
+            duration: { weeks: 2 },
+            buttonText: '2 Weeks'
+          }
+        }}
+      />
+      {/* Hover Legend */}
+      <div className="absolute top-2 right-2 group">
+        <span className="text-gray-500 cursor-help">ℹ️</span>
+        <div className="hidden group-hover:block absolute z-10 bg-white p-2 shadow-md rounded text-sm">
+          <p>📍 Site Visit</p>
+          <p>🔍 Review Due</p>
+          <p>⏰ Final Due</p>
+          <p>🎉 Holiday</p>
+        </div>
+      </div>
     </div>
   );
 };

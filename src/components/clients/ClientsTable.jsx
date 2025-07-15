@@ -1,6 +1,7 @@
-// components/ClientsTable.jsx
+// src/components/clients/ClientsTable.jsx
 import { useState } from "react";
 import TableDrawer from "@/components/TableDrawer";
+import ClientDrawerContent from '@/components/clients/ClientDrawerContent';
 
 export default function ClientsTable({ clients }) {
   const [selectedClientId, setSelectedClientId] = useState(null);
@@ -29,7 +30,7 @@ export default function ClientsTable({ clients }) {
               >
                 <td className="px-4 py-2 font-medium">{client.id}</td>
                 <td className="px-4 py-2">{client.name}</td>
-                <td className="px-4 py-2">{client.primary_contact || "—"}</td>
+                <td className="px-4 py-2">{client.contact_name_1 || "—"}</td>
               </tr>
 
               {selectedClientId === client.id && (
@@ -40,7 +41,9 @@ export default function ClientsTable({ clients }) {
                       onClose={() => setSelectedClientId(null)}
                       data={client}
                       type="client"
-                    />
+                    >
+                      <ClientDrawerContent data={client} />
+                    </TableDrawer>
                   </td>
                 </tr>
               )}

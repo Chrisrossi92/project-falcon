@@ -1,12 +1,13 @@
+// src/pages/Users.jsx
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import supabase from "../lib/supabaseClient";
+import { useNavigate } from "react-router-dom";
 import { useSession } from '@/lib/hooks/useSession';
-import UsersTable from "@/components/users/UsersTable";
+import UserCard from "@/components/users/UserCard"; // New card component
 
 const Users = () => {
-  const navigate = useNavigate();
   const { user } = useSession();
+  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -50,7 +51,11 @@ const Users = () => {
       ) : users.length === 0 ? (
         <p className="text-gray-600">No users found.</p>
       ) : (
-        <UsersTable users={users} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {users.map((user) => (
+            <UserCard key={user.id} user={user} />
+          ))}
+        </div>
       )}
     </div>
   );
