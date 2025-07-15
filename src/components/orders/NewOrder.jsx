@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import supabase from '../lib/supabaseClient';
 import { useSession } from '@/lib/hooks/useSession';
-import { logActivity } from '../lib/logActivity';
+import { logActivity } from '@/lib/logActivity';
 
 const NewOrder = () => {
   const navigate = useNavigate();
