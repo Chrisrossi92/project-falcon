@@ -1,3 +1,4 @@
+// Force redeploy
 import supabase from './supabaseClient';
 
 export async function logActivity({ user_id, order_id = null, action, role, visible_to = ['admin'], context = {} }) {
