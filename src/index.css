@@ -2,7 +2,47 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom Tippy theme for Falcon */
+/* Global styles for body and common elements */
+body {
+  @apply bg-gray-50 font-sans text-gray-800 antialiased;
+}
+
+h1, h2, h3 {
+  @apply font-semibold text-gray-900;
+}
+
+p {
+  @apply text-sm text-gray-600;
+}
+
+/* Custom classes for login screen */
+.login-container {
+  @apply max-w-md w-full bg-white p-8 rounded-xl shadow-lg;
+}
+
+.login-input {
+  @apply w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition;
+}
+
+.login-button {
+  @apply w-full py-3 bg-green-500 text-white font-medium rounded-md hover:bg-green-600 transition duration-200;
+}
+
+.login-link {
+  @apply text-blue-600 hover:underline;
+}
+
+/* Fade-in animation for the form */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
+
+/* Custom Tippy theme for Falcon (unchanged from your original) */
 .tippy-box[data-theme~='falcon'] {
   background-color: white;
   color: #1f2937; /* gray-800 */
