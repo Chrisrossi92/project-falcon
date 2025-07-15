@@ -13,7 +13,7 @@ export default function OrderDetailForm({ order, setOrder, currentUserRole }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [clients, setClients] = useState([]);
-  const [clientId, setClientId] = useState(order.client_id || '');
+  const [clientId, setClientId] = useState(order.client_id ? String(order.client_id) : '');
   const [appraiserId, setAppraiserId] = useState(order.appraiser_id || '');
   const [manualClient, setManualClient] = useState(order.manual_client || '');
   const [isCustomClient, setIsCustomClient] = useState(order.client_id === null);
@@ -46,36 +46,36 @@ export default function OrderDetailForm({ order, setOrder, currentUserRole }) {
     if (value === 'custom') {
       setIsCustomClient(true);
       setClientId('');
-      setManualClient('');
+      setManualClient(''); // Reset manual on switch
       setEditedData((prev) => ({
         ...prev,
         client_id: null,
         manual_client: '',
       }));
     } else {
-      const selectedClient = clients.find((c) => c.id === value);
       setIsCustomClient(false);
-      setClientId(value);
-      setManualClient('');
+      setClientId(value); // Keep as string for form
+      setManualClient(''); // Clear manual when selecting registered client
       setEditedData((prev) => ({
         ...prev,
-        client_id: selectedClient?.id || null,
+        client_id: value ? parseInt(value, 10) : null,
         manual_client: '',
       }));
     }
+    console.log('Client change - value:', value, 'parsed:', parseInt(value, 10), 'editedData.client_id:', editedData.client_id);
   };
 
   const handleCustomClientNameChange = (value) => {
     setManualClient(value);
     setEditedData((prev) => ({
       ...prev,
-      manual_client: value,
+      manual_client: value.trim(), // Trim to avoid whitespace issues
     }));
   };
 
   const handleAppraiserSelect = (e) => {
-    const selectedUserId = String(e.target.value).trim();
-    const selectedAppraiser = appraisers.find((user) => String(user.id).trim() === selectedUserId);
+    const selectedUserId = e.target.value.trim(); // Appraiser IDs might be UUID strings, so no parseInt
+    const selectedAppraiser = appraisers.find((user) => user.id === selectedUserId);
 
     if (selectedAppraiser) {
       setEditedData((prev) => ({
@@ -86,17 +86,27 @@ export default function OrderDetailForm({ order, setOrder, currentUserRole }) {
     } else {
       setEditedData((prev) => ({
         ...prev,
-        appraiser_id: '',
+        appraiser_id: null,
         appraiser_split: '',
       }));
     }
   };
 
   const handleSave = async () => {
+    // Validate custom client
+    if (isCustomClient && !manualClient.trim()) {
+      toast.error('Please enter a manual client name when selecting custom.');
+      return;
+    }
+
+    // Log for debug
+    console.log('Saving editedData:', editedData);
+
     try {
       const { data, error } = await updateOrder(editedData);
       if (error) {
-        toast.error("Failed to save order.");
+        console.error('Update error:', error);
+        toast.error(`Failed to save order: ${error.message}`);
       } else {
         toast.success("Order saved!");
         setOrder(data?.[0] || editedData);
