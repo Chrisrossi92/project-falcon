@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import supabase from '../lib/supabaseClient';
 import { useSession } from '@/lib/hooks/useSession';
 import { logActivity } from '@/lib/logactivity';
+import ClientSelector from '@/components/clients/ClientSelector';
+import NewOrderFields from '@/components/orders/NewOrderFields';
 
 const NewOrder = () => {
   const navigate = useNavigate();
@@ -104,22 +106,45 @@ const NewOrder = () => {
   return (
     <div className="max-w-2xl mx-auto p-6 bg-white shadow-2xl rounded-2xl">
       <h2 className="text-2xl font-bold mb-4">Create New Order</h2>
-      <form className="space-y-4" onSubmit={handleSubmit}>
-        {/* ... other fields ... */}
-        <div>
-          <label className="block font-medium">Client</label>
-          <ClientSelector
-            clients={clients}
-            value={formData.client_id}
-            onChange={(value) => setFormData((prev) => ({ ...prev, client_id: value }))}
-            isCustomClient={formData.client_id === null}
-            manualClient={formData.manual_client}
-            onCustomClientNameChange={(value) => setFormData((prev) => ({ ...prev, manual_client: value }))}
-          />
-        </div>
-        {/* Add branch selector logic in ClientSelector */}
-        {/* ... rest of form ... */}
-      </form>
+      <form className="space-y-6" onSubmit={handleSubmit}>
+  <NewOrderFields
+    formData={formData}
+    handleChange={handleChange}
+    handleAppraiserSelect={handleAppraiserSelect}
+    clients={clients}
+    appraisers={appraisers}
+    isCustomClient={formData.client_id === null}
+    manualClient={formData.manual_client}
+    clientId={formData.client_id}
+    handleClientChange={(value) => {
+      if (value === 'custom') {
+        setFormData((prev) => ({
+          ...prev,
+          client_id: null,
+          manual_client: ''
+        }));
+      } else {
+        setFormData((prev) => ({
+          ...prev,
+          client_id: value,
+          manual_client: ''
+        }));
+      }
+    }}
+    handleCustomClientNameChange={(value) =>
+      setFormData((prev) => ({ ...prev, manual_client: value }))
+    }
+  />
+
+  <div className="flex justify-end gap-4">
+    <button
+      type="submit"
+      className="bg-blue-600 text-white px-6 py-2 rounded-md shadow hover:bg-blue-700 transition"
+    >
+      Save Order
+    </button>
+  </div>
+</form>
     </div>
   );
 };

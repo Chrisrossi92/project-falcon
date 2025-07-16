@@ -59,13 +59,13 @@ const ProtectedRoutes = () => {
             }
           />
           <Route
-            path="clients/new"
-            element={
-              <ProtectedRoute roles={['admin']}>
-                <EditClient />
-              </ProtectedRoute>
-            }
-          />
+  path="clients/edit/:clientId"
+  element={
+    <ProtectedRoute roles={['admin']}>
+      <EditClient />
+    </ProtectedRoute>
+  }
+/>
           <Route
             path="users"
             element={

@@ -8,17 +8,27 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { formatCurrency } from '@/lib/utils';
 import OrderInfoFields from '@/components/orders/OrderInfoFields';
+import { useSession } from '@/lib/hooks/useSession';
+import supabase from '@/lib/supabaseClient';
+import { useParams } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+
 
 export default function OrderDetailForm({ order, setOrder, currentUserRole }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [clients, setClients] = useState([]);
   const [clientId, setClientId] = useState(order.client_id ? String(order.client_id) : '');
+  const { id: orderId } = useParams();
   const [appraiserId, setAppraiserId] = useState(order.appraiser_id || '');
   const [manualClient, setManualClient] = useState(order.manual_client || '');
   const [isCustomClient, setIsCustomClient] = useState(order.client_id === null);
   const [reviewDueDate, setReviewDueDate] = useState(order.review_due_date || '');
   const [appraisers, setAppraisers] = useState([]);
+  const { user } = useSession();
+  
+  
+
 
   const {
     editedData,
@@ -137,14 +147,39 @@ export default function OrderDetailForm({ order, setOrder, currentUserRole }) {
     setReviewDueDate={setReviewDueDate}
   />
 
-  <div className="md:col-span-2 flex justify-end">
+  <div className="flex justify-end gap-3 mt-6">
+  <button
+    type="submit"
+    className="bg-blue-600 text-white px-6 py-2 rounded-md shadow hover:bg-blue-700 transition"
+  >
+    Save
+  </button>
+
+  {user?.role === 'admin' && (
     <button
-      type="submit"
-      className="bg-blue-600 text-white px-6 py-2 rounded-md shadow hover:bg-blue-700 transition"
+      type="button"
+      onClick={async () => {
+        const confirmed = window.confirm('Are you sure you want to delete this order?');
+        if (!confirmed) return;
+
+        const { error } = await supabase
+          .from('orders')
+          .delete()
+          .eq('id', orderId);
+
+        if (error) {
+          console.error('Failed to delete order:', error.message);
+          alert('Could not delete order. Please try again.');
+        } else {
+          navigate('/orders');
+        }
+      }}
+      className="bg-red-600 text-white px-6 py-2 rounded-md shadow hover:bg-red-700 transition"
     >
-      Save
+      Delete Order
     </button>
-  </div>
+  )}
+</div>
       </div>
     </form>
   );

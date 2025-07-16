@@ -6,12 +6,18 @@ import 'chart.js/auto';
 import ClientDetailPanel from './ClientDetailPanel';
 import ClientSidebarPanel from './ClientSidebarPanel';
 
-const ClientDrawerContent = ({ data }) => {
+const ClientDrawerContent = ({ data, onClose, onClientDeleted }) => {
   const [clientData, setClientData] = useState(data);
   const [isEditing, setIsEditing] = useState(false);
   const [stats, setStats] = useState({ active: 0, last30: 0, total: 0, avgFee: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // ✅ MOVE THIS FUNCTION HERE
+  const handleClientDeleted = () => {
+    if (onClientDeleted) onClientDeleted();
+    if (onClose) onClose();
+  };
 
   // Extract clientId from data prop
   const clientId = data?.id;
@@ -29,7 +35,6 @@ const ClientDrawerContent = ({ data }) => {
 
       if (fetchError) throw fetchError;
 
-      // Compute stats in JS
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const activeOrders = orders.filter(order => ['In Progress', 'Needs Review'].includes(order.status)).length;
@@ -52,6 +57,7 @@ const ClientDrawerContent = ({ data }) => {
       setLoading(false);
     }
   };
+
 
   useEffect(() => {
     if (isNewClient) {
@@ -120,12 +126,13 @@ const ClientDrawerContent = ({ data }) => {
 
   return (
     <div className="flex h-full">
-      <ClientDetailPanel 
-        clientData={clientData} 
-        isEditing={isEditing} 
-        setIsEditing={setIsEditing} 
-        onSave={handleSave} 
-      />
+      <ClientDetailPanel
+  clientData={clientData}
+  isEditing={isEditing}
+  setIsEditing={setIsEditing}
+  onSave={handleSave}
+  onClientDeleted={handleClientDeleted}
+/>
       <ClientSidebarPanel 
         stats={stats} 
         hasData={hasData} 
