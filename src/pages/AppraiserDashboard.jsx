@@ -3,6 +3,7 @@ import supabase from '/src/lib/supabaseClient.js';
 import { useSession } from '@/lib/hooks/useSession';
 import OrdersTable from '../components/orders/OrdersTable';
 import DashboardCalendar from '../components/DashboardCalendar';
+import DashboardCard from '../components/DashboardCard';  // Ensure this path is correct
 
 const AppraiserDashboard = () => {
   const { user, loading } = useSession();
@@ -32,7 +33,7 @@ const AppraiserDashboard = () => {
         console.error('Error fetching orders:', error.message);
         setError(error.message);
       } else {
-        setOrders(data); // nested structure is fine
+        setOrders(data);
       }
     };
 
@@ -45,7 +46,9 @@ const AppraiserDashboard = () => {
 
   return (
     <div className="p-6 space-y-6">
-      <DashboardCalendar orders={orders} />
+      <DashboardCard title="Calendar">
+        <DashboardCalendar orders={orders} />
+      </DashboardCard>
       <div>
         <h2 className="text-xl font-semibold mb-4">My Orders</h2>
         <OrdersTable orders={orders} hideAppraiserColumn role="appraiser" />

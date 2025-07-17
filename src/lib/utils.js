@@ -1,28 +1,25 @@
-import { clsx } from 'clsx';
-import { twMerge } from 'tailwind-merge';
+import { clsx } from "clsx";
+import { twMerge } from "tailwind-merge"
 
-// Combine class names with tailwind merging
 export function cn(...inputs) {
   return twMerge(clsx(inputs));
 }
 
-// Format a date string to a readable format (e.g., "Jul 2, 2025")
-export function formatDate(dateStr) {
-  const date = new Date(dateStr);
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-}
-
-// Format a number as USD currency (e.g., "$1,200.00")
-export function formatCurrency(value) {
-  const number = parseFloat(value || 0);
+export const formatCurrency = (value) => {
+  if (value == null) return '$0.00'; // Fallback for null/undefined
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
-  }).format(number);
-}
+    minimumFractionDigits: 2,
+  }).format(value);
+};
 
-
+export const formatDate = (dateString) => {
+  if (!dateString) return '—'; // Fallback for null/undefined
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', {
+    month: 'numeric',
+    day: 'numeric',
+    year: 'numeric',
+  }); // Outputs e.g., "7/16/2025" – customize options as needed (add time with hour/minute if required)
+};
