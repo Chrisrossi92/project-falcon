@@ -1,43 +1,23 @@
-// src/components/DashboardCalendar.jsx
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import supabase from '@/lib/supabaseClient';
 import { useSession } from '@/lib/hooks/useSession';
 import useOrderEvents from '@/lib/hooks/useOrderEvents';
 import FullCalendarWrapper from '@/components/ui/FullCalendarWrapper';
+import { useOrders } from '@/lib/hooks/useOrders'; // Import new hook
+import { useRole } from '@/lib/hooks/useRole'; // For role if needed
 
 const DashboardCalendar = ({ onOrderSelect = null, compact = false }) => {
   const navigate = useNavigate();
   const { user } = useSession();
+  const { role } = useRole(); // Use if needed for extra checks
   const calendarRef = useRef(null);
-  const [orders, setOrders] = useState([]);
+  const { orders } = useOrders(); // Replace inline fetch; loading/error handled upstream if needed
   const [filters, setFilters] = useState({
     site: true,
     review: true,
     due: true,
     holidays: !compact,
   });
-
-  useEffect(() => {
-    const fetchData = async () => {
-      let query = supabase.from('orders').select('*');
-
-      if (user.role === 'appraiser') {
-        query = query.eq('appraiser_id', user.id);
-      } else if (user.role === 'reviewer') {
-        query = query.in('status', ['In Review', 'Needs Review']);
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('Fetch error:', error);
-        return;
-      }
-      setOrders(data || []);
-    };
-    fetchData();
-  }, [user]);
 
   const events = useOrderEvents({ orders, user, filters, compact });
 
@@ -52,27 +32,37 @@ const DashboardCalendar = ({ onOrderSelect = null, compact = false }) => {
   };
 
   return (
-    <div className="relative">
+    <div className="dashboard-calendar relative"> {/* Add relative for positioning */}
+      {!compact && (
+        <div className="calendar-legend mb-4 group"> {/* Add group for hover */}
+          <h3 className="text-lg font-medium mb-2 cursor-pointer">Legend</h3>
+          <div className="legend-items space-y-2 absolute z-10 bg-white p-4 shadow-lg rounded-md hidden group-hover:block"> {/* Hidden by default, show on hover */}
+            <div className="legend-item flex items-center">
+              <span className="legend-icon mr-2">📍</span> Site Visit
+            </div>
+            <div className="legend-item flex items-center">
+              <span className="legend-icon mr-2">🔍</span> Review Due
+            </div>
+            <div className="legend-item flex items-center">
+              <span className="legend-icon mr-2">⏰</span> Final Due
+            </div>
+            <div className="legend-item flex items-center">
+              <span className="legend-icon mr-2">🎉</span> Holiday
+            </div>
+          </div>
+        </div>
+      )}
       <FullCalendarWrapper
         ref={calendarRef}
         events={events}
         onEventClick={handleEventClick}
-        compact={compact}
+        initialView={compact ? 'listWeek' : 'twoWeeks'}
+        headerToolbar={{
+          left: 'prev,next today',
+          center: 'title',
+          right: compact ? '' : 'dayGridMonth,timeGridWeek,twoWeeks,listWeek',
+        }}
       />
-
-      {/* Hover Legend */}
-      <div className="flex items-center gap-4 mt-4 text-sm text-gray-600">
-        <span className="text-gray-500 cursor-help group relative">
-          ℹ️
-          <div className="hidden group-hover:block absolute left-6 top-0 z-10 bg-white p-2 shadow-md rounded text-sm w-max">
-            <p>📍 Site Visit</p>
-            <p>🔍 Review Due</p>
-            <p>⏰ Final Due</p>
-            <p>🎉 Holiday</p>
-          </div>
-        </span>
-        <span className="hidden sm:inline">Legend</span>
-      </div>
     </div>
   );
 };

@@ -1,26 +1,35 @@
 import { useState } from "react";
-import TableDrawer from "@/components/TableDrawer";
+import { Drawer } from '@/components/ui/drawer'; // Assume shadcn/ui Drawer or similar; import if not
+import OrderDrawerContent from '@/components/orders/OrderDrawerContent'; // Adjust path if needed
 import { useSession } from '@/lib/hooks/useSession';
 import supabase from '@/lib/supabaseClient';
-import { Card, CardContent } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';  // ShadCN dialog (install if needed: npx shadcn-ui@latest add dialog)
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useRole } from '@/lib/hooks/useRole';
+import { canEditOrder, canDeleteOrder } from '@/lib/utils/permissions';
 
-export default function OrdersTable({ orders, hideAppraiserColumn = false, role = "admin" }) {
-  const [selectedOrderId, setSelectedOrderId] = useState(null);
+export default function OrdersTable({ orders, hideAppraiserColumn = false, role: propRole = "admin" }) {
+  const { user } = useSession();
+  const { role } = useRole();
+  const effectiveRole = role || propRole;
+
+  const [selectedOrder, setSelectedOrder] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [appointmentDialogOpen, setAppointmentDialogOpen] = useState(false);
   const [selectedOrderForVisit, setSelectedOrderForVisit] = useState(null);
   const [visitDate, setVisitDate] = useState('');
-  const [localOrders, setLocalOrders] = useState(orders);  // Local for optimistic updates
+  const [localOrders, setLocalOrders] = useState(orders);
   const pageSize = 10;
 
   const totalPages = Math.ceil(localOrders.length / pageSize);
   const paginatedOrders = localOrders.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
-  const handleRowClick = (orderId) => {
-    setSelectedOrderId(orderId === selectedOrderId ? null : orderId);
+  const handleRowClick = (order) => {
+    setSelectedOrder(order);
+  };
+
+  const closeDrawer = () => {
+    setSelectedOrder(null);
   };
 
   const goToPage = (page) => {
@@ -38,12 +47,11 @@ export default function OrdersTable({ orders, hideAppraiserColumn = false, role 
 
     const { error } = await supabase
       .from('orders')
-      .update({ site_visit_date: visitDate })  // Use date string; if timestamp, use new Date(visitDate).toISOString()
+      .update({ site_visit_date: visitDate })
       .eq('id', selectedOrderForVisit.id);
 
     if (error) {
       console.error('Error setting site visit:', error);
-      // Add error toast if available
     } else {
       const updatedOrders = localOrders.map(o =>
         o.id === selectedOrderForVisit.id ? { ...o, site_visit_date: visitDate } : o
@@ -54,10 +62,30 @@ export default function OrdersTable({ orders, hideAppraiserColumn = false, role 
     setAppointmentDialogOpen(false);
   };
 
+  const handleDeleteOrder = async (orderId) => {
+    if (!window.confirm('Are you sure you want to delete this order?')) return;
+
+    const { error } = await supabase
+      .from('orders')
+      .delete()
+      .eq('id', orderId);
+
+    if (error) {
+      console.error('Error deleting order:', error);
+    } else {
+      const updatedOrders = localOrders.filter(o => o.id !== orderId);
+      setLocalOrders(updatedOrders);
+    }
+  };
+
   const formatDate = (dateString) => {
-    if (!dateString) return null;
+    if (!dateString) return '—';
     return new Date(dateString).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' });
   };
+
+  if (localOrders.length === 0) {
+    return <p>No orders to display.</p>;
+  }
 
   return (
     <div className="overflow-x-auto">
@@ -73,56 +101,57 @@ export default function OrdersTable({ orders, hideAppraiserColumn = false, role 
               <th className="px-4 py-2">Fee Split</th>
             )}
             <th className="px-4 py-2">Status</th>
-            <th className="px-4 py-2">Site Visit</th>  {/* New column */}
+            <th className="px-4 py-2">Site Visit</th>
             <th className="px-4 py-2">Due Date</th>
+            <th className="px-4 py-2">Actions</th>
           </tr>
         </thead>
         <tbody>
           {paginatedOrders.map((order) => (
-            <tr key={order.id}>
-              <td colSpan={7}>  {/* Colspan 7 for new column */}
-                <Card className="mb-4 cursor-pointer" onClick={() => handleRowClick(order.id)}>
-                  <div className="grid grid-cols-7 gap-4 items-center px-4 py-2">  {/* grid-cols-7 */}
-                    <div className="font-medium">{order.id}</div>
-                    <div>{order.client?.name || order.client_name || "—"}</div>  {/* Adjusted for nested client */}
-                    <div>{order.address}</div>
-                    {!hideAppraiserColumn ? (
-                      <div>{order.appraiser?.name || order.appraiser_name || "—"}</div>
-                    ) : (
-                      <div>{order.fee_split || "—"}</div>
-                    )}
-                    <div className="capitalize">{order.status || "—"}</div>
-                    <div>
-                      {order.site_visit_date ? (
-                        formatDate(order.site_visit_date)
-                      ) : (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openVisitDialog(order);
-                          }}
-                        >
-                          Set Site Visit
-                        </Button>
-                      )}
-                    </div>
-                    <div>{order.due_date ? new Date(order.due_date).toLocaleDateString() : "—"}</div>
-                  </div>
-
-                  {selectedOrderId === order.id && (
-                    <div className="mt-4 border-t pt-4">
-                      <TableDrawer
-                        isOpen={true}
-                        onClose={() => setSelectedOrderId(null)}
-                        data={order}
-                        type="order"
-                        role={role}
-                      />
-                    </div>
-                  )}
-                </Card>
+            <tr key={order.id} onClick={() => handleRowClick(order)} className="border-b hover:bg-gray-50 cursor-pointer">
+              <td className="px-4 py-2">{order.id}</td>
+              <td className="px-4 py-2">{order.client?.name || order.client_name || "—"}</td>
+              <td className="px-4 py-2">{order.address}</td>
+              <td className="px-4 py-2">
+                {!hideAppraiserColumn ? (
+                  order.appraiser?.name || order.appraiser_name || "—"
+                ) : (
+                  order.appraiser_split || "—"
+                )}
+              </td>
+              <td className="px-4 py-2 capitalize">{order.status || "—"}</td>
+              <td className="px-4 py-2">
+                {order.site_visit_date ? (
+                  formatDate(order.site_visit_date)
+                ) : (
+                  canEditOrder(effectiveRole, order.appraiser_id, user?.id, order.status) && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openVisitDialog(order);
+                      }}
+                    >
+                      Set Site Visit
+                    </Button>
+                  )
+                )}
+              </td>
+              <td className="px-4 py-2">{order.due_date ? formatDate(order.due_date) : "—"}</td>
+              <td className="px-4 py-2">
+                {canDeleteOrder(effectiveRole) && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteOrder(order.id);
+                    }}
+                  >
+                    Delete
+                  </Button>
+                )}
               </td>
             </tr>
           ))}
@@ -131,24 +160,33 @@ export default function OrdersTable({ orders, hideAppraiserColumn = false, role 
 
       {/* Pagination */}
       <div className="flex justify-center items-center mt-4 gap-4">
-        <button
+        <Button
           onClick={() => goToPage(currentPage - 1)}
           disabled={currentPage === 1}
-          className="px-3 py-1 border rounded bg-white hover:bg-gray-100 disabled:opacity-50"
+          variant="outline"
         >
           Prev
-        </button>
+        </Button>
         <span className="text-sm text-gray-700">
           Page {currentPage} of {totalPages}
         </span>
-        <button
+        <Button
           onClick={() => goToPage(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className="px-3 py-1 border rounded bg-white hover:bg-gray-100 disabled:opacity-50"
+          variant="outline"
         >
           Next
-        </button>
+        </Button>
       </div>
+
+      {/* Drawer for order details */}
+      <Drawer open={!!selectedOrder} onOpenChange={(open) => !open && closeDrawer()}>
+        <DrawerContent className="max-h-[90vh] overflow-auto">
+          {selectedOrder && (
+            <OrderDrawerContent data={selectedOrder} />
+          )}
+        </DrawerContent>
+      </Drawer>
 
       {/* Dialog for Setting Site Visit */}
       <Dialog open={appointmentDialogOpen} onOpenChange={setAppointmentDialogOpen}>
@@ -158,7 +196,7 @@ export default function OrdersTable({ orders, hideAppraiserColumn = false, role 
           </DialogHeader>
           <div className="space-y-4">
             <Input
-              type="date"  // Date picker; use "datetime-local" if time is needed
+              type="date"
               value={visitDate}
               onChange={(e) => setVisitDate(e.target.value)}
               className="w-full"

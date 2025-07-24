@@ -1,5 +1,6 @@
 // lib/hooks/useOrderEvents.js
 import holidays from '@/data/usHolidays2025.json';
+import { canViewSiteVisit, canViewReviewDue, canViewDueDate } from '@/lib/utils/permissions'; // Import new permissions
 
 const useOrderEvents = ({ orders = [], user, filters = {}, compact = false }) => {
   const allEvents = [];
@@ -8,7 +9,7 @@ const useOrderEvents = ({ orders = [], user, filters = {}, compact = false }) =>
     orders.forEach(order => {
       if (
         order.site_visit_date &&
-        (user.role === 'admin' || (user.role === 'appraiser' && order.appraiser_id === user.id))
+        canViewSiteVisit(user.role, order.appraiser_id, user.id) // Replaced inline check
       ) {
         allEvents.push({
           title: `📍 ${order.address}`,
@@ -26,7 +27,7 @@ const useOrderEvents = ({ orders = [], user, filters = {}, compact = false }) =>
     orders.forEach(order => {
       if (
         order.review_due_date &&
-        (user.role === 'admin' || user.role === 'reviewer') &&
+        canViewReviewDue(user.role, order.status) && // Replaced; assumes reviewer check
         ['Needs Review'].includes(order.status)
       ) {
         allEvents.push({
@@ -45,7 +46,7 @@ const useOrderEvents = ({ orders = [], user, filters = {}, compact = false }) =>
     orders.forEach(order => {
       if (
         order.due_date &&
-        (user.role === 'admin' || (user.role === 'appraiser' && order.appraiser_id === user.id))
+        canViewDueDate(user.role, order.appraiser_id, user.id) // Replaced inline check
       ) {
         allEvents.push({
           title: `⏰ ${order.address}`,

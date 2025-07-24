@@ -1,48 +1,45 @@
-import React, { useEffect, useState } from 'react';
-import supabase from '@/lib/supabaseClient';
-import { useSession } from '@/lib/hooks/useSession';
+import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import DashboardCalendar from '@/components/DashboardCalendar';
 import DashboardCard from '@/components/DashboardCard';
 import OrdersTable from '@/components/orders/OrdersTable';
+import supabase from '@/lib/supabaseClient';
+import { useSession } from '@/lib/hooks/useSession'; // Import useSession for role and user
 
 const AdminDashboard = () => {
-  const { user } = useSession();
+  const { user, isAdmin, isReviewer } = useSession(); // Get session details
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
+  // Fetch orders based on role
   useEffect(() => {
-    if (!user) return;
-
     const fetchOrders = async () => {
-      setLoading(true);
+      let query = supabase.from('orders').select('*'); // Add joins if needed: .select('*, users!appraiser_id(*), clients!client_id(*)')
 
-      const { data, error } = await supabase
-        .from('orders')
-        .select(`
-          *,
-          client:client_id ( name ),
-          appraiser:appraiser_id ( name )
-        `)
-        .order('id', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching orders:', error);
-        setOrders([]);
-      } else {
-        const transformed = data.map(order => ({
-          ...order,
-          client_name: order.client?.name || order.manual_client || '—',
-          appraiser_name: order.appraiser?.name || order.manual_appraiser || '—',
-        }));
-        setOrders(transformed);
+      if (!isAdmin && !isReviewer) { // For non-admins (e.g., appraisers), filter by their ID; adjust field if not 'appraiser_id'
+        query = query.eq('appraiser_id', user.id);
       }
 
+      const { data, error: fetchError } = await query;
+      console.log('Fetching as admin?', isAdmin); // Debug
+      console.log('User ID:', user?.id); // Debug
+      console.log('Fetched raw data:', data); // Debug
+      if (fetchError) {
+        console.error('Orders fetch error:', fetchError);
+        setError(fetchError.message);
+      } else {
+        setOrders(data || []);
+      }
       setLoading(false);
     };
-
     fetchOrders();
-  }, [user]);
+  }, [isAdmin, isReviewer, user.id]);
+
+  if (error) return <div>Error: {error}</div>; // Optional error handling
+
+  // Filter to show all orders except completed
+  const openOrders = orders.filter(order => order.status !== 'Completed');
 
   return (
     <div className="p-6 space-y-6">
@@ -56,7 +53,7 @@ const AdminDashboard = () => {
       {/* Orders Table Section */}
       <Card className="p-6">
         <h2 className="text-xl font-medium mb-4 text-gray-700">📋 Open Orders</h2>
-        <OrdersTable orders={orders} loading={loading} />
+        <OrdersTable orders={openOrders} loading={loading} />
       </Card>
     </div>
   );

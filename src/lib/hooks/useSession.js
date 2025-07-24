@@ -7,10 +7,10 @@ import { internalUseUser } from '@/context/UserContext';
  */
 export const useSession = () => {
   const { user, loading } = internalUseUser();
-
+  console.log('Current user:', user); // Add this
   return {
-    user,     // user object from Supabase 'users' table
-    loading,  // true while checking auth/session status
+    user,
+    loading,
     isLoggedIn: !!user,
     isAdmin: user?.role === 'admin',
     isAppraiser: user?.role === 'appraiser',

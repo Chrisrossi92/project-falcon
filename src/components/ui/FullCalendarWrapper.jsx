@@ -3,6 +3,8 @@ import React, { forwardRef } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
+import timeGridPlugin from '@fullcalendar/timegrid';
+import listPlugin from '@fullcalendar/list';
 
 const FullCalendarWrapper = forwardRef(({ 
   events = [],
@@ -13,7 +15,7 @@ const FullCalendarWrapper = forwardRef(({
   return (
     <FullCalendar
       ref={ref}
-      plugins={[dayGridPlugin, interactionPlugin]}
+      plugins={[dayGridPlugin, timeGridPlugin, listPlugin]}
       initialView={initialView}
       events={events}
       eventClick={onEventClick}
@@ -36,11 +38,11 @@ const FullCalendarWrapper = forwardRef(({
         }
       }}
       views={{
-        dayGridTwoWeek: {
+        twoWeeks: {
           type: 'dayGrid',
           duration: { weeks: 2 },
-          buttonText: 'Two Weeks'
-        }
+          buttonText: 'Two Weeks',
+        },
       }}
       buttonText={{
         today: 'Today',

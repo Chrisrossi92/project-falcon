@@ -1,6 +1,6 @@
 // components/ui/drawer.jsx
 import * as React from 'react';
-import { Drawer } from '@radix-ui/react-dialog'; // or @radix-ui/react-drawer if it exists
+import { Drawer as RadixDrawer } from '@radix-ui/react-dialog'; // Renamed import to avoid conflict; adjust package if it's not dialog-based
 
 const Drawer = React.forwardRef(({ className, ...props }, ref) => {
   return <RadixDrawer className={className} ref={ref} {...props} />;

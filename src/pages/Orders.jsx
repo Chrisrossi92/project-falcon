@@ -1,110 +1,119 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import OrdersTable from '@/components/orders/OrdersTable';
-import { useSession } from '@/lib/hooks/useSession';
+import { Button } from '@/components/ui/button';
 import supabase from '@/lib/supabaseClient';
-import { Link } from 'react-router-dom';
+import { useSession } from '@/lib/hooks/useSession'; // Import useSession for role and user
 
 const Orders = () => {
+  const { user, isAdmin, isAppraiser, isReviewer } = useSession(); // Get session details
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useSession();
 
-  const [statusFilter, setStatusFilter] = useState(null);
-  const [appraiserFilter, setAppraiserFilter] = useState(null);
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [orders, setOrders] = useState([]); // State for orders
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [filteredOrders, setFilteredOrders] = useState([]);
+  const [statusFilter, setStatusFilter] = useState('');
+  const [appraiserFilter, setAppraiserFilter] = useState('');
   const [sortField, setSortField] = useState('id');
-  const [sortAsc, setSortAsc] = useState(true);
+  const [sortAsc, setSortAsc] = useState(false);
 
+  // Fetch orders based on role
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    setStatusFilter(params.get('status') || null);
-    setAppraiserFilter(params.get('appraiser') || null);
-  }, [location.search]);
-
-  useEffect(() => {
-    if (!user) return;
-
     const fetchOrders = async () => {
-      setLoading(true);
+      let query = supabase.from('orders').select('*'); // Add joins if needed: .select('*, users!appraiser_id(*), clients!client_id(*)')
 
-      let query = supabase
-        .from('orders')
-        .select(`
-          *,
-          client:client_id ( name ),
-          branch:branch_id ( name ),
-          appraiser:appraiser_id ( name )
-        `)
-        .order(sortField, { ascending: sortAsc });
-
-      if (user.role === 'appraiser') {
+      if (!isAdmin && !isReviewer) { // For appraisers, filter by their ID; adjust field if not 'appraiser_id'
         query = query.eq('appraiser_id', user.id);
-      } else if (user.role === 'reviewer') {
-        query = query.in('status', ['In Review', 'Needs Review']);
       }
 
-      if (statusFilter) {
-        query = query.eq('status', statusFilter);
-      }
-      if (appraiserFilter) {
-        query = query.eq('appraiser_id', appraiserFilter);
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('Error fetching orders:', error);
-        setOrders([]);
+      const { data, error: fetchError } = await query;
+      console.log('Fetching as admin?', isAdmin); // Debug
+      console.log('User ID:', user?.id); // Debug
+      console.log('Fetched raw data:', data); // Debug
+      if (fetchError) {
+        console.error('Orders fetch error:', fetchError);
+        setError(fetchError.message);
       } else {
-        const transformed = data.map(order => ({
-          ...order,
-          client_name: order.client?.name || order.manual_client || '—',
-          branch_name: order.branch?.name || '',
-          appraiser_name: order.appraiser?.name || order.manual_appraiser || '—',
-        }));
-
-        setOrders(transformed);
+        setOrders(data || []);
       }
-
       setLoading(false);
     };
-
     fetchOrders();
-  }, [user, statusFilter, appraiserFilter, sortField, sortAsc]);
+  }, [isAdmin, isReviewer, user.id]);
+
+  // Parse URL params on load
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    setStatusFilter(params.get('status') || '');
+    setAppraiserFilter(params.get('appraiser') || '');
+  }, [location.search]);
+
+  // Apply client-side filters and sort whenever orders or filters change
+  useEffect(() => {
+    let tempOrders = [...orders];
+
+    // Apply status filter if set
+    if (statusFilter) {
+      tempOrders = tempOrders.filter(order => order.status === statusFilter);
+    }
+
+    // Apply appraiser filter if set (for admins/reviewers; appraisers already filtered)
+    if (appraiserFilter && (isAdmin || isReviewer)) {
+      tempOrders = tempOrders.filter(order => order.appraiser_id === appraiserFilter);
+    }
+
+    // Sort
+    tempOrders.sort((a, b) => {
+      let valA = a[sortField];
+      let valB = b[sortField];
+      if (typeof valA === 'string') valA = valA.toLowerCase();
+      if (typeof valB === 'string') valB = valB.toLowerCase();
+      if (valA < valB) return sortAsc ? -1 : 1;
+      if (valA > valB) return sortAsc ? 1 : -1;
+      return 0;
+    });
+
+    setFilteredOrders(tempOrders);
+  }, [orders, statusFilter, appraiserFilter, sortField, sortAsc, isAdmin, isReviewer]);
 
   const handleClearFilter = () => {
-    navigate('/orders');
-    setStatusFilter(null);
-    setAppraiserFilter(null);
+    setStatusFilter('');
+    setAppraiserFilter('');
+    navigate('/orders'); // Clear URL params
   };
+
+  const toggleSort = (field) => {
+    if (sortField === field) {
+      setSortAsc(!sortAsc);
+    } else {
+      setSortField(field);
+      setSortAsc(true);
+    }
+  };
+
+  if (error) return <div>Error loading orders: {error}</div>;
 
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-semibold">Orders</h1>
-        <Link to="/orders/new">
-          <button className="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 transition">
-            + New Order
-          </button>
-        </Link>
-        {(statusFilter || appraiserFilter) && (
-          <button
-            onClick={handleClearFilter}
-            className="bg-gray-100 border border-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-200"
-          >
-            Clear Filter
-          </button>
-        )}
+        <Button onClick={() => navigate('/orders/new')}>+ New Order</Button> // Assuming create route
       </div>
+
+      {/* Filters UI - add dropdowns for status/appraiser if not already */}
+      {/* Example: <select value={statusFilter} onChange={(e) => setStatusFilter(e.value)}>...</select> */}
+      {/* Update URL on change: navigate(`?status=${newVal}`) */}
+
+      <Button variant="outline" onClick={handleClearFilter} className="mb-4">Clear Filters</Button>
+
       <OrdersTable
-        orders={orders}
+        orders={filteredOrders}
         loading={loading}
         sortField={sortField}
-        setSortField={setSortField}
         sortAsc={sortAsc}
-        setSortAsc={setSortAsc}
+        onSortToggle={toggleSort} // Pass if table has sort headers
       />
     </div>
   );
