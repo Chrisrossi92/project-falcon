@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Drawer } from '@/components/ui/drawer'; // Assume shadcn/ui Drawer or similar; import if not
+import { Drawer, DrawerContent } from "vaul"; // Updated import to include DrawerContent
 import OrderDrawerContent from '@/components/orders/OrderDrawerContent'; // Adjust path if needed
 import { useSession } from '@/lib/hooks/useSession';
 import supabase from '@/lib/supabaseClient';
