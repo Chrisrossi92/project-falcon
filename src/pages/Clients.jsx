@@ -3,6 +3,8 @@ import supabase from "../lib/supabaseClient";
 import { useNavigate } from "react-router-dom";
 import { useSession } from '@/lib/hooks/useSession';
 import ClientsTable from "@/components/clients/ClientsTable";
+import ClientDrawerContent from "@/components/clients/ClientDrawerContent";
+
 
 const Clients = () => {
   const { user } = useSession();
