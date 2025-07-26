@@ -1,12 +1,12 @@
-// src/components/orders/OrdersTable.jsx
-import React, { useState } from "react";
-import { useSession } from "@/lib/hooks/useSession";
-import { useRole } from "@/lib/hooks/useRole";
-import supabase from "@/lib/supabaseClient";
-
-import OrdersTableHeader from "@/components/orders/OrdersTableHeader";
-import OrdersTableRow from "@/components/orders/OrdersTableRow";
-import OrdersTablePagination from "@/components/orders/OrdersTablePagination";
+import { useState } from "react";
+import { Drawer, DrawerContent } from "vaul"; // Updated import to include DrawerContent
+import OrderDrawerContent from '@/components/orders/OrderDrawerContent'; // Adjust path if needed
+import { useSession } from '@/lib/hooks/useSession';
+import supabase from '@/lib/supabaseClient';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { useRole } from '@/lib/hooks/useRole';
+import { canEditOrder, canDeleteOrder } from '@/lib/utils/permissions';
 
 export default function OrdersTable({
   orders,
@@ -79,11 +79,53 @@ export default function OrdersTable({
         </tbody>
       </table>
 
-      <OrdersTablePagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        goToPage={goToPage}
-      />
+      {/* Pagination */}
+      <div className="flex justify-center items-center mt-4 gap-4">
+        <Button
+          onClick={() => goToPage(currentPage - 1)}
+          disabled={currentPage === 1}
+          variant="outline"
+        >
+          Prev
+        </Button>
+        <span className="text-sm text-gray-700">
+          Page {currentPage} of {totalPages}
+        </span>
+        <Button
+          onClick={() => goToPage(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          variant="outline"
+        >
+          Next
+        </Button>
+      </div>
+
+      {/* Drawer for order details */}
+      <Drawer open={!!selectedOrder} onOpenChange={(open) => !open && closeDrawer()}>
+        <DrawerContent className="max-h-[90vh] overflow-auto">
+          {selectedOrder && (
+            <OrderDrawerContent data={selectedOrder} />
+          )}
+        </DrawerContent>
+      </Drawer>
+
+      {/* Dialog for Setting Site Visit */}
+      <Dialog open={appointmentDialogOpen} onOpenChange={setAppointmentDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Set Site Visit for Order #{selectedOrderForVisit?.id}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Input
+              type="date"
+              value={visitDate}
+              onChange={(e) => setVisitDate(e.target.value)}
+              className="w-full"
+            />
+            <Button onClick={handleSetVisit}>Save</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
