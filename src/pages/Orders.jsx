@@ -99,7 +99,8 @@ const Orders = () => {
     <div className="p-6">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-semibold">Orders</h1>
-        <Button onClick={() => navigate('/orders/new')}>+ New Order</Button> // Assuming create route
+          <Button onClick={() => navigate('/orders/new')}>+ New Order</Button>
+        
       </div>
 
       {/* Filters UI - add dropdowns for status/appraiser if not already */}
