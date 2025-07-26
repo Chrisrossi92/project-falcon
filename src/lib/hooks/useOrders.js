@@ -14,6 +14,7 @@ export const useOrders = () => {
 
   const fetchOrders = async () => {
     setLoading(true);
+
     let query = supabase
       .from('orders')
       .select(`
@@ -47,20 +48,10 @@ export const useOrders = () => {
 
   useEffect(() => {
     if (!user || !role) return;
-
     fetchOrders();
 
-    // Subscribe to realtime changes
-    const channel = supabase.channel('orders-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
-        fetchOrders(); // Re-fetch on any insert/update/delete
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    // No realtime subscription here
   }, [user, role]);
 
-  return { orders, loading, error };
+  return { orders, loading, error, refresh: fetchOrders };
 };
