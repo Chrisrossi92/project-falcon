@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import { Drawer } from "@/components/ui/drawer";
 
@@ -21,6 +21,11 @@ export default function OrdersTable({
 
   // Local state
   const [localOrders, setLocalOrders] = useState(orders);
+    // Sync localOrders when orders prop changes
+  useEffect(() => {
+    setLocalOrders(orders);
+  }, [orders]);
+
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
 
