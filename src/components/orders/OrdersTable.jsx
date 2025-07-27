@@ -22,7 +22,18 @@ export default function OrdersTable({
 }) {
   const { user } = useSession();
   const { role } = useRole();
-  const effectiveRole = role || propRole;
+  
+  const [appointmentDialogOpen, setAppointmentDialogOpen] = useState(false);
+  const [selectedOrderForVisit, setSelectedOrderForVisit] = useState(null);
+  const [visitDate, setVisitDate] = useState("");
+  const handleSetVisit = () => {
+    // Placeholder: implement saving visit logic
+    setAppointmentDialogOpen(false);
+  };
+  const closeDrawer = () => {
+    setSelectedOrder(null);
+  };
+const effectiveRole = role || propRole;
 
   // Local state
   const [localOrders, setLocalOrders] = useState(orders);
