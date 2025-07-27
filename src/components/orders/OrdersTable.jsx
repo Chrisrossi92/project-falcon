@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import OrdersTableHeader from "@/components/orders/OrdersTableHeader";
+import OrdersTableRow from "@/components/orders/OrdersTableRow";
 
 import { Drawer } from "@/components/ui/drawer";
 
