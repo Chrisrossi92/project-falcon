@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { Drawer, DrawerContent } from "vaul"; // Updated import to include DrawerContent
-import OrderDrawerContent from '@/components/orders/OrderDrawerContent'; // Adjust path if needed
+
+import { Drawer } from "@/components/ui/drawer";
+
+
 import { useSession } from '@/lib/hooks/useSession';
 import supabase from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
@@ -102,11 +104,11 @@ export default function OrdersTable({
 
       {/* Drawer for order details */}
       <Drawer open={!!selectedOrder} onOpenChange={(open) => !open && closeDrawer()}>
-        <DrawerContent className="max-h-[90vh] overflow-auto">
+        <div className="max-h-[90vh] overflow-auto">
           {selectedOrder && (
             <OrderDrawerContent data={selectedOrder} />
           )}
-        </DrawerContent>
+        </div>
       </Drawer>
 
       {/* Dialog for Setting Site Visit */}
