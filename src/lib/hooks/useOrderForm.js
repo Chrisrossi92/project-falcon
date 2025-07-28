@@ -21,6 +21,7 @@ export const useOrderForm = ({ order, setOrder }) => {
   const [manualClient, setManualClient] = useState(order.manual_client || '');
   const [isCustomClient, setIsCustomClient] = useState(order.client_id === null);
   const [reviewDueDate, setReviewDueDate] = useState(order.review_due_date || '');
+  const [siteVisitAt, setSiteVisitAt] = useState(order.site_visit_at || '');
 
   const {
     editedData,

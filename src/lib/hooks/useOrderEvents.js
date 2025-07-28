@@ -8,7 +8,7 @@ const useOrderEvents = ({ orders = [], user, filters = {}, compact = false }) =>
   if (filters.site) {
     orders.forEach(order => {
       if (
-        order.site_visit_date &&
+        order.site_visit_at &&
         canViewSiteVisit(user.role, order.appraiser_id, user.id) // Replaced inline check
       ) {
         allEvents.push({

@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import OrderDetailForm from './OrderDetailForm';
-import { Loader2 } from 'lucide-react';
-import supabase from '@/lib/supabaseClient';
+import React, { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { Loader2 } from "lucide-react";
+import supabase from "@/lib/supabaseClient";
+import OrderForm from "@/components/orders/OrderForm"; // Updated import
 
 export default function OrderDetail() {
   const { id } = useParams();
@@ -14,24 +14,24 @@ export default function OrderDetail() {
   useEffect(() => {
     const fetchOrder = async () => {
       const { data, error } = await supabase
-        .from('orders')
+        .from("orders")
         .select(`
           *,
           client:client_id ( name ),
           appraiser:appraiser_id ( name )
         `)
-        .eq('id', id)
+        .eq("id", id)
         .single();
 
       if (error || !data) {
-        console.error('Error fetching order:', error?.message);
-        setError('Order not found.');
-        navigate('/dashboard'); // fallback to dashboard
+        console.error("Error fetching order:", error?.message);
+        setError("Order not found.");
+        navigate("/dashboard");
       } else {
         const transformed = {
           ...data,
-          client_name: data.client?.name || data.manual_client || '—',
-          appraiser_name: data.appraiser?.name || data.manual_appraiser || '—',
+          client_name: data.client?.name || data.manual_client || "—",
+          appraiser_name: data.appraiser?.name || data.manual_appraiser || "—",
         };
         setOrder(transformed);
       }
@@ -51,18 +51,15 @@ export default function OrderDetail() {
   }
 
   if (error) {
-    return (
-      <div className="p-6 text-red-600 font-medium">
-        {error}
-      </div>
-    );
+    return <div className="p-6 text-red-600 font-medium">{error}</div>;
   }
 
   return (
     <div className="max-w-4xl mx-auto p-6">
       <h1 className="text-2xl font-bold mb-4">Edit Order #{order.id}</h1>
-      <OrderDetailForm order={order} setOrder={setOrder} />
+      <OrderForm order={order} setOrder={setOrder} mode="edit" />
     </div>
   );
 }
+
 
