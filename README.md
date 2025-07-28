@@ -1,714 +1,315 @@
-# 🛠️ Project Falcon Overview
-
-## 📌 What Is Falcon?
-**Falcon** is an internal web platform for **Continental Real Estate Solutions**, designed to:
-- Track commercial appraisal orders
-- Manage clients, appraisers, reviewers, and assignment workflow
-- Streamline scheduling, delivery, and activity logging
-- Centralize operations for the full team (Mike, Pam, Chris, Abby, etc.)
-
-## 🧑‍💼 Target Users
-| Role       | Access Summary                                                                 |
-|------------|---------------------------------------------------------------------------------|
-| **Admin**  | Full access to orders, clients, users, settings, dashboards                    |
-| **Appraiser** | Sees only their own orders and calendar items. Can update progress.         |
-| **Reviewer** | Sees orders needing review. Read-only access to most data.                   |
-| **Client** | ❌ No client login (internal platform only)                                     |
-
-## 🧭 Core Functionality
-
-### ✅ Orders Management
-- Create, edit, delete orders (admin)
-- Filter by status, appraiser, or due date
-- Track:
-  - Status (`In Progress`, `Needs Review`, etc.)
-  - Due dates (site visit, review, final)
-  - Appraiser and fee split
-  - Client info (selectable or manual)
-- Inline editing of orders via `OrderDetailForm`
-- Live activity log per order
-
-### ✅ Clients Management
-- Add/edit/delete clients
-- View client-specific details via drawers
-- Manual override allowed when client is not in database
-
-### ✅ Users Management
-- Add/edit/delete users
-- Assign appraisers to jobs with automated split logic
-- Reviewer and Admin roles shown with caps and permissions
-
-### ✅ Dashboard
-- Role-based dashboard views:
-  - **Admin**: Calendar + recent orders + quick stats
-  - **Appraiser**: Assigned orders + calendar + status cards
-- Calendar shows:
-  - 📍 Site visits
-  - 🔍 Review dates
-  - ⏰ Due dates
-  - 🎉 Holidays
-
-### ✅ Calendar
-- Based on `@fullcalendar/react`
-- Admins see **all events**
-- Appraisers see **their own jobs**
-- Reviewers see only **orders needing review**
-- Clickable entries link to `OrderDetail`
-
-### ✅ Activity Log
-- Every key action (create, edit, update, complete, etc.) is logged
-- Logs include:
-  - User name
-  - Timestamp
-  - Role
-  - Context (e.g., "Marked complete: 212 Brunell")
-- Admin and Appraiser visibility logic (`visible_to` array)
-
-## 💅 UI/UX Design Goals
-
-| Element            | Style Choice                         |
-|--------------------|--------------------------------------|
-| **Styling**        | Tailwind CSS                         |
-| **Component Base** | ShadCN UI-inspired + custom elements |
-| **Icons**          | `lucide-react`                       |
-| **Forms**          | Native inputs with Tailwind styling  |
-| **Map**            | Leaflet for static previews          |
-| **Calendar**       | FullCalendar with event styling      |
-| **Drawer Panels**  | Radix or custom sliding panels       |
-| **Tables**         | Clean, sortable, expandable rows     |
-| **Cards**          | Rounded, hoverable summary views     |
-
-## 🔌 Tech Stack
-
-| Layer         | Stack                      |
-|---------------|----------------------------|
-| **Frontend**  | React + Vite               |
-| **State**     | Custom hooks + Context API |
-| **Backend**   | Supabase (PostgreSQL + Auth + Storage) |
-| **UI**        | Tailwind, Headless UI, Lucide Icons |
-| **Calendar**  | FullCalendar               |
-| **Maps**      | Leaflet (static previews)  |
-| **Forms**     | Controlled inputs (no external form libs) |
-| **Build Tool**| Vite + Tailwind + PostCSS  |
-
-## 🔒 Permissions Model
-
-| Feature               | Admin | Appraiser | Reviewer |
-|-----------------------|:-----:|:---------:|:--------:|
-| View all orders       | ✅    | ❌ (only own) | ❌ (only 'In Review') |
-| Create/edit/delete    | ✅    | ✅ (own only) | ❌ |
-| Submit new orders     | ✅    | ❌         | ❌ |
-| Assign appraisers     | ✅    | ❌         | ❌ |
-| Edit users/clients    | ✅    | ❌         | ❌ |
-| View calendar         | ✅    | ✅         | ✅ |
-| See activity log      | ✅    | ✅ (limited) | ✅ |
-
-## ⚠️ Known Gaps / Open Tasks
-- [ ] Improve styling of calendar to match full UI
-- [ ] Finalize review workflows (marking as complete)
-- [ ] Add notification or alert logic (optional)
-- [ ] Implement sorting/filtering across all table views
-- [ ] Add Settings page content (currently a stub)
-- [ ] Add static assets folder (`/images/`) for UI icons
-- [ ] Add error fallback page and login redirect protection
-
-# 📁 Project Falcon Component Overview
-
-## 🧩 components/clients
-
-Handles all UI and logic related to the client records within the Falcon platform.
-
-- **ClientCard.jsx** – Compact visual representation of a client. Used in card-style views.
-- **ClientDetail.jsx** – Detailed view for a single client, used in full-page views or modals.
-- **ClientForm.jsx** – Form for adding/editing client info. Used by admins.
-- **ClientList.jsx** – Displays multiple clients in a scrollable or paginated list.
-- **ClientView.jsx** – Wrapper component for displaying a selected client's information (may combine detail and list or conditionally render them).
-
-
-## 📁 components/orders
-
-This folder contains all order-related UI logic including cards, tables, sidebars, and drawers.
-
-- `OrderCard.jsx` – Compact summary card for individual orders. Used in dashboards.
-- `ActiveOrdersList.jsx` – Scrollable list of active orders with selection + highlight logic.
-- `OrdersTable.jsx` – Main table layout for order listings. Supports drawer expansion.
-- `OrderDrawerContent.jsx` – Drawer content wrapper. Loads full order and splits layout into detail + sidebar.
-- `OrderDetailPanel.jsx` – Left-side detail grid using `<MetaItem>`. Conditionally shows admin data.
-- `OrderSidebarPanel.jsx` – Right-side drawer panel with map, key dates, and activity log.
-
-## 📁 components/ui
-
-Reusable UI elements styled with Tailwind and built on headless primitives or native HTML.
-
-- `button.jsx` – Configurable `<Button>` with variant support. Uses `@radix-ui/react-slot`.
-- `calendar.jsx` – React Calendar wrapper (`react-calendar`). Optional default CSS.
-- `card.jsx` – Standardized card layout (`Card`, `CardHeader`, `CardContent`).
-- `drawer.jsx` – Drawer wrapper based on Radix. ⚠️ Currently missing `RadixDrawer` import.
-- `form.jsx` – Minimal `<FormField>` wrapper with optional label.
-- `label.jsx` – Accessible form `<Label>`, styled with Tailwind.
-- `map.jsx` – Leaflet-based map using `MapContainer` and markers.
-- `select.jsx` – Styled `<select>` input.
-- `textarea.jsx` – Styled `<textarea>` with responsive sizing.
-
-**Import Convention:** All components are named exports. Use:
-```js
-import { Button } from '@/components/ui/button';
-
-## 📁 components/users
-
-Handles the display of user records in table format with expandable drawer details.
-
-### `UsersTable.jsx`
-- Renders a styled table of users.
-- Columns:
-  - User ID
-  - Name
-  - Role (capitalized)
-- Clicking a row opens a drawer via the shared `TableDrawer` component.
-- Tracks selected user using `useState`.
-- Usage:
-  ```js
-  import UsersTable from '@/components/users/UsersTable';
-
-  ## 📁 components/ (top-level)
-
-These components support global layout, dashboards, activity logs, shared UI elements, and data drawers.
-
-### `ActivityLogCard.jsx`
-- Displays a single activity log entry.
-- Shows user name, action, and timestamp.
-- Used in activity log views.
-
-### `ActivityLogPanel.jsx`
-- Fetches and displays a list of activities for a given `orderId` from Supabase.
-- Uses `ActivityLogCard` for each log entry.
-- Displays fallback text when loading or empty.
-
-### `Badge.jsx`
-- Status badge with variant styles.
-- Supported `type`s: `default`, `inProgress`, `review`, `completed`.
-- Used in tables and cards to highlight status.
-
-### `ContactForm.jsx`
-- Controlled form for entering or editing contact info (name, email, phone).
-- `onAdd()` callback used to trigger external save.
-- Styled with basic Tailwind form classes.
-
-### `DashboardCalendar.jsx`
-- Full-featured calendar using `@fullcalendar/react`.
-- Fetches orders and appointments from Supabase.
-- Displays events by type (📍 Site, 🔍 Review, ⏰ Due, 🎉 Holiday).
-- Supports compact mode and filters based on role.
-
-### `DashboardCard.jsx`
-- Reusable card component for dashboard modules.
-- Optional `title`, `children`, and `className` props.
-- Applies consistent padding, rounded corners, and hover effects.
-
-### `FloatingActivityLog.jsx`
-- Draggable, expandable activity widget fixed to bottom-left of the screen.
-- Displays the 20 most recent visible logs for current user role.
-- Uses `react-draggable` and Supabase for fetching.
-- Toggle buttons to expand/collapse or close.
-
-### `KeyDateCard.jsx`
-- Displays a labeled date with optional icon inside a `Card`.
-- Used in drawers to highlight things like site visits or due dates.
-
-### `MapContainer.jsx`
-- Static Google Maps embed for a given `lat` and `lng`.
-- Renders a styled, responsive container with an iframe.
-- Used in side panels to preview property location.
-
-### `MetaItem.jsx`
-- Displays a label + value row.
-- Used in data panels (e.g. OrderDetailPanel) for showing structured info.
-
-### `SectionHeader.jsx`
-- Consistent section heading renderer.
-- Used in layouts or detail views for visual separation.
-
-### `Sidebar.jsx`
-- Main sidebar navigation component.
-- Uses `NavLink` to highlight the active route.
-- Includes links to Dashboard, Orders, Clients, Users, and Calendar.
-
-### `SidebarLink.jsx`
-- Custom link component for sidebar usage.
-- Highlights active route with blue background and subtle shadow.
-- Accepts `to` and `label` props.
-
-### `SummaryCard.jsx`
-- Clickable stat box used in dashboard views.
-- Accepts `label`, `count`, `color`, and `onClick`.
-- Styled with Tailwind borders, shadows, and center alignment.
-
-### `TableDrawer.jsx`
-- Wrapper for rendering entity-specific detail panels (Order, Client, User).
-- Props: `isOpen`, `onClose`, `data`, `type`.
-- Dynamically selects the correct detail component:
-  - `OrderDrawerContent`, `ClientDrawerContent`, `UserDrawerContent`
-- Styled as a white rounded box with a close button.
-
-## 📁 context
-
-Context providers for managing application-wide user state and authentication.
-
-### `UserContext.jsx`
-- Creates a React context to share user session info throughout the app.
-- Uses Supabase to:
-  - Fetch the current session
-  - Load the user’s profile from the `users` table
-- Automatically refreshes on:
-  - Sign in
-  - Token refresh
-  - Sign out
-- Provides:
-  - `user` (entire profile row)
-  - `loading` (boolean while session/profile is loading)
-- Usage:
-  ```js
-  import { internalUseUser } from '@/context/UserContext';
-  const { user, loading } = internalUseUser();
-
-## 📁 data
-
-This folder contains static and sample data used for seeding or supporting calendar and dashboard functionality.
-
-### `generateholidays.js`
-- Node script that uses `date-holidays` to fetch U.S. public holidays for 2025.
-- Filters only `type === 'public'` holidays.
-- Outputs result to `usHolidays2025.json`.
-- Run manually to regenerate the holiday file:
-  ```bash
-  node src/data/generateholidays.js
-
-  ## 📁 layout
-
-Defines the top-level layout structure shared across all app pages.
-
-### `Layout.jsx`
-- Wraps all pages in a consistent shell:
-  - Sidebar with navigation links
-  - Main content area using `<Outlet />`
-  - Floating activity log component
-- Navigation:
-  - Uses `NavLink` to highlight current route
-  - Role-based: only shows Clients/Users for admins, Calendar for non-reviewers
-- Handles logout via Supabase and redirects to `/login`
-- Tailwind-styled with sidebar width `w-64` and light background
-
-**Components Used:**
-- `FloatingActivityLog`
-- `useSession()` from `hooks/useSession`
-- `supabase.auth.signOut()`
-
-**Routing Integration:**
-- Must be nested inside `BrowserRouter`
-- All routed content is injected via `<Outlet />`
-
-## 📁 lib/hooks
-
-Custom React hooks for managing shared form logic and user session state.
-
-### `useEditableForm.js`
-- Manages local state for form editing.
-- Tracks a copy of `initialData` and updates when it changes (e.g., switching records).
-- Provides:
-  - `editedData`: current form state
-  - `setEditedData`: setter to overwrite the whole form
-  - `handleChange`: for `onChange` handlers (uses `e.target.name`)
-  - `updateField(field, value)`: for programmatic updates:contentReference[oaicite:0]{index=0}
-
-### `useSession.js`
-- Central hook for accessing the authenticated user.
-- Wraps `internalUseUser()` from `UserContext`.
-- Returns:
-  - `user`: full user profile
-  - `loading`: true while session is loading
-  - `isLoggedIn`, `isAdmin`, `isAppraiser`, `isReviewer`: role helpers:contentReference[oaicite:1]{index=1}
-- Use this to avoid duplicating role logic across components.
-
-## 📁 lib
-
-Core utility modules including Supabase client setup, activity logging, and helper functions.
-
-### `supabaseClient.js`
-- Creates and exports a configured Supabase client.
-- Also exports helper functions for:
-  - `getClients()` – fetches all clients
-  - `getUsers()` – fetches all users
-  - `updateOrder(order)` – updates an order record by ID
-- All errors are caught and logged to the console:contentReference[oaicite:0]{index=0}
-
-### `logactivity.js`
-- Centralized function for inserting activity records into the `activity_log` table.
-- Accepts:
-  - `user_id`, `order_id`, `action`, `role`, `visible_to` (array), `context` (object)
-- Logs to Supabase and handles insert errors gracefully:contentReference[oaicite:1]{index=1}
-
-### `utils.js`
-- Utility helpers used across UI and hooks:
-  - `cn(...inputs)` – merges class names using `clsx` and `tailwind-merge`
-  - `formatDate(dateStr)` – formats a date to `Jul 2, 2025` style:contentReference[oaicite:2]{index=2}
-
-  ## 📁 pages/api
-
-Optional API route(s) used for server-side logic in a Vite or hybrid framework context.
-
-### `activites.js`
-- API handler to fetch the latest 20 activity log entries for a specific `orderId`.
-- Filters only logs visible to appraisers (`visible_to_appraiser: true`).
-- Sorts logs in descending order by timestamp.
-- Returns:
-  - `400` if `orderId` is missing
-  - `500` if Supabase query fails
-  - `200` with log data on success
-- Used if deploying on a platform that supports serverless routes (e.g., Vercel):contentReference[oaicite:0]{index=0}
-
-> 🟡 **Note:** This file may be redundant. If you're directly querying Supabase client-side (as in `FloatingActivityLog.jsx`), you can likely delete this unless you need server protection or middleware later.
-
-## 📁 pages (Part 1 of 2)
-
-These are the top-level routed pages for the Falcon platform. Each one corresponds to a user-facing screen.
-
-### `AdminDashboard.jsx`
-- Shown to users with `admin` role.
-- Displays two main sections:
-  - 📅 Calendar of upcoming due/review events
-  - 📝 Recent orders (most recent 5)
-- Uses `<OrderCard />` components inside a `Card` UI shell:contentReference[oaicite:0]{index=0}
-
-### `AppraiserDashboard.jsx`
-- Similar to AdminDashboard but scoped to only orders assigned to the current appraiser.
-- Uses `<SummaryCard />` for quick stats and `<OrderCard />` for recent jobs.
-
-### `ClientDetail.jsx`
-- Dynamic route for editing or viewing a single client.
-- Uses `useParams()` to detect `clientId` and loads from Supabase.
-- Includes full form UI for editing fields.
-
-### `Clients.jsx`
-- Admin-only route to manage clients.
-- Fetches all clients and renders a `<ClientsTable />` with drawer details.
-- Includes "+ Add Client" button that links to `/clients/new`:contentReference[oaicite:1]{index=1}
-
-### `Dashboard.jsx`
-- Determines which dashboard component to show based on user role:
-  - `admin` → `<AdminDashboard />`
-  - `appraiser` → `<AppraiserDashboard />`
-  - unknown → error message
-- Gets role from `user_metadata.role` after login:contentReference[oaicite:2]{index=2}
-
-### `EditClient.jsx`
-- Used for both creating and updating a client.
-- Loads from Supabase if editing an existing record.
-- Includes validation and full controlled form logic:contentReference[oaicite:3]{index=3}
-
-### `EditUser.jsx`
-- Same structure as EditClient but for users.
-- Can add new or edit existing users, including role and commission split.
-- Supports deletion of users and basic error handling:contentReference[oaicite:4]{index=4}
-
-### `ClientsTable.jsx` (in components, not pages)
-- See components/clients.
-
-### `UserDetail.jsx`
-- Alias for EditUser; same functionality, accessed via `/users/:userId`.
-
-### `AppraiserDashboard.jsx`
-- Shows appraiser-specific view: limited to assigned orders and events.
-- Structured similarly to AdminDashboard but with narrower scope.
-
-### `NewOrder.jsx`
-- Admin-only route for creating a new appraisal order.
-- Fetches all clients and appraisers on load and populates dropdowns.
-- Supports manual client entry (`manual_client`) for one-off jobs.
-- Tracks local `formData` state using `useState()`, with helper `handleChange()` and `handleAppraiserSelect()` logic.
-- On submit:
-  - Creates order in Supabase
-  - Logs activity using `logActivity()`
-  - Redirects to `/orders`
-- Basic form UI using native inputs, styled with Tailwind.
-- No external form library used.
-
-### `OrderDetail.jsx`
-- Dynamic route for viewing and editing a single order (`/orders/:id`).
-- Fetches the order by ID using `useParams()` and Supabase `select().single()`.
-- Displays loading spinner (Lucide `<Loader2 />`) while fetching.
-- On error, shows a basic error message.
-
-#### Features:
-- Wraps editable form in `<OrderDetailForm />`, passing:
-  - `order`, `setOrder`
-  - `handleChange()` – updates local state
-  - `handleSave()` – calls Supabase `.update()` and handles saving state
-- Inline form editing experience; no modal or drawer.
-- Uses Tailwind for layout/styling.
-- Does **not** include any client or appraiser display logic — assumes that’s handled by the form component.
-
-### `OrderDetailForm.jsx`
-- Inline form component for editing an order’s full detail set.
-- Consumed inside `OrderDetail.jsx`.
-- Uses custom form hook `useEditableForm()` to track changes and local state.
-- Makes use of global Supabase helpers: `getClients`, `getUsers`, `updateOrder`.
-
-#### Key Features:
-- Supports **manual client name entry** or selecting from client dropdown (`ClientSelector.jsx`).
-- Filters `users` to isolate appraisers.
-- Includes:
-  - Address, status, due dates (client/review/site visit)
-  - Appraiser selection and fee split
-  - Property and report type
-  - Notes, paid status, and client invoice number
-- Image-based calendar icon appears next to date fields (static asset reference: `/images/calendar-icon.png`).
-- Submits data using `handleSave()`, which:
-  - Calls `updateOrder(finalData)`
-  - Shows toast success/error messages
-  - Redirects to `/orders` on success
-- Controlled form layout using `grid`, `shadow`, and Tailwind utility classes.
-- Does **not** handle activity logging — assumes this happens at a higher level.
-
-### `Orders.jsx`
-- Full-page view listing all orders.
-- Pulls from Supabase `orders` table with joined `clients` and `appraisers`.
-- Uses role-aware logic to filter visibility:
-  - **Appraiser**: only sees orders assigned to them.
-  - **Reviewer**: only sees orders with status `In Review` or `Needs Review`.
-  - **Admin**: sees all orders.
-
-#### Features:
-- Accepts filters from URL query string:
-  - `?status=...` and `?appraiser=...`
-  - Filters stored in `statusFilter` and `appraiserFilter` state.
-- Orders list sorted by a selected field (`id` by default), toggled via `setSortField` and `setSortAsc`.
-- Includes “Clear Filter” button that resets state and query string.
-- Renders `OrdersTable` component and passes:
-  - `orders` array (transformed to include `client_name`, `appraiser_name`)
-  - `loading` state
-  - Sort toggles (`sortField`, `sortAsc`, etc.)
-
-#### Notes:
-- Located at `/orders` route.
-- Works in tandem with `OrdersTable.jsx`.
-- May benefit from refactoring into a shared hook if filtering logic expands across other roles or views.
-
-### `Settings.jsx`
-- Static placeholder page for user or system configuration options.
-
-#### Features:
-- Displays a heading: **"Settings"**
-- Shows static text: **"Here you can update your preferences."**
-
-#### Notes:
-- No dynamic content, forms, or settings logic yet.
-- Can later be expanded to include:
-  - User profile preferences
-  - Notification settings
-  - Admin-level configuration options
-
-  ### `UserDetail.jsx`
-- Full-page form to **create, edit, or delete** a user record (Admin only).
-- Used for user management (name, email, role, and fee split %).
-
-#### Features:
-- Supports both **edit** (via `/users/:id`) and **new user** creation (via `/users/new`).
-- Pulls user data from Supabase using `useParams()` on load (unless adding a new user).
-- Form includes:
-  - Name, Email, Role (admin/appraiser/reviewer), Split %
-- Submits data to Supabase:
-  - Inserts if new
-  - Updates if existing
-  - Deletes on confirmation
-- Uses `navigate()` on successful save/delete.
-
-#### Notes:
-- Utilizes local state for form data and saving/loading/error flags.
-- Minimal styling (Tailwind-based).
-- `useSession()` is **not** used here, so access control is assumed at route level.
-
-### `Users.jsx`
-- Main page for **viewing and managing users**.
-- Lists all users in the system, sorted alphabetically by name.
-
-#### Features:
-- **Admin-only** access to add new users via `+ Add User` button (navigates to `/users/new`).
-- Fetches user list from Supabase on page load.
-- Renders:
-  - Loading message during fetch
-  - Error message if fetch fails
-  - Empty state if no users exist
-  - `<UsersTable />` if users are found
-
-#### Imports:
-- `UsersTable` component from `components/users/UsersTable.jsx`
-- Session context via `useSession` to check current user's role
-- `supabaseClient` for DB interaction
-- `useNavigate` from `react-router-dom` for routing
-
-#### Notes:
-- Only users with role `"admin"` see the "Add User" button.
-- Designed with clean Tailwind styling and inline error/loading states.
-
-### `index.html`
-- Main HTML shell for the Falcon Platform (used by Vite as entry point).
-
-#### Purpose:
-- Mounts the React app to the `<div id="root"></div>`.
-- Loads core calendar styles via CDN for **FullCalendar** components.
-
-#### Head Includes:
-- `<link>` to FullCalendar **DayGrid** and **TimeGrid** CSS via CDN:
-  - `@fullcalendar/daygrid@6.1.8/main.min.css`
-  - `@fullcalendar/timegrid@6.1.8/main.min.css`
-
-#### Script:
-- Loads `src/main.jsx` as the application entry point.
-
-#### Notes:
-- No favicon or custom meta tags yet (optional additions).
-- Tailwind CSS and other app-level styling handled through Vite + PostCSS pipeline.
-- Keep these CDN links in sync with your installed `@fullcalendar/*` versions in `package.json`.
-
-### `jsconfig.json`
-- Configuration file that enables absolute imports and modern JavaScript features in the Falcon Platform (for use with Vite + React).
-
-#### Purpose:
-- Helps IDEs (like VSCode) understand module paths.
-- Enables the `@/` alias for cleaner, relative-free imports (e.g., `@/components/Sidebar` instead of `../../../components/Sidebar`).
-
-#### Key Options:
-- `"baseUrl": "."`: Sets the root of the project.
-- `"paths": { "@/*": ["src/*"] }"`: Defines the `@` alias to point to `src/`.
-- `"jsx": "react-jsx"`: Enables the modern JSX transform (used with React 17+).
-- `"module": "ESNext"` and `"target": "ESNext"`: Enables modern JavaScript module syntax.
-- `"allowJs"` / `"checkJs"`: Allow JS files in the project without type-checking (important since you're not using TypeScript).
-
-#### Required?
-✅ Yes — if you're using `@/` imports (which you are), this config is necessary.  
-✅ It also improves developer experience in IDEs by enabling autocompletion and path resolution.
-
-#### Notes:
-- Works in tandem with your **Vite config** and **Babel/ESLint (if present)**.
-- Keep this file version-controlled — it’s part of your build and dev tooling.
-
-### Root Config Files
-
-#### `package.json`
-- Primary manifest for the Falcon Platform.
-- Defines app name, version, scripts, and dependencies.
-- Key scripts:
-  - `dev`: Runs Vite dev server (`vite`)
-  - `build`: Compiles the production build (`vite build`)
-- Includes all essential libraries (React, Supabase, FullCalendar, Tailwind, etc.)
-- Manages your dependency tree; lockfile (`package-lock.json`) reflects the exact installed versions.
-
-#### `package-lock.json`
-- Auto-generated by npm to lock dependency versions.
-- Ensures consistent installs across environments.
-- ⚠️ Do **not edit manually** — commit it to version control.
-
-#### `vite.config.js`
-- Configures Vite (your build tool and dev server).
-- Likely contains the `@` alias for `src/`:
-  ```js
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, 'src')
-    }
-  }
-
-  # 🗃️ Supabase Database Schema
-
-## `orders`
-
-| Column            | Type          | Description                                                             |
-|-------------------|---------------|-------------------------------------------------------------------------|
-| `id`              | int8          | Primary key                                                             |
-| `address`         | text          | Subject property address                                                |
-| `status`          | text          | One of: 'In Progress', 'Needs Review', 'Completed', etc.               |
-| `due_date`        | date          | Final report due date                                                   |
-| `site_visit_date` | date          | Scheduled date for site inspection                                      |
-| `review_due_date` | date          | Internal review due date                                                |
-| `created_at`      | timestamp     | Record creation time (auto-generated)                                   |
-| `updated_at`      | timestamp     | Last updated time (auto-generated)                                      |
-| `notes`           | text          | Internal notes or appraiser instructions                                |
-| `manual_client`   | text          | Manually entered client name (if not linked to DB record)               |
-| `client_id`       | int8 (FK)     | Foreign key → `clients.id`                                              |
-| `appraiser_id`    | uuid (FK)     | Foreign key → `users.id`                                                |
-| `base_fee`        | numeric       | Total fee quoted to client                                              |
-| `appraiser_split` | numeric       | Appraiser’s fee split percentage                                        |
-| `appraiser_fee`   | numeric       | Appraiser’s actual fee based on split                                   |
-| `client_invoice`  | numeric       | Internal invoice reference number                                       |
-| `paid_status`     | text          | 'paid', 'unpaid', or other custom flag                                  |
-| `report_type`     | text          | E.g., 'Sales Only', 'Full Appraisal', etc.                              |
-| `property_type`   | text          | E.g., 'Retail', 'Industrial', 'Mixed-Use'                               |
-
-### Foreign Key Constraints
-
-- `client_id` → `public.clients.id`
-- `appraiser_id` → `public.users.id`
-
-
-## `clients`
-
-| Column       | Type        | Description                        |
-|--------------|-------------|------------------------------------|
-| `id`         | uuid        | Primary key                        |
-| `name`       | text        | Client company name                |
-| `contact`    | text        | Contact person name                |
-| `email`      | text        | Contact email                      |
-| `phone`      | text        | Contact phone                      |
-| `created_at` | timestamp   | Auto-generated                     |
-
-## `users`
-
-| Column        | Type        | Description                        |
-|---------------|-------------|------------------------------------|
-| `id`          | uuid        | Supabase Auth user ID              |
-| `name`        | text        | Full name                          |
-| `email`       | text        | User email                         |
-| `role`        | text        | 'admin', 'appraiser', 'reviewer'   |
-| `split`       | numeric     | Fee split %                        |
-| `created_at`  | timestamp   | Auto-generated                     |
-
-## `activity_log`
-
-| Column        | Type        | Description                                  |
-|---------------|-------------|----------------------------------------------|
-| `id`          | serial      | Primary key                                  |
-| `user_id`     | uuid        | FK to `users`                                |
-| `order_id`    | integer     | FK to `orders`                               |
-| `action`      | text        | Description of the action (e.g., 'Updated')  |
-| `role`        | text        | Role of the user who took action             |
-| `visible_to`  | json        | Array of roles that can see this log         |
-| `created_at`  | timestamp   | Timestamp of action                          |
-
-
-## 🚀 Local Dev Quickstart
-
-```bash
+# Project Falcon
+
+
+
+## Overview
+
+
+
+**Project Falcon** is an internal web platform for **Continental Real Estate Solutions**.  It was designed to help a small appraisal office manage the entire lifecycle of commercial appraisal orders.  The application centralizes tasks such as creating and tracking orders, assigning appraisers, scheduling site visits and reviews, managing clients and users, and recording a history of every action.  Project Falcon is not a public‑facing product; it is meant to streamline internal operations and scale as the company grows.
+
+
+
+## Table of Contents
+
+
+
+1. [Overview](#overview)
+
+2. [Key Features](#key-features)
+
+3. [Tech Stack](#tech-stack)
+
+4. [Getting Started](#getting-started)
+
+5. [Project Structure](#project-structure)
+
+6. [Roadmap / Open Tasks](#roadmap--open-tasks)
+
+7. [Contributing](#contributing)
+
+8. [License](#license)
+
+
+
+## Key Features
+
+
+
+### Orders Management
+
+
+
+* **Create and edit orders.**  Admins can create new orders via the Orders page.  Each order includes fields such as client, appraiser, base fee, appraiser split, status and due dates.  The `OrderDetailForm` leverages a custom `useOrderForm` hook to pre‑fill existing values and compute appraiser fees based on the base fee and split【430372653444196†L44-L52】.  Users can choose an existing client or enter a custom client, assign an appraiser, edit due dates, and save their changes【430372653444196†L54-L100】.
+
+* **Role‑based editing and deletion.**  Only users with proper permissions may edit or delete an order.  The permissions module defines helpers such as `canEditOrder` and `canDeleteOrder`, which restrict editing to admins and the assigned appraiser while the order is active【416544250918453†L12-L19】 and deletion to admins【416544250918453†L23-L24】.
+
+* **Order list with filtering, sorting and pagination.**  The Orders page fetches orders from Supabase and filters them based on the user’s role: appraisers only see their own orders, while admins and reviewers see all orders【108710227852568†L23-L33】.  Client‑side filters allow users to narrow orders by status or appraiser【108710227852568†L56-L71】, and orders can be sorted by any field in ascending or descending order【108710227852568†L73-L83】.  The `OrdersTable` component handles pagination and displays ten orders per page, with “Prev” / “Next” controls【816753700770000†L62-L102】.
+
+* **Drawer‑based order details.**  Clicking a row in the Orders table opens a drawer with detailed information about that order.  From the drawer, authorized users can edit fields, update status, schedule a site visit via a date picker, or delete the order.  The drawer uses Vaul’s `Drawer` component and a nested `OrderDrawerContent` to display details【816753700770000†L106-L114】.  A dialog allows setting a site‑visit date and saving it back to the order【816753700770000†L117-L133】.
+
+* **Deep order view.**  Navigating to `/orders/:id` fetches the order along with its related client and appraiser names, transforming the data so the page can display either the relational name or manual entry【500239995843849†L15-L34】.  The page then renders an `OrderDetailForm` for editing【500239995843849†L61-L65】.
+
+* **Activity log.**  Each order page can display an activity log panel showing actions performed on that order.  The panel loads entries from the `activity_log` table, including user name, action and timestamp【522863095335295†L11-L33】, and renders them with `ActivityLogCard` components that format the timestamp using `date‑fns`【667986739313400†L3-L13】.
+
+
+
+### Clients Management
+
+
+
+* **List clients.**  The Clients page fetches clients from Supabase and displays them in a table sorted by name.  If the list is empty, a “No clients found” message appears【59744152141010†L61-L67】.
+
+* **Add new clients (admin only).**  An “+ Add Client” button appears for administrators and navigates to a form for creating a new client【59744152141010†L49-L57】.
+
+* **Drawer for details.**  Each row in the clients table is clickable; clicking opens a side drawer with the client’s details.  The drawer content is provided by `ClientDrawerContent` and can include editing and deletion actions【59744152141010†L68-L94】.
+
+* **Manual clients.**  When creating an order, users can either select a client from the list or enter a custom client.  The `useOrderForm` hook tracks whether the client is custom and stores the manual name accordingly【430372653444196†L54-L67】.
+
+
+
+### Users Management
+
+
+
+* **User directory.**  The Users page fetches all users from Supabase, sorted by name, and displays them in a responsive grid of cards【88913055298711†L14-L57】.  Admins see an “+ Add User” button to invite new users【88913055298711†L34-L44】.
+
+* **Interactive user cards.**  Each user card flips to reveal editable details.  On the front, the card shows the user’s photo, name and role; the back contains a form to edit name, role, email, phone and upload license files【737264614979764†L101-L161】.  Users can upload license files, which are stored in Supabase storage.  The “Save” button commits changes back to the database, and “Cancel” reverts edits【737264614979764†L163-L180】.
+
+* **View and manage licenses.**  When not editing, the back side lists all license files with links to download them.  If no licenses are uploaded, a placeholder message appears【737264614979764†L186-L216】.
+
+
+
+### Dashboards
+
+
+
+* **Role‑aware dashboard routing.**  The `Dashboard` component determines the logged‑in user’s role and routes them to the appropriate dashboard: admins see the Admin Dashboard, appraisers see the Appraiser Dashboard, and other roles get an unauthorized message【561628408623021†L20-L26】.
+
+* **Admin Dashboard.**  The Admin Dashboard fetches all orders and displays two key widgets: an Upcoming Activity calendar and a table of open orders.  The calendar uses a `DashboardCalendar` component to visualize upcoming site visits, due dates and review deadlines【753477014407486†L46-L59】.  The open‑orders table lists all orders except those marked “Completed”【753477014407486†L43-L59】.
+
+* **Appraiser Dashboard.**  The Appraiser Dashboard shows only the active orders assigned to the logged‑in appraiser.  It includes a two‑week calendar view for upcoming events and a table listing active orders without the appraiser column【686831164538286†L14-L40】.
+
+
+
+### Calendar
+
+
+
+* **Shared calendar page.**  The dedicated Calendar page displays a shared FullCalendar instance where everyone can see upcoming site visits, review due dates and final due dates.  Users can switch between month, week and two‑week views using the buttons above the calendar【785291958602515†L45-L67】.  Clicking an event navigates directly to the order detail page【785291958602515†L40-L43】.
+
+* **Role‑based event filtering.**  When loading events, the Calendar page filters orders based on the user’s role: appraisers see only their orders, reviewers see only orders needing review, and admins see all orders【785291958602515†L16-L24】.  The events are transformed into FullCalendar events by a custom hook, `useOrderEvents`【785291958602515†L38-L38】.
+
+
+
+### Permissions and Roles
+
+
+
+* **Roles.**  Project Falcon defines four roles: `admin`, `appraiser`, `reviewer` and `client`.  Roles are stored in the `users` table and fetched via the `useRole` hook【408061277319521†L11-L39】.
+
+* **Order permissions.**  Functions in `lib/utils/permissions.js` determine what actions a user can perform.  Admins can view all orders, create orders, edit any order and delete orders【416544250918453†L3-L24】.  Appraisers can view and edit their own orders while they are in active states such as “In Progress” or “Site Visit Scheduled”【416544250918453†L15-L17】.  Reviewers can edit their assigned orders when the status is “Needs Review”【416544250918453†L18-L19】.  Only admins can assign appraisers or delete orders【416544250918453†L23-L26】.
+
+* **Client and user permissions.**  Only admins can view all clients and edit client records【416544250918453†L55-L59】.  Users can edit their own profile via the User Card, but only admins can edit other users【416544250918453†L60-L64】.
+
+* **Activity log permissions.**  All roles can create log entries; admins can view all logs, appraisers can view their own logs and shared logs, and reviewers have placeholder rules for future review workflows【416544250918453†L66-L74】.
+
+
+
+## Tech Stack
+
+
+
+Project Falcon is built with modern web technologies:
+
+
+
+| Layer                | Technology | Evidence |
+
+|----------------------|------------|---------|
+
+| Front‑end framework  | **React 18** with **Vite** build tool | `package.json` lists `react` 18.2.0 and `vite` ^5.0.0 as dependencies and dev dependencies【618920931081803†L28-L51】. |
+
+| Styling              | **Tailwind CSS**, plus variants and animations | Tailwind and its companion packages (`tailwind-merge`, `tailwind-variants`, `tailwindcss-animate`) are included in dependencies【618920931081803†L38-L41】. |
+
+| UI components        | **Radix UI** primitives and custom components | Radix packages (`@radix-ui/react-dialog`, `@radix-ui/react-slot`) appear in dependencies【618920931081803†L14-L16】. |
+
+| Calendar             | **FullCalendar** with day, time and list views | FullCalendar packages (`@fullcalendar/core`, `@fullcalendar/daygrid`, `@fullcalendar/interaction`, `@fullcalendar/list`, `@fullcalendar/react`, `@fullcalendar/timegrid`) are dependencies【618920931081803†L8-L13】. |
+
+| Data storage & auth  | **Supabase** | The project uses `@supabase/supabase-js` and the auth helper packages【618920931081803†L16-L19】, and `supabaseClient.js` creates a client with the project’s URL and anon key【837443017888518†L0-L10】. |
+
+| Tables & charts      | **TanStack React Table** and **Chart.js** | These packages are present in dependencies【618920931081803†L20-L23】. |
+
+| Date utilities       | **date‑fns** and **date‑holidays** for formatting and holiday data | Both libraries are dependencies【618920931081803†L24-L27】. |
+
+| Icons and animations | **Lucide React**, **Framer Motion**, **Tippy.js** | These packages appear in `package.json`【618920931081803†L26-L42】. |
+
+
+
+## Getting Started
+
+
+
+### Prerequisites
+
+
+
+* **Node.js** (v16+ recommended) and **npm** or **yarn**.
+
+* A **Supabase** project with a `users`, `clients`, `orders` and `activity_log` tables.  The default Supabase URL and anon key in `src/lib/supabaseClient.js` are placeholders and should be replaced with your own credentials【837443017888518†L2-L8】.
+
+
+
+### Installation
+
+
+
+```
+
+# Clone the repository
+
 git clone https://github.com/Chrisrossi92/project-falcon.git
+
 cd project-falcon
+
+
+
+# Install dependencies
+
 npm install
+
+
+
+# Copy the environment variables template and edit it with your Supabase info
+
+cp .env.example .env
+
+# inside .env set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
+
+
+
+# Start the development server
+
 npm run dev
 
 
 
+# Build for production
+
+npm run build
+
+```
 
 
 
+The dev script starts Vite’s development server (typically at `http://localhost:5173`), and the build script generates a production‐ready bundle.  See `package.json` for available scripts【618920931081803†L3-L5】.
 
 
 
+## Project Structure
 
 
 
+Project Falcon follows a modular structure.  Some key directories:
 
 
 
+* **`src/pages/`** – top‑level pages for routes.  Examples include:
+
+  * `Dashboard.jsx` routes users to the appropriate dashboard based on their role【561628408623021†L20-L26】.
+
+  * `Orders.jsx` lists orders with filtering, sorting and pagination【108710227852568†L23-L83】.
+
+  * `OrderDetail.jsx` fetches an individual order and renders a detailed edit form【500239995843849†L15-L34】.
+
+  * `Clients.jsx` lists clients and provides a drawer for details【59744152141010†L68-L94】.
+
+  * `Users.jsx` displays the user directory and supports adding new users【88913055298711†L34-L57】.
+
+  * `Calendar.jsx` hosts the shared calendar view【785291958602515†L45-L79】.
 
 
 
-   
- 
+* **`src/components/`** – reusable components.  Subfolders include:
+
+  * `clients/` – components for client management, such as `ClientsTable` and `ClientDrawerContent` which renders a row and side panel respectively【59744152141010†L68-L94】.
+
+  * `orders/` – components for order management, including `OrdersTable` for tabular display with pagination and drawers【816753700770000†L62-L114】, `OrderDrawerContent` for the detail drawer, and `OrderInfoFields` used in the order detail form.
+
+  * `users/` – components like `UserCard` that display and edit users with a flip animation and license uploads【737264614979764†L101-L161】.
+
+  * `ui/` – generic UI components such as buttons, cards and the `FullCalendarWrapper` which wraps the FullCalendar component and defines custom toolbar buttons【214595380149312†L14-L50】.
+
+  * `ActivityLogCard` and `ActivityLogPanel` display logged actions for orders【522863095335295†L11-L33】【667986739313400†L6-L13】.
+
+
+
+* **`src/lib/`** – utility functions and hooks:
+
+  * `supabaseClient.js` exports the Supabase client and helper functions for fetching users, clients and updating orders【837443017888518†L12-L43】.
+
+  * `hooks/` folder defines custom hooks such as `useSession` for retrieving the current user, `useRole` for role lookup【408061277319521†L11-L39】, `useOrders` and `useOrderForm` for order logic【430372653444196†L29-L35】.
+
+  * `utils/permissions.js` centralizes permission checks for orders, clients, users and activity logs【416544250918453†L3-L24】.
+
+
+
+* **`src/context/`** – context providers for global state, including user context and notification context.
+
+
+
+* **`src/data/`** – holiday data and a script to generate U.S. holidays for the calendar.
+
+
+
+* **`public/`** – static assets such as logo, icons and images.
+
+
+
+## Roadmap / Open Tasks
+
+
+
+The current codebase already delivers core functionality but leaves room for enhancements.  Planned improvements include:
+
+
+
+* **Finalize review workflows.** Review logic exists in placeholder form; implement assignment of reviewers and transitions between review states【416544250918453†L18-L19】.
+
+* **Notifications.** Add email or in‑app notifications when orders change status, reviewers are assigned, or due dates approach.
+
+* **Enhanced filtering and sorting.** Provide UI controls to filter orders by status and appraiser and update URL parameters accordingly【108710227852568†L56-L71】.
+
+* **Calendar styling and holiday integration.** Improve the visual design of the calendar and integrate holiday data from `generateholidays.js` so holidays appear automatically.
+
+* **Settings page.** Complete the Settings page with real preferences and user profile editing【653941288517693†L3-L7】.
+
+* **Error handling and fallbacks.** Add robust error messages and fallback screens for network failures or unauthorized access.
+
+
+
+## Contributing
+
+
+
+Pull requests and issues are welcome!  To contribute:
+
+
+
+1. Fork the repository and create a feature branch.
+
+2. Make your changes, ensuring code is linted and tested.
+
+3. Submit a pull request explaining the problem and how your change fixes it.
+
+
+
+For larger features or architectural changes, please open an issue first to discuss your proposal.
+
+
+
+## License
+
+
+
+This project currently does not specify a license.  To allow open‑source collaboration, consider adding an [MIT](https://opensource.org/licenses/MIT) or [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) license.  Until then, the code should be considered proprietary to Continental Real Estate Solutions.

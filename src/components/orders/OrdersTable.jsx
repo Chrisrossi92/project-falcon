@@ -1,44 +1,31 @@
-import React, { useState } from "react";
-import OrderDrawerContent from "@/components/orders/OrderDrawerContent";
-import { useSession } from "@/lib/hooks/useSession";
-import { useRole } from "@/lib/hooks/useRole";
-import InlineDrawer from "@/components/ui/InlineDrawer";
-import AppointmentCell from "@/components/orders/AppointmentCell"; // ✅ import it
-import supabase from "@/lib/supabaseClient";
-
-async function updateSiteVisitAt(orderId, isoString) {
-  const { error } = await supabase
-    .from("orders")
-    .update({ site_visit_at: isoString })
-    .eq("id", orderId);
-
-  if (error) {
-    console.error("Failed to update appointment:", error.message);
-  } else {
-    console.log(`Appointment updated for Order #${orderId}`);
-  }
-}
-
-async function fetchSiteVisitAt(orderId) {
-  const { data, error } = await supabase
-    .from("orders")
-    .select("id, site_visit_at")
-    .eq("id", orderId)
-    .single();
-
-  if (error) {
-    console.error("Failed to fetch updated appointment:", error.message);
-    return null;
-  }
-  return data;
-}
-
+import { useState } from "react";
+import { Drawer, DrawerContent } from "vaul"; // Updated import to include DrawerContent
+import OrderDrawerContent from '@/components/orders/OrderDrawerContent'; // Adjust path if needed
+import { useSession } from '@/lib/hooks/useSession';
+import supabase from '@/lib/supabaseClient';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { useRole } from '@/lib/hooks/useRole';
+import { canEditOrder, canDeleteOrder } from '@/lib/utils/permissions';
 
 export default function OrdersTable({ orders, hideAppraiserColumn = false, role: propRole = "admin" }) {
   const { user } = useSession();
   const { role } = useRole();
-  const effectiveRole = role || propRole;
+  
+  const [appointmentDialogOpen, setAppointmentDialogOpen] = useState(false);
+  const [selectedOrderForVisit, setSelectedOrderForVisit] = useState(null);
+  const [visitDate, setVisitDate] = useState("");
+  const handleSetVisit = () => {
+    // Placeholder: implement saving visit logic
+    setAppointmentDialogOpen(false);
+  };
+  const closeDrawer = () => {
+    setSelectedOrder(null);
+  };
+const effectiveRole = role || propRole;
 
+  // Local state
+  const [localOrders, setLocalOrders] = useState(orders);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
@@ -131,6 +118,33 @@ export default function OrdersTable({ orders, hideAppraiserColumn = false, role:
           Next
         </button>
       </div>
+
+      {/* Drawer for order details */}
+      <Drawer open={!!selectedOrder} onOpenChange={(open) => !open && closeDrawer()}>
+        <DrawerContent className="max-h-[90vh] overflow-auto">
+          {selectedOrder && (
+            <OrderDrawerContent data={selectedOrder} />
+          )}
+        </DrawerContent>
+      </Drawer>
+
+      {/* Dialog for Setting Site Visit */}
+      <Dialog open={appointmentDialogOpen} onOpenChange={setAppointmentDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Set Site Visit for Order #{selectedOrderForVisit?.id}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Input
+              type="date"
+              value={visitDate}
+              onChange={(e) => setVisitDate(e.target.value)}
+              className="w-full"
+            />
+            <Button onClick={handleSetVisit}>Save</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
