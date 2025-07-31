@@ -1,34 +1,43 @@
+import React from "react";
 import { useState } from "react";
-import { Drawer, DrawerContent } from "vaul"; // Updated import to include DrawerContent
-import OrderDrawerContent from '@/components/orders/OrderDrawerContent'; // Adjust path if needed
-import { useSession } from '@/lib/hooks/useSession';
-import supabase from '@/lib/supabaseClient';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { useRole } from '@/lib/hooks/useRole';
-import { canEditOrder, canDeleteOrder } from '@/lib/utils/permissions';
+import { Drawer } from "vaul";
+import OrderDrawerContent from "@/components/orders/OrderDrawerContent";
+import AppointmentCell from "@/components/orders/AppointmentCell";
+import { updateSiteVisitAt, fetchSiteVisitAt } from "@/lib/api/orders";
+import { useSession } from "@/lib/hooks/useSession";
+import { useRole } from "@/lib/hooks/useRole";
+import  supabase  from "@/lib/supabaseClient";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog";
+import { canEditOrder, canDeleteOrder } from "@/lib/utils/permissions";
 
 export default function OrdersTable({ orders, hideAppraiserColumn = false, role: propRole = "admin" }) {
   const { user } = useSession();
   const { role } = useRole();
-  
+
   const [appointmentDialogOpen, setAppointmentDialogOpen] = useState(false);
   const [selectedOrderForVisit, setSelectedOrderForVisit] = useState(null);
   const [visitDate, setVisitDate] = useState("");
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [localOrders, setLocalOrders] = useState(orders);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+  const effectiveRole = role || propRole;
+
   const handleSetVisit = () => {
-    // Placeholder: implement saving visit logic
+    // TODO: implement logic to persist visitDate for selectedOrderForVisit
     setAppointmentDialogOpen(false);
   };
+
   const closeDrawer = () => {
     setSelectedOrder(null);
   };
-const effectiveRole = role || propRole;
-
-  // Local state
-  const [localOrders, setLocalOrders] = useState(orders);
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10;
 
   const totalPages = Math.ceil(orders.length / pageSize);
   const paginatedOrders = orders.slice((currentPage - 1) * pageSize, currentPage * pageSize);
@@ -71,29 +80,19 @@ const effectiveRole = role || propRole;
                 <td className="px-4 py-3">{order.status}</td>
                 <td className="px-4 py-3">
                   <AppointmentCell
-  siteVisitAt={order.site_visit_at}
-  onSetAppointment={async (newDateTime) => {
-    await updateSiteVisitAt(order.id, newDateTime);
-    const updated = await fetchSiteVisitAt(order.id);
-    if (updated) {
-      order.site_visit_at = updated.site_visit_at; // force rebind
-      setSelectedOrder({ ...order }); // trigger re-render if needed
-    }
-  }}
-/>
+                    siteVisitAt={order.site_visit_at}
+                    onSetAppointment={async (newDateTime) => {
+                      await updateSiteVisitAt(order.id, newDateTime);
+                      const updated = await fetchSiteVisitAt(order.id);
+                      if (updated) {
+                        order.site_visit_at = updated.site_visit_at;
+                        setSelectedOrder({ ...order });
+                      }
+                    }}
+                  />
                 </td>
                 <td className="px-4 py-3">{order.due_date}</td>
               </tr>
-
-              {selectedOrder?.id === order.id && (
-                <tr>
-                  <td colSpan={7}>
-                    <InlineDrawer isOpen={true}>
-                      <OrderDrawerContent data={selectedOrder} />
-                    </InlineDrawer>
-                  </td>
-                </tr>
-              )}
             </React.Fragment>
           ))}
         </tbody>
@@ -107,9 +106,7 @@ const effectiveRole = role || propRole;
         >
           Prev
         </button>
-        <span>
-          Page {currentPage} of {totalPages}
-        </span>
+        <span>Page {currentPage} of {totalPages}</span>
         <button
           onClick={() => goToPage(currentPage + 1)}
           disabled={currentPage === totalPages}
@@ -119,14 +116,17 @@ const effectiveRole = role || propRole;
         </button>
       </div>
 
-      {/* Drawer for order details */}
-      <Drawer open={!!selectedOrder} onOpenChange={(open) => !open && closeDrawer()}>
-        <DrawerContent className="max-h-[90vh] overflow-auto">
-          {selectedOrder && (
-            <OrderDrawerContent data={selectedOrder} />
-          )}
-        </DrawerContent>
-      </Drawer>
+      {/* Drawer for Order Details */}
+      <Drawer.Root open={!!selectedOrder} onOpenChange={(open) => !open && closeDrawer()}>
+        <Drawer.Portal>
+          <Drawer.Overlay />
+          <Drawer.Content className="max-h-[90vh] overflow-auto">
+            {selectedOrder && (
+              <OrderDrawerContent data={selectedOrder} />
+            )}
+          </Drawer.Content>
+        </Drawer.Portal>
+      </Drawer.Root>
 
       {/* Dialog for Setting Site Visit */}
       <Dialog open={appointmentDialogOpen} onOpenChange={setAppointmentDialogOpen}>
@@ -148,23 +148,3 @@ const effectiveRole = role || propRole;
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
