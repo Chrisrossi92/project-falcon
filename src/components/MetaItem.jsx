@@ -1,13 +1,17 @@
-// components/MetaItem.jsx
-import React from 'react';
+// src/components/MetaItem.jsx
 
-const MetaItem = ({ label, value }) => {
+import React from "react";
+
+export default function MetaItem({ label, children }) {
   return (
-    <div className="flex justify-between items-center py-1">
-      <span className="text-sm text-muted-foreground font-medium">{label}</span>
-      <span className="text-sm text-foreground">{value}</span>
+    <div className="flex flex-col">
+      <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wide mb-0.5">
+        {label}
+      </span>
+      <span className="text-sm text-gray-900 break-words">
+        {children || "—"}
+      </span>
     </div>
   );
-};
+}
 
-export default MetaItem;

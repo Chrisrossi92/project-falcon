@@ -4,7 +4,7 @@ import OrderSidebarPanel from "./OrderSidebarPanel";
 import { useSession } from "@/lib/hooks/useSession";
 import supabase from "@/lib/supabaseClient";
 
-export default function OrderDrawerContent({ data }) {
+export default function OrderDrawerContent({ data, onClose }) {
   const { user } = useSession();
   const isAdmin = user?.role === "admin";
 
@@ -12,7 +12,11 @@ export default function OrderDrawerContent({ data }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+
     const fetchOrder = async () => {
+      setLoading(true);
+
       const { data: fullOrder, error } = await supabase
         .from("orders")
         .select(
@@ -25,9 +29,15 @@ export default function OrderDrawerContent({ data }) {
         .eq("id", data.id)
         .single();
 
+      if (!mounted) return;
+
       if (error) {
         console.error("Failed to fetch full order:", error.message);
-        setOrder(data); // fallback to props
+        setOrder({
+          ...data,
+          client_name: data.client?.name || data.manual_client || "—",
+          appraiser_name: data.appraiser?.name || data.manual_appraiser || "—",
+        });
       } else {
         setOrder({
           ...fullOrder,
@@ -40,9 +50,13 @@ export default function OrderDrawerContent({ data }) {
     };
 
     fetchOrder();
+
+    return () => {
+      mounted = false;
+    };
   }, [data.id]);
 
-  if (loading) {
+  if (loading || !order) {
     return <div className="text-sm text-gray-500 p-4">Loading order details…</div>;
   }
 
@@ -52,17 +66,19 @@ export default function OrderDrawerContent({ data }) {
         <OrderDetailPanel order={order} isAdmin={isAdmin} />
         <OrderSidebarPanel order={order} />
       </div>
-      <div className="flex justify-end">
-  <button
-    onClick={() => setOrder(null)}
-    className="text-sm text-blue-600 hover:underline"
-  >
-    Close
-  </button>
-</div>
+      <div className="flex justify-end pt-4">
+        <button
+          onClick={onClose || (() => setOrder(null))}
+          className="text-sm text-blue-600 hover:underline"
+        >
+          Close
+        </button>
+      </div>
     </div>
   );
 }
+
+
 
 
 

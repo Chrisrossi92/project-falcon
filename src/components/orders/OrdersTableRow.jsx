@@ -1,14 +1,23 @@
 // src/components/orders/OrdersTableRow.jsx
+
 import React from "react";
+import AppointmentCell from "@/components/orders/AppointmentCell";
 import { Button } from "@/components/ui/button";
-import OrderDrawerContent from "@/components/orders/OrderDrawerContent";
 import { canEditOrder, canDeleteOrder } from "@/lib/utils/permissions";
 
+/**
+ * OrdersTableRow.jsx
+ *
+ * A single row in the orders table.
+ * - Clicking the row opens the inline drawer.
+ * - AppointmentCell updates appointment date/time.
+ */
 export default function OrdersTableRow({
   order,
   hideAppraiserColumn,
   isSelected,
   onRowClick,
+  onSetAppointment,
   onDeleteOrder,
   effectiveRole,
   userId,
@@ -23,78 +32,68 @@ export default function OrdersTableRow({
   };
 
   return (
-    <>
-      {/* Main row */}
-      <tr
-        onClick={onRowClick}
-        className={`border-b hover:bg-gray-50 cursor-pointer ${
-          isSelected ? "bg-gray-100" : ""
-        }`}
-      >
-        <td className="px-4 py-2">{order.id}</td>
-        <td className="px-4 py-2">
-          {order.client?.name || order.client_name || "—"}
-        </td>
-        <td className="px-4 py-2">{order.address}</td>
-        <td className="px-4 py-2">
-          {!hideAppraiserColumn
-            ? order.appraiser?.name || order.appraiser_name || "—"
-            : order.appraiser_split || "—"}
-        </td>
-        <td className="px-4 py-2 capitalize">{order.status || "—"}</td>
-        <td className="px-4 py-2">
-          {order.site_visit_date ? (
-            formatDate(order.site_visit_date)
-          ) : (
-            canEditOrder(
-              effectiveRole,
-              order.appraiser_id,
-              userId,
-              order.status
-            ) && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  alert("Site visit logic placeholder");
-                }}
-              >
-                Set Site Visit
-              </Button>
-            )
-          )}
-        </td>
-        <td className="px-4 py-2">
-          {order.due_date ? formatDate(order.due_date) : "—"}
-        </td>
-        <td className="px-4 py-2">
-          {canDeleteOrder(effectiveRole) && (
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDeleteOrder(order.id);
-              }}
-            >
-              Delete
-            </Button>
-          )}
-        </td>
-      </tr>
+    <tr
+      onClick={onRowClick}
+      className={`border-b hover:bg-gray-50 cursor-pointer ${
+        isSelected ? "bg-gray-100" : ""
+      }`}
+    >
+      {/* ORDER ID */}
+      <td className="px-4 py-2">{order.id}</td>
 
-      {/* Drawer row */}
-      {isSelected && (
-        <tr>
-          <td colSpan={8} className="p-0">
-            <div className="overflow-hidden animate-slideDown">
-              <OrderDrawerContent data={order} />
-            </div>
-          </td>
-        </tr>
+      {/* CLIENT */}
+      <td className="px-4 py-2">
+        {order.client?.name || order.client_name || "—"}
+      </td>
+
+      {/* ADDRESS */}
+      <td className="px-4 py-2">{order.address || "—"}</td>
+
+      {/* APPRAISER */}
+      {!hideAppraiserColumn && (
+        <td className="px-4 py-2">{order.appraiser_name || "—"}</td>
       )}
-    </>
+
+      {/* STATUS */}
+      <td className="px-4 py-2">{order.status || "—"}</td>
+
+      {/* APPOINTMENT CELL */}
+      <td className="px-4 py-2">
+        <AppointmentCell
+          siteVisitAt={order.site_visit_at}
+          onSetAppointment={(dateString) => {
+            // Pass the order.id and updated date back up
+            if (onSetAppointment) {
+              onSetAppointment(order.id, dateString);
+            }
+          }}
+        />
+      </td>
+
+      {/* DUE DATE */}
+      <td className="px-4 py-2">{formatDate(order.due_date)}</td>
+
+      {/* ACTIONS */}
+      <td className="px-4 py-2 text-right">
+        {canEditOrder(order, effectiveRole, userId) && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onDeleteOrder) {
+                onDeleteOrder(order.id);
+              }
+            }}
+          >
+            Delete
+          </Button>
+        )}
+      </td>
+    </tr>
   );
 }
+
+
+
 
