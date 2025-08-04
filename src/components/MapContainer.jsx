@@ -1,26 +1,28 @@
-// components/MapContainer.jsx
+// src/components/MapContainer.jsx
 
-// <MapContainer address={order.address} />
+import React from "react";
 
-import React from 'react';
+export default function MapContainer({ address }) {
+  if (!address || address.trim() === "") {
+    return (
+      <div className="text-xs text-gray-500 p-3 text-center border rounded-md bg-gray-50">
+        No valid address to display on map.
+      </div>
+    );
+  }
 
-const MapContainer = ({ lat, lng, className = '' }) => {
-  const mapSrc = `https://www.google.com/maps?q=${lat},${lng}&hl=es;z=14&output=embed`;
+  const encodedAddress = encodeURIComponent(address);
+  const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  const mapSrc = `https://www.google.com/maps/embed/v1/place?key=${GOOGLE_MAPS_API_KEY}&q=${encodedAddress}`;
 
   return (
-    <div className={`w-full h-64 rounded-md overflow-hidden border ${className}`}>
-      <iframe
-        title="Google Map"
-        src={mapSrc}
-        width="100%"
-        height="100%"
-        allowFullScreen=""
-        loading="lazy"
-        referrerPolicy="no-referrer-when-downgrade"
-        className="w-full h-full"
-      />
-    </div>
+    <iframe
+      title="Property Location Map"
+      src={mapSrc}
+      className="w-full h-64 rounded-md border"
+      allowFullScreen
+      loading="lazy"
+    ></iframe>
   );
-};
+}
 
-export default MapContainer;
