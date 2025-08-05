@@ -16,7 +16,7 @@ export default function OrdersTableHeader({ hideAppraiserColumn }) {
         <th className="px-4 py-2">Status</th>
         <th className="px-4 py-2">Site Visit</th>
         <th className="px-4 py-2">Due Date</th>
-        <th className="px-4 py-2">Actions</th>
+        <th className="px-2 py-2 text-center align-middle w-[120px]">Actions</th>
       </tr>
     </thead>
   );

@@ -4,14 +4,9 @@ import React from "react";
 import AppointmentCell from "@/components/orders/AppointmentCell";
 import { Button } from "@/components/ui/button";
 import { canEditOrder, canDeleteOrder } from "@/lib/utils/permissions";
+import { Pencil, Eye } from "lucide-react";
+import SendToReviewButton from "@/components/review/SendToReviewButton";
 
-/**
- * OrdersTableRow.jsx
- *
- * A single row in the orders table.
- * - Clicking the row opens the inline drawer.
- * - AppointmentCell updates appointment date/time.
- */
 export default function OrdersTableRow({
   order,
   hideAppraiserColumn,
@@ -21,6 +16,10 @@ export default function OrdersTableRow({
   onDeleteOrder,
   effectiveRole,
   userId,
+  onEdit,
+  onView,
+  currentUser,
+  refreshOrders,
 }) {
   const formatDate = (dateString) => {
     if (!dateString) return "—";
@@ -30,6 +29,10 @@ export default function OrdersTableRow({
       year: "numeric",
     });
   };
+
+  const showSendToReview =
+    (effectiveRole === "admin" || effectiveRole === "appraiser") &&
+    (order.status === "Needs Review" || order.status === "Inspected");
 
   return (
     <tr
@@ -43,7 +46,7 @@ export default function OrdersTableRow({
 
       {/* CLIENT */}
       <td className="px-4 py-2">
-        {order.client?.name || order.client_name || "—"}
+        {order.client?.name || order.manual_client || "—"}
       </td>
 
       {/* ADDRESS */}
@@ -51,18 +54,19 @@ export default function OrdersTableRow({
 
       {/* APPRAISER */}
       {!hideAppraiserColumn && (
-        <td className="px-4 py-2">{order.appraiser_name || "—"}</td>
+        <td className="px-4 py-2">
+          {order.appraiser?.name || order.manual_appraiser || "—"}
+        </td>
       )}
 
       {/* STATUS */}
       <td className="px-4 py-2">{order.status || "—"}</td>
 
-      {/* APPOINTMENT CELL */}
+      {/* APPOINTMENT */}
       <td className="px-4 py-2">
         <AppointmentCell
           siteVisitAt={order.site_visit_at}
           onSetAppointment={(dateString) => {
-            // Pass the order.id and updated date back up
             if (onSetAppointment) {
               onSetAppointment(order.id, dateString);
             }
@@ -74,25 +78,54 @@ export default function OrdersTableRow({
       <td className="px-4 py-2">{formatDate(order.due_date)}</td>
 
       {/* ACTIONS */}
-      <td className="px-4 py-2 text-right">
-        {canEditOrder(order, effectiveRole, userId) && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (onDeleteOrder) {
-                onDeleteOrder(order.id);
-              }
-            }}
-          >
-            Delete
-          </Button>
-        )}
+      <td className="px-4 py-2 align-middle w-[120px]">
+        <div className="flex flex-col items-center gap-2">
+          <div className="flex gap-2">
+            {onEdit && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(order);
+                }}
+                title="Edit"
+              >
+                <Pencil className="w-4 h-4" />
+              </Button>
+            )}
+
+            {onView && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onView(order);
+                }}
+                title="View"
+              >
+                <Eye className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+
+          {showSendToReview && (
+            <div className="pt-1" onClick={(e) => e.stopPropagation()}>
+              <SendToReviewButton
+                order={order}
+                currentUser={currentUser}
+                onAssignment={refreshOrders}
+              />
+            </div>
+          )}
+        </div>
       </td>
     </tr>
   );
 }
+
+
 
 
 

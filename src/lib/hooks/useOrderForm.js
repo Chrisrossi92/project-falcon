@@ -1,4 +1,5 @@
-// lib/hooks/useOrderForm.js
+// src/lib/hooks/useOrderForm.js
+
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
@@ -53,13 +54,26 @@ export const useOrderForm = ({ order, setOrder }) => {
       setIsCustomClient(true);
       setClientId('');
       setManualClient('');
-      setEditedData((prev) => ({ ...prev, client_id: null, manual_client: '' }));
+      setEditedData((prev) => ({ ...prev, client_id: null, branch_id: null, manual_client: '' }));
     } else {
       setIsCustomClient(false);
       setClientId(value);
       setManualClient('');
-      setEditedData((prev) => ({ ...prev, client_id: value ? parseInt(value, 10) : null, manual_client: '' }));
+      setEditedData((prev) => ({
+        ...prev,
+        client_id: value ? parseInt(value, 10) : null,
+        branch_id: null,
+        manual_client: '',
+      }));
     }
+  };
+
+  const handleBranchChange = (branchId) => {
+    if (!canEdit) return;
+    setEditedData((prev) => ({
+      ...prev,
+      branch_id: branchId || null,
+    }));
   };
 
   const handleCustomClientNameChange = (value) => {
@@ -84,10 +98,12 @@ export const useOrderForm = ({ order, setOrder }) => {
       toast.error('You do not have permission to edit this order.');
       return;
     }
+
     if (isCustomClient && !manualClient.trim()) {
       toast.error('Please enter a manual client name when selecting custom.');
       return;
     }
+
     try {
       const { data, error } = await updateOrder(editedData);
       if (error) throw error;
@@ -110,6 +126,7 @@ export const useOrderForm = ({ order, setOrder }) => {
     editedData,
     handleChange,
     handleClientChange,
+    handleBranchChange, // ✅ now returned
     handleCustomClientNameChange,
     handleAppraiserSelect,
     handleSave,

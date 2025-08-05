@@ -1,3 +1,5 @@
+// src/components/orders/OrdersTable.jsx
+
 import React, { useState } from "react";
 import OrdersTableRow from "@/components/orders/OrdersTableRow";
 import OrdersTableHeader from "@/components/orders/OrdersTableHeader";
@@ -13,6 +15,7 @@ import { useRole } from "@/lib/hooks/useRole";
 
 export default function OrdersTable({
   orders,
+  refreshOrders, // ✅ now properly passed in
   hideAppraiserColumn = false,
   role: propRole = "admin",
 }) {
@@ -53,6 +56,14 @@ export default function OrdersTable({
     }
   };
 
+  const handleEdit = (order) => {
+    toast("Edit flow coming soon…"); // or trigger a modal
+  };
+
+  const handleView = (order) => {
+    setSelectedOrder(order);
+  };
+
   return (
     <div className="relative w-full">
       <div className="overflow-x-auto border rounded-lg">
@@ -68,17 +79,21 @@ export default function OrdersTable({
                   hideAppraiserColumn={hideAppraiserColumn}
                   isSelected={selectedOrder?.id === order.id}
                   onRowClick={() => handleRowClick(order)}
-                  onSetAppointment={async (order, newDateString) => {
-  try {
-    await updateSiteVisitAt(order.id, newDateString);
-    toast.success("Appointment date saved");
-    setSelectedOrder((prev) =>
-      prev?.id === order.id ? { ...prev, site_visit_at: newDateString } : prev
-    );
-  } catch (err) {
-    toast.error("Failed to save appointment");
-  }
-}}
+                  onEdit={handleEdit}
+                  onView={handleView}
+                  currentUser={user}
+                  refreshOrders={refreshOrders} // ✅ passed properly now
+                  onSetAppointment={async (orderId, newDateString) => {
+                    try {
+                      await updateSiteVisitAt(orderId, newDateString);
+                      toast.success("Appointment date saved");
+                      setSelectedOrder((prev) =>
+                        prev?.id === orderId ? { ...prev, site_visit_at: newDateString } : prev
+                      );
+                    } catch (err) {
+                      toast.error("Failed to save appointment");
+                    }
+                  }}
                 />
                 {selectedOrder?.id === order.id && (
                   <tr>
@@ -128,6 +143,8 @@ export default function OrdersTable({
     </div>
   );
 }
+
+
 
 
 
