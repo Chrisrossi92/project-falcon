@@ -1,78 +1,28 @@
-// lib/hooks/useOrderEvents.js
-import holidays from '@/data/usHolidays2025.json';
-import { canViewSiteVisit, canViewReviewDue, canViewDueDate } from '@/lib/utils/permissions'; // Import new permissions
+import { useMemo } from 'react';
+import mapOrderToEvents from '@/lib/utils/mapOrderToEvents';
+import autoUpdateOrderStatus from '@/lib/utils/autoUpdateOrderStatus';
 
-const useOrderEvents = ({ orders = [], user, filters = {}, compact = false }) => {
-  const allEvents = [];
+/**
+ * @param {Object} params
+ * @param {Array} params.orders - list of order objects
+ * @param {Object} params.user - current user
+ * @param {Object} params.filters - which event types to show (e.g. { site: true, review: false })
+ * @param {Boolean} params.compact - optional flag for future adjustments
+ */
+export default function useOrderEvents({ orders = [], user, filters = {}, compact = false }) {
+  return useMemo(() => {
+    if (!orders.length) return [];
 
-  if (filters.site) {
-    orders.forEach(order => {
-      if (
-        order.site_visit_at &&
-        canViewSiteVisit(user.role, order.appraiser_id, user.id) // Replaced inline check
-      ) {
-        allEvents.push({
-          title: `📍 ${order.address}`,
-          date: order.site_visit_date,
-          backgroundColor: '#6EE7B7',
-          borderColor: '#059669',
-          textColor: '#065F46',
-          extendedProps: { type: 'site', orderId: order.id }
-        });
-      }
-    });
-  }
-
-  if (filters.review) {
-    orders.forEach(order => {
-      if (
-        order.review_due_date &&
-        canViewReviewDue(user.role, order.status) && // Replaced; assumes reviewer check
-        ['Needs Review'].includes(order.status)
-      ) {
-        allEvents.push({
-          title: `🔍 ${order.address}`,
-          date: order.review_due_date,
-          backgroundColor: '#FDE68A',
-          borderColor: '#F59E0B',
-          textColor: '#92400E',
-          extendedProps: { type: 'review', orderId: order.id }
-        });
-      }
-    });
-  }
-
-  if (filters.due) {
-    orders.forEach(order => {
-      if (
-        order.due_date &&
-        canViewDueDate(user.role, order.appraiser_id, user.id) // Replaced inline check
-      ) {
-        allEvents.push({
-          title: `⏰ ${order.address}`,
-          date: order.due_date,
-          backgroundColor: '#BFDBFE',
-          borderColor: '#2563EB',
-          textColor: '#1E3A8A',
-          extendedProps: { type: 'due', orderId: order.id }
-        });
-      }
-    });
-  }
-
-  if (filters.holidays && !compact) {
-    holidays.forEach(holiday => {
-      allEvents.push({
-        title: `🎉 ${holiday.name}`,
-        date: holiday.date,
-        display: 'background',
-        backgroundColor: '#F3F4F6',
-        textColor: '#6B7280'
+    return orders
+      .flatMap((order) => {
+  // Trigger auto-status update logic
+  autoUpdateOrderStatus(order);
+  return mapOrderToEvents(order);
+})
+      .filter((event) => {
+        // If event has a "type" and it's disabled in filters, skip it
+        if (filters[event.type] === false) return false;
+        return true;
       });
-    });
-  }
-
-  return allEvents;
-};
-
-export default useOrderEvents;
+  }, [orders, filters, user?.id, compact]);
+}

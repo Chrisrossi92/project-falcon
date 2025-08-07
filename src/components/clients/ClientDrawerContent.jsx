@@ -25,39 +25,61 @@ const ClientDrawerContent = ({ data, onClose, onClientDeleted }) => {
   const isNewClient = !parsedClientId || isNaN(parsedClientId);
 
   const fetchStats = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { data: orders, error: fetchError } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('client_id', parsedClientId);
+  setLoading(true);
+  setError(null);
 
-      if (fetchError) throw fetchError;
+  try {
+    let clientIdsToFetch = [parsedClientId];
 
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const activeOrders = orders.filter(order => ['In Progress', 'Needs Review'].includes(order.status)).length;
-      const last30Orders = orders.filter(order => new Date(order.created_at) >= thirtyDaysAgo).length;
-      const totalOrders = orders.length;
-      const avgFee = totalOrders > 0 
-        ? orders.reduce((sum, order) => sum + (order.base_fee || 0), 0) / totalOrders 
-        : 0;
+    // Step 1: If AMC, also grab all child clients
+    if (clientData.client_type === 'AMC') {
+      const { data: childClients, error: clientError } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('parent_id', parsedClientId);
 
-      setStats({
-        active: activeOrders,
-        last30: last30Orders,
-        total: totalOrders,
-        avgFee
-      });
-    } catch (err) {
-      console.error('Stats fetch failed:', err);
-      setError('Failed to load stats—check connection or try refresh.');
-    } finally {
-      setLoading(false);
+      if (clientError) throw clientError;
+
+      const childIds = childClients.map((c) => c.id);
+      clientIdsToFetch = childIds; // exclude AMC itself, just children
     }
-  };
 
+    // Step 2: Fetch orders for all collected client_ids
+    const { data: orders, error: fetchError } = await supabase
+      .from('orders')
+      .select('*')
+      .in('client_id', clientIdsToFetch);
+
+    if (fetchError) throw fetchError;
+
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const activeOrders = orders.filter(order =>
+      ['In Progress', 'Needs Review'].includes(order.status)).length;
+
+    const last30Orders = orders.filter(order =>
+      new Date(order.created_at) >= thirtyDaysAgo).length;
+
+    const totalOrders = orders.length;
+
+    const avgFee = totalOrders > 0
+      ? orders.reduce((sum, order) => sum + (order.base_fee || 0), 0) / totalOrders
+      : 0;
+
+    setStats({
+      active: activeOrders,
+      last30: last30Orders,
+      total: totalOrders,
+      avgFee
+    });
+  } catch (err) {
+    console.error('Stats fetch failed:', err);
+    setError('Failed to load stats—check connection or try refresh.');
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     if (isNewClient) {
@@ -134,12 +156,13 @@ const ClientDrawerContent = ({ data, onClose, onClientDeleted }) => {
   onClientDeleted={handleClientDeleted}
 />
       <ClientSidebarPanel 
-        stats={stats} 
-        hasData={hasData} 
-        chartData={chartData} 
-        isNewClient={isNewClient} 
-        onRefresh={fetchStats} 
-      />
+  stats={stats} 
+  hasData={hasData} 
+  chartData={chartData} 
+  isNewClient={isNewClient} 
+  onRefresh={fetchStats}
+  clientType={clientData?.client_type}
+/>
     </div>
   );
 };

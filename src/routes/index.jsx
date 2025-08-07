@@ -1,10 +1,11 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import Orders from "../pages/Orders";
-import Clients from "../pages/Clients";
-import Users from "../pages/Users";
+import Clients from "../pages/ClientsDashboard";
+import Users from "../pages/UsersDashboard";
 import Calendar from "../pages/Calendar";
 import Login from "../pages/Login";
 import EditClient from "../pages/EditClient";
+import EditUser from "../pages/EditUser";
 import UserDetail from "../pages/UserDetail";
 import OrderDetail from "../pages/OrderDetail";
 import AdminDashboard from "../pages/AdminDashboard";
@@ -14,6 +15,8 @@ import Layout from "../layout/Layout";
 import { useSession } from "@/lib/hooks/useSession";
 import NewOrder from "@/pages/NewOrder";
 import ProtectedRoute from "@/lib/hooks/ProtectedRoute";
+import NewClient from "../pages/NewClient";
+import UserHub from "../pages/UserHub";
 
 const ProtectedRoutes = () => {
   const { user, loading } = useSession();
@@ -33,14 +36,18 @@ const ProtectedRoutes = () => {
               user.role === "admin" ? <AdminDashboard /> : <AppraiserDashboard />
             }
           />
+
+          {/* Orders */}
           <Route path="orders" element={<Orders />} />
           <Route path="orders/new" element={<NewOrder />} />
           <Route path="orders/:id" element={<OrderDetail />} />
           <Route path="orders/:id/edit" element={<OrderDetail />} />
 
+          {/* Calendar */}
           <Route path="calendar" element={<Calendar />} />
           <Route path="*" element={<Navigate to="/dashboard" />} />
 
+          {/* Clients - Admin Only */}
           <Route
             path="clients"
             element={
@@ -58,6 +65,14 @@ const ProtectedRoutes = () => {
             }
           />
           <Route
+            path="clients/new"
+            element={
+              <ProtectedRoute roles={["admin"]}>
+                <NewClient />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="clients/edit/:clientId"
             element={
               <ProtectedRoute roles={["admin"]}>
@@ -65,14 +80,18 @@ const ProtectedRoutes = () => {
               </ProtectedRoute>
             }
           />
+
+          {/* Users (Team) - All Roles */}
           <Route
             path="users"
             element={
-              <ProtectedRoute roles={["admin"]}>
+              <ProtectedRoute>
                 <Users />
               </ProtectedRoute>
             }
           />
+
+          {/* Admin-Only User Detail Routes */}
           <Route
             path="users/:userId"
             element={
@@ -89,15 +108,38 @@ const ProtectedRoutes = () => {
               </ProtectedRoute>
             }
           />
+
+          {/* Profile Self-Edit */}
+          <Route
+            path="profile/edit"
+            element={
+              <ProtectedRoute>
+                <EditUser />
+              </ProtectedRoute>
+            }
+          />
         </Route>
       ) : (
         <Route path="*" element={<Navigate to="/login" />} />
       )}
+
+      {/* Public route (outside layout) for shared view */}
+      <Route
+        path="users/view/:userId"
+        element={
+          <ProtectedRoute>
+            <UserHub />
+          </ProtectedRoute>
+        }
+      />
     </Routes>
   );
 };
 
 export default ProtectedRoutes;
+
+
+
 
 
 

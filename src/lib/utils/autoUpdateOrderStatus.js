@@ -1,0 +1,40 @@
+import supabase from '@/lib/supabaseClient';
+
+/**
+ * Auto-update order status if applicable
+ * @param {Object} order
+ * @returns {Promise<void>}
+ */
+export default async function autoUpdateOrderStatus(order) {
+  if (!order) return;
+
+  const now = new Date();
+  const siteVisit = new Date(order.site_visit_datetime);
+
+  const isPastSiteVisit =
+    order.site_visit_datetime &&
+    siteVisit <= now &&
+    order.status === 'Inspection Scheduled';
+
+  if (isPastSiteVisit) {
+    const { error } = await supabase
+      .from('orders')
+      .update({ status: 'Inspected' })
+      .eq('id', order.id);
+
+    if (!error) {
+      await supabase.from('order_status_log').insert([
+        {
+          order_id: order.id,
+          old_status: 'Inspection Scheduled',
+          new_status: 'Inspected',
+          triggered_by: null,
+          trigger_type: 'system',
+          reason: 'Site visit date/time has passed',
+        },
+      ]);
+
+      // 🔜 Optionally: send an email to reviewer
+    }
+  }
+}

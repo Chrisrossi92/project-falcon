@@ -19,7 +19,7 @@ const Layout = () => {
   { to: '/dashboard', label: 'Dashboard' }, // ✅ Add this
   { to: '/orders', label: 'Orders' },
   ...(user.role === 'admin' ? [{ to: '/clients', label: 'Clients' }] : []),
-  ...(user.role === 'admin' ? [{ to: '/users', label: 'Users' }] : []),
+  { to: '/users', label: 'Team' },
   ...(user.role !== 'reviewer' ? [{ to: '/calendar', label: 'Calendar' }] : []),
 ];
 
