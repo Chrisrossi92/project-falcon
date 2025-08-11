@@ -1,3 +1,4 @@
+// src/lib/utils/autoUpdateOrderStatus.js
 import supabase from '@/lib/supabaseClient';
 
 /**
@@ -9,10 +10,11 @@ export default async function autoUpdateOrderStatus(order) {
   if (!order) return;
 
   const now = new Date();
-  const siteVisit = new Date(order.site_visit_datetime);
+  const hasVisit = !!order.site_visit_at;
+  const siteVisit = hasVisit ? new Date(order.site_visit_at) : null;
 
   const isPastSiteVisit =
-    order.site_visit_datetime &&
+    hasVisit &&
     siteVisit <= now &&
     order.status === 'Inspection Scheduled';
 
@@ -33,8 +35,8 @@ export default async function autoUpdateOrderStatus(order) {
           reason: 'Site visit date/time has passed',
         },
       ]);
-
-      // 🔜 Optionally: send an email to reviewer
+      // Optional: send a notification here
     }
   }
 }
+

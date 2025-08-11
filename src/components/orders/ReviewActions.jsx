@@ -1,65 +1,50 @@
-import { useState } from 'react';
-import { supabase } from '@/lib/supabaseClient'; // Adjust import if needed
-import { logActivity } from '@/lib/logactivity';
-import { useSession } from '@/lib/hooks/useSession';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ActivityLog/Badge'; // Assuming you have this; adjust path
+import { useState } from "react"
+import { supabase } from "@/lib/supabaseClient"
+import logOrderEvent from "@/lib/utils/logOrderEvent"
+import { useUser } from "@supabase/auth-helpers-react"
 
-const ReviewActions = ({ orderId, currentStatus, onStatusChange }) => {
-  const { user } = useSession();
-  const [loading, setLoading] = useState(false);
+export default function ReviewActions({ order }) {
+  const [loading, setLoading] = useState(false)
+  const user = useUser()
 
-  if (user.role !== 'reviewer' || !['Needs Review', 'In Review'].includes(currentStatus)) {
-    return null; // Hide if not applicable
+  const handleDecision = async (decision) => {
+    if (!user || !user.id || !order?.id) return
+    setLoading(true)
+
+    const updatedStatus = decision === "approve" ? "Completed" : "Needs Revisions"
+
+    const { error } = await supabase
+      .from("orders")
+      .update({ status: updatedStatus })
+      .eq("id", order.id)
+
+    if (error) {
+      console.error("Review status update failed:", error)
+      setLoading(false)
+      return
+    }
+
+    await logOrderEvent({
+      user_id: user.id,
+      order_id: order.id,
+      role: "reviewer",
+      action: decision === "approve" ? "review_approved" : "review_rejected",
+      message: decision === "approve"
+        ? "Review approved"
+        : "Revisions requested"
+    })
+
+    setLoading(false)
   }
 
-  const handleAction = async (newStatus, actionText) => {
-    setLoading(true);
-    try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ status: newStatus })
-        .eq('id', orderId);
-
-      if (error) throw error;
-
-      await logActivity({
-        user_id: user.id,
-        order_id: orderId,
-        action: `${actionText} order`,
-        role: user.role,
-        visible_to: ['admin', 'appraiser', 'reviewer'],
-        context: { status: newStatus }
-      });
-
-      onStatusChange(newStatus); // Callback to refresh parent
-    } catch (err) {
-      console.error('Review action failed:', err);
-      // Add toast error here if using notifications
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
-    <div className="flex gap-4 mt-4">
-      <Button
-        variant="outline"
-        onClick={() => handleAction('Completed', 'Approved')}
-        disabled={loading}
-      >
+    <div className="flex gap-2">
+      <button onClick={() => handleDecision("approve")} disabled={loading}>
         Approve
-      </Button>
-      <Button
-        variant="destructive"
-        onClick={() => handleAction('Needs Review', 'Rejected')}
-        disabled={loading}
-      >
-        Reject
-      </Button>
-      {loading && <Badge type="inProgress">Processing...</Badge>}
+      </button>
+      <button onClick={() => handleDecision("reject")} disabled={loading}>
+        Request Revisions
+      </button>
     </div>
-  );
-};
-
-export default ReviewActions;
+  )
+}

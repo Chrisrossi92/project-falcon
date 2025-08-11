@@ -1,3 +1,4 @@
+import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Orders from "../pages/Orders";
 import Clients from "../pages/ClientsDashboard";
@@ -13,15 +14,23 @@ import AppraiserDashboard from "../pages/AppraiserDashboard";
 import ClientDetail from "../pages/ClientDetail";
 import Layout from "../layout/Layout";
 import { useSession } from "@/lib/hooks/useSession";
+import { useRole } from "@/lib/hooks/useRole"; // ✅ add this
 import NewOrder from "@/pages/NewOrder";
 import ProtectedRoute from "@/lib/hooks/ProtectedRoute";
 import NewClient from "../pages/NewClient";
 import UserHub from "../pages/UserHub";
 
 const ProtectedRoutes = () => {
-  const { user, loading } = useSession();
+  const { user, loading: sessionLoading } = useSession(); // from UserContext
+  const { role, loading: roleLoading, error: roleError } = useRole(); // ✅ DB-backed role
 
-  if (loading) return <div className="p-6">Checking session...</div>;
+  if (sessionLoading || roleLoading) {
+    return <div className="p-6">Checking session…</div>;
+  }
+
+  if (roleError) {
+    return <div className="p-6 text-red-600">Error loading role: {roleError}</div>;
+  }
 
   return (
     <Routes>
@@ -32,9 +41,7 @@ const ProtectedRoutes = () => {
           <Route index element={<Navigate to="/dashboard" />} />
           <Route
             path="dashboard"
-            element={
-              user.role === "admin" ? <AdminDashboard /> : <AppraiserDashboard />
-            }
+            element={role === "admin" ? <AdminDashboard /> : <AppraiserDashboard />} // ✅ use DB role
           />
 
           {/* Orders */}
@@ -123,7 +130,7 @@ const ProtectedRoutes = () => {
         <Route path="*" element={<Navigate to="/login" />} />
       )}
 
-      {/* Public route (outside layout) for shared view */}
+      {/* NOTE: This is protected (NOT public). If you want truly public, tell me. */}
       <Route
         path="users/view/:userId"
         element={
@@ -137,6 +144,7 @@ const ProtectedRoutes = () => {
 };
 
 export default ProtectedRoutes;
+
 
 
 

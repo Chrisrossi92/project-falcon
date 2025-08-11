@@ -2,16 +2,13 @@
 import React, { forwardRef } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
-import interactionPlugin from '@fullcalendar/interaction';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import listPlugin from '@fullcalendar/list';
 
-const FullCalendarWrapper = forwardRef(({ 
-  events = [],
-  onEventClick,
-  initialView = 'dayGridTwoWeek',
-  compact = false
-}, ref) => {
+const FullCalendarWrapper = forwardRef((
+  { events = [], onEventClick, initialView = 'dayGridTwoWeek', compact = false },
+  ref
+) => {
   return (
     <FullCalendar
       ref={ref}
@@ -27,22 +24,14 @@ const FullCalendarWrapper = forwardRef(({
       headerToolbar={{
         left: 'prev,next today',
         center: 'title',
-        right: 'dayGridMonth,dayGridWeek,twoWeekButton'
-      }}
-      customButtons={{
-        twoWeekButton: {
-          text: 'Two Weeks',
-          click: () => {
-            ref?.current?.getApi().changeView('dayGridTwoWeek');
-          }
-        }
+        right: 'dayGridMonth,dayGridWeek,dayGridTwoWeek'
       }}
       views={{
-        twoWeeks: {
+        dayGridTwoWeek: {
           type: 'dayGrid',
           duration: { weeks: 2 },
-          buttonText: 'Two Weeks',
-        },
+          buttonText: 'Two Weeks'
+        }
       }}
       buttonText={{
         today: 'Today',
@@ -56,3 +45,5 @@ const FullCalendarWrapper = forwardRef(({
 
 FullCalendarWrapper.displayName = 'FullCalendarWrapper';
 export default FullCalendarWrapper;
+
+
