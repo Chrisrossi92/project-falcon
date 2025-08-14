@@ -1,8 +1,6 @@
 // src/pages/OrderDetail.jsx
-
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Loader2 } from "lucide-react";
 import supabase from "@/lib/supabaseClient";
 import OrderForm from "@/components/orders/OrderForm";
 import { useSession } from "@/lib/hooks/useSession";
@@ -16,6 +14,8 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { LoadingState } from "@/components/ui/Loaders";
+import { ErrorState } from "@/components/ui/Errors";
 
 export default function OrderDetail() {
   const { id } = useParams();
@@ -24,11 +24,13 @@ export default function OrderDetail() {
 
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [errorMsg, setErrorMsg] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   useEffect(() => {
+    let mounted = true;
     const fetchOrder = async () => {
+      setLoading(true);
       const { data, error } = await supabase
         .from("orders")
         .select(
@@ -41,10 +43,11 @@ export default function OrderDetail() {
         .eq("id", id)
         .single();
 
+      if (!mounted) return;
+
       if (error || !data) {
         console.error("Error fetching order:", error?.message);
-        setError("Order not found.");
-        navigate("/orders");
+        setErrorMsg("Order not found.");
       } else {
         const transformed = {
           ...data,
@@ -53,12 +56,12 @@ export default function OrderDetail() {
         };
         setOrder(transformed);
       }
-
       setLoading(false);
     };
 
     fetchOrder();
-  }, [id, navigate]);
+    return () => { mounted = false; };
+  }, [id]);
 
   const handleDelete = async () => {
     const { error } = await supabase.from("orders").delete().eq("id", order.id);
@@ -70,31 +73,24 @@ export default function OrderDetail() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="animate-spin text-gray-500" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return <div className="p-6 text-red-600 font-medium">{error}</div>;
-  }
+  if (loading) return <LoadingState label="Loading order…" />;
+  if (errorMsg) return <ErrorState message={errorMsg} />;
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-4">Edit Order #{order.id}</h1>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold">Edit Order #{order.id}</h1>
+        {isAdmin && (
+          <Button variant="destructive" onClick={() => setDeleteConfirmOpen(true)}>
+            Delete
+          </Button>
+        )}
+      </div>
 
-      <OrderForm
-  order={order}
-  setOrder={setOrder}
-  mode="edit"
-  isAdmin={isAdmin}
-  onDeleteClick={() => setDeleteConfirmOpen(true)}
-/>
+      {/* Order edit form (assumes OrderForm exists in your codebase) */}
+      <OrderForm initialOrder={order} />
 
-     <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Are you sure?</DialogTitle>
@@ -103,18 +99,15 @@ export default function OrderDetail() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDelete}>
-              Delete
-            </Button>
+            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDelete}>Delete</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   );
 }
+
 
 
 

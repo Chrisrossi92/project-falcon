@@ -1,12 +1,26 @@
-
 // src/pages/Settings.jsx
-import React from 'react';
+import React from "react";
+import ProfileForm from "@/components/settings/ProfileForm";
+import PreferencesForm from "@/components/settings/PreferencesForm";
 
-const Settings = () => (
-  <div className="p-4">
-    <h2 className="text-xl font-bold mb-4">Settings</h2>
-    <p>Here you can update your preferences.</p>
-  </div>
-);
+export default function Settings() {
+  return (
+    <div className="mx-auto max-w-3xl space-y-8 p-6">
+      <div>
+        <h1 className="text-2xl font-semibold">Settings</h1>
+        <p className="text-sm text-gray-500">Update your profile and preferences.</p>
+      </div>
 
-export default Settings;
+      <section className="rounded-2xl border bg-white p-6 shadow-sm">
+        <h2 className="mb-4 text-lg font-medium">Profile</h2>
+        <ProfileForm />
+      </section>
+
+      <section className="rounded-2xl border bg-white p-6 shadow-sm">
+        <h2 className="mb-4 text-lg font-medium">Preferences</h2>
+        <PreferencesForm />
+      </section>
+    </div>
+  );
+}
+

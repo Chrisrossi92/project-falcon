@@ -1,8 +1,10 @@
+// src/layout/Layout.jsx
 import React from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useSession } from '@/lib/hooks/useSession';
-import FloatingActivityLog from '../components/FloatingActivityLog'; // ✅ Ensure correct path
+import FloatingActivityLog from '../components/FloatingActivityLog';
 import supabase from '@/lib/supabaseClient';
+import { LoadingState } from '@/components/ui/Loaders'; // ✅
 
 const Layout = () => {
   const { user, loading } = useSession();
@@ -13,53 +15,54 @@ const Layout = () => {
     navigate('/login');
   };
 
-  if (loading) return null;
+  if (loading) return <LoadingState label="Loading session…" />; // ✅
 
   const navItems = [
-  { to: '/dashboard', label: 'Dashboard' }, // ✅ Add this
-  { to: '/orders', label: 'Orders' },
-  ...(user.role === 'admin' ? [{ to: '/clients', label: 'Clients' }] : []),
-  { to: '/users', label: 'Team' },
-  ...(user.role !== 'reviewer' ? [{ to: '/calendar', label: 'Calendar' }] : []),
-];
+    { to: '/dashboard', label: 'Dashboard' },
+    { to: '/orders', label: 'Orders' },
+    ...(user.role === 'admin' ? [{ to: '/clients', label: 'Clients' }] : []),
+    { to: '/users', label: 'Team' },
+    ...(user.role !== 'reviewer' ? [{ to: '/calendar', label: 'Calendar' }] : []),
+    { to: '/settings', label: 'Settings' },
+  ];
 
   return (
-    <div className="min-h-screen flex bg-gray-100 relative">
-      <aside className="w-64 bg-white shadow-md p-4 z-10">
-        <h1 className="text-xl font-bold mb-6">Falcon Platform</h1>
-        <nav className="flex flex-col space-y-2">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                `block px-3 py-2 rounded hover:bg-blue-100 ${
-                  isActive ? 'bg-blue-500 text-white' : 'text-gray-800'
-                }`
-              }
-            >
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
-        <button
-          onClick={logout}
-          className="mt-10 text-sm text-gray-600 hover:underline"
-        >
-          Log out
-        </button>
-      </aside>
+    <div className="min-h-screen bg-gray-50">
+      <header className="border-b bg-white">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
+          <div className="text-lg font-semibold">Falcon Platform</div>
+          <nav className="flex items-center gap-2">
+            {navItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) =>
+                  `block rounded px-3 py-2 hover:bg-blue-100 ${
+                    isActive ? 'bg-blue-500 text-white' : 'text-gray-800'
+                  }`
+                }
+              >
+                {item.label}
+              </NavLink>
+            ))}
+            <button onClick={logout} className="rounded px-3 py-2 text-sm text-gray-600 hover:bg-gray-100">
+              Log out
+            </button>
+          </nav>
+        </div>
+      </header>
 
-      <main className="flex-1 p-6">
+      <main className="mx-auto max-w-7xl p-4">
         <Outlet />
       </main>
 
-      {/* ✅ Activity log floating outside main layout */}
+      {/* Floating activity log (can be toggled off later) */}
       <FloatingActivityLog />
     </div>
   );
 };
 
 export default Layout;
+
 
 

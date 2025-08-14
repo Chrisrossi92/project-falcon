@@ -14,11 +14,12 @@ import AppraiserDashboard from "../pages/AppraiserDashboard";
 import ClientDetail from "../pages/ClientDetail";
 import Layout from "../layout/Layout";
 import { useSession } from "@/lib/hooks/useSession";
-import { useRole } from "@/lib/hooks/useRole"; // ✅ add this
+import { useRole } from "@/lib/hooks/useRole"; // ✅ DB-backed role lookup
 import NewOrder from "@/pages/NewOrder";
 import ProtectedRoute from "@/lib/hooks/ProtectedRoute";
 import NewClient from "../pages/NewClient";
 import UserHub from "../pages/UserHub";
+import Settings from "../pages/Settings"; // ✅ Added Settings import
 
 const ProtectedRoutes = () => {
   const { user, loading: sessionLoading } = useSession(); // from UserContext
@@ -52,7 +53,6 @@ const ProtectedRoutes = () => {
 
           {/* Calendar */}
           <Route path="calendar" element={<Calendar />} />
-          <Route path="*" element={<Navigate to="/dashboard" />} />
 
           {/* Clients - Admin Only */}
           <Route
@@ -125,6 +125,19 @@ const ProtectedRoutes = () => {
               </ProtectedRoute>
             }
           />
+
+          {/* ✅ Settings (all authenticated users) */}
+          <Route
+            path="settings"
+            element={
+              <ProtectedRoute>
+                <Settings />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/dashboard" />} />
         </Route>
       ) : (
         <Route path="*" element={<Navigate to="/login" />} />
@@ -144,6 +157,7 @@ const ProtectedRoutes = () => {
 };
 
 export default ProtectedRoutes;
+
 
 
 
