@@ -1,44 +1,61 @@
-// lib/hooks/useRole.js
-import { useState, useEffect } from 'react';
-import supabase from '../supabaseClient';
-import { useSession } from './useSession';
+// src/lib/hooks/useRole.js
+import { useEffect, useState } from 'react'
+import supabase from '@/lib/supabaseClient'
 
-export const useRole = () => {
-  const { user } = useSession();
-  const [role, setRole] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+export function useRole() {
+  const [role, setRole] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
-    if (!user) {
-      setLoading(false);
-      return;
-    }
+    let mounted = true
+    ;(async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) { if (mounted) { setRole(null); setLoading(false) } ; return }
 
-    const fetchRole = async () => {
-      const { data, error } = await supabase
-        .from('users')
-        .select('role')
-        .eq('id', user.id)
-        .limit(1);  // Use limit(1) to avoid PGRST116 on multiples
+        // Try to fetch by the auth linkage
+        let { data, error, status } = await supabase
+          .from('users')
+          .select('id, role, email')
+          .eq('auth_id', user.id)
+          .maybeSingle() // ← avoids 406 on 0 or >1
 
-      if (error) {
-        console.error('Error fetching role:', error);
-        setError(error.message);
-      } else if (data.length === 0) {
-        console.warn('No role found for user ID:', user.id, ' - Defaulting to "user"');
-        setRole('user');  // Default to 'user' for login to work; adjust if needed (e.g., null to block)
-      } else {
-        if (data.length > 1) {
-          console.warn('Multiple roles found for user ID:', user.id, ' - Using first.');
+        // If missing, self-create a minimal row then re-read
+        if (!data && !error) {
+          const up = await supabase
+            .from('users')
+            .upsert([{
+              id: user.id,
+              auth_id: user.id,
+              email: user.email,
+              name: user.user_metadata?.name || (user.email || '').split('@')[0] || 'User',
+              role: 'appraiser',
+              status: 'active'
+            }], { onConflict: 'auth_id' })
+          if (up.error) throw up.error
+
+          const re = await supabase
+            .from('users')
+            .select('id, role, email')
+            .eq('auth_id', user.id)
+            .maybeSingle()
+          data = re.data; error = re.error
         }
-        setRole(data[0]?.role || 'user');  // Default if role is null
+
+        if (error) throw error
+        const normalized = (data?.role || '').toString().trim().toLowerCase()
+        if (mounted) setRole(normalized || null)
+      } catch (e) {
+        if (mounted) setError(e.message || 'Failed to fetch role')
+      } finally {
+        if (mounted) setLoading(false)
       }
-      setLoading(false);
-    };
+    })()
+    return () => { mounted = false }
+  }, [])
 
-    fetchRole();
-  }, [user]);
+  return { role, loading, error }
+}
 
-  return { role, loading, error };
-};
+

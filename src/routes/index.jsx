@@ -1,5 +1,6 @@
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
+
 import Orders from "../pages/Orders";
 import Clients from "../pages/ClientsDashboard";
 import Users from "../pages/UsersDashboard";
@@ -13,36 +14,42 @@ import AdminDashboard from "../pages/AdminDashboard";
 import AppraiserDashboard from "../pages/AppraiserDashboard";
 import ClientDetail from "../pages/ClientDetail";
 import Layout from "../layout/Layout";
+
 import { useSession } from "@/lib/hooks/useSession";
-import { useRole } from "@/lib/hooks/useRole"; // ✅ DB-backed role lookup
+import { useRole } from "@/lib/hooks/useRole"; // DB-backed role lookup
 import NewOrder from "@/pages/NewOrder";
 import ProtectedRoute from "@/lib/hooks/ProtectedRoute";
 import NewClient from "../pages/NewClient";
 import UserHub from "../pages/UserHub";
-import Settings from "../pages/Settings"; // ✅ Added Settings import
+import Settings from "../pages/Settings";
+
+// ✅ New: Admin team/roles page (from our previous step)
+import AdminUsers from "../pages/AdminUsers";
 
 const ProtectedRoutes = () => {
-  const { user, loading: sessionLoading } = useSession(); // from UserContext
-  const { role, loading: roleLoading, error: roleError } = useRole(); // ✅ DB-backed role
+  const { user, loading: sessionLoading } = useSession();
+  const { role, loading: roleLoading, error: roleError } = useRole();
 
   if (sessionLoading || roleLoading) {
     return <div className="p-6">Checking session…</div>;
   }
-
   if (roleError) {
     return <div className="p-6 text-red-600">Error loading role: {roleError}</div>;
   }
 
   return (
     <Routes>
+      {/* Public login */}
       <Route path="/login" element={<Login />} />
 
       {user ? (
         <Route path="/" element={<Layout />}>
           <Route index element={<Navigate to="/dashboard" />} />
+
+          {/* Dashboard switches by DB role */}
           <Route
             path="dashboard"
-            element={role === "admin" ? <AdminDashboard /> : <AppraiserDashboard />} // ✅ use DB role
+            element={role === "admin" ? <AdminDashboard /> : <AppraiserDashboard />}
           />
 
           {/* Orders */}
@@ -54,7 +61,7 @@ const ProtectedRoutes = () => {
           {/* Calendar */}
           <Route path="calendar" element={<Calendar />} />
 
-          {/* Clients - Admin Only */}
+          {/* Clients - Admin only */}
           <Route
             path="clients"
             element={
@@ -88,7 +95,7 @@ const ProtectedRoutes = () => {
             }
           />
 
-          {/* Users (Team) - All Roles */}
+          {/* Users (team list) - any authenticated user */}
           <Route
             path="users"
             element={
@@ -98,7 +105,17 @@ const ProtectedRoutes = () => {
             }
           />
 
-          {/* Admin-Only User Detail Routes */}
+          {/* Admin-only user management (roles, etc.) */}
+          <Route
+            path="admin/users"
+            element={
+              <ProtectedRoute roles={["admin", "manager"]}>
+                <AdminUsers />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Admin-only user detail */}
           <Route
             path="users/:userId"
             element={
@@ -116,7 +133,7 @@ const ProtectedRoutes = () => {
             }
           />
 
-          {/* Profile Self-Edit */}
+          {/* Profile self-edit */}
           <Route
             path="profile/edit"
             element={
@@ -126,7 +143,7 @@ const ProtectedRoutes = () => {
             }
           />
 
-          {/* ✅ Settings (all authenticated users) */}
+          {/* Settings (all authenticated users) */}
           <Route
             path="settings"
             element={
@@ -140,10 +157,11 @@ const ProtectedRoutes = () => {
           <Route path="*" element={<Navigate to="/dashboard" />} />
         </Route>
       ) : (
+        // Not logged in → always go to /login
         <Route path="*" element={<Navigate to="/login" />} />
       )}
 
-      {/* NOTE: This is protected (NOT public). If you want truly public, tell me. */}
+      {/* This route is still protected; make public only if you intend to */}
       <Route
         path="users/view/:userId"
         element={
@@ -157,6 +175,7 @@ const ProtectedRoutes = () => {
 };
 
 export default ProtectedRoutes;
+
 
 
 
