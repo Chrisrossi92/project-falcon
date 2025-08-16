@@ -1,33 +1,33 @@
-import React, { useState } from "react";
+// src/pages/NewOrder.jsx
+import React from "react";
 import OrderForm from "@/components/orders/OrderForm";
 
-export default function NewOrder() {
-  const [order, setOrder] = useState({
-    address: "",
-    status: "New",
-    due_date: "",
-    site_visit_date: "",
-    review_due_date: "",
-    client_id: null,
-    manual_client: "",
-    appraiser_id: null,
-    base_fee: "",
-    appraiser_split: "",
-    appraiser_fee: "",
-    paid_status: "unpaid",
-    report_type: "",
-    property_type: "",
-    notes: "",
-    client_invoice: "",
-  });
+const DEFAULT_ORDER = {
+  id: null,
+  status: "New",
+  client_id: null,
+  appraiser_id: null,
+  manual_client: "",
+  manual_appraiser: "",
+  property_address: "",
+  city: "",
+  state: "",
+  postal_code: "",
+  site_visit_at: null,
+  review_due_at: null,
+  final_due_at: null,
+};
 
+export default function NewOrder() {
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-4">Create New Order</h1>
-      <OrderForm order={order} setOrder={setOrder} mode="new" />
+    <div className="space-y-6">
+      <h1 className="text-xl font-semibold">Create Order</h1>
+      {/* Pass a safe initial object so child components never see undefined */}
+      <OrderForm initialOrder={DEFAULT_ORDER} mode="create" />
     </div>
   );
 }
+
 
 
 
