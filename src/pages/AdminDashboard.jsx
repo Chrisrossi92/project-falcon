@@ -33,8 +33,8 @@ const AdminDashboard = () => {
       } else {
         const withNames = (data || []).map(order => ({
           ...order,
-          client_name: order.clients?.name || order.manual_client || '—',
-          appraiser_name: order.users?.name || order.manual_appraiser || '—',
+          client_name: order.client?.name || order.manual_client || '—',
+          appraiser_name: order.appraiser?.display_name || order.manual_appraiser || '—',
         }));
         setOrders(withNames);
       }
