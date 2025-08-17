@@ -38,7 +38,7 @@ export const useOrders = () => {
       const transformed = data.map(order => ({
         ...order,
         client_name: order.client?.name || order.manual_client || '—',
-        appraiser_name: order.appraiser?.name || order.manual_appraiser || '—',
+        appraiser_name: order.appraiser?.display_name || order.manual_appraiser || '—',
       }));
       setOrders(transformed);
     }
