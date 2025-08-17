@@ -26,6 +26,9 @@ import Settings from "../pages/Settings";
 // ✅ New: Admin team/roles page (from our previous step)
 import AdminUsers from "../pages/AdminUsers";
 
+// ✅ New: Dev/demo Orders page
+import OrdersDemoPage from "../pages/OrdersDemo";
+
 const ProtectedRoutes = () => {
   const { user, loading: sessionLoading } = useSession();
   const { role, loading: roleLoading, error: roleError } = useRole();
@@ -161,6 +164,9 @@ const ProtectedRoutes = () => {
         <Route path="*" element={<Navigate to="/login" />} />
       )}
 
+      {/* Dev/demo: public route for quick checks (remove or gate as needed) */}
+      <Route path="/dev/orders" element={<OrdersDemoPage />} />
+
       {/* This route is still protected; make public only if you intend to */}
       <Route
         path="users/view/:userId"
@@ -175,6 +181,7 @@ const ProtectedRoutes = () => {
 };
 
 export default ProtectedRoutes;
+
 
 
 
