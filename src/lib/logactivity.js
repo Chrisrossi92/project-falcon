@@ -1,19 +1,12 @@
-// Force redeploy
-import supabase from './supabaseClient';
+// src/lib/logactivity.js
+import { supabase } from './supabaseClient';
 
-export async function logActivity({ user_id, order_id = null, action, role, visible_to = ['admin'], context = {} }) {
-  const { error } = await supabase.from('activity_log').insert([
-    {
-      user_id,
-      order_id,
-      action,
-      role,
-      visible_to,
-      context,
-    }
-  ]);
-
-  if (error) {
-    console.error('Error logging activity:', error.message);
-  }
+export async function fetchActivity(orderId) {
+  const { data, error } = await supabase.rpc('get_order_activity_flexible_v3', {
+    p_order_id: orderId,
+  });
+  if (error) throw error;
+  return data ?? [];
 }
+
+
