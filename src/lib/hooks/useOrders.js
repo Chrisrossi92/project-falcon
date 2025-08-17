@@ -20,7 +20,7 @@ export const useOrders = () => {
       .select(`
         *,
         client:client_id ( name ),
-        appraiser:appraiser_id ( name )
+        appraiser:appraiser_id ( display_name )
       `)
       .order('id', { ascending: false });
 
