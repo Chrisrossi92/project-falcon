@@ -18,8 +18,8 @@ const AdminDashboard = () => {
         .from('orders')
         .select(`
           *, 
-          clients:client_id ( name ),
-          users:appraiser_id ( name )
+          client:client_id ( name ),
+          appraiser:appraiser_id ( display_name )
         `);
 
       if (!isAdmin && !isReviewer) {
