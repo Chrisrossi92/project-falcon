@@ -23,7 +23,7 @@ export default function OrderDrawerContent({ data, onClose }) {
           `
           *,
           client:client_id ( name ),
-          appraiser:appraiser_id ( name )
+          appraiser:appraiser_id ( display_name )
         `
         )
         .eq("id", data.id)
@@ -36,13 +36,13 @@ export default function OrderDrawerContent({ data, onClose }) {
         setOrder({
           ...data,
           client_name: data.client?.name || data.manual_client || "—",
-          appraiser_name: data.appraiser?.name || data.manual_appraiser || "—",
+          appraiser_name: data.appraiser?.display_name || data.manual_appraiser || "—",
         });
       } else {
         setOrder({
           ...fullOrder,
           client_name: fullOrder.client?.name || fullOrder.manual_client || "—",
-          appraiser_name: fullOrder.appraiser?.name || fullOrder.manual_appraiser || "—",
+          appraiser_name: fullOrder.appraiser?.display_name || fullOrder.manual_appraiser || "—",
         });
       }
 

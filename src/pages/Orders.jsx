@@ -31,7 +31,7 @@ const Orders = () => {
       .select(`
         *,
         client:client_id ( name ),
-        appraiser:appraiser_id ( name )
+        appraiser:appraiser_id ( display_name )
       `);
 
     const { data, error } = await query;

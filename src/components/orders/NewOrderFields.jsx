@@ -120,7 +120,7 @@ export default function NewOrderFields({
         >
           <option value="">Select Appraiser</option>
           {appraisers.map((u) => (
-            <option key={u.id} value={u.id}>{u.name}</option>
+            <option key={u.id} value={u.id}>{u.display_name || u.name || u.email}</option>
           ))}
         </select>
       </div>
