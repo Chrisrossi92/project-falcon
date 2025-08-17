@@ -3,18 +3,21 @@ import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import supabase from '@/lib/supabaseClient'
 
-const ROLES = ['owner', 'admin', 'manager', 'appraiser', 'reviewer']
+const ROLES = ['owner', 'admin', 'manager', 'reviewer', 'appraiser']
+const STATUSES = ['active', 'inactive']
 
 function RoleSelect({ value, onChange }) {
   return (
-    <select
-      className="border rounded px-2 py-1 text-sm"
-      value={value ?? ''}
-      onChange={(e) => onChange(e.target.value || null)}
-    >
-      {ROLES.map(r => (
-        <option key={r} value={r}>{r}</option>
-      ))}
+    <select className="border rounded px-2 py-1 text-sm" value={value ?? ''} onChange={(e)=>onChange(e.target.value)}>
+      {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+    </select>
+  )
+}
+
+function StatusSelect({ value, onChange }) {
+  return (
+    <select className="border rounded px-2 py-1 text-sm" value={value ?? 'active'} onChange={(e)=>onChange(e.target.value)}>
+      {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
     </select>
   )
 }
@@ -22,23 +25,20 @@ function RoleSelect({ value, onChange }) {
 export default function AdminUsers() {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
-  const [savingId, setSavingId] = useState(null)
+  const [busy, setBusy] = useState(null)
   const [error, setError] = useState(null)
   const [ok, setOk] = useState(null)
 
   useEffect(() => {
     let mounted = true
     ;(async () => {
+      setLoading(true)
+      setError(null)
       try {
-        setLoading(true)
-        setError(null)
-
-        // Load team
         const { data, error } = await supabase
           .from('users')
-          .select('id, email, name, display_name, phone, role, status')
+          .select('id, email, name, display_name, phone, role, status, split')
           .order('name', { ascending: true })
-
         if (error) throw error
         if (mounted) setRows(data || [])
       } catch (e) {
@@ -50,23 +50,19 @@ export default function AdminUsers() {
     return () => { mounted = false }
   }, [])
 
-  const onChangeRole = async (id, role) => {
-    setSavingId(id)
-    setError(null)
-    setOk(null)
+  const saveRow = async (id, patch) => {
+    setBusy(id)
+    setOk(null); setError(null)
     try {
-      const { error } = await supabase
-        .from('users')
-        .update({ role })
-        .eq('id', id)
+      const { error } = await supabase.from('users').update(patch).eq('id', id)
       if (error) throw error
-      setRows(prev => prev.map(r => r.id === id ? { ...r, role } : r))
-      setOk('Role updated')
+      setRows(prev => prev.map(r => r.id === id ? { ...r, ...patch } : r))
+      setOk('Saved')
+      setTimeout(()=>setOk(null), 1200)
     } catch (e) {
-      setError(e.message || 'Update failed')
+      setError(e.message || 'Save failed')
     } finally {
-      setSavingId(null)
-      setTimeout(() => setOk(null), 1200)
+      setBusy(null)
     }
   }
 
@@ -77,7 +73,7 @@ export default function AdminUsers() {
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Team & Roles</h1>
-        <Link to="/dashboard" className="text-sm underline">Back to Dashboard</Link>
+        <Link to="/users" className="text-sm underline">Back to User Hub</Link>
       </div>
 
       {ok && <div className="text-sm text-green-700">{ok}</div>}
@@ -90,6 +86,7 @@ export default function AdminUsers() {
               <th className="text-left px-3 py-2">Email</th>
               <th className="text-left px-3 py-2">Phone</th>
               <th className="text-left px-3 py-2">Role</th>
+              <th className="text-left px-3 py-2">Fee Split (%)</th>
               <th className="text-left px-3 py-2">Status</th>
               <th className="px-3 py-2"></th>
             </tr>
@@ -98,22 +95,37 @@ export default function AdminUsers() {
             {rows.map(u => (
               <tr key={u.id} className="border-t">
                 <td className="px-3 py-2">{u.display_name || u.name || '—'}</td>
-                <td className="px-3 py-2">{u.email}</td>
-                <td className="px-3 py-2">{u.phone || '—'}</td>
                 <td className="px-3 py-2">
-                  <RoleSelect
-                    value={u.role}
-                    onChange={(val) => onChangeRole(u.id, val)}
+                  <input
+                    className="border rounded px-2 py-1 w-60"
+                    defaultValue={u.email || ''}
+                    onBlur={e => e.target.value !== (u.email || '') && saveRow(u.id, { email: e.target.value })}
                   />
                 </td>
-                <td className="px-3 py-2">{u.status || 'active'}</td>
+                <td className="px-3 py-2">{u.phone || '—'}</td>
                 <td className="px-3 py-2">
-                  {savingId === u.id && <span className="text-xs">Saving…</span>}
+                  <RoleSelect value={u.role} onChange={(role)=>saveRow(u.id, { role })} />
                 </td>
+                <td className="px-3 py-2">
+                  <input
+                    type="number"
+                    min={0} max={100} step={1}
+                    className="border rounded px-2 py-1 w-24"
+                    defaultValue={u.split ?? 50}
+                    onBlur={e => {
+                      const v = e.target.value === '' ? null : Number(e.target.value)
+                      if (v !== u.split) saveRow(u.id, { split: v })
+                    }}
+                  />
+                </td>
+                <td className="px-3 py-2">
+                  <StatusSelect value={u.status || 'active'} onChange={(status)=>saveRow(u.id, { status })} />
+                </td>
+                <td className="px-3 py-2">{busy === u.id && <span className="text-xs">Saving…</span>}</td>
               </tr>
             ))}
             {rows.length === 0 && (
-              <tr><td colSpan={6} className="px-3 py-6 text-center text-gray-500">No users found</td></tr>
+              <tr><td colSpan={7} className="px-3 py-6 text-center text-gray-500">No users found</td></tr>
             )}
           </tbody>
         </table>
@@ -121,4 +133,5 @@ export default function AdminUsers() {
     </div>
   )
 }
+
 
