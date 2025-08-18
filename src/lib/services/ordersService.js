@@ -1,16 +1,12 @@
 import supabase from '@/lib/supabaseClient';
 import logOrderEvent from '@/lib/utils/logOrderEvent';
 
-/**
- * CREATE new order + write activity row
- */
 export async function createOrderWithLogs({ order, user }) {
   const { data, error } = await supabase
     .from('orders')
     .insert(order)
     .select()
     .single();
-
   if (error) throw error;
 
   await logOrderEvent({
@@ -24,9 +20,6 @@ export async function createOrderWithLogs({ order, user }) {
   return data;
 }
 
-/**
- * UPDATE order status + write activity row
- */
 export async function updateOrderStatus({ orderId, newStatus, user }) {
   const { data, error } = await supabase
     .from('orders')
@@ -34,7 +27,6 @@ export async function updateOrderStatus({ orderId, newStatus, user }) {
     .eq('id', orderId)
     .select()
     .single();
-
   if (error) throw error;
 
   await logOrderEvent({
@@ -49,9 +41,6 @@ export async function updateOrderStatus({ orderId, newStatus, user }) {
   return data;
 }
 
-/**
- * ASSIGN appraiser + write activity row
- */
 export async function assignAppraiser({ orderId, appraiserId, user }) {
   const { data, error } = await supabase
     .from('orders')
@@ -59,7 +48,6 @@ export async function assignAppraiser({ orderId, appraiserId, user }) {
     .eq('id', orderId)
     .select()
     .single();
-
   if (error) throw error;
 
   await logOrderEvent({
@@ -74,9 +62,6 @@ export async function assignAppraiser({ orderId, appraiserId, user }) {
   return data;
 }
 
-/**
- * OPTIONAL helper: add a free-text comment to an order’s activity log
- */
 export async function addOrderComment({ orderId, text, user }) {
   await logOrderEvent({
     userId: user?.id ?? null,
@@ -87,5 +72,7 @@ export async function addOrderComment({ orderId, text, user }) {
   });
   return true;
 }
+
+
 
 
