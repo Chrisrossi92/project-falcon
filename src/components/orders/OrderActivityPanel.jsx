@@ -1,5 +1,5 @@
 // src/components/orders/OrderActivityPanel.jsx
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import supabase from '@/lib/supabaseClient';
 import { addOrderComment } from '@/lib/services/ordersService';
 
@@ -8,7 +8,6 @@ export default function OrderActivityPanel({ orderId, currentUser }) {
   const [text, setText] = useState('');
   const canPost = !!currentUser?.id && !!orderId;
 
-  // Fetch activity
   async function fetchActivity() {
     const { data, error } = await supabase
       .from('activity_log')
@@ -26,7 +25,6 @@ export default function OrderActivityPanel({ orderId, currentUser }) {
     if (!orderId) return;
     fetchActivity();
 
-    // Real-time updates
     const channel = supabase
       .channel(`order-activity-${orderId}`)
       .on(
@@ -37,7 +35,16 @@ export default function OrderActivityPanel({ orderId, currentUser }) {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      try {
+        // support both client APIs safely
+        if (typeof supabase.removeChannel === 'function') {
+          supabase.removeChannel(channel);
+        } else if (typeof channel.unsubscribe === 'function') {
+          channel.unsubscribe();
+        }
+      } catch (e) {
+        console.warn('teardown channel failed:', e?.message);
+      }
     };
   }, [orderId]);
 
@@ -47,8 +54,7 @@ export default function OrderActivityPanel({ orderId, currentUser }) {
     try {
       await addOrderComment({ orderId, text: val, user: currentUser });
       setText('');
-      // optimistic refresh; realtime will also push it
-      fetchActivity();
+      fetchActivity(); // optimistic refresh; realtime will also update
     } catch (e) {
       console.error('addOrderComment failed:', e?.message);
     }
@@ -56,18 +62,18 @@ export default function OrderActivityPanel({ orderId, currentUser }) {
 
   const list = useMemo(
     () =>
-      rows.map((r) => {
+      (rows ?? []).map((r) => {
         const msg = r?.context?.message || '';
         const label =
           r.action === 'comment'
-            ? `Comment`
+            ? 'Comment'
             : r.action === 'order_created'
             ? 'Order created'
             : r.action === 'status_changed'
             ? 'Status changed'
             : r.action === 'assigned'
             ? 'Assigned'
-            : r.action;
+            : r.action || 'Event';
         return { ...r, label, msg };
       }),
     [rows]
@@ -110,6 +116,7 @@ export default function OrderActivityPanel({ orderId, currentUser }) {
     </div>
   );
 }
+
 
 
 
