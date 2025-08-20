@@ -1,35 +1,39 @@
 import supabase from '@/lib/supabaseClient';
 
-/**
- * Write a persistent activity row for an order.
- * action:
- *  - 'system'  (status change, assignment, order created, site visit scheduled)
- *  - 'comment' (free-text message)
- * context: free JSON; we render context.message in the UI
- */
-export default async function logOrderEvent({
-  orderId,
-  userId = null,
-  role = 'system',
-  action = 'system',
-  message,
-  context = {},
-  visibleTo = ['admin', 'appraiser'],
-}) {
-  if (!orderId) throw new Error('logOrderEvent: orderId is required');
-  const payload = {
-    order_id: Number(orderId),
-    user_id: userId,
-    role,
-    action,
-    visible_to: visibleTo,
-    context: { message, ...context },
-  };
+// RLS-friendly event logger using RPCs only.
+export default async function logOrderEvent(args) {
+  const orderId    = args.orderId ?? args.order_id;
+  const action     = String(args.action ?? 'note').toLowerCase();
+  const message    = args.message ?? null;
+  const prevStatus = args.prevStatus ?? args.prev_status ?? null;
+  const newStatus  = args.newStatus ?? args.new_status ?? null;
 
-  const { error } = await supabase.from('activity_log').insert(payload);
+  if (!orderId) {
+    throw new Error('logOrderEvent: orderId/order_id is required');
+  }
+
+  // Status change path
+  if (action === 'status_changed' || action === 'status_change') {
+    const { error } = await supabase.rpc('rpc_log_status_change', {
+      p_order_id:    orderId,
+      p_prev_status: prevStatus,
+      p_new_status:  newStatus,
+      p_message:     message,
+    });
+    if (error) {
+      throw new Error(`rpc_log_status_change failed: ${error.message}`);
+    }
+    return true;
+  }
+
+  // Default = log a note/comment
+  const { error } = await supabase.rpc('rpc_log_note', {
+    p_order_id: orderId,
+    p_message:  message ?? String(action),
+  });
   if (error) {
-    console.error('logOrderEvent failed:', error.message, payload);
-    throw error;
+    throw new Error(`rpc_log_note failed: ${error.message}`);
   }
   return true;
 }
+

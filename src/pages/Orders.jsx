@@ -1,99 +1,85 @@
 // src/pages/Orders.jsx
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import OrdersTable from '@/components/orders/OrdersTable';
-import { Button } from '@/components/ui/button';
-import supabase from '@/lib/supabaseClient';
-import { useSession } from '@/lib/hooks/useSession';
-import { LoadingState } from '@/components/ui/Loaders';
-import { ErrorState } from '@/components/ui/Errors';
+import React, { useEffect, useState } from "react";
+import supabase from "@/lib/supabaseClient";
+import OrdersTable from "@/components/orders/OrdersTable";
+import { useSession } from "@/lib/hooks/useSession";
 
-const Orders = () => {
+export default function OrdersPage() {
   const { user, isAdmin, isReviewer } = useSession();
-  const navigate = useNavigate();
-  const location = useLocation();
-
   const [orders, setOrders] = useState([]);
-  const [filteredOrders, setFilteredOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState('');
+  const [error, setError] = useState(null);
 
-  // filters (wired in next PR)
-  const [statusFilter, setStatusFilter] = useState('');
-  const [appraiserFilter, setAppraiserFilter] = useState('');
-
-  const refreshOrders = async () => {
+  async function fetchOrders() {
     setLoading(true);
-    setErrorMsg('');
+    setError(null);
 
-    let query = supabase
-      .from('orders')
+    // Pull from the view — no PostgREST embedding required
+    const { data, error } = await supabase
+      .from("v_orders_list_with_last_activity")
       .select(`
-        *,
-        client:client_id ( name ),
-        appraiser:appraiser_id ( name )
-      `);
-
-    const { data, error } = await query;
+        order_id, order_number, status, created_at,
+        review_due_date, due_date, site_visit_at,
+        client_id, client_name,
+        appraiser_id, appraiser_name, appraiser_display_name,
+        last_action, last_message, last_activity_at
+      `)
+      .order("created_at", { ascending: false });
 
     if (error) {
-      console.error('Orders fetch error:', error);
-      setErrorMsg(error.message || 'Failed to load orders.');
+      setError(error.message);
       setOrders([]);
-    } else {
-      setOrders(data || []);
+      setLoading(false);
+      return;
     }
 
+    // Optional: appraiser scoping for non-admin/reviewer
+    const scoped = (!isAdmin && !isReviewer && user?.id)
+      ? (data || []).filter(r => r.appraiser_id === user.id)
+      : (data || []);
+
+    // Map to the shape OrdersTable expects
+    const rows = scoped.map(r => ({
+      id: r.order_id,
+      order_number: r.order_number,
+      status: r.status,
+      created_at: r.created_at,
+      review_due_date: r.review_due_date,
+      due_date: r.due_date,
+      site_visit_at: r.site_visit_at,
+      client: { id: r.client_id, name: r.client_name },
+      appraiser: {
+        id: r.appraiser_id,
+        display_name: r.appraiser_display_name,
+        name: r.appraiser_name,
+      },
+      // expose last-activity fields so the table/drawer can use them
+      last_action: r.last_action,
+      last_message: r.last_message,
+      last_activity_at: r.last_activity_at,
+    }));
+
+    setOrders(rows);
     setLoading(false);
-  };
+  }
 
   useEffect(() => {
-    refreshOrders();
+    fetchOrders();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin, isReviewer, user?.id]);
 
-  // sync URL (so we don't lose future filters)
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    setStatusFilter(params.get('status') || '');
-    setAppraiserFilter(params.get('appraiser') || '');
-  }, [location.search]);
-
-  // basic filter pipeline (will be expanded in next PR)
-  useEffect(() => {
-    let temp = [...orders];
-
-    if (statusFilter) temp = temp.filter(o => o.status === statusFilter);
-    if (appraiserFilter && (isAdmin || isReviewer)) temp = temp.filter(o => String(o.appraiser_id) === String(appraiserFilter));
-
-    setFilteredOrders(temp);
-  }, [orders, statusFilter, appraiserFilter, isAdmin, isReviewer]);
-
-  if (loading) return <LoadingState label="Loading orders…" />;
-  if (errorMsg) return <ErrorState message={errorMsg} />;
+  if (error) {
+    return <div className="p-6 text-red-600">Error: {error}</div>;
+  }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Orders</h1>
-        <div className="flex items-center gap-2">
-          {/* Filters UI comes next PR */}
-          <Button onClick={() => navigate('/orders/new')}>+ New Order</Button>
-        </div>
-      </div>
-
-      <div className="rounded-2xl border bg-white p-2">
-        <OrdersTable
-          orders={filteredOrders}
-          refreshOrders={refreshOrders}
-          hideAppraiserColumn={!(isAdmin || isReviewer)}
-        />
-      </div>
+    <div className="p-6 space-y-4">
+      <h1 className="text-2xl font-semibold">Orders</h1>
+      <OrdersTable orders={orders} loading={loading} refreshOrders={fetchOrders} />
     </div>
   );
-};
+}
 
-export default Orders;
 
 
 
