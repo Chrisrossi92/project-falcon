@@ -10,11 +10,10 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  async function fetchOrders() {
+  const fetchOrders = async () => {
     setLoading(true);
     setError(null);
 
-    // Pull from the view — no PostgREST embedding required
     const { data, error } = await supabase
       .from("v_orders_list_with_last_activity")
       .select(`
@@ -33,12 +32,12 @@ export default function OrdersPage() {
       return;
     }
 
-    // Optional: appraiser scoping for non-admin/reviewer
+    // Scope for non-admin/reviewer
     const scoped = (!isAdmin && !isReviewer && user?.id)
       ? (data || []).filter(r => r.appraiser_id === user.id)
       : (data || []);
 
-    // Map to the shape OrdersTable expects
+    // Shape to match OrdersTable expectations
     const rows = scoped.map(r => ({
       id: r.order_id,
       order_number: r.order_number,
@@ -53,7 +52,6 @@ export default function OrdersPage() {
         display_name: r.appraiser_display_name,
         name: r.appraiser_name,
       },
-      // expose last-activity fields so the table/drawer can use them
       last_action: r.last_action,
       last_message: r.last_message,
       last_activity_at: r.last_activity_at,
@@ -61,16 +59,14 @@ export default function OrdersPage() {
 
     setOrders(rows);
     setLoading(false);
-  }
+  };
 
   useEffect(() => {
     fetchOrders();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin, isReviewer, user?.id]);
 
-  if (error) {
-    return <div className="p-6 text-red-600">Error: {error}</div>;
-  }
+  if (error) return <div className="p-6 text-red-600">Error: {error}</div>;
 
   return (
     <div className="p-6 space-y-4">
@@ -79,6 +75,7 @@ export default function OrdersPage() {
     </div>
   );
 }
+
 
 
 
