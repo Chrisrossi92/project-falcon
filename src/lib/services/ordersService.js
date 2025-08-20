@@ -17,6 +17,7 @@ export async function createOrderWithLogs({ order, user }) {
   });
 
   return data;
+  return data;
 }
 
 /**
