@@ -1,3 +1,4 @@
+// src/components/orders/OrderForm.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
 import supabase from "@/lib/supabaseClient";
@@ -63,8 +64,9 @@ function buildSavePayload(f) {
     manual_appraiser: f?.manual_appraiser || null,
     property_address: f?.property_address ?? "",
     city: f?.city ?? "",
-    state: f?.state ?? "",
+    state: (f?.state ?? "").toString().toUpperCase(),
     postal_code: f?.postal_code ?? "",
+    // dates are persisted through RPCs below to keep a single write path
     site_visit_at: f?.site_visit_at ?? null,
     review_due_at: f?.review_due_at ?? null,
     final_due_at: f?.final_due_at ?? null,
@@ -93,7 +95,7 @@ export default function OrderForm({ initialOrder, mode = "edit", onSaved }) {
 
   const isCreate = mode === "create" || !form?.id;
 
-  // Auto-generate order number once on create
+  // Auto-generate order number once on create (DB helper if available)
   useEffect(() => {
     if (!isCreate || form.order_number) return;
     (async () => {
@@ -147,42 +149,93 @@ export default function OrderForm({ initialOrder, mode = "edit", onSaved }) {
     }));
   };
 
+  // Save helpers
   async function saveViaRPC() {
+    // TODO: add DB RPCs create_order/update_order if you want a single entry point.
     if (isCreate) {
-      const { data, error } = await supabase.rpc("create_order", { p_order: buildSavePayload(form) });
-      if (error) throw error;
-      return data;
+      throw Object.assign(new Error("create_order RPC not available"), { code: "42883" });
     } else {
-      const { error } = await supabase.rpc("update_order", { p_id: form.id, p_changes: buildSavePayload(form) });
-      if (error) throw error;
-      return { id: form.id };
+      throw Object.assign(new Error("update_order RPC not available"), { code: "42883" });
     }
   }
   async function saveDirectFallback() {
     if (isCreate) {
-      const { data, error } = await supabase.from("orders").insert(buildSavePayload(form)).select("id").single();
+      const { data, error } = await supabase
+        .from("orders")
+        .insert(buildSavePayload(form))
+        .select("id")
+        .single();
       if (error) throw error;
-      return data;
+      return data; // { id }
     } else {
-      const { error } = await supabase.from("orders").update(buildSavePayload(form)).eq("id", form.id);
+      const { error } = await supabase
+        .from("orders")
+        .update(buildSavePayload(form))
+        .eq("id", form.id);
       if (error) throw error;
       return { id: form.id };
     }
   }
 
-  const persistReviewers = async (orderId) => {
-    if (!Array.isArray(form.reviewers)) return;
-    const payload = form.reviewers.map((r, idx) => ({
-      reviewer_id: r.reviewer_id,
-      position: r.position ?? idx + 1,
-      required: r.required ?? true,
-    }));
-    const { error } = await supabase.rpc("set_order_reviewers", {
+  async function persistDueDates(orderId) {
+    const reviewDate = form.review_due_at ? new Date(form.review_due_at) : null;
+    const finalDate  = form.final_due_at ? new Date(form.final_due_at) : null;
+
+    if (!reviewDate && !finalDate) return;
+
+    const { error } = await supabase.rpc("rpc_update_due_dates", {
       p_order_id: orderId,
-      p_reviewers: payload,
+      p_due_date: finalDate ? finalDate.toISOString().slice(0, 10) : null,
+      p_review_due_date: reviewDate ? reviewDate.toISOString().slice(0, 10) : null,
     });
-    if (error) throw error;
-  };
+    if (error) throw new Error(`rpc_update_due_dates failed: ${error.message}`);
+  }
+
+  async function persistCalendarEvents(orderId) {
+    // Create calendar events for the three admin event types, if provided
+    const calls = [];
+    if (form.site_visit_at) {
+      calls.push(supabase.rpc("rpc_create_calendar_event", {
+        p_event_type: "site_visit",
+        p_title: `Site Visit – ${form.property_address || "Subject"}`,
+        p_start_at: form.site_visit_at,
+        p_end_at: form.site_visit_at, // single moment; adjust if you want 1hr block
+        p_order_id: orderId,
+        p_appraiser_id: form.appraiser_id,
+        p_location: `${form.property_address || ""} ${form.city || ""} ${form.state || ""}`.trim(),
+        p_notes: null,
+      }));
+    }
+    if (form.review_due_at) {
+      calls.push(supabase.rpc("rpc_create_calendar_event", {
+        p_event_type: "due_for_review",
+        p_title: `Review Due – ${form.property_address || "Subject"}`,
+        p_start_at: form.review_due_at,
+        p_end_at: form.review_due_at,
+        p_order_id: orderId,
+        p_appraiser_id: form.appraiser_id,
+        p_location: null,
+        p_notes: null,
+      }));
+    }
+    if (form.final_due_at) {
+      calls.push(supabase.rpc("rpc_create_calendar_event", {
+        p_event_type: "due_to_client",
+        p_title: `Final Due – ${form.property_address || "Subject"}`,
+        p_start_at: form.final_due_at,
+        p_end_at: form.final_due_at,
+        p_order_id: orderId,
+        p_appraiser_id: form.appraiser_id,
+        p_location: null,
+        p_notes: null,
+      }));
+    }
+    if (calls.length) {
+      const results = await Promise.all(calls);
+      const err = results.find(r => r?.error);
+      if (err?.error) throw new Error(`rpc_create_calendar_event failed: ${err.error.message}`);
+    }
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -193,21 +246,37 @@ export default function OrderForm({ initialOrder, mode = "edit", onSaved }) {
         res = await saveViaRPC();
       } catch (rpcErr) {
         const msg = (rpcErr?.message || "").toLowerCase();
-        if (msg.includes("create_order") || msg.includes("update_order") || rpcErr?.code === "42883") {
+        if (rpcErr?.code === "42883" || msg.includes("create_order") || msg.includes("update_order")) {
           res = await saveDirectFallback();
         } else {
           throw rpcErr;
         }
       }
+
       const orderId = res?.id ?? form.id ?? null;
       if (orderId) {
+        // persist dates and calendar through RPCs for uniformity
+        await persistDueDates(orderId);
+        await persistCalendarEvents(orderId);
+        // reviewers (optional)
         try {
-          await persistReviewers(orderId);
-        } catch (e) {
-          // Not fatal to order creation
-          console.warn("set_order_reviewers failed:", e?.message);
+          if (Array.isArray(form.reviewers) && form.reviewers.length) {
+            const payload = form.reviewers.map((r, idx) => ({
+              reviewer_id: r.reviewer_id,
+              position: r.position ?? idx + 1,
+              required: r.required ?? true,
+            }));
+            const { error } = await supabase.rpc("set_order_reviewers", {
+              p_order_id: orderId,
+              p_reviewers: payload,
+            });
+            if (error) console.warn("set_order_reviewers failed:", error.message);
+          }
+        } catch (e2) {
+          console.warn("Reviewers save skipped:", e2?.message);
         }
       }
+
       toast.success(isCreate ? "Order created" : "Order updated");
       onSaved?.(orderId);
     } catch (err) {
@@ -317,16 +386,16 @@ export default function OrderForm({ initialOrder, mode = "edit", onSaved }) {
         </div>
       </form>
 
-      {/* Reviewers modal */}
       <ReviewModal
         open={reviewersOpen}
-        onOpenChange={setReviewersOpen}
-        value={form.reviewers}
-        onSave={(sel) => setForm((s) => ({ ...s, reviewers: sel }))}
+        reviewers={form.reviewers}
+        onClose={() => setReviewersOpen(false)}
+        onChange={(next) => setForm((s) => ({ ...s, reviewers: next }))}
       />
     </>
   );
 }
+
 
 
 

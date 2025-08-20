@@ -11,20 +11,25 @@ export default function OrderActivityPanel({ orderId, currentUser }) {
   async function fetchActivity() {
     const { data, error } = await supabase
       .from('activity_log')
-      .select('id, action, role, created_at, user_id, context')
+      .select('id, action, role, created_at, user_id, context, prev_status, new_status, message')
       .eq('order_id', orderId)
       .order('created_at', { ascending: false });
+
     if (error) {
       console.error('fetchActivity error:', error.message);
       return;
     }
-    setRows(data ?? []);
+
+    // normalize: prefer message, fall back to context.message
+    setRows((data ?? []).map(r => ({ ...r, message: r.message ?? r?.context?.message ?? null })));
   }
 
   useEffect(() => {
     if (!orderId) return;
+
     fetchActivity();
 
+    // realtime subscription
     const channel = supabase
       .channel(`order-activity-${orderId}`)
       .on(
@@ -36,7 +41,6 @@ export default function OrderActivityPanel({ orderId, currentUser }) {
 
     return () => {
       try {
-        // support both client APIs safely
         if (typeof supabase.removeChannel === 'function') {
           supabase.removeChannel(channel);
         } else if (typeof channel.unsubscribe === 'function') {
@@ -48,36 +52,43 @@ export default function OrderActivityPanel({ orderId, currentUser }) {
     };
   }, [orderId]);
 
-  async function handlePost() {
-    const val = text?.trim();
-    if (!val) return;
+  async function handlePost(e) {
+    e?.preventDefault?.();
+    const val = text.trim();
+    if (!val || !orderId) return;
     try {
       await addOrderComment({ orderId, text: val, user: currentUser });
       setText('');
-      fetchActivity(); // optimistic refresh; realtime will also update
-    } catch (e) {
-      console.error('addOrderComment failed:', e?.message);
+      fetchActivity(); // realtime should also update; this is for snappiness
+    } catch (e2) {
+      console.error('addOrderComment failed:', e2?.message);
     }
   }
 
-  const list = useMemo(
-    () =>
-      (rows ?? []).map((r) => {
-        const msg = r?.context?.message || '';
-        const label =
-          r.action === 'comment'
-            ? 'Comment'
-            : r.action === 'order_created'
-            ? 'Order created'
-            : r.action === 'status_changed'
-            ? 'Status changed'
-            : r.action === 'assigned'
-            ? 'Assigned'
-            : r.action || 'Event';
-        return { ...r, label, msg };
-      }),
-    [rows]
-  );
+  const list = useMemo(() => {
+    return (rows ?? []).map((r) => {
+      const a = (r.action || '').toLowerCase();
+      let label = 'Event';
+      if (a === 'comment') label = 'Comment';
+      else if (a === 'note') label = 'Note';
+      else if (a === 'assignment') label = 'Assigned';
+      else if (a === 'status_change') label = 'Status changed';
+
+      let body = r.message || '';
+      if (a === 'status_change' && (r.prev_status || r.new_status)) {
+        const prev = r.prev_status || '—';
+        const next = r.new_status || '—';
+        body = body ? `${body} (${prev} → ${next})` : `(${prev} → ${next})`;
+      }
+
+      return {
+        id: r.id,
+        created_at: r.created_at,
+        label,
+        body,
+      };
+    });
+  }, [rows]);
 
   return (
     <div className="flex flex-col gap-3">
@@ -85,34 +96,31 @@ export default function OrderActivityPanel({ orderId, currentUser }) {
         {list.length === 0 ? 'No activity yet.' : null}
       </div>
 
-      <div className="flex flex-col gap-2">
-        {list.map((r) => (
-          <div key={r.id} className="rounded-md border p-2">
-            <div className="text-xs opacity-70">
-              {r.label} · {new Date(r.created_at).toLocaleString()}
+      <div className="space-y-2 max-h-80 overflow-auto border rounded p-2 bg-white">
+        {list.map((item) => (
+          <div key={item.id} className="text-sm border-b pb-2 last:border-b-0">
+            <div className="text-[11px] opacity-60">
+              {new Date(item.created_at).toLocaleString()}
             </div>
-            <div className="text-sm">{r.msg || <i>(no text)</i>}</div>
+            <div className="font-medium">{item.label}</div>
+            <div>{item.body || <i>(no text)</i>}</div>
           </div>
         ))}
       </div>
 
-      <div className="flex gap-2 mt-2">
-        <input
-          type="text"
-          placeholder="Add a comment..."
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          className="flex-1 rounded-md border px-3 py-2"
-          disabled={!canPost}
-        />
-        <button
-          onClick={handlePost}
-          className="rounded-md border px-3 py-2"
-          disabled={!canPost || !text.trim()}
-        >
-          Post
-        </button>
-      </div>
+      {canPost && (
+        <form onSubmit={handlePost} className="flex gap-2">
+          <input
+            className="flex-1 border rounded px-2 py-1"
+            placeholder="Add a comment…"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+          />
+          <button type="submit" className="border rounded px-3 py-1">
+            Post
+          </button>
+        </form>
+      )}
     </div>
   );
 }

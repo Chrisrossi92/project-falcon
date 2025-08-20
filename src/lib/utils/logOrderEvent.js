@@ -1,31 +1,39 @@
 import supabase from '@/lib/supabaseClient';
 
+// RLS-friendly event logger using RPCs only.
 export default async function logOrderEvent(args) {
-  const orderId   = args.orderId ?? args.order_id;
-  const userId    = args.userId  ?? args.user_id ?? null;
-  const role      = args.role ?? 'system';
-  const action    = args.action ?? 'system';
-  const message   = args.message;
-  const context   = args.context ?? {};
-  const visibleTo = args.visibleTo ?? args.visible_to ?? ['admin', 'appraiser'];
+  const orderId    = args.orderId ?? args.order_id;
+  const action     = String(args.action ?? 'note').toLowerCase();
+  const message    = args.message ?? null;
+  const prevStatus = args.prevStatus ?? args.prev_status ?? null;
+  const newStatus  = args.newStatus ?? args.new_status ?? null;
 
-  if (!orderId) throw new Error('logOrderEvent: orderId/order_id is required');
+  if (!orderId) {
+    throw new Error('logOrderEvent: orderId/order_id is required');
+  }
 
-  const payload = {
-    order_id: orderId,
-    user_id: userId,
-    role,
-    action,
-    visible_to: visibleTo,
-    context: { message, ...context },
-  };
+  // Status change path
+  if (action === 'status_changed' || action === 'status_change') {
+    const { error } = await supabase.rpc('rpc_log_status_change', {
+      p_order_id:    orderId,
+      p_prev_status: prevStatus,
+      p_new_status:  newStatus,
+      p_message:     message,
+    });
+    if (error) {
+      throw new Error(`rpc_log_status_change failed: ${error.message}`);
+    }
+    return true;
+  }
 
-  const { error } = await supabase.from('activity_log').insert(payload);
+  // Default = log a note/comment
+  const { error } = await supabase.rpc('rpc_log_note', {
+    p_order_id: orderId,
+    p_message:  message ?? String(action),
+  });
   if (error) {
-    console.error('logOrderEvent failed:', error.message, payload);
-    throw error;
+    throw new Error(`rpc_log_note failed: ${error.message}`);
   }
   return true;
 }
-
 

@@ -79,6 +79,7 @@ pol(table_name, ok, detail) as (
   from pg_policies where schemaname='public' and tablename='calendar_events'
 ),
 -- 6) expected indexes on orders
+-- 6) expected indexes on orders
 idx_expect(name) as (
   select unnest(array[
     'orders_status_idx',
@@ -91,8 +92,10 @@ idx_expect(name) as (
     'orders_active_created_at_idx'
   ])
 ),
-idx_found(name) as (
-  select indexname from pg_indexes where schemaname='public' and tablename='orders'
+idx_found(indexname) as (
+  select indexname
+  from pg_indexes
+  where schemaname='public' and tablename='orders'
 ),
 idx(name, ok) as (
   select e.name, (f.indexname is not null) as ok

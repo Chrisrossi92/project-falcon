@@ -1,41 +1,38 @@
-// pages/Calendar.jsx
+// src/pages/Calendar.jsx
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import supabase from '@/lib/supabaseClient';
 import { useSession } from '@/lib/hooks/useSession';
-import useOrderEvents from '@/lib/hooks/useOrderEvents';
 import FullCalendarWrapper from '@/components/ui/FullCalendarWrapper';
+import { listAdminEvents } from '@/lib/api/calendar';
 
 const CalendarPage = () => {
   const navigate = useNavigate();
   const { user } = useSession();
   const calendarRef = useRef(null);
-  const [orders, setOrders] = useState([]);
-  const [filters] = useState({ site: true, review: true, due: true, holidays: true });
+  const [events, setEvents] = useState([]);
+  const [filters] = useState({ site_visit: true, due_for_review: true, due_to_client: true });
 
   useEffect(() => {
-    const fetchOrders = async () => {
-      let query = supabase.from('orders').select('*');
-
-      if (user.role === 'appraiser') {
-        query = query.eq('appraiser_id', user.id);
-      } else if (user.role === 'reviewer') {
-        query = query.in('status', ['In Review', 'Needs Review']);
+    let mounted = true;
+    (async () => {
+      try {
+        const rows = await listAdminEvents();
+        if (!mounted) return;
+        const mapped = rows
+          .filter(ev => filters[ev.event_type] !== false)
+          .map(ev => ({
+            title: ev.title,
+            start: ev.start_at,
+            end: ev.end_at || ev.start_at,
+            extendedProps: { orderId: ev.order_id, type: ev.event_type, appraiserId: ev.appraiser_id },
+          }));
+        setEvents(mapped);
+      } catch (e) {
+        console.error("Calendar load failed:", e?.message);
       }
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('Error fetching orders:', error.message);
-        return;
-      }
-      setOrders(data);
-    };
-
-    fetchOrders();
-  }, [user]);
-
-  const events = useOrderEvents({ orders, user, filters });
+    })();
+    return () => { mounted = false; };
+  }, [user?.id, filters]);
 
   const handleEventClick = (info) => {
     const orderId = info.event.extendedProps.orderId;
@@ -78,5 +75,6 @@ const CalendarPage = () => {
 };
 
 export default CalendarPage;
+
 
 
