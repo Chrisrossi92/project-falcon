@@ -1,76 +1,92 @@
 // src/components/DashboardCalendar.jsx
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import supabase from '@/lib/supabaseClient';
 import { useSession } from '@/lib/hooks/useSession';
 import useOrderEvents from '@/lib/hooks/useOrderEvents';
 import FullCalendarWrapper from '@/components/ui/FullCalendarWrapper';
-import { useOrders } from '@/lib/hooks/useOrders';
-import { useRole } from '@/lib/hooks/useRole';
+import CalendarLegend from '@/components/ui/CalendarLegend';
 
-const DashboardCalendar = ({ onOrderSelect = null, compact = false }) => {
-  const navigate = useNavigate();
+export default function DashboardCalendar() {
   const { user } = useSession();
-  const { role } = useRole();
-  const calendarRef = useRef(null);
-  const { orders } = useOrders();
+  const navigate = useNavigate();
+  const calRef = useRef(null);
 
-  const [filters, setFilters] = useState({
-    site: true,
-    review: true,
-    due: true,
-    holidays: !compact,
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Lightweight 2-week dashboard scope
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      setLoading(true);
+      try {
+        // Keep it simple: pull all orders (role-narrowing optional on dashboard)
+        const { data, error } = await supabase.from('orders').select('*');
+        if (error) throw error;
+        if (mounted) setOrders(data || []);
+      } catch (e) {
+        console.error('DashboardCalendar orders load failed:', e.message);
+        if (mounted) setOrders([]);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [user?.id]);
+
+  // Only show the 3 MVP event types; color by appraiser
+  const events = useOrderEvents({
+    orders,
+    user,
+    filters: { site: true, review: true, due: true },
   });
 
-  const events = useOrderEvents({ orders, user, filters, compact });
-
   const handleEventClick = (info) => {
-    const orderId = info.event.extendedProps.orderId;
-    if (!orderId) return;
-    if (onOrderSelect) {
-      onOrderSelect(orderId);
-    } else {
-      navigate(`/orders/${orderId}`);
-    }
+    const orderId = info.event.extendedProps?.orderId;
+    if (orderId) navigate(`/orders/${orderId}`);
   };
 
-  return (
-    <div className="dashboard-calendar relative">
-      {!compact && (
-        <div className="calendar-legend mb-4 group">
-          <h3 className="text-lg font-medium mb-2 cursor-pointer">Legend</h3>
-          <div className="legend-items space-y-2 absolute z-10 bg-white p-4 shadow-lg rounded-md hidden group-hover:block">
-            <div className="legend-item flex items-center">
-              <span className="legend-icon mr-2">📍</span> Site Visit
-            </div>
-            <div className="legend-item flex items-center">
-              <span className="legend-icon mr-2">🔍</span> Review Due
-            </div>
-            <div className="legend-item flex items-center">
-              <span className="legend-icon mr-2">⏰</span> Final Due
-            </div>
-            <div className="legend-item flex items-center">
-              <span className="legend-icon mr-2">🎉</span> Holiday
-            </div>
-          </div>
-        </div>
-      )}
+  // quick helpers for header buttons on the card
+  const changeView = (view) => calRef.current?.getApi()?.changeView(view);
+  const nav = (dir) => (dir === 'prev'
+    ? calRef.current?.getApi()?.prev()
+    : dir === 'next'
+      ? calRef.current?.getApi()?.next()
+      : calRef.current?.getApi()?.today());
 
-      <FullCalendarWrapper
-        ref={calendarRef}
-        events={events}
-        onEventClick={handleEventClick}
-        initialView={compact ? 'listWeek' : 'dayGridTwoWeek'}
-        headerToolbar={{
-          left: 'prev,next today',
-          center: 'title',
-          right: compact ? '' : 'dayGridMonth,timeGridWeek,dayGridTwoWeek,listWeek',
-        }}
-      />
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="font-medium text-gray-700">Legend</div>
+        <div className="flex items-center gap-2">
+          <button onClick={() => nav('prev')} className="px-3 py-1 rounded border">‹</button>
+          <button onClick={() => nav('today')} className="px-3 py-1 rounded border">today</button>
+          <button onClick={() => nav('next')} className="px-3 py-1 rounded border">›</button>
+          <button onClick={() => changeView('dayGridMonth')} className="px-3 py-1 rounded border">month</button>
+          <button onClick={() => changeView('dayGridWeek')} className="px-3 py-1 rounded border">week</button>
+          <button onClick={() => changeView('dayGridTwoWeek')} className="px-3 py-1 rounded border">2 weeks</button>
+        </div>
+      </div>
+
+      <CalendarLegend />
+
+      <div className="bg-white rounded-xl border overflow-hidden">
+        {loading ? (
+          <div className="p-6 text-sm text-gray-600">Loading…</div>
+        ) : (
+          <FullCalendarWrapper
+            ref={calRef}
+            events={events}
+            onEventClick={handleEventClick}
+            initialView="dayGridTwoWeek"
+          />
+        )}
+      </div>
     </div>
   );
-};
+}
 
-export default DashboardCalendar;
 
 
 

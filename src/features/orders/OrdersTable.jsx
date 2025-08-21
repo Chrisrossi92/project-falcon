@@ -1,13 +1,18 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { getOrdersList } from './api';
 import { supa as defaultClient } from '../../lib/supa.client';
+import OrderRowDetail from './OrderRowDetail';
 
 export default function OrdersTable({
   client = defaultClient,
   pageSize = 25,
   status,
-  branchId,
+  appraiserId,
+  clientId,
+  priority,
+  dueWindow,
   includeArchived = false,
+  onRowClick, // optional external override; if absent we inline-expand
 }) {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -16,10 +21,12 @@ export default function OrdersTable({
   const [loading, setLoading] = useState(false);
   const pages = Math.max(1, Math.ceil(count / pageSize));
 
+  const [expandedId, setExpandedId] = useState(null);
+
   async function load() {
     setLoading(true);
     const res = await getOrdersList(
-      { page, pageSize, status, branchId, search, includeArchived },
+      { page, pageSize, status, search, appraiserId, clientId, priority, dueWindow, includeArchived },
       client
     );
     setRows(res.data);
@@ -27,13 +34,18 @@ export default function OrdersTable({
     setLoading(false);
   }
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [page, status, branchId, includeArchived]);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [page, status, appraiserId, clientId, priority, dueWindow, includeArchived]);
 
-  function onSearch(e) { e.preventDefault(); setPage(1); load(); }
+  function onSearchSubmit(e) { e.preventDefault(); setPage(1); load(); }
+
+  const handleRow = (row) => {
+    if (typeof onRowClick === 'function') return onRowClick(row);
+    setExpandedId((id) => (id === row.id ? null : row.id));
+  };
 
   return (
     <div className="p-4">
-      <form onSubmit={onSearch} className="flex gap-2 mb-3">
+      <form onSubmit={onSearchSubmit} className="flex gap-2 mb-3">
         <input
           value={search}
           onChange={(e)=>setSearch(e.target.value)}
@@ -47,6 +59,7 @@ export default function OrdersTable({
         <table className="min-w-[900px] w-full text-sm">
           <thead className="bg-gray-50">
             <tr className="text-left">
+              <th className="px-3 py-2 w-10"></th>
               <th className="px-3 py-2">Order #</th>
               <th className="px-3 py-2">Title</th>
               <th className="px-3 py-2">Address</th>
@@ -58,25 +71,42 @@ export default function OrdersTable({
           </thead>
           <tbody>
             {loading ? (
-              <tr><td className="px-3 py-6" colSpan={7}>Loading…</td></tr>
+              <tr><td className="px-3 py-6" colSpan={8}>Loading…</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td className="px-3 py-6" colSpan={7}>No orders</td></tr>
-            ) : rows.map(r => (
-              <tr key={r.id} className="border-t">
-                <td className="px-3 py-2">{r.order_number || '—'}</td>
-                <td className="px-3 py-2">{r.title || '—'}</td>
-                <td className="px-3 py-2">{r.display_address || '—'}</td>
-                <td className="px-3 py-2">{r.status || '—'}</td>
-                <td className="px-3 py-2">{r.due_date || '—'}</td>
-                <td className="px-3 py-2"><PriorityPill value={r.priority || 'normal'} /></td>
-                <td className="px-3 py-2">
-                  <div className="flex flex-col">
-                    <span className="text-gray-900">{r.last_action || '—'}</span>
-                    <span className="text-gray-500 text-xs">{r.last_message || ''}</span>
-                    <span className="text-gray-400 text-xs">{r.last_activity_at || ''}</span>
-                  </div>
-                </td>
-              </tr>
+              <tr><td className="px-3 py-6" colSpan={8}>No orders</td></tr>
+            ) : rows.map((r) => (
+              <React.Fragment key={r.id}>
+                <tr
+                  className="border-t hover:bg-gray-50 cursor-pointer"
+                  onClick={() => handleRow(r)}
+                  title="Expand order"
+                >
+                  <td className="px-3 py-2 align-top">
+                    <span className="inline-block text-gray-500">{expandedId === r.id ? '▾' : '▸'}</span>
+                  </td>
+                  <td className="px-3 py-2 align-top">{r.order_number || '—'}</td>
+                  <td className="px-3 py-2 align-top">{r.title || '—'}</td>
+                  <td className="px-3 py-2 align-top">{r.display_address || '—'}</td>
+                  <td className="px-3 py-2 align-top">{r.status || '—'}</td>
+                  <td className="px-3 py-2 align-top">{r.due_date || '—'}</td>
+                  <td className="px-3 py-2 align-top"><PriorityPill value={r.priority || 'normal'} /></td>
+                  <td className="px-3 py-2 align-top">
+                    <div className="flex flex-col">
+                      <span className="text-gray-900">{r.last_action || '—'}</span>
+                      <span className="text-gray-500 text-xs">{r.last_message || ''}</span>
+                      <span className="text-gray-400 text-xs">{r.last_activity_at || ''}</span>
+                    </div>
+                  </td>
+                </tr>
+
+                {expandedId === r.id && (
+                  <tr className="bg-gray-50">
+                    <td colSpan={8} className="px-2 py-3">
+                      <OrderRowDetail orderId={r.id} />
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
             ))}
           </tbody>
         </table>
@@ -102,3 +132,7 @@ function PriorityPill({ value }) {
   const cls = map[value] || map.normal;
   return <span className={`px-2 py-0.5 rounded text-xs ${cls}`}>{value}</span>;
 }
+
+
+
+

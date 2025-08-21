@@ -1,39 +1,33 @@
 import supabase from '@/lib/supabaseClient';
 
-// RLS-friendly event logger using RPCs only.
+/**
+ * Write to activity_log with columns:
+ *   order_id, action, prev_status, new_status, message, created_at (default)
+ * action ∈ ('status_change','note','assignment','comment')
+ */
 export default async function logOrderEvent(args) {
   const orderId    = args.orderId ?? args.order_id;
-  const action     = String(args.action ?? 'note').toLowerCase();
+  if (!orderId) throw new Error('logOrderEvent: orderId/order_id is required');
+
+  const action     = args.action ?? 'note';
   const message    = args.message ?? null;
-  const prevStatus = args.prevStatus ?? args.prev_status ?? null;
-  const newStatus  = args.newStatus ?? args.new_status ?? null;
+  const prevStatus = args.prev_status ?? args.prevStatus ?? null;
+  const newStatus  = args.new_status ?? args.newStatus ?? null;
+  // actor_user_id defaults to auth.uid() in DB, so we don't need to send it
 
-  if (!orderId) {
-    throw new Error('logOrderEvent: orderId/order_id is required');
-  }
-
-  // Status change path
-  if (action === 'status_changed' || action === 'status_change') {
-    const { error } = await supabase.rpc('rpc_log_status_change', {
-      p_order_id:    orderId,
-      p_prev_status: prevStatus,
-      p_new_status:  newStatus,
-      p_message:     message,
-    });
-    if (error) {
-      throw new Error(`rpc_log_status_change failed: ${error.message}`);
-    }
-    return true;
-  }
-
-  // Default = log a note/comment
-  const { error } = await supabase.rpc('rpc_log_note', {
-    p_order_id: orderId,
-    p_message:  message ?? String(action),
+  const { error } = await supabase.from('activity_log').insert({
+    order_id: orderId,
+    action: action,
+    prev_status: prevStatus,
+    new_status: newStatus,
+    message: message,
   });
+
   if (error) {
-    throw new Error(`rpc_log_note failed: ${error.message}`);
+    console.error('logOrderEvent failed:', error.message, { orderId, action });
+    throw error;
   }
   return true;
 }
+
 

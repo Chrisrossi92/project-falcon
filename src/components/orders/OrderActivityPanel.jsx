@@ -11,7 +11,7 @@ export default function OrderActivityPanel({ orderId, currentUser }) {
   async function fetchActivity() {
     const { data, error } = await supabase
       .from('activity_log')
-      .select('id, action, role, created_at, user_id, context, prev_status, new_status, message')
+      .select('id, action, created_at, user_id, prev_status, new_status, message')
       .eq('order_id', orderId)
       .order('created_at', { ascending: false });
 
@@ -19,9 +19,7 @@ export default function OrderActivityPanel({ orderId, currentUser }) {
       console.error('fetchActivity error:', error.message);
       return;
     }
-
-    // normalize: prefer message, fall back to context.message
-    setRows((data ?? []).map(r => ({ ...r, message: r.message ?? r?.context?.message ?? null })));
+    setRows(data ?? []);
   }
 
   useEffect(() => {
@@ -59,7 +57,7 @@ export default function OrderActivityPanel({ orderId, currentUser }) {
     try {
       await addOrderComment({ orderId, text: val, user: currentUser });
       setText('');
-      fetchActivity(); // realtime should also update; this is for snappiness
+      fetchActivity(); // realtime also updates; this is for snappiness
     } catch (e2) {
       console.error('addOrderComment failed:', e2?.message);
     }
@@ -67,7 +65,7 @@ export default function OrderActivityPanel({ orderId, currentUser }) {
 
   const list = useMemo(() => {
     return (rows ?? []).map((r) => {
-      const a = (r.action || '').toLowerCase();
+      const a = String(r.action || '').toLowerCase();
       let label = 'Event';
       if (a === 'comment') label = 'Comment';
       else if (a === 'note') label = 'Note';
@@ -124,6 +122,7 @@ export default function OrderActivityPanel({ orderId, currentUser }) {
     </div>
   );
 }
+
 
 
 

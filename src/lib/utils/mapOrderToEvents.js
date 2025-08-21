@@ -14,19 +14,19 @@ export default function mapOrderToEvents(order) {
       title: `📍 Site Visit – ${address}`,
       start: toISO(order.site_visit_at),
       orderId: order.id,
-      type: 'site', // <-- matches DashboardCalendar filter key
+      type: 'site',
       backgroundColor: '#2563eb',
       textColor: 'white',
     });
   }
 
-  // 🔍 Review Due
-  if (order.review_date) { // <-- use your actual column
+  // 🔍 Review Due (use view column name)
+  if (order.review_due_date) {
     events.push({
       title: `🔍 Review Due – ${address}`,
-      start: toISO(order.review_date),
+      start: toISO(order.review_due_date),
       orderId: order.id,
-      type: 'review', // <-- matches DashboardCalendar filter key
+      type: 'review',
       backgroundColor: '#f59e0b',
       textColor: 'white',
     });
@@ -38,7 +38,7 @@ export default function mapOrderToEvents(order) {
       title: `⏰ Final Due – ${address}`,
       start: toISO(order.due_date),
       orderId: order.id,
-      type: 'due', // <-- already matches filter key
+      type: 'due',
       backgroundColor: '#dc2626',
       textColor: 'white',
     });
@@ -46,5 +46,6 @@ export default function mapOrderToEvents(order) {
 
   return events;
 }
+
 
 

@@ -1,49 +1,56 @@
-// components/ui/calendar/FullCalendarWrapper.jsx
-import React, { forwardRef } from 'react';
+// src/components/ui/FullCalendarWrapper.jsx
+import React, { forwardRef, useImperativeHandle, useRef } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
-import timeGridPlugin from '@fullcalendar/timegrid';
-import listPlugin from '@fullcalendar/list';
+import interactionPlugin from '@fullcalendar/interaction';
 
-const FullCalendarWrapper = forwardRef((
-  { events = [], onEventClick, initialView = 'dayGridTwoWeek', compact = false },
+// Correct two-week view: use weeks, not days
+const twoWeekView = {
+  type: 'dayGrid',
+  duration: { weeks: 2 },
+  buttonText: '2 weeks',
+};
+
+const FullCalendarWrapper = forwardRef(function FullCalendarWrapper(
+  { events = [], initialView = 'dayGridMonth', onEventClick },
   ref
-) => {
+) {
+  const calRef = useRef(null);
+
+  useImperativeHandle(ref, () => ({
+    getApi: () => calRef.current?.getApi?.(),
+  }));
+
   return (
     <FullCalendar
-      ref={ref}
-      plugins={[dayGridPlugin, timeGridPlugin, listPlugin]}
+      ref={calRef}
+      plugins={[dayGridPlugin, interactionPlugin]}
       initialView={initialView}
-      events={events}
-      eventClick={onEventClick}
-      height={compact ? 'auto' : '600px'}
-      dayMaxEventRows={3}
-      dayMaxEvents={true}
-      fixedWeekCount={false}
-      contentHeight="auto"
       headerToolbar={{
         left: 'prev,next today',
         center: 'title',
-        right: 'dayGridMonth,dayGridWeek,dayGridTwoWeek'
+        right: 'dayGridMonth,dayGridWeek,dayGridTwoWeek',
       }}
-      views={{
-        dayGridTwoWeek: {
-          type: 'dayGrid',
-          duration: { weeks: 2 },
-          buttonText: 'Two Weeks'
-        }
-      }}
-      buttonText={{
-        today: 'Today',
-        month: 'Month',
-        week: 'Week',
-        day: 'Day'
+      views={{ dayGridTwoWeek: twoWeekView }}
+      events={events}
+      eventClick={onEventClick}
+      displayEventTime={false}
+      // Make rows roomy
+      expandRows={true}
+      dayMaxEvents={3}
+      height="auto"
+      eventMouseEnter={(info) => {
+        const { event } = info;
+        info.el.title =
+          event.title +
+          (event.extendedProps?.orderId ? ` (Order ${event.extendedProps.orderId})` : '');
       }}
     />
   );
 });
 
-FullCalendarWrapper.displayName = 'FullCalendarWrapper';
 export default FullCalendarWrapper;
+
+
 
 
