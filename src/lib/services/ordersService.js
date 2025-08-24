@@ -1,5 +1,5 @@
 import supabase from '@/lib/supabaseClient';
-import { logEvent } from '@/lib/utils/logEvent';
+import logOrderEvent from '@/lib/utils/logOrderEvent';
 
 
 export async function createOrderWithLogs(orderInput) {
@@ -13,10 +13,10 @@ if (error) throw error;
 
 
 // 2) log created
-await logEvent(supabase, {
-orderId: order.id,
-action: 'order_created',
-message: 'Order created',
+await logOrderEvent({
+  order_id: order.id,
+  action: 'order_created',
+  message: 'order created',
 });
 
 
