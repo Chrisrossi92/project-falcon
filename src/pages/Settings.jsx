@@ -2,6 +2,7 @@
 import React from "react";
 import ProfileForm from "@/components/settings/ProfileForm";
 import PreferencesForm from "@/components/settings/PreferencesForm";
+import NotificationsSettings from "@/components/settings/NotificationsSettings";
 
 export default function Settings() {
   return (
@@ -19,6 +20,8 @@ export default function Settings() {
       <section className="rounded-2xl border bg-white p-6 shadow-sm">
         <h2 className="mb-4 text-lg font-medium">Preferences</h2>
         <PreferencesForm />
+        <h2 className="mb-4 text-lg font-medium"></h2>
+        <NotificationsSettings />
       </section>
     </div>
   );
