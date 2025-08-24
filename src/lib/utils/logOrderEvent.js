@@ -1,33 +1,49 @@
-import supabase from '@/lib/supabaseClient';
+// src/lib/utils/logOrderEvent.js
+import supabase from "@/lib/supabaseClient";
 
-/**
- * Write to activity_log with columns:
- *   order_id, action, prev_status, new_status, message, created_at (default)
- * action ∈ ('status_change','note','assignment','comment')
+/** RPC-only logger (RLS-safe).
+ * Accepts legacy keys: event_type, event_data, environment, actor.
  */
-export default async function logOrderEvent(args) {
-  const orderId    = args.orderId ?? args.order_id;
-  if (!orderId) throw new Error('logOrderEvent: orderId/order_id is required');
+export default async function logOrderEvent(params) {
+  const {
+    order_id,
+    action,
+    event_type,   // legacy
+    message,
+    prev_status,
+    new_status,
+    context,      // canonical
+    event_data,   // legacy
+    environment,  // legacy
+    actor,        // legacy
+  } = params || {};
 
-  const action     = args.action ?? 'note';
-  const message    = args.message ?? null;
-  const prevStatus = args.prev_status ?? args.prevStatus ?? null;
-  const newStatus  = args.new_status ?? args.newStatus ?? null;
-  // actor_user_id defaults to auth.uid() in DB, so we don't need to send it
+  const act = action || event_type;
+  const baseCtx = context !== undefined ? context : (event_data !== undefined ? event_data : {});
+  const ctx = {
+    ...baseCtx,
+    ...(environment ? { environment } : {}),
+    ...(actor ? { actor } : {}),
+  };
 
-  const { error } = await supabase.from('activity_log').insert({
-    order_id: orderId,
-    action: action,
-    prev_status: prevStatus,
-    new_status: newStatus,
-    message: message,
+  if (!order_id || !act) throw new Error("logOrderEvent: require order_id and action/event_type");
+
+  const { data, error } = await supabase.rpc("rpc_log_event", {
+    p_order_id:   order_id,
+    p_action:     act,
+    p_message:    message ?? null,
+    p_prev_status:prev_status ?? null,
+    p_new_status: new_status ?? null,
+    p_context:    ctx,
   });
 
-  if (error) {
-    console.error('logOrderEvent failed:', error.message, { orderId, action });
-    throw error;
-  }
-  return true;
+  if (error) throw error;
+  return data;
 }
+
+
+
+
+
 
 

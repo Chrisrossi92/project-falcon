@@ -17,12 +17,21 @@ const Layout = () => {
 
   if (loading) return <LoadingState label="Loading session…" />; // ✅
 
+  // Role helpers (defensive)
+  const role = user?.role ?? 'user';
+  const isAdmin = role === 'admin';
+  const isReviewer = role === 'reviewer';
+
   const navItems = [
     { to: '/dashboard', label: 'Dashboard' },
     { to: '/orders', label: 'Orders' },
-    ...(user.role === 'admin' ? [{ to: '/clients', label: 'Clients' }] : []),
-    { to: '/users', label: 'Team' },
-    ...(user.role !== 'reviewer' ? [{ to: '/calendar', label: 'Calendar' }] : []),
+    ...(isAdmin ? [{ to: '/clients', label: 'Clients' }] : []),
+    // Team: admin-only (optional — tighten access)
+    ...(isAdmin ? [{ to: '/users', label: 'Team' }] : []),
+    // Reviewer: visible to admin & reviewer
+    ...((isAdmin || isReviewer) ? [{ to: '/reviewer', label: 'Reviewer' }] : []),
+    // Keep your existing rule: hide Calendar for reviewers
+    ...(role !== 'reviewer' ? [{ to: '/calendar', label: 'Calendar' }] : []),
     { to: '/settings', label: 'Settings' },
   ];
 
@@ -63,6 +72,7 @@ const Layout = () => {
 };
 
 export default Layout;
+
 
 
 

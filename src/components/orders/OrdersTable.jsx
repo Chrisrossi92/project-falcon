@@ -1,148 +1,46 @@
-// src/components/orders/OrdersTable.jsx
+import React, { useMemo } from "react";
+import OrdersTableRow from "./OrdersTableRow";
 
-import React, { useState } from "react";
-import OrdersTableRow from "@/components/orders/OrdersTableRow";
-import OrdersTableHeader from "@/components/orders/OrdersTableHeader";
-import OrdersTablePagination from "@/components/orders/OrdersTablePagination";
-import OrderDrawerContent from "@/components/orders/OrderDrawerContent";
-import InlineDrawer from "@/components/ui/InlineDrawer";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { toast } from "react-hot-toast";
-import { updateSiteVisitAt } from "@/lib/api/orders";
-import { useSession } from "@/lib/hooks/useSession";
-import { useRole } from "@/lib/hooks/useRole";
+export default function OrdersTable({ orders = [], loading, onRefresh }) {
+  const hasRows = orders && orders.length > 0;
 
-export default function OrdersTable({
-  orders,
-  refreshOrders, // ✅ now properly passed in
-  hideAppraiserColumn = false,
-  role: propRole = "admin",
-}) {
-  const { user } = useSession();
-  const { role } = useRole();
-  const effectiveRole = role || propRole;
-
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [appointmentDialogOpen, setAppointmentDialogOpen] = useState(false);
-  const [selectedOrderForVisit, setSelectedOrderForVisit] = useState(null);
-  const [visitDate, setVisitDate] = useState("");
-
-  const pageSize = 10;
-  const totalPages = Math.ceil(orders.length / pageSize);
-  const paginatedOrders = orders.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
-
-  const handleRowClick = (order) => {
-    setSelectedOrder((prev) => (prev?.id === order.id ? null : order));
-  };
-
-  const handleCloseDrawer = () => {
-    setSelectedOrder(null);
-  };
-
-  const handleSetVisit = async () => {
-    try {
-      await updateSiteVisitAt(selectedOrderForVisit.id, visitDate);
-      toast.success("Appointment date saved");
-      setAppointmentDialogOpen(false);
-      setSelectedOrderForVisit(null);
-      setVisitDate("");
-    } catch (error) {
-      toast.error("Failed to save appointment");
-    }
-  };
-
-  const handleEdit = (order) => {
-    toast("Edit flow coming soon…"); // or trigger a modal
-  };
-
-  const handleView = (order) => {
-    setSelectedOrder(order);
-  };
+  const rows = useMemo(() => orders, [orders]);
 
   return (
-    <div className="relative w-full">
-      <div className="overflow-x-auto border rounded-lg">
-        <table className="min-w-full bg-white text-sm text-left">
-          <OrdersTableHeader hideAppraiserColumn={hideAppraiserColumn} />
-          <tbody>
-            {paginatedOrders.map((order) => (
-              <React.Fragment key={order.id}>
-                <OrdersTableRow
-                  order={order}
-                  userId={user?.id}
-                  effectiveRole={effectiveRole}
-                  hideAppraiserColumn={hideAppraiserColumn}
-                  isSelected={selectedOrder?.id === order.id}
-                  onRowClick={() => handleRowClick(order)}
-                  onEdit={handleEdit}
-                  onView={handleView}
-                  currentUser={user}
-                  refreshOrders={refreshOrders} // ✅ passed properly now
-                  onSetAppointment={async (orderId, newDateString) => {
-                    try {
-                      await updateSiteVisitAt(orderId, newDateString);
-                      toast.success("Appointment date saved");
-                      setSelectedOrder((prev) =>
-                        prev?.id === orderId ? { ...prev, site_visit_at: newDateString } : prev
-                      );
-                    } catch (err) {
-                      toast.error("Failed to save appointment");
-                    }
-                  }}
-                />
-                {selectedOrder?.id === order.id && (
-                  <tr>
-                    <td colSpan={hideAppraiserColumn ? 7 : 8}>
-                      <InlineDrawer isOpen={true}>
-                        <OrderDrawerContent
-                          data={selectedOrder}
-                          onClose={handleCloseDrawer}
-                        />
-                      </InlineDrawer>
-                    </td>
-                  </tr>
-                )}
-              </React.Fragment>
-            ))}
+    <div className="w-full">
+      <div className="overflow-x-auto rounded-xl border">
+        <table className="min-w-full text-sm">
+          <thead className="bg-gray-50 text-gray-600">
+            <tr>
+              <th className="px-3 py-2 text-left">Order #</th>
+              <th className="px-3 py-2 text-left">Client</th>
+              <th className="px-3 py-2 text-left">Address</th>
+              <th className="px-3 py-2 text-left">Appraiser</th>
+              <th className="px-3 py-2 text-left">Status</th>
+              <th className="px-3 py-2 text-left">Site Visit</th>
+              <th className="px-3 py-2 text-left">Due Date</th>
+              <th className="px-3 py-2 text-left">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {!loading && hasRows
+              ? rows.map((o) => (
+                  <OrdersTableRow key={o.id} order={o} onRefresh={onRefresh} />
+                ))
+              : null}
           </tbody>
         </table>
+        {!loading && !hasRows ? (
+          <div className="p-6 text-sm text-gray-500">No orders found.</div>
+        ) : null}
+        {loading ? (
+          <div className="p-6 text-sm text-gray-500">Loading…</div>
+        ) : null}
       </div>
-
-      <div className="mt-4">
-        <OrdersTablePagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-        />
-      </div>
-
-      <Dialog open={appointmentDialogOpen} onOpenChange={setAppointmentDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Set Appointment Date</DialogTitle>
-          </DialogHeader>
-          <Input
-            type="datetime-local"
-            value={visitDate}
-            onChange={(e) => setVisitDate(e.target.value)}
-            className="mb-4"
-          />
-          <button
-            onClick={handleSetVisit}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          >
-            Save
-          </button>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
+
 
 
 

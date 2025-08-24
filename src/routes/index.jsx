@@ -14,6 +14,7 @@ import AdminDashboard from "../pages/AdminDashboard";
 import AppraiserDashboard from "../pages/AppraiserDashboard";
 import ClientDetail from "../pages/ClientDetail";
 import Layout from "../layout/Layout";
+import ReviewerDashboard from "@/pages/ReviewerDashboard";
 
 import { useSession } from "@/lib/hooks/useSession";
 import { useRole } from "@/lib/hooks/useRole"; // DB-backed role lookup
@@ -176,6 +177,7 @@ const ProtectedRoutes = () => {
           </ProtectedRoute>
         }
       />
+      <Route path="/reviewer" element={<ReviewerDashboard />} />
     </Routes>
   );
 };

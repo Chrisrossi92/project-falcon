@@ -1,96 +1,58 @@
 // src/pages/AdminDashboard.jsx
-import React, { useState, useEffect } from 'react';
-import { Card } from '@/components/ui/card';
-import DashboardCalendar from '@/components/DashboardCalendar';
-import DashboardCard from '@/components/DashboardCard';
-import OrdersTable from '@/components/orders/OrdersTable';
-import supabase from '@/lib/supabaseClient';
-import { useSession } from '@/lib/hooks/useSession';
+import React from "react";
+import { Link } from "react-router-dom";
+import { useOrders } from "@/lib/hooks/useOrders";
+import DashboardCalendar from "@/components/DashboardCalendar";
+import OrdersTable from "@/components/orders/OrdersTable";
 
-const AdminDashboard = () => {
-  const { user, isAdmin, isReviewer } = useSession();
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+export default function AdminDashboard() {
+  const { data: orders = [], loading, error, refetch } = useOrders();
 
-  useEffect(() => {
-    let mounted = true;
-
-    const fetchOrders = async () => {
-      if (!user?.id && !isAdmin && !isReviewer) return;
-
-      setLoading(true);
-      setError(null);
-
-      // ✅ Valid PostgREST select with proper embeds:
-      // - clients via client_id
-      // - appraiser via users (appraiser_id → users.id)
-      let query = supabase
-        .from('orders')
-        .select(`
-          *,
-          client:client_id ( name ),
-          appraiser:appraiser_id ( id, display_name, name, email )
-        `)
-        .order('created_at', { ascending: false });
-
-      // Non-admin/reviewer: only see your own orders
-      if (!isAdmin && !isReviewer && user?.id) {
-        query = query.eq('appraiser_id', user.id);
-      }
-
-      const { data, error: fetchError } = await query;
-
-      if (!mounted) return;
-
-      if (fetchError) {
-        console.error('Orders fetch error:', fetchError);
-        setError(fetchError.message);
-        setOrders([]);
-      } else {
-        const withNames = (data || []).map((order) => ({
-          ...order,
-          client_name: order.client?.name || order.manual_client || '—',
-          appraiser_name:
-            order.appraiser?.display_name ||
-            order.appraiser?.name ||
-            order.manual_appraiser ||
-            '—',
-        }));
-        setOrders(withNames);
-      }
-
-      setLoading(false);
-    };
-
-    fetchOrders();
-    return () => {
-      mounted = false;
-    };
-  }, [isAdmin, isReviewer, user?.id]);
-
-  if (error) return <div className="p-6 text-red-600">Error: {error}</div>;
-
-  const openOrders = orders.filter((o) => o.status !== 'Completed');
+  if (error) {
+    return (
+      <div className="p-6 text-red-600">
+        <h2 className="font-semibold">Error loading dashboard</h2>
+        <pre className="text-sm">{error.message}</pre>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-semibold">Admin Dashboard</h1>
+    <div className="w-full">
+      <div className="mx-auto max-w-7xl px-4 py-6 flex flex-col gap-8">
+        {/* Calendar Section */}
+        <section className="w-full bg-white rounded-2xl shadow p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Calendar</h2>
+            {/* optional: add quick nav to full calendar page later */}
+          </div>
+          <DashboardCalendar orders={orders} loading={loading} />
+        </section>
 
-      <DashboardCard title="📅 Upcoming Activity">
-        {/* Keep your component exactly as before */}
-        <DashboardCalendar compact={false} role="admin" />
-      </DashboardCard>
+        {/* Orders Table Section */}
+        <section className="w-full bg-white rounded-2xl shadow p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Orders</h2>
+            <Link
+              to="/orders/new"
+              className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium hover:bg-gray-50"
+            >
+              <span className="text-xl leading-none">＋</span>
+              New Order
+            </Link>
+          </div>
 
-      <Card className="p-6">
-        <h2 className="text-xl font-medium mb-4 text-gray-700">📋 Open Orders</h2>
-        <OrdersTable orders={openOrders} loading={loading} />
-      </Card>
+          {/* Pass refetch so row actions can refresh the list */}
+          <OrdersTable orders={orders} loading={loading} onRefresh={refetch} />
+        </section>
+      </div>
     </div>
   );
-};
+}
 
-export default AdminDashboard;
+
+
+
 
 
 

@@ -1,400 +1,273 @@
-// src/components/orders/OrderForm.jsx
 import React, { useEffect, useMemo, useState } from "react";
-import { toast } from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
 import supabase from "@/lib/supabaseClient";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import BasicInfoFields from "./BasicInfoFields";
-import PropertyMap from "@/components/maps/PropertyMap";
-import AssignmentFields from "./AssignmentFields";
-import ReviewModal from "@/components/review/ReviewModal";
+import useOrderForm from "@/lib/hooks/useOrderForm";
+import { toast } from "react-hot-toast";
 
-const DEFAULT_ORDER = {
-  id: null,
-  order_number: "",
-  status: "New",
-  primary_role: "appraiser",
-  client_id: null,
-  appraiser_id: null,
-  second_appraiser_id: null,
-  manual_client: "",
-  manual_appraiser: "",
-  property_address: "",
-  city: "",
-  state: "",
-  postal_code: "",
-  site_visit_at: null,
-  review_due_at: null,
-  final_due_at: null,
-  fee_total: null,
-  primary_split_pct: null,
-  secondary_split_pct: null,
-  inspector_fee: null,
-  location: null,
-  reviewers: [], // UI only; persisted via pivot RPC
-};
-
-function toInputDateTime(value) {
-  if (!value) return "";
-  const d = new Date(value);
-  const pad = (n) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
-    d.getHours()
-  )}:${pad(d.getMinutes())}`;
-}
-function fromInputDateTime(value) {
-  if (!value) return null;
-  const d = new Date(value);
-  return d.toISOString();
-}
-function addDays(days) {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  return d.toISOString();
-}
-function buildSavePayload(f) {
-  return {
-    order_number: f?.order_number || null,
-    status: f?.status ?? "New",
-    primary_role: f?.primary_role || "appraiser",
-    client_id: f?.client_id || null,
-    appraiser_id: f?.appraiser_id || null,
-    second_appraiser_id: f?.second_appraiser_id || null,
-    manual_client: f?.manual_client || null,
-    manual_appraiser: f?.manual_appraiser || null,
-    property_address: f?.property_address ?? "",
-    city: f?.city ?? "",
-    state: (f?.state ?? "").toString().toUpperCase(),
-    postal_code: f?.postal_code ?? "",
-    // dates are persisted through RPCs below to keep a single write path
-    site_visit_at: f?.site_visit_at ?? null,
-    review_due_at: f?.review_due_at ?? null,
-    final_due_at: f?.final_due_at ?? null,
-    fee_total: f?.fee_total ?? null,
-    primary_split_pct: f?.primary_split_pct ?? null,
-    secondary_split_pct: f?.secondary_split_pct ?? null,
-    inspector_fee: f?.inspector_fee ?? null,
-  };
-}
-
-export default function OrderForm({ initialOrder, mode = "edit", onSaved }) {
-  const base = useMemo(
-    () => ({ ...DEFAULT_ORDER, ...(initialOrder || {}) }),
-    [initialOrder]
-  );
-
-  const [form, setForm] = useState(base);
-  const [saving, setSaving] = useState(false);
-  const [clients, setClients] = useState([]);
+export default function OrderForm({ initialOrder, mode = "create" }) {
+  const navigate = useNavigate();
+  const { order, handleChange, saveOrder, saving } = useOrderForm(initialOrder);
   const [appraisers, setAppraisers] = useState([]);
-  const [inspectors, setInspectors] = useState([]);
-  const [showMap, setShowMap] = useState(false);
-  const [reviewersOpen, setReviewersOpen] = useState(false);
+  const [clients, setClients] = useState([]);
 
-  useEffect(() => setForm(base), [base]);
-
-  const isCreate = mode === "create" || !form?.id;
-
-  // Auto-generate order number once on create (DB helper if available)
+  // Load select options
   useEffect(() => {
-    if (!isCreate || form.order_number) return;
-    (async () => {
-      const year = new Date().getFullYear();
-      const { data } = await supabase.rpc("next_order_number", { p_year: year });
-      if (data) setForm((s) => ({ ...s, order_number: data }));
-    })();
-  }, [isCreate, form.order_number]);
-
-  // Load dropdown data
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      const [c, a, i] = await Promise.all([
-        supabase.from("clients").select("id, name").order("name"),
-        supabase.from("users").select("id, name, role").eq("role", "appraiser").order("name"),
-        supabase.from("users").select("id, name, role").eq("role", "inspector").order("name"),
+    let cancelled = false;
+    async function load() {
+      const [{ data: users, error: uErr }, { data: clis, error: cErr }] = await Promise.all([
+        supabase
+          .from("users")
+          .select("id, display_name, name, email, role")
+          .order("display_name", { ascending: true }),
+        supabase.from("clients").select("id, name").order("name", { ascending: true }),
       ]);
-      if (!mounted) return;
-      if (!c.error) setClients(c.data || []);
-      if (!a.error) setAppraisers(a.data || []);
-      if (!i.error) setInspectors(i.data || []);
-    })();
-    return () => { mounted = false; };
+      if (uErr) console.error(uErr);
+      if (cErr) console.error(cErr);
+      if (cancelled) return;
+      setAppraisers((users || []).filter((u) => String(u.role || "").toLowerCase() === "appraiser"));
+      setClients(clis || []);
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const onChange = (e) => {
-    const { name, value } = e.target;
-    setForm((s) => ({ ...s, [name]: value }));
-  };
-  const onChangeSelect = (e) => {
-    const { name, value } = e.target;
-    setForm((s) => ({ ...s, [name]: value || null }));
-  };
-  const onBulkChange = (patch) => {
-    const next = { ...patch };
-    if (typeof next.state === "string") next.state = next.state.toUpperCase();
-    setForm((s) => ({ ...s, ...(next || {}) }));
-    if (patch?.location?.lat && patch?.location?.lng) setShowMap(true);
-  };
-  const onChangeDate = (e) => {
-    const { name, value } = e.target;
-    setForm((s) => ({ ...s, [name]: fromInputDateTime(value) }));
-  };
+  const statusOptions = useMemo(
+    () => [
+      "new",
+      "assigned",
+      "in_progress",
+      "site_visit_done",
+      "in_review",
+      "ready_to_send",
+      "sent_to_client",
+      "revisions",
+      "complete",
+    ],
+    []
+  );
 
-  const setQuickDates = (reviewInDays, finalInDays) => {
-    setForm((s) => ({
-      ...s,
-      review_due_at: addDays(reviewInDays),
-      final_due_at: addDays(finalInDays),
-    }));
+  const dtToLocalInput = (iso) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    const off = d.getTimezoneOffset();
+    return new Date(d.getTime() - off * 60000).toISOString().slice(0, 16);
   };
 
-  // Save helpers
-  async function saveViaRPC() {
-    // TODO: add DB RPCs create_order/update_order if you want a single entry point.
-    if (isCreate) {
-      throw Object.assign(new Error("create_order RPC not available"), { code: "42883" });
-    } else {
-      throw Object.assign(new Error("update_order RPC not available"), { code: "42883" });
-    }
-  }
-  async function saveDirectFallback() {
-    if (isCreate) {
-      const { data, error } = await supabase
-        .from("orders")
-        .insert(buildSavePayload(form))
-        .select("id")
-        .single();
-      if (error) throw error;
-      return data; // { id }
-    } else {
-      const { error } = await supabase
-        .from("orders")
-        .update(buildSavePayload(form))
-        .eq("id", form.id);
-      if (error) throw error;
-      return { id: form.id };
-    }
-  }
-
-  async function persistDueDates(orderId) {
-    const reviewDate = form.review_due_at ? new Date(form.review_due_at) : null;
-    const finalDate  = form.final_due_at ? new Date(form.final_due_at) : null;
-
-    if (!reviewDate && !finalDate) return;
-
-    const { error } = await supabase.rpc("rpc_update_due_dates", {
-      p_order_id: orderId,
-      p_due_date: finalDate ? finalDate.toISOString().slice(0, 10) : null,
-      p_review_due_date: reviewDate ? reviewDate.toISOString().slice(0, 10) : null,
-    });
-    if (error) throw new Error(`rpc_update_due_dates failed: ${error.message}`);
-  }
-
-  async function persistCalendarEvents(orderId) {
-    // Create calendar events for the three admin event types, if provided
-    const calls = [];
-    if (form.site_visit_at) {
-      calls.push(supabase.rpc("rpc_create_calendar_event", {
-        p_event_type: "site_visit",
-        p_title: `Site Visit – ${form.property_address || "Subject"}`,
-        p_start_at: form.site_visit_at,
-        p_end_at: form.site_visit_at, // single moment; adjust if you want 1hr block
-        p_order_id: orderId,
-        p_appraiser_id: form.appraiser_id,
-        p_location: `${form.property_address || ""} ${form.city || ""} ${form.state || ""}`.trim(),
-        p_notes: null,
-      }));
-    }
-    if (form.review_due_at) {
-      calls.push(supabase.rpc("rpc_create_calendar_event", {
-        p_event_type: "due_for_review",
-        p_title: `Review Due – ${form.property_address || "Subject"}`,
-        p_start_at: form.review_due_at,
-        p_end_at: form.review_due_at,
-        p_order_id: orderId,
-        p_appraiser_id: form.appraiser_id,
-        p_location: null,
-        p_notes: null,
-      }));
-    }
-    if (form.final_due_at) {
-      calls.push(supabase.rpc("rpc_create_calendar_event", {
-        p_event_type: "due_to_client",
-        p_title: `Final Due – ${form.property_address || "Subject"}`,
-        p_start_at: form.final_due_at,
-        p_end_at: form.final_due_at,
-        p_order_id: orderId,
-        p_appraiser_id: form.appraiser_id,
-        p_location: null,
-        p_notes: null,
-      }));
-    }
-    if (calls.length) {
-      const results = await Promise.all(calls);
-      const err = results.find(r => r?.error);
-      if (err?.error) throw new Error(`rpc_create_calendar_event failed: ${err.error.message}`);
-    }
-  }
-
-  const handleSubmit = async (e) => {
+  const submit = async (e) => {
     e.preventDefault();
-    setSaving(true);
     try {
-      let res;
-      try {
-        res = await saveViaRPC();
-      } catch (rpcErr) {
-        const msg = (rpcErr?.message || "").toLowerCase();
-        if (rpcErr?.code === "42883" || msg.includes("create_order") || msg.includes("update_order")) {
-          res = await saveDirectFallback();
-        } else {
-          throw rpcErr;
-        }
-      }
-
-      const orderId = res?.id ?? form.id ?? null;
-      if (orderId) {
-        // persist dates and calendar through RPCs for uniformity
-        await persistDueDates(orderId);
-        await persistCalendarEvents(orderId);
-        // reviewers (optional)
-        try {
-          if (Array.isArray(form.reviewers) && form.reviewers.length) {
-            const payload = form.reviewers.map((r, idx) => ({
-              reviewer_id: r.reviewer_id,
-              position: r.position ?? idx + 1,
-              required: r.required ?? true,
-            }));
-            const { error } = await supabase.rpc("set_order_reviewers", {
-              p_order_id: orderId,
-              p_reviewers: payload,
-            });
-            if (error) console.warn("set_order_reviewers failed:", error.message);
-          }
-        } catch (e2) {
-          console.warn("Reviewers save skipped:", e2?.message);
-        }
-      }
-
-      toast.success(isCreate ? "Order created" : "Order updated");
-      onSaved?.(orderId);
+      const saved = await saveOrder(); // logs via rpc_log_event inside the hook
+      toast.success(mode === "create" ? "Order created" : "Order saved");
+      navigate("/orders"); // or `/orders/${saved.id}` if you have detail pages
     } catch (err) {
-      toast.error(err?.message || "Save failed");
-    } finally {
-      setSaving(false);
+      console.error(err);
+      toast.error("Failed to save order");
     }
   };
 
   return (
-    <>
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Basic Info */}
-        <section className="rounded-2xl border bg-white p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-medium">Basic Info</h2>
-            {form.location && (
-              <button
-                type="button"
-                className="text-xs text-blue-600 hover:underline"
-                onClick={() => setShowMap((s) => !s)}
-              >
-                {showMap ? "Hide map" : "Show map"}
-              </button>
-            )}
+    <form onSubmit={submit} className="space-y-6">
+      {/* Basic Info */}
+      <section className="bg-white rounded-2xl shadow p-4">
+        <h2 className="text-lg font-semibold mb-4">Basic Info</h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label className="text-sm font-medium">Order #</label>
+            <input
+              className="mt-1 w-full border rounded-md px-3 py-2"
+              value={order.order_number || ""}
+              onChange={(e) => handleChange("order_number", e.target.value)}
+              placeholder="2025xxxx"
+            />
           </div>
 
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="space-y-5">
-              <BasicInfoFields
-                order={form}
-                statuses={["New", "In Progress", "Review", "Final", "Delivered"]}
-                onChange={onChange}
-                onChangeSelect={onChangeSelect}
-                onBulkChange={onBulkChange}
-              />
-            </div>
-            <div className={`${showMap ? "block" : "hidden"} md:block`}>
-              <PropertyMap location={form.location} />
-            </div>
-          </div>
-        </section>
-
-        {/* Assignment (role, people, fees, reviewers) */}
-        <section className="rounded-2xl border bg-white p-4">
-          <h2 className="mb-3 text-lg font-medium">Assignment</h2>
-          <AssignmentFields
-            form={form}
-            appraisers={appraisers}
-            inspectors={inspectors}
-            onChange={onChange}
-            onChangeSelect={onChangeSelect}
-            onBulkChange={onBulkChange}
-            onOpenReviewers={() => setReviewersOpen(true)}
-          />
-        </section>
-
-        {/* Dates */}
-        <section className="rounded-2xl border bg-white p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-medium">Dates</h2>
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={() => setQuickDates(7, 14)}>+7 / +14</Button>
-              <Button type="button" variant="outline" onClick={() => setQuickDates(5, 10)}>+5 / +10</Button>
-              <Button type="button" variant="outline" onClick={() => setQuickDates(3, 7)}>+3 / +7</Button>
-            </div>
+          <div>
+            <label className="text-sm font-medium">Status</label>
+            <select
+              className="mt-1 w-full border rounded-md px-3 py-2"
+              value={(order.status || "new").toLowerCase()}
+              onChange={(e) => handleChange("status", e.target.value)}
+            >
+              {statusOptions.map((s) => (
+                <option key={s} value={s}>
+                  {s.replaceAll("_", " ")}
+                </option>
+              ))}
+            </select>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-500">Site Visit</label>
-              <input
-                type="datetime-local"
-                name="site_visit_at"
-                className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
-                value={toInputDateTime(form.site_visit_at)}
-                onChange={onChangeDate}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500">Review Due</label>
-              <input
-                type="datetime-local"
-                name="review_due_at"
-                className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
-                value={toInputDateTime(form.review_due_at)}
-                onChange={onChangeDate}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500">Final Due</label>
-              <input
-                type="datetime-local"
-                name="final_due_at"
-                className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
-                value={toInputDateTime(form.final_due_at)}
-                onChange={onChangeDate}
-              />
-            </div>
-          </div>
-        </section>
+          <div className="md:col-span-2" />
 
-        <div className="flex items-center justify-end gap-2">
-          <Button type="submit" disabled={saving}>
-            {saving ? "Saving…" : isCreate ? "Create Order" : "Save Changes"}
-          </Button>
+          <div className="md:col-span-2">
+            <label className="text-sm font-medium">Property Address</label>
+            <input
+              className="mt-1 w-full border rounded-md px-3 py-2"
+              value={order.property_address || order.address || ""}
+              onChange={(e) => handleChange("property_address", e.target.value)}
+              placeholder="123 Main St..."
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium">City</label>
+            <input
+              className="mt-1 w-full border rounded-md px-3 py-2"
+              value={order.city || ""}
+              onChange={(e) => handleChange("city", e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium">State</label>
+            <input
+              className="mt-1 w-full border rounded-md px-3 py-2"
+              value={order.state || ""}
+              onChange={(e) => handleChange("state", e.target.value)}
+              maxLength={2}
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium">ZIP</label>
+            <input
+              className="mt-1 w-full border rounded-md px-3 py-2"
+              value={order.postal_code || ""}
+              onChange={(e) => handleChange("postal_code", e.target.value)}
+            />
+          </div>
         </div>
-      </form>
+      </section>
 
-      <ReviewModal
-        open={reviewersOpen}
-        reviewers={form.reviewers}
-        onClose={() => setReviewersOpen(false)}
-        onChange={(next) => setForm((s) => ({ ...s, reviewers: next }))}
-      />
-    </>
+      {/* Assignment */}
+      <section className="bg-white rounded-2xl shadow p-4">
+        <h2 className="text-lg font-semibold mb-4">Assignment</h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="text-sm font-medium">Client</label>
+            <select
+              className="mt-1 w-full border rounded-md px-3 py-2"
+              value={order.client_id || ""}
+              onChange={(e) => handleChange("client_id", e.target.value || null)}
+            >
+              <option value="">— Choose client —</option>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">Or leave blank and use “Manual Client”.</p>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium">Manual Client</label>
+            <input
+              className="mt-1 w-full border rounded-md px-3 py-2"
+              value={order.manual_client || ""}
+              onChange={(e) => handleChange("manual_client", e.target.value)}
+              placeholder="If not in list"
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium">Appraiser</label>
+            <select
+              className="mt-1 w-full border rounded-md px-3 py-2"
+              value={order.appraiser_id || ""}
+              onChange={(e) => handleChange("appraiser_id", e.target.value || null)}
+            >
+              <option value="">— Choose appraiser —</option>
+              {appraisers.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.display_name || a.name || a.email}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </section>
+
+      {/* Dates */}
+      <section className="bg-white rounded-2xl shadow p-4">
+        <h2 className="text-lg font-semibold mb-4">Dates</h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="text-sm font-medium">Site Visit</label>
+            <input
+              type="datetime-local"
+              className="mt-1 w-full border rounded-md px-3 py-2"
+              value={dtToLocalInput(order.site_visit_at)}
+              onChange={(e) =>
+                handleChange(
+                  "site_visit_at",
+                  e.target.value ? new Date(e.target.value).toISOString() : null
+                )
+              }
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium">Review Due</label>
+            <input
+              type="datetime-local"
+              className="mt-1 w-full border rounded-md px-3 py-2"
+              value={dtToLocalInput(order.review_due_at)}
+              onChange={(e) =>
+                handleChange(
+                  "review_due_at",
+                  e.target.value ? new Date(e.target.value).toISOString() : null
+                )
+              }
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium">Final Due</label>
+            <input
+              type="datetime-local"
+              className="mt-1 w-full border rounded-md px-3 py-2"
+              value={dtToLocalInput(order.final_due_at)}
+              onChange={(e) =>
+                handleChange(
+                  "final_due_at",
+                  e.target.value ? new Date(e.target.value).toISOString() : null
+                )
+              }
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Actions */}
+      <div className="flex items-center justify-end gap-3">
+        <button
+          type="button"
+          className="px-4 py-2 rounded-lg border"
+          onClick={() => navigate(-1)}
+          disabled={saving}
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          className="px-4 py-2 rounded-lg bg-black text-white"
+          disabled={saving}
+        >
+          {mode === "create" ? "Create Order" : "Save Changes"}
+        </button>
+      </div>
+    </form>
   );
 }
+
+
+
+
 
 
 
