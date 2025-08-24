@@ -4,6 +4,8 @@ import { Link } from "react-router-dom";
 import { useOrders } from "@/lib/hooks/useOrders";
 import DashboardCalendar from "@/components/DashboardCalendar";
 import OrdersTable from "@/components/orders/OrdersTable";
+import AdminCalendar from '@/components/admin/AdminCalendar';
+
 
 export default function AdminDashboard() {
   const { data: orders = [], loading, error, refetch } = useOrders();
@@ -26,7 +28,7 @@ export default function AdminDashboard() {
             <h2 className="text-lg font-semibold">Calendar</h2>
             {/* optional: add quick nav to full calendar page later */}
           </div>
-          <DashboardCalendar orders={orders} loading={loading} />
+          <AdminCalendar orders={orders} loading={loading} />
         </section>
 
         {/* Orders Table Section */}

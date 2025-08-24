@@ -3,8 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import supabase from "@/lib/supabaseClient";
 import OrderActivityPanel from "@/components/orders/OrderActivityPanel";
-import { updateOrderStatus } from "@/lib/services/ordersService";
-import logOrderEvent from "@/lib/utils/logOrderEvent";
+import { updateOrderStatus, updateOrderDates } from "@/lib/services/ordersService";
 
 const STATUSES = [
   "new","assigned","in_progress","site_visit_done","in_review",
@@ -55,20 +54,15 @@ export default function OrderDetail() {
 
   useEffect(() => { fetchOrder(); }, [fetchOrder]);
 
-  async function saveDates(patch, log) {
+  // Save a subset of date fields via RPC (RLS‑safe) + emit notifications via service
+  async function saveDates(patch) {
     setSaving(true);
     try {
-      const { error } = await supabase.from("orders").update(patch).eq("id", id);
-      if (error) throw error;
-
-      if (log?.action) {
-        await logOrderEvent({
-          order_id: id,
-          action: log.action,
-          message: log.message || null,
-          context: patch,
-        });
-      }
+      await updateOrderDates(id, {
+        siteVisit: patch.site_visit_at ?? null,
+        reviewDue: patch.review_due_at ?? null,
+        finalDue: patch.final_due_at ?? null,
+      });
       toast.success("Saved");
       fetchOrder();
     } catch (e) {
@@ -83,7 +77,7 @@ export default function OrderDetail() {
     if (!next || next === order?.status) return;
     try {
       setSaving(true);
-      await updateOrderStatus(id, next); // RPC logs prev/new
+      await updateOrderStatus(id, next); // RPC + log + fan‑out handled in service
       toast.success(`Status → ${next}`);
       fetchOrder();
     } catch (e) {
@@ -94,23 +88,23 @@ export default function OrderDetail() {
     }
   }
 
-  // Quick-set helpers (assumes local business rules)
+  // Quick-set helpers (call saveDates which uses the RPC)
   const qs = {
     site: async (days) => {
       const base = new Date();
       const when = addDays(base, days);
       when.setHours(9, 0, 0, 0); // 9:00 AM local
-      await saveDates({ site_visit_at: when.toISOString() }, { action: "site_visit_set", message: `Site visit +${days}d` });
+      await saveDates({ site_visit_at: when.toISOString() });
     },
     review: async (days) => {
       const base = order?.site_visit_at ? new Date(order.site_visit_at) : new Date();
       const when = endOfDayLocal(addDays(base, days));
-      await saveDates({ review_due_at: when.toISOString() }, { action: "review_due_updated", message: `Review due +${days}d` });
+      await saveDates({ review_due_at: when.toISOString() });
     },
     final: async (days) => {
       const base = order?.review_due_at ? new Date(order.review_due_at) : new Date();
       const when = endOfDayLocal(addDays(base, days));
-      await saveDates({ final_due_at: when.toISOString() }, { action: "client_due_updated", message: `Final due +${days}d` });
+      await saveDates({ final_due_at: when.toISOString() });
     },
   };
 
@@ -194,7 +188,7 @@ export default function OrderDetail() {
               defaultValue={dtToLocalInput(order.site_visit_at)}
               onBlur={(e) => {
                 const v = e.target.value ? new Date(e.target.value).toISOString() : null;
-                saveDates({ site_visit_at: v }, { action: "site_visit_set", message: "Site visit scheduled" });
+                saveDates({ site_visit_at: v });
               }}
               disabled={saving}
             />
@@ -207,7 +201,7 @@ export default function OrderDetail() {
               defaultValue={dtToLocalInput(order.review_due_at)}
               onBlur={(e) => {
                 const v = e.target.value ? new Date(e.target.value).toISOString() : null;
-                saveDates({ review_due_at: v }, { action: "review_due_updated", message: "Review due updated" });
+                saveDates({ review_due_at: v });
               }}
               disabled={saving}
             />
@@ -220,7 +214,7 @@ export default function OrderDetail() {
               defaultValue={dtToLocalInput(order.final_due_at)}
               onBlur={(e) => {
                 const v = e.target.value ? new Date(e.target.value).toISOString() : null;
-                saveDates({ final_due_at: v }, { action: "client_due_updated", message: "Client due updated" });
+                saveDates({ final_due_at: v });
               }}
               disabled={saving}
             />
@@ -236,6 +230,7 @@ export default function OrderDetail() {
     </div>
   );
 }
+
 
 
 

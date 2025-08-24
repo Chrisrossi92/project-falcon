@@ -5,6 +5,8 @@ import { useSession } from '@/lib/hooks/useSession';
 import FloatingActivityLog from '../components/FloatingActivityLog';
 import supabase from '@/lib/supabaseClient';
 import { LoadingState } from '@/components/ui/Loaders'; // ✅
+import NotificationBell from '@/components/notifications/NotificationBell';
+
 
 const Layout = () => {
   const { user, loading } = useSession();
@@ -41,6 +43,7 @@ const Layout = () => {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
           <div className="text-lg font-semibold">Falcon Platform</div>
           <nav className="flex items-center gap-2">
+          <NotificationBell />
             {navItems.map((item) => (
               <NavLink
                 key={item.to}

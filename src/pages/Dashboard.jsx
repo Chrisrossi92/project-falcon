@@ -1,19 +1,27 @@
-import React, { useState } from 'react'; // Remove useEffect if not needed elsewhere
-import supabase from '@/lib/supabaseClient';
-import AdminDashboard from './AdminDashboard';
-import AppraiserDashboard from './AppraiserDashboard';
-import { useRole } from '@/lib/hooks/useRole'; // Import the new hook
+import React from "react";
+import { useSession } from "@/lib/hooks/useSession";
+import AdminCalendar from "@/components/admin/AdminCalendar";
+import OrdersListAll from "@/components/orders/OrdersListAll";
+import MyOrdersCard from "@/components/orders/MyOrdersCard";
 
 export default function Dashboard() {
-  const { role, loading, error } = useRole(); // Use the hook here
+  const { isAdmin } = useSession();
 
-  if (loading) return <div>Loading dashboard...</div>;
-
-  if (error) return <div>Error fetching role: {error}</div>;
-
-  if (role === 'admin') return <AdminDashboard />;
-
-  if (role === 'appraiser') return <AppraiserDashboard />;
-
-  return <div>Unauthorized or unknown role.</div>;
+  return (
+    <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
+      {isAdmin ? (
+        <>
+          <h1 className="text-xl font-semibold">Dashboard</h1>
+          <AdminCalendar />
+          <OrdersListAll />
+        </>
+      ) : (
+        <>
+          <h1 className="text-xl font-semibold">Dashboard</h1>
+          <MyOrdersCard />
+        </>
+      )}
+    </div>
+  );
 }
+
