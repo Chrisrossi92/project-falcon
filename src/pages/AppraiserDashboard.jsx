@@ -1,40 +1,47 @@
-import React from "react";
-import DashboardCalendar from "@/components/DashboardCalendar";
-import OrdersTable from "@/components/orders/OrdersTable";
-import { useSession } from "@/lib/hooks/useSession";
+// src/pages/AppraiserDashboard.jsx
+import React, { useMemo } from "react";
 import { useOrders } from "@/lib/hooks/useOrders";
-import DashboardCard from "@/components/DashboardCard";
+import { useSession } from "@/lib/hooks/useSession";
+import OrdersTable from "@/components/orders/OrdersTable";
 
-const AppraiserDashboard = () => {
+export default function AppraiserDashboard() {
+  // Guard the hook return in case it ever returns undefined
+  const ordersHook = useOrders() || {};
+  const { data: rawData, loading, error, refetch } = ordersHook;
+
+  // Always coerce to an array before using .filter()
+  const orders = Array.isArray(rawData) ? rawData : [];
+
   const { user } = useSession();
-  const { orders, loading, error } = useOrders(); // Fetch orders via hook
+  const uid = user?.id ?? null;
 
-  if (loading) return <div>Loading your dashboard...</div>;
-  if (error) return <div>Error: {error}</div>;
+  const myOrders = useMemo(() => {
+    if (!uid) return orders;            // nothing to filter by yet
+    // Defensive: ensure each element is an object before reading props
+    return orders.filter((o) => o && o.appraiser_id === uid);
+  }, [orders, uid]);
 
-  const activeOrders = orders.filter(order => order.status !== "Completed");
-
-  if (!activeOrders.length) return <div>No active orders assigned to you yet.</div>;
+  if (error) {
+    return (
+      <div className="p-6 text-red-600">
+        <h2 className="font-semibold">Error loading your orders</h2>
+        <pre className="text-sm">{error.message}</pre>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-semibold">My Orders</h1>
-
-      {/* Calendar */}
-      <div className="bg-white shadow rounded-lg p-4">
-        <h2 className="text-xl font-medium mb-2">Calendar</h2>
-        <DashboardCalendar user={user} />
-      </div>
-
-      {/* Orders Table with admin-style layout */}
-      <DashboardCard title="Active Orders">
-        <OrdersTable orders={activeOrders} role="appraiser" />
-      </DashboardCard>
+    <div className="mx-auto max-w-7xl px-4 py-6 flex flex-col gap-6">
+      <section className="w-full bg-white rounded-2xl shadow p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-lg font-semibold">My Orders</h2>
+        </div>
+        <OrdersTable orders={myOrders} loading={loading} onRefresh={refetch} />
+      </section>
     </div>
   );
-};
+}
 
-export default AppraiserDashboard;
 
 
 

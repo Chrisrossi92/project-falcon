@@ -1,39 +1,49 @@
-import supabase from '@/lib/supabaseClient';
+// src/lib/utils/logOrderEvent.js
+import supabase from "@/lib/supabaseClient";
 
-// RLS-friendly event logger using RPCs only.
-export default async function logOrderEvent(args) {
-  const orderId    = args.orderId ?? args.order_id;
-  const action     = String(args.action ?? 'note').toLowerCase();
-  const message    = args.message ?? null;
-  const prevStatus = args.prevStatus ?? args.prev_status ?? null;
-  const newStatus  = args.newStatus ?? args.new_status ?? null;
+/** RPC-only logger (RLS-safe).
+ * Accepts legacy keys: event_type, event_data, environment, actor.
+ */
+export default async function logOrderEvent(params) {
+  const {
+    order_id,
+    action,
+    event_type,   // legacy
+    message,
+    prev_status,
+    new_status,
+    context,      // canonical
+    event_data,   // legacy
+    environment,  // legacy
+    actor,        // legacy
+  } = params || {};
 
-  if (!orderId) {
-    throw new Error('logOrderEvent: orderId/order_id is required');
-  }
+  const act = action || event_type;
+  const baseCtx = context !== undefined ? context : (event_data !== undefined ? event_data : {});
+  const ctx = {
+    ...baseCtx,
+    ...(environment ? { environment } : {}),
+    ...(actor ? { actor } : {}),
+  };
 
-  // Status change path
-  if (action === 'status_changed' || action === 'status_change') {
-    const { error } = await supabase.rpc('rpc_log_status_change', {
-      p_order_id:    orderId,
-      p_prev_status: prevStatus,
-      p_new_status:  newStatus,
-      p_message:     message,
-    });
-    if (error) {
-      throw new Error(`rpc_log_status_change failed: ${error.message}`);
-    }
-    return true;
-  }
+  if (!order_id || !act) throw new Error("logOrderEvent: require order_id and action/event_type");
 
-  // Default = log a note/comment
-  const { error } = await supabase.rpc('rpc_log_note', {
-    p_order_id: orderId,
-    p_message:  message ?? String(action),
+  const { data, error } = await supabase.rpc("rpc_log_event", {
+    p_order_id:   order_id,
+    p_action:     act,
+    p_message:    message ?? null,
+    p_prev_status:prev_status ?? null,
+    p_new_status: new_status ?? null,
+    p_context:    ctx,
   });
-  if (error) {
-    throw new Error(`rpc_log_note failed: ${error.message}`);
-  }
-  return true;
+
+  if (error) throw error;
+  return data;
 }
+
+
+
+
+
+
 

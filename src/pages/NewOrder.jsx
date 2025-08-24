@@ -3,7 +3,6 @@ import React from "react";
 import OrderForm from "@/components/orders/OrderForm";
 
 const DEFAULT_ORDER = {
-  id: null,
   status: "New",
   client_id: null,
   appraiser_id: null,

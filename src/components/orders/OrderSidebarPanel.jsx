@@ -1,11 +1,12 @@
 // src/components/orders/OrderSidebarPanel.jsx
-
 import React, { useState } from "react";
 import MapContainer from "@/components/MapContainer";
 import OrderActivityPanel from "./OrderActivityPanel";
+import { useSession } from "@/lib/hooks/useSession";
 
 export default function OrderSidebarPanel({ order }) {
   const [activeTab, setActiveTab] = useState("activity"); // "activity" or "map"
+  const { user } = useSession();
 
   const tabs = [
     { key: "activity", label: "Activity" },
@@ -33,7 +34,9 @@ export default function OrderSidebarPanel({ order }) {
 
       {/* Panel */}
       <div className="flex-1 rounded-md border bg-white shadow-sm p-2 overflow-y-auto">
-        {activeTab === "activity" && <OrderActivityPanel orderId={order.id} />}
+        {activeTab === "activity" && (
+          <OrderActivityPanel orderId={order.id} currentUser={user} />
+        )}
         {activeTab === "map" && (
           <MapContainer
             address={`${order.address || ""}, ${order.city || ""}, ${order.state || ""} ${order.zip || ""}`}
@@ -43,5 +46,6 @@ export default function OrderSidebarPanel({ order }) {
     </div>
   );
 }
+
 
 

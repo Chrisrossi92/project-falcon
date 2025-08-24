@@ -1,123 +1,76 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Shell } from "@/components/layout/shell";
-import { useAuth } from "@/lib/hooks/useAuth";
-import ReviewModal from "@/components/review/ReviewModal";
+import React from "react";
+import { toast } from "react-hot-toast";
+import { useOrders } from "@/lib/hooks/useOrders";
+import { updateOrderStatus } from "@/lib/services/ordersService";
+import { Link } from "react-router-dom";
 
-const ReviewerDashboard = () => {
-  const { user } = useAuth();
-  const [assignedReviews, setAssignedReviews] = useState([]);
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [openReviewModal, setOpenReviewModal] = useState(false);
-  const [loading, setLoading] = useState(true);
+const IN_QUEUE = new Set(["in_review", "ready_to_send", "revisions"]);
 
-  const refreshReviews = async () => {
-    if (!user?.id) return;
-    setLoading(true);
+export default function ReviewerDashboard() {
+  const { data: orders, loading, error, refetch } = useOrders();
+  const queue = (orders || []).filter((o) => IN_QUEUE.has((o.status || "").toLowerCase()));
 
-    const { data, error } = await supabase
-      .from("review_flow")
-      .select("*, orders(*), assigned_by_user:assigned_by(name)")
-      .eq("assigned_to", user.id)
-      .not("status", "in", ["complete", "approved"]) // hide completed or fully approved
-      .order("created_at", { ascending: true });
-
-    if (error) {
-      console.error("Error fetching assigned reviews:", error);
-      setAssignedReviews([]);
-    } else {
-      setAssignedReviews(data);
+  async function setStatus(id, next) {
+    try {
+      await updateOrderStatus(id, next);
+      toast.success(`Status → ${next.replaceAll("_", " ")}`);
+      refetch();
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to update");
     }
+  }
 
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    refreshReviews();
-  }, [user]);
-
-  const handleOpenReview = (order) => {
-    setSelectedOrder(order);
-    setOpenReviewModal(true);
-  };
-
-  const handleCloseReview = () => {
-    setSelectedOrder(null);
-    setOpenReviewModal(false);
-  };
+  if (error) return <div className="p-6 text-red-600">Error: {error.message}</div>;
 
   return (
-    <Shell title="Reviewer Dashboard">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Welcome, Reviewer</h1>
-        <p className="text-muted-foreground">
-          Below are the appraisal reports currently assigned to you for review.
-        </p>
+    <div className="max-w-6xl mx-auto p-6">
+      <h1 className="text-xl font-semibold mb-4">Reviewer Queue</h1>
+      <div className="overflow-x-auto rounded-xl border bg-white">
+        <table className="min-w-full text-sm">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-3 py-2 text-left">Order #</th>
+              <th className="px-3 py-2 text-left">Client</th>
+              <th className="px-3 py-2 text-left">Address</th>
+              <th className="px-3 py-2 text-left">Appraiser</th>
+              <th className="px-3 py-2 text-left">Status</th>
+              <th className="px-3 py-2 text-left">Review Due</th>
+              <th className="px-3 py-2 text-left">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {!loading && queue.length === 0 ? (
+              <tr><td className="px-3 py-4 text-gray-500" colSpan={7}>Nothing in the review queue.</td></tr>
+            ) : null}
+
+            {queue.map((o) => (
+              <tr key={o.id} className="align-middle">
+                <td className="px-3 py-2">{o.order_number ?? o.id.slice(0,8)}</td>
+                <td className="px-3 py-2">{o.client?.name ?? o.client_name ?? o.manual_client ?? "—"}</td>
+                <td className="px-3 py-2">{o.property_address || o.address || "—"}</td>
+                <td className="px-3 py-2">{o.appraiser?.display_name || o.appraiser_name || "—"}</td>
+                <td className="px-3 py-2">{(o.status || "new").replaceAll("_"," ")}</td>
+                <td className="px-3 py-2">
+                  {o.review_due_at ? new Date(o.review_due_at).toLocaleString() : "—"}
+                </td>
+                <td className="px-3 py-2 space-x-2">
+                  <Link className="text-blue-600 hover:underline text-sm" to={`/orders/${o.id}`}>Details</Link>
+                  <button className="text-sm rounded border px-2 py-1" onClick={() => setStatus(o.id, "ready_to_send")}>Approve</button>
+                  <button className="text-sm rounded border px-2 py-1" onClick={() => setStatus(o.id, "revisions")}>Request Changes</button>
+                </td>
+              </tr>
+            ))}
+
+            {loading ? (
+              <tr><td className="px-3 py-4 text-gray-500" colSpan={7}>Loading…</td></tr>
+            ) : null}
+          </tbody>
+        </table>
       </div>
-
-      <Card className="p-4">
-        {loading ? (
-          <p>Loading...</p>
-        ) : assignedReviews.length === 0 ? (
-          <p>No active reviews assigned to you.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr>
-                  <th className="text-left py-2 px-3">Order #</th>
-                  <th className="text-left py-2 px-3">Address</th>
-                  <th className="text-left py-2 px-3">Assigned By</th>
-                  <th className="text-left py-2 px-3">Status</th>
-                  <th className="text-left py-2 px-3">Created</th>
-                  <th className="text-left py-2 px-3">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {assignedReviews.map((flow) => (
-                  <tr key={flow.id} className="border-t">
-                    <td className="py-2 px-3">{flow.order_id}</td>
-                    <td className="py-2 px-3">
-                      {flow.orders?.property_address || "N/A"}
-                    </td>
-                    <td className="py-2 px-3">
-                      {flow.assigned_by_user?.name || "Unknown"}
-                    </td>
-                    <td className="py-2 px-3 capitalize">{flow.status}</td>
-                    <td className="py-2 px-3">
-                      {new Date(flow.created_at).toLocaleDateString()}
-                    </td>
-                    <td className="py-2 px-3">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => handleOpenReview(flow.orders)}
-                      >
-                        Review
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
-
-      {selectedOrder && (
-        <ReviewModal
-          open={openReviewModal}
-          onClose={handleCloseReview}
-          order={selectedOrder}
-          refreshOrders={refreshReviews}
-        />
-      )}
-    </Shell>
+    </div>
   );
-};
+}
 
-export default ReviewerDashboard;
 
 
