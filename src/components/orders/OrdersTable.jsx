@@ -1,45 +1,75 @@
+// src/features/orders/OrdersTable.jsx
 import React, { useMemo } from "react";
-import OrdersTableRow from "./OrdersTableRow";
+import { useOrders } from "@/lib/hooks/useOrders";
+import PresentationalOrdersTable from "@/components/orders/OrdersTable";
 
-export default function OrdersTable({ orders = [], loading, onRefresh }) {
-  const hasRows = orders && orders.length > 0;
+const REVIEW_STATES = new Set(["in_review", "revisions", "ready_to_send"]);
 
-  const rows = useMemo(() => orders, [orders]);
+/**
+ * Adapter table for the Orders page.
+ * Accepts lightweight filters and renders the shared presentational table.
+ *
+ * Props (all optional):
+ *  - status: string | "__REVIEW__" (special token to show review states)
+ *  - appraiserId: string
+ *  - clientId: string
+ *  - priority: string (reserved for future)
+ *  - dueWindow: string (reserved for future)
+ *  - includeArchived: boolean (reserved for future)
+ */
+export default function OrdersTable({
+  status,
+  appraiserId,
+  clientId,
+  priority,
+  dueWindow,
+  includeArchived,
+}) {
+  const { data: allOrders = [], loading, error, refetch } = useOrders();
+
+  const rows = useMemo(() => {
+    let list = Array.isArray(allOrders) ? allOrders : [];
+
+    // Status filtering
+    if (status === "__REVIEW__") {
+      list = list.filter((o) => REVIEW_STATES.has(String(o.status || "").toLowerCase()));
+    } else if (status && typeof status === "string") {
+      const needle = status.toLowerCase();
+      list = list.filter((o) => String(o.status || "").toLowerCase() === needle);
+    }
+
+    // Appraiser filter
+    if (appraiserId) {
+      list = list.filter((o) => String(o.appraiser_id || "") === String(appraiserId));
+    }
+
+    // Client filter
+    if (clientId) {
+      list = list.filter((o) => String(o.client_id || "") === String(clientId));
+    }
+
+    // Future hooks for priority/dueWindow/includeArchived can go here
+
+    return list;
+  }, [allOrders, status, appraiserId, clientId, priority, dueWindow, includeArchived]);
+
+  if (error) {
+    return (
+      <div className="p-4 text-sm text-red-600">
+        Failed to load orders: {error.message}
+      </div>
+    );
+  }
 
   return (
-    <div className="w-full">
-      <div className="overflow-x-auto rounded-xl border">
-        <table className="min-w-full text-sm">
-          <thead className="bg-gray-50 text-gray-600">
-            <tr>
-              <th className="px-3 py-2 text-left">Order #</th>
-              <th className="px-3 py-2 text-left">Client</th>
-              <th className="px-3 py-2 text-left">Address</th>
-              <th className="px-3 py-2 text-left">Appraiser</th>
-              <th className="px-3 py-2 text-left">Status</th>
-              <th className="px-3 py-2 text-left">Site Visit</th>
-              <th className="px-3 py-2 text-left">Due Date</th>
-              <th className="px-3 py-2 text-left">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {!loading && hasRows
-              ? rows.map((o) => (
-                  <OrdersTableRow key={o.id} order={o} onRefresh={onRefresh} />
-                ))
-              : null}
-          </tbody>
-        </table>
-        {!loading && !hasRows ? (
-          <div className="p-6 text-sm text-gray-500">No orders found.</div>
-        ) : null}
-        {loading ? (
-          <div className="p-6 text-sm text-gray-500">Loading…</div>
-        ) : null}
-      </div>
-    </div>
+    <PresentationalOrdersTable
+      orders={rows}
+      loading={loading}
+      onRefresh={refetch}
+    />
   );
 }
+
 
 
 

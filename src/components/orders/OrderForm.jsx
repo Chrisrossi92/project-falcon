@@ -3,29 +3,46 @@ import { useNavigate } from "react-router-dom";
 import supabase from "@/lib/supabaseClient";
 import useOrderForm from "@/lib/hooks/useOrderForm";
 import { toast } from "react-hot-toast";
+import { setReviewRoute } from "@/lib/services/ordersService";
+import { useSession } from "@/lib/hooks/useSession";
 
 export default function OrderForm({ initialOrder, mode = "create" }) {
   const navigate = useNavigate();
+  const { user } = useSession();
+  const role = String(user?.role || "").toLowerCase();
+  const isAdminOrMike =
+    role === "admin" || role === "owner" || role === "manager" || (user?.email || "").toLowerCase().includes("mike");
+
   const { order, handleChange, saveOrder, saving } = useOrderForm(initialOrder);
+  const [users, setUsers] = useState([]);
   const [appraisers, setAppraisers] = useState([]);
   const [clients, setClients] = useState([]);
+
+  // Review settings
+  const [requireReview, setRequireReview] = useState(true); // default to true
+  const [rev1, setRev1] = useState(""); // step 1 reviewer id (Pam default)
+  const [rev2, setRev2] = useState(""); // step 2 reviewer id (Mike default)
 
   // Load select options
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const [{ data: users, error: uErr }, { data: clis, error: cErr }] = await Promise.all([
-        supabase
-          .from("users")
-          .select("id, display_name, name, email, role")
-          .order("display_name", { ascending: true }),
+      const [{ data: usersData }, { data: clis }] = await Promise.all([
+        supabase.from("users").select("id, display_name, name, email, role").order("display_name", { ascending: true }),
         supabase.from("clients").select("id, name").order("name", { ascending: true }),
       ]);
-      if (uErr) console.error(uErr);
-      if (cErr) console.error(cErr);
+
       if (cancelled) return;
-      setAppraisers((users || []).filter((u) => String(u.role || "").toLowerCase() === "appraiser"));
+      const listUsers = usersData || [];
+      setUsers(listUsers);
+      setAppraisers(listUsers.filter((u) => String(u.role || "").toLowerCase() === "appraiser"));
       setClients(clis || []);
+
+      // Defaults for reviewers (Pam/Mike if present)
+      const pam = listUsers.find((u) => /^pam/i.test(u.display_name || u.name || ""));
+      const mike = listUsers.find((u) => /^mike/i.test(u.display_name || u.name || ""));
+      if (pam && !rev1) setRev1(pam.id);
+      if (mike && !rev2) setRev2(mike.id);
     }
     load();
     return () => {
@@ -58,14 +75,28 @@ export default function OrderForm({ initialOrder, mode = "create" }) {
   const submit = async (e) => {
     e.preventDefault();
     try {
-      const saved = await saveOrder(); // logs via rpc_log_event inside the hook
+      // 1) Save the basic order
+      const saved = await saveOrder(); // (existing hook) — logs via rpc_log_event
+
+      // 2) If review is required and admin/mike configured reviewers, save route JSON
+      if (isAdminOrMike && requireReview) {
+        const steps = [];
+        if (rev1) steps.push({ reviewer_id: rev1, position: 1, required: true, fallback_ids: [] });
+        if (rev2) steps.push({ reviewer_id: rev2, position: 2, required: true, fallback_ids: [] });
+        if (steps.length) {
+          await setReviewRoute(saved.id, { policy: "sequential", steps, template: "Order Setup" });
+        }
+      }
+
       toast.success(mode === "create" ? "Order created" : "Order saved");
-      navigate("/orders"); // or `/orders/${saved.id}` if you have detail pages
+      navigate("/orders");
     } catch (err) {
       console.error(err);
       toast.error("Failed to save order");
     }
   };
+
+  const renderUserOptionLabel = (u) => u.display_name || u.name || u.email;
 
   return (
     <form onSubmit={submit} className="space-y-6">
@@ -203,10 +234,7 @@ export default function OrderForm({ initialOrder, mode = "create" }) {
               className="mt-1 w-full border rounded-md px-3 py-2"
               value={dtToLocalInput(order.site_visit_at)}
               onChange={(e) =>
-                handleChange(
-                  "site_visit_at",
-                  e.target.value ? new Date(e.target.value).toISOString() : null
-                )
+                handleChange("site_visit_at", e.target.value ? new Date(e.target.value).toISOString() : null)
               }
             />
           </div>
@@ -218,10 +246,7 @@ export default function OrderForm({ initialOrder, mode = "create" }) {
               className="mt-1 w-full border rounded-md px-3 py-2"
               value={dtToLocalInput(order.review_due_at)}
               onChange={(e) =>
-                handleChange(
-                  "review_due_at",
-                  e.target.value ? new Date(e.target.value).toISOString() : null
-                )
+                handleChange("review_due_at", e.target.value ? new Date(e.target.value).toISOString() : null)
               }
             />
           </div>
@@ -233,15 +258,60 @@ export default function OrderForm({ initialOrder, mode = "create" }) {
               className="mt-1 w-full border rounded-md px-3 py-2"
               value={dtToLocalInput(order.final_due_at)}
               onChange={(e) =>
-                handleChange(
-                  "final_due_at",
-                  e.target.value ? new Date(e.target.value).toISOString() : null
-                )
+                handleChange("final_due_at", e.target.value ? new Date(e.target.value).toISOString() : null)
               }
             />
           </div>
         </div>
       </section>
+
+      {/* Review settings (Admin/Mike) */}
+      {isAdminOrMike && (
+        <section className="bg-white rounded-2xl shadow p-4">
+          <h2 className="text-lg font-semibold mb-2">Review Settings</h2>
+          <label className="inline-flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={requireReview} onChange={(e) => setRequireReview(e.target.checked)} />
+            Require review for this order
+          </label>
+
+          {requireReview && (
+            <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium">Level 1 Reviewer</label>
+                <select
+                  className="mt-1 w-full border rounded-md px-3 py-2"
+                  value={rev1}
+                  onChange={(e) => setRev1(e.target.value)}
+                >
+                  <option value="">— Select —</option>
+                  {users.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {renderUserOptionLabel(u)}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">Typically Pam (or Kady if Pam is OOO)</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Level 2 Reviewer</label>
+                <select
+                  className="mt-1 w-full border rounded-md px-3 py-2"
+                  value={rev2}
+                  onChange={(e) => setRev2(e.target.value)}
+                >
+                  <option value="">— Select —</option>
+                  {users.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {renderUserOptionLabel(u)}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">Typically Mike (or Abby)</p>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Actions */}
       <div className="flex items-center justify-end gap-3">
@@ -264,6 +334,7 @@ export default function OrderForm({ initialOrder, mode = "create" }) {
     </form>
   );
 }
+
 
 
 

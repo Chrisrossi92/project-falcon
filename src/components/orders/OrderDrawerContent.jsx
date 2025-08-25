@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import OrderDetailPanel from "./OrderDetailPanel";
 import OrderSidebarPanel from "./OrderSidebarPanel";
 import { useSession } from "@/lib/hooks/useSession";
-import supabase from "@/lib/supabaseClient";
+import { fetchOrderById } from "@/lib/services/ordersService";
 
 export default function OrderDrawerContent({ data, onClose }) {
   const { user } = useSession();
@@ -13,47 +13,26 @@ export default function OrderDrawerContent({ data, onClose }) {
 
   useEffect(() => {
     let mounted = true;
-
-    const fetchOrder = async () => {
+    (async () => {
       setLoading(true);
-
-      const { data: fullOrder, error } = await supabase
-        .from("orders")
-        .select(
-          `
-          *,
-          client:client_id ( name ),
-          appraiser:appraiser_id ( display_name )
-        `
-        )
-        .eq("id", data.id)
-        .single();
-
-      if (!mounted) return;
-
-      if (error) {
-        console.error("Failed to fetch full order:", error.message);
+      try {
+        const full = await fetchOrderById(data.id);
+        if (!mounted) return;
+        setOrder(full);
+      } catch (e) {
+        console.error("Failed to fetch full order:", e?.message);
+        if (!mounted) return;
+        // best-effort fallback with minimal fields
         setOrder({
           ...data,
           client_name: data.client?.name || data.manual_client || "—",
           appraiser_name: data.appraiser?.display_name || data.manual_appraiser || "—",
         });
-      } else {
-        setOrder({
-          ...fullOrder,
-          client_name: fullOrder.client?.name || fullOrder.manual_client || "—",
-          appraiser_name: fullOrder.appraiser?.display_name || fullOrder.manual_appraiser || "—",
-        });
+      } finally {
+        if (mounted) setLoading(false);
       }
-
-      setLoading(false);
-    };
-
-    fetchOrder();
-
-    return () => {
-      mounted = false;
-    };
+    })();
+    return () => { mounted = false; };
   }, [data.id]);
 
   if (loading || !order) {
@@ -68,7 +47,7 @@ export default function OrderDrawerContent({ data, onClose }) {
       </div>
       <div className="flex justify-end pt-4">
         <button
-          onClick={onClose || (() => setOrder(null))}
+          onClick={onClose || (() => undefined)}
           className="text-sm text-blue-600 hover:underline"
         >
           Close
@@ -77,6 +56,7 @@ export default function OrderDrawerContent({ data, onClose }) {
     </div>
   );
 }
+
 
 
 

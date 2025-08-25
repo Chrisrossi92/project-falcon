@@ -1,13 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import supabase from '@/lib/supabaseClient';
 import ClientCard from '@/components/clients/ClientCard';
 import ClientFilters from '@/components/clients/ClientFilters';
 import { Link } from 'react-router-dom';
+import { fetchClientsWithMetrics } from '@/lib/services/clientsService';
 
 export default function ClientsDashboard() {
   const [clients, setClients] = useState([]);
   const [filteredClients, setFilteredClients] = useState([]);
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -15,67 +14,18 @@ export default function ClientsDashboard() {
   const [selectedClientType, setSelectedClientType] = useState(null);
 
   useEffect(() => {
-    const fetchClients = async () => {
+    (async () => {
       setLoading(true);
-
-      const { data: clientData, error: clientError } = await supabase
-        .from('clients')
-        .select('*');
-
-      if (clientError) {
-        setError(clientError.message);
+      try {
+        const enriched = await fetchClientsWithMetrics();
+        setClients(enriched);
+        setError(null);
+      } catch (e) {
+        setError(e.message || 'Failed to load clients');
+      } finally {
         setLoading(false);
-        return;
       }
-
-      const enrichedClients = [];
-
-      for (const client of clientData) {
-        let clientIdsToFetch = [client.id];
-
-        if (client.client_type === 'AMC') {
-          const { data: children } = await supabase
-            .from('clients')
-            .select('id')
-            .eq('parent_id', client.id);
-
-          if (children) {
-            clientIdsToFetch = children.map(c => c.id);
-          }
-        }
-
-        const { data: orders, error: orderError } = await supabase
-          .from('orders')
-          .select('base_fee, created_at, status')
-          .in('client_id', clientIdsToFetch);
-
-        const totalOrders = orders?.length || 0;
-        const activeOrders = orders?.filter(o =>
-          ['In Progress', 'Needs Review'].includes(o.status)
-        ).length || 0;
-
-        const avgFee = totalOrders > 0
-          ? orders.reduce((sum, o) => sum + (o.base_fee || 0), 0) / totalOrders
-          : 0;
-
-        const lastOrderDate = totalOrders > 0
-          ? orders.map(o => new Date(o.created_at)).sort((a, b) => b - a)[0].toISOString()
-          : null;
-
-        enrichedClients.push({
-          ...client,
-          totalOrders,
-          activeOrders,
-          avgFee,
-          lastOrderDate
-        });
-      }
-
-      setClients(enrichedClients);
-      setLoading(false);
-    };
-
-    fetchClients();
+    })();
   }, []);
 
   useEffect(() => {
@@ -83,14 +33,11 @@ export default function ClientsDashboard() {
       setFilteredClients(clients);
       return;
     }
-
-    // If AMC, show AMC + all its lenders
     if (selectedClientType === 'AMC') {
       const selectedAMC = clients.find(c => c.id === selectedClientId);
       const children = clients.filter(c => c.parent_id === selectedClientId);
-      setFilteredClients([selectedAMC, ...children]);
+      setFilteredClients([selectedAMC, ...children].filter(Boolean));
     } else {
-      // Lender or Private
       const selected = clients.find(c => c.id === selectedClientId);
       setFilteredClients(selected ? [selected] : []);
     }
@@ -132,6 +79,7 @@ export default function ClientsDashboard() {
     </div>
   );
 }
+
 
 
 

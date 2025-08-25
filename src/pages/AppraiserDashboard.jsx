@@ -5,20 +5,22 @@ import { useSession } from "@/lib/hooks/useSession";
 import OrdersTable from "@/components/orders/OrdersTable";
 
 export default function AppraiserDashboard() {
-  // Guard the hook return in case it ever returns undefined
   const ordersHook = useOrders() || {};
   const { data: rawData, loading, error, refetch } = ordersHook;
 
-  // Always coerce to an array before using .filter()
   const orders = Array.isArray(rawData) ? rawData : [];
 
   const { user } = useSession();
   const uid = user?.id ?? null;
 
+  // my appraisal assignments OR review tasks assigned to me
   const myOrders = useMemo(() => {
-    if (!uid) return orders;            // nothing to filter by yet
-    // Defensive: ensure each element is an object before reading props
-    return orders.filter((o) => o && o.appraiser_id === uid);
+    if (!uid) return orders;
+    return orders.filter((o) => {
+      const isAppraiser = o && o.appraiser_id === uid;
+      const isMyReviewTask = o && o.current_reviewer_id === uid;
+      return isAppraiser || isMyReviewTask;
+    });
   }, [orders, uid]);
 
   if (error) {
@@ -34,13 +36,18 @@ export default function AppraiserDashboard() {
     <div className="mx-auto max-w-7xl px-4 py-6 flex flex-col gap-6">
       <section className="w-full bg-white rounded-2xl shadow p-4">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">My Orders</h2>
+          <h2 className="text-lg font-semibold">My Work</h2>
+          <div className="text-xs text-gray-500">
+            Appraisal jobs + any review tasks assigned to you
+          </div>
         </div>
         <OrdersTable orders={myOrders} loading={loading} onRefresh={refetch} />
       </section>
     </div>
   );
 }
+
+
 
 
 

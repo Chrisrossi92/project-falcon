@@ -3,7 +3,7 @@ import React from "react";
 import OrderForm from "@/components/orders/OrderForm";
 
 const DEFAULT_ORDER = {
-  status: "New",
+  status: "new",
   client_id: null,
   appraiser_id: null,
   manual_client: "",
@@ -21,11 +21,11 @@ export default function NewOrder() {
   return (
     <div className="space-y-6">
       <h1 className="text-xl font-semibold">Create Order</h1>
-      {/* Pass a safe initial object so child components never see undefined */}
       <OrderForm initialOrder={DEFAULT_ORDER} mode="create" />
     </div>
   );
 }
+
 
 
 

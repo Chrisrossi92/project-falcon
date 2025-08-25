@@ -1,9 +1,11 @@
 import { useEffect, useState, useCallback } from "react";
 import supabase from "@/lib/supabaseClient";
 import { useSession } from "@/lib/hooks/useSession";
+import { fetchOrdersList } from "@/lib/services/ordersService";
 
+/** Orders hook using the service layer (RPC/view-ready). */
 export function useOrders() {
-  const { user } = useSession(); // don't gate on isAdmin here; RLS handles visibility
+  const { user } = useSession(); // RLS governs visibility
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -11,47 +13,32 @@ export function useOrders() {
   const fetchOrders = useCallback(async () => {
     setLoading(true);
     setError(null);
-
-    const { data: rows, error: err } = await supabase
-      .from("orders")
-      .select(`
-        *,
-        client:client_id ( name ),
-        appraiser:appraiser_id ( id, display_name, name, email )
-      `)
-      .order("created_at", { ascending: false });
-
-    if (err) {
-      console.error("[useOrders] select error:", err);
+    try {
+      const rows = await fetchOrdersList();
+      setData(rows);
+    } catch (err) {
+      console.error("[useOrders] fetch error:", err);
       setError(err);
       setData([]);
-    } else {
-      const mapped = (rows || []).map((r) => ({
-        ...r,
-        client_name: r.client?.name ?? r.client_name ?? "—",
-        appraiser_name: r.appraiser?.display_name || r.appraiser?.name || "—",
-      }));
-      setData(mapped);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }, []);
 
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
 
+  // Realtime: refresh list on any orders change
   useEffect(() => {
-    // Realtime: whenever orders change, refetch the list
     const channel = supabase
       .channel("orders:realtime")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "orders" },
-        () => fetchOrders()
+        fetchOrders
       )
       .subscribe();
-
     return () => {
       try { channel.unsubscribe(); } catch {}
     };
@@ -59,4 +46,8 @@ export function useOrders() {
 
   return { data, loading, error, refetch: fetchOrders };
 }
+
+export default useOrders;
+
+
 
