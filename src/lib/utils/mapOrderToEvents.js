@@ -1,51 +1,49 @@
-// src/lib/utils/mapOrderToEvents.js
 export default function mapOrderToEvents(order) {
   if (!order) return [];
 
   const events = [];
-  const address = order.address || 'Unknown Address';
 
-  // Convert to ISO (UTC) string to avoid timezone offset bugs
+  const addr =
+    order.property_address ||
+    order.address ||
+    [order.city, order.state, order.postal_code].filter(Boolean).join(", ") ||
+    "Unknown Address";
+
   const toISO = (datetime) => (datetime ? new Date(datetime).toISOString() : null);
 
   // 📍 Site Visit
   if (order.site_visit_at) {
     events.push({
-      title: `📍 Site Visit – ${address}`,
+      title: `📍 Site Visit – ${addr}`,
       start: toISO(order.site_visit_at),
       orderId: order.id,
-      type: 'site',
-      backgroundColor: '#2563eb',
-      textColor: 'white',
+      type: "site",
     });
   }
 
-  // 🔍 Review Due (use view column name)
-  if (order.review_due_date) {
+  // 🔍 Review Due
+  if (order.review_due_at) {
     events.push({
-      title: `🔍 Review Due – ${address}`,
-      start: toISO(order.review_due_date),
+      title: `🔍 Review Due – ${addr}`,
+      start: toISO(order.review_due_at),
       orderId: order.id,
-      type: 'review',
-      backgroundColor: '#f59e0b',
-      textColor: 'white',
+      type: "review",
     });
   }
 
-  // ⏰ Final Due Date
-  if (order.due_date) {
+  // ⏰ Final Due
+  if (order.final_due_at) {
     events.push({
-      title: `⏰ Final Due – ${address}`,
-      start: toISO(order.due_date),
+      title: `⏰ Final Due – ${addr}`,
+      start: toISO(order.final_due_at),
       orderId: order.id,
-      type: 'due',
-      backgroundColor: '#dc2626',
-      textColor: 'white',
+      type: "due",
     });
   }
 
   return events;
 }
+
 
 
 

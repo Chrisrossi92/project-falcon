@@ -2,11 +2,10 @@
 import React from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useSession } from '@/lib/hooks/useSession';
-import FloatingActivityLog from '../components/FloatingActivityLog';
+// import FloatingActivityLog from '../components/FloatingActivityLog'; // ⛔ disabled pending refactor
 import supabase from '@/lib/supabaseClient';
-import { LoadingState } from '@/components/ui/Loaders'; // ✅
+import { LoadingState } from '@/components/ui/Loaders';
 import NotificationBell from '@/components/notifications/NotificationBell';
-
 
 const Layout = () => {
   const { user, loading } = useSession();
@@ -17,22 +16,19 @@ const Layout = () => {
     navigate('/login');
   };
 
-  if (loading) return <LoadingState label="Loading session…" />; // ✅
+  if (loading) return <LoadingState label="Loading session…" />;
 
   // Role helpers (defensive)
   const role = user?.role ?? 'user';
   const isAdmin = role === 'admin';
-  const isReviewer = role === 'reviewer';
+  // const isReviewer = role === 'reviewer'; // ← no separate nav link any more
 
   const navItems = [
     { to: '/dashboard', label: 'Dashboard' },
     { to: '/orders', label: 'Orders' },
     ...(isAdmin ? [{ to: '/clients', label: 'Clients' }] : []),
-    // Team: admin-only (optional — tighten access)
     ...(isAdmin ? [{ to: '/users', label: 'Team' }] : []),
-    // Reviewer: visible to admin & reviewer
-    ...((isAdmin || isReviewer) ? [{ to: '/reviewer', label: 'Reviewer' }] : []),
-    // Keep your existing rule: hide Calendar for reviewers
+    // Hide Calendar for reviewers if you still want, otherwise allow:
     ...(role !== 'reviewer' ? [{ to: '/calendar', label: 'Calendar' }] : []),
     { to: '/settings', label: 'Settings' },
   ];
@@ -43,7 +39,7 @@ const Layout = () => {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
           <div className="text-lg font-semibold">Falcon Platform</div>
           <nav className="flex items-center gap-2">
-          <NotificationBell />
+            <NotificationBell />
             {navItems.map((item) => (
               <NavLink
                 key={item.to}
@@ -68,13 +64,16 @@ const Layout = () => {
         <Outlet />
       </main>
 
-      {/* Floating activity log (can be toggled off later) */}
-      <FloatingActivityLog />
+      {/* TODO(activity): Re-introduce as admin-toggleable docked panel after consolidation */}
+      {/* <FloatingActivityLog /> */}
     </div>
   );
 };
 
 export default Layout;
+
+
+
 
 
 

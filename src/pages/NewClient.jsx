@@ -1,17 +1,17 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import supabase from '../lib/supabaseClient';
-import ClientForm from '../components/forms/ClientForm'; // Make sure path is correct
+import ClientForm from '@/components/forms/ClientForm';
+import { createClient } from '@/lib/services/clientsService';
 
 const NewClient = () => {
   const navigate = useNavigate();
 
   const handleCreate = async (formData) => {
-    const { error } = await supabase.from('clients').insert([formData]);
-    if (error) {
-      alert(`Error: ${error.message}`);
-    } else {
+    try {
+      await createClient(formData);
       navigate('/clients');
+    } catch (e) {
+      alert(`Error: ${e.message || String(e)}`);
     }
   };
 
@@ -19,4 +19,5 @@ const NewClient = () => {
 };
 
 export default NewClient;
+
 

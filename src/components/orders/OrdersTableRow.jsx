@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import supabase from "@/lib/supabaseClient";
-import { updateOrderStatus } from "@/lib/services/ordersService";
-import logOrderEvent from "@/lib/utils/logOrderEvent";
+import { updateOrderStatus, updateOrderDates } from "@/lib/services/ordersService";
+import { fromLocalInputValue, toLocalInputValue } from "@/lib/utils/formatDate";
+import { useSession } from "@/lib/hooks/useSession";
 
 const STATUSES = [
   "new",
@@ -18,24 +18,27 @@ const STATUSES = [
 ];
 
 function dtToLocalInput(iso) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  return new Date(d.getTime() - d.getTimezoneOffset() * 60000)
-    .toISOString()
-    .slice(0, 16);
+  return toLocalInputValue(iso);
 }
 
 export default function OrdersTableRow({ order, onRefresh }) {
+  const { user } = useSession();
+  const uid = user?.id || null;
+
   const [savingVisit, setSavingVisit] = useState(false);
   const [savingDue, setSavingDue] = useState(false);
   const [savingStatus, setSavingStatus] = useState(false);
+
+  const statusLower = String(order.status || "").toLowerCase();
+  const isReviewState = ["in_review", "revisions", "ready_to_send"].includes(statusLower);
+  const isMyReviewTask = uid && order.current_reviewer_id === uid;
 
   async function onStatusChange(e) {
     const next = e.target.value;
     if (!next || next === order.status) return;
     try {
       setSavingStatus(true);
-      await updateOrderStatus(order.id, next); // RPC logs prev/new
+      await updateOrderStatus(order.id, next);
       toast.success(`Status → ${next.replaceAll("_", " ")}`);
       onRefresh?.();
     } catch (err) {
@@ -49,20 +52,7 @@ export default function OrdersTableRow({ order, onRefresh }) {
   async function onSetSiteVisit(value) {
     try {
       setSavingVisit(true);
-      const iso = value ? new Date(value).toISOString() : null;
-      const { error } = await supabase
-        .from("orders")
-        .update({ site_visit_at: iso })
-        .eq("id", order.id);
-      if (error) throw error;
-
-      await logOrderEvent({
-        order_id: order.id,
-        action: "site_visit_set",
-        message: "Site visit scheduled",
-        context: { site_visit_at: iso },
-      });
-
+      await updateOrderDates(order.id, { siteVisit: fromLocalInputValue(value) });
       toast.success("Site visit saved");
       onRefresh?.();
     } catch (err) {
@@ -76,20 +66,7 @@ export default function OrdersTableRow({ order, onRefresh }) {
   async function onSetFinalDue(value) {
     try {
       setSavingDue(true);
-      const iso = value ? new Date(value).toISOString() : null;
-      const { error } = await supabase
-        .from("orders")
-        .update({ final_due_at: iso })
-        .eq("id", order.id);
-      if (error) throw error;
-
-      await logOrderEvent({
-        order_id: order.id,
-        action: "client_due_updated",
-        message: "Final due updated",
-        context: { final_due_at: iso },
-      });
-
+      await updateOrderDates(order.id, { finalDue: fromLocalInputValue(value) });
       toast.success("Final due saved");
       onRefresh?.();
     } catch (err) {
@@ -101,8 +78,26 @@ export default function OrdersTableRow({ order, onRefresh }) {
   }
 
   return (
-    <tr className="align-middle">
-      <td className="px-3 py-2">{order.order_number ?? order.id.slice(0, 8)}</td>
+    <tr
+      className={`align-middle ${
+        isMyReviewTask ? "bg-blue-50" : isReviewState ? "bg-yellow-50" : ""
+      }`}
+      title={
+        isMyReviewTask
+          ? "Review task assigned to you"
+          : isReviewState
+          ? "In review workflow"
+          : undefined
+      }
+    >
+      <td className="px-3 py-2">
+        {order.order_number ?? order.id.slice(0, 8)}
+        {isMyReviewTask && (
+          <span className="ml-2 inline-flex items-center rounded-full bg-blue-600 text-white px-2 py-0.5 text-[10px]">
+            REVIEW TASK
+          </span>
+        )}
+      </td>
       <td className="px-3 py-2">{order.client_name ?? order.client?.name ?? order.manual_client ?? "—"}</td>
       <td className="px-3 py-2">
         {order.property_address || order.address || "—"}
@@ -153,6 +148,8 @@ export default function OrdersTableRow({ order, onRefresh }) {
     </tr>
   );
 }
+
+
 
 
 

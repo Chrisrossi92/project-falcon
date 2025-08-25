@@ -1,8 +1,9 @@
 // src/pages/ClientDetail.jsx
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import supabase from '../lib/supabaseClient';
-import ContactForm from '../components/ContactForm';
+import supabase from '@/lib/supabaseClient';
+import ContactForm from '@/components/ContactForm';
+import { fetchClientById, updateClient } from '@/lib/services/clientsService';
 
 const ClientDetail = () => {
   const { clientId } = useParams();
@@ -21,38 +22,27 @@ const ClientDetail = () => {
   const [contacts, setContacts] = useState([]);
   const [newContact, setNewContact] = useState({ name: '', email: '', phone: '' });
   const [error, setError] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const fetchClientData = async () => {
+    const load = async () => {
       if (!isNew) {
-        const { data: clientData, error: clientError } = await supabase
-          .from('clients')
-          .select('*')
-          .eq('id', clientId)
-          .single();
+        try {
+          const c = await fetchClientById(clientId);
+          setClient(c);
 
-        if (clientError) {
-          console.error('Error fetching client:', clientError);
-          setError(clientError.message || 'Failed to fetch client data.');
-          return;
+          const { data: contactData, error: contactError } = await supabase
+            .from('contacts')
+            .select('*')
+            .eq('client_id', clientId);
+          if (contactError) throw contactError;
+          setContacts(Array.isArray(contactData) ? contactData : []);
+        } catch (e) {
+          setError(e.message || 'Failed to load client');
         }
-        setClient(clientData);
-
-        const { data: contactData, error: contactError } = await supabase
-          .from('contacts')
-          .select('*')
-          .eq('client_id', clientId);
-
-        if (contactError) {
-          console.error('Error fetching contacts:', contactError);
-          setError(contactError.message || 'Failed to fetch contacts.');
-          return;
-        }
-
-        setContacts(Array.isArray(contactData) ? contactData : []);
       }
     };
-    fetchClientData();
+    load();
   }, [clientId, isNew]);
 
   const handleChange = (e) => {
@@ -61,40 +51,25 @@ const ClientDetail = () => {
   };
 
   const handleSave = async () => {
-    if (!client.name.trim()) return;
-
-    const clientPayload = {
-      name: client.name,
-      phone: client.phone || null,
-      email: client.email || null,
-      company: client.company || null,
-      contact: client.contact || null,
-      notes: client.notes || null
-    };
-
-    if (isNew) {
-      const { data, error } = await supabase
-        .from('clients')
-        .insert([clientPayload])
-        .select()
-        .single();
-      if (error) {
-        console.error('Client creation failed:', error);
-        setError(error.message || 'Failed to create client.');
+    try {
+      setSaving(true);
+      if (isNew) {
+        // New should be handled in the NewClient page; we keep edit behavior here
         return;
       }
-      if (data?.id) navigate(`/clients/${data.id}`);
-    } else {
-      const { error } = await supabase
-        .from('clients')
-        .update(clientPayload)
-        .eq('id', clientId);
-      if (error) {
-        console.error('Error updating client:', error);
-        setError(error.message || 'Failed to update client.');
-        return;
-      }
+      await updateClient(clientId, {
+        name: client.name || null,
+        phone: client.phone || null,
+        email: client.email || null,
+        company: client.company || null,
+        contact: client.contact || null,
+        notes: client.notes || null,
+      });
       navigate('/clients');
+    } catch (e) {
+      setError(e.message || 'Failed to update client.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -106,7 +81,6 @@ const ClientDetail = () => {
       .select()
       .single();
     if (error) {
-      console.error('Error adding contact:', error);
       setError(error.message || 'Failed to add contact.');
       return;
     }
@@ -191,13 +165,19 @@ const ClientDetail = () => {
         </div>
       )}
 
-      <div className="flex justify-end">
-        <button onClick={handleSave} className="px-6 py-2 bg-green-600 text-white rounded">
-          Save
+      <div className="flex justify-end gap-3">
+        <button onClick={() => navigate('/clients')} className="px-6 py-2 border rounded">
+          Cancel
         </button>
+        {!isNew && (
+          <button onClick={handleSave} disabled={saving} className="px-6 py-2 bg-black text-white rounded">
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        )}
       </div>
     </div>
   );
 };
 
 export default ClientDetail;
+
