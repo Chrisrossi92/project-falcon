@@ -1,86 +1,70 @@
-import React, { useEffect, useState } from "react";
-import supabase from "@/lib/supabaseClient";
+// src/components/orders/OrderActivityPanel.jsx
+import React, { useEffect, useState, useCallback } from "react";
+import { fetchOrderActivity } from "@/lib/services/activityService";
 
-export default function OrderActivityPanel({ orderId }) {
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    let channel;
-
-    async function fetchRows() {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("activity_log")
-        .select("*")
-        .eq("order_id", orderId)
-        .order("created_at", { ascending: false });
-
-      if (!cancelled) {
-        if (!error) setRows(data || []);
-        setLoading(false);
-      }
-    }
-
-    fetchRows();
-
-    // subscribe AFTER initial fetch
-    channel = supabase
-      .channel(`activity:${orderId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "activity_log",
-          filter: `order_id=eq.${orderId}`,
-        },
-        (payload) => {
-          if (payload.eventType === "INSERT") {
-            setRows((prev) => [payload.new, ...prev]);
-          } else if (payload.eventType === "UPDATE") {
-            setRows((prev) =>
-              prev.map((r) => (r.id === payload.new.id ? payload.new : r))
-            );
-          } else if (payload.eventType === "DELETE") {
-            setRows((prev) => prev.filter((r) => r.id !== payload.old.id));
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      cancelled = true;
-      try {
-        channel?.unsubscribe();
-      } catch {
-        /* no-op */
-      }
-    };
-  }, [orderId]);
-
-  if (loading) return <div className="text-sm text-gray-500 p-2">Loading…</div>;
-  if (!rows.length) return <div className="text-sm text-gray-500 p-2">No activity yet.</div>;
-
+function Row({ item }) {
+  const when = item?.created_at ? new Date(item.created_at).toLocaleString() : "—";
+  const label = item?.action || item?.event_type || "event";
+  const msg = item?.message || "";
   return (
-    <div className="space-y-3 p-2">
-      {rows.map((r) => (
-        <div key={r.id} className="text-sm">
-          <div className="font-medium">
-            {(r.action || r.event_type || "event").replaceAll("_", " ")}
-          </div>
-          {r.message ? (
-            <div className="text-gray-600">{r.message}</div>
-          ) : null}
-          <div className="text-xs text-gray-400">
-            {new Date(r.created_at).toLocaleString()}
-          </div>
-        </div>
-      ))}
+    <div className="flex items-start justify-between py-2 border-b last:border-b-0">
+      <div className="text-sm">
+        <div className="font-medium">{label}</div>
+        {msg ? <div className="text-gray-600">{msg}</div> : null}
+      </div>
+      <div className="text-xs text-gray-500 ml-4 whitespace-nowrap">{when}</div>
     </div>
   );
 }
+
+export default function OrderActivityPanel({ orderId, limit = 50 }) {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(null);
+
+  const load = useCallback(async () => {
+    try {
+      setLoading(true); setErr(null);
+      const data = await fetchOrderActivity(orderId, { limit });
+      setRows(data || []);
+    } catch (e) {
+      setErr(e?.message || String(e));
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [orderId, limit]);
+
+  useEffect(() => { load(); }, [load]);
+
+  return (
+    <div className="bg-white rounded-2xl shadow border p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Activity</h2>
+        <button
+          className="px-2 py-1 border rounded text-xs hover:bg-gray-50 disabled:opacity-50"
+          onClick={load}
+          disabled={loading}
+        >
+          Refresh
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="text-sm text-gray-600">Loading…</div>
+      ) : err ? (
+        <div className="text-sm text-red-600">Failed: {err}</div>
+      ) : rows.length === 0 ? (
+        <div className="text-sm text-gray-600">No activity yet.</div>
+      ) : (
+        <div className="divide-y">
+          {rows.map((r) => <Row key={r.id} item={r} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 
 

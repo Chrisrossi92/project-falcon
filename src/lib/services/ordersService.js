@@ -1,6 +1,8 @@
 // src/lib/services/ordersService.js
 import supabase from "@/lib/supabaseClient";
 import logOrderEvent from "@/lib/utils/logOrderEvent";
+import { createNotification } from "@/lib/services/notificationsService";
+
 
 /** Normalize inputs to ISO strings (UTC) or null. */
 function toISO(value) {
@@ -103,9 +105,47 @@ export async function createOrderWithLogs(orderInput) {
       action: "order_assigned",
       message: `assigned to ${order.appraiser_id}`,
     });
+    // MVP notification to the assigned appraiser
+    await createNotification({
+      user_id: order.appraiser_id,
+      title: "New appraisal assignment",
+      body: `Order ${order.order_number || order.id.slice(0,8)} has been assigned to you.`,
+      order_id: order.id,
+      action: "order_assigned",
+    });
   }
   return order;
 }
+export async function setReadyForReview(orderId) {
+  // Log the intent first
+  await logOrderEvent({
+    order_id: orderId,
+    action: "ready_for_review",
+    message: "appraiser marked ready for review",
+  });
+
+  // Move to In Review (RPC-first via your existing helper)
+  await updateOrderStatus(orderId, "in_review");
+
+  // Announce a review task and notify the assigned reviewer
+  const order = await fetchOrderById(orderId);
+  await logOrderEvent({
+    order_id: orderId,
+    action: "review_task_created",
+    message: `assigned to ${order?.current_reviewer_id || "—"}`,
+  });
+
+  if (order?.current_reviewer_id) {
+    await createNotification({
+      user_id: order.current_reviewer_id,
+      title: "New review assignment",
+      body: `Order ${order.order_number || orderId.slice(0,8)} is ready for review.`,
+      order_id: orderId,
+      action: "in_review",
+    });
+  }
+}
+
 
 export async function assignOrder(orderId, appraiserId) {
   const { error } = await supabase.rpc("rpc_update_order_v1", {
@@ -119,6 +159,15 @@ export async function assignOrder(orderId, appraiserId) {
     order_id: orderId,
     action: "order_assigned",
     message: `assigned to ${appraiserId}`,
+  });
+
+  // MVP notification to the new appraiser
+  await createNotification({
+    user_id: appraiserId,
+    title: "New appraisal assignment",
+    body: `You’ve been assigned to Order ${orderId}.`,
+    order_id: orderId,
+    action: "order_assigned",
   });
 }
 
@@ -167,6 +216,51 @@ export async function updateOrderDates(orderId, { siteVisit, reviewDue, finalDue
     });
   }
 }
+
+export async function requestChanges(orderId, message) {
+  const rpc = await supabase.rpc("rpc_request_changes", {
+    p_order_id: orderId,
+    p_message: message ?? null,
+  });
+  if (!rpc.error) {
+    await logOrderEvent({
+      order_id: orderId,
+      action: "review_changes_requested",
+      message: message || "changes requested",
+    });
+    // Notify the appraiser
+    const order = await fetchOrderById(orderId);
+    if (order?.appraiser_id) {
+      await createNotification({
+        user_id: order.appraiser_id,
+        title: "Changes requested",
+        body: message || "Reviewer requested changes.",
+        order_id: orderId,
+        action: "review_changes_requested",
+      });
+    }
+    return;
+  }
+
+  // Fallback
+  await updateOrderStatus(orderId, "revisions");
+  await logOrderEvent({
+    order_id: orderId,
+    action: "review_changes_requested",
+    message: message || "changes requested",
+  });
+  const order = await fetchOrderById(orderId);
+  if (order?.appraiser_id) {
+    await createNotification({
+      user_id: order.appraiser_id,
+      title: "Changes requested",
+      body: message || "Reviewer requested changes.",
+      order_id: orderId,
+      action: "review_changes_requested",
+    });
+  }
+}
+
 
 /** -----------------------------
  *  Review routing & actions
@@ -229,7 +323,7 @@ export async function assignNextReviewer(orderId) {
   if (!steps.length) return;
 
   const target = steps[0];
-  const reviewerId = target?.reviewer_id;
+  const reviewerId = target?.reviewer_id;   // <-- fixed line
   if (!reviewerId) return;
 
   await safeUpdateOrders(orderId, { current_reviewer_id: reviewerId });
@@ -286,32 +380,47 @@ export async function claimReview(orderId) {
 
 /** Reviewer approves. If next step exists, route onward; else finalize to ready_to_send. */
 export async function approveReview(orderId) {
+  // Try RPC first
   const rpc = await supabase.rpc("rpc_approve_review", { p_order_id: orderId });
   if (!rpc.error) {
     await logOrderEvent({ order_id: orderId, action: "review_step_approved", message: "approved (rpc)" });
     return;
   }
 
-  // Fallback: simple client-side advance
+  // Fallback: client-side advance using review_route
   const order = await fetchOrderById(orderId);
-  const route = order.review_route || {};
+  const route = order?.review_route || {};
   const steps = Array.isArray(route.steps) ? route.steps : [];
 
-  if (steps.length > 1) {
-    const next = steps[1];
-    const reviewerId = next?.reviewer_id || null;
-    if (reviewerId) {
-      await safeUpdateOrders(orderId, { current_reviewer_id: reviewerId });
-      await logOrderEvent({
-        order_id: orderId,
-        action: "review_task_created",
-        message: `assigned to ${reviewerId}`,
-      });
-      return;
-    }
+  // If there is no route, just finalize
+  if (steps.length === 0) {
+    await updateOrderStatus(orderId, "ready_to_send");
+    await logOrderEvent({ order_id: orderId, action: "review_final_approved", message: "final approval; ready to send" });
+    return;
   }
 
-  // Finalize
+  // Find current index by matching current_reviewer_id
+  const curId = order.current_reviewer_id || null;
+  let idx = steps.findIndex(s => s?.reviewer_id && s.reviewer_id === curId);
+
+  // If we don't know where we are (e.g., not claimed yet), assume we just finished step 0
+  if (idx < 0) idx = 0;
+
+  const nextIdx = idx + 1;
+  const next = steps[nextIdx];
+
+  if (next && next.reviewer_id) {
+    // Advance to next reviewer
+    await safeUpdateOrders(orderId, { current_reviewer_id: next.reviewer_id });
+    await logOrderEvent({
+      order_id: orderId,
+      action: "review_task_created",
+      message: `assigned to ${next.reviewer_id}`,
+    });
+    return;
+  }
+
+  // No next step → finalize
   await updateOrderStatus(orderId, "ready_to_send");
   await logOrderEvent({
     order_id: orderId,
@@ -320,29 +429,88 @@ export async function approveReview(orderId) {
   });
 }
 
-/** Reviewer requests changes → set status to revisions. */
-export async function requestChanges(orderId, message) {
-  const rpc = await supabase.rpc("rpc_request_changes", {
-    p_order_id: orderId,
-    p_message: message ?? null,
-  });
-  if (!rpc.error) {
-    await logOrderEvent({
-      order_id: orderId,
-      action: "review_changes_requested",
-      message: message || "changes requested",
-    });
-    return;
-  }
+export async function sendToClient(orderId) {
+  // Move to final status
+  await updateOrderStatus(orderId, "sent_to_client");
 
-  // Fallback
-  await updateOrderStatus(orderId, "revisions");
+  // Best-effort timestamp (ignore 42703 if column doesn't exist)
+  await safeUpdateOrders(orderId, { sent_to_client_at: new Date().toISOString() });
+
+  // Log activity
   await logOrderEvent({
     order_id: orderId,
-    action: "review_changes_requested",
-    message: message || "changes requested",
+    action: "order_sent_to_client",
+    message: "order sent to client",
   });
+
+  // Notify appraiser (and optionally reviewer/admin if desired)
+  const order = await fetchOrderById(orderId);
+  if (order?.appraiser_id) {
+    await createNotification({
+      user_id: order.appraiser_id,
+      title: "Order sent to client",
+      body: `Order ${order.order_number || orderId.slice(0, 8)} has been sent to the client.`,
+      order_id: orderId,
+      action: "order_sent_to_client",
+    });
+  }
 }
+
+
+/** ------------------------------------------------------------------
+ *  NEW: calendar-friendly list with NO embeds (prevents relationship
+ *  ambiguity errors in Supabase when multiple FKs share a name).
+ *  Returns unique orders that have any of the three date fields
+ *  within [startISO, endISO).
+ *  ------------------------------------------------------------------ */
+export async function fetchOrdersInRange(startISO, endISO) {
+  const columns = [
+    "id",
+    "order_number",
+    "status",
+    "property_address",
+    "address",
+    "city",
+    "state",
+    "postal_code",
+    "site_visit_at",
+    "review_due_at",
+    "final_due_at",
+    "client_id",
+    "appraiser_id",
+  ].join(", ");
+
+  const q = (col) =>
+    supabase
+      .from("orders")
+      .select(columns)
+      .gte(col, startISO)
+      .lt(col, endISO);
+
+  const [site, review, final] = await Promise.allSettled([
+    q("site_visit_at"),
+    q("review_due_at"),
+    q("final_due_at"),
+  ]);
+
+  const ok = (res) => res.status === "fulfilled" && !res.value.error;
+  const data = (res) => res.value?.data || [];
+
+  if (!ok(site) && !ok(review) && !ok(final)) {
+    const err =
+      site.value?.error ||
+      review.value?.error ||
+      final.value?.error ||
+      new Error("Failed to load orders");
+    throw err;
+  }
+
+  const merged = [...data(site), ...data(review), ...data(final)];
+  const uniqMap = new Map();
+  for (const o of merged) uniqMap.set(o.id, o);
+  return Array.from(uniqMap.values());
+}
+
 
 
 

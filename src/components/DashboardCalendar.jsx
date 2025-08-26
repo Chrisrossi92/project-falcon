@@ -1,97 +1,108 @@
+// src/components/DashboardCalendar.jsx
 import React, { useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import FullCalendar from "@fullcalendar/react";
-import dayGridPlugin from "@fullcalendar/daygrid";
-import timeGridPlugin from "@fullcalendar/timegrid";
-import interactionPlugin from "@fullcalendar/interaction";
 
-/** Stable color per appraiser (keeps calendar readable) */
-function hashColor(input = "") {
-  let h = 0;
-  for (let i = 0; i < input.length; i++) h = (h << 5) - h + input.charCodeAt(i);
-  const hue = Math.abs(h) % 360;
-  return `hsl(${hue} 70% 45%)`;
+function fmtDate(d) {
+  try {
+    return d.toLocaleDateString(undefined, {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    });
+  } catch {
+    return "";
+  }
+}
+function fmtTime(d) {
+  try {
+    return d.toLocaleTimeString(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  } catch {
+    return "";
+  }
 }
 
-/** Convert orders → calendar events */
-function mapOrderToEvents(orders = []) {
-  const events = [];
-
-  for (const o of orders) {
-    const appraiserColor = o.appraiser?.id ? hashColor(o.appraiser.id) : "#3b82f6";
-    const address = o.property_address || o.address || o.client_name || "Order";
-
-    // 📍 Site Visit
-    if (o.site_visit_at) {
-      events.push({
-        id: `sv_${o.id}`,
-        title: `📍 ${address}`,
-        start: o.site_visit_at,
-        allDay: false,
-        extendedProps: { type: "site_visit", orderId: o.id },
-        color: appraiserColor,
-      });
+export default function DashboardCalendar({ events = [] }) {
+  // group by YYYY-MM-DD
+  const groups = useMemo(() => {
+    const map = new Map();
+    for (const e of events) {
+      const iso = e.date.toISOString().slice(0, 10);
+      if (!map.has(iso)) map.set(iso, []);
+      map.get(iso).push(e);
     }
+    return Array.from(map.entries())
+      .sort((a, b) => new Date(a[0]) - new Date(b[0]))
+      .slice(0, 30); // show next ~30 groups max
+  }, [events]);
 
-    // 🔵 Due for Review
-    if (o.review_due_at) {
-      events.push({
-        id: `rev_${o.id}`,
-        title: `🔵 Review: ${address}`,
-        start: o.review_due_at,
-        allDay: true,
-        extendedProps: { type: "review_due", orderId: o.id },
-        color: appraiserColor,
-      });
-    }
-
-    // 🟣 Due to Client (Final Due)
-    if (o.final_due_at) {
-      events.push({
-        id: `cli_${o.id}`,
-        title: `🟣 Due: ${address}`,
-        start: o.final_due_at,
-        allDay: true,
-        extendedProps: { type: "client_due", orderId: o.id },
-        color: appraiserColor,
-      });
-    }
+  if (!groups.length) {
+    return (
+      <div className="border rounded-lg p-4 text-sm text-gray-600">
+        No upcoming events.
+      </div>
+    );
   }
 
-  return events;
-}
-
-export default function DashboardCalendar({ orders = [], loading }) {
-  const navigate = useNavigate();
-  const events = useMemo(() => mapOrderToEvents(orders), [orders]);
-
   return (
-    <div className="w-full">
-      {/* Legend */}
-      <div className="mb-3 text-sm flex items-center gap-6">
-        <span className="flex items-center gap-2"><span>📍</span><span>Site Visit</span></span>
-        <span className="flex items-center gap-2"><span>🔵</span><span>Due for Review</span></span>
-        <span className="flex items-center gap-2"><span>🟣</span><span>Due to Client</span></span>
-        {loading ? <span className="text-gray-500">Loading…</span> : null}
+    <div className="border rounded-lg">
+      <div className="px-4 py-3 border-b flex items-center gap-4 text-sm">
+        <span className="font-medium">Legend:</span>
+        <LegendDot label="Site Visit" icon="📍" />
+        <LegendDot label="Due for Review" icon="🧐" />
+        <LegendDot label="Due to Client" icon="🚨" />
       </div>
 
-      <FullCalendar
-        plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-        initialView="dayGridTwoWeek"
-        headerToolbar={{ left: "prev today next", center: "title", right: "dayGridMonth,timeGridWeek,dayGridTwoWeek" }}
-        views={{ dayGridTwoWeek: { type: "dayGrid", duration: { weeks: 2 }, buttonText: "2 weeks" } }}
-        height="auto"
-        events={events}
-        eventTimeFormat={{ hour: "numeric", minute: "2-digit", meridiem: "short" }}
-        eventDisplay="block"
-        eventClick={(info) => {
-          const orderId = info.event.extendedProps?.orderId;
-          if (orderId) navigate(`/orders/${orderId}`);
-        }}
-      />
+      <div className="divide-y">
+        {groups.map(([iso, list]) => {
+          const d = new Date(iso + "T00:00:00");
+          return (
+            <div key={iso} className="p-4">
+              <div className="text-xs text-gray-500 mb-2">{fmtDate(d)}</div>
+              <ul className="space-y-2">
+                {list.map((e) => (
+                  <li
+                    key={e.id}
+                    className="rounded-md border px-3 py-2 flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg leading-none">
+                        {e.type === "site_visit"
+                          ? "📍"
+                          : e.type === "review_due"
+                          ? "🧐"
+                          : "🚨"}
+                      </span>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium">{e.label}</span>
+                        <span className="text-xs text-gray-500">
+                          {e.meta?.client ? `${e.meta.client} • ` : ""}
+                          {e.meta?.who || ""}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-xs text-gray-600">{fmtTime(e.date)}</div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
+
+function LegendDot({ label, icon }) {
+  return (
+    <span className="inline-flex items-center gap-1 text-gray-700">
+      <span className="text-lg leading-none">{icon}</span>
+      <span>{label}</span>
+    </span>
+  );
+}
+
 
 
 

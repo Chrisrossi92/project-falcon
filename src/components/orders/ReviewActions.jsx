@@ -1,50 +1,62 @@
-import { useState } from "react"
-import { supabase } from "@/lib/supabaseClient"
-import logOrderEvent from "@/lib/utils/logOrderEvent"
-import { useUser } from "@supabase/auth-helpers-react"
+// src/components/orders/ReviewActions.jsx
+import React, { useState } from "react";
+import { approveReview, requestChanges } from "@/lib/services/ordersService";
 
 export default function ReviewActions({ order }) {
-  const [loading, setLoading] = useState(false)
-  const user = useUser()
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
 
-  const handleDecision = async (decision) => {
-    if (!user || !user.id || !order?.id) return
-    setLoading(true)
-
-    const updatedStatus = decision === "approve" ? "Completed" : "Needs Revisions"
-
-    const { error } = await supabase
-      .from("orders")
-      .update({ status: updatedStatus })
-      .eq("id", order.id)
-
-    if (error) {
-      console.error("Review status update failed:", error)
-      setLoading(false)
-      return
+  async function runApprove() {
+    setBusy(true);
+    setErr(null);
+    try {
+      await approveReview(order.id);
+      // useOrders realtime will refresh listings
+    } catch (e) {
+      setErr(e?.message || String(e));
+    } finally {
+      setBusy(false);
     }
+  }
 
-    await logOrderEvent({
-      user_id: user.id,
-      order_id: order.id,
-      role: "reviewer",
-      action: decision === "approve" ? "review_approved" : "review_rejected",
-      message: decision === "approve"
-        ? "Review approved"
-        : "Revisions requested"
-    })
-
-    setLoading(false)
+  async function runRequestChanges() {
+    const msg = window.prompt(
+      "Enter change request note (required):",
+      "Emailed full notes"
+    );
+    if (!msg || !msg.trim()) return; // require a non-empty note
+    setBusy(true);
+    setErr(null);
+    try {
+      await requestChanges(order.id, msg.trim());
+    } catch (e) {
+      setErr(e?.message || String(e));
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
-    <div className="flex gap-2">
-      <button onClick={() => handleDecision("approve")} disabled={loading}>
+    <div className="flex items-center gap-2">
+      <button
+        className="px-2 py-1 border rounded text-xs hover:bg-gray-50"
+        disabled={busy}
+        onClick={runApprove}
+        title="Approve and move to Ready for Client"
+      >
         Approve
       </button>
-      <button onClick={() => handleDecision("reject")} disabled={loading}>
-        Request Revisions
+      <button
+        className="px-2 py-1 border rounded text-xs hover:bg-gray-50"
+        disabled={busy}
+        onClick={runRequestChanges}
+        title="Request revisions (requires a note)"
+      >
+        Request changes
       </button>
+      {err ? <span className="text-[10px] text-red-600 ml-2">{err}</span> : null}
     </div>
-  )
+  );
 }
+
+

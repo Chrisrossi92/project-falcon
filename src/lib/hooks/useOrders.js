@@ -1,11 +1,10 @@
+// src/lib/hooks/useOrders.js
 import { useEffect, useState, useCallback } from "react";
 import supabase from "@/lib/supabaseClient";
-import { useSession } from "@/lib/hooks/useSession";
 import { fetchOrdersList } from "@/lib/services/ordersService";
 
-/** Orders hook using the service layer (RPC/view-ready). */
+/** Orders hook via service layer (SSOT). */
 export function useOrders() {
-  const { user } = useSession(); // RLS governs visibility
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -15,9 +14,8 @@ export function useOrders() {
     setError(null);
     try {
       const rows = await fetchOrdersList();
-      setData(rows);
+      setData(Array.isArray(rows) ? rows : []);
     } catch (err) {
-      console.error("[useOrders] fetch error:", err);
       setError(err);
       setData([]);
     } finally {
@@ -25,29 +23,23 @@ export function useOrders() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+  useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
-  // Realtime: refresh list on any orders change
+  // Realtime refresh on any orders change
   useEffect(() => {
     const channel = supabase
       .channel("orders:realtime")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "orders" },
-        fetchOrders
-      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, fetchOrders)
       .subscribe();
-    return () => {
-      try { channel.unsubscribe(); } catch {}
-    };
+    return () => { try { channel.unsubscribe(); } catch {} };
   }, [fetchOrders]);
 
   return { data, loading, error, refetch: fetchOrders };
 }
 
 export default useOrders;
+
+
 
 
 

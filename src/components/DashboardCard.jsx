@@ -1,10 +1,22 @@
-import React from 'react';
+// src/components/DashboardCard.jsx
+import React from "react";
 
-const DashboardCard = ({ title, children, className = '' }) => (
-  <div className={`bg-white p-6 rounded-2xl shadow-xl hover:shadow-2xl hover:scale-[1.01] transition-all duration-300 ${className}`}>
-    {title && <h2 className="text-xl font-medium mb-4 text-gray-700">{title}</h2>}
-    {children}
-  </div>
-);
+/**
+ * DashboardCard — simple stat card.
+ * Props:
+ *  - label: string
+ *  - value: number|string
+ *  - icon?: ReactNode
+ */
+export default function DashboardCard({ label, value, icon = null }) {
+  return (
+    <div className="rounded-2xl border bg-white p-4 shadow-sm flex items-center justify-between">
+      <div>
+        <div className="text-xs text-gray-500">{label}</div>
+        <div className="text-2xl font-semibold">{value}</div>
+      </div>
+      {icon ? <div className="text-2xl opacity-70">{icon}</div> : null}
+    </div>
+  );
+}
 
-export default DashboardCard;

@@ -1,7 +1,8 @@
+// src/components/orders/MyOrdersCard.jsx
 import React, { useEffect, useState } from "react";
-import supabase from "@/lib/supabaseClient";
 import { useSession } from "@/lib/hooks/useSession";
 import { useNavigate } from "react-router-dom";
+import { fetchOrdersList } from "@/lib/services/ordersService";
 
 function fmt(dt) {
   if (!dt) return "—";
@@ -18,23 +19,19 @@ export default function MyOrdersCard() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      setLoading(true); setErr(null);
-      const { data, error } = await supabase
-        .from("orders")
-        .select(`
-          id, order_number, status,
-          property_address, address, city, state, postal_code,
-          site_visit_at, final_due_at,
-          client:client_id ( name )
-        `)
-        .eq("appraiser_id", user?.id || "00000000-0000-0000-0000-000000000000")
-        .eq("is_archived", false)
-        .order("final_due_at", { ascending: true })
-        .limit(1000);
-      if (cancelled) return;
-      if (error) { setErr(error.message); setRows([]); setLoading(false); return; }
-      setRows(data || []);
-      setLoading(false);
+      try {
+        setLoading(true); setErr(null);
+        const all = await fetchOrdersList(); // service = single SSOT
+        const mine = (all || [])
+          .filter(r => String(r.appraiser_id || "") === String(user?.id || ""))
+          .filter(r => r.is_archived !== true)
+          .sort((a,b) => new Date(a.final_due_at||0) - new Date(b.final_due_at||0));
+        if (!cancelled) setRows(mine);
+      } catch (e) {
+        if (!cancelled) { setErr(e?.message || String(e)); setRows([]); }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     })();
     return () => { cancelled = true; };
   }, [user?.id]);
@@ -66,15 +63,17 @@ export default function MyOrdersCard() {
               {rows.map(r => (
                 <tr key={r.id}>
                   <td className="py-2 pr-3">{r.order_number || r.id.slice(0,8)}</td>
-                  <td className="py-2 pr-3">{r.client?.name || "—"}</td>
+                  <td className="py-2 pr-3">{r.client_name || "—"}</td>
                   <td className="py-2 pr-3">
-                    {(r.property_address || r.address || "—")}{r.city ? `, ${r.city}` : ""}{r.state ? `, ${r.state}` : ""}{r.postal_code ? ` ${r.postal_code}` : ""}
+                    {(r.property_address || r.address || "—")}
+                    {r.city ? `, ${r.city}` : ""}{r.state ? `, ${r.state}` : ""}{r.postal_code ? ` ${r.postal_code}` : ""}
                   </td>
                   <td className="py-2 pr-3">{r.status || "—"}</td>
                   <td className="py-2 pr-3">{fmt(r.site_visit_at)}</td>
                   <td className="py-2 pr-3">{fmt(r.final_due_at)}</td>
                   <td className="py-2 pr-3">
-                    <button className="px-2 py-1 border rounded hover:bg-gray-50" onClick={() => navigate(`/orders/${r.id}`)}>
+                    <button className="px-2 py-1 border rounded hover:bg-gray-50"
+                      onClick={() => navigate(`/orders/${r.id}`)}>
                       Details
                     </button>
                   </td>
@@ -90,3 +89,5 @@ export default function MyOrdersCard() {
     </div>
   );
 }
+
+

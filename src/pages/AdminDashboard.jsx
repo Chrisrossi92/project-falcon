@@ -1,16 +1,37 @@
 // src/pages/AdminDashboard.jsx
-import React from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import React, { useMemo } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useOrders } from "@/lib/hooks/useOrders";
-import AdminCalendar from '@/components/admin/AdminCalendar';
-import OrdersTable from "@/components/orders/OrdersTable";
+import AdminCalendar from "@/components/admin/AdminCalendar";
+import DashboardCard from "@/components/DashboardCard";
+import OrdersTable from "@/features/orders/OrdersTable";
+import AssignAppraiser from "@/components/orders/AssignAppraiser";
 
 export default function AdminDashboard() {
-  const { data: orders = [], loading, error, refetch } = useOrders();
+  const { data: orders = [], loading, error } = useOrders();
+  const navigate = useNavigate();
 
-  // Quick stats for review states
-  const reviewStates = new Set(["in_review","revisions","ready_to_send"]);
-  const reviewOrders = (orders || []).filter(o => reviewStates.has(String(o.status || "").toLowerCase()));
+  const stats = useMemo(() => {
+    const total = orders.length;
+    const byStatus = orders.reduce((acc, o) => {
+      const s = (o.status || "unknown").toString().toLowerCase();
+      acc[s] = (acc[s] || 0) + 1;
+      return acc;
+    }, {});
+    const dueSoon = orders.filter((o) => {
+      const d = o.final_due_at || o.due_to_client || o.client_due_date || o.due_date;
+      const date = d ? new Date(d) : null;
+      if (!date || isNaN(date)) return false;
+      const now = new Date();
+      const diff = (date - now) / (1000 * 60 * 60 * 24);
+      return diff >= 0 && diff <= 7;
+    }).length;
+    const inReview =
+      (byStatus["in_review"] || 0) +
+      (byStatus["revisions"] || 0) +
+      (byStatus["ready_to_send"] || 0);
+    return { total, dueSoon, inReview };
+  }, [orders]);
 
   if (error) {
     return (
@@ -24,34 +45,21 @@ export default function AdminDashboard() {
   return (
     <div className="w-full">
       <div className="mx-auto max-w-7xl px-4 py-6 flex flex-col gap-8">
-        {/* Review Queue Card */}
+        {/* Stat cards */}
         <section className="w-full">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="rounded-2xl border bg-white p-4 shadow-sm">
-              <div className="text-sm text-gray-500">Review queue</div>
-              <div className="text-2xl font-semibold">{reviewOrders.length}</div>
-              <div className="mt-3">
-                <Link
-                  to="/orders?review=1"
-                  className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium hover:bg-gray-50"
-                >
-                  Open review orders
-                </Link>
-              </div>
-            </div>
-            {/* you can add more quick cards here if useful */}
+            <DashboardCard label="Total Orders" value={stats.total} />
+            <DashboardCard label="Due in 7 Days" value={stats.dueSoon} />
+            <DashboardCard label="In Review" value={stats.inReview} />
           </div>
         </section>
 
-        {/* Calendar Section */}
-        <section className="w-full bg-white rounded-2xl shadow p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Calendar</h2>
-          </div>
-          <AdminCalendar orders={orders} loading={loading} />
+        {/* Calendar */}
+        <section className="w-full">
+          <AdminCalendar />
         </section>
 
-        {/* Orders Table Section */}
+        {/* Orders table (row-click + Assign action) */}
         <section className="w-full bg-white rounded-2xl shadow p-4">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-lg font-semibold">Orders</h2>
@@ -63,12 +71,21 @@ export default function AdminDashboard() {
               New Order
             </Link>
           </div>
-          <OrdersTable orders={orders} loading={loading} onRefresh={refetch} />
+          <OrdersTable
+            onRowClick={(o) => navigate(`/orders/${o.id}`)}
+            renderActions={(order) => <AssignAppraiser order={order} />}
+          />
         </section>
       </div>
     </div>
   );
 }
+
+
+
+
+
+
 
 
 

@@ -1,8 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import supabase from '@/lib/supabaseClient';
-import colorForId from '@/lib/utils/colorForId';
-import CalendarLegend from './CalendarLegend';
-import { useNavigate } from 'react-router-dom';
+// src/components/admin/AdminCalendar.jsx
+import React, { useEffect, useMemo, useState } from "react";
+import { fetchOrdersInRange } from "@/lib/services/ordersService";
+import { fetchUsersMapByIds } from "@/lib/services/usersService";
+import colorForId from "@/lib/utils/colorForId";
+import CalendarLegend from "@/components/ui/CalendarLegend";
+import { useNavigate } from "react-router-dom";
 
 // Date helpers
 function atMidnight(d){ const x = new Date(d); x.setHours(0,0,0,0); return x; }
@@ -11,13 +13,13 @@ function endOfMonth(d){ const x = startOfMonth(d); x.setMonth(x.getMonth()+1); x
 function addMonths(d, m){ const x = new Date(d); x.setMonth(x.getMonth()+m); return x; }
 function getMonthMatrix(d){
   const start = startOfMonth(d);
-  const firstDow = start.getDay(); // 0 Sun
+  const firstDow = start.getDay();
   const gridStart = new Date(start);
   gridStart.setDate(start.getDate() - firstDow);
   const days = [];
-  for (let i=0;i<42;i++){
+  for (let i = 0; i < 42; i++) {
     const day = new Date(gridStart);
-    day.setDate(gridStart.getDate()+i);
+    day.setDate(gridStart.getDate() + i);
     days.push(day);
   }
   return days;
@@ -26,78 +28,57 @@ function sameDay(a,b){ return a.getFullYear()===b.getFullYear() && a.getMonth()=
 function iso(d){ return new Date(d).toISOString(); }
 
 function addressOf(order){
-  const a = order.property_address || order.address || '';
-  const city = order.city ? `, ${order.city}` : '';
-  const st = order.state ? `, ${order.state}` : '';
-  const z = order.postal_code ? ` ${order.postal_code}` : '';
+  const a = order.property_address || order.address || "";
+  const city = order.city ? `, ${order.city}` : "";
+  const st = order.state ? `, ${order.state}` : "";
+  const z = order.postal_code ? ` ${order.postal_code}` : "";
   return (a+city+st+z) || (order.order_number ? `Order ${order.order_number}` : `Order ${String(order.id).slice(0,8)}`);
 }
-
-function within(day, startISO, endISO){
-  const t = day.getTime();
-  return t >= Date.parse(startISO) && t < Date.parse(endISO);
-}
+function within(day, startISO, endISO){ const t = day.getTime(); return t >= Date.parse(startISO) && t < Date.parse(endISO); }
 
 export default function AdminCalendar(){
   const [cursor, setCursor] = useState(() => new Date());
   const [loading, setLoading] = useState(false);
   const [orders, setOrders] = useState([]);
   const [err, setErr] = useState(null);
+  const [appraiserNames, setAppraiserNames] = useState(new Map());
   const navigate = useNavigate();
 
   const monthStart = useMemo(() => startOfMonth(cursor), [cursor]);
-  const monthEnd = useMemo(() => endOfMonth(cursor), [cursor]);
+  const monthEnd   = useMemo(() => endOfMonth(cursor), [cursor]);
 
-  // Fetch orders with any event inside the month (3 queries merged)
+  // 1) Load orders in range (NO embeds)
   useEffect(() => {
     let cancelled = false;
-    async function run(){
-      setLoading(true); setErr(null);
-
-      // 🚫 NOTE: no "color" field here — users table doesn't have it
-      const cols = `
-        id, order_number, property_address, address, city, state, postal_code,
-        site_visit_at, review_due_at, final_due_at,
-        appraiser_id,
-        appraiser:appraiser_id ( id, display_name, name )
-      `;
-      const sISO = iso(monthStart);
-      const eISO = iso(new Date(monthEnd.getTime()+1)); // exclusive
-
-      const q = (col) => supabase
-        .from('orders')
-        .select(cols)
-        .gte(col, sISO)
-        .lt(col, eISO);
-
-      const [site, review, final] = await Promise.allSettled([
-        q('site_visit_at'), q('review_due_at'), q('final_due_at')
-      ]);
-
-      const ok = (res) => res.status==='fulfilled' && !res.value.error;
-      const data = (res) => (res.value?.data || []);
-
-      if (!cancelled){
-        if (!ok(site) && !ok(review) && !ok(final)){
-          setErr(site.value?.error?.message || review.value?.error?.message || final.value?.error?.message || 'Load failed');
-          setOrders([]); setLoading(false); return;
-        }
-        const merged = [
-          ...(ok(site) ? data(site) : []),
-          ...(ok(review) ? data(review) : []),
-          ...(ok(final) ? data(final) : []),
-        ];
-        const map = new Map();
-        for (const o of merged) map.set(o.id, o);
-        setOrders(Array.from(map.values()));
-        setLoading(false);
+    (async () => {
+      try {
+        setLoading(true); setErr(null);
+        const sISO = iso(monthStart);
+        const eISO = iso(new Date(monthEnd.getTime() + 1)); // exclusive
+        const rows = await fetchOrdersInRange(sISO, eISO);
+        if (!cancelled) setOrders(rows || []);
+      } catch (e) {
+        if (!cancelled) { setErr(e?.message || String(e)); setOrders([]); }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-    }
-    run();
+    })();
     return () => { cancelled = true; };
   }, [monthStart, monthEnd]);
 
-  // Map orders -> events (only 3 types)
+  // 2) Hydrate appraiser names for legend (separate scalar query; still no embeds)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const ids = Array.from(new Set((orders || []).map(o => o.appraiser_id).filter(Boolean)));
+      if (!ids.length) { if (!cancelled) setAppraiserNames(new Map()); return; }
+      const map = await fetchUsersMapByIds(ids);
+      if (!cancelled) setAppraiserNames(map);
+    })();
+    return () => { cancelled = true; };
+  }, [orders]);
+
+  // Map orders -> events (three types only)
   const eventsByDay = useMemo(() => {
     const res = {};
     const sISO = iso(monthStart);
@@ -108,22 +89,20 @@ export default function AdminCalendar(){
       res[key].push(evt);
     };
     for (const o of orders){
-      const app = o.appraiser || {};
-      // color: use profile color if you later add it; for now derive from id
-      const color = colorForId(app.id || o.appraiser_id);
-      const base = { orderId: o.id, addr: addressOf(o), color, appraiser: app.display_name || app.name || '' };
+      const color = colorForId(o.appraiser_id);
+      const base = { orderId: o.id, addr: addressOf(o), color, appraiserId: o.appraiser_id };
 
       if (o.site_visit_at){
         const d = new Date(o.site_visit_at);
-        if (within(d, sISO, eISO)) add(atMidnight(d), { ...base, type: 'site', icon: '📍', when: d });
+        if (within(d, sISO, eISO)) add(atMidnight(d), { ...base, type: "site",   icon: "📍", when: d });
       }
       if (o.review_due_at){
         const d = new Date(o.review_due_at);
-        if (within(d, sISO, eISO)) add(atMidnight(d), { ...base, type: 'review', icon: '📝', when: d });
+        if (within(d, sISO, eISO)) add(atMidnight(d), { ...base, type: "review", icon: "🧐", when: d });
       }
       if (o.final_due_at){
         const d = new Date(o.final_due_at);
-        if (within(d, sISO, eISO)) add(atMidnight(d), { ...base, type: 'client', icon: '🚨', when: d });
+        if (within(d, sISO, eISO)) add(atMidnight(d), { ...base, type: "client", icon: "🚨", when: d });
       }
     }
     const rank = { client: 0, review: 1, site: 2 };
@@ -133,24 +112,20 @@ export default function AdminCalendar(){
     return res;
   }, [orders, monthStart, monthEnd]);
 
-  // Legend appraisers
+  // Legend (names hydrated from usersService; falls back to “—”)
   const legendAppraisers = useMemo(() => {
     const seen = new Map();
     Object.values(eventsByDay).flat().forEach(e => {
-      const key = e.appraiser || e.color;
+      const key = e.appraiserId || e.color || "unknown";
       if (!seen.has(key)) {
-        seen.set(key, { id: key, name: e.appraiser || '—', color: e.color });
+        seen.set(key, { id: key, name: appraiserNames.get(e.appraiserId) || "—", color: e.color });
       }
     });
     return Array.from(seen.values()).slice(0, 12);
-  }, [eventsByDay]);
+  }, [eventsByDay, appraiserNames]);
 
-  const days = getMonthMatrix(cursor);
-  const monthName = cursor.toLocaleString(undefined, { month: 'long', year: 'numeric' });
-
-  const onEventClick = (evt) => {
-    if (evt.orderId) navigate(`/orders/${evt.orderId}`);
-  };
+  const monthName = cursor.toLocaleString(undefined, { month: "long", year: "numeric" });
+  const onEventClick = (evt) => { if (evt.orderId) navigate(`/orders/${evt.orderId}`); };
 
   return (
     <div className="bg-white rounded-2xl shadow border p-4">
@@ -167,7 +142,7 @@ export default function AdminCalendar(){
 
       {/* Weekday header */}
       <div className="grid grid-cols-7 text-xs text-gray-500 mb-1">
-        {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => (
+        {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(d => (
           <div key={d} className="px-2 py-1">{d}</div>
         ))}
       </div>
@@ -184,9 +159,9 @@ export default function AdminCalendar(){
             const key = d.toDateString();
             const evts = eventsByDay[key] || [];
             return (
-              <div key={key + idx} className={`min-h-[110px] bg-white p-2 ${inMonth ? '' : 'bg-gray-50 text-gray-400'}`}>
+              <div key={key + idx} className={`min-h-[110px] bg-white p-2 ${inMonth ? "" : "bg-gray-50 text-gray-400"}`}>
                 <div className="flex items-center justify-between">
-                  <div className={`text-xs ${sameDay(d, new Date()) ? 'px-1 rounded bg-black text-white' : 'text-gray-600'}`}>
+                  <div className={`text-xs ${sameDay(d, new Date()) ? "px-1 rounded bg-black text-white" : "text-gray-600"}`}>
                     {d.getDate()}
                   </div>
                   {evts.length > 3 && <div className="text-[10px] text-gray-400">+{evts.length-3} more</div>}
@@ -207,7 +182,7 @@ export default function AdminCalendar(){
                       </div>
                       {e.when && (
                         <div className="text-[10px] text-gray-500 ml-5">
-                          {new Date(e.when).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {new Date(e.when).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                         </div>
                       )}
                     </button>
@@ -221,4 +196,6 @@ export default function AdminCalendar(){
     </div>
   );
 }
+
+
 

@@ -1,21 +1,23 @@
 // src/features/orders/OrdersTable.jsx
 import React, { useMemo } from "react";
 import { useOrders } from "@/lib/hooks/useOrders";
-import PresentationalOrdersTable from "@/components/orders/OrdersTable";
+import PresentationalOrdersTable from "@/components/orders/PresentationalOrdersTable";
 
 const REVIEW_STATES = new Set(["in_review", "revisions", "ready_to_send"]);
 
 /**
- * Adapter table for the Orders page.
- * Accepts lightweight filters and renders the shared presentational table.
+ * Adapter table for the Orders page and dashboards.
+ * Handles fetching/filtering and renders the presentational table.
  *
  * Props (all optional):
- *  - status: string | "__REVIEW__" (special token to show review states)
+ *  - status: string | "__REVIEW__"
  *  - appraiserId: string
  *  - clientId: string
- *  - priority: string (reserved for future)
- *  - dueWindow: string (reserved for future)
- *  - includeArchived: boolean (reserved for future)
+ *  - priority: string (reserved)
+ *  - dueWindow: string (reserved)
+ *  - includeArchived: boolean (reserved)
+ *  - renderActions: (order) => ReactNode
+ *  - onRowClick: (order) => void              <-- NEW
  */
 export default function OrdersTable({
   status,
@@ -24,6 +26,8 @@ export default function OrdersTable({
   priority,
   dueWindow,
   includeArchived,
+  renderActions = null,
+  onRowClick = null,
 }) {
   const { data: allOrders = [], loading, error, refetch } = useOrders();
 
@@ -32,24 +36,31 @@ export default function OrdersTable({
 
     // Status filtering
     if (status === "__REVIEW__") {
-      list = list.filter((o) => REVIEW_STATES.has(String(o.status || "").toLowerCase()));
+      list = list.filter((o) =>
+        REVIEW_STATES.has(String(o.status || "").toLowerCase())
+      );
     } else if (status && typeof status === "string") {
       const needle = status.toLowerCase();
-      list = list.filter((o) => String(o.status || "").toLowerCase() === needle);
+      list = list.filter(
+        (o) => String(o.status || "").toLowerCase() === needle
+      );
     }
 
     // Appraiser filter
     if (appraiserId) {
-      list = list.filter((o) => String(o.appraiser_id || "") === String(appraiserId));
+      list = list.filter(
+        (o) => String(o.appraiser_id || "") === String(appraiserId)
+      );
     }
 
     // Client filter
     if (clientId) {
-      list = list.filter((o) => String(o.client_id || "") === String(clientId));
+      list = list.filter(
+        (o) => String(o.client_id || "") === String(clientId)
+      );
     }
 
-    // Future hooks for priority/dueWindow/includeArchived can go here
-
+    // TODO: hooks for priority / dueWindow / includeArchived
     return list;
   }, [allOrders, status, appraiserId, clientId, priority, dueWindow, includeArchived]);
 
@@ -66,9 +77,15 @@ export default function OrdersTable({
       orders={rows}
       loading={loading}
       onRefresh={refetch}
+      renderActions={renderActions}
+      onRowClick={onRowClick}
     />
   );
 }
+
+
+
+
 
 
 

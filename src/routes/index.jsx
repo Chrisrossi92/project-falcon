@@ -10,7 +10,7 @@ import Login from "../pages/Login";
 import EditClient from "../pages/EditClient";
 import EditUser from "../pages/EditUser";
 import UserDetail from "../pages/UserDetail";
-import OrderDetail from "../pages/OrderDetail";
+import OrderDetail from "../pages/orders/OrderDetail";
 import AdminDashboard from "../pages/AdminDashboard";
 import AppraiserDashboard from "../pages/AppraiserDashboard";
 import ClientDetail from "../pages/ClientDetail";
