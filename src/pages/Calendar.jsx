@@ -1,164 +1,118 @@
-// pages/Calendar.jsx
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import supabase from '@/lib/supabaseClient';
-import { useSession } from '@/lib/hooks/useSession';
-import useOrderEvents from '@/lib/hooks/useOrderEvents';
-import FullCalendarWrapper from '@/components/ui/FullCalendarWrapper';
-import holidays from '@/data/usHolidays2025.json';
+// src/pages/Calendar.jsx
+import React, { useEffect, useMemo, useState } from "react";
+import FullCalendarWrapper from "@/components/ui/FullCalendarWrapper";
+import { useAdminCalendar } from "@/lib/hooks/useAdminCalendar";
+import { listAppraisers } from "@/lib/services/userService";
 
-// Simple chip UI
-function ToggleChip({ active, onClick, children }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`px-3 py-1 rounded-full border text-sm ${
-        active ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700'
-      }`}
-    >
-      {children}
-    </button>
-  );
+/** Helpers to compute a sensible default 30-day window */
+function addDays(d, n) {
+  const x = new Date(d);
+  x.setDate(x.getDate() + n);
+  return x;
 }
 
 export default function CalendarPage() {
-  const navigate = useNavigate();
-  const { user } = useSession();
-  const calendarRef = useRef(null);
-
-  // Admin MVP: only three event types + optional holidays
-  const [filters, setFilters] = useState({
-    site: true,
-    review: true,
-    due: true,
-    holidays: false,
+  const [range] = useState(() => {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = addDays(start, 30);
+    return { start, end };
   });
 
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Appraiser filter state
+  const [appraiserId, setAppraiserId] = useState(null);
+  const [appraisers, setAppraisers] = useState([]);
+  const [appsLoading, setAppsLoading] = useState(true);
+  const [appsErr, setAppsErr] = useState(null);
 
-  // Pull orders; narrow by role for relevance
+  // Load appraisers once
   useEffect(() => {
     let mounted = true;
-
     (async () => {
-      setLoading(true);
       try {
-        let query = supabase.from('orders').select('*');
-
-        const role = (user?.role || '').toLowerCase();
-        if (role === 'appraiser') {
-          query = query.eq('appraiser_id', user.id);
-        } else if (role === 'reviewer') {
-          // Show items that are in or nearing review
-          query = query.in('status', ['Review', 'In Progress']);
-        }
-
-        const { data, error } = await query;
-        if (error) throw error;
+        setAppsLoading(true);
+        setAppsErr(null);
+        const rows = await listAppraisers({ includeInactive: false });
         if (!mounted) return;
-        setOrders(data || []);
+        setAppraisers(Array.isArray(rows) ? rows : []);
       } catch (e) {
-        console.error('Error fetching orders for calendar:', e.message);
-        if (!mounted) setOrders([]);
+        if (!mounted) return;
+        setAppsErr(e?.message || String(e));
+        setAppraisers([]);
       } finally {
-        if (mounted) setLoading(false);
+        if (mounted) setAppsLoading(false);
       }
     })();
-
     return () => {
       mounted = false;
     };
-  }, [user?.id, user?.role]);
+  }, []);
 
-  // Convert orders -> events with our hook (adds appraiser color)
-  const orderEvents = useOrderEvents({ orders, user, filters });
+  const { events, loading, err, refresh } = useAdminCalendar({
+    start: range.start,
+    end: range.end,
+    appraiserId,
+  });
 
-  // Optional: holiday events
-  const holidayEvents = useMemo(() => {
-    if (!filters.holidays) return [];
-    // holidays JSON is [{date:'YYYY-MM-DD', name:'…'}]
-    return (holidays || []).map((h) => ({
-      title: `🎉 ${h.name}`,
-      start: h.date,
-      type: 'holiday',
-      backgroundColor: '#6b7280',
-      textColor: 'white',
-    }));
-  }, [filters.holidays]);
+  const fcEvents = useMemo(() => events, [events]);
 
-  const events = useMemo(() => [...orderEvents, ...holidayEvents], [orderEvents, holidayEvents]);
-
-  const handleEventClick = (info) => {
-    const orderId = info.event.extendedProps?.orderId;
-    if (orderId) navigate(`/orders/${orderId}`);
-  };
-
-  // View switch helpers
-  const changeView = (viewName) => calendarRef.current?.getApi()?.changeView(viewName);
+  function onAppraiserChange(e) {
+    const v = e.target.value;
+    setAppraiserId(v === "__ALL__" ? null : v);
+  }
 
   return (
-    <div className="p-6 space-y-4">
-      {/* Title & view buttons */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl font-semibold">Admin Calendar</h1>
-        <div className="flex gap-2">
-          <button className="px-3 py-1 rounded border" onClick={() => changeView('dayGridMonth')}>
-            Month
-          </button>
-          <button className="px-3 py-1 rounded border" onClick={() => changeView('dayGridWeek')}>
-            Week
-          </button>
-          <button className="px-3 py-1 rounded border" onClick={() => changeView('dayGridTwoWeek')}>
-            Two Weeks
+    <div className="p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <h1 className="text-lg font-semibold">Calendar</h1>
+        <div className="flex items-center gap-2">
+          {/* Appraiser Filter */}
+          <label className="text-sm text-gray-700 flex items-center gap-2">
+            <span>Appraiser:</span>
+            <select
+              className="border rounded-md px-2 py-1 text-sm"
+              value={appraiserId ?? "__ALL__"}
+              onChange={onAppraiserChange}
+              disabled={appsLoading}
+            >
+              <option value="__ALL__">All appraisers</option>
+              {appraisers.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.display_name || u.name || u.email || "Unnamed"}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <button
+            className="px-2 py-1 border rounded text-sm hover:bg-gray-50 disabled:opacity-50"
+            onClick={refresh}
+            disabled={loading}
+          >
+            Refresh
           </button>
         </div>
       </div>
 
-      {/* Toggle chips per MVP spec */}
-      <div className="flex flex-wrap items-center gap-2">
-        <ToggleChip
-          active={filters.site}
-          onClick={() => setFilters((f) => ({ ...f, site: !f.site }))}
-        >
-          📍 Site Visits
-        </ToggleChip>
-        <ToggleChip
-          active={filters.review}
-          onClick={() => setFilters((f) => ({ ...f, review: !f.review }))}
-        >
-          🔍 Due for Review
-        </ToggleChip>
-        <ToggleChip
-          active={filters.due}
-          onClick={() => setFilters((f) => ({ ...f, due: !f.due }))}
-        >
-          ⏰ Due to Client
-        </ToggleChip>
-        <ToggleChip
-          active={filters.holidays}
-          onClick={() => setFilters((f) => ({ ...f, holidays: !f.holidays }))}
-        >
-          🎉 Holidays
-        </ToggleChip>
-      </div>
+      {/* Errors */}
+      {appsErr ? (
+        <div className="text-sm text-red-600 mb-2">
+          Failed to load appraisers: {appsErr}
+        </div>
+      ) : null}
+      {err ? (
+        <div className="text-sm text-red-600 mb-2">
+          Failed to load events: {String(err)}
+        </div>
+      ) : null}
 
-      <div className="bg-white shadow-2xl rounded-2xl p-4 border">
-        {loading ? (
-          <div className="p-6 text-sm text-gray-600">Loading events…</div>
-        ) : (
-          <FullCalendarWrapper
-            ref={calendarRef}
-            events={events}
-            onEventClick={handleEventClick}
-            initialView="dayGridMonth"
-          />
-        )}
-      </div>
+      <FullCalendarWrapper events={fcEvents} />
     </div>
   );
 }
+
+
+
 
 
 

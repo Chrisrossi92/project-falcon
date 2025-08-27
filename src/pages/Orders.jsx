@@ -1,53 +1,54 @@
 // src/pages/Orders.jsx
-import React, { useEffect, useMemo, useState } from 'react';
-import { useLocation } from 'react-router-dom';
-import OrdersTable from '@/features/orders/OrdersTable';
-import OrdersFilters from '@/features/orders/OrdersFilters';
+import React, { useState } from "react";
+import OrdersTable from "@/features/orders/OrdersTable";
+import AppraiserSelect from "@/components/ui/AppraiserSelect";
+import NewOrderButton from "@/components/orders/NewOrderButton";
 
-export default function Orders() {
-  const location = useLocation();
-  const params = new URLSearchParams(location.search);
-  const startInReview = params.get('review') === '1';
-
-  const [filters, setFilters] = useState({
-    status: '',
-    appraiserId: '',
-    clientId: '',
-    priority: '',
-    dueWindow: '',
-    includeArchived: false,
-    reviewOnly: startInReview, // 👈 lives inside the box now
-  });
-
-  // Compute props for the adapter table
-  const tableProps = useMemo(() => {
-    const base = {
-      appraiserId: filters.appraiserId || undefined,
-      clientId: filters.clientId || undefined,
-      priority: filters.priority || undefined,
-      dueWindow: filters.dueWindow || undefined,
-      includeArchived: !!filters.includeArchived,
-    };
-    if (filters.reviewOnly) {
-      return { ...base, status: '__REVIEW__' };
-    }
-    return { ...base, status: filters.status || undefined };
-  }, [filters]);
+export default function OrdersPage() {
+  const [appraiserId, setAppraiserId] = useState(null);
 
   return (
-    <div className="space-y-4 p-2">
+    <div className="p-4 space-y-3">
+      {/* Page header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Orders</h1>
+        <h1 className="text-lg font-semibold">Orders</h1>
+        <NewOrderButton />
       </div>
 
-      <OrdersFilters value={filters} onChange={setFilters} />
+      {/* Filters */}
+      <div className="bg-white border rounded-xl p-3">
+        <div className="flex items-center gap-2">
+          <label className="text-sm text-gray-700">Filter by appraiser:</label>
+          <div className="min-w-[260px]">
+            <AppraiserSelect
+              value={appraiserId || ""}
+              onChange={(v) => setAppraiserId(v)}
+              placeholder="Select appraiser…"
+            />
+          </div>
+          {appraiserId && (
+            <button
+              className="px-2 py-1 border rounded text-sm hover:bg-gray-50"
+              onClick={() => setAppraiserId(null)}
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      </div>
 
-      <div className="rounded-2xl border bg-white">
-        <OrdersTable {...tableProps} />
+      {/* Table (adapter handles fetch/filter) */}
+      <div className="bg-white border rounded-xl p-3">
+        <OrdersTable appraiserId={appraiserId || undefined} />
       </div>
     </div>
   );
 }
+
+
+
+
+
 
 
 

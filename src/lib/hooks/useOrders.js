@@ -1,24 +1,29 @@
-import { useEffect, useState, useCallback } from "react";
+// src/lib/hooks/useOrders.js
+import { useCallback, useEffect, useMemo, useState } from "react";
 import supabase from "@/lib/supabaseClient";
+import { fetchOrders } from "@/lib/services/ordersService";
 import { useSession } from "@/lib/hooks/useSession";
-import { fetchOrdersList } from "@/lib/services/ordersService";
 
-/** Orders hook using the service layer (RPC/view-ready). */
+/**
+ * Loads orders and auto-refreshes on realtime changes.
+ * For appraisers, returns only their orders.
+ */
 export function useOrders() {
-  const { user } = useSession(); // RLS governs visibility
+  const { user, isAdmin, isReviewer } = useSession();
+  const uid = user?.id || null;
+
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setErr] = useState(null);
 
-  const fetchOrders = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const load = useCallback(async () => {
     try {
-      const rows = await fetchOrdersList();
-      setData(rows);
-    } catch (err) {
-      console.error("[useOrders] fetch error:", err);
-      setError(err);
+      setLoading(true);
+      setErr(null);
+      const rows = await fetchOrders();
+      setData(Array.isArray(rows) ? rows : []);
+    } catch (e) {
+      setErr(e);
       setData([]);
     } finally {
       setLoading(false);
@@ -26,28 +31,32 @@ export function useOrders() {
   }, []);
 
   useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
-
-  // Realtime: refresh list on any orders change
-  useEffect(() => {
+    load();
     const channel = supabase
-      .channel("orders:realtime")
+      .channel("orders-changes")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "orders" },
-        fetchOrders
+        () => load()
       )
       .subscribe();
-    return () => {
-      try { channel.unsubscribe(); } catch {}
-    };
-  }, [fetchOrders]);
+    return () => { supabase.removeChannel(channel); };
+  }, [load]);
 
-  return { data, loading, error, refetch: fetchOrders };
+  // Client-side scope for MVP
+  const scoped = useMemo(() => {
+    if (!uid) return data;
+    if (isAdmin || isReviewer) return data;
+    // appraiser → only orders assigned to them
+    return data.filter((o) => String(o.appraiser_id || "") === String(uid));
+  }, [data, uid, isAdmin, isReviewer]);
+
+  return { data: scoped, loading, error, refetch: load };
 }
 
-export default useOrders;
+
+
+
 
 
 

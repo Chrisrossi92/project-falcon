@@ -1,50 +1,77 @@
-import { useState } from "react"
-import { supabase } from "@/lib/supabaseClient"
-import logOrderEvent from "@/lib/utils/logOrderEvent"
-import { useUser } from "@supabase/auth-helpers-react"
+// src/components/orders/ReviewActions.jsx
+import React, { useState } from "react";
+import {
+  approveReview,
+  requestChanges,   // alias of requestRevisions
+  sendToClient,
+  markComplete,
+} from "@/lib/services/ordersService";
 
-export default function ReviewActions({ order }) {
-  const [loading, setLoading] = useState(false)
-  const user = useUser()
+/**
+ * Props:
+ *  - orderId: string (required)
+ *  - onDone?: () => void     // callback after successful action
+ */
+export default function ReviewActions({ orderId, onDone }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
 
-  const handleDecision = async (decision) => {
-    if (!user || !user.id || !order?.id) return
-    setLoading(true)
-
-    const updatedStatus = decision === "approve" ? "Completed" : "Needs Revisions"
-
-    const { error } = await supabase
-      .from("orders")
-      .update({ status: updatedStatus })
-      .eq("id", order.id)
-
-    if (error) {
-      console.error("Review status update failed:", error)
-      setLoading(false)
-      return
+  async function run(fn) {
+    if (!orderId) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      await fn(orderId);
+      onDone?.();
+    } catch (e) {
+      setErr(e?.message || String(e));
+    } finally {
+      setBusy(false);
     }
-
-    await logOrderEvent({
-      user_id: user.id,
-      order_id: order.id,
-      role: "reviewer",
-      action: decision === "approve" ? "review_approved" : "review_rejected",
-      message: decision === "approve"
-        ? "Review approved"
-        : "Revisions requested"
-    })
-
-    setLoading(false)
   }
 
   return (
-    <div className="flex gap-2">
-      <button onClick={() => handleDecision("approve")} disabled={loading}>
+    <div className="flex flex-wrap items-center gap-2">
+      <button
+        className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50 disabled:opacity-50"
+        onClick={() => run(approveReview)}
+        disabled={busy}
+        title="Approve review (→ Ready to Send)"
+      >
         Approve
       </button>
-      <button onClick={() => handleDecision("reject")} disabled={loading}>
+
+      <button
+        className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50 disabled:opacity-50"
+        onClick={() => run(requestChanges)}
+        disabled={busy}
+        title="Request revisions (→ Revisions)"
+      >
         Request Revisions
       </button>
+
+      <button
+        className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50 disabled:opacity-50"
+        onClick={() => run(sendToClient)}
+        disabled={busy}
+        title="Send to client (→ Sent to Client)"
+      >
+        Send to Client
+      </button>
+
+      <button
+        className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50 disabled:opacity-50"
+        onClick={() => run(markComplete)}
+        disabled={busy}
+        title="Mark complete (→ Complete)"
+      >
+        Complete
+      </button>
+
+      {err ? <span className="text-sm text-red-600">{err}</span> : null}
     </div>
-  )
+  );
 }
+
+
+

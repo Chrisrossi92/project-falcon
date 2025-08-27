@@ -1,177 +1,275 @@
 // src/pages/AdminUsers.jsx
-import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import supabase from '@/lib/supabaseClient';
+import React, { useEffect, useMemo, useState } from "react";
+import { toast } from "react-hot-toast";
+import { Button } from "@/components/ui/button";
+import {
+  listUsers,
+  updateRole,
+  updateFeeSplit,
+  updateStatus,
+  updateEmail,
+} from "@/lib/services/adminUserService";
 
-const ROLES = ['owner', 'admin', 'manager', 'reviewer', 'appraiser'];
-const STATUSES = ['active', 'inactive'];
+/** Central, explicit choices (extend as you add roles/statuses) */
+const ROLE_OPTIONS = ["admin", "manager", "reviewer", "appraiser"];
+const STATUS_OPTIONS = ["active", "inactive", "disabled"];
 
-function RoleSelect({ value, onChange }) {
+/** Small input helpers */
+function TextInput(props) {
   return (
-    <select className="border rounded px-2 py-1 text-sm" value={value ?? ''} onChange={(e)=>onChange(e.target.value)}>
-      {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+    <input
+      {...props}
+      className={
+        "border rounded-md px-2 py-1 text-sm w-full " +
+        (props.className ? props.className : "")
+      }
+    />
+  );
+}
+
+function Select({ value, onChange, options, className }) {
+  return (
+    <select
+      value={value ?? ""}
+      onChange={onChange}
+      className={
+        "border rounded-md px-2 py-1 text-sm w-full " +
+        (className ? className : "")
+      }
+    >
+      {options.map((opt) => (
+        <option key={opt} value={opt}>
+          {opt}
+        </option>
+      ))}
     </select>
   );
 }
 
-function StatusSelect({ value, onChange }) {
+function FeeSplitInput({ value, onChange }) {
   return (
-    <select className="border rounded px-2 py-1 text-sm" value={value ?? 'active'} onChange={(e)=>onChange(e.target.value)}>
-      {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-    </select>
+    <input
+      type="number"
+      min={0}
+      max={100}
+      step="1"
+      value={value ?? ""}
+      onChange={(e) => onChange(e.target.value === "" ? "" : Number(e.target.value))}
+      className="border rounded-md px-2 py-1 text-sm w-20 text-right"
+      placeholder="%"
+    />
+  );
+}
+
+/** One row with local edit state + Save/Reset actions */
+function UserRow({ u, onRefresh }) {
+  const [email, setEmail] = useState(u.email || "");
+  const [role, setRole] = useState(u.role || "appraiser");
+  const [feeSplit, setFeeSplit] = useState(
+    typeof u.fee_split === "number" ? u.fee_split : ""
+  );
+  const [status, setStatus] = useState(u.status || "active");
+
+  const [saving, setSaving] = useState(false);
+
+  const dirty = useMemo(() => {
+    const emailChanged = (u.email || "") !== (email || "");
+    const roleChanged = (u.role || "appraiser") !== (role || "appraiser");
+    const splitChanged =
+      (typeof u.fee_split === "number" ? u.fee_split : "") !==
+      (feeSplit === "" ? "" : Number(feeSplit));
+    const statusChanged = (u.status || "active") !== (status || "active");
+    return { emailChanged, roleChanged, splitChanged, statusChanged };
+  }, [u, email, role, feeSplit, status]);
+
+  async function onSave() {
+    if (saving) return;
+    const ops = [];
+    try {
+      setSaving(true);
+
+      if (dirty.emailChanged) {
+        ops.push(updateEmail(u.id, (email || "").trim()));
+      }
+      if (dirty.roleChanged) {
+        ops.push(updateRole(u.id, role));
+      }
+      if (dirty.splitChanged) {
+        if (feeSplit === "" || isNaN(Number(feeSplit))) {
+          throw new Error("Fee split must be a number between 0 and 100.");
+        }
+        const n = Number(feeSplit);
+        if (n < 0 || n > 100) {
+          throw new Error("Fee split must be between 0 and 100.");
+        }
+        ops.push(updateFeeSplit(u.id, n));
+      }
+      if (dirty.statusChanged) {
+        ops.push(updateStatus(u.id, status));
+      }
+
+      if (ops.length === 0) {
+        toast("No changes to save.");
+        return;
+      }
+
+      await Promise.all(ops);
+      toast.success("Saved!");
+      await onRefresh?.();
+    } catch (err) {
+      console.error(err);
+      toast.error(err?.message || "Save failed");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function onReset() {
+    setEmail(u.email || "");
+    setRole(u.role || "appraiser");
+    setFeeSplit(typeof u.fee_split === "number" ? u.fee_split : "");
+    setStatus(u.status || "active");
+  }
+
+  return (
+    <tr className="border-b last:border-b-0">
+      <td className="px-3 py-2 text-sm">{u.display_name || u.name || "—"}</td>
+      <td className="px-3 py-2 text-sm">
+        <TextInput value={email} onChange={(e) => setEmail(e.target.value)} />
+      </td>
+      <td className="px-3 py-2 text-sm">
+        <Select
+          value={role}
+          onChange={(e) => setRole(e.target.value)}
+          options={ROLE_OPTIONS}
+        />
+      </td>
+      <td className="px-3 py-2 text-sm">
+        <FeeSplitInput value={feeSplit} onChange={setFeeSplit} />
+      </td>
+      <td className="px-3 py-2 text-sm">
+        <Select
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+          options={STATUS_OPTIONS}
+        />
+      </td>
+      <td className="px-3 py-2 text-sm text-right whitespace-nowrap">
+        <Button
+          variant="outline"
+          className="mr-2"
+          onClick={onReset}
+          disabled={saving}
+        >
+          Reset
+        </Button>
+        <Button onClick={onSave} disabled={saving}>
+          {saving ? "Saving…" : "Save"}
+        </Button>
+      </td>
+    </tr>
   );
 }
 
 export default function AdminUsers() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(null);
-  const [error, setError] = useState(null);
-  const [ok, setOk] = useState(null);
+  const [err, setErr] = useState(null);
 
-  // local filters
-  const [q, setQ] = useState('');
-  const [roleFilter, setRoleFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [q, setQ] = useState("");
+  const [includeInactive, setIncludeInactive] = useState(false);
+
+  async function load() {
+    try {
+      setLoading(true);
+      setErr(null);
+      const data = await listUsers({ includeInactive });
+      setRows(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error(e);
+      setErr(e?.message || String(e));
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const { data, error } = await supabase
-          .from('users')
-          .select('id, email, name, display_name, phone, role, status, split, avatar_url')
-          .order('name', { ascending: true });
-        if (error) throw error;
-        if (mounted) setRows(data || []);
-      } catch (e) {
-        setError(e.message || 'Failed to load users');
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-    return () => { mounted = false; };
-  }, []);
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [includeInactive]);
 
   const filtered = useMemo(() => {
-    let list = rows;
-    const needle = q.trim().toLowerCase();
-    if (needle) {
-      list = list.filter(u =>
-        (u.display_name || '').toLowerCase().includes(needle) ||
-        (u.name || '').toLowerCase().includes(needle) ||
-        (u.email || '').toLowerCase().includes(needle)
-      );
-    }
-    if (roleFilter)   list = list.filter(u => (u.role || '').toLowerCase() === roleFilter.toLowerCase());
-    if (statusFilter) list = list.filter(u => (u.status || 'active').toLowerCase() === statusFilter.toLowerCase());
-    return list;
-  }, [rows, q, roleFilter, statusFilter]);
-
-  const saveRow = async (id, patch) => {
-    setBusy(id);
-    setOk(null); setError(null);
-    try {
-      const { error } = await supabase.from('users').update(patch).eq('id', id);
-      if (error) throw error;
-      setRows(prev => prev.map(r => r.id === id ? { ...r, ...patch } : r));
-      setOk('Saved');
-      setTimeout(()=>setOk(null), 1000);
-    } catch (e) {
-      setError(e.message || 'Save failed');
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  if (loading) return <div className="p-4 text-sm">Loading…</div>;
-  if (error) return <div className="p-4 text-sm text-red-600">Error: {error}</div>;
+    if (!q) return rows;
+    const needle = q.toLowerCase();
+    return rows.filter((u) => {
+      const hay =
+        `${u.display_name || ""} ${u.name || ""} ${u.email || ""} ${u.role || ""}`.toLowerCase();
+      return hay.includes(needle);
+    });
+  }, [rows, q]);
 
   return (
-    <div className="p-4 space-y-4">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h1 className="text-xl font-semibold">Team & Roles</h1>
-        <Link to="/users" className="text-sm underline">Back to User Hub</Link>
+    <div className="p-4">
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="text-lg font-semibold">Team & Roles</h1>
+        <div className="flex items-center gap-3">
+          <label className="text-sm flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={includeInactive}
+              onChange={(e) => setIncludeInactive(e.target.checked)}
+            />
+            Include inactive
+          </label>
+          <TextInput
+            placeholder="Search name/email/role…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            style={{ width: 260 }}
+          />
+          <Button variant="outline" onClick={load} disabled={loading}>
+            {loading ? "Loading…" : "Refresh"}
+          </Button>
+        </div>
       </div>
 
-      <div className="flex items-center gap-3 flex-wrap">
-        <input
-          className="border rounded px-3 py-2 text-sm w-72"
-          placeholder="Search name or email…"
-          value={q}
-          onChange={(e)=>setQ(e.target.value)}
-        />
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600">Role</span>
-          <select className="border rounded px-2 py-1 text-sm" value={roleFilter} onChange={(e)=>setRoleFilter(e.target.value)}>
-            <option value="">All</option>
-            {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-          </select>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600">Status</span>
-          <select className="border rounded px-2 py-1 text-sm" value={statusFilter} onChange={(e)=>setStatusFilter(e.target.value)}>
-            <option value="">All</option>
-            {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
-        {ok && <div className="text-sm text-green-700">{ok}</div>}
-      </div>
-
-      <div className="overflow-x-auto border rounded-lg">
-        <table className="min-w-full text-sm">
-          <thead className="bg-gray-50">
+      {/* Content */}
+      <div className="bg-white border rounded-xl shadow-sm overflow-hidden">
+        <table className="w-full text-left">
+          <thead className="bg-gray-50 text-gray-700 text-xs uppercase">
             <tr>
-              <th className="text-left px-3 py-2">Name</th>
-              <th className="text-left px-3 py-2">Email</th>
-              <th className="text-left px-3 py-2">Phone</th>
-              <th className="text-left px-3 py-2">Role</th>
-              <th className="text-left px-3 py-2">Fee Split (%)</th>
-              <th className="text-left px-3 py-2">Status</th>
-              <th className="px-3 py-2"></th>
-              <th className="px-3 py-2"></th>
+              <th className="px-3 py-2">Name</th>
+              <th className="px-3 py-2">Email</th>
+              <th className="px-3 py-2">Role</th>
+              <th className="px-3 py-2">Fee Split</th>
+              <th className="px-3 py-2">Status</th>
+              <th className="px-3 py-2 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody>
-            {filtered.map(u => (
-              <tr key={u.id} className="border-t">
-                <td className="px-3 py-2">{u.display_name || u.name || '—'}</td>
-                <td className="px-3 py-2">
-                  <input
-                    className="border rounded px-2 py-1 w-60"
-                    defaultValue={u.email || ''}
-                    onBlur={e => e.target.value !== (u.email || '') && saveRow(u.id, { email: e.target.value })}
-                  />
+          <tbody className="text-sm">
+            {loading ? (
+              <tr>
+                <td colSpan={6} className="px-3 py-4 text-gray-600">
+                  Loading users…
                 </td>
-                <td className="px-3 py-2">{u.phone || '—'}</td>
-                <td className="px-3 py-2">
-                  <RoleSelect value={u.role} onChange={(role)=>saveRow(u.id, { role })} />
-                </td>
-                <td className="px-3 py-2">
-                  <input
-                    type="number"
-                    min={0} max={100} step={1}
-                    className="border rounded px-2 py-1 w-24"
-                    defaultValue={u.split ?? 50}
-                    onBlur={e => {
-                      const v = e.target.value === '' ? null : Number(e.target.value);
-                      if (v !== u.split) saveRow(u.id, { split: v });
-                    }}
-                  />
-                </td>
-                <td className="px-3 py-2">
-                  <StatusSelect value={u.status || 'active'} onChange={(status)=>saveRow(u.id, { status })} />
-                </td>
-                <td className="px-3 py-2">
-                  <Link to={`/users/${u.id}`} className="text-xs underline">Edit details</Link>
-                </td>
-                <td className="px-3 py-2">{busy === u.id && <span className="text-xs">Saving…</span>}</td>
               </tr>
-            ))}
-            {filtered.length === 0 && (
-              <tr><td colSpan={8} className="px-3 py-6 text-center text-gray-500">No users</td></tr>
+            ) : err ? (
+              <tr>
+                <td colSpan={6} className="px-3 py-4 text-red-600">
+                  Failed to load: {err}
+                </td>
+              </tr>
+            ) : filtered.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-3 py-4 text-gray-600">
+                  No users found.
+                </td>
+              </tr>
+            ) : (
+              filtered.map((u) => (
+                <UserRow key={u.id} u={u} onRefresh={load} />
+              ))
             )}
           </tbody>
         </table>
@@ -179,6 +277,7 @@ export default function AdminUsers() {
     </div>
   );
 }
+
 
 
 

@@ -1,26 +1,38 @@
 // src/lib/utils/rpcFirst.js
-import supabase from '@/lib/supabaseClient';
-
 /**
- * Call an RPC; on "function does not exist" (42883) or 404, run a fallback.
- * @param {string} fn       RPC name
- * @param {object} params   RPC parameters
- * @param {() => Promise<any>} fallback  async fallback to run if RPC missing
- * @returns {Promise<any>}
+ * tryRpc():  must resolve to { data, error } (Supabase shape) or throw
+ * fallback(): same shape; called whenever RPC is missing or errors
  */
-export async function rpcFirst(fn, params, fallback) {
-  const { data, error } = await supabase.rpc(fn, params);
-  if (!error) return data;
+export default async function rpcFirst(tryRpc, fallback) {
+  const shouldFallback = (err) => {
+    const code = err?.code ?? err?.status ?? err?.statusCode;
+    const msg = (err?.message || "").toLowerCase();
+    // Missing RPC / “schema cache” / not found / undefined function
+    return (
+      code === 404 ||
+      code === "PGRST302" ||       // function not found
+      code === "42883" ||          // undefined_function
+      msg.includes("could not find the function") ||
+      msg.includes("schema cache") ||
+      msg.includes("not found") ||
+      msg.includes("undefined function")
+    );
+  };
 
-  const code = String(error.code || '').trim();
-  const msg  = String(error.message || '').toLowerCase();
-
-  // Missing RPC → fall back (still throw other errors)
-  if (code === '42883' || code === '404' || (msg.includes('function') && msg.includes('does not exist'))) {
-    if (typeof fallback === 'function') return fallback();
+  try {
+    const res = await tryRpc();
+    if (res?.error) throw res.error;
+    return res;
+  } catch (err) {
+    try {
+      if (!shouldFallback(err)) throw err;  // hard error → bubble
+      const fb = await fallback();
+      // Prefer fallback result even if it returned an error object; at least we tried
+      return fb;
+    } catch (err2) {
+      return { data: null, error: err2 };
+    }
   }
-  throw error;
 }
 
-export default rpcFirst;
 

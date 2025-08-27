@@ -1,339 +1,328 @@
+// src/components/orders/OrderForm.jsx
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import supabase from "@/lib/supabaseClient";
-import useOrderForm from "@/lib/hooks/useOrderForm";
-import { toast } from "react-hot-toast";
-import { setReviewRoute } from "@/lib/services/ordersService";
-import { useSession } from "@/lib/hooks/useSession";
+import ClientSelect from "@/components/ui/ClientSelect";
+import AppraiserSelect from "@/components/ui/AppraiserSelect";
+import { toLocalInputValue, fromLocalInputValue } from "@/lib/utils/formatDate";
+import {
+  createOrder,
+  updateOrder,
+  updateOrderDates,
+  assignAppraiser,
+  isOrderNumberAvailable,
+} from "@/lib/services/ordersService";
 
-export default function OrderForm({ initialOrder, mode = "create" }) {
-  const navigate = useNavigate();
-  const { user } = useSession();
-  const role = String(user?.role || "").toLowerCase();
-  const isAdminOrMike =
-    role === "admin" || role === "owner" || role === "manager" || (user?.email || "").toLowerCase().includes("mike");
+/**
+ * Props:
+ *  - order?: existing order row (for edit)
+ *  - onSaved?: (orderId) => void
+ */
+export default function OrderForm({ order = null, onSaved }) {
+  const [form, setForm] = useState(() => ({
+    client_id: order?.client_id || "",
+    manual_client: order?.manual_client || "",
+    appraiser_id: order?.appraiser_id || "",
+    order_number: order?.order_number || "",
+    property_address: order?.property_address || order?.address || "",
+    city: order?.city || "",
+    state: order?.state || "",
+    postal_code: order?.postal_code || order?.zip || "",
+    base_fee: order?.base_fee ?? "",
+    appraiser_fee: order?.appraiser_fee ?? "",
+    appraiser_split: order?.appraiser_split ?? "",
+    notes: order?.notes || "",
+  }));
 
-  const { order, handleChange, saveOrder, saving } = useOrderForm(initialOrder);
-  const [users, setUsers] = useState([]);
-  const [appraisers, setAppraisers] = useState([]);
-  const [clients, setClients] = useState([]);
+  const [siteVisitLocal, setSiteVisitLocal] = useState(toLocalInputValue(order?.site_visit_at));
+  const [reviewDueLocal, setReviewDueLocal] = useState(toLocalInputValue(order?.review_due_at));
+  const [finalDueLocal, setFinalDueLocal] = useState(toLocalInputValue(order?.final_due_at || order?.due_date));
 
-  // Review settings
-  const [requireReview, setRequireReview] = useState(true); // default to true
-  const [rev1, setRev1] = useState(""); // step 1 reviewer id (Pam default)
-  const [rev2, setRev2] = useState(""); // step 2 reviewer id (Mike default)
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
 
-  // Load select options
+  // Order # availability state
+  const [ordNumState, setOrdNumState] = useState("idle"); // idle|checking|available|taken|skip
+  const [ordNumMsg, setOrdNumMsg] = useState("");
+
+  // When editing and the number equals original, skip check
   useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      const [{ data: usersData }, { data: clis }] = await Promise.all([
-        supabase.from("users").select("id, display_name, name, email, role").order("display_name", { ascending: true }),
-        supabase.from("clients").select("id, name").order("name", { ascending: true }),
-      ]);
-
-      if (cancelled) return;
-      const listUsers = usersData || [];
-      setUsers(listUsers);
-      setAppraisers(listUsers.filter((u) => String(u.role || "").toLowerCase() === "appraiser"));
-      setClients(clis || []);
-
-      // Defaults for reviewers (Pam/Mike if present)
-      const pam = listUsers.find((u) => /^pam/i.test(u.display_name || u.name || ""));
-      const mike = listUsers.find((u) => /^mike/i.test(u.display_name || u.name || ""));
-      if (pam && !rev1) setRev1(pam.id);
-      if (mike && !rev2) setRev2(mike.id);
+    if (order?.id && form.order_number === (order.order_number || "")) {
+      setOrdNumState("skip");
+      setOrdNumMsg("");
+    } else if (!form.order_number) {
+      setOrdNumState("idle");
+      setOrdNumMsg("");
+    } else {
+      setOrdNumState("idle");
+      setOrdNumMsg("");
     }
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.order_number]);
 
-  const statusOptions = useMemo(
-    () => [
-      "new",
-      "assigned",
-      "in_progress",
-      "site_visit_done",
-      "in_review",
-      "ready_to_send",
-      "sent_to_client",
-      "revisions",
-      "complete",
-    ],
-    []
-  );
-
-  const dtToLocalInput = (iso) => {
-    if (!iso) return "";
-    const d = new Date(iso);
-    const off = d.getTimezoneOffset();
-    return new Date(d.getTime() - off * 60000).toISOString().slice(0, 16);
-  };
-
-  const submit = async (e) => {
-    e.preventDefault();
+  async function checkOrderNumber() {
+    if (!form.order_number) {
+      setOrdNumState("idle");
+      setOrdNumMsg("");
+      return;
+    }
+    if (order?.id && form.order_number === (order.order_number || "")) {
+      setOrdNumState("skip");
+      setOrdNumMsg("");
+      return;
+    }
     try {
-      // 1) Save the basic order
-      const saved = await saveOrder(); // (existing hook) — logs via rpc_log_event
+      setOrdNumState("checking");
+      const ok = await isOrderNumberAvailable(form.order_number, { ignoreOrderId: order?.id });
+      if (ok) {
+        setOrdNumState("available");
+        setOrdNumMsg("Order # is available.");
+      } else {
+        setOrdNumState("taken");
+        setOrdNumMsg("That order # is already in use.");
+      }
+    } catch (e) {
+      setOrdNumState("idle");
+      setOrdNumMsg("");
+    }
+  }
 
-      // 2) If review is required and admin/mike configured reviewers, save route JSON
-      if (isAdminOrMike && requireReview) {
-        const steps = [];
-        if (rev1) steps.push({ reviewer_id: rev1, position: 1, required: true, fallback_ids: [] });
-        if (rev2) steps.push({ reviewer_id: rev2, position: 2, required: true, fallback_ids: [] });
-        if (steps.length) {
-          await setReviewRoute(saved.id, { policy: "sequential", steps, template: "Order Setup" });
-        }
+  const patch = useMemo(() => {
+    const p = { ...form };
+    // Normalize numeric fields
+    ["base_fee", "appraiser_fee", "appraiser_split"].forEach((k) => {
+      if (p[k] === "") delete p[k];
+      else p[k] = Number(p[k]);
+    });
+    // Normalize empty strings to null where useful
+    Object.keys(p).forEach((k) => {
+      if (p[k] === "") p[k] = null;
+    });
+    return p;
+  }, [form]);
+
+  function onChange(k, v) {
+    setForm((prev) => ({ ...prev, [k]: v }));
+  }
+
+  async function saveDates(orderId) {
+    const siteVisit = fromLocalInputValue(siteVisitLocal);
+    const reviewDue = fromLocalInputValue(reviewDueLocal);
+    const finalDue = fromLocalInputValue(finalDueLocal);
+    if (siteVisit || reviewDue || finalDue) {
+      await updateOrderDates(orderId, { siteVisit, reviewDue, finalDue });
+    }
+  }
+
+  async function onSubmit(e) {
+    e?.preventDefault?.();
+    setBusy(true);
+    setErr(null);
+    try {
+      // Soft guard: if we know it's taken, block submit
+      if (ordNumState === "taken") {
+        throw new Error("Order # is already in use. Please choose another.");
       }
 
-      toast.success(mode === "create" ? "Order created" : "Order saved");
-      navigate("/orders");
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to save order");
-    }
-  };
+      let row;
+      if (order?.id) {
+        row = await updateOrder(order.id, patch);
+      } else {
+        row = await createOrder(patch);
+      }
 
-  const renderUserOptionLabel = (u) => u.display_name || u.name || u.email;
+      // Assign appraiser if provided and changed (only on create)
+      if (!order?.id && patch.appraiser_id) {
+        await assignAppraiser(row.id, patch.appraiser_id);
+      }
+
+      await saveDates(row.id);
+      onSaved?.(row.id);
+    } catch (e2) {
+      // Friendly message for unique constraint on order_number
+      const message = String(e2?.message || e2 || "");
+      if (message.includes("orders_order_number_key") || message.toLowerCase().includes("duplicate key value")) {
+        setErr("That order # already exists. Please choose a different number.");
+      } else {
+        setErr(message);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
-    <form onSubmit={submit} className="space-y-6">
-      {/* Basic Info */}
-      <section className="bg-white rounded-2xl shadow p-4">
-        <h2 className="text-lg font-semibold mb-4">Basic Info</h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label className="text-sm font-medium">Order #</label>
+    <form className="space-y-4" onSubmit={onSubmit}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Client */}
+        <div>
+          <label className="text-xs text-gray-600">Client</label>
+          <ClientSelect
+            value={form.client_id || ""}
+            onChange={(v) => onChange("client_id", v)}
+          />
+          <div className="text-[11px] text-gray-500 mt-1">
+            Or enter a manual client:{" "}
             <input
-              className="mt-1 w-full border rounded-md px-3 py-2"
-              value={order.order_number || ""}
-              onChange={(e) => handleChange("order_number", e.target.value)}
-              placeholder="2025xxxx"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium">Status</label>
-            <select
-              className="mt-1 w-full border rounded-md px-3 py-2"
-              value={(order.status || "new").toLowerCase()}
-              onChange={(e) => handleChange("status", e.target.value)}
-            >
-              {statusOptions.map((s) => (
-                <option key={s} value={s}>
-                  {s.replaceAll("_", " ")}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="md:col-span-2" />
-
-          <div className="md:col-span-2">
-            <label className="text-sm font-medium">Property Address</label>
-            <input
-              className="mt-1 w-full border rounded-md px-3 py-2"
-              value={order.property_address || order.address || ""}
-              onChange={(e) => handleChange("property_address", e.target.value)}
-              placeholder="123 Main St..."
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium">City</label>
-            <input
-              className="mt-1 w-full border rounded-md px-3 py-2"
-              value={order.city || ""}
-              onChange={(e) => handleChange("city", e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium">State</label>
-            <input
-              className="mt-1 w-full border rounded-md px-3 py-2"
-              value={order.state || ""}
-              onChange={(e) => handleChange("state", e.target.value)}
-              maxLength={2}
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium">ZIP</label>
-            <input
-              className="mt-1 w-full border rounded-md px-3 py-2"
-              value={order.postal_code || ""}
-              onChange={(e) => handleChange("postal_code", e.target.value)}
+              className="border rounded px-2 py-1 text-xs"
+              value={form.manual_client || ""}
+              onChange={(e) => onChange("manual_client", e.target.value)}
+              placeholder="Manual client name"
             />
           </div>
         </div>
-      </section>
 
-      {/* Assignment */}
-      <section className="bg-white rounded-2xl shadow p-4">
-        <h2 className="text-lg font-semibold mb-4">Assignment</h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="text-sm font-medium">Client</label>
-            <select
-              className="mt-1 w-full border rounded-md px-3 py-2"
-              value={order.client_id || ""}
-              onChange={(e) => handleChange("client_id", e.target.value || null)}
-            >
-              <option value="">— Choose client —</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-500 mt-1">Or leave blank and use “Manual Client”.</p>
-          </div>
-
-          <div>
-            <label className="text-sm font-medium">Manual Client</label>
-            <input
-              className="mt-1 w-full border rounded-md px-3 py-2"
-              value={order.manual_client || ""}
-              onChange={(e) => handleChange("manual_client", e.target.value)}
-              placeholder="If not in list"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium">Appraiser</label>
-            <select
-              className="mt-1 w-full border rounded-md px-3 py-2"
-              value={order.appraiser_id || ""}
-              onChange={(e) => handleChange("appraiser_id", e.target.value || null)}
-            >
-              <option value="">— Choose appraiser —</option>
-              {appraisers.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.display_name || a.name || a.email}
-                </option>
-              ))}
-            </select>
-          </div>
+        {/* Appraiser */}
+        <div>
+          <label className="text-xs text-gray-600">Appraiser</label>
+          <AppraiserSelect
+            value={form.appraiser_id || ""}
+            onChange={(v) => onChange("appraiser_id", v)}
+          />
         </div>
-      </section>
 
-      {/* Dates */}
-      <section className="bg-white rounded-2xl shadow p-4">
-        <h2 className="text-lg font-semibold mb-4">Dates</h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="text-sm font-medium">Site Visit</label>
-            <input
-              type="datetime-local"
-              className="mt-1 w-full border rounded-md px-3 py-2"
-              value={dtToLocalInput(order.site_visit_at)}
-              onChange={(e) =>
-                handleChange("site_visit_at", e.target.value ? new Date(e.target.value).toISOString() : null)
-              }
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium">Review Due</label>
-            <input
-              type="datetime-local"
-              className="mt-1 w-full border rounded-md px-3 py-2"
-              value={dtToLocalInput(order.review_due_at)}
-              onChange={(e) =>
-                handleChange("review_due_at", e.target.value ? new Date(e.target.value).toISOString() : null)
-              }
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium">Final Due</label>
-            <input
-              type="datetime-local"
-              className="mt-1 w-full border rounded-md px-3 py-2"
-              value={dtToLocalInput(order.final_due_at)}
-              onChange={(e) =>
-                handleChange("final_due_at", e.target.value ? new Date(e.target.value).toISOString() : null)
-              }
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* Review settings (Admin/Mike) */}
-      {isAdminOrMike && (
-        <section className="bg-white rounded-2xl shadow p-4">
-          <h2 className="text-lg font-semibold mb-2">Review Settings</h2>
-          <label className="inline-flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={requireReview} onChange={(e) => setRequireReview(e.target.checked)} />
-            Require review for this order
-          </label>
-
-          {requireReview && (
-            <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium">Level 1 Reviewer</label>
-                <select
-                  className="mt-1 w-full border rounded-md px-3 py-2"
-                  value={rev1}
-                  onChange={(e) => setRev1(e.target.value)}
-                >
-                  <option value="">— Select —</option>
-                  {users.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {renderUserOptionLabel(u)}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-gray-500 mt-1">Typically Pam (or Kady if Pam is OOO)</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium">Level 2 Reviewer</label>
-                <select
-                  className="mt-1 w-full border rounded-md px-3 py-2"
-                  value={rev2}
-                  onChange={(e) => setRev2(e.target.value)}
-                >
-                  <option value="">— Select —</option>
-                  {users.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {renderUserOptionLabel(u)}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-gray-500 mt-1">Typically Mike (or Abby)</p>
-              </div>
-            </div>
+        {/* Order number (with availability check) */}
+        <div>
+          <label className="text-xs text-gray-600">Order #</label>
+          <input
+            className="w-full border rounded px-2 py-1 text-sm"
+            value={form.order_number || ""}
+            onChange={(e) => onChange("order_number", e.target.value)}
+            onBlur={checkOrderNumber}
+            placeholder="(leave blank if you assign later)"
+          />
+          {ordNumState === "taken" && (
+            <div className="text-xs text-red-600 mt-1">{ordNumMsg}</div>
           )}
-        </section>
-      )}
+          {ordNumState === "available" && (
+            <div className="text-xs text-green-600 mt-1">{ordNumMsg}</div>
+          )}
+        </div>
 
-      {/* Actions */}
-      <div className="flex items-center justify-end gap-3">
-        <button
-          type="button"
-          className="px-4 py-2 rounded-lg border"
-          onClick={() => navigate(-1)}
-          disabled={saving}
-        >
-          Cancel
-        </button>
+        {/* Fees */}
+        <div className="grid grid-cols-3 gap-2">
+          <div>
+            <label className="text-xs text-gray-600">Base Fee</label>
+            <input
+              type="number"
+              className="w-full border rounded px-2 py-1 text-sm"
+              value={form.base_fee}
+              onChange={(e) => onChange("base_fee", e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="text-xs text-gray-600">Appraiser Fee</label>
+            <input
+              type="number"
+              className="w-full border rounded px-2 py-1 text-sm"
+              value={form.appraiser_fee}
+              onChange={(e) => onChange("appraiser_fee", e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="text-xs text-gray-600">Split %</label>
+            <input
+              type="number"
+              className="w-full border rounded px-2 py-1 text-sm"
+              value={form.appraiser_split}
+              onChange={(e) => onChange("appraiser_split", e.target.value)}
+            />
+          </div>
+        </div>
+
+        {/* Address */}
+        <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-4 gap-2">
+          <div className="md:col-span-2">
+            <label className="text-xs text-gray-600">Address</label>
+            <input
+              className="w-full border rounded px-2 py-1 text-sm"
+              value={form.property_address}
+              onChange={(e) => onChange("property_address", e.target.value)}
+              placeholder="123 Main St"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-gray-600">City</label>
+            <input
+              className="w-full border rounded px-2 py-1 text-sm"
+              value={form.city}
+              onChange={(e) => onChange("city", e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="text-xs text-gray-600">State</label>
+            <input
+              className="w-full border rounded px-2 py-1 text-sm"
+              value={form.state}
+              onChange={(e) => onChange("state", e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="text-xs text-gray-600">Zip</label>
+            <input
+              className="w-full border rounded px-2 py-1 text-sm"
+              value={form.postal_code}
+              onChange={(e) => onChange("postal_code", e.target.value)}
+            />
+          </div>
+        </div>
+
+        {/* Dates */}
+        <div>
+          <label className="text-xs text-gray-600">Site Visit</label>
+          <input
+            type="datetime-local"
+            className="w-full border rounded px-2 py-1 text-sm"
+            value={siteVisitLocal}
+            onChange={(e) => setSiteVisitLocal(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="text-xs text-gray-600">Reviewer Due</label>
+          <input
+            type="datetime-local"
+            className="w-full border rounded px-2 py-1 text-sm"
+            value={reviewDueLocal}
+            onChange={(e) => setReviewDueLocal(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="text-xs text-gray-600">Final Due</label>
+          <input
+            type="datetime-local"
+            className="w-full border rounded px-2 py-1 text-sm"
+            value={finalDueLocal}
+            onChange={(e) => setFinalDueLocal(e.target.value)}
+          />
+        </div>
+
+        {/* Notes */}
+        <div className="md:col-span-2">
+          <label className="text-xs text-gray-600">Notes</label>
+          <textarea
+            className="w-full border rounded px-2 py-1 text-sm"
+            rows={4}
+            value={form.notes || ""}
+            onChange={(e) => onChange("notes", e.target.value)}
+          />
+        </div>
+      </div>
+
+      {err ? <div className="text-sm text-red-600">{err}</div> : null}
+
+      <div className="flex items-center gap-2">
         <button
           type="submit"
-          className="px-4 py-2 rounded-lg bg-black text-white"
-          disabled={saving}
+          className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50 disabled:opacity-50"
+          disabled={busy || ordNumState === "taken"}
+          title={ordNumState === "taken" ? "Order # already in use" : undefined}
         >
-          {mode === "create" ? "Create Order" : "Save Changes"}
+          {order?.id ? "Save Changes" : "Create Order"}
         </button>
       </div>
     </form>
   );
 }
+
+
 
 
 

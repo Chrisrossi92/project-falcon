@@ -1,18 +1,26 @@
 // src/components/ui/CalendarLegend.jsx
-import React from 'react';
+import React from "react";
 
-export default function CalendarLegend() {
-  const Item = ({ emoji, label }) => (
-    <div className="flex items-center gap-2 text-sm text-gray-700">
-      <span className="text-lg leading-none">{emoji}</span>
-      <span>{label}</span>
-    </div>
-  );
+/**
+ * CalendarLegend — shows colored dots with appraiser names.
+ * Props:
+ *  - appraisers: [{ id, name, color }]
+ */
+export default function CalendarLegend({ appraisers = [] }) {
+  if (!appraisers.length) return null;
+
   return (
-    <div className="flex flex-wrap items-center gap-4">
-      <Item emoji="📍" label="Site Visit" />
-      <Item emoji="🔍" label="Due for Review" />
-      <Item emoji="⏰" label="Due to Client" />
+    <div className="flex flex-wrap items-center gap-3 text-xs">
+      {appraisers.map((a) => (
+        <div key={a.id} className="flex items-center gap-1">
+          <span
+            className="inline-block w-3 h-3 rounded-full border"
+            style={{ backgroundColor: a.color }}
+          />
+          <span className="text-gray-700">{a.name || "—"}</span>
+        </div>
+      ))}
     </div>
   );
 }
+

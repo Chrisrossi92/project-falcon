@@ -2,81 +2,112 @@
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 
-import Orders from "../pages/Orders";
-import Clients from "../pages/ClientsDashboard";
-import Users from "../pages/UsersDashboard";
-import Calendar from "../pages/Calendar";
-import Login from "../pages/Login";
-import EditClient from "../pages/EditClient";
-import EditUser from "../pages/EditUser";
-import UserDetail from "../pages/UserDetail";
-import OrderDetail from "../pages/OrderDetail";
-import AdminDashboard from "../pages/AdminDashboard";
-import AppraiserDashboard from "../pages/AppraiserDashboard";
-import ClientDetail from "../pages/ClientDetail";
-import Layout from "../layout/Layout";
-
+import Layout from "@/layout/Layout";
+import ProtectedRoute from "@/lib/hooks/ProtectedRoute";
 import { useSession } from "@/lib/hooks/useSession";
 import { useRole } from "@/lib/hooks/useRole";
+
+// Pages
+import Login from "@/pages/Login";
+import Settings from "@/pages/Settings";
+import AdminDashboard from "@/pages/AdminDashboard";
+import AppraiserDashboard from "@/pages/AppraiserDashboard";
+import ReviewerDashboard from "@/pages/ReviewerDashboard";
+import Orders from "@/pages/Orders";
 import NewOrder from "@/pages/NewOrder";
-import ProtectedRoute from "@/lib/hooks/ProtectedRoute";
-import NewClient from "../pages/NewClient";
-import UserHub from "../pages/UserHub";
-import Settings from "../pages/Settings";
-import AdminUsers from "../pages/AdminUsers";
+import OrderDetail from "@/pages/orders/OrderDetail";
+import EditOrder from "@/pages/EditOrder";
+import Calendar from "@/pages/Calendar";
+import ClientsDashboard from "@/pages/ClientsDashboard";
+import NewClient from "@/pages/NewClient";
+import ClientDetail from "@/pages/ClientDetail";
+import EditClient from "@/pages/EditClient";
+import UsersDashboard from "@/pages/UsersDashboard";
+import AdminUsers from "@/pages/AdminUsers";
+import UserDetail from "@/pages/UserDetail";
+import EditUser from "@/pages/EditUser";
+import UserHub from "@/pages/UserHub";
 
-const ProtectedRoutes = () => {
-  const { user, loading: sessionLoading } = useSession();
-  const { role, loading: roleLoading, error: roleError } = useRole();
+function RoleSwitch() {
+  const { role } = useRole() || {};
+  const r = String(role || "").toLowerCase();
+  if (r === "admin") return <AdminDashboard />;
+  if (r === "reviewer") return <ReviewerDashboard />;
+  return <AppraiserDashboard />;
+}
 
-  if (sessionLoading || roleLoading) {
-    return <div className="p-6">Checking session…</div>;
-  }
-  if (roleError) {
-    return <div className="p-6 text-red-600">Error loading role: {roleError}</div>;
-  }
+export default function AppRoutes() {
+  const { user } = useSession();
 
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-
       {user ? (
-        <Route path="/" element={<Layout />}>
-          <Route index element={<Navigate to="/dashboard" />} />
-
+        <Route element={<Layout />}>
           <Route
-            path="dashboard"
-            element={role === "admin" ? <AdminDashboard /> : <AppraiserDashboard />}
+            path="/dashboard"
+            element={
+              <ProtectedRoute roles={["admin", "reviewer", "appraiser"]}>
+                <RoleSwitch />
+              </ProtectedRoute>
+            }
           />
 
           {/* Orders */}
-          <Route path="orders" element={<Orders />} />
-          <Route path="orders/new" element={<NewOrder />} />
-          <Route path="orders/:id" element={<OrderDetail />} />
-          <Route path="orders/:id/edit" element={<OrderDetail />} />
+          <Route
+            path="/orders"
+            element={
+              <ProtectedRoute roles={["admin", "reviewer", "appraiser"]}>
+                <Orders />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/orders/new"
+            element={
+              <ProtectedRoute roles={["admin"]}>
+                <NewOrder />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/orders/:id"
+            element={
+              <ProtectedRoute roles={["admin", "reviewer", "appraiser"]}>
+                <OrderDetail />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/orders/:id/edit"
+            element={
+              <ProtectedRoute roles={["admin"]}>
+                <EditOrder />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Calendar */}
-          <Route path="calendar" element={<Calendar />} />
+          <Route
+            path="/calendar"
+            element={
+              <ProtectedRoute roles={["admin", "reviewer", "appraiser"]}>
+                <Calendar />
+              </ProtectedRoute>
+            }
+          />
 
-          {/* Clients - Admin only */}
+          {/* Clients */}
           <Route
-            path="clients"
+            path="/clients"
             element={
               <ProtectedRoute roles={["admin"]}>
-                <Clients />
+                <ClientsDashboard />
               </ProtectedRoute>
             }
           />
           <Route
-            path="clients/:clientId"
-            element={
-              <ProtectedRoute roles={["admin"]}>
-                <ClientDetail />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="clients/new"
+            path="/clients/new"
             element={
               <ProtectedRoute roles={["admin"]}>
                 <NewClient />
@@ -84,7 +115,15 @@ const ProtectedRoutes = () => {
             }
           />
           <Route
-            path="clients/edit/:clientId"
+            path="/clients/:clientId"
+            element={
+              <ProtectedRoute roles={["admin"]}>
+                <ClientDetail />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/clients/edit/:clientId"
             element={
               <ProtectedRoute roles={["admin"]}>
                 <EditClient />
@@ -94,15 +133,15 @@ const ProtectedRoutes = () => {
 
           {/* Users */}
           <Route
-            path="users"
+            path="/users"
             element={
-              <ProtectedRoute>
-                <Users />
+              <ProtectedRoute roles={["admin", "manager", "reviewer", "appraiser"]}>
+                <UsersDashboard />
               </ProtectedRoute>
             }
           />
           <Route
-            path="admin/users"
+            path="/admin/users"
             element={
               <ProtectedRoute roles={["admin", "manager"]}>
                 <AdminUsers />
@@ -110,7 +149,7 @@ const ProtectedRoutes = () => {
             }
           />
           <Route
-            path="users/:userId"
+            path="/users/:userId"
             element={
               <ProtectedRoute roles={["admin"]}>
                 <UserDetail />
@@ -118,7 +157,7 @@ const ProtectedRoutes = () => {
             }
           />
           <Route
-            path="users/new"
+            path="/users/new"
             element={
               <ProtectedRoute roles={["admin"]}>
                 <UserDetail />
@@ -126,44 +165,46 @@ const ProtectedRoutes = () => {
             }
           />
 
+          {/* Profile / Settings */}
           <Route
-            path="profile/edit"
+            path="/profile/edit"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute roles={["admin", "manager", "reviewer", "appraiser"]}>
                 <EditUser />
               </ProtectedRoute>
             }
           />
-
           <Route
-            path="settings"
+            path="/settings"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute roles={["admin", "manager", "reviewer", "appraiser"]}>
                 <Settings />
               </ProtectedRoute>
             }
           />
 
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/dashboard" />} />
+          <Route
+            path="/users/view/:userId"
+            element={
+              <ProtectedRoute roles={["admin", "manager", "reviewer", "appraiser"]}>
+                <UserHub />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>
       ) : (
-        <Route path="*" element={<Navigate to="/login" />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
       )}
-
-      <Route
-        path="users/view/:userId"
-        element={
-          <ProtectedRoute>
-            <UserHub />
-          </ProtectedRoute>
-        }
-      />
     </Routes>
   );
-};
+}
 
-export default ProtectedRoutes;
+
+
+
+
 
 
 

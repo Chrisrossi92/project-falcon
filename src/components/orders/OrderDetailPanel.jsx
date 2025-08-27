@@ -1,26 +1,36 @@
 // src/components/orders/OrderDetailPanel.jsx
-
 import React from "react";
 import MetaItem from "@/components/MetaItem";
 import { useNavigate } from "react-router-dom";
+import { labelForStatus } from "@/lib/constants/orderStatus";
 
 export default function OrderDetailPanel({ order, isAdmin }) {
   const navigate = useNavigate();
 
-  const formatDate = (date) =>
-    date ? new Date(date).toLocaleString() : "—";
+  const fmtDateTime = (v) => (v ? new Date(v).toLocaleString() : "—");
+  const fmtMoney = (n) =>
+    typeof n === "number"
+      ? n.toLocaleString(undefined, { style: "currency", currency: "USD" })
+      : "—";
 
   if (!order) {
-    return (
-      <div className="text-sm text-gray-500 p-4">
-        Loading order details…
-      </div>
-    );
+    return <div className="text-sm text-gray-500 p-4">Loading order details…</div>;
   }
 
-  const handleEdit = () => {
-    navigate(`/orders/${order.id}/edit`);
-  };
+  const handleEdit = () => navigate(`/orders/${order.id}/edit`);
+
+  // Prefer canonical field names; keep fallbacks for older data
+  const address = order.property_address || order.address || "—";
+  const city = order.city || "—";
+  const state = order.state || "—";
+  const zip = order.postal_code || order.zip || "—";
+
+  const statusLabel = labelForStatus(order.status || "");
+
+  // Dates: canonical {site_visit_at, review_due_at, final_due_at}
+  const siteVisitAt = order.site_visit_at || null;
+  const reviewDueAt = order.review_due_at || null;
+  const finalDueAt = order.final_due_at || order.due_date || null;
 
   return (
     <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm text-sm space-y-4">
@@ -28,10 +38,7 @@ export default function OrderDetailPanel({ order, isAdmin }) {
       <div className="flex items-center justify-between">
         <h2 className="text-base font-semibold">Order Info</h2>
         {isAdmin && (
-          <button
-            className="text-sm text-blue-600 hover:underline"
-            onClick={handleEdit}
-          >
+          <button className="text-sm text-blue-600 hover:underline" onClick={handleEdit}>
             Edit Details
           </button>
         )}
@@ -41,32 +48,26 @@ export default function OrderDetailPanel({ order, isAdmin }) {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Column 1: General Info */}
         <div className="space-y-3">
-          <MetaItem label="Client">{order.client_name}</MetaItem>
-          <MetaItem label="Appraiser">{order.appraiser_name}</MetaItem>
-          <MetaItem label="Address">{order.address}</MetaItem>
-          <MetaItem label="City">{order.city}</MetaItem>
-          <MetaItem label="State">{order.state}</MetaItem>
-          <MetaItem label="Zip">{order.zip}</MetaItem>
+          <MetaItem label="Client">{order.client_name || order.client?.name || "—"}</MetaItem>
+          <MetaItem label="Appraiser">
+            {order.appraiser_name || order.appraiser?.display_name || order.appraiser?.name || "—"}
+          </MetaItem>
+          <MetaItem label="Address">{address}</MetaItem>
+          <MetaItem label="City">{city}</MetaItem>
+          <MetaItem label="State">{state}</MetaItem>
+          <MetaItem label="Zip">{zip}</MetaItem>
         </div>
 
         {/* Column 2: Fees & Assignment */}
         <div className="space-y-3">
-          <MetaItem label="Base Fee">
-            {order.base_fee != null ? `$${order.base_fee}` : "—"}
-          </MetaItem>
+          <MetaItem label="Base Fee">{fmtMoney(order.base_fee)}</MetaItem>
           {isAdmin && (
             <>
-              <MetaItem label="Appraiser Fee">
-                {order.appraiser_fee != null ? `$${order.appraiser_fee}` : "—"}
-              </MetaItem>
+              <MetaItem label="Appraiser Fee">{fmtMoney(order.appraiser_fee)}</MetaItem>
               <MetaItem label="Appraiser Split">
-                {order.appraiser_split != null
-                  ? `${order.appraiser_split}%`
-                  : "—"}
+                {typeof order.appraiser_split === "number" ? `${order.appraiser_split}%` : "—"}
               </MetaItem>
-              <MetaItem label="Client Invoice #">
-                {order.client_invoice || "—"}
-              </MetaItem>
+              <MetaItem label="Client Invoice #">{order.client_invoice || "—"}</MetaItem>
               <MetaItem label="Paid Status">{order.paid_status || "—"}</MetaItem>
             </>
           )}
@@ -74,13 +75,14 @@ export default function OrderDetailPanel({ order, isAdmin }) {
 
         {/* Column 3: Dates & Status */}
         <div className="space-y-3">
-          <MetaItem label="Status">{order.status || "—"}</MetaItem>
-          <MetaItem label="Due Date">{formatDate(order.due_date)}</MetaItem>
-          <MetaItem label="Site Visit">{formatDate(order.site_visit_at)}</MetaItem>
+          <MetaItem label="Status">{statusLabel || "—"}</MetaItem>
+          <MetaItem label="Site Visit">{fmtDateTime(siteVisitAt)}</MetaItem>
+          <MetaItem label="Reviewer Due">{fmtDateTime(reviewDueAt)}</MetaItem>
+          <MetaItem label="Final Due">{fmtDateTime(finalDueAt)}</MetaItem>
           {isAdmin && (
             <>
-              <MetaItem label="Created At">{formatDate(order.created_at)}</MetaItem>
-              <MetaItem label="Updated At">{formatDate(order.updated_at)}</MetaItem>
+              <MetaItem label="Created At">{fmtDateTime(order.created_at)}</MetaItem>
+              <MetaItem label="Updated At">{fmtDateTime(order.updated_at)}</MetaItem>
             </>
           )}
         </div>
@@ -91,13 +93,12 @@ export default function OrderDetailPanel({ order, isAdmin }) {
         <h3 className="text-[11px] font-medium text-gray-500 uppercase tracking-wide mb-1">
           Notes
         </h3>
-        <div className="text-sm text-gray-800 whitespace-pre-wrap">
-          {order.notes || "—"}
-        </div>
+        <div className="text-sm text-gray-800 whitespace-pre-wrap">{order.notes || "—"}</div>
       </div>
     </div>
   );
 }
+
 
 
 

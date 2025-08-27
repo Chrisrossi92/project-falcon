@@ -1,39 +1,74 @@
-import { useEffect, useState } from 'react'
-import { Navigate } from 'react-router-dom'
-import supabase from '@/lib/supabaseClient'
-import { useRole } from '@/lib/hooks/useRole'
+// src/lib/hooks/ProtectedRoute.jsx
+import React from "react";
+import { Navigate } from "react-router-dom";
+import { useSession } from "@/lib/hooks/useSession";
+import { useRole } from "@/lib/hooks/useRole";
 
 /**
- * Usage:
- * <ProtectedRoute>...</ProtectedRoute>               // auth only
- * <ProtectedRoute roles={['admin','manager']}>...</ProtectedRoute> // role-gated
+ * Centralized route guard.
+ *
+ * Props:
+ *  - children
+ *  - allowedRoles?: string[]        // canonical prop
+ *  - roles?: string[]               // alias for allowedRoles (back-compat with existing routes)
+ *  - requireAdmin?: boolean
+ *  - requireReviewer?: boolean
+ *  - fallbackPath?: string          // default: '/login' (unauth) or '/dashboard' (unauthorized)
  */
-export default function ProtectedRoute({ children, roles }) {
-  const [authLoading, setAuthLoading] = useState(true)
-  const [authed, setAuthed] = useState(false)
-  const { role, loading: roleLoading } = useRole()
+export default function ProtectedRoute({
+  children,
+  allowedRoles,
+  roles, // alias: keep legacy <ProtectedRoute roles={['admin']}> working
+  requireAdmin = false,
+  requireReviewer = false,
+  fallbackPath,
+}) {
+  const { user } = useSession(); // undefined during initial fetch, null when signed-out, object when signed-in
+  const { role, isAdmin, isReviewer, loading: roleLoading } = (useRole?.() || {});
 
-  useEffect(() => {
-    let mounted = true
-    supabase.auth.getSession().then(({ data }) => {
-      if (!mounted) return
-      setAuthed(!!data.session)
-      setAuthLoading(false)
-    })
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
-      setAuthed(!!session)
-    })
-    return () => { mounted = false; sub.subscription.unsubscribe() }
-  }, [])
+  const sessionLoading = typeof user === "undefined";
+  const loading = sessionLoading || !!roleLoading;
 
-  if (authLoading || (roles && roleLoading)) return null
+  // Normalize roles (support alias)
+  const wantRoles =
+    Array.isArray(allowedRoles) && allowedRoles.length > 0
+      ? allowedRoles
+      : Array.isArray(roles) && roles.length > 0
+      ? roles
+      : null;
 
-  if (!authed) return <Navigate to="/login" replace />
-
-  if (roles && !roles.map(r => r.toLowerCase()).includes((role || '').toLowerCase())) {
-    // Not authorized for this route
-    return <Navigate to="/dashboard" replace />
+  // Unified loading UI
+  if (loading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="flex items-center gap-3 text-gray-600">
+          <div className="h-5 w-5 rounded-full border-2 border-gray-300 border-t-gray-700 animate-spin" />
+          <span className="text-sm">Loading access…</span>
+        </div>
+      </div>
+    );
   }
 
-  return children
+  // Not signed in → login
+  if (!user) {
+    return <Navigate to={fallbackPath || "/login"} replace />;
+  }
+
+  // Role gates
+  if (requireAdmin && !isAdmin) {
+    return <Navigate to={fallbackPath || "/dashboard"} replace />;
+  }
+  if (requireReviewer && !isReviewer) {
+    return <Navigate to={fallbackPath || "/dashboard"} replace />;
+  }
+  if (wantRoles) {
+    const current = String(role || "").toLowerCase();
+    const ok = wantRoles.map((r) => String(r).toLowerCase()).includes(current);
+    if (!ok) return <Navigate to={fallbackPath || "/dashboard"} replace />;
+  }
+
+  // Authorized
+  return <>{children}</>;
 }
+
+
