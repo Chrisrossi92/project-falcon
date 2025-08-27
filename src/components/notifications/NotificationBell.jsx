@@ -1,12 +1,17 @@
 // src/components/NotificationBell.jsx
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  listNotifications,
-  markNotificationRead,
-  markAllNotificationsRead,
-} from "@/lib/services/notificationsService";
+  useUnreadCount,
+  useNotificationsList,
+  useNotificationPrefs,
+} from "@/features/notifications/hooks";
+import {
+  markAsRead,
+  markAllRead,
+} from "@/features/notifications/api";
 
+/** Format like “5m ago”, “2h ago”, or local datetime */
 function timeago(ts) {
   try {
     const d = new Date(ts);
@@ -20,45 +25,66 @@ function timeago(ts) {
   }
 }
 
+/** Defensive: treat either `n.is_read` or `n.read_at` as read-state */
+function isRead(n) {
+  if (typeof n?.is_read === "boolean") return n.is_read;
+  return !!n?.read_at;
+}
+
 export default function NotificationBell() {
   const [open, setOpen] = useState(false);
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(false);
   const ref = useRef(null);
   const navigate = useNavigate();
 
-  const unreadCount = rows.filter((n) => !n.read_at).length;
+  // Live counts + list
+  const { count, loading: loadingCount, refresh: refreshCount } = useUnreadCount(30000);
+  const {
+    rows,
+    loading: loadingList,
+    err,
+    refresh: refreshList,
+    markOneRead, // not used because we want to navigate immediately after
+    markAll,
+  } = useNotificationsList({ is_read: false, limit: 50 });
 
-  async function load(unreadOnly = false) {
-    setLoading(true);
-    const data = await listNotifications({ onlyUnread: unreadOnly, limit: 20 });
-    setRows(data);
-    setLoading(false);
-  }
+  // Prefs (future: DND/Snooze UI)
+  const { prefs } = useNotificationPrefs();
 
-  function onGlobalClick(e) {
+  const unreadCount = loadingCount ? 0 : (count || 0);
+
+  // Close dropdown when clicking outside
+  const onGlobalClick = useCallback((e) => {
     if (!ref.current) return;
     if (!ref.current.contains(e.target)) setOpen(false);
-  }
+  }, []);
 
   useEffect(() => {
     document.addEventListener("click", onGlobalClick);
     return () => document.removeEventListener("click", onGlobalClick);
-  }, []);
+  }, [onGlobalClick]);
 
+  // When opened, load latest list
   useEffect(() => {
-    if (open) load(false);
-  }, [open]);
+    if (open) refreshList();
+  }, [open, refreshList]);
 
   async function openItem(n) {
-    await markNotificationRead(n.id);
-    setRows((cur) => cur.map((x) => (x.id === n.id ? { ...x, read_at: new Date().toISOString() } : x)));
-    if (n.order_id) navigate(`/orders/${n.order_id}`);
+    try {
+      await markAsRead(n.id);
+      await Promise.all([refreshList(), refreshCount()]);
+      if (n.order_id) navigate(`/orders/${n.order_id}`);
+    } catch {
+      // ignore for now
+    }
   }
 
-  async function markAll() {
-    await markAllNotificationsRead();
-    setRows((cur) => cur.map((x) => ({ ...x, read_at: new Date().toISOString() })));
+  async function onMarkAll() {
+    try {
+      await markAllRead();
+      await Promise.all([refreshList(), refreshCount()]);
+    } catch {
+      // ignore for now
+    }
   }
 
   return (
@@ -83,24 +109,26 @@ export default function NotificationBell() {
             <div className="text-sm font-medium">Notifications</div>
             <button
               className="text-xs px-2 py-1 border rounded hover:bg-gray-50 disabled:opacity-50"
-              onClick={markAll}
-              disabled={unreadCount === 0}
+              onClick={onMarkAll}
+              disabled={unreadCount === 0 || loadingList}
             >
               Mark all read
             </button>
           </div>
 
           <div className="max-h-96 overflow-auto">
-            {loading ? (
+            {loadingList ? (
               <div className="p-3 text-sm text-gray-600">Loading…</div>
-            ) : rows.length === 0 ? (
+            ) : err ? (
+              <div className="p-3 text-sm text-red-600">{String(err)}</div>
+            ) : !rows || rows.length === 0 ? (
               <div className="p-3 text-sm text-gray-600">No notifications</div>
             ) : (
               rows.map((n) => (
                 <button
                   key={n.id}
                   className={`w-full text-left px-3 py-2 border-b last:border-b-0 hover:bg-gray-50 ${
-                    n.read_at ? "opacity-70" : ""
+                    isRead(n) ? "opacity-70" : ""
                   }`}
                   onClick={() => openItem(n)}
                 >
@@ -116,6 +144,7 @@ export default function NotificationBell() {
     </div>
   );
 }
+
 
 
 

@@ -1,116 +1,60 @@
 // src/components/orders/PresentationalOrdersTable.jsx
 import React from "react";
+import { Link } from "react-router-dom";
+import OrdersTableHeader from "@/components/orders/OrdersTableHeader";
 
-function safe(v, alt = "—") {
-  if (v === null || v === undefined || v === "") return alt;
-  return v;
-}
-
-/**
- * Dumb/presentational table. No fetching, no business logic.
- * Consumers pass in orders + loading + error.
- * Optional:
- *  - renderActions(order) -> ReactNode (adds an "Actions" column)
- *  - onRowClick(order) -> void (makes rows clickable)
- */
 export default function PresentationalOrdersTable({
   orders = [],
   loading = false,
-  error = null,
   onRefresh,
   renderActions = null,
-  onRowClick = null,
 }) {
-  if (loading) {
-    return <div className="p-4 text-sm text-gray-600">Loading orders…</div>;
-  }
-  if (error) {
-    return (
-      <div className="p-4 text-sm text-red-600">
-        Failed to load orders: {error.message}
-        {onRefresh && (
-          <button
-            className="ml-3 px-3 py-1 rounded border text-xs"
-            onClick={onRefresh}
-          >
-            Retry
-          </button>
-        )}
-      </div>
-    );
-  }
-  if (!orders.length) {
-    return (
-      <div className="p-4 text-sm text-gray-600">
-        No orders found.
-        {onRefresh && (
-          <button
-            className="ml-3 px-3 py-1 rounded border text-xs"
-            onClick={onRefresh}
-          >
-            Refresh
-          </button>
-        )}
-      </div>
-    );
-  }
-
   return (
-    <div className="overflow-x-auto border rounded-lg">
-      <table className="min-w-full text-sm">
-        <thead className="bg-gray-50 text-gray-700">
-          <tr>
-            <th className="px-3 py-2 text-left">ID</th>
-            <th className="px-3 py-2 text-left">Client</th>
-            <th className="px-3 py-2 text-left">Address</th>
-            <th className="px-3 py-2 text-left">Status</th>
-            <th className="px-3 py-2 text-left">Due (Client)</th>
-            <th className="px-3 py-2 text-left">Appraiser</th>
-            {renderActions ? <th className="px-3 py-2 text-left">Actions</th> : null}
-          </tr>
-        </thead>
-        <tbody className="divide-y">
-          {orders.map((o) => {
-            const rowProps = onRowClick
-              ? {
-                  onClick: () => onRowClick(o),
-                  className:
-                    "hover:bg-gray-50 cursor-pointer",
-                }
-              : {};
-            return (
-              <tr key={o.id} {...rowProps}>
-                <td className="px-3 py-2">{safe(o.order_number || o.id)}</td>
-                <td className="px-3 py-2">{safe(o.client_name || o.client?.name || o.client_id)}</td>
-                <td className="px-3 py-2">
-                  {safe(
-                    o.property_address ||
-                      o.address ||
-                      [o.street, o.city, o.state].filter(Boolean).join(", ")
+    <div className="w-full overflow-x-auto">
+      <table className="w-full text-sm border-separate border-spacing-0">
+        <OrdersTableHeader hideAppraiserColumn={false} />
+        <tbody>
+          {loading ? (
+            <tr><td colSpan={8} className="px-4 py-6 text-gray-600">Loading…</td></tr>
+          ) : orders.length === 0 ? (
+            <tr><td colSpan={8} className="px-4 py-6 text-gray-600">No orders found.</td></tr>
+          ) : (
+            orders.map((o) => (
+              <tr key={o.id} className="border-b">
+                <td className="px-4 py-2">{o.order_number ?? o.id.slice(0,8)}</td>
+                <td className="px-4 py-2">—</td>
+                <td className="px-4 py-2">
+                  {(o.property_address || o.address || "—")}{o.city ? `, ${o.city}` : ""} {o.state || ""} {o.postal_code || ""}
+                </td>
+                <td className="px-4 py-2">{o.appraiser_name || "—"}</td>
+                <td className="px-4 py-2">{String(o.status || "").replace(/_/g, " ") || "—"}</td>
+                <td className="px-4 py-2">—{/* site visit shown per your other row */}</td>
+                <td className="px-4 py-2">—{/* final due shown per your other row */}</td>
+                <td className="px-2 py-2 text-center w-[120px]">
+                  {renderActions ? renderActions(o) : (
+                    <Link className="text-blue-600 hover:underline" to={`/orders/${o.id}`}>
+                      Details
+                    </Link>
                   )}
                 </td>
-                <td className="px-3 py-2">{safe(o.status)}</td>
-                <td className="px-3 py-2">
-                  {safe(o.final_due_at || o.due_to_client || o.client_due_date || o.due_date)}
-                </td>
-                <td className="px-3 py-2">
-                  {safe(o.appraiser_name || o.appraiser?.display_name || o.appraiser_id)}
-                </td>
-                {renderActions ? (
-                  <td className="px-3 py-2">
-                    {/* prevent row onClick when clicking action buttons */}
-                    <div onClick={(e) => e.stopPropagation()}>
-                      {renderActions(o)}
-                    </div>
-                  </td>
-                ) : null}
               </tr>
-            );
-          })}
+            ))
+          )}
         </tbody>
       </table>
+
+      <div className="mt-2">
+        <button
+          className="px-2 py-1 border rounded text-xs hover:bg-gray-50 disabled:opacity-50"
+          onClick={onRefresh}
+          disabled={loading}
+        >
+          Refresh
+        </button>
+      </div>
     </div>
   );
 }
+
 
 

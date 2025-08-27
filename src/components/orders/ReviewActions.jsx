@@ -1,34 +1,28 @@
 // src/components/orders/ReviewActions.jsx
 import React, { useState } from "react";
-import { approveReview, requestChanges } from "@/lib/services/ordersService";
+import {
+  approveReview,
+  requestChanges,   // alias of requestRevisions
+  sendToClient,
+  markComplete,
+} from "@/lib/services/ordersService";
 
-export default function ReviewActions({ order }) {
+/**
+ * Props:
+ *  - orderId: string (required)
+ *  - onDone?: () => void     // callback after successful action
+ */
+export default function ReviewActions({ orderId, onDone }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
 
-  async function runApprove() {
+  async function run(fn) {
+    if (!orderId) return;
     setBusy(true);
     setErr(null);
     try {
-      await approveReview(order.id);
-      // useOrders realtime will refresh listings
-    } catch (e) {
-      setErr(e?.message || String(e));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function runRequestChanges() {
-    const msg = window.prompt(
-      "Enter change request note (required):",
-      "Emailed full notes"
-    );
-    if (!msg || !msg.trim()) return; // require a non-empty note
-    setBusy(true);
-    setErr(null);
-    try {
-      await requestChanges(order.id, msg.trim());
+      await fn(orderId);
+      onDone?.();
     } catch (e) {
       setErr(e?.message || String(e));
     } finally {
@@ -37,26 +31,47 @@ export default function ReviewActions({ order }) {
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <button
-        className="px-2 py-1 border rounded text-xs hover:bg-gray-50"
+        className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50 disabled:opacity-50"
+        onClick={() => run(approveReview)}
         disabled={busy}
-        onClick={runApprove}
-        title="Approve and move to Ready for Client"
+        title="Approve review (→ Ready to Send)"
       >
         Approve
       </button>
+
       <button
-        className="px-2 py-1 border rounded text-xs hover:bg-gray-50"
+        className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50 disabled:opacity-50"
+        onClick={() => run(requestChanges)}
         disabled={busy}
-        onClick={runRequestChanges}
-        title="Request revisions (requires a note)"
+        title="Request revisions (→ Revisions)"
       >
-        Request changes
+        Request Revisions
       </button>
-      {err ? <span className="text-[10px] text-red-600 ml-2">{err}</span> : null}
+
+      <button
+        className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50 disabled:opacity-50"
+        onClick={() => run(sendToClient)}
+        disabled={busy}
+        title="Send to client (→ Sent to Client)"
+      >
+        Send to Client
+      </button>
+
+      <button
+        className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50 disabled:opacity-50"
+        onClick={() => run(markComplete)}
+        disabled={busy}
+        title="Mark complete (→ Complete)"
+      >
+        Complete
+      </button>
+
+      {err ? <span className="text-sm text-red-600">{err}</span> : null}
     </div>
   );
 }
+
 
 

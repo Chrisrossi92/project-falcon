@@ -1051,3 +1051,507 @@ Role: Vite config with React plugin and alias.
 Parents: Build system.
 Children: —
 Next Action: Add Tailwind config if missing; ensure consistency with jsconfig.json.
+src/components/orders/OrderDetailPanel.jsx
+
+Decision: Keep
+Health: Green — complete, cleanly structured
+
+Role / Purpose:
+Displays detailed order info in 3-column layout (general, fees, dates) with notes and admin-only fields.
+
+Parents: Likely OrderDrawerContent.
+Children: MetaItem, react-router-dom.
+
+Notes / Risks / TODOs:
+
+Uses mixed date fields (due_date, site_visit_at) — confirm consistency with schema (final_due_at vs due_date).
+
+Good separation; simple navigation to edit.
+
+Next Action: Align field naming with canonical schema (final_due_at, review_due_at) to avoid drift.
+
+src/components/orders/OrdersDrawer.jsx
+
+Decision: Keep
+Health: Green — thin wrapper around Radix Dialog
+
+Role / Purpose:
+Drawer container for order details, conditionally renders OrderDrawerContent.
+
+Parents: Orders pages, dashboards.
+Children: OrderDrawerContent, Radix Dialog.
+
+Notes / Risks / TODOs:
+
+Lacks a close button in drawer content itself.
+
+UX is otherwise clean.
+
+Next Action: Add explicit close button in drawer for accessibility.
+
+src/components/orders/OrderSidebarPanel.jsx
+
+Decision: Keep
+Health: Green — functional tabbed panel
+
+Role / Purpose:
+Side panel with tabs for Activity and Map. Passes order.id to OrderActivityPanel.
+
+Parents: OrderDrawerContent.
+Children: OrderActivityPanel, MapContainer.
+
+Notes / Risks / TODOs:
+
+Duplicates Activity display already provided elsewhere (FloatingActivityLog).
+
+Tab design fine for MVP.
+
+Next Action: Decide long-term whether to consolidate activity into Notifications system.
+
+src/features/orders/OrdersTable.jsx
+
+Decision: Keep
+Health: Yellow — adapter is solid, but still tied to raw useOrders
+
+Role / Purpose:
+Adapter between hook and presentational OrdersTable. Handles filtering by status, appraiser, client.
+
+Parents: Orders pages, dashboards.
+Children: useOrders, PresentationalOrdersTable.
+
+Notes / Risks / TODOs:
+
+Still depends on useOrders which uses raw Supabase queries.
+
+Filtering logic is clean but will need to move server-side eventually.
+
+Next Action: Refactor useOrders → service layer RPC calls; keep adapter.
+
+src/components/orders/OrdersTableHeader.jsx
+
+Decision: Keep
+Health: Green — stable
+
+Role / Purpose:
+Defines table header row with conditional appraiser vs fee split column.
+
+Parents: OrdersTable.
+Children: None.
+
+Notes / Risks / TODOs:
+
+Hardcoded labels; should be centralized if headers reused in exports.
+
+Next Action: Centralize column labels for consistency.
+
+src/components/OrdersTablePagination.jsx
+
+Decision: Keep
+Health: Green — simple, works
+
+Role / Purpose:
+Pagination controls with Prev/Next.
+
+Parents: Orders list/table wrapper.
+Children: Button (shadcn).
+
+Notes / Risks / TODOs:
+
+Missing page size selector.
+
+Otherwise good.
+
+Next Action: Add keyboard navigation + page size.
+
+src/components/orders/OrdersTableRow.jsx
+
+Decision: Keep
+Health: Green — complete and RPC-first
+
+Role / Purpose:
+Row renderer with inline status, site visit, final due editing. Uses service layer (ordersService) and toast feedback.
+
+Parents: OrdersTable.
+Children: updateOrderStatus, updateOrderDates, useSession.
+
+Notes / Risks / TODOs:
+
+Good use of RPC services.
+
+Schema alignment: uses final_due_at + site_visit_at (correct).
+
+Provides reviewer task highlighting.
+
+Next Action: Verify all status options match canonical constants.
+
+src/components/orders/OrderActivityPanel.jsx
+
+Decision: Refactor (keep)
+Health: Yellow — duplicate logic
+
+Role / Purpose:
+Fetches and displays order activity log with refresh button.
+
+Parents: OrderSidebarPanel.
+Children: activityService.
+
+Notes / Risks / TODOs:
+
+Duplicate logic with FloatingActivityLog.
+
+UI is fine; risk is fragmentation.
+
+Next Action: Consolidate into a single ActivityLog component reused across app.
+
+src/pages/AdminDashboard.jsx
+
+Decision: Keep
+Health: Green — functional dashboard
+
+Role / Purpose:
+Admin view combining calendar and orders table; fetches via useOrders, composes DashboardCalendar and OrdersTable.
+
+Parents: Router (admin-protected).
+Children: useOrders, DashboardCalendar, OrdersTable.
+
+Notes / Risks / TODOs:
+
+Calendar should only surface site/review/final due per biz rules.
+Next Action: Confirm calendar events are fed by RPC/view (not client joins).
+
+src/pages/ReviewerDashboard.jsx
+
+Decision: Keep
+Health: Green — tailored reviewer workflow
+
+Role / Purpose:
+Shows reviewer queue (in_review, ready_to_send, revisions), approve/reject paths.
+
+Parents: /reviewer (protected).
+Children: useOrders, ordersService, toast.
+
+Notes / Risks / TODOs:
+
+Hardcoded queue states → centralize constants.
+Next Action: Enforce RLS for reviewer actions; add loading/skeleton.
+
+src/pages/AppraiserDashboard.jsx
+
+Decision: Keep
+Health: Green — stable, role-aware list
+
+Role / Purpose:
+Filters orders to current appraiser; future: summary stats.
+
+Parents: Role-routed /dashboard.
+Children: useOrders, useSession, OrdersTable.
+
+Notes / Risks / TODOs:
+
+Guard undefined user state (already present).
+Next Action: Add top-line KPIs (count, upcoming deadlines).
+
+src/pages/UsersDashboard.jsx
+
+Decision: Keep
+Health: Green — team overview
+
+Role / Purpose:
+Lists teammates; admin/manager sees “Manage Roles”.
+
+Parents: /users.
+Children: useRole, supabase.
+
+Notes / Risks / TODOs:
+
+Consider centralizing user queries in API layer.
+Next Action: Move data access behind userService.
+
+src/pages/AdminUsers.jsx
+
+Decision: Keep
+Health: Green — roles & splits manager
+
+Role / Purpose:
+Inline edit for role, fee split, status.
+
+Parents: /admin/users.
+Children: supabase, dropdowns.
+
+Notes / Risks / TODOs:
+
+Inline updates may bypass audit logging.
+Next Action: Wrap updates in adminUserService + add audit events.
+
+src/pages/UserDetail.jsx
+
+Decision: Keep
+Health: Green — admin editor
+
+Role / Purpose:
+Edit legal name, email, phone, avatar. Admin-only route.
+
+Parents: /users/:userId.
+Children: supabase, Button, toast.
+
+Notes / Risks / TODOs:
+
+Should go through service layer for consistency.
+Next Action: Enforce admin gate in router + RLS.
+
+src/pages/EditUser.jsx
+
+Decision: Keep
+Health: Green — self-profile
+
+Role / Purpose:
+“My profile” editor; display name, avatar, bio, status.
+
+Parents: /profile/edit.
+Children: useSession, supabase.
+
+Notes / Risks / TODOs:
+
+Fine to update directly (self scope).
+Next Action: Add image upload later; unify validation.
+
+src/pages/Settings.jsx
+
+Decision: Keep
+Health: Green — composition page
+
+Role / Purpose:
+Hosts Profile, Preferences, Notification settings.
+
+Parents: /settings.
+Children: ProfileForm, PreferencesForm, NotificationSettings.
+
+Notes / Risks / TODOs:
+
+Ensure forms wire to API layer.
+Next Action: Map each form field to DB updates/services.
+
+src/pages/Login.jsx
+
+Decision: Keep
+Health: Green — simple auth UI
+
+Role / Purpose:
+Email/password sign-in; redirects if logged in.
+
+Parents: /login.
+Children: @supabase/auth-ui-react.
+
+Notes / Risks / TODOs:
+
+Hardcoded logo path.
+Next Action: Optional SSO providers later.
+
+src/pages/UserHub.jsx
+
+Decision: Keep
+Health: Green — user profile hub
+
+Role / Purpose:
+Self/admin profile view; quick edits.
+
+Parents: /users/view/:id.
+Children: useSession, supabase.
+
+Notes / Risks / TODOs:
+
+Migrate updates to userService; add audit log.
+Next Action: Add “view as” guard rails for admin.
+
+src/layout/Layout.jsx
+
+Decision: Keep
+Health: Green — app shell & nav
+
+Role / Purpose:
+Header/nav, logout, role-based links; includes NotificationBell and (optional) FloatingActivityLog.
+
+Parents: Routes wrapper.
+Children: useSession, NotificationBell, Loaders, supabase.
+
+Notes / Risks / TODOs:
+
+Role logic duplicated; centralize.
+Next Action: Align nav visibility with ProtectedRoute; decide fate of FloatingActivityLog.
+
+src/lib/hooks/useRole.js
+
+Decision: Keep
+Health: Green — role fetch + self-create minimal user row
+
+Role / Purpose:
+Provides role and ensures minimal users row exists.
+
+Parents: ProtectedRoute, Layout, UsersDashboard.
+Children: supabase.
+
+Notes / Risks / TODOs:
+
+Confirm auth_id linkage.
+Next Action: Add audit logging on auto-create.
+
+src/lib/hooks/useSession.js
+
+Decision: Keep
+Health: Green — session wrapper
+
+Role / Purpose:
+Exposes user + role flags via internal UserContext.
+
+Parents: Layout, Order hooks, NotificationBell.
+Children: internal user context.
+
+Notes / Risks / TODOs:
+
+Add null guards for SSR.
+Next Action: Ensure consistent role booleans.
+
+src/lib/hooks/ProtectedRoute.jsx
+
+Decision: Keep
+Health: Green — access control
+
+Role / Purpose:
+Guards by auth + role; redirects to login/dashboard.
+
+Parents: Router.
+Children: useRole, supabase.auth.
+
+Notes / Risks / TODOs:
+
+Returns null while loading.
+Next Action: Add loading UI/skeleton state.
+
+src/components/notifications/NotificationBell.jsx
+
+Decision: Keep
+Health: Yellow — client-heavy, API gaps
+
+Role / Purpose:
+Dropdown with filters, unread badge, DND/Snooze. Expects a full notifications API.
+
+Parents: Layout.
+Children: notifications feature layer, useSession.
+
+Notes / Risks / TODOs:
+
+Backend API surface incomplete.
+Next Action: Build out notifications/ module (fetch, unreadCount, markRead/All, prefs, snooze).
+
+src/context/NotificationProvider.jsx
+
+Decision: Keep
+Health: Green — toast mount + helper
+
+Role / Purpose:
+Context for react-hot-toast; notify() helper and <Toaster/>.
+
+Parents: App root.
+Children: react-hot-toast.
+
+Notes / Risks / TODOs:
+
+Later: merge with NotificationBell prefs.
+Next Action: None for MVP beyond ensuring single mount.
+
+Session Summary — Aug 26–27 (Delta from last audit)
+New/Updated files (Decision • Health • Why)
+
+src/lib/utils/rpcFirst.js • Keep • Green — unified RPC-first fallback; stops schema-cache noise.
+
+src/lib/services/ordersService.js • Keep • Green — canonical service (create/update/delete, assign, status/dates, review route, reviewer actions); no embeds; hydrates names client-side.
+
+src/lib/hooks/useOrders.js • Refactor(keep) • Green — pulls via service; client-scopes appraiser views (admin/reviewer see all).
+
+src/pages/OrderDetail.jsx • Keep • Green — new container composing panel + sidebar; role-aware actions.
+
+src/components/orders/OrderDetailPanel.jsx • Keep • Green — normalized labels/dates; admin edit link.
+
+src/components/activity/ActivityLog.jsx • Keep • Green — reusable; realtime; replaces floating panel.
+
+src/components/activity/ActivityNoteForm.jsx • Keep • Green — quick notes; uses rpc_log_note fallback.
+
+src/lib/services/activityService.js • Keep • Green — RPC-first activity list/note; realtime subscription helper.
+
+src/components/ui/FullCalendarWrapper.jsx • Keep • Green — FC v6 (no CSS imports); wrapper events API.
+
+src/lib/services/calendarService.ts + src/lib/hooks/useAdminCalendar.ts • Keep • Green — windowed events via v_admin_calendar + RPC.
+
+src/pages/Calendar.jsx • Keep • Green — appraiser filter added.
+
+src/lib/services/notificationsService.ts • Keep • Green — typed service; prefs fallbacks set user_id; TS shim for rpcFirst.
+
+src/features/notifications/{api.ts,hooks.ts} • Keep • Green — exported surface for bell + settings.
+
+src/components/NotificationBell.jsx • Keep • Green — wired to new hooks; items clickable (guaranteed order_id).
+
+src/components/settings/NotificationPrefsCard.jsx • Keep • Green — DND/Snooze, categories, delivery toggles.
+
+src/lib/bootstrap/ensureNotificationPrefs.js • Keep • Green — creates prefs on sign-in.
+
+src/pages/Settings.jsx • Keep • Green — now just Notifications for MVP (removed legacy “users.preferences”).
+
+src/lib/services/userService.js • Keep • Green — listTeam, listAppraisers, getUserById; safe fallback (no fee_split dependency).
+
+src/lib/services/adminUserService.js • Keep • Green — RPC-first admin updates with audit logs; AdminUsers uses it.
+
+src/lib/services/clientsService.js • Keep • Green — list/get/metrics + create/update/delete (+ fetchClientById alias).
+
+src/pages/Orders.jsx • Keep • Green — appraiser filter; presentational table.
+
+src/components/orders/PresentationalOrdersTable.jsx • Keep • Green — no row-embed fetch; links to detail.
+
+src/components/orders/NewOrderButton.jsx • Keep • Green — admin-only CTA; added to Layout + Orders page.
+
+src/pages/NewOrder.jsx / src/pages/EditOrder.jsx • Keep • Green — wire to OrderForm; delete support in edit.
+
+src/components/orders/OrderForm.jsx • Keep • Green — order-number availability check, normalized patching.
+
+src/layout/Layout.jsx • Keep • Green — removed floating log; added global New-Order; tidy nav.
+
+src/lib/constants/orderStatus.js • Keep • Green — canonical statuses, helpers (normalize/label/isReview).
+
+DB schema / RPC delta
+
+Orders: bigint client_id supported in RPCs; review route JSON; canonical date fields used; unique order_number handled politely in UI.
+
+Users: added fee_split (nullable).
+
+Notifications: notifications + notification_prefs tables; prefs RPCs hardened for missing JWT; create-notification fallback added in client.
+
+Calendar: v_admin_calendar view + rpc_list_admin_events.
+
+Shims (compatibility while migrating): v_orders_list_with_last_activity, team_list_users, clients_metrics.
+
+Activity: activity_log table + RPCs (log event/note, list by order).
+
+Retired / superseded (safe to remove when references are gone)
+
+Legacy row-expander fetch in orders table (replaced by details link).
+
+Floating activity panel in Layout (replaced by ActivityLog in sidebar).
+
+Any direct component calls to Supabase for orders/clients/users should be migrated to services (ongoing).
+
+Known gaps / next actions (prioritized)
+
+RLS hardening: ensure appraisers only fetch their orders server-side; reviewers see only queues; admins full access.
+
+Delete shims after service migration: remove v_orders_list_with_last_activity, clients_metrics, team_list_users when no longer referenced.
+
+Notifications: move fan-out to DB (rpc_create_notifications_for_order_event) and finalize categories.
+
+Clients dashboard: keep v_client_metrics as the single source; remove client-side aggregation.
+
+Error UX: add error boundaries & skeletons to Dashboard/Orders/Detail.
+
+Consolidate activity UIs (OrderActivityPanel → ActivityLog everywhere).
+
+Status constants: confirm 1:1 usage across services, UI, and DB checks.
+
+This update follows the WORKFILE’s per-file audit style and should be treated as the latest narrative SSOT snapshot.

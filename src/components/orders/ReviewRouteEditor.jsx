@@ -1,7 +1,7 @@
 // src/components/orders/ReviewRouteEditor.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import AppraiserSelect from "@/components/ui/AppraiserSelect";
-import { setReviewRoute, assignNextReviewer } from "@/lib/services/ordersService";
+import { saveReviewRoute, assignNextReviewer } from "@/lib/services/ordersService";
 
 /**
  * Props:
@@ -18,7 +18,6 @@ export default function ReviewRouteEditor({ orderId, initialRoute, currentReview
   const [err, setErr] = useState(null);
 
   useEffect(() => {
-    // Sync if the order reloads
     setSteps(Array.isArray(initialRoute?.steps) ? initialRoute.steps.map(s => ({ reviewer_id: s.reviewer_id || "" })) : []);
   }, [initialRoute?.steps]);
 
@@ -52,7 +51,7 @@ export default function ReviewRouteEditor({ orderId, initialRoute, currentReview
   async function saveRoute() {
     try {
       setBusy(true); setErr(null);
-      await setReviewRoute(orderId, { steps: cleanSteps });
+      await saveReviewRoute(orderId, { steps: cleanSteps });
       onSaved?.();
     } catch (e) {
       setErr(e?.message || String(e));
@@ -64,7 +63,7 @@ export default function ReviewRouteEditor({ orderId, initialRoute, currentReview
   async function assignFirst() {
     try {
       setBusy(true); setErr(null);
-      await assignNextReviewer(orderId); // lets RPC (or fallback) pick the first
+      await assignNextReviewer(orderId);
       onSaved?.();
     } catch (e) {
       setErr(e?.message || String(e));
@@ -129,3 +128,4 @@ export default function ReviewRouteEditor({ orderId, initialRoute, currentReview
     </div>
   );
 }
+

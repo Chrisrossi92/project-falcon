@@ -1,100 +1,187 @@
-// --- ADD THIS TO: src/lib/services/clientsService.js ---
-
+// src/lib/services/clientsService.js
 import supabase from "@/lib/supabaseClient";
-import { fetchClientsList } from "@/lib/services/clientsService"; // if this causes a circular import, just remove this line and call the function directly above
+import rpcFirst from "@/lib/utils/rpcFirst";
 
 /**
- * Fetch clients plus lightweight metrics for the current page of clients.
- * - No relational embeds
- * - One page of clients -> one orders query filtered with .in('client_id', ids)
- * - Returns: [{ id, name, email, phone, orders_total, orders_open, last_update_at, next_due_at }]
- *
- * @param {Object} opts
- * @param {string} [opts.search]
- * @param {number} [opts.limit=50]
- * @param {number} [opts.offset=0]
+ * Lightweight client list for selects / dashboards.
+ * Returns: [{ id (bigint), name, status }]
  */
-export async function fetchClientsWithMetrics({ search, limit = 50, offset = 0 } = {}) {
-  // 1) Page of clients
-  let clients = [];
-  try {
-    clients = await fetchClientsList({ search, limit, offset });
-  } catch {
-    // If clients table isn't ready yet, return empty list gracefully
-    return [];
-  }
-  if (!clients.length) return [];
-
-  // 2) Pull only orders for these client ids
-  const ids = Array.from(new Set(clients.map((c) => c.id).filter(Boolean)));
-  let orders = [];
-  try {
-    const { data, error } = await supabase
-      .from("orders")
-      .select("id, client_id, status, final_due_at, updated_at, created_at")
-      .in("client_id", ids)
-      .limit(2000); // generous page cap for metrics; adjust as needed
-    if (error) throw error;
-    orders = Array.isArray(data) ? data : [];
-  } catch {
-    // If orders table isn't available, just return clients with zeroed metrics
-    return clients.map((c) => ({
-      ...c,
-      orders_total: 0,
-      orders_open: 0,
-      last_update_at: null,
-      next_due_at: null,
-    }));
-  }
-
-  // 3) Compute metrics per client (client-side merge)
-  const OPEN_STATUSES = new Set([
-    "in_progress",
-    "in_review",
-    "revisions",
-    "ready_for_client",
-    "ready_to_send",
-  ]);
-
-  const now = Date.now();
-  const byClient = new Map();
-  for (const o of orders) {
-    const key = o.client_id;
-    if (!byClient.has(key)) {
-      byClient.set(key, {
-        total: 0,
-        open: 0,
-        lastUpdate: null,
-        nextDue: null,
-      });
+export async function listClients({ includeInactive = false } = {}) {
+  const { data, error } = await rpcFirst(
+    () => supabase.rpc("clients_list", { include_inactive: includeInactive }),
+    async () => {
+      let q = supabase
+        .from("clients")
+        .select("id, name, status")
+        .order("name", { ascending: true });
+      if (!includeInactive) q = q.eq("status", "active");
+      return q;
     }
-    const acc = byClient.get(key);
-    acc.total += 1;
-    if (OPEN_STATUSES.has(String(o.status || "").toLowerCase())) acc.open += 1;
-
-    // last update (fallback to created_at)
-    const stamp = o.updated_at ? new Date(o.updated_at).getTime() : (o.created_at ? new Date(o.created_at).getTime() : 0);
-    if (!acc.lastUpdate || stamp > acc.lastUpdate) acc.lastUpdate = stamp;
-
-    // next due (final_due_at in the future, keep the soonest)
-    if (o.final_due_at) {
-      const dueTs = new Date(o.final_due_at).getTime();
-      if (dueTs > now && (!acc.nextDue || dueTs < acc.nextDue)) acc.nextDue = dueTs;
-    }
-  }
-
-  // 4) Attach metrics to each client row
-  return clients.map((c) => {
-    const m = byClient.get(c.id) || { total: 0, open: 0, lastUpdate: null, nextDue: null };
-    return {
-      ...c,
-      orders_total: m.total,
-      orders_open: m.open,
-      last_update_at: m.lastUpdate ? new Date(m.lastUpdate).toISOString() : null,
-      next_due_at: m.nextDue ? new Date(m.nextDue).toISOString() : null,
-    };
-  });
+  );
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
 }
+
+/**
+ * Fetch one client by id (safe fields).
+ */
+export async function getClientById(id) {
+  const { data, error } = await rpcFirst(
+    () => supabase.rpc("clients_get_by_id", { client_id: id }),
+    async () => {
+      const { data: row, error: err } = await supabase
+        .from("clients")
+        .select("id, name, status")
+        .eq("id", id)
+        .single();
+      return { data: row, error: err };
+    }
+  );
+  if (error) throw error;
+  return data || null;
+}
+
+/** 🔁 Back-compat alias so older code keeps working */
+export async function fetchClientById(id) {
+  return getClientById(id);
+}
+
+/**
+ * Clients with metrics for dashboards.
+ * Prefers RPC `clients_metrics(include_inactive bool)`, falls back to JS aggregation.
+ */
+export async function fetchClientsWithMetrics({ includeInactive = false } = {}) {
+  const { data, error } = await rpcFirst(
+    () => supabase.rpc("clients_metrics", { include_inactive: includeInactive }),
+    async () => {
+      // 1) Get clients
+      const clients = await listClients({ includeInactive });
+      if (!clients.length) return { data: [], error: null };
+
+      // 2) Pull orders for these client ids (RLS applies)
+      const ids = clients.map((c) => c.id);
+      const { data: orders, error: errOrders } = await supabase
+        .from("orders")
+        .select("client_id, status, base_fee")
+        .in("client_id", ids);
+
+      if (errOrders) {
+        // Graceful fallback if RLS prevents orders read
+        return {
+          data: clients.map((c) => ({
+            id: c.id,
+            name: c.name,
+            status: c.status,
+            orders_count: 0,
+            active_orders_count: 0,
+            avg_base_fee: null,
+          })),
+          error: null,
+        };
+      }
+
+      // 3) Aggregate in JS
+      const bucket = new Map(); // client_id -> { total, active, sumFee, nFee }
+      for (const o of orders || []) {
+        const cid = o.client_id;
+        if (!bucket.has(cid)) bucket.set(cid, { total: 0, active: 0, sumFee: 0, nFee: 0 });
+        const agg = bucket.get(cid);
+        agg.total += 1;
+        const s = String(o.status || "").toLowerCase();
+        if (s !== "complete") agg.active += 1;
+        const fee = o.base_fee;
+        if (typeof fee === "number") {
+          agg.sumFee += fee;
+          agg.nFee += 1;
+        }
+      }
+
+      const rows = clients.map((c) => {
+        const agg = bucket.get(c.id) || { total: 0, active: 0, sumFee: 0, nFee: 0 };
+        const avg = agg.nFee > 0 ? agg.sumFee / agg.nFee : null;
+        return {
+          id: c.id,
+          name: c.name,
+          status: c.status,
+          orders_count: agg.total,
+          active_orders_count: agg.active,
+          avg_base_fee: avg,
+        };
+      });
+
+      return { data: rows, error: null };
+    }
+  );
+
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+
+/* ===========================
+   Create / Update / Delete
+   =========================== */
+
+export async function createClient(patch = {}) {
+  const name = (patch.name || "").trim();
+  const status = (patch.status || "active").trim();
+  if (!name) throw new Error("Client name is required");
+
+  const payload = { name, status };
+
+  const { data, error } = await rpcFirst(
+    () => supabase.rpc("rpc_create_client", { patch: payload }),
+    async () => {
+      const { data: rows, error: err } = await supabase
+        .from("clients")
+        .insert(payload)
+        .select("id, name, status");
+      return { data: Array.isArray(rows) ? rows[0] : rows, error: err };
+    }
+  );
+
+  if (error) throw error;
+  return data;
+}
+
+export async function updateClient(id, patch = {}) {
+  const payload = {};
+  if (typeof patch.name === "string") payload.name = patch.name.trim();
+  if (typeof patch.status === "string") payload.status = patch.status.trim();
+
+  if (Object.keys(payload).length === 0) return await getClientById(id);
+
+  const { data, error } = await rpcFirst(
+    () => supabase.rpc("rpc_update_client", { client_id: id, patch: payload }),
+    async () => {
+      const { data: row, error: err } = await supabase
+        .from("clients")
+        .update(payload)
+        .eq("id", id)
+        .select("id, name, status")
+        .single();
+      return { data: row, error: err };
+    }
+  );
+
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteClient(id) {
+  const { error } = await rpcFirst(
+    () => supabase.rpc("rpc_delete_client", { client_id: id }),
+    async () => {
+      const { error: err } = await supabase.from("clients").delete().eq("id", id);
+      return { data: null, error: err };
+    }
+  );
+  if (error) throw error;
+}
+
+
+
+
+
 
 
 

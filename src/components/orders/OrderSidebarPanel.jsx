@@ -1,11 +1,12 @@
 // src/components/orders/OrderSidebarPanel.jsx
 import React, { useState } from "react";
 import MapContainer from "@/components/MapContainer";
-import OrderActivityPanel from "./OrderActivityPanel";
+import ActivityLog from "@/components/activity/ActivityLog";
+import ActivityNoteForm from "@/components/activity/ActivityNoteForm";
 import { useSession } from "@/lib/hooks/useSession";
 
 export default function OrderSidebarPanel({ order }) {
-  const [activeTab, setActiveTab] = useState("activity"); // "activity" or "map"
+  const [activeTab, setActiveTab] = useState("activity");
   const { user } = useSession();
 
   const tabs = [
@@ -15,7 +16,6 @@ export default function OrderSidebarPanel({ order }) {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Tabs */}
       <div className="flex space-x-2 mb-2 border-b border-gray-200">
         {tabs.map((tab) => (
           <button
@@ -32,20 +32,23 @@ export default function OrderSidebarPanel({ order }) {
         ))}
       </div>
 
-      {/* Panel */}
       <div className="flex-1 rounded-md border bg-white shadow-sm p-2 overflow-y-auto">
-        {activeTab === "activity" && (
-          <OrderActivityPanel orderId={order.id} currentUser={user} />
-        )}
-        {activeTab === "map" && (
+        {activeTab === "activity" ? (
+          <div>
+            <ActivityLog orderId={order.id} currentUser={user} />
+            <ActivityNoteForm orderId={order.id} onSaved={() => { /* ActivityLog realtime will refresh */ }} />
+          </div>
+        ) : (
           <MapContainer
-            address={`${order.address || ""}, ${order.city || ""}, ${order.state || ""} ${order.zip || ""}`}
+            address={`${order.address || order.property_address || ""}, ${order.city || ""}, ${order.state || ""} ${order.zip || order.postal_code || ""}`}
           />
         )}
       </div>
     </div>
   );
 }
+
+
 
 
 

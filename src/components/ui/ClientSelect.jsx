@@ -1,108 +1,61 @@
 // src/components/ui/ClientSelect.jsx
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { fetchClientsList } from "@/lib/services/clientsService";
+import React, { useEffect, useState } from "react";
+import { listClients } from "@/lib/services/clientsService";
 
-export default function ClientSelect({ value, onChange, placeholder = "Search clients…" }) {
-  const [query, setQuery] = useState("");
-  const [open, setOpen] = useState(false);
+export default function ClientSelect({
+  value = "",
+  onChange,
+  placeholder = "Select client…",
+  includeEmpty = true,
+  disabled = false,
+  className = "",
+}) {
   const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
-  const debounceRef = useRef();
-
-  const selected = useMemo(() => rows.find(r => r.id === value) || null, [rows, value]);
 
   useEffect(() => {
-    // Debounced fetch on query change
-    clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(async () => {
+    let mounted = true;
+    (async () => {
       try {
         setLoading(true); setErr(null);
-        const list = await fetchClientsList({ search: query, limit: 20 });
-        setRows(list);
+        const data = await listClients({ includeInactive: false });
+        if (!mounted) return;
+        setRows(Array.isArray(data) ? data : []);
       } catch (e) {
+        if (!mounted) return;
         setErr(e?.message || String(e));
         setRows([]);
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
-    }, 250);
-    return () => clearTimeout(debounceRef.current);
-  }, [query]);
-
-  function pick(c) {
-    onChange?.(c?.id || "");
-    setOpen(false);
-  }
-  function clearSel() {
-    onChange?.("");
-    setOpen(false);
-  }
+    })();
+    return () => { mounted = false; };
+  }, []);
 
   return (
-    <div className="relative">
-      {/* Control */}
-      <div className="flex gap-2">
-        <input
-          className="w-full border rounded px-2 py-1 text-sm"
-          placeholder={placeholder}
-          value={query}
-          onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
-          onFocus={() => setOpen(true)}
-        />
-        <button
-          type="button"
-          className="px-2 py-1 border rounded text-sm hover:bg-gray-50"
-          onClick={() => setOpen((v) => !v)}
-        >
-          {open ? "▲" : "▼"}
-        </button>
-        {value ? (
-          <button
-            type="button"
-            className="px-2 py-1 border rounded text-sm hover:bg-gray-50"
-            onClick={clearSel}
-            title="Clear selected client"
-          >
-            Clear
-          </button>
-        ) : null}
-      </div>
-
-      {/* Selected hint */}
-      <div className="mt-1 text-xs text-gray-600">
-        {value
-          ? `Selected: ${selected?.name || value}`
-          : "No client selected"}
-      </div>
-
-      {/* Dropdown */}
-      {open && (
-        <div className="absolute z-10 mt-1 w-full bg-white border rounded shadow">
-          {loading ? (
-            <div className="p-2 text-sm text-gray-600">Loading…</div>
-          ) : err ? (
-            <div className="p-2 text-sm text-red-600">Failed: {err}</div>
-          ) : rows.length === 0 ? (
-            <div className="p-2 text-sm text-gray-600">No results</div>
-          ) : (
-            <ul className="max-h-64 overflow-auto">
-              {rows.map((c) => (
-                <li
-                  key={c.id}
-                  className="px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer"
-                  onClick={() => pick(c)}
-                >
-                  <div className="font-medium">{c.name}</div>
-                  <div className="text-xs text-gray-500">
-                    {c.email || "—"} {c.phone ? `• ${c.phone}` : ""}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
+    <div className={className}>
+      <select
+        className="w-full border rounded-md px-2 py-1 text-sm"
+        value={value || ""}
+        onChange={(e) => onChange?.(e.target.value || null)}
+        disabled={disabled || loading || !!err}
+      >
+        {includeEmpty && (
+          <option value="">{loading ? "Loading…" : placeholder}</option>
+        )}
+        {rows.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.name}
+          </option>
+        ))}
+      </select>
+      {err ? (
+        <div className="text-xs text-red-600 mt-1">
+          Failed to load clients: {err}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
+

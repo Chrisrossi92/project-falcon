@@ -2,8 +2,7 @@
 import React, { useMemo } from "react";
 import { useOrders } from "@/lib/hooks/useOrders";
 import PresentationalOrdersTable from "@/components/orders/PresentationalOrdersTable";
-
-const REVIEW_STATES = new Set(["in_review", "revisions", "ready_to_send"]);
+import { isReviewStatus, normalizeStatus } from "@/lib/constants/orderStatus";
 
 /**
  * Adapter table for the Orders page and dashboards.
@@ -17,7 +16,7 @@ const REVIEW_STATES = new Set(["in_review", "revisions", "ready_to_send"]);
  *  - dueWindow: string (reserved)
  *  - includeArchived: boolean (reserved)
  *  - renderActions: (order) => ReactNode
- *  - onRowClick: (order) => void              <-- NEW
+ *  - onRowClick: (order) => void
  */
 export default function OrdersTable({
   status,
@@ -36,14 +35,10 @@ export default function OrdersTable({
 
     // Status filtering
     if (status === "__REVIEW__") {
-      list = list.filter((o) =>
-        REVIEW_STATES.has(String(o.status || "").toLowerCase())
-      );
+      list = list.filter((o) => isReviewStatus(o.status));
     } else if (status && typeof status === "string") {
-      const needle = status.toLowerCase();
-      list = list.filter(
-        (o) => String(o.status || "").toLowerCase() === needle
-      );
+      const needle = normalizeStatus(status);
+      list = list.filter((o) => normalizeStatus(o.status) === needle);
     }
 
     // Appraiser filter
@@ -82,6 +77,7 @@ export default function OrdersTable({
     />
   );
 }
+
 
 
 

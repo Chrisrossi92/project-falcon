@@ -1,20 +1,36 @@
 // App.jsx
-import React from 'react';
-import { SessionContextProvider } from '@supabase/auth-helpers-react';
+import React, { useEffect } from 'react';
+import { SessionContextProvider, useUser } from '@supabase/auth-helpers-react';
 import supabase from './lib/supabaseClient';
 import ProtectedRoutes from './routes';
-import { Toaster } from 'react-hot-toast'; // ✅ Add this
+import { Toaster } from 'react-hot-toast';
+import { ensureNotificationPrefs } from '@/lib/bootstrap/ensureNotificationPrefs';
 
-function App() {
+function AppInner() {
+  const user = useUser();
+
+  useEffect(() => {
+    if (user) {
+      ensureNotificationPrefs();
+    }
+  }, [user]);
+
+  return (
+    <>
+      <Toaster position="top-right" reverseOrder={false} />
+      <ProtectedRoutes />
+    </>
+  );
+}
+
+export default function App() {
   return (
     <SessionContextProvider supabaseClient={supabase}>
-      <Toaster position="top-right" reverseOrder={false} /> {/* ✅ Add this */}
-      <ProtectedRoutes />
+      <AppInner />
     </SessionContextProvider>
   );
 }
 
-export default App;
 
 
 

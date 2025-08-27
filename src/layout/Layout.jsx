@@ -1,76 +1,91 @@
 // src/layout/Layout.jsx
-import React from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { useSession } from '@/lib/hooks/useSession';
-// import FloatingActivityLog from '../components/FloatingActivityLog'; // ⛔ disabled pending refactor
-import supabase from '@/lib/supabaseClient';
-import { LoadingState } from '@/components/ui/Loaders';
-import NotificationBell from '@/components/notifications/NotificationBell';
+import React from "react";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useSession } from "@/lib/hooks/useSession";
+import supabase from "@/lib/supabaseClient";
+import NotificationBell from "@/components/notifications/NotificationBell";
+import NewOrderButton from "@/components/orders/NewOrderButton";
 
-const Layout = () => {
-  const { user, loading } = useSession();
+function NavItem({ to, children }) {
+  return (
+    <NavLink
+      to={to}
+      className={({ isActive }) =>
+        `px-2 py-1 rounded text-sm ${
+          isActive ? "bg-gray-200 text-gray-900" : "text-gray-700 hover:bg-gray-100"
+        }`
+      }
+    >
+      {children}
+    </NavLink>
+  );
+}
+
+export default function Layout() {
+  const { user, isAdmin, isReviewer } = useSession();
   const navigate = useNavigate();
 
-  const logout = async () => {
-    await supabase.auth.signOut();
-    navigate('/login');
-  };
-
-  if (loading) return <LoadingState label="Loading session…" />;
-
-  // Role helpers (defensive)
-  const role = user?.role ?? 'user';
-  const isAdmin = role === 'admin';
-  // const isReviewer = role === 'reviewer'; // ← no separate nav link any more
-
-  const navItems = [
-    { to: '/dashboard', label: 'Dashboard' },
-    { to: '/orders', label: 'Orders' },
-    ...(isAdmin ? [{ to: '/clients', label: 'Clients' }] : []),
-    ...(isAdmin ? [{ to: '/users', label: 'Team' }] : []),
-    // Hide Calendar for reviewers if you still want, otherwise allow:
-    ...(role !== 'reviewer' ? [{ to: '/calendar', label: 'Calendar' }] : []),
-    { to: '/settings', label: 'Settings' },
-  ];
+  async function logout() {
+    try {
+      await supabase.auth.signOut();
+    } finally {
+      navigate("/login", { replace: true });
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="border-b bg-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
-          <div className="text-lg font-semibold">Falcon Platform</div>
-          <nav className="flex items-center gap-2">
+      {/* Header */}
+      <header className="bg-white border-b">
+        <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between">
+          {/* Left: logo + primary nav */}
+          <div className="flex items-center gap-4">
+            <NavLink to="/dashboard" className="font-semibold text-gray-900">
+              Falcon
+            </NavLink>
+
+            <nav className="hidden sm:flex items-center gap-1">
+              <NavItem to="/dashboard">Dashboard</NavItem>
+              <NavItem to="/orders">Orders</NavItem>
+              <NavItem to="/calendar">Calendar</NavItem>
+              {isAdmin && <NavItem to="/clients">Clients</NavItem>}
+              <NavItem to="/users">Users</NavItem>
+              {isAdmin && <NavItem to="/admin/users">Manage Roles</NavItem>}
+              <NavItem to="/settings">Settings</NavItem>
+            </nav>
+          </div>
+
+          {/* Right: New Order (admin), notifications, user */}
+          <div className="flex items-center gap-2">
+            <NewOrderButton />
             <NotificationBell />
-            {navItems.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={({ isActive }) =>
-                  `block rounded px-3 py-2 hover:bg-blue-100 ${
-                    isActive ? 'bg-blue-500 text-white' : 'text-gray-800'
-                  }`
-                }
-              >
-                {item.label}
-              </NavLink>
-            ))}
-            <button onClick={logout} className="rounded px-3 py-2 text-sm text-gray-600 hover:bg-gray-100">
-              Log out
-            </button>
-          </nav>
+            {user ? (
+              <>
+                <span className="hidden sm:inline text-sm text-gray-700">
+                  {user.email || "Signed in"}
+                  {isAdmin ? " • Admin" : isReviewer ? " • Reviewer" : " • Appraiser"}
+                </span>
+                <button
+                  className="px-2 py-1 border rounded text-sm hover:bg-gray-50"
+                  onClick={logout}
+                >
+                  Logout
+                </button>
+              </>
+            ) : null}
+          </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl p-4">
+      {/* Body */}
+      <main className="max-w-7xl mx-auto px-4 py-4">
         <Outlet />
       </main>
-
-      {/* TODO(activity): Re-introduce as admin-toggleable docked panel after consolidation */}
-      {/* <FloatingActivityLog /> */}
     </div>
   );
-};
+}
 
-export default Layout;
+
 
 
 

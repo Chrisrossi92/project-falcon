@@ -1,16 +1,18 @@
 // src/components/orders/ReadyForReviewButton.jsx
 import React, { useState } from "react";
-import { setReadyForReview } from "@/lib/services/ordersService";
+import { startReview } from "@/lib/services/ordersService";
 
 export default function ReadyForReviewButton({ orderId, onDone }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
 
   async function onClick() {
+    if (!orderId) return;
     setBusy(true);
     setErr(null);
     try {
-      await setReadyForReview(orderId);
+      // Moves order to "in_review" and logs an event (RPC-first)
+      await startReview(orderId, "Ready for Review");
       if (typeof onDone === "function") onDone();
     } catch (e) {
       setErr(e?.message || String(e));
@@ -35,3 +37,4 @@ export default function ReadyForReviewButton({ orderId, onDone }) {
     </div>
   );
 }
+

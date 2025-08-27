@@ -1,21 +1,17 @@
+// src/components/orders/OrdersTableRow.jsx
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { updateOrderStatus, updateOrderDates } from "@/lib/services/ordersService";
 import { fromLocalInputValue, toLocalInputValue } from "@/lib/utils/formatDate";
 import { useSession } from "@/lib/hooks/useSession";
-
-const STATUSES = [
-  "new",
-  "assigned",
-  "in_progress",
-  "site_visit_done",
-  "in_review",
-  "ready_to_send",
-  "sent_to_client",
-  "revisions",
-  "complete",
-];
+import {
+  ORDER_STATUSES,
+  isReviewStatus,
+  labelForStatus,
+  isValidStatus,
+  normalizeStatus,
+} from "@/lib/constants/orderStatus";
 
 function dtToLocalInput(iso) {
   return toLocalInputValue(iso);
@@ -29,17 +25,23 @@ export default function OrdersTableRow({ order, onRefresh }) {
   const [savingDue, setSavingDue] = useState(false);
   const [savingStatus, setSavingStatus] = useState(false);
 
-  const statusLower = String(order.status || "").toLowerCase();
-  const isReviewState = ["in_review", "revisions", "ready_to_send"].includes(statusLower);
+  const statusNorm = normalizeStatus(order.status || "");
+  const reviewState = isReviewStatus(statusNorm);
   const isMyReviewTask = uid && order.current_reviewer_id === uid;
 
   async function onStatusChange(e) {
-    const next = e.target.value;
-    if (!next || next === order.status) return;
+    const nextRaw = e.target.value;
+    const next = normalizeStatus(nextRaw);
+    if (!next || next === statusNorm) return;
+
+    if (!isValidStatus(next)) {
+      toast.error("Invalid status");
+      return;
+    }
     try {
       setSavingStatus(true);
       await updateOrderStatus(order.id, next);
-      toast.success(`Status → ${next.replaceAll("_", " ")}`);
+      toast.success(`Status → ${labelForStatus(next)}`);
       onRefresh?.();
     } catch (err) {
       console.error(err);
@@ -80,12 +82,12 @@ export default function OrdersTableRow({ order, onRefresh }) {
   return (
     <tr
       className={`align-middle ${
-        isMyReviewTask ? "bg-blue-50" : isReviewState ? "bg-yellow-50" : ""
+        isMyReviewTask ? "bg-blue-50" : reviewState ? "bg-yellow-50" : ""
       }`}
       title={
         isMyReviewTask
           ? "Review task assigned to you"
-          : isReviewState
+          : reviewState
           ? "In review workflow"
           : undefined
       }
@@ -98,23 +100,34 @@ export default function OrdersTableRow({ order, onRefresh }) {
           </span>
         )}
       </td>
-      <td className="px-3 py-2">{order.client_name ?? order.client?.name ?? order.manual_client ?? "—"}</td>
+
+      <td className="px-3 py-2">
+        {order.client_name ?? order.client?.name ?? order.manual_client ?? "—"}
+      </td>
+
       <td className="px-3 py-2">
         {order.property_address || order.address || "—"}
-        {order.city ? `, ${order.city}` : ""} {order.state || ""} {order.postal_code || ""}
+        {order.city ? `, ${order.city}` : ""} {order.state || ""}{" "}
+        {order.postal_code || ""}
       </td>
-      <td className="px-3 py-2">{order.appraiser_name || order.appraiser?.display_name || order.appraiser?.name || "—"}</td>
+
+      <td className="px-3 py-2">
+        {order.appraiser_name ||
+          order.appraiser?.display_name ||
+          order.appraiser?.name ||
+          "—"}
+      </td>
 
       <td className="px-3 py-2">
         <select
           className="border rounded-md px-2 py-1 text-sm"
-          defaultValue={order.status ?? "new"}
+          defaultValue={statusNorm || "new"}
           onChange={onStatusChange}
           disabled={savingStatus}
         >
-          {STATUSES.map((s) => (
+          {ORDER_STATUSES.map((s) => (
             <option key={s} value={s}>
-              {s.replaceAll("_", " ")}
+              {labelForStatus(s)}
             </option>
           ))}
         </select>
@@ -148,6 +161,7 @@ export default function OrdersTableRow({ order, onRefresh }) {
     </tr>
   );
 }
+
 
 
 
