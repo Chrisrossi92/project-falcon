@@ -12,7 +12,10 @@
     "preview": "vite preview --port 5173",
     "audit:static": "node scripts/check-exports.mjs && node scripts/check-routes.mjs && madge --circular src",
     "audit:db": "node scripts/check-tables.mjs",
-    "audit": "npm run audit:static && npm run audit:db"
+    "audit": "npm run audit:static && npm run audit:db",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.19",
@@ -35,13 +38,21 @@
     "tailwind-merge": "^3.3.1"
   },
   "devDependencies": {
+    "@eslint/js": "^9.9.0",
+    "@testing-library/jest-dom": "^6.5.0",
+    "@testing-library/react": "^16.0.0",
     "@vitejs/plugin-react": "^4.3.1",
+    "@vitest/coverage-v8": "^2.0.5",
     "autoprefixer": "^10.4.19",
     "dotenv": "^17.2.1",
+    "eslint": "^9.9.0",
+    "jsdom": "^25.0.0",
     "madge": "^6.1.0",
     "postcss": "^8.4.41",
     "tailwindcss": "^3.4.10",
     "tailwindcss-animate": "^1.0.7",
-    "vite": "^5.4.2"
+    "vite": "^5.4.2",
+    "vitest": "^2.0.5"
   }
 }
+

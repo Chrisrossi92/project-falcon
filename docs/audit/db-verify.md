@@ -117,4 +117,18 @@ select * from (
 ) z
 order by section, name;
 ```````
+:contentReference[oaicite:3]{index=3}
+
+---
+
+## `docs/audit/db-verify.md`
+```md
+# DB Verification (Read-only)
+
+Paste this SQL in Supabase to validate expected tables, views, functions, RLS, policies, and indexes.
+
+```sql
+-- FALCON MVP — DB VERIFICATION (read-only)
+-- Checks tables, views, RPCs, RLS, policies, and indexes
+<full SQL block kept verbatim>
 

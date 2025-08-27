@@ -1,16 +1,10 @@
 {
   "compilerOptions": {
     "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"]
-    },
-    "jsx": "react-jsx",
-    "module": "ESNext",
-    "moduleResolution": "Node",
-    "target": "ESNext",
-    "allowJs": true,
-    "checkJs": false
+    "paths": { "@/*": ["src/*"] },
+    "jsx": "react-jsx"
   },
-  "include": ["src"]
+  "include": ["src", "tests"]
 }
+
 
