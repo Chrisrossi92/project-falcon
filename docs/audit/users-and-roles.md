@@ -1,3 +1,9 @@
+:contentReference[oaicite:7]{index=7}
+
+---
+
+## `docs/audit/users-and-roles.md`
+```md
 # Users & Roles
 
 ## Tables
@@ -10,7 +16,12 @@
 - `rpc_bootstrap_admin() -> bool` *(one-time; grants caller admin if none exist)*
 
 ## RLS
-- Profiles & Roles: `SELECT` open to `authenticated` for UI; writes via RPCs only.
+- Profiles & Roles: `SELECT` open to `authenticated` for UI
+- Writes only via RPCs
 
-## Calendar enrichment
-- `v_admin_calendar_enriched` adds `appraiser_name`, `appraiser_color`, `event_icon`.
+## Calendar Enrichment
+- `v_admin_calendar_enriched` adds:
+  - `appraiser_name`
+  - `appraiser_color`
+  - `event_icon`
+

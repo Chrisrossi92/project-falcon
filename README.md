@@ -1,29 +1,24 @@
-# Project Falcon (MVP)
+# Project Falcon 🦅  
+Internal appraisal platform — React + Vite + Supabase
 
-Modern appraisal workflow platform for Continental Valuation.
+---
 
-## Quickstart
+## 📌 Overview
+Falcon is a role-based appraisal management platform.  
+It provides **admins, reviewers, and appraisers** with dashboards, order tracking, an integrated calendar, notifications, and audit logging.  
 
-    npm i
-    cp .env.example .env   # fill SUPABASE_*, MAPS_API_KEY, etc.
-    npm run dev
+MVP principles:  
+- **RPC-only writes** (no direct table writes)  
+- **RLS-first** security  
+- **Small PRs** with lint/tests passing  
+- **Docs always current**  
 
-## Architecture
-- React + Vite + Tailwind (UI)
-- Supabase (auth, DB, RPC-only writes)
-- Principles: Small PRs • Conventional Commits • RLS-first • RPC-only writes
+---
 
-## Repo Map
-- Docs:
-  - `docs/components.md`
-  - `docs/pages.md`
-  - `docs/hooks.md`
-  - `docs/architecture.md`
-  - `docs/deps-graph.svg` (dependency graph)
-  - `docs/roadmap-mvp.md` (MVP plan)
-- Machine-readable inventory: `docs/inventory.json`
+## 🚀 Quick Start
 
-## Contributing
-- Branch naming: `feat/*`, `fix/*`, `docs/*`, `chore/*`
-- Commit style: Conventional Commits
-- Prefer small PRs with clear acceptance criteria
+### Local Dev
+```bash
+npm install
+npm run dev
+

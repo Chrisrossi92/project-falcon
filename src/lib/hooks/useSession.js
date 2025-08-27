@@ -1,17 +1,27 @@
-// src/lib/hooks/useSession.js
-import { internalUseUser } from '@/context/UserContext';
+import {
+  useUser as useSupabaseUser,
+  useSession as useSupabaseSession,
+} from "@supabase/auth-helpers-react";
 
-export const useSession = () => {
-  const { user, loading } = internalUseUser();
-  const role = (user?.role || '').toString().toLowerCase();
+/** Normalized session hook for Falcon */
+function useSessionHook() {
+  // NOTE: these hooks return the value directly (User | null), not { user } / { session }
+  const user = useSupabaseUser() ?? null;
+  const session = useSupabaseSession() ?? null;
+
+  // When the provider hasn't mounted yet these can be undefined; normalize:
+  const isLoading = user === undefined || session === undefined;
 
   return {
-    user,
-    loading,
-    isLoggedIn: !!user,
-    isAdmin: role === 'admin' || role === 'owner' || role === 'manager',
-    isReviewer: role === 'reviewer',
-    isAppraiser: role === 'appraiser',
+    user: user ?? null,
+    session: session ?? null,
+    isAuthenticated: !!user,
+    isLoading,
   };
-};
+}
+
+export default useSessionHook;       // allow: import useSession from "@/lib/hooks/useSession"
+export const useSession = useSessionHook; // allow: import { useSession } from "@/lib/hooks/useSession"
+
+
 
