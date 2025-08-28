@@ -1,10 +1,7 @@
-// src/lib/api/orders.ts
+// src/lib/api/orders.js
 import supabase from "@/lib/supabaseClient";
 
-export const updateSiteVisitAt = async (orderId: string, newDateTime: string, extras?: {
-  address?: string | null;
-  appraiserId?: string | null;
-}) => {
+export const updateSiteVisitAt = async (orderId, newDateTime, extras) => {
   // Update the order field (no RPC for site_visit_at yet)
   const { data, error } = await supabase
     .from("orders")
@@ -30,13 +27,13 @@ export const updateSiteVisitAt = async (orderId: string, newDateTime: string, ex
       p_notes: null,
     });
   } catch (e) {
-    console.warn("rpc_create_calendar_event (site_visit) failed:", (e as any)?.message);
+    console.warn("rpc_create_calendar_event (site_visit) failed:", e?.message);
   }
 
   return data?.[0] || null;
 };
 
-export const fetchSiteVisitAt = async (orderId: string) => {
+export const fetchSiteVisitAt = async (orderId) => {
   const { data, error } = await supabase
     .from("orders")
     .select("site_visit_at")
@@ -50,4 +47,3 @@ export const fetchSiteVisitAt = async (orderId: string) => {
 
   return data;
 };
-

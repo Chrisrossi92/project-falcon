@@ -1,16 +1,16 @@
-// src/lib/api/users.ts
+// src/lib/api/users.js
 import supabase from '@/lib/supabaseClient';
 
-type AnyObj = Record<string, any>;
+// AnyObj type removed
 
-function isMissingRpc(e: any) {
+function isMissingRpc(e) {
   const code = String(e?.code || '').trim();
   const msg  = String(e?.message || '').toLowerCase();
   return code === '42883' || code === '404' || (msg.includes('function') && msg.includes('does not exist'));
 }
 
 /** Fetch profile + settings for one user (by id) */
-export async function fetchMyProfileAndSettings(userId: string): Promise<AnyObj> {
+export async function fetchMyProfileAndSettings(userId) {
   // Profiles are stored in the same "users" table in this codebase.
   const { data: u, error: uerr } = await supabase
     .from('users')
@@ -32,7 +32,7 @@ export async function fetchMyProfileAndSettings(userId: string): Promise<AnyObj>
 }
 
 /** Update basic profile fields (RPC-first) */
-export async function saveProfileBasic({ userId, name, email }: { userId: string; name?: string; email?: string; }) {
+export async function saveProfileBasic({ userId, name, email }) {
   // Try RPC if present
   const { error: rpcErr } = await supabase.rpc('rpc_update_profile', {
     p_user_id: userId,
@@ -57,37 +57,3 @@ export async function saveProfileBasic({ userId, name, email }: { userId: string
   }
   return true;
 }
-
-/** Update preferences/settings (RPC-first) */
-export async function saveSettings({ userId, phone, preferences }: { userId: string; phone?: string; preferences?: AnyObj; }) {
-  // Try RPC if present
-  const { error: rpcErr } = await supabase.rpc('rpc_update_profile', {
-    p_user_id: userId,
-    p_display_name: null,
-    p_color: null,
-    p_phone: phone ?? null,
-    p_avatar_url: null,
-    p_name: null,
-    p_email: null,
-    p_preferences: preferences ?? null,
-  });
-
-  if (rpcErr) {
-    if (isMissingRpc(rpcErr)) {
-      const patch: AnyObj = {};
-      if (typeof phone !== 'undefined') patch.phone = phone;
-      if (typeof preferences !== 'undefined') patch.preferences = preferences;
-
-      const { error } = await supabase
-        .from('users')
-        .update(patch)
-        .eq('id', userId);
-      if (error) throw error;
-    } else {
-      throw rpcErr;
-    }
-  }
-  return true;
-}
-
-

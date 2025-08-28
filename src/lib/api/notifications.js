@@ -1,8 +1,7 @@
-import  supabase  from "@/lib/supabaseClient";
+import supabase from "@/lib/supabaseClient";
 
 /**
  * Sends a notification to a user.
- * 
  * @param {Object} params
  * @param {string} params.user_id - The user to notify
  * @param {number} params.order_id - The associated order

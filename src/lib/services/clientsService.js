@@ -1,6 +1,6 @@
 // src/lib/services/clientsService.js
 import supabase from "@/lib/supabaseClient";
-import rpcFirst from "@/lib/utils/rpcFirst";
+import rpcFirst from "@/lib/utils/rpcFirst.js";
 
 /**
  * Lightweight client list for selects / dashboards.

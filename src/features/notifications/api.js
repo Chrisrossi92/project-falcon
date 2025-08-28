@@ -1,4 +1,4 @@
-// src/features/notifications/api.ts
+// src/features/notifications/api.js
 export {
   fetchNotifications,
   unreadCount,
@@ -14,8 +14,4 @@ export {
   clearSnooze,
   createNotification,
 } from "@/lib/services/notificationsService";
-
-export type {
-  Notification,
-  NotificationPrefs,
-} from "@/lib/services/notificationsService";
+// Type exports removed

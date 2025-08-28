@@ -1,6 +1,6 @@
 // src/lib/services/userService.js
 import supabase from "@/lib/supabaseClient";
-import rpcFirst from "@/lib/utils/rpcFirst";
+import rpcFirst from "@/lib/utils/rpcFirst.js";
 
 /**
  * List the visible team for the current user (RLS enforced).

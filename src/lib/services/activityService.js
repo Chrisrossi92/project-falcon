@@ -1,6 +1,6 @@
 // src/lib/services/activityService.js
 import supabase from "@/lib/supabaseClient";
-import rpcFirst from "@/lib/utils/rpcFirst";
+import rpcFirst from "@/lib/utils/rpcFirst.js";
 
 /**
  * Shape we expect for activity rows.

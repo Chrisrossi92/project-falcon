@@ -1,4 +1,4 @@
-// File: src/lib/utils/logEvent.ts
+// File: src/lib/utils/logevent.js
 export async function logEvent(supabase, { orderId, action, message, prevStatus, newStatus, context = {} }) {
 const { data, error } = await supabase.rpc('rpc_log_event', {
 p_order_id: orderId,

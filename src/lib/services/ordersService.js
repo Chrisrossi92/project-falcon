@@ -1,8 +1,9 @@
 // src/lib/services/ordersService.js
 import supabase from "@/lib/supabaseClient";
-import rpcFirst from "@/lib/utils/rpcFirst";
-import { ORDER_STATUSES, normalizeStatus } from "@/lib/constants/orderStatus";
-import { createNotification } from "@/lib/services/notificationsService"; // ✅ use fallback creator
+import { ORDER_STATUSES, normalizeStatus } from "@/lib/constants/orderStatus.js";
+import rpcFirst from "@/lib/utils/rpcFirst.js";
+import { createNotification } from "@/lib/services/notificationsService"; // TS file
+
 
 const nowIso = () => new Date().toISOString();
 
@@ -13,7 +14,6 @@ let RPC_NOTIFY_EVENT_AVAILABLE = true;
 /** best-effort event logger (never throws) */
 async function logEvent(orderId, eventType, message) {
   try {
-    // try RPC once; if 404/undefined, stop trying in future
     if (RPC_LOG_EVENT_AVAILABLE) {
       const { error } = await supabase.rpc("rpc_log_event", {
         order_id: orderId,
@@ -21,24 +21,33 @@ async function logEvent(orderId, eventType, message) {
         message,
       });
       if (!error) {
-        // fanout notifications (optional)
         if (RPC_NOTIFY_EVENT_AVAILABLE) {
           const { error: e2 } = await supabase.rpc(
             "rpc_create_notifications_for_order_event",
             { order_id: orderId, event_type: eventType, message }
           );
-          if (e2?.code === "404" || String(e2?.message || "").toLowerCase().includes("could not find the function")) {
+          if (
+            e2?.code === "404" ||
+            String(e2?.message || "")
+              .toLowerCase()
+              .includes("could not find the function")
+          ) {
             RPC_NOTIFY_EVENT_AVAILABLE = false;
           }
         }
         return;
       }
-      if (error?.code === "404" || String(error?.message || "").toLowerCase().includes("could not find the function")) {
+      if (
+        error?.code === "404" ||
+        String(error?.message || "")
+          .toLowerCase()
+          .includes("could not find the function")
+      ) {
         RPC_LOG_EVENT_AVAILABLE = false;
       }
     }
 
-    // ✅ fallback: write activity_log *and* a notification with order_id
+    // ✅ fallback: activity_log + notification
     await supabase.from("activity_log").insert({
       order_id: orderId,
       event_type: eventType,
@@ -48,15 +57,17 @@ async function logEvent(orderId, eventType, message) {
 
     try {
       await createNotification({
-        user_id: undefined,        // server will set auth uid for RPC; fallback will fill from client
+        user_id: undefined,
         category: "orders",
         title: eventType,
         body: message,
-        order_id: orderId,         // ✅ ensures NotificationBell can navigate
+        order_id: orderId,
         is_read: false,
         created_at: nowIso(),
       });
-    } catch { /* no-op */ }
+    } catch {
+      /* no-op */
+    }
   } catch {
     /* no-op */
   }
@@ -102,29 +113,127 @@ async function hydrateNames(rows) {
       null,
     appraiser_name:
       r.appraiser_name ??
-      (r.appraiser_id ? usersById[r.appraiser_id]?.display_name || usersById[r.appraiser_id]?.name : null) ??
+      (r.appraiser_id
+        ? usersById[r.appraiser_id]?.display_name || usersById[r.appraiser_id]?.name
+        : null) ??
       null,
   }));
+}
+
+/* ===========================
+   Realtime (centralized)
+   =========================== */
+
+/**
+ * Subscribe to order row changes. Optional filter to reduce noise.
+ * @param {{ forUserId?: string|null }} opts
+ * @param {(evt: {eventType: 'INSERT'|'UPDATE'|'DELETE'}) => void} onChange
+ * @returns {() => void} unsubscribe
+ */
+export function subscribeToOrders(opts = {}, onChange = () => {}) {
+  const { forUserId = null } = opts;
+  const filter =
+    forUserId && typeof forUserId === "string" ? `appraiser_id=eq.${forUserId}` : undefined;
+
+  const channel = supabase
+    .channel("orders-changes")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "orders", filter },
+      (payload) => {
+        try {
+          onChange({ eventType: payload.eventType });
+        } catch {
+          /* no-op */
+        }
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
 }
 
 /* ===========================
    Reads
    =========================== */
 
-export async function fetchOrders() {
-  const { data, error } = await rpcFirst(
-    async () => supabase.from("orders").select("*").order("created_at", { ascending: false })
-  );
-  if (error) throw error;
-  return hydrateNames(data);
+/**
+ * Fetch orders (RPC-first). Supports optional filters and pagination.
+ * @param {{
+ *  appraiserId?: string|null,
+ *  status?: string|null,
+ *  search?: string|null,
+ *  limit?: number,
+ *  offset?: number
+ * }} params
+ */
+export async function fetchOrders(params = {}) {
+  const { appraiserId = null, status = null, search = null, limit = 100, offset = 0 } = params;
+
+  // 1) Try RPC (preferred)
+  const rpcArgs = {
+    p_appraiser_id: appraiserId || null,
+    p_status: status || null,
+    p_q: search || null,
+    p_limit: limit,
+    p_offset: offset,
+  };
+
+  const viaRpc = await supabase.rpc("rpc_list_orders", rpcArgs);
+  if (!viaRpc.error && Array.isArray(viaRpc.data)) {
+    return hydrateNames(viaRpc.data);
+  }
+
+  // 2) Fallback to view (if present)
+  let q = supabase.from("v_orders_list").select("*").order("created_at", { ascending: false });
+  if (appraiserId) q = q.eq("appraiser_id", appraiserId);
+  if (status) q = q.eq("status", status);
+  if (search) {
+    // try a couple fields; tweak as needed
+    q = q.or(`address.ilike.%${search}%,order_number.ilike.%${search}%`);
+  }
+  q = q.range(offset, Math.max(offset, offset + limit - 1));
+
+  let viewTry = await q;
+  if (!viewTry.error && Array.isArray(viewTry.data)) {
+    return hydrateNames(viewTry.data);
+  }
+
+  // 3) Final fallback to raw table (RLS should scope)
+  let t = supabase.from("orders").select("*").order("created_at", { ascending: false });
+  if (appraiserId) t = t.eq("appraiser_id", appraiserId);
+  if (status) t = t.eq("status", status);
+  if (search) t = t.or(`address.ilike.%${search}%,order_number.ilike.%${search}%`);
+  t = t.range(offset, Math.max(offset, offset + limit - 1));
+
+  const rawTry = await t;
+  if (rawTry.error) throw rawTry.error;
+  return hydrateNames(rawTry.data);
 }
 
 export async function fetchOrderById(orderId) {
-  const { data, error } = await rpcFirst(async () =>
-    supabase.from("orders").select("*").eq("id", orderId).single()
-  );
-  if (error) throw error;
-  const [row] = await hydrateNames([data]);
+  // RPC → view → table
+  const viaRpc = await supabase.rpc("rpc_get_order", { order_id: orderId });
+  if (!viaRpc.error && viaRpc.data) {
+    const [row] = await hydrateNames([viaRpc.data]);
+    return row || null;
+  }
+
+  const fromView = await supabase
+    .from("v_orders_list")
+    .select("*")
+    .eq("id", orderId)
+    .single();
+  if (!fromView.error && fromView.data) {
+    const [row] = await hydrateNames([fromView.data]);
+    return row || null;
+  }
+
+  const fromTable = await supabase.from("orders").select("*").eq("id", orderId).single();
+  if (fromTable.error) throw fromTable.error;
+  const [row] = await hydrateNames([fromTable.data]);
   return row || null;
 }
 
@@ -137,10 +246,7 @@ export async function createOrder(patch) {
   const { data, error } = await rpcFirst(
     () => supabase.rpc("rpc_create_order", { payload: safe }),
     async () => {
-      const { data: rows, error: err } = await supabase
-        .from("orders")
-        .insert(safe)
-        .select("*");
+      const { data: rows, error: err } = await supabase.from("orders").insert(safe).select("*");
       return { data: Array.isArray(rows) ? rows[0] : rows, error: err };
     }
   );
@@ -391,6 +497,10 @@ export async function isOrderNumberAvailable(orderNumber, opts = {}) {
   }
   return (count || 0) === 0;
 }
+
+/** Back-compat alias for older imports */
+export const listOrders = fetchOrders;
+
 
 
 

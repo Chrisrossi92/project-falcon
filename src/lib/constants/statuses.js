@@ -1,3 +1,4 @@
+// src/lib/constants/statuses.js
 /** Canonical, snake_case status values used across the app */
 export const STATUSES = [
   "new",
@@ -9,12 +10,12 @@ export const STATUSES = [
   "sent_to_client",
   "revisions",
   "complete",
-] as const;
+];
 
-export type Status = (typeof STATUSES)[number];
+// Status type removed
 
 /** Human label for UI */
-export function humanizeStatus(s?: string | null) {
+export function humanizeStatus(s) {
   if (!s) return "—";
   return String(s).replaceAll("_", " ").replace(/\b\w/g, (m) => m.toUpperCase());
 }

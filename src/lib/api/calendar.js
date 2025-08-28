@@ -1,16 +1,7 @@
-// src/lib/api/calendar.ts
+// src/lib/api/calendar.js
 import supabase from "@/lib/supabaseClient";
 
-export async function createEvent(args: {
-  eventType: "site_visit" | "due_for_review" | "due_to_client";
-  title: string;
-  startAt: string; // ISO
-  endAt?: string | null;
-  orderId?: string | null;
-  appraiserId?: string | null;
-  location?: string | null;
-  notes?: string | null;
-}) {
+export async function createEvent(args) {
   const { error } = await supabase.rpc("rpc_create_calendar_event", {
     p_event_type: args.eventType,
     p_title: args.title,
@@ -24,11 +15,7 @@ export async function createEvent(args: {
   if (error) throw new Error(`rpc_create_calendar_event failed: ${error.message}`);
 }
 
-export async function listAdminEvents(params?: {
-  start?: string; // ISO day start (optional, you can filter client-side)
-  end?: string;   // ISO day end
-}) {
-  // Keep it simple; you can add date filters later with a view or where clauses.
+export async function listAdminEvents(params) {
   const { data, error } = await supabase
     .from("v_admin_calendar")
     .select("*")

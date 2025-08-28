@@ -1,85 +1,85 @@
 // src/components/admin/AdminCalendar.jsx
-import React, { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import FullCalendarWrapper from "@/components/ui/FullCalendarWrapper";
+import React from "react";
+import { Calendar, dateFnsLocalizer, Navigate } from "react-big-calendar";
+import TimeGrid from "react-big-calendar/lib/TimeGrid";
+import { format, parse, startOfWeek, getDay, addMinutes, startOfDay } from "date-fns";
+import enUS from "date-fns/locale/en-US";
 import { useAdminCalendar } from "@/lib/hooks/useAdminCalendar";
+import "react-big-calendar/lib/css/react-big-calendar.css";
 
-/** Add N days to a date */
-function addDays(d, n) {
-  const x = new Date(d);
-  x.setDate(x.getDate() + n);
-  return x;
+const localizer = dateFnsLocalizer({
+  format, parse, startOfWeek: () => startOfWeek(new Date(), { weekStartsOn: 0 }), getDay,
+  locales: { "en-US": enUS },
+});
+
+// 2-week custom view
+function range14(date, { localizer }) {
+  const start = localizer.startOf(date, "week");
+  return Array.from({ length: 14 }, (_, i) => localizer.add(start, i, "day"));
 }
-
-/**
- * AdminCalendar
- * Optional props:
- *  - appraiserId?: string|null  (filter events to a specific appraiser)
- */
-export default function AdminCalendar({ appraiserId = null }) {
-  const navigate = useNavigate();
-
-  // Visible range (defaults to next 30 days). FullCalendar can update it via onRangeChange.
-  const [range, setRange] = useState(() => {
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    const end = addDays(start, 30);
-    return { start, end };
-  });
-
-  const { events, loading, err, refresh } = useAdminCalendar({
-    start: range.start,
-    end: range.end,
-    appraiserId,
-  });
-
-  const fcEvents = useMemo(() => events, [events]);
-
-  function onRangeChange({ start, end }) {
-    // Keep the hook in sync with what FullCalendar is showing
-    setRange({ start, end });
+function title14(date, { localizer }) {
+  const start = localizer.startOf(date, "week");
+  const end = localizer.add(start, 13, "day");
+  return `${localizer.format(start, "MMM d")} – ${localizer.format(end, "MMM d, yyyy")}`;
+}
+function navigate14(date, action, { localizer }) {
+  switch (action) {
+    case Navigate.PREVIOUS: return localizer.add(date, -14, "day");
+    case Navigate.NEXT:     return localizer.add(date, 14, "day");
+    default:                return date;
   }
+}
+function TwoWeekView(props) {
+  const { date, localizer: lz } = props;
+  const range = range14(date, { localizer: lz });
+  return <TimeGrid {...props} range={range} eventOffset={15} />;
+}
+TwoWeekView.range = range14;
+TwoWeekView.navigate = navigate14;
+TwoWeekView.title = title14;
 
-  function onEventClick(ext) {
-    // Our wrapper forwards either `event.extendedProps` or `event`
-    const row = ext || {};
-    const oid =
-      row.order_id ||
-      row.orderId ||
-      (typeof row.id === "string" && row.id.includes(":")
-        ? row.id.split(":")[0]
-        : row.id);
-    if (oid) navigate(`/orders/${oid}`);
-  }
+export default function AdminCalendar() {
+  const { events } = useAdminCalendar({ daysBack: 7, daysForward: 7 });
+
+  const eventPropGetter = (event) => {
+    const t = event?.resource?.type;
+    let bg = "#10b981"; // site → green
+    if (t === "review") bg = "#0284c7"; // review → blue
+    if (t === "final")  bg = "#a855f7"; // final  → purple
+    return { style: { backgroundColor: bg, borderColor: bg, color: "white" } };
+  };
+
+  // Ensure date-only events show at reasonable hours
+  const onRangeChange = () => {}; // noop; rbc requires a handler sometimes
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-gray-700">
-          {loading ? "Loading…" : err ? (
-            <span className="text-red-600">Failed: {String(err)}</span>
-          ) : (
-            "Admin Calendar"
-          )}
-        </div>
-        <button
-          className="px-2 py-1 border rounded text-sm hover:bg-gray-50 disabled:opacity-50"
-          onClick={refresh}
-          disabled={loading}
-        >
-          Refresh
-        </button>
-      </div>
-
-      <FullCalendarWrapper
-        events={fcEvents}
-        initialView="timeGridWeek"
+    <div className="rounded-xl overflow-hidden">
+      <Calendar
+        localizer={localizer}
+        events={events.map((e) => {
+          const start = e.start?.getHours?.() === 0 && e.start?.getMinutes?.() === 0
+            ? addMinutes(startOfDay(e.start), e.resource?.type === "site" ? 540 : 1020)
+            : e.start;
+          const end = e.end || addMinutes(start, 30);
+          return { ...e, start, end };
+        })}
+        defaultView="twoWeek"
+        views={{ month: true, week: true, day: true, twoWeek: TwoWeekView }}
+        toolbar
+        popup
+        step={30}
+        timeslots={2}
+        style={{ height: 520 }}
+        min={new Date(1970, 0, 1, 7, 0)}
+        max={new Date(1970, 0, 1, 19, 0)}
+        eventPropGetter={eventPropGetter}
         onRangeChange={onRangeChange}
-        onEventClick={onEventClick}
       />
     </div>
   );
 }
+
+
 
 
 

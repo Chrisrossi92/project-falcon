@@ -1,5 +1,5 @@
 /** ISO -> human label (local tz) */
-export function formatDateLabel(iso?: string | null, opts?: Intl.DateTimeFormatOptions) {
+export function formatDateLabel(iso, opts) {
   if (!iso) return "—";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "—";
@@ -7,7 +7,7 @@ export function formatDateLabel(iso?: string | null, opts?: Intl.DateTimeFormatO
 }
 
 /** ISO -> value for <input type="datetime-local"> (local tz) */
-export function toLocalInputValue(iso?: string | null) {
+export function toLocalInputValue(iso) {
   if (!iso) return "";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
@@ -16,7 +16,7 @@ export function toLocalInputValue(iso?: string | null) {
 }
 
 /** value from <input type="datetime-local"> -> ISO (UTC) */
-export function fromLocalInputValue(local?: string | null) {
+export function fromLocalInputValue(local) {
   if (!local) return null;
   const d = new Date(local);
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
