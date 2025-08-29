@@ -1,89 +1,107 @@
-// src/pages/auth/Login.jsx
-import React, { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+// src/pages/Login.jsx
+import React, { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { Auth } from "@supabase/auth-ui-react";
+import { ThemeSupa } from "@supabase/auth-ui-shared";
 import supabase from "@/lib/supabaseClient";
-import { useSession } from "@/lib/hooks/useSession";
+import { useSessionContext } from "@supabase/auth-helpers-react";
 
-export default function LoginPage() {
-  const { user, loading } = useSession();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [err, setErr] = useState("");
-  const navigate = useNavigate();
-  const loc = useLocation();
-  const redirectTo = loc.state?.from?.pathname || "/dashboard";
+export default function Login() {
+  const { session } = useSessionContext();
+  const nav = useNavigate();
 
-  // If already logged in, bounce away from /login once session resolves
+  // If already signed in, go to dashboard
   useEffect(() => {
-    if (!loading && user) navigate(redirectTo, { replace: true });
-  }, [loading, user, redirectTo, navigate]);
-
-  const onSubmit = async (e) => {
-    e.preventDefault();
-    setErr("");
-    setSubmitting(true);
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      });
-      if (error) throw error;
-
-      const { data } = await supabase.auth.getSession();
-      if (!data?.session?.user) throw new Error("Login succeeded but no session found.");
-      navigate(redirectTo, { replace: true });
-    } catch (e2) {
-      setErr(e2?.message || "Login failed");
-    } finally {
-      setSubmitting(false);
-    }
-  };
+    if (session?.user) nav("/dashboard", { replace: true });
+  }, [session, nav]);
 
   return (
-    <div className="min-h-[60vh] flex items-center justify-center">
-      <form onSubmit={onSubmit} className="w-full max-w-sm bg-white border rounded-xl p-5 space-y-3">
-        <h1 className="text-lg font-semibold">Sign in</h1>
+    <div
+      className="min-h-screen w-full relative flex items-center justify-center"
+      style={{
+        backgroundImage: "url('/images/falcon-bg.png')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }}
+    >
+      {/* subtle white veil */}
+      <div className="absolute inset-0 bg-white/55" />
 
-        <label className="block text-sm">
-          Email
-          <input
-            type="email"
-            className="mt-1 w-full border rounded px-3 py-2"
-            autoComplete="username"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
+      {/* card */}
+      <div className="relative z-10 w-full max-w-md">
+        <div className="bg-white/90 backdrop-blur rounded-2xl shadow-lg border border-gray-200 p-6 sm:p-8">
+          {/* brand */}
+          <div className="flex items-center justify-center mb-5">
+            <img
+              src="/assets/logo.png"
+              alt="Continental Real Estate Solutions"
+              className="h-10 w-auto"
+              draggable="false"
+            />
+          </div>
+
+          <h1 className="text-center text-xl font-semibold text-gray-900">
+            Sign in to Falcon
+          </h1>
+          <p className="text-center text-sm text-gray-500 mb-6">
+            Use your work email to continue
+          </p>
+
+          {/* Supabase Auth UI */}
+          <Auth
+            supabaseClient={supabase}
+            view="sign_in"
+            providers={[]}
+            socialLayout="horizontal"
+            onlyThirdPartyProviders={false}
+            appearance={{
+              theme: ThemeSupa,
+              style: {
+                button: { borderRadius: "10px" },
+                input: { borderRadius: "10px" },
+                anchor: { color: "#111827" }, // gray-900
+              },
+              variables: {
+                default: {
+                  colors: {
+                    brand: "#111827", // pill/color accents
+                    brandAccent: "#111827",
+                    inputText: "#111827",
+                  },
+                  radii: {
+                    borderRadiusButton: "10px",
+                    inputBorderRadius: "10px",
+                  },
+                },
+              },
+            }}
+            localization={{
+              variables: {
+                sign_in: {
+                  email_label: "Email",
+                  password_label: "Password",
+                  button_label: "Sign in",
+                },
+              },
+            }}
+            className="space-y-4"
           />
-        </label>
 
-        <label className="block text-sm">
-          Password
-          <input
-            type="password"
-            className="mt-1 w-full border rounded px-3 py-2"
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </label>
+          {/* tiny footer */}
+          <div className="mt-6 text-center text-xs text-gray-500">
+            By continuing you agree to our acceptable use and privacy guidelines.
+          </div>
+        </div>
 
-        {err ? <div className="text-sm text-red-600">{err}</div> : null}
-
-        <button
-          type="submit"
-          disabled={submitting}
-          className={`w-full rounded px-3 py-2 text-white ${
-            submitting ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"
-          }`}
-        >
-          {submitting ? "Signing in…" : "Sign in"}
-        </button>
-      </form>
+        {/* footer link (optional) */}
+        <div className="mt-3 text-center text-xs text-gray-500">
+          © {new Date().getFullYear()} Continental Real Estate Solutions
+        </div>
+      </div>
     </div>
   );
 }
+
 
 
 

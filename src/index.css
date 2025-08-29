@@ -78,5 +78,23 @@ p {
   }
 }
 
+:root {
+  --brand-600: #2f62ff;
+  --brand-500: #5c80ff;
+  --brand-50:  #eef2ff;
+  --radius-card: 16px;
+  --radius-control: 8px;
+}
+
+/* Optional global polish */
+html, body, #root { height: 100%; }
+:root {
+  --brand-600: #111827; /* gray-900 as brand for now */
+  --radius-card: 16px;
+  --radius-ctrl: 10px;
+}
+
+
+
 
 

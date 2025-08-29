@@ -3,12 +3,14 @@ import React, { useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useOrder } from "@/lib/hooks/useOrders";
 import { useRole } from "@/lib/hooks/useRole";
+import DetailTemplate from "@/templates/DetailTemplate";
 import AssignPanel from "@/components/orders/AssignPanel";
+import OrderDatesPanel from "@/components/orders/OrderDatesPanel";
 import OrderActions from "@/components/orders/OrderActions";
 import OrderActivity from "@/components/orders/OrderActivity";
-import OrderDatesPanel from "@/components/orders/OrderDatesPanel";
-import QuickStatusPanel from "@/components/orders/QuickStatusPanel";
-
+import LoadingBlock from "@/components/ui/LoadingBlock";
+import ErrorCallout from "@/components/ui/ErrorCallout";
+import Card from "@/components/ui/Card";
 
 function Field({ label, value }) {
   return (
@@ -20,7 +22,6 @@ function Field({ label, value }) {
     </div>
   );
 }
-
 function fmtDate(d) {
   try {
     if (!d) return null;
@@ -36,11 +37,10 @@ export default function OrderDetail() {
   const { data: order, loading, error, reload } = useOrder(id);
   const { isAdmin, isReviewer } = useRole() || {};
 
-  // IMPORTANT: all hooks above any early return.
+  // all hooks above returns; compute displayPriority safely
   const displayPriority = useMemo(() => {
     if (!order) return "—";
-    const pri = order.priority;
-    if (pri) return pri;
+    if (order.priority) return order.priority;
     const due = order.final_due_date || order.due_date;
     if (!due) return "—";
     try {
@@ -54,48 +54,10 @@ export default function OrderDetail() {
     }
   }, [order]);
 
-  const refresh = () => window.location.reload();
-
-  if (loading) {
-    return (
-      <div className="min-h-[40vh] flex items-center justify-center">
-        <div className="flex items-center gap-3 text-gray-600">
-          <div className="h-5 w-5 rounded-full border-2 border-gray-300 border-t-gray-700 animate-spin" />
-          <span className="text-sm">Loading order…</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="max-w-3xl mx-auto">
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-          Failed to load order: {error.message || "Unknown error"}
-        </div>
-        <div className="mt-4">
-          <Link className="text-indigo-600 hover:underline" to="/orders">
-            Back to Orders
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  if (!order) {
-    return (
-      <div className="max-w-3xl mx-auto">
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          Order not found or you don’t have access.
-        </div>
-        <div className="mt-4">
-          <Link className="text-indigo-600 hover:underline" to="/orders">
-            Back to Orders
-          </Link>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <LoadingBlock label="Loading order…" />;
+  if (error) return <ErrorCallout>Failed to load order: {error.message}</ErrorCallout>;
+  if (!order)
+    return <ErrorCallout>Order not found or you don’t have access.</ErrorCallout>;
 
   const {
     order_number,
@@ -112,29 +74,22 @@ export default function OrderDetail() {
     last_activity_at,
   } = order;
 
-  return (
-    <div className="max-w-4xl mx-auto space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold">
-            {order_number || "Order"} {address ? `• ${address}` : ""}
-          </h1>
-          <p className="text-sm text-gray-500">
-            {client_name ? client_name : "—"}
-            {status ? ` • ${String(status).replaceAll("_", " ")}` : ""}
-          </p>
-        </div>
-        <Link
-          to="/orders"
-          className="text-sm px-3 py-1.5 border rounded hover:bg-gray-50"
-        >
-          Back to Orders
-        </Link>
-      </div>
+  const title = `${order_number || "Order"}${address ? ` • ${address}` : ""}`;
+  const subtitle = `${client_name || "—"}${
+    status ? ` • ${String(status).replaceAll("_", " ")}` : ""
+  }`;
 
-      {/* Details */}
-      <div className="bg-white border rounded-xl p-4">
+  return (
+    <DetailTemplate
+      title={title}
+      subtitle={subtitle}
+      back={
+        <Link to="/orders" className="text-sm px-3 py-1.5 border rounded hover:bg-gray-50">
+          Back
+        </Link>
+      }
+    >
+      <Card>
         <Field label="Address" value={address} />
         <Field label="Client" value={client_name} />
         <Field label="Status" value={status} />
@@ -147,20 +102,18 @@ export default function OrderDetail() {
         <Field label="Created" value={fmtDate(created_at)} />
         <Field label="Last Activity" value={fmtDate(last_activity_at)} />
         <Field label="Global Due" value={fmtDate(due_date)} />
-      </div>
+      </Card>
 
-      {/* Admin-only: Assign appraiser/reviewer */}
       {isAdmin && <AssignPanel order={order} onAfterChange={reload} />}
-      {(isAdmin || isReviewer) && <OrderDatesPanel order={order} onAfterChange={reload} />}
-      {isAdmin && <QuickStatusPanel order={order} onAfterChange={reload} />}
+      {(isAdmin || isReviewer) && (
+        <OrderDatesPanel order={order} onAfterChange={reload} />
+      )}
 
-      {/* Actions (reviewer/admin) */}
       <OrderActions order={order} onAfterAction={reload} />
-
-      {/* Activity */}
       <OrderActivity orderId={order.id} />
-    </div>
+    </DetailTemplate>
   );
 }
+
 
 
