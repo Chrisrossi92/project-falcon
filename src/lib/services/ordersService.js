@@ -1,505 +1,190 @@
 // src/lib/services/ordersService.js
 import supabase from "@/lib/supabaseClient";
-import { ORDER_STATUSES, normalizeStatus } from "@/lib/constants/orderStatus.js";
-import rpcFirst from "@/lib/utils/rpcFirst.js";
-import { createNotification } from "@/lib/services/notificationsService"; // TS file
 
-
-const nowIso = () => new Date().toISOString();
-
-/* ---------- quiet the RPC 404 spam (cache once) ---------- */
-let RPC_LOG_EVENT_AVAILABLE = true;
-let RPC_NOTIFY_EVENT_AVAILABLE = true;
-
-/** best-effort event logger (never throws) */
-async function logEvent(orderId, eventType, message) {
-  try {
-    if (RPC_LOG_EVENT_AVAILABLE) {
-      const { error } = await supabase.rpc("rpc_log_event", {
-        order_id: orderId,
-        event_type: eventType,
-        message,
-      });
-      if (!error) {
-        if (RPC_NOTIFY_EVENT_AVAILABLE) {
-          const { error: e2 } = await supabase.rpc(
-            "rpc_create_notifications_for_order_event",
-            { order_id: orderId, event_type: eventType, message }
-          );
-          if (
-            e2?.code === "404" ||
-            String(e2?.message || "")
-              .toLowerCase()
-              .includes("could not find the function")
-          ) {
-            RPC_NOTIFY_EVENT_AVAILABLE = false;
-          }
-        }
-        return;
-      }
-      if (
-        error?.code === "404" ||
-        String(error?.message || "")
-          .toLowerCase()
-          .includes("could not find the function")
-      ) {
-        RPC_LOG_EVENT_AVAILABLE = false;
-      }
-    }
-
-    // ✅ fallback: activity_log + notification
-    await supabase.from("activity_log").insert({
-      order_id: orderId,
-      event_type: eventType,
-      message,
-      created_at: nowIso(),
-    });
-
-    try {
-      await createNotification({
-        user_id: undefined,
-        category: "orders",
-        title: eventType,
-        body: message,
-        order_id: orderId,
-        is_read: false,
-        created_at: nowIso(),
-      });
-    } catch {
-      /* no-op */
-    }
-  } catch {
-    /* no-op */
-  }
+/* Helpers */
+function toISO(v) {
+  if (!v) return null;
+  if (v instanceof Date) return v.toISOString();
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? null : d.toISOString();
 }
 
-/* ---------- helpers to hydrate names without embeds ---------- */
-async function hydrateNames(rows) {
-  const list = Array.isArray(rows) ? rows : [];
-  if (list.length === 0) return list;
-
-  const clientIds = Array.from(
-    new Set(list.map((r) => r.client_id).filter((x) => x !== null && x !== undefined))
-  );
-  const appraiserIds = Array.from(
-    new Set(list.map((r) => r.appraiser_id).filter((x) => x))
-  );
-
-  const clientsById = {};
-  const usersById = {};
-
-  if (clientIds.length) {
-    const { data: cs } = await supabase
-      .from("clients")
-      .select("id, name")
-      .in("id", clientIds);
-    (cs || []).forEach((c) => (clientsById[c.id] = c));
-  }
-
-  if (appraiserIds.length) {
-    const { data: us } = await supabase
-      .from("users")
-      .select("id, display_name, name")
-      .in("id", appraiserIds);
-    (us || []).forEach((u) => (usersById[u.id] = u));
-  }
-
-  return list.map((r) => ({
-    ...r,
-    client_name:
-      r.client_name ??
-      (r.client_id != null ? clientsById[r.client_id]?.name : null) ??
-      r.manual_client ??
-      null,
-    appraiser_name:
-      r.appraiser_name ??
-      (r.appraiser_id
-        ? usersById[r.appraiser_id]?.display_name || usersById[r.appraiser_id]?.name
-        : null) ??
-      null,
-  }));
+/** Normalize a row so consumers can always use `row.id` */
+function normalizeOrder(row) {
+  if (!row) return row;
+  const id = row.id ?? row.order_id ?? row.orderid ?? null;
+  return id != null && !("id" in row) ? { ...row, id } : row;
 }
 
-/* ===========================
-   Realtime (centralized)
-   =========================== */
+/* READS (view; RLS governs) */
+export async function listOrders({ search, status, since, until, appraiserId } = {}) {
+  let q = supabase
+    .from("v_orders_list_with_last_activity")
+    .select("*")
+    .order("due_date", { ascending: true, nullsFirst: false });
 
-/**
- * Subscribe to order row changes. Optional filter to reduce noise.
- * @param {{ forUserId?: string|null }} opts
- * @param {(evt: {eventType: 'INSERT'|'UPDATE'|'DELETE'}) => void} onChange
- * @returns {() => void} unsubscribe
- */
-export function subscribeToOrders(opts = {}, onChange = () => {}) {
-  const { forUserId = null } = opts;
-  const filter =
-    forUserId && typeof forUserId === "string" ? `appraiser_id=eq.${forUserId}` : undefined;
-
-  const channel = supabase
-    .channel("orders-changes")
-    .on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "orders", filter },
-      (payload) => {
-        try {
-          onChange({ eventType: payload.eventType });
-        } catch {
-          /* no-op */
-        }
-      }
-    )
-    .subscribe();
-
-  return () => {
-    supabase.removeChannel(channel);
-  };
-}
-
-/* ===========================
-   Reads
-   =========================== */
-
-/**
- * Fetch orders (RPC-first). Supports optional filters and pagination.
- * @param {{
- *  appraiserId?: string|null,
- *  status?: string|null,
- *  search?: string|null,
- *  limit?: number,
- *  offset?: number
- * }} params
- */
-export async function fetchOrders(params = {}) {
-  const { appraiserId = null, status = null, search = null, limit = 100, offset = 0 } = params;
-
-  // 1) Try RPC (preferred)
-  const rpcArgs = {
-    p_appraiser_id: appraiserId || null,
-    p_status: status || null,
-    p_q: search || null,
-    p_limit: limit,
-    p_offset: offset,
-  };
-
-  const viaRpc = await supabase.rpc("rpc_list_orders", rpcArgs);
-  if (!viaRpc.error && Array.isArray(viaRpc.data)) {
-    return hydrateNames(viaRpc.data);
-  }
-
-  // 2) Fallback to view (if present)
-  let q = supabase.from("v_orders_list").select("*").order("created_at", { ascending: false });
-  if (appraiserId) q = q.eq("appraiser_id", appraiserId);
   if (status) q = q.eq("status", status);
-  if (search) {
-    // try a couple fields; tweak as needed
-    q = q.or(`address.ilike.%${search}%,order_number.ilike.%${search}%`);
-  }
-  q = q.range(offset, Math.max(offset, offset + limit - 1));
+  if (since) q = q.gte("due_date", toISO(since));
+  if (until) q = q.lte("due_date", toISO(until));
+  if (appraiserId) q = q.eq("appraiser_id", appraiserId);
 
-  let viewTry = await q;
-  if (!viewTry.error && Array.isArray(viewTry.data)) {
-    return hydrateNames(viewTry.data);
+  if (search && search.trim()) {
+    const s = `%${search.trim()}%`;
+    q = q.or(`address.ilike.${s},order_number.ilike.${s},client_name.ilike.${s}`);
   }
 
-  // 3) Final fallback to raw table (RLS should scope)
-  let t = supabase.from("orders").select("*").order("created_at", { ascending: false });
-  if (appraiserId) t = t.eq("appraiser_id", appraiserId);
-  if (status) t = t.eq("status", status);
-  if (search) t = t.or(`address.ilike.%${search}%,order_number.ilike.%${search}%`);
-  t = t.range(offset, Math.max(offset, offset + limit - 1));
-
-  const rawTry = await t;
-  if (rawTry.error) throw rawTry.error;
-  return hydrateNames(rawTry.data);
+  const { data, error } = await q;
+  if (error) throw error;
+  return (data || []).map(normalizeOrder);
 }
+export const fetchOrders = listOrders;
 
-export async function fetchOrderById(orderId) {
-  // RPC → view → table
-  const viaRpc = await supabase.rpc("rpc_get_order", { order_id: orderId });
-  if (!viaRpc.error && viaRpc.data) {
-    const [row] = await hydrateNames([viaRpc.data]);
-    return row || null;
+// Robust fetch that works with id | order_id | orderid
+export async function getOrderById(orderId) {
+  if (!orderId) return null;
+
+  const cols = ["id", "order_id", "orderid"]; // try all common keys
+  let lastErr = null;
+
+  for (const col of cols) {
+    // eslint-disable-next-line no-await-in-loop
+    const { data, error } = await supabase
+      .from("v_orders_list_with_last_activity")
+      .select("*")
+      .eq(col, orderId)
+      .maybeSingle();
+
+    if (data) {
+      // normalize so the rest of the UI can always use row.id
+      const id = data.id ?? data.order_id ?? data.orderid ?? null;
+      return id != null && !("id" in data) ? { ...data, id } : data;
+    }
+    if (error) lastErr = error; // keep the last error, but keep trying others
   }
 
-  const fromView = await supabase
-    .from("v_orders_list")
+  // If none worked, surface the most recent error (or null → not found)
+  if (lastErr) throw lastErr;
+  return null;
+
+
+  // Try by 'id' first
+  let res = await supabase
+    .from("v_orders_list_with_last_activity")
     .select("*")
     .eq("id", orderId)
-    .single();
-  if (!fromView.error && fromView.data) {
-    const [row] = await hydrateNames([fromView.data]);
-    return row || null;
+    .maybeSingle();
+
+  // If the view doesn't have 'id', fall back to 'order_id'
+  if (res.error && /column .* id .* does not exist/i.test(res.error.message)) {
+    res = await supabase
+      .from("v_orders_list_with_last_activity")
+      .select("*")
+      .eq("order_id", orderId)
+      .maybeSingle();
   }
 
-  const fromTable = await supabase.from("orders").select("*").eq("id", orderId).single();
-  if (fromTable.error) throw fromTable.error;
-  const [row] = await hydrateNames([fromTable.data]);
-  return row || null;
+  if (res.error) throw res.error;
+  return res.data ? normalizeOrder(res.data) : null;
 }
+export function fetchOrderById(orderId) { return getOrderById(orderId); }
 
-/* ===========================
-   Create / Update / Delete
-   =========================== */
-
-export async function createOrder(patch) {
-  const safe = { ...patch, created_at: nowIso(), updated_at: nowIso() };
-  const { data, error } = await rpcFirst(
-    () => supabase.rpc("rpc_create_order", { payload: safe }),
-    async () => {
-      const { data: rows, error: err } = await supabase.from("orders").insert(safe).select("*");
-      return { data: Array.isArray(rows) ? rows[0] : rows, error: err };
-    }
-  );
+/* WRITES (RPC-only) */
+export async function createOrder(payload) {
+  const { data, error } = await supabase.rpc("rpc_order_create", { p: payload });
   if (error) throw error;
-  await logEvent(data.id, "order_created", "Order created");
   return data;
 }
 
 export async function updateOrder(orderId, patch) {
-  const safe = { ...patch, updated_at: nowIso() };
-  const { data, error } = await rpcFirst(
-    () => supabase.rpc("rpc_update_order", { order_id: orderId, patch: safe }),
-    async () => {
-      const { data: row, error: err } = await supabase
-        .from("orders")
-        .update(safe)
-        .eq("id", orderId)
-        .select("*")
-        .single();
-      return { data: row, error: err };
-    }
-  );
+  const { data, error } = await supabase.rpc("rpc_order_update", {
+    p_order_id: String(orderId),
+    p_patch: patch,
+  });
   if (error) throw error;
-  await logEvent(orderId, "order_updated", "Order updated");
   return data;
 }
 
-export async function deleteOrder(orderId) {
-  const { error } = await rpcFirst(
-    () => supabase.rpc("rpc_delete_order", { order_id: orderId }),
-    async () => {
-      const { error: err } = await supabase.from("orders").delete().eq("id", orderId);
-      return { data: null, error: err };
-    }
-  );
+export async function updateOrderDates(orderId, { siteVisit, reviewDue, finalDue } = {}) {
+  const { data, error } = await supabase.rpc("rpc_order_update_dates", {
+    p_order_id: String(orderId),
+    p_site_visit_at: toISO(siteVisit),
+    p_review_due_at: toISO(reviewDue),
+    p_final_due_at: toISO(finalDue),
+    p_due_date: toISO(finalDue) || toISO(reviewDue) || toISO(siteVisit) || null,
+  });
   if (error) throw error;
-  await logEvent(orderId, "order_deleted", "Order deleted");
-}
-
-/* ===========================
-   Status + Dates
-   =========================== */
-
-export async function updateOrderStatus(orderId, nextStatus) {
-  const normalized = normalizeStatus(nextStatus);
-  if (!ORDER_STATUSES.includes(normalized)) {
-    throw new Error(`Invalid status: ${nextStatus}`);
-  }
-  const { data, error } = await rpcFirst(
-    () => supabase.rpc("rpc_update_order_status", { order_id: orderId, next_status: normalized }),
-    async () => {
-      const { data: row, error: err } = await supabase
-        .from("orders")
-        .update({ status: normalized, updated_at: nowIso() })
-        .eq("id", orderId)
-        .select("*")
-        .single();
-      return { data: row, error: err };
-    }
-  );
-  if (error) throw error;
-  await logEvent(orderId, "status_changed", `Status → ${normalized}`);
-  return data;
-}
-
-/** args: { siteVisit?: ISO, reviewDue?: ISO, finalDue?: ISO } */
-export async function updateOrderDates(orderId, args = {}) {
-  const patch = {};
-  if (args.siteVisit !== undefined) patch.site_visit_at = args.siteVisit;
-  if (args.reviewDue !== undefined) patch.review_due_at = args.reviewDue;
-  if (args.finalDue !== undefined) patch.final_due_at = args.finalDue;
-  if (Object.keys(patch).length === 0) return null;
-
-  const { data, error } = await rpcFirst(
-    () => supabase.rpc("rpc_update_order_dates", { order_id: orderId, ...patch }),
-    async () => {
-      const { data: row, error: err } = await supabase
-        .from("orders")
-        .update({ ...patch, updated_at: nowIso() })
-        .eq("id", orderId)
-        .select("*")
-        .single();
-      return { data: row, error: err };
-    }
-  );
-  if (error) throw error;
-
-  if ("siteVisit" in args) await logEvent(orderId, "date_changed", "Site visit updated");
-  if ("reviewDue" in args) await logEvent(orderId, "date_changed", "Review due updated");
-  if ("finalDue" in args) await logEvent(orderId, "date_changed", "Final due updated");
-  return data;
-}
-
-/* ===========================
-   Assignments
-   =========================== */
-
-export async function assignReviewer(orderId, reviewerId) {
-  const { data, error } = await rpcFirst(
-    () => supabase.rpc("rpc_assign_reviewer", { order_id: orderId, reviewer_id: reviewerId }),
-    async () => {
-      const { data: row, error: err } = await supabase
-        .from("orders")
-        .update({ current_reviewer_id: reviewerId, updated_at: nowIso() })
-        .eq("id", orderId)
-        .select("*")
-        .single();
-      return { data: row, error: err };
-    }
-  );
-  if (error) throw error;
-  await logEvent(orderId, "reviewer_assigned", `Reviewer → ${reviewerId}`);
   return data;
 }
 
 export async function assignAppraiser(orderId, appraiserId) {
-  const { data, error } = await rpcFirst(
-    () => supabase.rpc("rpc_assign_appraiser", { order_id: orderId, appraiser_id: appraiserId }),
-    async () => {
-      const { data: row, error: err } = await supabase
-        .from("orders")
-        .update({ appraiser_id: appraiserId, updated_at: nowIso() })
-        .eq("id", orderId)
-        .select("*")
-        .single();
-      return { data: row, error: err };
-    }
-  );
+  const { data, error } = await supabase.rpc("rpc_order_assign_appraiser", {
+    p_order_id: String(orderId),
+    p_appraiser_id: appraiserId ? String(appraiserId) : null,
+  });
   if (error) throw error;
-  await logEvent(orderId, "appraiser_assigned", `Appraiser → ${appraiserId}`);
-  return data;
+  return data ?? true;
 }
 
-/** Back-compat alias */
-export async function assignOrder(orderId, appraiserId) {
-  return assignAppraiser(orderId, appraiserId);
-}
-
-/* ===========================
-   Review route + reviewer flow
-   =========================== */
-
-export async function saveReviewRoute(orderId, route) {
-  const routeJson = route && typeof route === "object" ? route : { steps: [] };
-  const { data, error } = await rpcFirst(
-    () => supabase.rpc("rpc_set_review_route", { order_id: orderId, route: routeJson }),
-    async () => {
-      const { data: row, error: err } = await supabase
-        .from("orders")
-        .update({ review_route: routeJson, updated_at: nowIso() })
-        .eq("id", orderId)
-        .select("*")
-        .single();
-      return { data: row, error: err };
-    }
-  );
+export async function isOrderNumberAvailable(orderNumber, { ignoreOrderId } = {}) {
+  const { data, error } = await supabase.rpc("rpc_is_order_number_available", {
+    p_order_number: orderNumber || null,
+    p_ignore_order_id: ignoreOrderId ? String(ignoreOrderId) : null,
+  });
   if (error) throw error;
-  await logEvent(orderId, "review_route_saved", "Review route updated");
-  return data;
-}
-export async function setReviewRoute(orderId, route) {
-  return saveReviewRoute(orderId, route);
+  return !!data;
 }
 
-export async function assignNextReviewer(orderId) {
-  const { data, error } = await rpcFirst(
-    () => supabase.rpc("rpc_assign_next_reviewer", { order_id: orderId }),
-    async () => {
-      const { data: ord, error: getErr } = await supabase
-        .from("orders")
-        .select("id, current_reviewer_id, review_route")
-        .eq("id", orderId)
-        .single();
-      if (getErr) return { data: null, error: getErr };
-      const steps = Array.isArray(ord?.review_route?.steps) ? ord.review_route.steps : [];
-      const first = steps.find((s) => s?.reviewer_id);
-      if (!first?.reviewer_id) return { data: null, error: { message: "No reviewer in route" } };
-      const reviewerId = first.reviewer_id;
-      const { data: row, error: updErr } = await supabase
-        .from("orders")
-        .update({ current_reviewer_id: reviewerId, updated_at: nowIso() })
-        .eq("id", orderId)
-        .select("*")
-        .single();
-      return { data: row, error: updErr };
-    }
-  );
+export async function deleteOrder(orderId) {
+  const { data, error } = await supabase.rpc("rpc_order_delete", { p_order_id: String(orderId) });
   if (error) throw error;
-  await logEvent(orderId, "reviewer_assigned", "Assigned next reviewer from route");
-  return data;
+  return data ?? true;
 }
 
-export async function startReview(orderId, note) {
-  const row = await updateOrderStatus(orderId, "in_review");
-  await logEvent(orderId, "review_started", note || "Review started");
-  return row;
+/* REVIEW / WORKFLOW (RPC-only) */
+export async function approveReview(orderId, note = null) {
+  const { data, error } = await supabase.rpc("rpc_review_approve", { p_order_id: String(orderId), p_note: note });
+  if (error) throw error; return data ?? true;
 }
-export async function approveReview(orderId, note) {
-  const row = await updateOrderStatus(orderId, "ready_to_send");
-  await logEvent(orderId, "review_approved", note || "Review approved");
-  return row;
+export async function requestRevisions(orderId, note = null) {
+  const { data, error } = await supabase.rpc("rpc_review_request_revisions", { p_order_id: String(orderId), p_note: note });
+  if (error) throw error; return data ?? true;
 }
-export async function requestRevisions(orderId, note) {
-  const row = await updateOrderStatus(orderId, "revisions");
-  await logEvent(orderId, "revisions_requested", note || "Revisions requested");
-  return row;
+export async function startReview(orderId) {
+  const { data, error } = await supabase.rpc("rpc_review_start", { p_order_id: String(orderId) });
+  if (error) throw error; return data ?? true;
 }
-export async function requestChanges(orderId, note) {
-  return requestRevisions(orderId, note);
+export async function markReadyToSend(orderId) {
+  const { data, error } = await supabase.rpc("rpc_order_ready_to_send", { p_order_id: String(orderId) });
+  if (error) throw error; return data ?? true;
 }
-export async function rejectReview(orderId, note) {
-  return requestRevisions(orderId, note || "Review rejected → revisions");
+export async function markComplete(orderId, note = null) {
+  const { data, error } = await supabase.rpc("rpc_order_mark_complete", { p_order_id: String(orderId), p_note: note });
+  if (error) throw error; return data ?? true;
 }
-export async function sendToClient(orderId, note) {
-  const row = await updateOrderStatus(orderId, "sent_to_client");
-  await logEvent(orderId, "sent_to_client", note || "Report sent to client");
-  return row;
+export async function sendToClient(orderId, payload = {}) {
+  const { data, error } = await supabase.rpc("rpc_order_send_to_client", { p_order_id: String(orderId), p_payload: payload });
+  if (error) throw error; return data ?? true;
 }
-export async function markComplete(orderId, note) {
-  const row = await updateOrderStatus(orderId, "complete");
-  await logEvent(orderId, "order_completed", note || "Order completed");
-  return row;
+export async function setOrderStatus(orderId, status) {
+  const { data, error } = await supabase.rpc("rpc_order_set_status", { p_order_id: String(orderId), p_status: status });
+  if (error) throw error; return data ?? true;
 }
 
-/* ===========================
-   Misc
-   =========================== */
+export default {
+  listOrders, fetchOrders,
+  getOrderById, fetchOrderById,
+  createOrder, updateOrder, updateOrderDates,
+  assignAppraiser, isOrderNumberAvailable, deleteOrder,
+  startReview, approveReview, requestRevisions, markReadyToSend, markComplete, sendToClient, setOrderStatus,
+};
 
-/** Is an order number available? (true = free) */
-export async function isOrderNumberAvailable(orderNumber, opts = {}) {
-  const ignoreOrderId = opts.ignoreOrderId || null;
-  if (!orderNumber) return true;
 
-  const { count, error } = await supabase
-    .from("orders")
-    .select("*", { head: true, count: "exact" })
-    .eq("order_number", orderNumber);
-  if (error) throw error;
 
-  if (count > 0 && ignoreOrderId) {
-    const { data, error: err2 } = await supabase
-      .from("orders")
-      .select("id")
-      .eq("order_number", orderNumber);
-    if (err2) throw err2;
-    const others = (data || []).filter((r) => r.id !== ignoreOrderId);
-    return others.length === 0;
-  }
-  return (count || 0) === 0;
-}
 
-/** Back-compat alias for older imports */
-export const listOrders = fetchOrders;
+
+
+
+
 
 
 

@@ -1,6 +1,26 @@
-import { supa } from './supa.client';
+// src/lib/supabaseClient.js
+import { createClient } from "@supabase/supabase-js";
 
-export default supa;
-export const supabase = supa;
-export const client = supa;
-export { supa };
+const url  = import.meta.env.VITE_SUPABASE_URL;
+const anon = import.meta.env.VITE_SUPABASE_ANON_KEY; // BROWSER = ANON ONLY
+
+// HMR-safe singleton to prevent multiple GoTrue instances
+const client =
+  globalThis.__falcon_supabase__ ||
+  createClient(url, anon, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      storage: window.localStorage,
+    },
+  });
+
+if (!globalThis.__falcon_supabase__) {
+  globalThis.__falcon_supabase__ = client;
+}
+
+export default client;
+
+
+

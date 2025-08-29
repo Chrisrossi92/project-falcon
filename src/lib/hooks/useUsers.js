@@ -1,22 +1,15 @@
-// src/lib/hooks/useOrders.js
+// src/lib/hooks/useUsers.js
 import { useEffect, useMemo, useState } from "react";
-import { listOrders, getOrderById } from "@/lib/services/ordersService";
+import { listUsers, getUserByAuthId } from "@/lib/services/usersService";
 
-/** Orders collection (unchanged) */
-export function useOrders(opts = {}) {
+export function useUsers(opts = {}) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const deps = useMemo(
-    () => [
-      opts.search || "",
-      opts.status || "",
-      opts.since instanceof Date ? opts.since.toISOString() : opts.since || "",
-      opts.until instanceof Date ? opts.until.toISOString() : opts.until || "",
-      opts.appraiserId || "",
-    ],
-    [opts.search, opts.status, opts.since, opts.until, opts.appraiserId]
+    () => [opts.search || "", opts.role || ""],
+    [opts.search, opts.role]
   );
 
   useEffect(() => {
@@ -25,7 +18,7 @@ export function useOrders(opts = {}) {
       try {
         setLoading(true);
         setError(null);
-        const rows = await listOrders(opts);
+        const rows = await listUsers(opts);
         if (!cancelled) setData(rows);
       } catch (e) {
         if (!cancelled) { setData([]); setError(e); }
@@ -39,23 +32,19 @@ export function useOrders(opts = {}) {
   return { data, loading, error };
 }
 
-/** Single order with manual reload */
-export function useOrder(orderId) {
+export function useUserByAuthId(authId) {
   const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(!!orderId);
+  const [loading, setLoading] = useState(!!authId);
   const [error, setError] = useState(null);
-  const [version, setVersion] = useState(0);
-
-  const reload = () => setVersion((v) => v + 1);
 
   useEffect(() => {
-    if (!orderId) { setData(null); setLoading(false); setError(null); return; }
+    if (!authId) { setData(null); setLoading(false); setError(null); return; }
     let cancelled = false;
     (async () => {
       try {
         setLoading(true);
         setError(null);
-        const row = await getOrderById(orderId);
+        const row = await getUserByAuthId(authId);
         if (!cancelled) setData(row);
       } catch (e) {
         if (!cancelled) { setData(null); setError(e); }
@@ -64,18 +53,7 @@ export function useOrder(orderId) {
       }
     })();
     return () => { cancelled = true; };
-  }, [String(orderId || ""), version]);
+  }, [String(authId || "")]);
 
-  return { data, loading, error, reload };
+  return { data, loading, error };
 }
-
-
-
-
-
-
-
-
-
-
-

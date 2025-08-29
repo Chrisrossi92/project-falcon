@@ -1,8 +1,9 @@
 // src/layout/Layout.jsx
 import React from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { useSession } from "@/lib/hooks/useSession";
 import supabase from "@/lib/supabaseClient";
+import { useSession } from "@/lib/hooks/useSession";
+import { useRole } from "@/lib/hooks/useRole";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import NewOrderButton from "@/components/orders/NewOrderButton";
 
@@ -22,7 +23,8 @@ function NavItem({ to, children }) {
 }
 
 export default function Layout() {
-  const { user, isAdmin, isReviewer } = useSession();
+  const { user } = useSession();              // auth state only
+  const { isAdmin, isReviewer } = useRole() || {}; // role flags
   const navigate = useNavigate();
 
   async function logout() {
@@ -57,7 +59,7 @@ export default function Layout() {
 
           {/* Right: New Order (admin), notifications, user */}
           <div className="flex items-center gap-2">
-            <NewOrderButton />
+            {isAdmin && <NewOrderButton />}
             <NotificationBell />
             {user ? (
               <>
@@ -84,6 +86,7 @@ export default function Layout() {
     </div>
   );
 }
+
 
 
 
