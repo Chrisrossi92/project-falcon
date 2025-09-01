@@ -3,17 +3,22 @@ import React, { useMemo } from "react";
 import DashboardTemplate from "@/templates/DashboardTemplate";
 import LoadingBlock from "@/components/ui/LoadingBlock";
 import ErrorCallout from "@/components/ui/ErrorCallout";
-import AdminCalendar from "@/components/admin/AdminCalendar";
-import OrdersTable from "@/features/orders/OrdersTable";
-import { useOrders } from "@/lib/hooks/useOrders";
-import DashboardSplit from "@/components/dashboard/DashboardSplit";
-import UpcomingList from "@/components/dashboard/UpcomingList";
 import KpiLink from "@/components/dashboard/KpiLink";
-import SectionHeader from "@/components/ui/SectionHeader";
+
+// New cards we added
+import DashboardCalendarCard from "@/components/dashboard/DashboardCalendarCard";
+import DashboardOrdersCard from "@/components/dashboard/DashboardOrdersCard";
+
+// Reuse your hook for KPI counts
+import { useOrders } from "@/lib/hooks/useOrders";
+
+// Height reserved for top nav + KPI band (tweak if needed)
+const HEADER_OFFSET = 260;
 
 export default function AdminDashboard() {
   const { data = [], loading, error } = useOrders();
 
+  // KPIs: same logic you had, computed from the hook
   const kpis = useMemo(() => {
     const total = data.length;
     const inReview = data.filter(
@@ -40,6 +45,9 @@ export default function AdminDashboard() {
     ];
   }, [data]);
 
+  // Make both cards the same height and fill the rest of the viewport
+  const equalHeightStyle = { height: `calc(100vh - ${HEADER_OFFSET}px)` };
+
   return (
     <DashboardTemplate
       title="Admin Dashboard"
@@ -53,31 +61,22 @@ export default function AdminDashboard() {
       {loading ? (
         <LoadingBlock label="Loading dashboard…" />
       ) : (
-        <DashboardSplit
-          modes={{
-            calendar: { label: "calendar", render: () => <AdminCalendar /> },
-            upcoming: {
-              label: "upcoming",
-              render: () => <UpcomingList orders={data} />,
-            },
-          }}
-          initial="calendar"
-          leftTitles={{ calendar: "Calendar", upcoming: "Upcoming Events" }}
-          leftSubtitles={{
-            calendar: "Site visits, review due, final due",
-            upcoming: "Past 2 weeks → next 30 days",
-          }}
-          right={() => (
-            <>
-              <SectionHeader title="Orders" subtitle="Role-scoped by RLS" />
-              <OrdersTable bare />
-            </>
-          )}
-        />
+        <div className="grid grid-cols-12 gap-4">
+          {/* Left: Calendar */}
+          <div className="col-span-12 lg:col-span-6">
+            <DashboardCalendarCard style={equalHeightStyle} />
+          </div>
+
+          {/* Right: Orders (active only + pagination lives inside the card) */}
+          <div className="col-span-12 lg:col-span-6">
+            <DashboardOrdersCard style={equalHeightStyle} />
+          </div>
+        </div>
       )}
     </DashboardTemplate>
   );
 }
+
 
 
 

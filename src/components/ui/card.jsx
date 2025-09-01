@@ -1,9 +1,10 @@
 // src/components/ui/Card.jsx
 import React from "react";
 
-export default function Card({ title, subtitle, children, footer, className = "" }) {
+// Support BOTH: `import Card from ...` and `import { Card } from ...`
+export function Card({ title, subtitle, children, footer, className = "", style, ...rest }) {
   return (
-    <div className={`bg-white border rounded-xl p-4 ${className}`}>
+    <div className={`bg-white border rounded-xl p-4 ${className}`} style={style} {...rest}>
       {(title || subtitle) && (
         <div className="mb-3">
           {title && <div className="text-sm font-medium">{title}</div>}
@@ -15,6 +16,9 @@ export default function Card({ title, subtitle, children, footer, className = ""
     </div>
   );
 }
+
+export default Card;
+
 
 
 

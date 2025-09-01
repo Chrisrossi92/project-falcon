@@ -319,3 +319,325 @@ Add a density toggle (Compact/Comfortable) per user; persist in local storage.
 Unified Day list that reuses the UpcomingList component rather than FC’s list renderer for perfect visual parity.
 
 Status: Admin dashboard look locked (split, headers, compact calendar). Reviewer/Appraiser can adopt the same split and calendar spec once approved.
+
+Design Language (System)
+Layout & Density
+
+Grid: max-width 7xl shell, page content in cards (rounded-2xl, soft shadow, 1px border).
+
+Spacing scale: 4, 6, 8, 12, 16, 24, 32 (Tailwind units: 1, 1.5, 2, 3, 4, 6, 8).
+
+Elevation: 0 (bg), 1 (card), 2 (popover, dropdowns), 3 (modals). Shadows subtle.
+
+Type & Scale
+
+Family: System UI / Inter / equivalent.
+
+Headlines: xl/2xl for page titles.
+
+Body: sm for secondary, base for primary.
+
+Monospace micro only for IDs/CSV examples.
+
+Color System (Tokens)
+
+Brand: --brand-600, --brand-500, --brand-50 (to be matched to logo).
+
+Neutrals: gray-50/100/200/300/600/900.
+
+States: success (green-600), warning (amber-600), danger (red-600), info (brand-600).
+
+Status Badges:
+
+in_review → info (brand)
+
+revisions → warning
+
+ready_to_send → success
+
+complete → neutral
+
+Custom statuses → neutral outline.
+
+Components & Patterns
+
+Buttons: primary (brand solid), secondary (border), subtle (ghost).
+
+Inputs: md radius, 1px border; focus ring brand.
+
+Cards: 16px padding minimum; title + support text; content grid.
+
+Tables/Lists: sticky header, zebra off, hover row, compact sm.
+
+Drawers vs Modals: prefer inline panels or modals for destructive actions only.
+
+Icons: lucide-react; size 16/18 inside sm text.
+
+Motion
+
+150–200ms ease; subtle transforms only (scale 1.02 max).
+
+Page transitions: fade/slide very light.
+
+Feedback States
+
+Loading: inline spinners in card regions; never block full page unless auth.
+
+Empty: friendly icon, one-liner, primary action.
+
+Errors: red-50 box, terse message; include support action if applicable.
+
+Accessibility
+
+Color contrast ≥ 4.5:1 for text; focus outline visible; large click targets.
+
+Global Shell & Navigation (Aesthetic Brief)
+
+Top bar: left brand link → Dashboard; center nav (Dashboard / Orders / Calendar / Clients / Users / Settings); right: Notification bell, role/email, Logout.
+
+Active nav: pill highlight (bg gray-200, text gray-900).
+
+Responsiveness: collapse center nav → overflow menu under 640px.
+
+Page Briefs (Final Look)
+1) Admin Dashboard
+
+Hero row: Page title + subtle helper text.
+
+KPI triplet: Total Orders / In Review / Ready to Send (cards, numeric emphasis).
+
+Calendar card underneath.
+
+Orders table card: simple table with status badges and Priority chip (“overdue”/“normal”).
+
+2) Reviewer Dashboard
+
+KPI triplet: My Orders / In Review / Ready to Send.
+
+Buckets (3 columns): In Review, Revisions, Ready to Send → list items link to order.
+
+3) Orders List
+
+Toolbar: Search, Status filter, Due-date range, Export CSV (Admin/Reviewer).
+
+List cards or table rows: order # • title/address • client • status • due.
+
+4) Order Detail
+
+Header: Order # • Address, subtext client + status (badge).
+
+Info card: Address, Client, Status, Priority, Appraiser, Reviewer, Site/Review/Final dates, Created, Last Activity, Global Due.
+
+Admin-only panels: Assign panel, Quick Status (any status), Dates panel.
+
+Actions bar (Reviewer/Admin): Start, Approve, Request Revisions, Ready to Send, Complete (override confirm if needed), Add Note.
+
+Activity card: realtime feed, actor name/email, message.
+
+5) Calendar
+
+Month/Week/Day toggle; event titles: Label • Address (#order).
+
+Click → Order Detail.
+
+6) Clients
+
+Grid/list: name, contact, email, status pill.
+
+Forms: two-column responsive; Save/Cancel top-right.
+
+7) Manage Roles (Admin)
+
+Table with inline editors: Role (select), Fee Split (decimal), Status (select), Color (hex + swatch), Save buttons inline.
+
+8) Settings
+
+Notifications: DND switch + until fields; Snooze until; Save.
+
+Profile color: hex input + swatch; Save.
+
+9) Auth / Login
+
+Center card with logo; minimal; Supabase auth form; link to forgot password.
+
+Visual Tokens (CSS/Tailwind)
+
+Radius: rounded-2xl (16px) for cards and popovers; rounded (6–8px) for inputs/buttons.
+
+Shadow: shadow-sm cards; popovers shadow-md.
+
+Border: border (1px neutral-200); active focus ring-2 ring-brand-500/50.
+
+Badges: tiny pill, semibold, use semantic colors above.
+
+Iconography (lucide-react)
+
+Status (CheckCircle, Clock, Send, AlertTriangle), People (User, Users), Actions (Edit, Trash2, Download, Share), Nav (LayoutDashboard, Calendar, Files, Settings, Bell).
+
+Empty/Loading/Error Templates
+
+Empty: simple illustration (emoji ok), one-line copy, primary CTA.
+
+Loading: skeleton lines or spinner within card.
+
+Error: red callout with brief message + Retry button when possible.
+
+“Definition of Done” for Pages (MVP)
+
+RLS upheld; all writes via RPC; success + error toasts; loading/empty states present; keyboard/focus tested; mobile breakpoints tested.
+
+PR Plan (UI Polish)
+
+Shell polish: nav spacing, badges, brand token hookup.
+
+Dashboard visuals: KPI styles, table density, calendar spacing.
+
+Orders List: toolbar styling, badge palette, row hover, CSV icon button.
+
+Order Detail: panel spacing, section titles, badge styling, action button hierarchy.
+
+Clients/Users: table contrast, input sizing, swatches.
+
+Settings/Login: minimal shine.
+
+Commits (examples):
+
+feat(ui): apply brand tokens and card styles across pages
+
+feat(orders): polish list toolbar + status badges
+
+feat(order-detail): refine panels and actions hierarchy
+
+chore: unify spacing/radius/shadow tokens
+
+Open Questions / Decisions To Lock
+
+Brand primary hex/es (light/dark tokens).
+
+Final status vocabulary (custom states to consider?).
+
+Light-only vs add dark mode now.
+
+Next: Page-by-Page Aesthetic Specs
+
+Proposed order: Global Shell → Orders List → Order Detail → Admin Dashboard → Reviewer Dashboard → Calendar → Clients → Users → Settings → Login.
+
+Add your notes inline below each section; we’ll convert them to components and PRs.
+
+UI Polish — Implemented Today
+System-wide touches
+
+TopNav refresh: company logo doubles as the Dashboard button; rounded-pill nav links; greeting “Hi, {FirstName}” with a small role pill (Admin/Reviewer/Appraiser).
+
+Auth pages vs. app: login has its own glass-card hero; all authenticated pages now use the subtle hero background (/images/falcon-bg.png) with a soft white veil for readability.
+
+Shell & templates: every page now rides the shared Shell + Dashboard/List/Detail/Form templates for consistent spacing, titles, and card rhythm.
+
+Section headers: reusable <SectionHeader> above any table/list for clear delineation (title, optional subtitle, gradient divider, actions).
+
+Tables: OrdersTable supports a bare mode so it can live inside a card under a <SectionHeader> without double borders/padding.
+
+Upcoming list: compact list component for events with date/time, used anywhere as the tight, readable log view.
+
+Dashboard layout pattern (Admin & Reviewer)
+
+KPI row top (click → Orders with pre‑filtered query params).
+
+Split below: left pane = Calendar (default) with a toggle to Upcoming; right pane = Orders table.
+
+Minimal scrolling: everything important above the fold on large screens; density tuned for card width.
+
+Admin Calendar — Implemented Spec (MVP)
+
+Default view: 2‑week grid (twoWeek).
+
+Legend: compact inline legend with color dots for: Site Visit (pink), Due for Review (amber), Final/Global Due (blue).
+
+Event mapping:
+
+site_visit_date → 📍 Site • #order
+
+review_due_date → 🧠 Review • #order
+
+final_due_date or due_date → 📦 Final / 📦 Due • #order
+
+Month view (compact):
+
+Hides event rows entirely; renders count chips per‑day (pink/amber/blue) beneath the date.
+
+Day click → 2‑week view centered on that date.
+
+Two‑week view (default):
+
+Shows mini pills (.fc-mini-pill) with emoji + short label (📦 Final #2025…).
+
+Overflow handled by FullCalendar popover (+N more).
+
+Event click → Order Detail.
+
+Day view: FullCalendar List view (via @fullcalendar/list) for that day’s entries.
+
+Readability tweaks:
+
+Title format shortened (no year) → e.g., Aug 24 – Sep 6.
+
+Day labels replaced with numeric only (dayCellContent) to avoid “September 1” wrap.
+
+Toolbar buttons reduced size; day cells tightened (padding), consistent type scale.
+
+Interactions:
+
+Date click (month/two‑week) jumps to two‑week centered on chosen date.
+
+Event click navigates to /orders/:id.
+
+CSS hooks: inline style block documents the compact rules (title size, button radius/spacing, pill style, popover radius).
+(These can be promoted to global tokens after sign‑off.)
+
+Open polish ideas (optional, next)
+
+Move legend into the card header actions area for even tighter top alignment.
+
+Add a density toggle (Compact/Comfortable) per user; persist in local storage.
+
+Unified Day list that reuses the UpcomingList component rather than FC’s list renderer for perfect visual parity.
+
+Status: Admin dashboard look locked (split, headers, compact calendar). Reviewer/Appraiser can adopt the same split and calendar spec once approved.
+
+Admin Dashboard — Orders Table (Implemented Spec)
+
+Scope: Dashboard view shows active orders only (excludes complete and in_review).
+
+Row columns (left→right): Order #, Address, Status (group‑colored), Due for Review, Due to Client.
+
+Inline expand (drawer‑row): reveals Client, Appraiser, Reviewer, Site Visit, Created, Last Activity, plus a Go to details link.
+
+Status grouping (visual buckets):
+
+progress → In Progress (new/assigned/etc.) — blue pill.
+
+hold → On Hold — amber pill.
+
+review → In Review / Revisions — purple pill.
+
+ready → Ready to Send — green pill.
+
+complete → Complete — gray pill (generally hidden on dashboard).
+
+Overdue cues: dates turn semantic red when overdue (review/client due) for fast scanning.
+
+Componentization:
+
+StatusBadge.jsx (maps status → group pill).
+
+OrdersTableDashboard.jsx (active‑only table with expand row & tuned columns).
+
+Why: high‑signal, low‑friction at a glance; everything else available on expand or Details.
+
+Open decisions — Orders table
+
+Final vocabulary for status → group mapping (lock constants for app‑wide usage).
+
+Optional quick‑actions in expand row (admin: quick set status / assign; reviewer: claim/start, etc.).
+
+Optional density toggle (compact / comfortable) persisted per user.

@@ -13,8 +13,6 @@ import {
   normalizeStatus,
 } from "@/lib/constants/orderStatus";
 
-import { updateOrderStatus, updateOrderDates } from "@/lib/services/ordersService.js";
-
 function dtToLocalInput(iso) {
   return toLocalInputValue(iso);
 }
@@ -27,9 +25,22 @@ export default function OrdersTableRow({ order, onRefresh }) {
   const [savingDue, setSavingDue] = useState(false);
   const [savingStatus, setSavingStatus] = useState(false);
 
-  const statusNorm = normalizeStatus(order.status || "");
+  const statusNorm = normalizeStatus(order?.status || "");
   const reviewState = isReviewStatus(statusNorm);
-  const isMyReviewTask = uid && order.current_reviewer_id === uid;
+  const isMyReviewTask = uid && order?.current_reviewer_id === uid;
+
+  // Unified, defensive reads from v_orders_frontend (with fallbacks)
+  const orderNo = order?.order_no ?? order?.external_order_no ?? order?.order_number ?? order?.id?.slice(0, 8);
+  const clientName =
+    order?.client_name ?? order?.client?.name ?? order?.manual_client ?? "—";
+  const address =
+    order?.address ?? order?.property_address ?? "—";
+  const appraiserName =
+    order?.appraiser_name ?? order?.appraiser?.display_name ?? order?.appraiser?.name ?? "—";
+
+  // For the inputs we expose the best-available dates from the view
+  const siteVisitAt = order?.site_visit_at ?? order?.inspection_date ?? null;
+  const finalDueAt  = order?.final_due_at  ?? order?.due_date         ?? order?.due_to_client ?? null;
 
   async function onStatusChange(e) {
     const nextRaw = e.target.value;
@@ -95,7 +106,7 @@ export default function OrdersTableRow({ order, onRefresh }) {
       }
     >
       <td className="px-3 py-2">
-        {order.order_number ?? order.id.slice(0, 8)}
+        {orderNo}
         {isMyReviewTask && (
           <span className="ml-2 inline-flex items-center rounded-full bg-blue-600 text-white px-2 py-0.5 text-[10px]">
             REVIEW TASK
@@ -103,22 +114,15 @@ export default function OrdersTableRow({ order, onRefresh }) {
         )}
       </td>
 
-      <td className="px-3 py-2">
-        {order.client_name ?? order.client?.name ?? order.manual_client ?? "—"}
-      </td>
+      <td className="px-3 py-2">{clientName}</td>
 
       <td className="px-3 py-2">
-        {order.property_address || order.address || "—"}
-        {order.city ? `, ${order.city}` : ""} {order.state || ""}{" "}
-        {order.postal_code || ""}
+        {address}
+        {/* If your dataset has city/state/zip on the row, append here */}
+        {order?.city ? `, ${order.city}` : ""} {order?.state || ""} {order?.postal_code || ""}
       </td>
 
-      <td className="px-3 py-2">
-        {order.appraiser_name ||
-          order.appraiser?.display_name ||
-          order.appraiser?.name ||
-          "—"}
-      </td>
+      <td className="px-3 py-2">{appraiserName}</td>
 
       <td className="px-3 py-2">
         <select
@@ -139,7 +143,7 @@ export default function OrdersTableRow({ order, onRefresh }) {
         <input
           type="datetime-local"
           className="border rounded-md px-2 py-1 text-sm"
-          defaultValue={dtToLocalInput(order.site_visit_at)}
+          defaultValue={dtToLocalInput(siteVisitAt)}
           onBlur={(e) => onSetSiteVisit(e.target.value)}
           disabled={savingVisit}
         />
@@ -149,7 +153,7 @@ export default function OrdersTableRow({ order, onRefresh }) {
         <input
           type="datetime-local"
           className="border rounded-md px-2 py-1 text-sm"
-          defaultValue={dtToLocalInput(order.final_due_at)}
+          defaultValue={dtToLocalInput(finalDueAt)}
           onBlur={(e) => onSetFinalDue(e.target.value)}
           disabled={savingDue}
         />
@@ -163,6 +167,7 @@ export default function OrdersTableRow({ order, onRefresh }) {
     </tr>
   );
 }
+
 
 
 
