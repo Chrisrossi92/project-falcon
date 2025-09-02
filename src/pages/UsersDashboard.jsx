@@ -4,21 +4,13 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { listTeam } from "@/lib/services/userService";
 import { useRole } from "@/lib/hooks/useRole";
+import SectionHeader from "@/components/SectionHeader";
 
 /** Small avatar with fallback initial */
 function Avatar({ name, url, size = 36 }) {
-  const letter =
-    (name || "")
-      .trim()
-      .charAt(0)
-      .toUpperCase() || "U";
+  const letter = (name || "").trim().charAt(0).toUpperCase() || "U";
   return url ? (
-    <img
-      src={url}
-      alt={name || "User"}
-      className="rounded-full object-cover"
-      style={{ width: size, height: size }}
-    />
+    <img src={url} alt={name || "User"} className="rounded-full object-cover" style={{ width: size, height: size }} />
   ) : (
     <div
       className="rounded-full bg-gray-200 text-gray-700 flex items-center justify-center"
@@ -35,8 +27,7 @@ function Card({ u, isAdminOrManager }) {
   const subtitle = u.email || "—";
   const role = u.role || "—";
   const status = u.status || "—";
-  const split =
-    typeof u.fee_split === "number" ? `${u.fee_split}%` : u.fee_split ?? "—";
+  const split = typeof u.fee_split === "number" ? `${u.fee_split}%` : u.fee_split ?? "—";
 
   return (
     <div className="border rounded-xl p-3 bg-white shadow-sm flex items-center gap-3">
@@ -45,24 +36,23 @@ function Card({ u, isAdminOrManager }) {
         <div className="font-medium truncate">{display}</div>
         <div className="text-xs text-gray-600 truncate">{subtitle}</div>
         <div className="mt-1 text-[11px] text-gray-500">
-          <span className="mr-3">Role: <span className="font-medium text-gray-700">{role}</span></span>
-          <span className="mr-3">Status: <span className="font-medium text-gray-700">{status}</span></span>
-          <span>Split: <span className="font-medium text-gray-700">{split}</span></span>
+          <span className="mr-3">
+            Role: <span className="font-medium text-gray-700">{role}</span>
+          </span>
+          <span className="mr-3">
+            Status: <span className="font-medium text-gray-700">{status}</span>
+          </span>
+          <span>
+            Split: <span className="font-medium text-gray-700">{split}</span>
+          </span>
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <Link
-          to={`/users/view/${u.id}`}
-          className="text-blue-600 hover:underline text-sm"
-        >
+        <Link to={`/users/view/${u.id}`} className="text-blue-600 hover:underline text-sm">
           View
         </Link>
         {isAdminOrManager && (
-          <Link
-            to={`/users/${u.id}`}
-            className="text-blue-600 hover:underline text-sm"
-            title="Admin edit"
-          >
+          <Link to={`/users/${u.id}`} className="text-blue-600 hover:underline text-sm" title="Admin edit">
             Edit
           </Link>
         )}
@@ -113,35 +103,34 @@ export default function UsersDashboard() {
   }, [rows, q]);
 
   return (
-    <div className="p-4">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-lg font-semibold">Team Directory</h1>
-        <div className="flex items-center gap-3">
-          {isAdminOrManager && (
-            <Link to="/admin/users">
-              <Button variant="outline">Manage Roles</Button>
-            </Link>
-          )}
-          <label className="text-sm flex items-center gap-2">
+    <div className="p-4 space-y-4">
+      <SectionHeader
+        title="Team Directory"
+        subtitle={loading ? "Loading…" : err ? `Failed to load: ${err}` : "People at your firm"}
+        right={
+          <div className="flex items-center gap-3">
+            {isAdminOrManager && (
+              <Link to="/admin/users">
+                <Button variant="outline">Manage Roles</Button>
+              </Link>
+            )}
+            <label className="text-sm flex items-center gap-2">
+              <input type="checkbox" checked={includeInactive} onChange={(e) => setIncludeInactive(e.target.checked)} />
+              Include inactive
+            </label>
             <input
-              type="checkbox"
-              checked={includeInactive}
-              onChange={(e) => setIncludeInactive(e.target.checked)}
+              placeholder="Search name/email/role…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              className="border rounded-md px-2 py-1 text-sm"
+              style={{ width: 260 }}
             />
-            Include inactive
-          </label>
-          <input
-            placeholder="Search name/email/role…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            className="border rounded-md px-2 py-1 text-sm"
-            style={{ width: 260 }}
-          />
-          <Button variant="outline" onClick={load} disabled={loading}>
-            {loading ? "Loading…" : "Refresh"}
-          </Button>
-        </div>
-      </div>
+            <Button variant="outline" onClick={load} disabled={loading}>
+              {loading ? "Loading…" : "Refresh"}
+            </Button>
+          </div>
+        }
+      />
 
       {/* Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -158,6 +147,7 @@ export default function UsersDashboard() {
     </div>
   );
 }
+
 
 
 

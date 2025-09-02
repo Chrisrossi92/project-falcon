@@ -1,78 +1,58 @@
+// src/lib/services/calendarService.js
 import supabase from "@/lib/supabaseClient";
-import rpcFirst from "@/lib/utils/rpcFirst";
-import { fetchOrders as fetchOrdersFallback } from "@/lib/services/ordersService";
 
-// Normalize DB rows → react-big-calendar events
-function mapRowsToEvents(rows = []) {
-  return rows.map((r) => {
-    const titleBase = r.order_number || r.address || "Order";
-    const prefix =
-      r.event_type === "site_visit" ? "📍"
-      : r.event_type === "review_due" ? "🧐"
-      : "🚨";
-    return {
-      id: `${r.order_id}-${r.event_type}-${r.start_at}`,
-      title:
-        r.event_type === "site_visit"
-          ? `${prefix} ${r.address || titleBase}`
-          : `${prefix} ${r.event_type === "review_due" ? "Review due — " : "Due — "}${titleBase}`,
-      start: new Date(r.start_at),
-      end: new Date(r.end_at || r.start_at),
-      resource: { type: r.event_type, orderId: r.order_id, appraiserId: r.appraiser_id },
-    };
-  });
-}
+// Flip to true once you create rpc_list_admin_events in DB
+const USE_RPC = false;
 
-function computeFromOrders(orders = []) {
-  const out = [];
-  const add = (o, when, type, minutes = 60) => {
-    if (!when) return;
-    const d = new Date(when);
-    if (isNaN(+d)) return;
-    const base = o.order_number || o.address || "Order";
-    const prefix = type === "site" ? "📍" : type === "review" ? "🧐" : "🚨";
-    const title =
-      type === "site" ? `${prefix} ${o.address || base}` :
-      type === "review" ? `${prefix} Review due — ${base}` :
-      `${prefix} Due — ${base}`;
-    out.push({
-      id: `${o.id}-${type}`,
-      title,
-      start: d,
-      end: new Date(d.getTime() + minutes * 60000),
-      resource: { type, orderId: o.id, appraiserId: o.appraiser_id },
+/**
+ * listAdminEvents({ start: Date, end: Date, appraiserId?: string|null })
+ * v_admin_calendar columns used here (from your screenshot):
+ *   order_id (uuid), event_type (text), start_at (timestamptz), end_at (timestamptz),
+ *   appraiser_id (uuid|nil), address (text)
+ */
+export async function listAdminEvents({ start, end, appraiserId = null }) {
+  if (USE_RPC) {
+    const { data, error } = await supabase.rpc("rpc_list_admin_events", {
+      p_start: start?.toISOString?.() ?? null,
+      p_end: end?.toISOString?.() ?? null,
+      p_appraiser_id: appraiserId ?? null,
     });
-  };
-  for (const o of orders) {
-    add(o, o.site_visit_at || o.site_visit_date || o.site_visit, "site");
-    add(o, o.review_due_at || o.review_due_date || o.review_by, "review", 30);
-    add(o, o.final_due_at || o.final_due_date || o.due_at || o.due_date || o.due, "final", 30);
+    if (error) throw error;
+    return Array.isArray(data) ? data : [];
   }
-  return out;
+
+  let q = supabase
+    .from("v_admin_calendar")
+    .select(`
+      order_id,
+      event_type,
+      start_at,
+      end_at,
+      appraiser_id,
+      address
+    `);
+
+  if (start) q = q.gte("start_at", start.toISOString());
+  if (end)   q = q.lte("start_at", end.toISOString());
+  if (appraiserId) q = q.eq("appraiser_id", appraiserId);
+
+  const { data, error } = await q;
+  if (error) throw error;
+
+  // Normalize for UI
+  return (data ?? [])
+    .map((r) => ({
+      id: `${r.order_id}-${r.event_type}-${r.start_at}`, // fabricate id
+      type: r.event_type,                                 // 'site_visit'|'review_due'|'final_due'
+      date: new Date(r.start_at),
+      end:  r.end_at ? new Date(r.end_at) : null,
+      order_id: r.order_id,
+      appraiser_id: r.appraiser_id ?? null,
+      address: r.address ?? null,
+    }))
+    .filter((e) => !isNaN(e.date?.getTime?.()));
 }
 
-export async function listAdminEvents({ startAt, endAt, appraiserId } = {}) {
-  // RPC-first
-  const res = await rpcFirst(
-    () =>
-      supabase.rpc("rpc_list_admin_events", {
-        p_start_at: startAt ?? null,
-        p_end_at: endAt ?? null,
-        p_appraiser_id: appraiserId ?? null,
-      }),
-    async () => {
-      // fallback: compute from orders already loaded by RLS
-      const orders = await fetchOrdersFallback({ appraiserId: null });
-      return { data: computeFromOrders(orders), error: null };
-    }
-  );
 
-  if (res.error) throw res.error;
 
-  // If fallback returned mapped events already, pass through
-  if (Array.isArray(res.data) && res.data.length && res.data[0]?.start && res.data[0]?.end) {
-    return res.data;
-  }
-  return mapRowsToEvents(res.data || []);
-}
 

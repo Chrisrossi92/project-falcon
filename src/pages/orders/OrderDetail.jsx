@@ -8,9 +8,9 @@ import AssignPanel from "@/components/orders/AssignPanel";
 import OrderDatesPanel from "@/components/orders/OrderDatesPanel";
 import OrderActions from "@/components/orders/OrderActions";
 import OrderActivity from "@/components/orders/OrderActivity";
-import LoadingBlock from "@/components/ui/LoadingBlock";
-import ErrorCallout from "@/components/ui/ErrorCallout";
 import Card from "@/components/ui/Card.jsx";
+import StatusBadge from "@/features/orders/StatusBadge";
+import { labelForStatus } from "@/lib/constants/orderStatus";
 
 function Field({ label, value }) {
   return (
@@ -22,98 +22,78 @@ function Field({ label, value }) {
     </div>
   );
 }
-function fmtDate(d) {
-  try {
-    if (!d) return null;
-    const dt = typeof d === "string" ? new Date(d) : d;
-    return dt.toLocaleString();
-  } catch {
-    return String(d || "");
-  }
-}
+
+const fmtDate = (d) => (d ? new Date(d).toLocaleString() : null);
+const fmtDateOnly = (d) => (d ? new Date(d).toLocaleDateString() : null);
 
 export default function OrderDetail() {
   const { id } = useParams();
   const { data: order, loading, error, reload } = useOrder(id);
   const { isAdmin, isReviewer } = useRole() || {};
 
-  // all hooks above returns; compute displayPriority safely
-  const displayPriority = useMemo(() => {
-    if (!order) return "—";
-    if (order.priority) return order.priority;
-    const due = order.final_due_date || order.due_date;
-    if (!due) return "—";
-    try {
-      const d = new Date(due);
-      const now = new Date();
-      const isOverdue =
-        d < now && String(order.status || "").toLowerCase() !== "complete";
-      return isOverdue ? "overdue" : "normal";
-    } catch {
-      return "—";
+  const derived = useMemo(() => {
+    if (!order) return { title: "Order", subtitle: "", statusText: "", priority: "—" };
+
+    const orderNumber = order.order_no ?? order.order_number ?? "Order";
+    const address = order.address || "";
+    const statusText = labelForStatus(order.status);
+    const title = address ? `${orderNumber} • ${address}` : orderNumber;
+    const subtitle = [order.client_name, statusText].filter(Boolean).join(" • ");
+
+    // Simple “priority” based on due date vs now (Complete never shows overdue)
+    const due = order.due_date ? new Date(order.due_date) : null;
+    let priority = "—";
+    if (due && String(order.status || "").toLowerCase() !== "complete") {
+      priority = due < new Date() ? "overdue" : "normal";
     }
+
+    return { title, subtitle, statusText, priority };
   }, [order]);
 
-  if (loading) return <LoadingBlock label="Loading order…" />;
-  if (error) return <ErrorCallout>Failed to load order: {error.message}</ErrorCallout>;
-  if (!order)
-    return <ErrorCallout>Order not found or you don’t have access.</ErrorCallout>;
-
-  const {
-    order_number,
-    address,
-    client_name,
-    status,
-    due_date,
-    site_visit_date,
-    review_due_date,
-    final_due_date,
-    appraiser_name,
-    reviewer_name,
-    created_at,
-    last_activity_at,
-  } = order;
-
-  const title = `${order_number || "Order"}${address ? ` • ${address}` : ""}`;
-  const subtitle = `${client_name || "—"}${
-    status ? ` • ${String(status).replaceAll("_", " ")}` : ""
-  }`;
+  if (loading) return <div className="p-4 text-sm text-gray-600">Loading order…</div>;
+  if (error) return <div className="p-4 text-sm text-red-600">Failed to load order: {error.message}</div>;
+  if (!order) return <div className="p-4 text-sm text-amber-700">Order not found or you don’t have access.</div>;
 
   return (
     <DetailTemplate
-      title={title}
-      subtitle={subtitle}
+      title={derived.title}
+      subtitle={derived.subtitle}
+      headerRight={
+        order.status ? (
+          <div className="flex items-center gap-2">
+            <StatusBadge status={order.status} />
+          </div>
+        ) : null
+      }
       back={
         <Link to="/orders" className="text-sm px-3 py-1.5 border rounded hover:bg-gray-50">
           Back
         </Link>
       }
     >
+      {/* Core info */}
       <Card>
-        <Field label="Address" value={address} />
-        <Field label="Client" value={client_name} />
-        <Field label="Status" value={status} />
-        <Field label="Priority" value={displayPriority} />
-        <Field label="Appraiser" value={appraiser_name} />
-        <Field label="Reviewer" value={reviewer_name} />
-        <Field label="Site Visit" value={fmtDate(site_visit_date)} />
-        <Field label="Review Due" value={fmtDate(review_due_date)} />
-        <Field label="Final Due" value={fmtDate(final_due_date)} />
-        <Field label="Created" value={fmtDate(created_at)} />
-        <Field label="Last Activity" value={fmtDate(last_activity_at)} />
-        <Field label="Global Due" value={fmtDate(due_date)} />
+        <Field label="Order #" value={order.order_no ?? order.order_number ?? null} />
+        <Field label="Client" value={order.client_name} />
+        <Field label="Address" value={order.address} />
+        <Field label="Status" value={derived.statusText || order.status || null} />
+        <Field label="Priority" value={derived.priority} />
+        <Field label="Appraiser" value={order.appraiser_name} />
+        <Field label="Ordered" value={fmtDate(order.date_ordered)} />
+        <Field label="Due" value={fmtDateOnly(order.due_date)} />
       </Card>
 
+      {/* Admin/Reviewer panels */}
       {isAdmin && <AssignPanel order={order} onAfterChange={reload} />}
-      {(isAdmin || isReviewer) && (
-        <OrderDatesPanel order={order} onAfterChange={reload} />
-      )}
+      {(isAdmin || isReviewer) && <OrderDatesPanel order={order} onAfterChange={reload} />}
 
-      <OrderActions order={order} onAfterAction={reload} />
+      {/* Actions & Activity */}
+      {(isAdmin || isReviewer) && <OrderActions order={order} onAfterAction={reload} />}
       <OrderActivity orderId={order.id} />
     </DetailTemplate>
   );
 }
+
 
 
 

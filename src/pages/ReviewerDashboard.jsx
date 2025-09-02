@@ -9,14 +9,15 @@ import { useOrders } from "@/lib/hooks/useOrders";
 import DashboardSplit from "@/components/dashboard/DashboardSplit";
 import UpcomingList from "@/components/dashboard/UpcomingList";
 import KpiLink from "@/components/dashboard/KpiLink";
+import { isInReview, isReadyToSend } from "@/lib/constants/orderStatus";
 
 export default function ReviewerDashboard() {
   const { data = [], loading, error } = useOrders();
 
   const kpis = useMemo(() => {
-    const mine = data.length; // reviewers see all under current RLS; adjust later if you want "my"
-    const inReview = data.filter(o => String(o.status || "").toLowerCase() === "in_review").length;
-    const ready = data.filter(o => String(o.status || "").toLowerCase() === "ready_to_send").length;
+    const mine = data.length; // reviewers see all (RLS allows all for reviewer/admin)
+    const inReview = data.filter(o => isInReview(o.status)).length;
+    const ready = data.filter(o => isReadyToSend(o.status)).length;
     return [
       <KpiLink key="mine" label="My Orders" value={mine} filter={{}} />,
       <KpiLink key="inreview" label="In Review" value={inReview} filter={{ status: "in_review" }} />,

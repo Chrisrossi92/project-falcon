@@ -2,7 +2,8 @@
 import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useOrders } from "@/lib/hooks/useOrders";
-import StatusBadge, { statusGroup } from "./StatusBadge";
+import StatusBadge from "./StatusBadge";
+import { statusGroup } from "@/lib/constants/orderStatus";
 
 // helpers
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString() : "—");
@@ -15,9 +16,9 @@ const isOverdue = (d, status) => {
 
 /**
  * Dashboard Orders table:
- *  - Columns: Order #, Address, Status, Due for Review, Due to Client
- *  - Filters to "active" orders (excludes complete + in_review)
- *  - Expands inline to show more info (client, appraiser, reviewer, times, link)
+ *  - Columns: Order #, Address, Status, Due
+ *  - Filters to "active" orders (excludes complete)
+ *  - Expands inline to show more info (client, appraiser, times, link)
  *  - Accepts optional `rows` (else fetches)
  */
 export default function OrdersTableDashboard({ rows }) {
@@ -29,7 +30,7 @@ export default function OrdersTableDashboard({ rows }) {
     const src = needFetch ? data : rows;
     return (src || []).filter((o) => {
       const s = String(o.status || "").toLowerCase();
-      return s !== "complete" && s !== "in_review";
+      return s !== "complete";
     });
   }, [needFetch, data, rows]);
 
@@ -51,22 +52,19 @@ export default function OrdersTableDashboard({ rows }) {
             <th className="px-3 py-2">Order #</th>
             <th className="px-3 py-2">Address</th>
             <th className="px-3 py-2">Status</th>
-            <th className="px-3 py-2">Due for Review</th>
-            <th className="px-3 py-2">Due to Client</th>
+            <th className="px-3 py-2">Due</th>
           </tr>
         </thead>
         <tbody>
           {active.length === 0 ? (
             <tr>
-              <td colSpan={6} className="px-3 py-6 text-sm text-gray-500">
+              <td colSpan={5} className="px-3 py-6 text-sm text-gray-500">
                 No active orders.
               </td>
             </tr>
           ) : (
             active.map((o) => {
-              const reviewDue = o.review_due_date || null;
-              const clientDue = o.final_due_date || o.due_date || null;
-              const reviewOver = isOverdue(reviewDue, o.status);
+              const clientDue = o.due_date ?? null; // single due date is safest cross-view
               const clientOver = isOverdue(clientDue, o.status);
               const open = openId === o.id;
 
@@ -84,15 +82,12 @@ export default function OrdersTableDashboard({ rows }) {
                     </td>
                     <td className="px-3 py-2 text-sm">
                       <Link to={`/orders/${o.id}`} className="text-indigo-600 hover:underline">
-                        {o.order_number || "—"}
+                        {o.order_no ?? o.order_number ?? "—"}
                       </Link>
                     </td>
-                    <td className="px-3 py-2 text-sm">{o.address || "—"}</td>
+                    <td className="px-3 py-2 text-sm">{o.address ?? o.display_subtitle ?? "—"}</td>
                     <td className="px-3 py-2 text-sm">
-                      <StatusBadge status={o.status} />
-                    </td>
-                    <td className={`px-3 py-2 text-sm ${reviewOver ? "text-red-700 font-medium" : ""}`}>
-                      {fmtDate(reviewDue)}
+                      {o.status ? <StatusBadge status={o.status} /> : "—"}
                     </td>
                     <td className={`px-3 py-2 text-sm ${clientOver ? "text-red-700 font-medium" : ""}`}>
                       {fmtDate(clientDue)}
@@ -101,15 +96,12 @@ export default function OrdersTableDashboard({ rows }) {
 
                   {open && (
                     <tr className="bg-white/60">
-                      <td colSpan={6} className="px-3 pb-3">
+                      <td colSpan={5} className="px-3 pb-3">
                         <div className="mt-2 rounded-lg border p-3 text-sm">
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-1 gap-x-4">
                             <Info label="Client" value={o.client_name} />
                             <Info label="Appraiser" value={o.appraiser_name} />
-                            <Info label="Reviewer" value={o.reviewer_name} />
-                            <Info label="Site Visit" value={fmtDate(o.site_visit_date)} />
-                            <Info label="Created" value={fmtDate(o.created_at)} />
-                            <Info label="Last Activity" value={fmtDate(o.last_activity_at)} />
+                            <Info label="Ordered" value={fmtDate(o.date_ordered)} />
                           </div>
                           <div className="mt-2 flex items-center gap-2">
                             <Link
@@ -118,7 +110,6 @@ export default function OrdersTableDashboard({ rows }) {
                             >
                               Go to details
                             </Link>
-                            {/* placeholder for future quick actions */}
                           </div>
                         </div>
                       </td>
@@ -142,3 +133,4 @@ function Info({ label, value }) {
     </div>
   );
 }
+

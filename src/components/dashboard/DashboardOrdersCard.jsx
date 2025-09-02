@@ -88,7 +88,7 @@ export default function DashboardOrdersCard({ className = "", style }) {
                   <tr key={o.id} className="border-b">
                     <td className="py-2 pr-2">
                       <Link to={`/orders/${o.id}`} className="text-blue-600 hover:underline">
-                        {o.order_no ?? "—"}
+                        {o.order_no ?? o.order_number ?? "—"}
                       </Link>
                     </td>
                     <td className="py-2 pr-2">
