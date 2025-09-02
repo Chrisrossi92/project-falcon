@@ -1,6 +1,6 @@
 // src/components/orders/OrdersTable.jsx
 import React, { useEffect, useState } from "react";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/ui/Card.jsx";
 import { fetchOrdersForList } from "@/lib/api/orders";
 
 function fmtDate(d) {

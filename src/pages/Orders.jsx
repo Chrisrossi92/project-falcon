@@ -1,7 +1,7 @@
 // src/pages/Orders.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import supabase from "@/lib/supabaseClient";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/ui/Card.jsx";
 import { fetchOrdersWithFilters } from "@/lib/api/orders";
 import OrdersTablePagination from "@/components/orders/OrdersTablePagination";
 import OrderDrawerContent from "@/components/orders/OrderDrawerContent"; // reuse inside inline row

@@ -1,5 +1,5 @@
 import { Component } from 'react';
-import { Card } from '@/components/ui/Card'; // Adjust path
+import { Card } from '@/components/ui/Card.jsx'; // Adjust path
 
 class ErrorBoundary extends Component {
   constructor(props) {

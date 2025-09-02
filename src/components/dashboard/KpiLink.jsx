@@ -1,7 +1,7 @@
 // src/components/dashboard/KpiLink.jsx
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import Card from "@/components/ui/Card";
+import Card from "@/components/ui/Card.jsx";
 
 export default function KpiLink({ label, value, filter }) {
   const nav = useNavigate();

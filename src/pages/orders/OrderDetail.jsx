@@ -10,7 +10,7 @@ import OrderActions from "@/components/orders/OrderActions";
 import OrderActivity from "@/components/orders/OrderActivity";
 import LoadingBlock from "@/components/ui/LoadingBlock";
 import ErrorCallout from "@/components/ui/ErrorCallout";
-import Card from "@/components/ui/Card";
+import Card from "@/components/ui/Card.jsx";
 
 function Field({ label, value }) {
   return (

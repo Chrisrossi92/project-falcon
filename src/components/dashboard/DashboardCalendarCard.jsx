@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/ui/Card.jsx";
 import supabase from "@/lib/supabaseClient";
 import DashboardCalendar from "@/components/DashboardCalendar";    // list-style calendar
 // If you want the big FullCalendar grid later, you also have this: 

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import supabase from "@/lib/supabaseClient";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/ui/Card.jsx";
 import { Link } from "react-router-dom";
 
 const PAGE_SIZE = 10;
