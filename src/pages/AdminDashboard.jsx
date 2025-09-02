@@ -5,8 +5,9 @@ import LoadingBlock from "@/components/ui/LoadingBlock";
 import ErrorCallout from "@/components/ui/ErrorCallout";
 import KpiLink from "@/components/dashboard/KpiLink";
 import DashboardCalendarCard from "@/components/dashboard/DashboardCalendarCard";
-import DashboardOrdersCard from "@/components/dashboard/DashboardOrdersCard";
 import { useOrders } from "@/lib/hooks/useOrders";
+import UnifiedOrdersTable from "@/features/orders/UnifiedOrdersTable";
+
 
 const HEADER_OFFSET = 260;
 
@@ -43,7 +44,7 @@ export default function AdminDashboard() {
 
           {/* Right: Orders table card */}
           <div className="col-span-12 lg:col-span-6">
-            <DashboardOrdersCard style={equalHeightStyle} />
+            <UnifiedOrdersTable role="admin" />
           </div>
         </div>
       )}

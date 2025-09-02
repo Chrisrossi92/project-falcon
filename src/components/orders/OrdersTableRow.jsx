@@ -1,38 +1,33 @@
 // src/components/orders/OrdersTableRow.jsx
-import React from "react";
+const INTERACTIVE_TAGS = new Set(["A","BUTTON","SELECT","INPUT","TEXTAREA","LABEL","svg","path"]);
 
-export default function OrdersTableRow({ order, onOpenDrawer, renderCells }) {
+function isInteractiveTarget(path) {
+  for (const el of path) {
+    if (!el || !el.tagName) continue;
+    if (INTERACTIVE_TAGS.has(el.tagName.toUpperCase())) return true;
+    if (el.isContentEditable) return true;
+    if (el.closest && (el.closest("[data-no-drawer]") || el.closest("[data-interactive]"))) return true;
+  }
+  return false;
+}
+
+export default function OrdersTableRow({ order, onOpenDrawer, renderCells, className = "" }) {
   return (
-    <tr className="border-b hover:bg-slate-50">
-      {renderCells
-        ? renderCells(order)
-        : (
-          <>
-            <td className="py-2 pr-2">{order.order_no ?? "—"}</td>
-            <td className="py-2 pr-2">
-              <div className="font-medium">{order.client_name ?? "—"}</div>
-              <div className="text-muted-foreground">{order.display_subtitle ?? "—"}</div>
-            </td>
-            <td className="py-2 pr-2">{order.appraiser_name ?? "—"}</td>
-            <td className="py-2 pr-2">{order.status ?? "—"}</td>
-            <td className="py-2 pr-2 text-right">{order.due_date ?? "—"}</td>
-            <td className="py-2 pl-2 text-right">{order.fee_amount ?? "—"}</td>
-            <td className="py-2 pl-2 text-right">
-              <button className="text-blue-600 hover:underline" onClick={() => onOpenDrawer?.(order)}>
-                Open
-              </button>
-            </td>
-          </>
-        )
+    <tr
+      onClick={(e) => {
+        const path = e.composedPath ? e.composedPath() : [e.target];
+        if (isInteractiveTarget(path)) return;       // <-- ignore clicks on controls
+        onOpenDrawer?.();
+      }}
+      className={
+        "group border-b cursor-pointer select-none transition-all duration-150 ease-out " +
+        "hover:bg-muted/50 active:scale-[0.997] " + className
       }
+    >
+      {renderCells?.(order)}
     </tr>
   );
 }
-
-
-
-
-
 
 
 

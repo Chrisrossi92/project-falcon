@@ -1,24 +1,15 @@
-// src/components/orders/OrdersTableHeader.jsx
-import React from "react";
-
-export default function OrdersTableHeader({ hideAppraiserColumn }) {
+export default function OrdersTableHeader() {
   return (
-    <thead className="bg-gray-100 text-gray-800 uppercase text-xs">
+    <thead className="text-xs text-muted-foreground border-b">
       <tr>
-        <th className="px-4 py-2">Order #</th>
-        <th className="px-4 py-2">Client</th>
-        <th className="px-4 py-2">Address</th>
-        {!hideAppraiserColumn ? (
-          <th className="px-4 py-2">Appraiser</th>
-        ) : (
-          <th className="px-4 py-2">Fee Split</th>
-        )}
-        <th className="px-4 py-2">Status</th>
-        <th className="px-4 py-2">Site Visit</th>
-        <th className="px-4 py-2">Due Date</th>
-        <th className="px-2 py-2 text-center align-middle w-[120px]">Actions</th>
+        <th className="text-left py-2 px-3 w-[112px]">Order #</th>
+        <th className="text-left py-2 px-3">Client / Address</th>
+        <th className="text-left py-2 px-3 w-[220px]">Quick edit</th>
+        <th className="text-left py-2 px-3 w-[120px]">Due</th>
       </tr>
     </thead>
   );
 }
+
+
 
