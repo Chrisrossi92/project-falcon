@@ -1,48 +1,37 @@
 // src/lib/hooks/useAdminCalendar.js
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { listAdminEvents } from "@/lib/services/calendarService";
 
-/**
- * Admin calendar loader.
- * Default window = past 14 days → next 30 days (matches RPC defaults).
- */
-export function useAdminCalendar({ daysBack = 14, daysForward = 30, appraiserId = null } = {}) {
+export function useAdminCalendar({ start, end, appraiserId = null }) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
 
-  const range = useMemo(() => {
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    start.setDate(start.getDate() - daysBack);
-
-    const end = new Date();
-    end.setHours(23, 59, 59, 999);
-    end.setDate(end.getDate() + daysForward);
-
-    return { start, end };
-  }, [daysBack, daysForward]);
-
-  const load = useCallback(async () => {
+  async function refresh() {
     try {
       setLoading(true);
       setErr(null);
-      const rows = await listAdminEvents({
-        startAt: range.start.toISOString(),
-        endAt: range.end.toISOString(),
-        appraiserId,
-      });
-      setEvents(Array.isArray(rows) ? rows : []);
+      const rows = await listAdminEvents({ start, end, appraiserId });
+      // Ensure dates are Date objects and sorted
+      const out = rows
+        .map((e) => ({ ...e, date: e.date instanceof Date ? e.date : new Date(e.date) }))
+        .filter((e) => !isNaN(e.date?.getTime?.()))
+        .sort((a, b) => a.date - b.date);
+      setEvents(out);
     } catch (e) {
-      setErr(e);
+      setErr(e?.message || String(e));
       setEvents([]);
     } finally {
       setLoading(false);
     }
-  }, [range, appraiserId]);
+  }
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [start?.toISOString?.(), end?.toISOString?.(), appraiserId]);
 
-  return { events, loading, err, refresh: load, range };
+  return { events, loading, err, refresh };
 }
+
 

@@ -1,16 +1,36 @@
-// src/pages/clients/ClientProfile.jsx  (replace the file content with this block or just the "Orders" card)
+// src/pages/clients/ClientProfile.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import supabase from "@/lib/supabaseClient";
 import { Card } from "@/components/ui/Card.jsx";
+import SectionHeader from "@/components/SectionHeader";
 
 const PAGE_SIZE = 15;
-const fmtDate = d => (d ? new Date(d).toLocaleDateString() : "—");
-const fmtMoney = n => (n == null ? "—" : Number(n).toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 }));
+
+const fmtDate = (d) => (d ? new Date(d).toLocaleDateString() : "—");
+const fmtMoney = (n) =>
+  n == null ? "—" : Number(n).toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+
+function StatusPill({ value }) {
+  const v = String(value || "").toLowerCase();
+  const cls =
+    v === "active"
+      ? "bg-green-50 text-green-700 border-green-200"
+      : v === "inactive"
+      ? "bg-gray-50 text-gray-700 border-gray-200"
+      : "bg-slate-50 text-slate-700 border-slate-200";
+  return (
+    <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border ${cls}`}>
+      <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80" />
+      {value || "—"}
+    </span>
+  );
+}
 
 export default function ClientProfile() {
   const p = useParams();
-  const clientId = Number(p.clientId ?? p.id);   // <- works for /clients/:clientId or /clients/:id
+  // supports /clients/:clientId and /clients/:id routes
+  const clientId = Number(p.clientId ?? p.id);
 
   const [client, setClient] = useState(null);
   const [loadingClient, setLoadingClient] = useState(true);
@@ -27,8 +47,16 @@ export default function ClientProfile() {
   useEffect(() => {
     (async () => {
       setLoadingClient(true);
-      const { data } = await supabase.from("clients").select("id,name,contact_name,contact_email,phone,is_archived,notes").eq("id", clientId).single();
-      setClient(data || null);
+      const { data, error } = await supabase
+        .from("clients")
+        .select("id,name,contact_name,contact_email,phone,is_archived,notes,status")
+        .eq("id", clientId)
+        .single();
+      if (error) {
+        setClient(null);
+      } else {
+        setClient(data || null);
+      }
       setLoadingClient(false);
     })();
   }, [clientId]);
@@ -43,13 +71,14 @@ export default function ClientProfile() {
       const { count: total } = await qc;
       setCount(total || 0);
 
-      // PAGE ROWS
+      // PAGE ROWS — select only columns that exist broadly across your schema
       let q = supabase
         .from("orders")
-        .select("id,external_order_no,address,property_type,status,fee_amount,date_ordered,due_for_review,due_to_client")
+        .select("id,order_no,address,property_type,status,fee_amount,date_ordered,due_date")
         .eq("client_id", clientId)
         .order("date_ordered", { ascending: false })
         .range(from, to);
+
       if (search) q = q.ilike("address", `%${search}%`);
 
       const { data, error } = await q;
@@ -65,28 +94,45 @@ export default function ClientProfile() {
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil((count || 0) / PAGE_SIZE)), [count]);
 
-  if (!clientId || !client) return <div className="p-6">Client not found.</div>;
+  if (!clientId) {
+    return <div className="p-6 text-sm text-amber-700">Client not found.</div>;
+  }
 
   return (
     <div className="p-4 space-y-4">
-      <Card className="p-4">
-        <h2 className="text-lg font-semibold">{client.name}</h2>
-        <div className="text-sm text-muted-foreground">{client.is_archived ? "archived" : "active"}</div>
+      <SectionHeader
+        title={client?.name || "Client"}
+        subtitle={client ? (client.status ? `Status: ${client.status}` : "") : ""}
+        right={<StatusPill value={client?.is_archived ? "inactive" : "active"} />}
+      />
 
-        <div className="mt-4 space-y-2 text-sm">
-          <div className="flex items-center justify-between border-t pt-2"><span className="text-muted-foreground">CONTACT NAME</span><span>{client.contact_name || "—"}</span></div>
-          <div className="flex items-center justify-between border-t pt-2"><span className="text-muted-foreground">CONTACT EMAIL</span><span>{client.contact_email || "—"}</span></div>
-          <div className="flex items-center justify-between border-t pt-2"><span className="text-muted-foreground">PHONE</span><span>{client.phone || "—"}</span></div>
-          <div className="flex items-center justify-between border-t pt-2"><span className="text-muted-foreground">STATUS</span><span>{client.is_archived ? "archived" : "active"}</span></div>
-          <div className="flex items-center justify-between border-t pt-2"><span className="text-muted-foreground">NOTES</span><span>{client.notes || "—"}</span></div>
+      {/* Client info card */}
+      <Card className="p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+          <Info label="Contact Name" value={client?.contact_name} />
+          <Info label="Contact Email" value={client?.contact_email} />
+          <Info label="Phone" value={client?.phone} />
+          <Info label="Status" value={client?.status} />
+          <div className="sm:col-span-2">
+            <Info label="Notes" value={client?.notes} />
+          </div>
         </div>
       </Card>
 
+      {/* Orders card */}
       <Card className="p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-semibold">Orders</h3>
           <div className="flex items-center gap-2">
-            <input value={search} onChange={(e)=>{setPage(0);setSearch(e.target.value);}} placeholder="Search address…" className="border rounded px-2 py-1 text-sm" />
+            <input
+              value={search}
+              onChange={(e) => {
+                setPage(0);
+                setSearch(e.target.value);
+              }}
+              placeholder="Search address…"
+              className="border rounded px-2 py-1 text-sm"
+            />
             <div className="text-sm text-muted-foreground">{count} total</div>
           </div>
         </div>
@@ -106,40 +152,91 @@ export default function ClientProfile() {
             <tbody>
               {loadingOrders ? (
                 [...Array(PAGE_SIZE)].map((_, i) => (
-                  <tr key={i} className="border-b"><td className="py-2"><div className="h-3 bg-muted rounded w-16" /></td><td className="py-2"><div className="h-3 bg-muted rounded w-64 mb-1" /><div className="h-3 bg-muted rounded w-40" /></td><td className="py-2"><div className="h-3 bg-muted rounded w-24" /></td><td className="py-2 text-right"><div className="h-3 bg-muted rounded w-12 ml-auto" /></td><td className="py-2 text-right"><div className="h-3 bg-muted rounded w-16 ml-auto" /></td><td></td></tr>
+                  <tr key={i} className="border-b">
+                    <td className="py-2">
+                      <div className="h-3 bg-muted rounded w-16" />
+                    </td>
+                    <td className="py-2">
+                      <div className="h-3 bg-muted rounded w-64 mb-1" />
+                      <div className="h-3 bg-muted rounded w-40" />
+                    </td>
+                    <td className="py-2">
+                      <div className="h-3 bg-muted rounded w-24" />
+                    </td>
+                    <td className="py-2 text-right">
+                      <div className="h-3 bg-muted rounded w-12 ml-auto" />
+                    </td>
+                    <td className="py-2 text-right">
+                      <div className="h-3 bg-muted rounded w-16 ml-auto" />
+                    </td>
+                    <td></td>
+                  </tr>
                 ))
               ) : rows.length ? (
                 rows.map((o) => (
                   <tr key={o.id} className="border-b">
-                    <td className="py-2 pr-2">{o.external_order_no || "—"}</td>
+                    <td className="py-2 pr-2">{o.order_no ?? o.order_number ?? "—"}</td>
                     <td className="py-2 pr-2">
-                      <div className="font-medium">{o.address || "—"}</div>
-                      <div className="text-muted-foreground">{o.property_type || "—"}</div>
+                      <div className="font-medium">{o.address ?? "—"}</div>
+                      <div className="text-muted-foreground">{o.property_type ?? "—"}</div>
                     </td>
-                    <td className="py-2 pr-2">{o.status || "—"}</td>
-                    <td className="py-2 pr-2 text-right">{fmtDate(o.due_to_client || o.due_for_review)}</td>
+                    <td className="py-2 pr-2">{o.status ?? "—"}</td>
+                    <td className="py-2 pr-2 text-right">{fmtDate(o.due_date)}</td>
                     <td className="py-2 pl-2 text-right">{fmtMoney(o.fee_amount)}</td>
                     <td className="py-2 pl-2 text-right">
-                      <Link to={`/orders/${o.id}`} className="text-blue-600 hover:underline">Open</Link>
+                      <Link className="text-blue-600 hover:underline text-sm" to={`/orders/${o.id}`}>
+                        Open
+                      </Link>
                     </td>
                   </tr>
                 ))
               ) : (
-                <tr><td colSpan={6} className="py-8 text-center text-muted-foreground">No orders yet.</td></tr>
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-muted-foreground">
+                    No orders found for this client.
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
         </div>
 
-        <div className="pt-3 flex items-center justify-between">
-          <button className="px-2 py-1 rounded border text-sm disabled:opacity-40" onClick={() => setPage(p => Math.max(0, p-1))} disabled={page === 0 || loadingOrders}>‹ Prev</button>
-          <div className="text-xs text-muted-foreground">Page <span className="font-medium">{page+1}</span> / {totalPages}</div>
-          <button className="px-2 py-1 rounded border text-sm disabled:opacity-40" onClick={() => setPage(p => Math.min(totalPages-1, p+1))} disabled={page+1 >= totalPages || loadingOrders}>Next ›</button>
-        </div>
+        {/* Simple pagination */}
+        {count > PAGE_SIZE && (
+          <div className="mt-3 flex items-center justify-between">
+            <button
+              className="px-2 py-1 rounded border text-sm disabled:opacity-40"
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={page === 0}
+            >
+              ‹ Prev
+            </button>
+            <div className="text-xs text-muted-foreground">
+              Page <span className="font-medium">{page + 1}</span> / {totalPages}
+            </div>
+            <button
+              className="px-2 py-1 rounded border text-sm disabled:opacity-40"
+              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+              disabled={page + 1 >= totalPages}
+            >
+              Next ›
+            </button>
+          </div>
+        )}
       </Card>
     </div>
   );
 }
+
+function Info({ label, value }) {
+  return (
+    <div className="flex items-baseline gap-2">
+      <div className="text-xs text-gray-500 w-36">{label}</div>
+      <div className="text-sm text-gray-900 break-words">{value ?? "—"}</div>
+    </div>
+  );
+}
+
 
 
 

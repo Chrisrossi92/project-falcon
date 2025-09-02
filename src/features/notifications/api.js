@@ -160,4 +160,6 @@ export default {
   isSnoozed,
 };
 
+export { markRead } from "@/lib/services/notificationsService";
+
 

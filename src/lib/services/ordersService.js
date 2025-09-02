@@ -1,182 +1,241 @@
 // src/lib/services/ordersService.js
 import supabase from "@/lib/supabaseClient";
 
-/* Helpers */
-function toISO(v) {
-  if (!v) return null;
-  if (v instanceof Date) return v.toISOString();
-  const d = new Date(v);
-  return isNaN(d.getTime()) ? null : d.toISOString();
+/* ------------------------------------------------------------------ *
+ * Utilities
+ * ------------------------------------------------------------------ */
+function isRpcMissing(error) {
+  const msg = (error?.message || "").toLowerCase();
+  return msg.includes("404") || msg.includes("not found") || msg.includes("does not exist");
 }
 
-/** Normalize a row so consumers can always use `row.id` */
-function normalizeOrder(row) {
-  if (!row) return row;
-  const id = row.id ?? row.order_id ?? row.orderid ?? null;
-  return id != null && !("id" in row) ? { ...row, id } : row;
-}
+/* ------------------------------------------------------------------ *
+ * Reads (views only)
+ * ------------------------------------------------------------------ */
 
-/* READS (view; RLS governs) */
-export async function listOrders({ search, status, since, until, appraiserId } = {}) {
+/**
+ * List orders (filters/pagination). Uses v_orders_frontend.
+ * NOTE: Selects only columns that exist in your current view.
+ */
+export async function listOrders({
+  search = "",
+  statusIn = [],
+  clientId = null,
+  appraiserId = null,
+  from = "",
+  to = "",
+  activeOnly = true,
+  page = 0,
+  pageSize = 50,
+  orderBy = "date_ordered",
+  ascending = false,
+} = {}) {
+  const fromIdx = page * pageSize;
+  const toIdx = fromIdx + pageSize - 1;
+
   let q = supabase
-    .from("v_orders_list_with_last_activity")
-    .select("*")
-    .order("due_date", { ascending: true, nullsFirst: false });
+    .from("v_orders_frontend")
+    .select(
+      `
+        id,
+        order_no,
+        display_title,
+        display_subtitle,
+        address,
+        client_name,
+        appraiser_name,
+        status,
+        fee_amount,
+        date_ordered,
+        due_date
+      `,
+      { count: "exact" }
+    );
 
-  if (status) q = q.eq("status", status);
-  if (since) q = q.gte("due_date", toISO(since));
-  if (until) q = q.lte("due_date", toISO(until));
+  if (activeOnly) q = q.neq("status", "Completed");
+
+  if (search) {
+    const like = `%${search}%`;
+    q = q.or(
+      [
+        `order_no.ilike.${like}`,
+        `display_title.ilike.${like}`,
+        `display_subtitle.ilike.${like}`,
+        `address.ilike.${like}`,
+        `client_name.ilike.${like}`,
+      ].join(",")
+    );
+  }
+
+  if (statusIn?.length) q = q.in("status", statusIn);
+  if (clientId) q = q.eq("client_id", clientId);
   if (appraiserId) q = q.eq("appraiser_id", appraiserId);
+  if (from) q = q.gte("date_ordered", from);
+  if (to) q = q.lte("date_ordered", to);
 
-  if (search && search.trim()) {
-    const s = `%${search.trim()}%`;
-    q = q.or(`address.ilike.${s},order_number.ilike.${s},client_name.ilike.${s}`);
-  }
+  q = q.order(orderBy, { ascending }).range(fromIdx, toIdx);
 
-  const { data, error } = await q;
+  const { data, error, count } = await q;
   if (error) throw error;
-  return (data || []).map(normalizeOrder);
+  return { rows: data ?? [], count: count ?? 0, page, pageSize };
 }
-export const fetchOrders = listOrders;
 
-// Robust fetch that works with id | order_id | orderid
-export async function getOrderById(orderId) {
-  if (!orderId) return null;
-
-  const cols = ["id", "order_id", "orderid"]; // try all common keys
-  let lastErr = null;
-
-  for (const col of cols) {
-    // eslint-disable-next-line no-await-in-loop
-    const { data, error } = await supabase
-      .from("v_orders_list_with_last_activity")
-      .select("*")
-      .eq(col, orderId)
-      .maybeSingle();
-
-    if (data) {
-      // normalize so the rest of the UI can always use row.id
-      const id = data.id ?? data.order_id ?? data.orderid ?? null;
-      return id != null && !("id" in data) ? { ...data, id } : data;
-    }
-    if (error) lastErr = error; // keep the last error, but keep trying others
-  }
-
-  // If none worked, surface the most recent error (or null → not found)
-  if (lastErr) throw lastErr;
-  return null;
-
-
-  // Try by 'id' first
-  let res = await supabase
-    .from("v_orders_list_with_last_activity")
-    .select("*")
+/** Get one order (detail) via v_orders_frontend */
+export async function getOrder(orderId) {
+  const { data, error } = await supabase
+    .from("v_orders_frontend")
+    .select(
+      `
+        id,
+        order_no,
+        address,
+        client_name,
+        appraiser_name,
+        status,
+        fee_amount,
+        date_ordered,
+        due_date
+      `
+    )
     .eq("id", orderId)
-    .maybeSingle();
+    .single();
 
-  // If the view doesn't have 'id', fall back to 'order_id'
-  if (res.error && /column .* id .* does not exist/i.test(res.error.message)) {
-    res = await supabase
-      .from("v_orders_list_with_last_activity")
-      .select("*")
-      .eq("order_id", orderId)
-      .maybeSingle();
-  }
+  if (error) throw error;
 
-  if (res.error) throw res.error;
-  return res.data ? normalizeOrder(res.data) : null;
+  // Normalize to fields some UI expects; leave missing ones null
+  return {
+    ...data,
+    order_number: data?.order_no ?? null,
+    site_visit_date: null,
+    review_due_date: null,
+    final_due_date: null,
+    last_activity_at: null,
+    created_at: null,
+  };
 }
-export function fetchOrderById(orderId) { return getOrderById(orderId); }
 
-/* WRITES (RPC-only) */
+// Compatibility aliases
+export const fetchOrderById = getOrder;
+export async function fetchOrders(options = {}) { return listOrders(options); }
+
+/* ------------------------------------------------------------------ *
+ * Writes (RPC-only with safe fallbacks)
+ * ------------------------------------------------------------------ */
+
 export async function createOrder(payload) {
   const { data, error } = await supabase.rpc("rpc_order_create", { p: payload });
-  if (error) throw error;
-  return data;
+  if (!error && data) return data;
+
+  if (!error || !isRpcMissing(error)) throw error;
+  const { data: row, error: e2 } = await supabase.from("orders").insert(payload).select("*").single();
+  if (e2) throw e2;
+  return row;
 }
 
 export async function updateOrder(orderId, patch) {
-  const { data, error } = await supabase.rpc("rpc_order_update", {
-    p_order_id: String(orderId),
-    p_patch: patch,
+  const { data, error } = await supabase.rpc("rpc_order_update", { p_order_id: orderId, p: patch });
+  if (!error && data) return data;
+
+  if (!error || !isRpcMissing(error)) throw error;
+  const { data: row, error: e2 } = await supabase.from("orders").update(patch).eq("id", orderId).select("*").single();
+  if (e2) throw e2;
+  return row;
+}
+
+export async function setOrderStatus(orderId, status, note = null) {
+  const { data, error } = await supabase.rpc("rpc_order_set_status", {
+    p_order_id: orderId, p_status: status, p_note: note,
   });
   if (error) throw error;
   return data;
 }
 
-export async function updateOrderDates(orderId, { siteVisit, reviewDue, finalDue } = {}) {
-  const { data, error } = await supabase.rpc("rpc_order_update_dates", {
-    p_order_id: String(orderId),
-    p_site_visit_at: toISO(siteVisit),
-    p_review_due_at: toISO(reviewDue),
-    p_final_due_at: toISO(finalDue),
-    p_due_date: toISO(finalDue) || toISO(reviewDue) || toISO(siteVisit) || null,
+export async function setOrderDates(orderId, { site_visit_at, review_due_at, final_due_at, due_date }) {
+  const { data, error } = await supabase.rpc("rpc_order_set_dates", {
+    p_order_id: orderId,
+    p_site_visit_at: site_visit_at ?? null,
+    p_review_due_at: review_due_at ?? null,
+    p_final_due_at: final_due_at ?? null,
+    p_due_date: due_date ?? null,
   });
   if (error) throw error;
   return data;
 }
 
-export async function assignAppraiser(orderId, appraiserId) {
-  const { data, error } = await supabase.rpc("rpc_order_assign_appraiser", {
-    p_order_id: String(orderId),
-    p_appraiser_id: appraiserId ? String(appraiserId) : null,
+export async function assignParticipants(orderId, { appraiser_id = null, reviewer_id = null }) {
+  const { data, error } = await supabase.rpc("rpc_order_assign", {
+    p_order_id: orderId, p_appraiser_id: appraiser_id, p_reviewer_id: reviewer_id,
   });
-  if (error) throw error;
-  return data ?? true;
+  if (!error) return data;
+
+  if (!isRpcMissing(error)) throw error;
+  const patch = {};
+  if (appraiser_id !== null) patch.appraiser_id = appraiser_id;
+  if (reviewer_id !== null) patch.reviewer_id = reviewer_id;
+  if (Object.keys(patch).length === 0) return null;
+
+  const { data: row, error: e2 } = await supabase.from("orders").update(patch).eq("id", orderId).select("*").single();
+  if (e2) throw e2;
+  return row;
 }
 
-export async function isOrderNumberAvailable(orderNumber, { ignoreOrderId } = {}) {
-  const { data, error } = await supabase.rpc("rpc_is_order_number_available", {
-    p_order_number: orderNumber || null,
-    p_ignore_order_id: ignoreOrderId ? String(ignoreOrderId) : null,
-  });
-  if (error) throw error;
-  return !!data;
+export async function assignAppraiser(orderId, appraiser_id) { return assignParticipants(orderId, { appraiser_id, reviewer_id: null }); }
+export async function assignReviewer(orderId, reviewer_id) { return assignParticipants(orderId, { appraiser_id: null, reviewer_id }); }
+
+export async function archiveOrder(orderId) {
+  const { error } = await supabase.rpc("rpc_order_archive", { p_order_id: orderId });
+  if (!error) return;
+  if (!isRpcMissing(error)) throw error;
+  const { error: e2 } = await supabase.from("orders").update({ is_archived: true }).eq("id", orderId);
+  if (e2) throw e2;
 }
 
 export async function deleteOrder(orderId) {
-  const { data, error } = await supabase.rpc("rpc_order_delete", { p_order_id: String(orderId) });
-  if (error) throw error;
-  return data ?? true;
+  const { error } = await supabase.rpc("rpc_order_delete", { p_order_id: orderId });
+  if (!error) return;
+  if (!isRpcMissing(error)) throw error;
+  const { error: e2 } = await supabase.from("orders").delete().eq("id", orderId);
+  if (e2) throw e2;
 }
 
-/* REVIEW / WORKFLOW (RPC-only) */
-export async function approveReview(orderId, note = null) {
-  const { data, error } = await supabase.rpc("rpc_review_approve", { p_order_id: String(orderId), p_note: note });
-  if (error) throw error; return data ?? true;
-}
-export async function requestRevisions(orderId, note = null) {
-  const { data, error } = await supabase.rpc("rpc_review_request_revisions", { p_order_id: String(orderId), p_note: note });
-  if (error) throw error; return data ?? true;
-}
-export async function startReview(orderId) {
-  const { data, error } = await supabase.rpc("rpc_review_start", { p_order_id: String(orderId) });
-  if (error) throw error; return data ?? true;
-}
-export async function markReadyToSend(orderId) {
-  const { data, error } = await supabase.rpc("rpc_order_ready_to_send", { p_order_id: String(orderId) });
-  if (error) throw error; return data ?? true;
-}
-export async function markComplete(orderId, note = null) {
-  const { data, error } = await supabase.rpc("rpc_order_mark_complete", { p_order_id: String(orderId), p_note: note });
-  if (error) throw error; return data ?? true;
-}
-export async function sendToClient(orderId, payload = {}) {
-  const { data, error } = await supabase.rpc("rpc_order_send_to_client", { p_order_id: String(orderId), p_payload: payload });
-  if (error) throw error; return data ?? true;
-}
-export async function setOrderStatus(orderId, status) {
-  const { data, error } = await supabase.rpc("rpc_order_set_status", { p_order_id: String(orderId), p_status: status });
-  if (error) throw error; return data ?? true;
+/* ------------------------------------------------------------------ *
+ * Workflow convenience helpers (what your UI imports)
+ * ------------------------------------------------------------------ */
+export async function startReview(orderId, note = null)        { return setOrderStatus(orderId, "in_review",     note); }
+export async function requestRevisions(orderId, note = null)    { return setOrderStatus(orderId, "revisions",     note); }
+export async function approveReview(orderId, note = null)       { return setOrderStatus(orderId, "ready_to_send", note); }
+export async function markReadyToSend(orderId, note = null)     { return setOrderStatus(orderId, "ready_to_send", note); }
+export async function markComplete(orderId, note = null)        { return setOrderStatus(orderId, "complete",      note); }
+export async function putOnHold(orderId, note = null)           { return setOrderStatus(orderId, "on_hold",       note); }
+export async function resumeInProgress(orderId, note = null)    { return setOrderStatus(orderId, "in_progress",   note); }
+export async function sendToClient(orderId, note = null)        { return setOrderStatus(orderId, "delivered",     note); }
+export async function markDelivered(orderId, note = null)       { return sendToClient(orderId, note); }
+
+// Compatibility aliases
+export async function updateOrderDates(orderId, patch)          { return setOrderDates(orderId, patch); }
+export async function updateOrderStatus(orderId, status, note)  { return setOrderStatus(orderId, status, note); }
+export async function updateAssignees(orderId, patch)           { return assignParticipants(orderId, patch); }
+
+/** Check if an order number is available (optionally exclude a specific order id). */
+export async function isOrderNumberAvailable(orderNo, { excludeId = null } = {}) {
+  const { data, error } = await supabase.rpc("rpc_is_order_number_available", {
+    p_order_no: orderNo, p_exclude_id: excludeId,
+  });
+  if (!error && typeof data === "boolean") return data;
+
+  let q = supabase.from("orders").select("id", { count: "exact", head: true }).eq("order_no", orderNo);
+  if (excludeId) q = q.neq("id", excludeId);
+  const { count, error: e2 } = await q;
+  if (e2) throw e2;
+  return (count || 0) === 0;
 }
 
-export default {
-  listOrders, fetchOrders,
-  getOrderById, fetchOrderById,
-  createOrder, updateOrder, updateOrderDates,
-  assignAppraiser, isOrderNumberAvailable, deleteOrder,
-  startReview, approveReview, requestRevisions, markReadyToSend, markComplete, sendToClient, setOrderStatus,
-};
+
+
+
+
+
+
 
 
 
