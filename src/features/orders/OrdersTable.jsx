@@ -1,137 +1,110 @@
-import React, { useEffect, useState } from 'react';
-import { getOrdersList } from './api';
-import { supa as defaultClient } from '../../lib/supa.client';
-import OrderRowDetail from './OrderRowDetail';
+// src/features/orders/OrdersTable.jsx
+import React, { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { useOrders } from "@/lib/hooks/useOrders";
 
-export default function OrdersTable({
-  client = defaultClient,
-  pageSize = 25,
-  status,
-  appraiserId,
-  clientId,
-  priority,
-  dueWindow,
-  includeArchived = false,
-  onRowClick, // optional external override; if absent we inline-expand
-}) {
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
-  const [rows, setRows] = useState([]);
-  const [count, setCount] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const pages = Math.max(1, Math.ceil(count / pageSize));
+function isOverdue(o) {
+  const due = o?.final_due_date || o?.due_date || null;
+  if (!due) return false;
+  const d = new Date(due);
+  if (isNaN(d.getTime())) return false;
+  const now = new Date();
+  return d < now && String(o?.status || "").toLowerCase() !== "complete";
+}
 
-  const [expandedId, setExpandedId] = useState(null);
+function PriorityBadge({ order }) {
+  const overdue = isOverdue(order);
+  return (
+    <span className={`text-xs px-2 py-0.5 rounded border ${overdue ? "bg-red-50 border-red-200 text-red-700" : "bg-gray-50 border-gray-200 text-gray-700"}`}>
+      {overdue ? "overdue" : "normal"}
+    </span>
+  );
+}
 
-  async function load() {
-    setLoading(true);
-    const res = await getOrdersList(
-      { page, pageSize, status, search, appraiserId, clientId, priority, dueWindow, includeArchived },
-      client
-    );
-    setRows(res.data);
-    setCount(res.count);
-    setLoading(false);
-  }
+function Row({ o }) {
+  return (
+    <tr className="border-t">
+      <td className="px-3 py-2 text-sm">
+        <Link to={`/orders/${o.id}`} className="text-indigo-600 hover:underline">
+          {o.order_number || "—"}
+        </Link>
+      </td>
+      <td className="px-3 py-2 text-sm">{o.title || "—"}</td>
+      <td className="px-3 py-2 text-sm">{o.address || "—"}</td>
+      <td className="px-3 py-2 text-sm">{o.status || "—"}</td>
+      <td className="px-3 py-2 text-sm">
+        {o.final_due_date
+          ? new Date(o.final_due_date).toLocaleDateString()
+          : o.due_date
+          ? new Date(o.due_date).toLocaleDateString()
+          : "—"}
+      </td>
+      <td className="px-3 py-2 text-sm"><PriorityBadge order={o} /></td>
+      <td className="px-3 py-2 text-sm">
+        {o.last_activity_at ? new Date(o.last_activity_at).toLocaleString() : "—"}
+      </td>
+    </tr>
+  );
+}
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [page, status, appraiserId, clientId, priority, dueWindow, includeArchived]);
+export default function OrdersTable() {
+  const [search, setSearch] = useState("");
+  const { data = [], loading, error } = useOrders({ search });
 
-  function onSearchSubmit(e) { e.preventDefault(); setPage(1); load(); }
-
-  const handleRow = (row) => {
-    if (typeof onRowClick === 'function') return onRowClick(row);
-    setExpandedId((id) => (id === row.id ? null : row.id));
-  };
+  const rows = useMemo(() => data || [], [data]);
 
   return (
-    <div className="p-4">
-      <form onSubmit={onSearchSubmit} className="flex gap-2 mb-3">
+    <div>
+      <div className="flex items-center gap-2 mb-2">
         <input
           value={search}
-          onChange={(e)=>setSearch(e.target.value)}
+          onChange={(e) => setSearch(e.target.value)}
           placeholder="Search title, order #, address…"
-          className="border rounded px-3 py-2 w-full"
+          className="w-full max-w-xl rounded-md border px-3 py-2 text-sm"
         />
-        <button className="border rounded px-3 py-2">Search</button>
-      </form>
+      </div>
 
-      <div className="overflow-auto border rounded">
-        <table className="min-w-[900px] w-full text-sm">
-          <thead className="bg-gray-50">
-            <tr className="text-left">
-              <th className="px-3 py-2 w-10"></th>
-              <th className="px-3 py-2">Order #</th>
-              <th className="px-3 py-2">Title</th>
-              <th className="px-3 py-2">Address</th>
-              <th className="px-3 py-2">Status</th>
-              <th className="px-3 py-2">Due</th>
-              <th className="px-3 py-2">Priority</th>
-              <th className="px-3 py-2">Last Activity</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td className="px-3 py-6" colSpan={8}>Loading…</td></tr>
-            ) : rows.length === 0 ? (
-              <tr><td className="px-3 py-6" colSpan={8}>No orders</td></tr>
-            ) : rows.map((r) => (
-              <React.Fragment key={r.id}>
-                <tr
-                  className="border-t hover:bg-gray-50 cursor-pointer"
-                  onClick={() => handleRow(r)}
-                  title="Expand order"
-                >
-                  <td className="px-3 py-2 align-top">
-                    <span className="inline-block text-gray-500">{expandedId === r.id ? '▾' : '▸'}</span>
-                  </td>
-                  <td className="px-3 py-2 align-top">{r.order_number || '—'}</td>
-                  <td className="px-3 py-2 align-top">{r.title || '—'}</td>
-                  <td className="px-3 py-2 align-top">{r.display_address || '—'}</td>
-                  <td className="px-3 py-2 align-top">{r.status || '—'}</td>
-                  <td className="px-3 py-2 align-top">{r.due_date || '—'}</td>
-                  <td className="px-3 py-2 align-top"><PriorityPill value={r.priority || 'normal'} /></td>
-                  <td className="px-3 py-2 align-top">
-                    <div className="flex flex-col">
-                      <span className="text-gray-900">{r.last_action || '—'}</span>
-                      <span className="text-gray-500 text-xs">{r.last_message || ''}</span>
-                      <span className="text-gray-400 text-xs">{r.last_activity_at || ''}</span>
-                    </div>
+      {loading && (
+        <div className="p-3 text-sm text-gray-600">Loading orders…</div>
+      )}
+      {error && (
+        <div className="p-3 text-sm text-red-700 bg-red-50 border rounded">
+          Failed to load orders: {error.message}
+        </div>
+      )}
+
+      {!loading && !error && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="text-xs text-gray-500 border-b">
+                <th className="px-3 py-2">Order #</th>
+                <th className="px-3 py-2">Title</th>
+                <th className="px-3 py-2">Address</th>
+                <th className="px-3 py-2">Status</th>
+                <th className="px-3 py-2">Due</th>
+                <th className="px-3 py-2">Priority</th>
+                <th className="px-3 py-2">Last Activity</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-3 py-6 text-sm text-gray-500">
+                    No orders found.
                   </td>
                 </tr>
-
-                {expandedId === r.id && (
-                  <tr className="bg-gray-50">
-                    <td colSpan={8} className="px-2 py-3">
-                      <OrderRowDetail orderId={r.id} />
-                    </td>
-                  </tr>
-                )}
-              </React.Fragment>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="flex items-center gap-2 mt-3">
-        <button className="border rounded px-3 py-1" disabled={page<=1} onClick={()=>setPage(p=>Math.max(1,p-1))}>Prev</button>
-        <span className="text-sm">{page} / {pages}</span>
-        <button className="border rounded px-3 py-1" disabled={page>=pages} onClick={()=>setPage(p=>Math.min(pages,p+1))}>Next</button>
-      </div>
+              ) : (
+                rows.map((o) => <Row key={o.id} o={o} />)
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
 
-function PriorityPill({ value }) {
-  const map = {
-    overdue:        'bg-red-100 text-red-800',
-    review_overdue: 'bg-rose-100 text-rose-800',
-    due_soon:       'bg-amber-100 text-amber-800',
-    review_soon:    'bg-yellow-100 text-yellow-800',
-    normal:         'bg-slate-100 text-slate-800',
-  };
-  const cls = map[value] || map.normal;
-  return <span className={`px-2 py-0.5 rounded text-xs ${cls}`}>{value}</span>;
-}
 
 
 

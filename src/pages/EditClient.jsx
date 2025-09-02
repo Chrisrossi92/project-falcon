@@ -1,68 +1,45 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import ClientForm from '@/components/forms/ClientForm';
-import { fetchClientById, updateClient, deleteClient } from '@/lib/services/clientsService';
+// src/pages/EditClient.jsx
+import React from "react";
+import { useNavigate, useParams, Link } from "react-router-dom";
+import toast from "react-hot-toast";
+import { useClient } from "@/lib/hooks/useClients";
+import ClientForm from "@/components/clients/ClientForm";
+import { updateClient } from "@/lib/services/clientsService";
 
-const EditClient = () => {
+export default function EditClient() {
   const { clientId } = useParams();
-  const navigate = useNavigate();
-  const [client, setClient] = useState(null);
-  const [error, setError] = useState(null);
-  const [saving, setSaving] = useState(false);
+  const nav = useNavigate();
+  const { data: client, loading, error } = useClient(clientId);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const c = await fetchClientById(clientId);
-        setClient(c);
-      } catch (e) {
-        setError(e.message || 'Failed to load client');
-      }
-    })();
-  }, [clientId]);
-
-  const handleSave = async (formData) => {
+  async function handleSubmit(patch) {
     try {
-      setSaving(true);
-      await updateClient(clientId, formData);
-      navigate('/clients');
+      const row = await updateClient(clientId, patch);
+      toast.success("Client updated");
+      nav(`/clients/${row.id}`, { replace: true });
     } catch (e) {
-      setError(e.message || 'Failed to update client');
-    } finally {
-      setSaving(false);
+      toast.error(e?.message || "Failed to update client");
     }
-  };
+  }
 
-  const handleDelete = async () => {
-    const ok = window.confirm('Are you sure you want to delete this client? This action cannot be undone.');
-    if (!ok) return;
-    try {
-      await deleteClient(clientId);
-      navigate('/clients');
-    } catch (e) {
-      alert('Failed to delete client: ' + (e.message || String(e)));
-    }
-  };
-
-  if (error) return <p className="p-4 text-red-600">Error: {error}</p>;
-  if (!client) return <p className="p-4">Loading client...</p>;
+  if (loading) return <div className="p-3 text-sm text-gray-600">Loading client…</div>;
+  if (error) return <div className="p-3 text-sm text-red-700 bg-red-50 border rounded">Error: {error.message}</div>;
+  if (!client) return <div className="p-3 text-sm text-amber-800 bg-amber-50 border rounded">Client not found.</div>;
 
   return (
-    <div className="p-6 max-w-4xl mx-auto bg-white shadow rounded space-y-6">
-      <ClientForm initialValues={client} onSubmit={handleSave} mode="edit" />
-      <div className="flex gap-3 pt-2">
-        <button type="button" onClick={() => navigate('/clients')} className="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400">
+    <div className="max-w-3xl mx-auto space-y-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-lg font-semibold">Edit Client</h1>
+        <Link className="text-sm px-3 py-1.5 border rounded hover:bg-gray-50" to={`/clients/${client.id}`}>
           Cancel
-        </button>
-        <button type="button" onClick={handleDelete} className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 ml-auto">
-          Delete
-        </button>
+        </Link>
+      </div>
+      <div className="bg-white border rounded-xl p-4">
+        <ClientForm initial={client} onSubmit={handleSubmit} submitLabel="Save Changes" />
       </div>
     </div>
   );
-};
+}
 
-export default EditClient;
 
 
 

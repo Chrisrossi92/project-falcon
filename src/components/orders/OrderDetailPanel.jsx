@@ -3,6 +3,8 @@ import React from "react";
 import MetaItem from "@/components/MetaItem";
 import { useNavigate } from "react-router-dom";
 import { labelForStatus } from "@/lib/constants/orderStatus";
+import MapContainer from "@/components/MapContainer";
+
 
 export default function OrderDetailPanel({ order, isAdmin }) {
   const navigate = useNavigate();
@@ -95,6 +97,30 @@ export default function OrderDetailPanel({ order, isAdmin }) {
         </h3>
         <div className="text-sm text-gray-800 whitespace-pre-wrap">{order.notes || "—"}</div>
       </div>
+      
+      +      {/* Mini Map (compact, only if mappable) */}
+      {(() => {
+        // build a safe, non-empty query string for the map
+        const parts = [
+          address !== "—" ? address : "",
+          city !== "—" ? city : "",
+          state !== "—" ? state : "",
+          zip !== "—" ? zip : "",
+        ].filter(Boolean);
+        const mapAddress = parts.join(", ").trim();
+        if (!mapAddress || mapAddress.length < 5) return null; // avoid rendering an empty/world map
+        return (
+          <div>
+            <h3 className="text-[11px] font-medium text-gray-500 uppercase tracking-wide mb-1">
+              Location
+            </h3>
+            <div className="rounded-lg overflow-hidden border">
+              {/* MapContainer uses your Google key (VITE_GOOGLE_MAPS_API_KEY) behind the scenes */}
+              <MapContainer address={mapAddress} />
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

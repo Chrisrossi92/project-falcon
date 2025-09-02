@@ -1,59 +1,90 @@
 // src/pages/AdminDashboard.jsx
 import React, { useMemo } from "react";
-import OrdersTable from "@/features/orders/OrdersTable";
-import AdminCalendar from "@/components/admin/AdminCalendar";
+import DashboardTemplate from "@/templates/DashboardTemplate";
+import LoadingBlock from "@/components/ui/LoadingBlock";
+import ErrorCallout from "@/components/ui/ErrorCallout";
+import KpiLink from "@/components/dashboard/KpiLink";
+
+// New cards we added
+import DashboardCalendarCard from "@/components/dashboard/DashboardCalendarCard";
+import DashboardOrdersCard from "@/components/dashboard/DashboardOrdersCard";
+
+// Reuse your hook for KPI counts
 import { useOrders } from "@/lib/hooks/useOrders";
+
+// Height reserved for top nav + KPI band (tweak if needed)
+const HEADER_OFFSET = 260;
 
 export default function AdminDashboard() {
   const { data = [], loading, error } = useOrders();
 
+  // KPIs: same logic you had, computed from the hook
   const kpis = useMemo(() => {
     const total = data.length;
-    const inReview = data.filter((o) =>
-      ["in_review", "revisions", "ready_to_send"].includes(String(o.status || "").toLowerCase())
+    const inReview = data.filter(
+      (o) => String(o.status || "").toLowerCase() === "in_review"
     ).length;
-    const complete = data.filter((o) => String(o.status || "").toLowerCase() === "complete").length;
-    return { total, inReview, complete };
+    const ready = data.filter(
+      (o) => String(o.status || "").toLowerCase() === "ready_to_send"
+    ).length;
+
+    return [
+      <KpiLink key="total" label="Total Orders" value={total} filter={{}} />,
+      <KpiLink
+        key="inReview"
+        label="In Review"
+        value={inReview}
+        filter={{ status: "in_review" }}
+      />,
+      <KpiLink
+        key="ready"
+        label="Ready to Send"
+        value={ready}
+        filter={{ status: "ready_to_send" }}
+      />,
+    ];
   }, [data]);
 
+  // Make both cards the same height and fill the rest of the viewport
+  const equalHeightStyle = { height: `calc(100vh - ${HEADER_OFFSET}px)` };
+
   return (
-    <div className="p-4 space-y-4">
-      <div>
-        <h1 className="text-lg font-semibold">Admin Dashboard</h1>
-        <p className="text-sm text-gray-600">
-          {loading ? "Loading…" : error ? `Error loading dashboard: ${error.message}` : "Overview of orders & events"}
-        </p>
-      </div>
+    <DashboardTemplate
+      title="Admin Dashboard"
+      subtitle="Overview of orders & events"
+      kpis={kpis}
+    >
+      {error && (
+        <ErrorCallout>Failed to load orders: {error.message}</ErrorCallout>
+      )}
 
-      {/* KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="bg-white border rounded-xl p-3">
-          <div className="text-xs text-gray-500">Total Orders</div>
-          <div className="text-2xl font-semibold">{kpis.total}</div>
-        </div>
-        <div className="bg-white border rounded-xl p-3">
-          <div className="text-xs text-gray-500">In Review</div>
-          <div className="text-2xl font-semibold">{kpis.inReview}</div>
-        </div>
-        <div className="bg-white border rounded-xl p-3">
-          <div className="text-xs text-gray-500">Completed</div>
-          <div className="text-2xl font-semibold">{kpis.complete}</div>
-        </div>
-      </div>
+      {loading ? (
+        <LoadingBlock label="Loading dashboard…" />
+      ) : (
+        <div className="grid grid-cols-12 gap-4">
+          {/* Left: Calendar */}
+          <div className="col-span-12 lg:col-span-6">
+            <DashboardCalendarCard style={equalHeightStyle} />
+          </div>
 
-      {/* Calendar (site/review/final due) */}
-      <div className="bg-white border rounded-xl p-3">
-        <AdminCalendar />
-      </div>
-
-      {/* Orders table */}
-      <div className="bg-white border rounded-xl p-3">
-        <div className="mb-2 text-sm font-medium">All Orders</div>
-        <OrdersTable />
-      </div>
-    </div>
+          {/* Right: Orders (active only + pagination lives inside the card) */}
+          <div className="col-span-12 lg:col-span-6">
+            <DashboardOrdersCard style={equalHeightStyle} />
+          </div>
+        </div>
+      )}
+    </DashboardTemplate>
   );
 }
+
+
+
+
+
+
+
+
+
 
 
 

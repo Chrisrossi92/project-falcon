@@ -4,11 +4,10 @@ import { Routes, Route, Navigate } from "react-router-dom";
 
 import Layout from "@/layout/Layout";
 import ProtectedRoute from "@/lib/hooks/ProtectedRoute";
-import { useSession } from "@/lib/hooks/useSession";
 import { useRole } from "@/lib/hooks/useRole";
 
 // Pages
-import Login from "@/pages/Login";
+import Login from "@/pages/auth/Login";
 import Settings from "@/pages/Settings";
 import AdminDashboard from "@/pages/AdminDashboard";
 import AppraiserDashboard from "@/pages/AppraiserDashboard";
@@ -20,7 +19,8 @@ import EditOrder from "@/pages/EditOrder";
 import Calendar from "@/pages/Calendar";
 import ClientsDashboard from "@/pages/ClientsDashboard";
 import NewClient from "@/pages/NewClient";
-import ClientDetail from "@/pages/ClientDetail";
+// ⬇️ use the new client profile page
+import ClientProfile from "@/pages/clients/ClientProfile";
 import EditClient from "@/pages/EditClient";
 import UsersDashboard from "@/pages/UsersDashboard";
 import AdminUsers from "@/pages/AdminUsers";
@@ -37,169 +37,182 @@ function RoleSwitch() {
 }
 
 export default function AppRoutes() {
-  const { user } = useSession();
-
   return (
     <Routes>
+      {/* Public */}
       <Route path="/login" element={<Login />} />
-      {user ? (
-        <Route element={<Layout />}>
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute roles={["admin", "reviewer", "appraiser"]}>
-                <RoleSwitch />
-              </ProtectedRoute>
-            }
-          />
 
-          {/* Orders */}
-          <Route
-            path="/orders"
-            element={
-              <ProtectedRoute roles={["admin", "reviewer", "appraiser"]}>
-                <Orders />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/orders/new"
-            element={
-              <ProtectedRoute roles={["admin"]}>
-                <NewOrder />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/orders/:id"
-            element={
-              <ProtectedRoute roles={["admin", "reviewer", "appraiser"]}>
-                <OrderDetail />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/orders/:id/edit"
-            element={
-              <ProtectedRoute roles={["admin"]}>
-                <EditOrder />
-              </ProtectedRoute>
-            }
-          />
+      {/* Authenticated area */}
+      <Route element={<Layout />}>
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute roles={["admin", "reviewer", "appraiser"]}>
+              <RoleSwitch />
+            </ProtectedRoute>
+          }
+        />
 
-          {/* Calendar */}
-          <Route
-            path="/calendar"
-            element={
-              <ProtectedRoute roles={["admin", "reviewer", "appraiser"]}>
-                <Calendar />
-              </ProtectedRoute>
-            }
-          />
+        {/* Orders */}
+        <Route
+          path="/orders"
+          element={
+            <ProtectedRoute roles={["admin", "reviewer", "appraiser"]}>
+              <Orders />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/orders/new"
+          element={
+            <ProtectedRoute roles={["admin"]}>
+              <NewOrder />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/orders/:id"
+          element={
+            <ProtectedRoute roles={["admin", "reviewer", "appraiser"]}>
+              <OrderDetail />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/orders/:id/edit"
+          element={
+            <ProtectedRoute roles={["admin"]}>
+              <EditOrder />
+            </ProtectedRoute>
+          }
+        />
 
-          {/* Clients */}
-          <Route
-            path="/clients"
-            element={
-              <ProtectedRoute roles={["admin"]}>
-                <ClientsDashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/clients/new"
-            element={
-              <ProtectedRoute roles={["admin"]}>
-                <NewClient />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/clients/:clientId"
-            element={
-              <ProtectedRoute roles={["admin"]}>
-                <ClientDetail />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/clients/edit/:clientId"
-            element={
-              <ProtectedRoute roles={["admin"]}>
-                <EditClient />
-              </ProtectedRoute>
-            }
-          />
+        {/* Calendar */}
+        <Route
+          path="/calendar"
+          element={
+            <ProtectedRoute roles={["admin", "reviewer", "appraiser"]}>
+              <Calendar />
+            </ProtectedRoute>
+          }
+        />
 
-          {/* Users */}
-          <Route
-            path="/users"
-            element={
-              <ProtectedRoute roles={["admin", "manager", "reviewer", "appraiser"]}>
-                <UsersDashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/users"
-            element={
-              <ProtectedRoute roles={["admin", "manager"]}>
-                <AdminUsers />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/users/:userId"
-            element={
-              <ProtectedRoute roles={["admin"]}>
-                <UserDetail />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/users/new"
-            element={
-              <ProtectedRoute roles={["admin"]}>
-                <UserDetail />
-              </ProtectedRoute>
-            }
-          />
+        {/* Clients */}
+        <Route
+          path="/clients"
+          element={
+            <ProtectedRoute roles={["admin"]}>
+              <ClientsDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/clients/new"
+          element={
+            <ProtectedRoute roles={["admin"]}>
+              <NewClient />
+            </ProtectedRoute>
+          }
+        />
+        {/* Client profile — support both :clientId and :id param names */}
+        <Route
+          path="/clients/:clientId"
+          element={
+            <ProtectedRoute roles={["admin"]}>
+              <ClientProfile />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/clients/:id"
+          element={
+            <ProtectedRoute roles={["admin"]}>
+              <ClientProfile />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/clients/edit/:clientId"
+          element={
+            <ProtectedRoute roles={["admin"]}>
+              <EditClient />
+            </ProtectedRoute>
+          }
+        />
 
-          {/* Profile / Settings */}
-          <Route
-            path="/profile/edit"
-            element={
-              <ProtectedRoute roles={["admin", "manager", "reviewer", "appraiser"]}>
-                <EditUser />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/settings"
-            element={
-              <ProtectedRoute roles={["admin", "manager", "reviewer", "appraiser"]}>
-                <Settings />
-              </ProtectedRoute>
-            }
-          />
+        {/* Users */}
+        <Route
+          path="/users"
+          element={
+            <ProtectedRoute roles={["admin", "manager", "reviewer", "appraiser"]}>
+              <UsersDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/users"
+          element={
+            <ProtectedRoute roles={["admin", "manager"]}>
+              <AdminUsers />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/users/:userId"
+          element={
+            <ProtectedRoute roles={["admin"]}>
+              <UserDetail />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/users/new"
+          element={
+            <ProtectedRoute roles={["admin"]}>
+              <UserDetail />
+            </ProtectedRoute>
+          }
+        />
 
-          <Route
-            path="/users/view/:userId"
-            element={
-              <ProtectedRoute roles={["admin", "manager", "reviewer", "appraiser"]}>
-                <UserHub />
-              </ProtectedRoute>
-            }
-          />
+        {/* Profile / Settings */}
+        <Route
+          path="/profile/edit"
+          element={
+            <ProtectedRoute roles={["admin", "manager", "reviewer", "appraiser"]}>
+              <EditUser />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute roles={["admin", "manager", "reviewer", "appraiser"]}>
+              <Settings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/users/view/:userId"
+          element={
+            <ProtectedRoute roles={["admin", "manager", "reviewer", "appraiser"]}>
+              <UserHub />
+            </ProtectedRoute>
+          }
+        />
 
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Route>
-      ) : (
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      )}
+        {/* Default */}
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Route>
+
+      {/* Fallback for anything truly unmatched */}
+      <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
 }
+
+
+
+
 
 
 

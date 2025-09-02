@@ -1,100 +1,78 @@
 // src/lib/services/usersService.js
 import supabase from "@/lib/supabaseClient";
 
-/**
- * Return a Map of userId -> display name (or name) for the given ids.
- */
-export async function fetchUsersMapByIds(ids = []) {
-  const uniq = Array.from(new Set((ids || []).filter(Boolean)));
-  const result = new Map();
-  if (!uniq.length) return result;
-
-  const { data, error } = await supabase
+/* READS (RLS governs) */
+export async function listUsers({ search, role } = {}) {
+  let q = supabase
     .from("users")
-    .select("id, display_name, name")
-    .in("id", uniq);
+    .select("id, auth_id, email, name, role, status, fee_split, display_color")
+    .order("email", { ascending: true });
 
-  if (error) {
-    console.warn("[usersService] fetchUsersMapByIds error:", error);
-    return result;
+  if (role) q = q.eq("role", String(role).toLowerCase());
+  if (search && search.trim()) {
+    const s = `%${search.trim()}%`;
+    q = q.or(`email.ilike.${s},name.ilike.${s},role.ilike.${s}`);
   }
 
-  for (const u of data || []) {
-    const label = u.display_name || u.name || "";
-    if (label) result.set(u.id, label);
-  }
-  return result;
-}
-
-/**
- * Fetch a list of appraisers for pickers/search.
- * Strategy:
- *  1) Try a dedicated view 'v_appraisers' if it exists (best).
- *  2) Fallback to 'users' and filter client-side by role-ish fields.
- *
- * Scalar selects only (no embeds). Search is applied client-side for safety.
- *
- * @param {Object} opts
- * @param {string} [opts.search]  - partial name/email match
- * @param {number} [opts.limit=20]
- * @returns {Promise<Array<{id:string,display_name?:string,name?:string,email?:string}>>}
- */
-export async function fetchAppraisersList({ search, limit = 20 } = {}) {
-  const norm = (rows = []) =>
-    rows.map((u) => ({
-      id: u.id,
-      display_name: u.display_name || "",
-      name: u.name || "",
-      email: u.email || "",
-      role: u.role || "",
-      is_appraiser: u.is_appraiser === true,
-      roles: Array.isArray(u.roles) ? u.roles : [],
-    }));
-
-  const matchesSearch = (u) => {
-    if (!search) return true;
-    const q = search.toLowerCase();
-    return (
-      (u.display_name || "").toLowerCase().includes(q) ||
-      (u.name || "").toLowerCase().includes(q) ||
-      (u.email || "").toLowerCase().includes(q)
-    );
-  };
-
-  const looksLikeAppraiser = (u) => {
-    const r = String(u.role || "").toLowerCase();
-    return (
-      u.is_appraiser === true ||
-      r.includes("appraiser") ||
-      (Array.isArray(u.roles) && u.roles.map(String).some((x) => x.toLowerCase() === "appraiser"))
-    );
-  };
-
-  // 1) Try view first
-  try {
-    const { data, error } = await supabase
-      .from("v_appraisers")
-      .select("id, display_name, name, email")
-      .order("display_name", { ascending: true })
-      .limit(200);
-    if (!error && Array.isArray(data)) {
-      const list = norm(data).filter(matchesSearch).slice(0, limit);
-      return list;
-    }
-  } catch {
-    // ignore and fallback
-  }
-
-  // 2) Fallback to users (select superset, filter client-side)
-  const { data, error } = await supabase
-    .from("users")
-    .select("id, display_name, name, email, role, is_appraiser, roles")
-    .order("display_name", { ascending: true })
-    .limit(500);
-
+  const { data, error } = await q;
   if (error) throw error;
-
-  const list = norm(data).filter(looksLikeAppraiser).filter(matchesSearch).slice(0, limit);
-  return list;
+  return data || [];
 }
+
+export async function getUserByAuthId(authId) {
+  const { data, error } = await supabase
+    .from("users")
+    .select("id, auth_id, email, name, role, status, fee_split, display_color")
+    .eq("auth_id", authId)
+    .maybeSingle();
+  if (error) throw error;
+  return data || null;
+}
+
+/* WRITES (RPC-only) */
+export async function setUserRole(authId, role) {
+  const { data, error } = await supabase.rpc("rpc_user_set_role", {
+    p_auth_id: String(authId),
+    p_role: String(role).toLowerCase(),
+  });
+  if (error) throw error;
+  return data ?? true;
+}
+
+export async function setUserFeeSplit(authId, feeSplit) {
+  const { data, error } = await supabase.rpc("rpc_user_set_fee_split", {
+    p_auth_id: String(authId),
+    p_fee: feeSplit == null ? null : Number(feeSplit),
+  });
+  if (error) throw error;
+  return data ?? true;
+}
+
+export async function setUserStatus(authId, status) {
+  const { data, error } = await supabase.rpc("rpc_user_set_status", {
+    p_auth_id: String(authId),
+    p_status: String(status).toLowerCase(),
+  });
+  if (error) throw error;
+  return data ?? true;
+}
+
+export async function setUserColor(authId, color) {
+  const { data, error } = await supabase.rpc("rpc_user_set_color", {
+    p_auth_id: String(authId),
+    p_color: color || null,
+  });
+  if (error) throw error;
+  return data ?? true;
+}
+
+export default {
+  listUsers,
+  getUserByAuthId,
+  setUserRole,
+  setUserFeeSplit,
+  setUserStatus,
+  setUserColor,
+};
+
 

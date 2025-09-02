@@ -3,7 +3,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import Badge from '../Badge';
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardContent } from "@/components/ui/Card.jsx";
 
 export const OrderCard = ({ order }) => {
   const navigate = useNavigate();

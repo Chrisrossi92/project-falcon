@@ -1,58 +1,77 @@
 // src/lib/hooks/useOrders.js
-import { useCallback, useEffect, useMemo, useState } from "react";
-import supabase from "@/lib/supabaseClient";
-import { fetchOrders } from "@/lib/services/ordersService";
-import { useSession } from "@/lib/hooks/useSession";
+import { useEffect, useMemo, useState } from "react";
+import { listOrders, getOrderById } from "@/lib/services/ordersService";
 
-/**
- * Loads orders and auto-refreshes on realtime changes.
- * For appraisers, returns only their orders.
- */
-export function useOrders() {
-  const { user, isAdmin, isReviewer } = useSession();
-  const uid = user?.id || null;
-
+/** Orders collection (unchanged) */
+export function useOrders(opts = {}) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setErr] = useState(null);
+  const [error, setError] = useState(null);
 
-  const load = useCallback(async () => {
-    try {
-      setLoading(true);
-      setErr(null);
-      const rows = await fetchOrders();
-      setData(Array.isArray(rows) ? rows : []);
-    } catch (e) {
-      setErr(e);
-      setData([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const deps = useMemo(
+    () => [
+      opts.search || "",
+      opts.status || "",
+      opts.since instanceof Date ? opts.since.toISOString() : opts.since || "",
+      opts.until instanceof Date ? opts.until.toISOString() : opts.until || "",
+      opts.appraiserId || "",
+    ],
+    [opts.search, opts.status, opts.since, opts.until, opts.appraiserId]
+  );
 
   useEffect(() => {
-    load();
-    const channel = supabase
-      .channel("orders-changes")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "orders" },
-        () => load()
-      )
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [load]);
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const rows = await listOrders(opts);
+        if (!cancelled) setData(rows);
+      } catch (e) {
+        if (!cancelled) { setData([]); setError(e); }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, deps);
 
-  // Client-side scope for MVP
-  const scoped = useMemo(() => {
-    if (!uid) return data;
-    if (isAdmin || isReviewer) return data;
-    // appraiser → only orders assigned to them
-    return data.filter((o) => String(o.appraiser_id || "") === String(uid));
-  }, [data, uid, isAdmin, isReviewer]);
-
-  return { data: scoped, loading, error, refetch: load };
+  return { data, loading, error };
 }
+
+/** Single order with manual reload */
+export function useOrder(orderId) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(!!orderId);
+  const [error, setError] = useState(null);
+  const [version, setVersion] = useState(0);
+
+  const reload = () => setVersion((v) => v + 1);
+
+  useEffect(() => {
+    if (!orderId) { setData(null); setLoading(false); setError(null); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const row = await getOrderById(orderId);
+        if (!cancelled) setData(row);
+      } catch (e) {
+        if (!cancelled) { setData(null); setError(e); }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [String(orderId || ""), version]);
+
+  return { data, loading, error, reload };
+}
+
+
+
+
 
 
 

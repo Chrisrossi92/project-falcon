@@ -1,58 +1,50 @@
 // src/pages/ReviewerDashboard.jsx
-import React, { useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
-import { useSession } from "@/lib/hooks/useSession";
+import React, { useMemo } from "react";
+import DashboardTemplate from "@/templates/DashboardTemplate";
+import LoadingBlock from "@/components/ui/LoadingBlock";
+import ErrorCallout from "@/components/ui/ErrorCallout";
+import AdminCalendar from "@/components/admin/AdminCalendar";
 import OrdersTable from "@/features/orders/OrdersTable";
-import ReviewActions from "@/components/orders/ReviewActions";
-import AssignAppraiser from "@/components/orders/AssignAppraiser";
-import AppraiserFilterBar from "@/components/ui/AppraiserFilterBar";
+import { useOrders } from "@/lib/hooks/useOrders";
+import DashboardSplit from "@/components/dashboard/DashboardSplit";
+import UpcomingList from "@/components/dashboard/UpcomingList";
+import KpiLink from "@/components/dashboard/KpiLink";
 
 export default function ReviewerDashboard() {
-  const { isAdmin } = useSession();
-  const [params, setParams] = useSearchParams();
+  const { data = [], loading, error } = useOrders();
 
-  const appraiserId = params.get("appraiser") || "";
-
-  const setAppraiser = useCallback(
-    (id) => {
-      const next = new URLSearchParams(params);
-      if (id) next.set("appraiser", id);
-      else next.delete("appraiser");
-      setParams(next, { replace: false });
-    },
-    [params, setParams]
-  );
+  const kpis = useMemo(() => {
+    const mine = data.length; // reviewers see all under current RLS; adjust later if you want "my"
+    const inReview = data.filter(o => String(o.status || "").toLowerCase() === "in_review").length;
+    const ready = data.filter(o => String(o.status || "").toLowerCase() === "ready_to_send").length;
+    return [
+      <KpiLink key="mine" label="My Orders" value={mine} filter={{}} />,
+      <KpiLink key="inreview" label="In Review" value={inReview} filter={{ status: "in_review" }} />,
+      <KpiLink key="ready" label="Ready to Send" value={ready} filter={{ status: "ready_to_send" }} />,
+    ];
+  }, [data]);
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 flex flex-col gap-6">
-      <header className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Reviewer Dashboard</h1>
-        <div className="text-xs text-gray-500">
-          Showing: In Review / Revisions / Ready to Send
-        </div>
-      </header>
-
-      <AppraiserFilterBar value={appraiserId} onChange={setAppraiser} />
-
-      <section className="w-full bg-white rounded-2xl shadow p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Review Queue</h2>
-        </div>
-
-        <OrdersTable
-          status="__REVIEW__"
-          appraiserId={appraiserId || null}
-          renderActions={(order) => (
-            <div className="flex items-center gap-2">
-              {isAdmin ? <AssignAppraiser order={order} /> : null}
-              <ReviewActions order={order} />
-            </div>
-          )}
+    <DashboardTemplate title="Reviewer Dashboard" subtitle="Your current queue & statuses" kpis={kpis}>
+      {error && <ErrorCallout>Failed to load orders: {error.message}</ErrorCallout>}
+      {loading ? (
+        <LoadingBlock />
+      ) : (
+        <DashboardSplit
+          modes={{
+            calendar: { label: "calendar", render: () => <AdminCalendar /> },
+            list: { label: "upcoming", render: () => <UpcomingList orders={data} /> },
+          }}
+          initial="calendar"
+          right={() => <OrdersTable />}
         />
-      </section>
-    </div>
+      )}
+    </DashboardTemplate>
   );
 }
+
+
+
 
 
 

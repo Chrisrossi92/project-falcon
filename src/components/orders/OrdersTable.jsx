@@ -1,82 +1,87 @@
-// src/features/orders/OrdersTable.jsx
-import React, { useMemo } from "react";
-import { useOrders } from "@/lib/hooks/useOrders";
-import PresentationalOrdersTable from "@/components/orders/PresentationalOrdersTable";
-import { isReviewStatus, normalizeStatus } from "@/lib/constants/orderStatus";
+// src/components/orders/OrdersTable.jsx
+import React, { useEffect, useState } from "react";
+import { Card } from "@/components/ui/Card.jsx";
+import { fetchOrdersForList } from "@/lib/api/orders";
 
-/**
- * Adapter table for the Orders page and dashboards.
- * Handles fetching/filtering and renders the presentational table.
- *
- * Props (all optional):
- *  - status: string | "__REVIEW__"
- *  - appraiserId: string
- *  - clientId: string
- *  - priority: string (reserved)
- *  - dueWindow: string (reserved)
- *  - includeArchived: boolean (reserved)
- *  - renderActions: (order) => ReactNode
- *  - onRowClick: (order) => void
- */
-export default function OrdersTable({
-  status,
-  appraiserId,
-  clientId,
-  priority,
-  dueWindow,
-  includeArchived,
-  renderActions = null,
-  onRowClick = null,
-}) {
-  const { data: allOrders = [], loading, error, refetch } = useOrders();
+function fmtDate(d) {
+  if (!d) return "—";
+  const dt = new Date(d);
+  if (Number.isNaN(dt.getTime())) return "—";
+  return dt.toLocaleDateString();
+}
 
-  const rows = useMemo(() => {
-    let list = Array.isArray(allOrders) ? allOrders : [];
+function fmtMoney(n) {
+  if (n == null) return "—";
+  const num = Number(n);
+  if (Number.isNaN(num)) return "—";
+  return num.toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+}
 
-    // Status filtering
-    if (status === "__REVIEW__") {
-      list = list.filter((o) => isReviewStatus(o.status));
-    } else if (status && typeof status === "string") {
-      const needle = normalizeStatus(status);
-      list = list.filter((o) => normalizeStatus(o.status) === needle);
-    }
+export default function OrdersTable() {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-    // Appraiser filter
-    if (appraiserId) {
-      list = list.filter(
-        (o) => String(o.appraiser_id || "") === String(appraiserId)
-      );
-    }
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      const data = await fetchOrdersForList({ limit: 1000, ascending: false });
+      setRows(Array.isArray(data) ? data : []);
+      setLoading(false);
+    })();
+  }, []);
 
-    // Client filter
-    if (clientId) {
-      list = list.filter(
-        (o) => String(o.client_id || "") === String(clientId)
-      );
-    }
-
-    // TODO: hooks for priority / dueWindow / includeArchived
-    return list;
-  }, [allOrders, status, appraiserId, clientId, priority, dueWindow, includeArchived]);
-
-  if (error) {
+  if (loading) {
     return (
-      <div className="p-4 text-sm text-red-600">
-        Failed to load orders: {error.message}
+      <div className="space-y-3">
+        {[...Array(10)].map((_, i) => (
+          <Card key={i} className="p-4">
+            <div className="h-4 w-40 bg-muted rounded mb-2" />
+            <div className="h-3 w-64 bg-muted rounded" />
+          </Card>
+        ))}
       </div>
     );
   }
 
+  if (!rows.length) {
+    return (
+      <Card className="p-6">
+        <div className="text-sm text-muted-foreground">No orders found.</div>
+      </Card>
+    );
+  }
+
   return (
-    <PresentationalOrdersTable
-      orders={rows}
-      loading={loading}
-      onRefresh={refetch}
-      renderActions={renderActions}
-      onRowClick={onRowClick}
-    />
+    <div className="space-y-3">
+      {rows.map((o) => {
+        const title =
+          o.display_title ??
+          `${o.order_no ?? "Order"} • ${o.client_name ?? "—"}`;
+        const subtitle =
+          o.display_subtitle ??
+          o.address ??
+          o.property_type ??
+          "—";
+
+        return (
+          <Card key={o.id} className="p-4 flex items-center justify-between">
+            <div>
+              <div className="font-medium">{title}</div>
+              <div className="text-sm text-muted-foreground">{subtitle}</div>
+            </div>
+
+            <div className="text-right text-sm text-muted-foreground">
+              <div>Due: {fmtDate(o.due_date)}</div>
+              <div>Fee: {fmtMoney(o.fee_amount)}</div>
+            </div>
+          </Card>
+        );
+      })}
+    </div>
   );
 }
+
+
 
 
 

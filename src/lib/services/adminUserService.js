@@ -1,6 +1,6 @@
 // src/lib/services/adminUserService.js
 import supabase from "@/lib/supabaseClient";
-import rpcFirst from "@/lib/utils/rpcFirst";
+import rpcFirst from "@/lib/utils/rpcFirst.js";
 
 /**
  * Minimal audit log for user changes.

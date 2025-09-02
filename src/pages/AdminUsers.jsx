@@ -1,282 +1,195 @@
 // src/pages/AdminUsers.jsx
-import React, { useEffect, useMemo, useState } from "react";
-import { toast } from "react-hot-toast";
-import { Button } from "@/components/ui/button";
+import React, { useMemo, useState } from "react";
+import toast from "react-hot-toast";
+import { useUsers } from "@/lib/hooks/useUsers";
 import {
-  listUsers,
-  updateRole,
-  updateFeeSplit,
-  updateStatus,
-  updateEmail,
-} from "@/lib/services/adminUserService";
+  setUserRole,
+  setUserFeeSplit,
+  setUserStatus,
+  setUserColor,
+} from "@/lib/services/usersService";
 
-/** Central, explicit choices (extend as you add roles/statuses) */
-const ROLE_OPTIONS = ["admin", "manager", "reviewer", "appraiser"];
-const STATUS_OPTIONS = ["active", "inactive", "disabled"];
+const ROLES = ["admin", "reviewer", "appraiser"];
+const STATUSES = ["active", "inactive"];
 
-/** Small input helpers */
-function TextInput(props) {
-  return (
-    <input
-      {...props}
-      className={
-        "border rounded-md px-2 py-1 text-sm w-full " +
-        (props.className ? props.className : "")
-      }
-    />
-  );
-}
-
-function Select({ value, onChange, options, className }) {
-  return (
-    <select
-      value={value ?? ""}
-      onChange={onChange}
-      className={
-        "border rounded-md px-2 py-1 text-sm w-full " +
-        (className ? className : "")
-      }
-    >
-      {options.map((opt) => (
-        <option key={opt} value={opt}>
-          {opt}
-        </option>
-      ))}
-    </select>
-  );
-}
-
-function FeeSplitInput({ value, onChange }) {
-  return (
-    <input
-      type="number"
-      min={0}
-      max={100}
-      step="1"
-      value={value ?? ""}
-      onChange={(e) => onChange(e.target.value === "" ? "" : Number(e.target.value))}
-      className="border rounded-md px-2 py-1 text-sm w-20 text-right"
-      placeholder="%"
-    />
-  );
-}
-
-/** One row with local edit state + Save/Reset actions */
-function UserRow({ u, onRefresh }) {
-  const [email, setEmail] = useState(u.email || "");
+function EditableRow({ u, onChanged }) {
   const [role, setRole] = useState(u.role || "appraiser");
-  const [feeSplit, setFeeSplit] = useState(
-    typeof u.fee_split === "number" ? u.fee_split : ""
+  const [fee, setFee] = useState(
+    u.fee_split == null ? "" : Number(u.fee_split).toFixed(2)
   );
   const [status, setStatus] = useState(u.status || "active");
+  const [color, setColor] = useState(u.display_color || "");
 
-  const [saving, setSaving] = useState(false);
-
-  const dirty = useMemo(() => {
-    const emailChanged = (u.email || "") !== (email || "");
-    const roleChanged = (u.role || "appraiser") !== (role || "appraiser");
-    const splitChanged =
-      (typeof u.fee_split === "number" ? u.fee_split : "") !==
-      (feeSplit === "" ? "" : Number(feeSplit));
-    const statusChanged = (u.status || "active") !== (status || "active");
-    return { emailChanged, roleChanged, splitChanged, statusChanged };
-  }, [u, email, role, feeSplit, status]);
-
-  async function onSave() {
-    if (saving) return;
-    const ops = [];
-    try {
-      setSaving(true);
-
-      if (dirty.emailChanged) {
-        ops.push(updateEmail(u.id, (email || "").trim()));
-      }
-      if (dirty.roleChanged) {
-        ops.push(updateRole(u.id, role));
-      }
-      if (dirty.splitChanged) {
-        if (feeSplit === "" || isNaN(Number(feeSplit))) {
-          throw new Error("Fee split must be a number between 0 and 100.");
-        }
-        const n = Number(feeSplit);
-        if (n < 0 || n > 100) {
-          throw new Error("Fee split must be between 0 and 100.");
-        }
-        ops.push(updateFeeSplit(u.id, n));
-      }
-      if (dirty.statusChanged) {
-        ops.push(updateStatus(u.id, status));
-      }
-
-      if (ops.length === 0) {
-        toast("No changes to save.");
-        return;
-      }
-
-      await Promise.all(ops);
-      toast.success("Saved!");
-      await onRefresh?.();
-    } catch (err) {
-      console.error(err);
-      toast.error(err?.message || "Save failed");
-    } finally {
-      setSaving(false);
-    }
+  async function saveRole() {
+    await toast.promise(setUserRole(u.auth_id, role), {
+      loading: "Updating role…",
+      success: "Role updated",
+      error: (e) => e.message || "Failed to update role",
+    });
+    onChanged?.();
   }
-
-  function onReset() {
-    setEmail(u.email || "");
-    setRole(u.role || "appraiser");
-    setFeeSplit(typeof u.fee_split === "number" ? u.fee_split : "");
-    setStatus(u.status || "active");
+  async function saveFee() {
+    const val = fee === "" ? null : Number(fee);
+    await toast.promise(setUserFeeSplit(u.auth_id, val), {
+      loading: "Updating fee split…",
+      success: "Fee split updated",
+      error: (e) => e.message || "Failed to update fee split",
+    });
+    onChanged?.();
+  }
+  async function saveStatus() {
+    await toast.promise(setUserStatus(u.auth_id, status), {
+      loading: "Updating status…",
+      success: "Status updated",
+      error: (e) => e.message || "Failed to update status",
+    });
+    onChanged?.();
+  }
+  async function saveColor() {
+    await toast.promise(setUserColor(u.auth_id, color || null), {
+      loading: "Saving color…",
+      success: "Color saved",
+      error: (e) => e.message || "Failed to save color",
+    });
+    onChanged?.();
   }
 
   return (
-    <tr className="border-b last:border-b-0">
-      <td className="px-3 py-2 text-sm">{u.display_name || u.name || "—"}</td>
+    <tr className="border-t">
+      <td className="px-3 py-2 text-sm">{u.email || "—"}</td>
+      <td className="px-3 py-2 text-sm">{u.name || "—"}</td>
       <td className="px-3 py-2 text-sm">
-        <TextInput value={email} onChange={(e) => setEmail(e.target.value)} />
+        <div className="flex items-center gap-2">
+          <select
+            className="rounded border px-2 py-1 text-sm"
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+          >
+            {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+          </select>
+          <button className="text-xs px-2 py-1 border rounded hover:bg-gray-50" onClick={saveRole}>
+            Save
+          </button>
+        </div>
       </td>
       <td className="px-3 py-2 text-sm">
-        <Select
-          value={role}
-          onChange={(e) => setRole(e.target.value)}
-          options={ROLE_OPTIONS}
-        />
+        <div className="flex items-center gap-2">
+          <input
+            className="w-24 rounded border px-2 py-1 text-sm"
+            inputMode="decimal"
+            placeholder="50.00"
+            value={fee}
+            onChange={(e) => setFee(e.target.value)}
+          />
+          <button className="text-xs px-2 py-1 border rounded hover:bg-gray-50" onClick={saveFee}>
+            Save
+          </button>
+        </div>
       </td>
       <td className="px-3 py-2 text-sm">
-        <FeeSplitInput value={feeSplit} onChange={setFeeSplit} />
+        <div className="flex items-center gap-2">
+          <select
+            className="rounded border px-2 py-1 text-sm"
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+          >
+            {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+          <button className="text-xs px-2 py-1 border rounded hover:bg-gray-50" onClick={saveStatus}>
+            Save
+          </button>
+        </div>
       </td>
       <td className="px-3 py-2 text-sm">
-        <Select
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          options={STATUS_OPTIONS}
-        />
-      </td>
-      <td className="px-3 py-2 text-sm text-right whitespace-nowrap">
-        <Button
-          variant="outline"
-          className="mr-2"
-          onClick={onReset}
-          disabled={saving}
-        >
-          Reset
-        </Button>
-        <Button onClick={onSave} disabled={saving}>
-          {saving ? "Saving…" : "Save"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <input
+            className="w-28 rounded border px-2 py-1 text-sm"
+            placeholder="#A3E635"
+            value={color}
+            onChange={(e) => setColor(e.target.value)}
+          />
+          <div className="h-5 w-5 rounded border" style={{ background: color || "#fff" }} />
+          <button className="text-xs px-2 py-1 border rounded hover:bg-gray-50" onClick={saveColor}>
+            Save
+          </button>
+        </div>
       </td>
     </tr>
   );
 }
 
 export default function AdminUsers() {
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState(null);
+  const [search, setSearch] = useState("");
+  const [role, setRole] = useState("");
+  const { data, loading, error } = useUsers({ search, role });
 
-  const [q, setQ] = useState("");
-  const [includeInactive, setIncludeInactive] = useState(false);
+  const rows = useMemo(() => data || [], [data]);
 
-  async function load() {
-    try {
-      setLoading(true);
-      setErr(null);
-      const data = await listUsers({ includeInactive });
-      setRows(Array.isArray(data) ? data : []);
-    } catch (e) {
-      console.error(e);
-      setErr(e?.message || String(e));
-      setRows([]);
-    } finally {
-      setLoading(false);
-    }
+  async function refresh() {
+    // Quick and dirty: just reload the page; or we could plumb a refetch state.
+    window.location.reload();
   }
 
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [includeInactive]);
-
-  const filtered = useMemo(() => {
-    if (!q) return rows;
-    const needle = q.toLowerCase();
-    return rows.filter((u) => {
-      const hay =
-        `${u.display_name || ""} ${u.name || ""} ${u.email || ""} ${u.role || ""}`.toLowerCase();
-      return hay.includes(needle);
-    });
-  }, [rows, q]);
-
   return (
-    <div className="p-4">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-lg font-semibold">Team & Roles</h1>
-        <div className="flex items-center gap-3">
-          <label className="text-sm flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={includeInactive}
-              onChange={(e) => setIncludeInactive(e.target.checked)}
-            />
-            Include inactive
-          </label>
-          <TextInput
-            placeholder="Search name/email/role…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            style={{ width: 260 }}
-          />
-          <Button variant="outline" onClick={load} disabled={loading}>
-            {loading ? "Loading…" : "Refresh"}
-          </Button>
-        </div>
+    <div className="p-4 space-y-4">
+      <div>
+        <h1 className="text-lg font-semibold">Manage Roles</h1>
+        <p className="text-sm text-gray-600">
+          Admin-only: set roles, fee splits, status, and display color.
+        </p>
       </div>
 
-      {/* Content */}
-      <div className="bg-white border rounded-xl shadow-sm overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-gray-50 text-gray-700 text-xs uppercase">
-            <tr>
-              <th className="px-3 py-2">Name</th>
-              <th className="px-3 py-2">Email</th>
-              <th className="px-3 py-2">Role</th>
-              <th className="px-3 py-2">Fee Split</th>
-              <th className="px-3 py-2">Status</th>
-              <th className="px-3 py-2 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="text-sm">
-            {loading ? (
-              <tr>
-                <td colSpan={6} className="px-3 py-4 text-gray-600">
-                  Loading users…
-                </td>
-              </tr>
-            ) : err ? (
-              <tr>
-                <td colSpan={6} className="px-3 py-4 text-red-600">
-                  Failed to load: {err}
-                </td>
-              </tr>
-            ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-3 py-4 text-gray-600">
-                  No users found.
-                </td>
-              </tr>
-            ) : (
-              filtered.map((u) => (
-                <UserRow key={u.id} u={u} onRefresh={load} />
-              ))
-            )}
-          </tbody>
-        </table>
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          className="w-72 rounded border px-3 py-2 text-sm"
+          placeholder="Search name / email / role…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <select
+          className="rounded border px-2 py-2 text-sm"
+          value={role}
+          onChange={(e) => setRole(e.target.value)}
+        >
+          <option value="">All roles</option>
+          {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+        </select>
       </div>
+
+      {loading && <div className="p-3 text-sm text-gray-600">Loading users…</div>}
+      {error && (
+        <div className="p-3 text-sm text-red-700 bg-red-50 border rounded">
+          Failed to load users: {error.message}
+        </div>
+      )}
+
+      {!loading && !error && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="text-xs text-gray-500 border-b">
+                <th className="px-3 py-2">Email</th>
+                <th className="px-3 py-2">Name</th>
+                <th className="px-3 py-2">Role</th>
+                <th className="px-3 py-2">Fee Split</th>
+                <th className="px-3 py-2">Status</th>
+                <th className="px-3 py-2">Color</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length === 0 ? (
+                <tr><td colSpan={6} className="px-3 py-6 text-sm text-gray-500">No users found.</td></tr>
+              ) : (
+                rows.map((u) => <EditableRow key={u.auth_id || u.id} u={u} onChanged={refresh} />)
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
+
 
 
 

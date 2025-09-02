@@ -1,110 +1,119 @@
-// src/pages/OrderDetail.jsx
-import React, { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
-import { fetchOrderById } from "@/lib/services/ordersService";
-import OrderDetailPanel from "@/components/orders/OrderDetailPanel";
-import OrderSidebarPanel from "@/components/orders/OrderSidebarPanel";
-import ReadyForReviewButton from "@/components/orders/ReadyForReviewButton";
-import ReviewActions from "@/components/orders/ReviewActions";
+// src/pages/orders/OrderDetail.jsx
+import React, { useMemo } from "react";
+import { useParams, Link } from "react-router-dom";
+import { useOrder } from "@/lib/hooks/useOrders";
 import { useRole } from "@/lib/hooks/useRole";
-import { normalizeStatus, isReviewStatus, labelForStatus } from "@/lib/constants/orderStatus";
+import DetailTemplate from "@/templates/DetailTemplate";
+import AssignPanel from "@/components/orders/AssignPanel";
+import OrderDatesPanel from "@/components/orders/OrderDatesPanel";
+import OrderActions from "@/components/orders/OrderActions";
+import OrderActivity from "@/components/orders/OrderActivity";
+import LoadingBlock from "@/components/ui/LoadingBlock";
+import ErrorCallout from "@/components/ui/ErrorCallout";
+import Card from "@/components/ui/Card.jsx";
 
-export default function OrderDetailPage() {
-  const { id } = useParams();
-  const { role, isAdmin, isReviewer } = useRole() || {};
-
-  const [order, setOrder] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState(null);
-
-  const statusNorm = useMemo(
-    () => normalizeStatus(order?.status || ""),
-    [order?.status]
-  );
-  const isAppraiser = String(role || "").toLowerCase() === "appraiser";
-
-  async function load() {
-    try {
-      setLoading(true);
-      setErr(null);
-      const row = await fetchOrderById(id);
-      setOrder(row);
-    } catch (e) {
-      setErr(e?.message || String(e));
-      setOrder(null);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => { if (id) load(); }, [id]);
-
-  if (loading) return <div className="p-4 text-sm text-gray-600">Loading order…</div>;
-  if (err)     return <div className="p-4 text-sm text-red-600">Failed: {err}</div>;
-  if (!order)  return <div className="p-4 text-sm text-red-600">Order not found.</div>;
-
-  const title = order.order_number ? `Order ${order.order_number}` : `Order ${order.id.slice(0,8)}`;
-  const sub   = [order.property_address || order.address, order.city, order.state].filter(Boolean).join(", ");
-
+function Field({ label, value }) {
   return (
-    <div className="p-4 space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-semibold">{title}</h1>
-          <div className="text-sm text-gray-600">
-            {sub || "No address"} • Status: <span className="font-medium">{labelForStatus(statusNorm) || "—"}</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            className="px-2 py-1 border rounded text-sm hover:bg-gray-50"
-            onClick={load}
-            title="Refresh"
-          >
-            Refresh
-          </button>
-        </div>
-      </div>
-
-      {/* Actions */}
-      <div className="bg-white rounded-xl border shadow-sm p-3">
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Appraiser/Admin can move to in_review when not already in review flow */}
-          {!isReviewStatus(statusNorm) && (isAdmin || isAppraiser) ? (
-            <ReadyForReviewButton orderId={order.id} onDone={load} />
-          ) : null}
-
-          {/* Reviewer actions show when in review flow */}
-          {isReviewer && isReviewStatus(statusNorm) ? (
-            <ReviewActions orderId={order.id} onDone={load} />
-          ) : null}
-        </div>
-      </div>
-
-      {/* Main content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2">
-          <OrderDetailPanel order={order} isAdmin={!!isAdmin} />
-        </div>
-        <div>
-          <OrderSidebarPanel order={order} />
-        </div>
+    <div className="grid grid-cols-3 gap-3 py-2 border-b last:border-0">
+      <div className="text-xs uppercase tracking-wide text-gray-500">{label}</div>
+      <div className="col-span-2 text-sm text-gray-900">
+        {value ?? <span className="text-gray-400">—</span>}
       </div>
     </div>
   );
 }
+function fmtDate(d) {
+  try {
+    if (!d) return null;
+    const dt = typeof d === "string" ? new Date(d) : d;
+    return dt.toLocaleString();
+  } catch {
+    return String(d || "");
+  }
+}
 
+export default function OrderDetail() {
+  const { id } = useParams();
+  const { data: order, loading, error, reload } = useOrder(id);
+  const { isAdmin, isReviewer } = useRole() || {};
 
+  // all hooks above returns; compute displayPriority safely
+  const displayPriority = useMemo(() => {
+    if (!order) return "—";
+    if (order.priority) return order.priority;
+    const due = order.final_due_date || order.due_date;
+    if (!due) return "—";
+    try {
+      const d = new Date(due);
+      const now = new Date();
+      const isOverdue =
+        d < now && String(order.status || "").toLowerCase() !== "complete";
+      return isOverdue ? "overdue" : "normal";
+    } catch {
+      return "—";
+    }
+  }, [order]);
 
+  if (loading) return <LoadingBlock label="Loading order…" />;
+  if (error) return <ErrorCallout>Failed to load order: {error.message}</ErrorCallout>;
+  if (!order)
+    return <ErrorCallout>Order not found or you don’t have access.</ErrorCallout>;
 
+  const {
+    order_number,
+    address,
+    client_name,
+    status,
+    due_date,
+    site_visit_date,
+    review_due_date,
+    final_due_date,
+    appraiser_name,
+    reviewer_name,
+    created_at,
+    last_activity_at,
+  } = order;
 
+  const title = `${order_number || "Order"}${address ? ` • ${address}` : ""}`;
+  const subtitle = `${client_name || "—"}${
+    status ? ` • ${String(status).replaceAll("_", " ")}` : ""
+  }`;
 
+  return (
+    <DetailTemplate
+      title={title}
+      subtitle={subtitle}
+      back={
+        <Link to="/orders" className="text-sm px-3 py-1.5 border rounded hover:bg-gray-50">
+          Back
+        </Link>
+      }
+    >
+      <Card>
+        <Field label="Address" value={address} />
+        <Field label="Client" value={client_name} />
+        <Field label="Status" value={status} />
+        <Field label="Priority" value={displayPriority} />
+        <Field label="Appraiser" value={appraiser_name} />
+        <Field label="Reviewer" value={reviewer_name} />
+        <Field label="Site Visit" value={fmtDate(site_visit_date)} />
+        <Field label="Review Due" value={fmtDate(review_due_date)} />
+        <Field label="Final Due" value={fmtDate(final_due_date)} />
+        <Field label="Created" value={fmtDate(created_at)} />
+        <Field label="Last Activity" value={fmtDate(last_activity_at)} />
+        <Field label="Global Due" value={fmtDate(due_date)} />
+      </Card>
 
+      {isAdmin && <AssignPanel order={order} onAfterChange={reload} />}
+      {(isAdmin || isReviewer) && (
+        <OrderDatesPanel order={order} onAfterChange={reload} />
+      )}
 
-
-
-
+      <OrderActions order={order} onAfterAction={reload} />
+      <OrderActivity orderId={order.id} />
+    </DetailTemplate>
+  );
+}
 
 
 

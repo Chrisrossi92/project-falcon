@@ -1,183 +1,94 @@
 // src/pages/ClientDetail.jsx
-import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import supabase from '@/lib/supabaseClient';
-import ContactForm from '@/components/ContactForm';
-import { fetchClientById, updateClient } from '@/lib/services/clientsService';
+import React from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import toast from "react-hot-toast";
+import { useClient } from "@/lib/hooks/useClients";
+import { deleteClient } from "@/lib/services/clientsService";
+import { useRole } from "@/lib/hooks/useRole";
 
-const ClientDetail = () => {
-  const { clientId } = useParams();
-  const navigate = useNavigate();
-  const isNew = !clientId || clientId === 'new';
-
-  const [client, setClient] = useState({
-    name: '',
-    phone: '',
-    email: '',
-    company: '',
-    contact: '',
-    notes: ''
-  });
-
-  const [contacts, setContacts] = useState([]);
-  const [newContact, setNewContact] = useState({ name: '', email: '', phone: '' });
-  const [error, setError] = useState(null);
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    const load = async () => {
-      if (!isNew) {
-        try {
-          const c = await fetchClientById(clientId);
-          setClient(c);
-
-          const { data: contactData, error: contactError } = await supabase
-            .from('contacts')
-            .select('*')
-            .eq('client_id', clientId);
-          if (contactError) throw contactError;
-          setContacts(Array.isArray(contactData) ? contactData : []);
-        } catch (e) {
-          setError(e.message || 'Failed to load client');
-        }
-      }
-    };
-    load();
-  }, [clientId, isNew]);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setClient((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSave = async () => {
-    try {
-      setSaving(true);
-      if (isNew) {
-        // New should be handled in the NewClient page; we keep edit behavior here
-        return;
-      }
-      await updateClient(clientId, {
-        name: client.name || null,
-        phone: client.phone || null,
-        email: client.email || null,
-        company: client.company || null,
-        contact: client.contact || null,
-        notes: client.notes || null,
-      });
-      navigate('/clients');
-    } catch (e) {
-      setError(e.message || 'Failed to update client.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleAddContact = async () => {
-    if (!newContact.name || !clientId) return;
-    const { data, error } = await supabase
-      .from('contacts')
-      .insert([{ ...newContact, client_id: clientId }])
-      .select()
-      .single();
-    if (error) {
-      setError(error.message || 'Failed to add contact.');
-      return;
-    }
-    setContacts((prev) => [...prev, data]);
-    setNewContact({ name: '', email: '', phone: '' });
-  };
-
+function Field({ label, value }) {
   return (
-    <div className="p-6 space-y-6 bg-white rounded-xl shadow-md max-w-3xl mx-auto mt-6">
-      <h1 className="text-2xl font-bold">{isNew ? 'New Client' : 'Edit Client'}</h1>
-
-      {error && <div className="text-red-600">Error: {String(error)}</div>}
-
-      <div className="space-y-4">
-        <input
-          type="text"
-          name="name"
-          value={client.name || ''}
-          onChange={handleChange}
-          placeholder="Client Name"
-          className="w-full px-4 py-2 border rounded-lg"
-        />
-        <input
-          type="text"
-          name="phone"
-          value={client.phone || ''}
-          onChange={handleChange}
-          placeholder="Phone Number"
-          className="w-full px-4 py-2 border rounded-lg"
-        />
-        <input
-          type="email"
-          name="email"
-          value={client.email || ''}
-          onChange={handleChange}
-          placeholder="Email"
-          className="w-full px-4 py-2 border rounded-lg"
-        />
-        <input
-          type="text"
-          name="company"
-          value={client.company || ''}
-          onChange={handleChange}
-          placeholder="Company"
-          className="w-full px-4 py-2 border rounded-lg"
-        />
-        <input
-          type="text"
-          name="contact"
-          value={client.contact || ''}
-          onChange={handleChange}
-          placeholder="Primary Contact"
-          className="w-full px-4 py-2 border rounded-lg"
-        />
-        <textarea
-          name="notes"
-          value={client.notes || ''}
-          onChange={handleChange}
-          placeholder="Notes"
-          className="w-full px-4 py-2 border rounded-lg min-h-[100px]"
-        />
-      </div>
-
-      {!isNew && (
-        <div className="space-y-4 mt-6">
-          <h2 className="text-lg font-semibold">Additional Contacts</h2>
-          <ContactForm contact={newContact} setContact={setNewContact} onAdd={handleAddContact} />
-
-          {Array.isArray(contacts) && contacts.length > 0 ? (
-            <ul className="space-y-2">
-              {contacts.map((c) => (
-                <li key={c.id} className="border rounded p-3">
-                  <div className="font-semibold">{String(c.name || 'Unnamed Contact')}</div>
-                  <div className="text-sm text-gray-600">{String(c.email || '')}</div>
-                  <div className="text-sm text-gray-600">{String(c.phone || '')}</div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="text-sm text-gray-500 italic">No additional contacts found.</div>
-          )}
-        </div>
-      )}
-
-      <div className="flex justify-end gap-3">
-        <button onClick={() => navigate('/clients')} className="px-6 py-2 border rounded">
-          Cancel
-        </button>
-        {!isNew && (
-          <button onClick={handleSave} disabled={saving} className="px-6 py-2 bg-black text-white rounded">
-            {saving ? 'Saving…' : 'Save'}
-          </button>
-        )}
+    <div className="grid grid-cols-3 gap-3 py-2 border-b last:border-0">
+      <div className="text-xs uppercase tracking-wide text-gray-500">{label}</div>
+      <div className="col-span-2 text-sm text-gray-900">
+        {value ?? <span className="text-gray-400">—</span>}
       </div>
     </div>
   );
-};
+}
 
-export default ClientDetail;
+export default function ClientDetail() {
+  const { clientId } = useParams();
+  const nav = useNavigate();
+  const { isAdmin } = useRole() || {};
+  const { data: client, loading, error } = useClient(clientId);
+
+  async function onDelete() {
+    if (!client) return;
+    if (!confirm(`Delete client "${client.name}"? This cannot be undone.`)) return;
+    try {
+      await deleteClient(client.id);
+      toast.success("Client deleted");
+      nav("/clients", { replace: true });
+    } catch (e) {
+      toast.error(e?.message || "Failed to delete");
+    }
+  }
+
+  if (loading) {
+    return <div className="p-3 text-sm text-gray-600">Loading client…</div>;
+  }
+  if (error) {
+    return (
+      <div className="p-3 text-sm text-red-700 bg-red-50 border rounded">
+        Failed to load client: {error.message}
+      </div>
+    );
+  }
+  if (!client) {
+    return (
+      <div className="p-3 text-sm text-amber-800 bg-amber-50 border rounded">
+        Client not found or you don’t have access.
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-3xl mx-auto space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold">{client.name || "Client"}</h1>
+          <p className="text-sm text-gray-500">{client.status || "—"}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link className="text-sm px-3 py-1.5 border rounded hover:bg-gray-50" to="/clients">
+            Back
+          </Link>
+          {isAdmin && (
+            <>
+              <Link
+                className="text-sm px-3 py-1.5 border rounded hover:bg-gray-50"
+                to={`/clients/edit/${client.id}`}
+              >
+                Edit
+              </Link>
+              <button className="text-sm px-3 py-1.5 border rounded hover:bg-gray-50" onClick={onDelete}>
+                Delete
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="bg-white border rounded-xl p-4">
+        <Field label="Contact Name" value={client.contact_name} />
+        <Field label="Contact Email" value={client.contact_email} />
+        <Field label="Phone" value={client.phone} />
+        <Field label="Status" value={client.status} />
+        <Field label="Notes" value={client.notes} />
+      </div>
+    </div>
+  );
+}
+
 
