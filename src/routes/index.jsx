@@ -19,7 +19,8 @@ import EditOrder from "@/pages/EditOrder";
 import Calendar from "@/pages/Calendar";
 import ClientsDashboard from "@/pages/ClientsDashboard";
 import NewClient from "@/pages/NewClient";
-import ClientDetail from "@/pages/ClientDetail";
+// ⬇️ use the new client profile page
+import ClientProfile from "@/pages/clients/ClientProfile";
 import EditClient from "@/pages/EditClient";
 import UsersDashboard from "@/pages/UsersDashboard";
 import AdminUsers from "@/pages/AdminUsers";
@@ -113,11 +114,20 @@ export default function AppRoutes() {
             </ProtectedRoute>
           }
         />
+        {/* Client profile — support both :clientId and :id param names */}
         <Route
           path="/clients/:clientId"
           element={
             <ProtectedRoute roles={["admin"]}>
-              <ClientDetail />
+              <ClientProfile />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/clients/:id"
+          element={
+            <ProtectedRoute roles={["admin"]}>
+              <ClientProfile />
             </ProtectedRoute>
           }
         />
@@ -199,6 +209,7 @@ export default function AppRoutes() {
     </Routes>
   );
 }
+
 
 
 

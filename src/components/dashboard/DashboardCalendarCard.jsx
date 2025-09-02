@@ -11,10 +11,13 @@ export default function DashboardCalendarCard({ className = "", style }) {
   const [loading, setLoading] = useState(true);
 
   // date window: today ± 30 days
-  const now = new Date();
-  const startISO = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1).toISOString().slice(0, 10);
-  const endISO   = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 30).toISOString().slice(0, 10);
-
+   const now = new Date();
+  const startISO = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 60)
+    .toISOString()
+    .slice(0, 10);
+  const endISO = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 60)
+    .toISOString()
+    .slice(0, 10);
   useEffect(() => {
     (async () => {
       setLoading(true);
