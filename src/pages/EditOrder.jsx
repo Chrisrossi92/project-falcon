@@ -1,7 +1,7 @@
 // src/pages/EditOrder.jsx
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import OrderForm from "@/components/orders/OrderForm";
+import OrderForm from "@/components/orders/form/OrderForm";
 import { fetchOrderById, deleteOrder } from "@/lib/services/ordersService";
 import supabase from "@/lib/supabaseClient";   // ← THIS fixes “supabase is not defined”
 

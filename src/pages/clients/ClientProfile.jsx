@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import supabase from "@/lib/supabaseClient";
 import { Card } from "@/components/ui/Card.jsx";
-import SectionHeader from "@/components/SectionHeader";
+import SectionHeader from "@/components/ui/SectionHeader";
 
 const PAGE_SIZE = 15;
 

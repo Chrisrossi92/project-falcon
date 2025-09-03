@@ -4,7 +4,7 @@ import { NavLink } from "react-router-dom";
 import { useSession } from "@/lib/hooks/useSession";
 import { useRole } from "@/lib/hooks/useRole";
 import NotificationBell from "@/components/notifications/NotificationBell";
-import NewOrderButton from "@/components/orders/NewOrderButton";
+import NewOrderButton from "@/components/orders/form/NewOrderButton";
 import supabase from "@/lib/supabaseClient";
 
 function BrandButton() {

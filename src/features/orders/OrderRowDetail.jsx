@@ -1,8 +1,8 @@
 // src/features/orders/OrderRowDetail.jsx
 import React, { useEffect, useState } from 'react';
 import supabase from '@/lib/supabaseClient';
-import OrderDetailPanel from '@/components/orders/OrderDetailPanel';
-import OrderSidebarPanel from '@/components/orders/OrderSidebarPanel';
+import OrderDetailPanel from '@/components/orders/view/OrderDetailPanel';
+import OrderSidebarPanel from '@/components/orders/view/OrderSidebarPanel';
 import { useSession } from '@/lib/hooks/useSession';
 
 export default function OrderRowDetail({ orderId }) {

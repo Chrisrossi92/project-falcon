@@ -1,77 +1,76 @@
-// src/pages/AppraiserDashboard.jsx
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import DashboardTemplate from "@/templates/DashboardTemplate";
-import LoadingBlock from "@/components/ui/LoadingBlock";
-import ErrorCallout from "@/components/ui/ErrorCallout";
-import AdminCalendar from "@/components/admin/AdminCalendar"; // same calendar; RLS + view filters server-side
-import OrdersTableDashboard from "@/features/orders/OrdersTableDashboard";
-import { useOrders } from "@/lib/hooks/useOrders";
 import DashboardSplit from "@/components/dashboard/DashboardSplit";
-import UpcomingList from "@/components/dashboard/UpcomingList";
 import KpiLink from "@/components/dashboard/KpiLink";
-import { ORDER_STATUS, normalizeStatus } from "@/lib/constants/orderStatus";
-import { useSession } from "@/lib/hooks/useSession";
-import { useRole } from "@/lib/hooks/useRole";
+import UpcomingEventsList from "@/components/dashboard/UpcomingEventsList";
+import TwoWeekCalendar from "@/components/calendar/TwoWeekCalendar";
+import useCalendarEventsForUser from "@/components/calendar/useCalendarEventsForUser";
+import useCurrentUserIds from "@/components/calendar/useCurrentUserIds";
+import UnifiedOrdersTable from "@/features/orders/UnifiedOrdersTable";
 
-function getUserId(user) {
-  return user?.id || user?.user_id || user?.auth_id || user?.uid || null;
-}
+import { useOrders } from "@/lib/hooks/useOrders";
+import { ORDER_STATUS, normalizeStatus } from "@/lib/constants/orderStatus";
+
+const HEADER_OFFSET = 260;
 
 export default function AppraiserDashboard() {
-  const { user } = useSession();
-  const { isAdmin, isReviewer } = useRole() || {};
-  const me = getUserId(user);
-
-  // Force appraiser scope (admins/reviewers still see all)
-  const initialFilters = (!isAdmin && !isReviewer && me)
-    ? { appraiserId: me }
-    : {};
-
-  // Pull the set we need for both panels (right list & upcoming)
-  const { data = [], loading, error } = useOrders(initialFilters);
+  const { data = [] } = useOrders({});
+  const [events, setEvents] = useState([]);
+  const { usersId, displayName } = useCurrentUserIds();
+  const getEventsMine = useCalendarEventsForUser(usersId); // server-filtered by users.id
 
   const kpis = useMemo(() => {
     const mine = data.length;
     const due7 = data.filter(o => {
-      const d = o.due_date;
-      if (!d) return false;
+      const d = o.due_date; if (!d) return false;
       const dt = new Date(d), now = new Date();
-      const diff = (dt - now) / (1000 * 60 * 60 * 24);
+      const diff = (dt - now) / (1000*60*60*24);
       return diff >= 0 && diff <= 7;
     }).length;
-    const inProgress = data.filter(o => normalizeStatus(o.status) === ORDER_STATUS.IN_PROGRESS).length;
+    const inProg = data.filter(o => normalizeStatus(o.status) === ORDER_STATUS.IN_PROGRESS).length;
     return [
-      <KpiLink key="mine" label="My Orders" value={mine} filter={{ ...(initialFilters || {}) }} />,
-      <KpiLink key="due7" label="Due in 7 Days" value={due7} filter={{ ...(initialFilters || {}) }} />,
-      <KpiLink
-        key="prog"
-        label="In Progress"
-        value={inProgress}
-        filter={{ ...(initialFilters || {}), status: "in_progress" }}
-      />,
+      <KpiLink key="mine" label="My Orders" value={mine} />,
+      <KpiLink key="due7" label="Due in 7 Days" value={due7} />,
+      <KpiLink key="prog" label="In Progress" value={inProg} />,
     ];
-  }, [data, initialFilters]);
+  }, [data]);
+
+  const equalHeightStyle = { height: `calc(100vh - ${HEADER_OFFSET}px)` };
 
   return (
     <DashboardTemplate title="My Dashboard" subtitle="At-a-glance queue & deadlines" kpis={kpis}>
-      {error && <ErrorCallout>Failed to load orders: {error.message}</ErrorCallout>}
-      {loading ? (
-        <LoadingBlock />
-      ) : (
-        <DashboardSplit
-          modes={{
-            // Calendar is fed by v_admin_calendar; RLS should scope server-side.
-            calendar: { label: "calendar", render: () => <AdminCalendar /> },
-            list: { label: "upcoming", render: () => <UpcomingList orders={data} /> },
-          }}
-          initial="calendar"
-          // Right side: use the compact dashboard table with our already-filtered rows
-          right={() => <OrdersTableDashboard rows={data} />}
-        />
-      )}
+      <DashboardSplit
+        modes={{
+          calendar: {
+            label: "calendar",
+            render: () => (
+              <TwoWeekCalendar
+                className="h-full"
+                getEvents={getEventsMine}              // server-side appraiser-only events
+                onEventsChange={setEvents}
+                onEventClick={(ev) => { if (ev.orderId) window.open(`/orders/${ev.orderId}`, "_self"); }}
+                meName={displayName}                  // optional, not required for server filter
+                showFilters                            // keep Site/Review/Final chips
+                showWeekdayHeader
+                hideMineChip                           // hide the “Mine” chip (everything is theirs)
+              />
+            ),
+          },
+          upcoming: { label: "upcoming", render: () => <UpcomingEventsList events={events} /> },
+        }}
+        initial="calendar"
+        leftStyle={equalHeightStyle}
+        rightStyle={equalHeightStyle}
+        right={() => <UnifiedOrdersTable role="appraiser" pageSize={8} className="h-full" />}
+      />
     </DashboardTemplate>
   );
 }
+
+
+
+
+
 
 
 

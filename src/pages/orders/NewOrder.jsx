@@ -1,7 +1,7 @@
 // src/pages/orders/NewOrder.jsx
 import React from "react";
 import { useNavigate, Link } from "react-router-dom";
-import NewOrderForm from "@/components/orders/NewOrderForm";
+import NewOrderForm from "@/components/orders/form/NewOrderForm";
 
 export default function NewOrderPage() {
   const navigate = useNavigate();

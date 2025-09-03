@@ -2,10 +2,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import supabase from "@/lib/supabaseClient";
 import { Card } from "@/components/ui/Card.jsx";
-import SectionHeader from "@/components/SectionHeader";
+import SectionHeader from "@/components/ui/SectionHeader";
 import { fetchOrdersWithFilters } from "@/lib/api/orders";
-import OrdersTablePagination from "@/components/orders/OrdersTablePagination";
-import OrderDrawerContent from "@/components/orders/OrderDrawerContent";
+import OrdersTablePagination from "@/components/orders/table/OrdersTablePagination";
+import OrderDrawerContent from "@/components/orders/drawer/OrderDrawerContent";
 import StatusBadge from "@/features/orders/StatusBadge";
 import { ORDER_STATUS } from "@/lib/constants/orderStatus";
 import { toCsv, downloadCsv } from "@/lib/utils/csv";

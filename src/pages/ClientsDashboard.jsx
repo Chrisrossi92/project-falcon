@@ -3,7 +3,7 @@ import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useClients } from "@/lib/hooks/useClients";
 import { useRole } from "@/lib/hooks/useRole";
-import SectionHeader from "@/components/SectionHeader";
+import SectionHeader from "@/components/ui/SectionHeader";
 import { toCsv, downloadCsv } from "@/lib/utils/csv";
 
 const STATUS_OPTIONS = [
