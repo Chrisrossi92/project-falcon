@@ -49,3 +49,5 @@ export default function LicenseEditor({ userId }) {
     </div>
   )
 }
+
+// TODO: wire license mgmt

@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { listTeam } from "@/lib/services/userService";
 import { useRole } from "@/lib/hooks/useRole";
-import SectionHeader from "@/components/SectionHeader";
+import SectionHeader from "@/components/ui/SectionHeader";
 
 /** Small avatar with fallback initial */
 function Avatar({ name, url, size = 36 }) {

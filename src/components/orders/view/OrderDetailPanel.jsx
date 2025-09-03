@@ -1,9 +1,9 @@
 // src/components/orders/OrderDetailPanel.jsx
 import React from "react";
-import MetaItem from "@/components/MetaItem";
+import MetaItem from "@/components/ui/MetaItem";
 import { useNavigate } from "react-router-dom";
 import { labelForStatus } from "@/lib/constants/orderStatus";
-import MapContainer from "@/components/MapContainer";
+import MapContainer from "@/components/maps/MapContainer";
 
 
 export default function OrderDetailPanel({ order, isAdmin }) {

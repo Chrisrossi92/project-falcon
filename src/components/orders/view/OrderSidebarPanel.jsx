@@ -1,6 +1,44 @@
+// src/components/orders/view/OrderSidebarPanel.jsx
 import React, { useEffect, useState, useCallback } from "react";
 import supabase from "@/lib/supabaseClient";
-// If your project already has this helper, we’ll try it first and fall back to direct insert.
+import { updateOrderStatus } from "@/lib/services/ordersService";
+
+// Compact approve/revisions controls
+function ReviewQuickActions({ orderId, onAfterChange }) {
+  if (!orderId) return null;
+
+  async function setStatus(next, label) {
+    const ok = window.confirm(`Set status to "${label}"?`);
+    if (!ok) return;
+    await updateOrderStatus(orderId, next);
+    onAfterChange?.();
+  }
+
+  return (
+    <div className="mb-3 flex items-center gap-2">
+      <button
+        type="button"
+        data-no-drawer
+        className="px-2 py-1 rounded border text-xs hover:bg-slate-50"
+        onClick={(e) => { e.stopPropagation(); setStatus("ready_to_send", "Ready to Send"); }}
+        title="Approve review → Ready to Send"
+      >
+        Approve
+      </button>
+      <button
+        type="button"
+        data-no-drawer
+        className="px-2 py-1 rounded border text-xs hover:bg-slate-50"
+        onClick={(e) => { e.stopPropagation(); setStatus("revisions", "Revisions"); }}
+        title="Request revisions"
+      >
+        Request Revisions
+      </button>
+    </div>
+  );
+}
+
+// Optional helper (will be used if present in your project)
 let logActivity;
 try { ({ logActivity } = require("@/lib/logactivity")); } catch (_) {}
 
@@ -51,7 +89,6 @@ export default function OrderSidebarPanel({ order, orderId, onRefresh }) {
     if (!id || !note.trim()) return;
     setPosting(true);
     try {
-      // Preferred path: project helper
       if (typeof logActivity === "function") {
         await logActivity({
           order_id: id,
@@ -61,18 +98,15 @@ export default function OrderSidebarPanel({ order, orderId, onRefresh }) {
           visible_to: ["admin", "reviewer", "appraiser"],
         });
       } else {
-        // Fallback: direct insert
         const { data: userInfo } = await supabase.auth.getUser();
         const uid = userInfo?.user?.id ?? null;
-        const { error } = await supabase.from("activity_log").insert([
-          {
-            order_id: id,
-            action: "note",
-            message: note.trim(),
-            role: "admin",
-            user_id: uid,
-          },
-        ]);
+        const { error } = await supabase.from("activity_log").insert([{
+          order_id: id,
+          action: "note",
+          message: note.trim(),
+          role: "admin",
+          user_id: uid,
+        }]);
         if (error) throw error;
       }
       setNote("");
@@ -86,15 +120,18 @@ export default function OrderSidebarPanel({ order, orderId, onRefresh }) {
   }
 
   if (!id) {
-    return (
-      <div className="p-3 text-xs text-muted-foreground">
-        Loading activity…
-      </div>
-    );
+    return <div className="p-3 text-xs text-muted-foreground">Loading activity…</div>;
   }
 
   return (
     <div className="flex flex-col gap-2 h-full">
+      {/* Quick review actions */}
+      <ReviewQuickActions
+        orderId={id}
+        onAfterChange={() => { fetchActivity(); onRefresh?.(); }}
+      />
+
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="font-medium">Activity</div>
         <button
@@ -109,6 +146,7 @@ export default function OrderSidebarPanel({ order, orderId, onRefresh }) {
         </button>
       </div>
 
+      {/* Activity list */}
       <div className="rounded border bg-white max-h-[40vh] overflow-auto">
         {loading ? (
           <div className="p-3 text-xs text-muted-foreground">Loading…</div>
@@ -157,6 +195,7 @@ export default function OrderSidebarPanel({ order, orderId, onRefresh }) {
     </div>
   );
 }
+
 
 
 
