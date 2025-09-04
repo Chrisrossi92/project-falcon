@@ -1,19 +1,16 @@
-// src/components/orders/view/OrderSidebarPanel.jsx
 import React, { useEffect, useState, useCallback } from "react";
 import supabase from "@/lib/supabaseClient";
 import { updateOrderStatus } from "@/lib/services/ordersService";
+import { useRole } from "@/lib/hooks/useRole";
 
-// Compact approve/revisions controls
-function ReviewQuickActions({ orderId, onAfterChange }) {
-  if (!orderId) return null;
-
+function ReviewQuickActions({ orderId, onAfterChange, enabled }) {
+  if (!orderId || !enabled) return null;
   async function setStatus(next, label) {
     const ok = window.confirm(`Set status to "${label}"?`);
     if (!ok) return;
     await updateOrderStatus(orderId, next);
     onAfterChange?.();
   }
-
   return (
     <div className="mb-3 flex items-center gap-2">
       <button
@@ -38,9 +35,9 @@ function ReviewQuickActions({ orderId, onAfterChange }) {
   );
 }
 
-// Optional helper (will be used if present in your project)
+// Optional helper (best-effort logging)
 let logActivity;
-try { ({ logActivity } = require("@/lib/logactivity")); } catch (_) {}
+try { ({ logActivity } = require("@/lib/logactivity")); } catch {}
 
 function fmtDateTime(ts) {
   if (!ts) return "—";
@@ -48,15 +45,9 @@ function fmtDateTime(ts) {
   return isNaN(d) ? "—" : d.toLocaleString();
 }
 
-/**
- * OrderSidebarPanel
- * - Accepts either `order` or `orderId` (or both)
- * - Loads & displays recent activity
- * - Allows posting a note
- * - Never crashes if order is still loading
- */
 export default function OrderSidebarPanel({ order, orderId, onRefresh }) {
   const id = order?.id ?? orderId ?? null;
+  const { isAdmin, isReviewer } = useRole() || {};
 
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(!!id);
@@ -92,7 +83,7 @@ export default function OrderSidebarPanel({ order, orderId, onRefresh }) {
       if (typeof logActivity === "function") {
         await logActivity({
           order_id: id,
-          role: "admin",
+          role: isReviewer ? "reviewer" : isAdmin ? "admin" : "appraiser",
           action: "note",
           context: { comment: note.trim() },
           visible_to: ["admin", "reviewer", "appraiser"],
@@ -101,10 +92,8 @@ export default function OrderSidebarPanel({ order, orderId, onRefresh }) {
         const { data: userInfo } = await supabase.auth.getUser();
         const uid = userInfo?.user?.id ?? null;
         const { error } = await supabase.from("activity_log").insert([{
-          order_id: id,
-          action: "note",
-          message: note.trim(),
-          role: "admin",
+          order_id: id, action: "note", message: note.trim(),
+          role: isReviewer ? "reviewer" : isAdmin ? "admin" : "appraiser",
           user_id: uid,
         }]);
         if (error) throw error;
@@ -119,19 +108,16 @@ export default function OrderSidebarPanel({ order, orderId, onRefresh }) {
     }
   }
 
-  if (!id) {
-    return <div className="p-3 text-xs text-muted-foreground">Loading activity…</div>;
-  }
+  if (!id) return <div className="p-3 text-xs text-muted-foreground">Loading activity…</div>;
 
   return (
     <div className="flex flex-col gap-2 h-full">
-      {/* Quick review actions */}
       <ReviewQuickActions
         orderId={id}
+        enabled={!isAdmin && isReviewer}   // ✅ reviewer-only
         onAfterChange={() => { fetchActivity(); onRefresh?.(); }}
       />
 
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="font-medium">Activity</div>
         <button
@@ -146,7 +132,6 @@ export default function OrderSidebarPanel({ order, orderId, onRefresh }) {
         </button>
       </div>
 
-      {/* Activity list */}
       <div className="rounded border bg-white max-h-[40vh] overflow-auto">
         {loading ? (
           <div className="p-3 text-xs text-muted-foreground">Loading…</div>
@@ -160,16 +145,13 @@ export default function OrderSidebarPanel({ order, orderId, onRefresh }) {
                   <div className="font-medium">{r.action}</div>
                   <div className="text-xs text-muted-foreground">{fmtDateTime(r.created_at)}</div>
                 </div>
-                {r.message && (
-                  <div className="text-[13px] mt-1 whitespace-pre-wrap">{r.message}</div>
-                )}
+                {r.message && <div className="text-[13px] mt-1 whitespace-pre-wrap">{r.message}</div>}
               </li>
             ))}
           </ul>
         )}
       </div>
 
-      {/* Add a note */}
       <div className="mt-1">
         <textarea
           data-no-drawer
@@ -195,6 +177,10 @@ export default function OrderSidebarPanel({ order, orderId, onRefresh }) {
     </div>
   );
 }
+
+
+
+
 
 
 

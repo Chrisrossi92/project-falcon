@@ -1,9 +1,9 @@
 // src/pages/Dashboard.jsx
 import React from "react";
 import { useSession } from "@/lib/hooks/useSession";
-import AdminDashboard from "./AdminDashboard";
-import ReviewerDashboard from "./ReviewerDashboard";
-import AppraiserDashboard from "./AppraiserDashboard";
+import AdminDashboard from "./admin/AdminDashboard";
+import ReviewerDashboard from "./reviewers/ReviewerDashboard";
+import AppraiserDashboard from "./appraisers/AppraiserDashboard";
 
 export default function Dashboard() {
   const { isAdmin, isReviewer } = useSession();

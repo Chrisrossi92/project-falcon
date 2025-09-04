@@ -383,14 +383,14 @@ export default function OrdersPage() {
                     </tr>
 
                     {expandedId === o.id && (
-                      <tr className="border-b bg-white">
-                        <td colSpan={7} className="p-0">
-                          <div className="p-4">
-                            <OrderDrawerContent data={o} />
-                          </div>
-                        </td>
-                      </tr>
-                    )}
+   <tr className="border-b bg-white">
+     <td colSpan={7} className="p-0">
+       <div className="p-4">
+         <OrderDrawerContent orderId={o.id} order={o} compact />
+       </div>
+     </td>
+   </tr>
+ )}
                   </React.Fragment>
                 ))}
           </tbody>

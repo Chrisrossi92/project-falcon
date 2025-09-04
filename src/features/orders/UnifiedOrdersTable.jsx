@@ -1,5 +1,4 @@
 import React, { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import { useOrders } from "@/lib/hooks/useOrders";
 import { useRole } from "@/lib/hooks/useRole";
 import {
@@ -11,10 +10,10 @@ import OrdersTableHeader from "@/components/orders/table/OrdersTableHeader";
 import OrdersTableRow from "@/components/orders/table/OrdersTableRow";
 import OrdersTablePagination from "@/components/orders/table/OrdersTablePagination";
 import OrderDrawerContent from "@/components/orders/drawer/OrderDrawerContent";
-import StatusBadge from "@/features/orders/StatusBadge";
+import QuickActionCell from "@/components/orders/table/QuickActionCell";
+import OrderStatusBadge from "@/components/orders/table/OrderStatusBadge";
 import { ORDER_STATUS, STATUS_LABEL } from "@/lib/constants/orderStatus";
 
-// ── utils ────────────────────────────────────────────────────────────────────
 const fmtDate = (d) =>
   !d ? "—" : isNaN(new Date(d)) ? "—" : new Date(d).toLocaleDateString();
 
@@ -29,44 +28,31 @@ function dateTone(dateStr) {
 }
 
 const fieldBtn =
-  "inline-flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-muted/60 " +
-  "transition text-left text-[13px] border border-transparent " +
-  "focus:outline-none focus:ring-2 focus:ring-primary/30";
+  "inline-flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-muted/60 transition text-left text-[13px] border border-transparent focus:outline-none focus:ring-2 focus:ring-primary/30";
 
-// ── “stealth” control (looks read-only until clicked; becomes a select) ─────
 function InlineSelect({ value, label, options, onConfirm, confirmText }) {
   const [open, setOpen] = useState(false);
-
   if (!open) {
     return (
       <button
         type="button"
         data-no-drawer
         className={`${fieldBtn} bg-white w-full`}
-        onClick={(e) => {
-          e.stopPropagation();
-          setOpen(true);
-        }}
+        onClick={(e) => { e.stopPropagation(); setOpen(true); }}
         title="Click to edit"
       >
         <span className="truncate">{label || "—"}</span>
-        {/* caret intentionally hidden in closed state */}
       </button>
     );
   }
-
   async function onChange(e) {
     const next = e.target.value || null;
     const chosen = options.find((o) => String(o.value) === String(next));
     const text = (confirmText || "Apply change to") + ` "${chosen?.label ?? "Unassigned"}"?`;
-    if (!window.confirm(text)) {
-      setOpen(false);
-      return;
-    }
+    if (!window.confirm(text)) { setOpen(false); return; }
     await onConfirm?.(next, chosen);
     setOpen(false);
   }
-
   return (
     <select
       data-no-drawer
@@ -87,19 +73,32 @@ function InlineSelect({ value, label, options, onConfirm, confirmText }) {
   );
 }
 
-// ── main ─────────────────────────────────────────────────────────────────────
+function DueCell({ reviewDue, finalDue }) {
+  return (
+    <div className="text-[12px] leading-4 tabular-nums space-y-1 w-full">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs text-muted-foreground">Review</span>
+        <span className={`${dateTone(reviewDue)} whitespace-nowrap`}>{fmtDate(reviewDue)}</span>
+      </div>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs text-muted-foreground">Final</span>
+        <span className={`${dateTone(finalDue)} whitespace-nowrap`}>{fmtDate(finalDue)}</span>
+      </div>
+    </div>
+  );
+}
+
 export default function UnifiedOrdersTable({
   role: roleProp,
   pageSize = 8,
   className = "",
   style = {},
-  usersList = [], // pass useUsers() list on Admin/Reviewer dashboards
+  usersList = [],
 }) {
   const { role: hookRole } = useRole() || {};
   const role = (roleProp || hookRole || "").toLowerCase();
   const isAdminOrReviewer = role === "admin" || role === "reviewer";
 
-  // IMPORTANT: use the hook’s filter state so pagination actually changes results
   const {
     data = [],
     count = 0,
@@ -109,7 +108,7 @@ export default function UnifiedOrdersTable({
     setFilters,
   } = useOrders({
     activeOnly: true,
-    page: 0,                   // initial
+    page: 0,
     pageSize,
     orderBy: "date_ordered",
     ascending: false,
@@ -119,12 +118,7 @@ export default function UnifiedOrdersTable({
   const rows = useMemo(() => data || [], [data]);
   const totalPages = Math.max(1, Math.ceil((count || 0) / (filters.pageSize || pageSize)));
   const [expandedId, setExpandedId] = useState(null);
-
-  const goToPage = (next) =>
-    setFilters((f) => ({
-      ...f,
-      page: Math.min(Math.max(0, next), totalPages - 1),
-    }));
+  const refresh = () => setFilters((f) => ({ ...f })); // reload
 
   const statusOptions = Object.values(ORDER_STATUS).map((s) => ({
     value: s,
@@ -147,31 +141,31 @@ export default function UnifiedOrdersTable({
 
       <div className="flex-none overflow-hidden">
         <table className="w-full table-fixed text-[13px] leading-tight">
-          {/* 4 columns: Order | Client/Address | Quick edit | Due (2-line) */}
           <colgroup>
-            <col style={{ width: "112px" }} />
-            <col />                      {/* wide, takes remaining space */}
-            <col style={{ width: "188px" }} />
-            <col style={{ width: "104px" }} />
+            <col />                         {/* Details (flex) */}
+            <col style={{ width: "200px" }} /> {/* Quick Action (compact) */}
+            <col style={{ width: "140px" }} /> {/* Due (compact) */}
           </colgroup>
 
-          <OrdersTableHeader />
+          <thead className="bg-muted/40">
+            <tr className="text-[12px] uppercase tracking-wide text-muted-foreground">
+              <th className="px-3 py-2 text-left font-semibold">Order / Client / Address</th>
+              <th className="px-3 py-2 text-left font-semibold">Quick action</th>
+              <th className="px-3 py-2 text-left font-semibold">Due</th>
+            </tr>
+          </thead>
 
           <tbody>
             {loading ? (
               [...Array(filters.pageSize || pageSize)].map((_, i) => (
                 <tr key={i} className="border-b">
-                  <td className="px-3 py-3 align-middle"><div className="h-3 bg-muted rounded w-16" /></td>
-                  <td className="px-3 py-3 align-middle">
-                    <div className="h-3 bg-muted rounded w-40 mb-1" />
-                    <div className="h-3 bg-muted rounded w-64" />
-                  </td>
+                  <td className="px-3 py-3 align-middle"><div className="h-3 bg-muted rounded w-64" /></td>
                   <td className="px-3 py-3 align-middle"><div className="h-3 bg-muted rounded w-40" /></td>
-                  <td className="px-3 py-3 align-middle"><div className="h-3 bg-muted rounded w-16" /></td>
+                  <td className="px-3 py-3 align-middle"><div className="h-3 bg-muted rounded w-24" /></td>
                 </tr>
               ))
             ) : rows.length === 0 ? (
-              <tr><td colSpan={4} className="px-4 py-6 text-gray-600">No orders.</td></tr>
+              <tr><td colSpan={3} className="px-4 py-6 text-gray-600">No orders.</td></tr>
             ) : (
               rows.flatMap((o) => {
                 const mainRow = (
@@ -182,20 +176,13 @@ export default function UnifiedOrdersTable({
                     className="py-3"
                     renderCells={(order) => (
                       <>
-                        {/* Order # */}
-                        <td className="px-3 py-3 whitespace-nowrap align-middle">
-                          <Link
-                            to={`/orders/${order.id}`}
-                            className="text-blue-600 hover:underline"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {order.order_no ?? order.order_number ?? order.id.slice(0, 8)}
-                          </Link>
-                        </td>
-
-                        {/* Client / Address — give this the space */}
-                        <td className="px-3 py-3 align-middle">
-                          <div className="max-w-[640px]">
+                        {/* DETAILS: biggest column */}
+                        <td className="px-3 py-3 align-middle border-r border-slate-200">
+                          <div className="space-y-1">
+                            <div className="text-sm font-semibold text-black">
+                              {order.order_no ?? order.order_number ?? order.id.slice(0, 8)}
+                            </div>
+                            <OrderStatusBadge status={(order.status || "").toLowerCase()} />
                             <div className="font-medium truncate" title={order.client_name || ""}>
                               {order.client_name ?? "—"}
                             </div>
@@ -205,59 +192,43 @@ export default function UnifiedOrdersTable({
                           </div>
                         </td>
 
-                        {/* Quick edit — compact, stacked */}
-                        <td className="px-3 py-3 align-middle">
+                        {/* QUICK ACTION: compact; popover expands when needed */}
+                        <td className="px-3 py-3 align-middle border-r border-slate-200">
                           {isAdminOrReviewer ? (
-                            <div className="flex flex-col gap-[4px]">
+                            <div className="flex flex-col gap-[4px] w-[180px]">
                               <InlineSelect
                                 value={order.appraiser_id || ""}
                                 label={order.appraiser_name || "— Unassigned —"}
                                 options={appraiserOptions}
                                 confirmText="Assign appraiser to"
-                                onConfirm={async (id) => {
-                                  await assignAppraiserSvc(order.id, id || null);
-                                  setFilters((f) => ({ ...f })); // refresh page
-                                }}
+                                onConfirm={async (id) => { await assignAppraiserSvc(order.id, id || null); refresh(); }}
                               />
                               <InlineSelect
                                 value={(order.status || "").toLowerCase()}
-                                // Use StatusBadge for color AND a proper-cased label
-                                label={<StatusBadge status={(order.status || "").toLowerCase()} label={STATUS_LABEL[(order.status || "").toLowerCase()] || (order.status || "—")} />}
+                                label={STATUS_LABEL[(order.status || "").toLowerCase()] || (order.status || "—")}
                                 options={statusOptions}
                                 confirmText="Change status to"
-                                onConfirm={async (s) => {
-                                  await updateOrderStatus(order.id, s);
-                                  setFilters((f) => ({ ...f })); // refresh page
-                                }}
+                                onConfirm={async (s) => { await updateOrderStatus(order.id, s); refresh(); }}
                               />
                             </div>
                           ) : (
-                            <div className="text-xs text-muted-foreground">—</div>
+                            <QuickActionCell order={order} onChanged={refresh} />
                           )}
                         </td>
 
-                        {/* Due (2-line: Review / Final) — tighter column */}
-                        <td className="px-3 py-3 whitespace-nowrap align-middle">
-                          <div className="text-[12px] leading-4 tabular-nums">
-                            <div className={dateTone(order.review_due_date)} title="Review due">
-                              {fmtDate(order.review_due_date)}
-                            </div>
-                            <div className={dateTone(order.due_date)} title="Final due">
-                              {fmtDate(order.due_date)}
-                            </div>
-                          </div>
+                        {/* DUE: compact, right-aligned dates */}
+                        <td className="px-3 py-3 align-middle">
+                          <DueCell reviewDue={order.review_due_date} finalDue={order.due_date} />
                         </td>
                       </>
                     )}
                   />
                 );
 
-                // Inline expander (“dropdown drawer” row)
                 const expander = expandedId === o.id ? (
                   <tr key={`${o.id}-expanded`} className="bg-muted/20">
-                    <td colSpan={4} className="px-3 py-3">
+                    <td colSpan={3} className="px-3 py-3">
                       <div className="rounded-md border bg-white p-3">
-                        {/* Pass both orderId and the row for faster first paint */}
                         <OrderDrawerContent orderId={o.id} order={o} compact />
                       </div>
                     </td>
@@ -271,22 +242,27 @@ export default function UnifiedOrdersTable({
         </table>
       </div>
 
-      {/* Footer / Pagination */}
       <div className="mt-auto border-t px-3 py-2">
         <div className="flex items-center justify-between">
           <div className="text-xs text-muted-foreground">
-            Page <span className="font-medium">{page + 1}</span> / {totalPages} • {count ?? 0} total
+            Page <span className="font-medium">{(filters.page || 0) + 1}</span> / {Math.max(1, Math.ceil((count || 0) / (filters.pageSize || pageSize)))} • {count ?? 0} total
           </div>
           <OrdersTablePagination
-            currentPage={page + 1}
-            totalPages={totalPages}
-            goToPage={(p) => goToPage(p - 1)}
+            currentPage={(filters.page || 0) + 1}
+            totalPages={Math.max(1, Math.ceil((count || 0) / (filters.pageSize || pageSize)))}
+            goToPage={(p) => setFilters((f) => ({ ...f, page: p - 1 }))}
           />
         </div>
       </div>
     </div>
   );
 }
+
+
+
+
+
+
 
 
 
