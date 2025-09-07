@@ -1,137 +1,137 @@
-// src/pages/admin/ManageRoles.jsx
 import React, { useEffect, useMemo, useState } from "react";
-import { listUsersWithRoles, setUserRole, getMyRole } from "@/lib/services/rolesService";
+import { listUsers, setUserRole, setUserFeeSplit, setUserActive } from "@/lib/services/usersService";
+import { useRole } from "@/lib/hooks/useRole";
 
-const ROLE_OPTIONS = ["admin", "reviewer", "appraiser"];
+const ROLES = [
+  { v: "admin", label: "Admin" },
+  { v: "reviewer", label: "Reviewer" },
+  { v: "appraiser", label: "Appraiser" },
+];
 
 export default function ManageRoles() {
+  const { isAdmin } = useRole() || {};
   const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [busyId, setBusyId] = useState(null);
   const [err, setErr] = useState(null);
-  const [myRole, setMyRole] = useState("appraiser");
-  const [savingId, setSavingId] = useState(null);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        setLoading(true);
-        setErr(null);
-        const [role, list] = await Promise.all([getMyRole(), listUsersWithRoles()]);
-        setMyRole(role || "appraiser");
-        setRows(
-          list.map((u) => ({
-            id: u.id,
-            email: u.email,
-            name: u.display_name || u.email,
-            role: u.role || "appraiser",
-            fee_split: u.fee_split ?? "",
-          }))
-        );
-      } catch (e) {
-        setErr(e?.message || String(e));
-        setRows([]);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((r) => [r.email, r.full_name, r.display_name].join(" ").toLowerCase().includes(q));
+  }, [rows, search]);
 
-  const isAdmin = myRole === "admin";
+  async function refresh() {
+    setErr(null);
+    try { setRows(await listUsers()); }
+    catch (e) { setErr(e); }
+  }
 
-  const handleSave = async (row) => {
-    try {
-      setSavingId(row.id);
-      await setUserRole(row.id, row.role, row.fee_split === "" ? null : Number(row.fee_split));
-    } catch (e) {
-      alert(e?.message || String(e));
-    } finally {
-      setSavingId(null);
-    }
-  };
+  useEffect(() => { refresh(); }, []);
 
-  if (loading) return <div className="p-4">Loading…</div>;
-  if (err) return <div className="p-4 text-red-600">Error: {err}</div>;
+  if (!isAdmin) {
+    return <div className="p-4 text-sm text-muted-foreground">Only admins can manage roles.</div>;
+  }
 
   return (
-    <div className="p-4 space-y-4">
-      <div>
-        <h1 className="text-lg font-semibold">Manage Roles</h1>
-        <p className="text-sm text-gray-600">
-          Set each user’s role and fee split. {isAdmin ? "" : "(read-only; admin required to save)"}
-        </p>
+    <div className="p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <h1 className="text-xl font-semibold">Manage Roles</h1>
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search name or email…"
+          className="ml-auto rounded border px-3 py-2 text-sm"
+        />
       </div>
 
-      <div className="bg-white border rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="text-left px-3 py-2">Name</th>
-              <th className="text-left px-3 py-2">Email</th>
-              <th className="text-left px-3 py-2">Role</th>
-              <th className="text-left px-3 py-2">Fee split (%)</th>
-              <th className="text-right px-3 py-2">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.id} className="border-t">
-                <td className="px-3 py-2">{r.name}</td>
-                <td className="px-3 py-2 text-gray-600">{r.email}</td>
-                <td className="px-3 py-2">
-                  <select
-                    className="border rounded px-2 py-1"
-                    value={r.role}
-                    onChange={(e) =>
-                      setRows((prev) =>
-                        prev.map((x) => (x.id === r.id ? { ...x, role: e.target.value } : x))
-                      )
-                    }
-                    disabled={!isAdmin}
-                  >
-                    {ROLE_OPTIONS.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td className="px-3 py-2">
-                  <input
-                    type="number"
-                    step="0.01"
-                    className="border rounded px-2 py-1 w-28"
-                    value={r.fee_split}
-                    onChange={(e) =>
-                      setRows((prev) =>
-                        prev.map((x) => (x.id === r.id ? { ...x, fee_split: e.target.value } : x))
-                      )
-                    }
-                    placeholder="e.g., 50"
-                    disabled={!isAdmin}
-                  />
-                </td>
-                <td className="px-3 py-2 text-right">
-                  <button
-                    className={`px-3 py-1 rounded text-white ${
-                      isAdmin ? "bg-blue-600 hover:bg-blue-700" : "bg-gray-300"
-                    }`}
-                    disabled={!isAdmin || savingId === r.id}
-                    onClick={() => handleSave(r)}
-                  >
-                    {savingId === r.id ? "Saving…" : "Save"}
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {rows.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-3 py-6 text-center text-gray-500">
-                  No users found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+      {err && <div className="text-red-600 text-sm border rounded p-2">Failed: {err.message}</div>}
+
+      <div className="border rounded overflow-hidden">
+        <div className="grid grid-cols-7 gap-2 px-3 py-2 text-[13px] font-medium text-muted-foreground border-b">
+          <div className="col-span-2">User</div>
+          <div>Email</div>
+          <div>Role</div>
+          <div>Fee Split</div>
+          <div>Active</div>
+          <div>Updated</div>
+        </div>
+
+        {filtered.map((u) => (
+          <div key={u.id} className="grid grid-cols-7 gap-2 px-3 py-2 border-b text-sm items-center">
+            <div className="col-span-2 min-w-0">
+              <div className="truncate font-medium">{u.display_name || u.full_name || "—"}</div>
+            </div>
+            <div className="truncate">{u.email}</div>
+
+            {/* Role */}
+            <div>
+              <select
+                className="border rounded px-2 py-1 text-sm"
+                value={u.role || "appraiser"}
+                disabled={busyId === u.id}
+                onChange={async (e) => {
+                  setBusyId(u.id);
+                  try {
+                    const next = await setUserRole(u.id, e.target.value);
+                    setRows((prev) => prev.map((r) => (r.id === u.id ? next : r)));
+                  } catch (e2) { setErr(e2); } finally { setBusyId(null); }
+                }}
+              >
+                {ROLES.map((r) => <option key={r.v} value={r.v}>{r.label}</option>)}
+              </select>
+            </div>
+
+            {/* Fee split */}
+            <div>
+              <input
+                type="number" step="0.01" min="0" max="100"
+                className="border rounded px-2 py-1 w-24 text-right text-sm"
+                value={u.fee_split ?? 50}
+                disabled={busyId === u.id}
+                onChange={(e) => {
+                  const v = Math.max(0, Math.min(100, Number(e.target.value)));
+                  setRows((prev) => prev.map((r) => (r.id === u.id ? { ...r, fee_split: v } : r)));
+                }}
+                onBlur={async () => {
+                  setBusyId(u.id);
+                  try {
+                    const next = await setUserFeeSplit(u.id, rows.find(r => r.id === u.id).fee_split);
+                    setRows((prev) => prev.map((r) => (r.id === u.id ? next : r)));
+                  } catch (e2) { setErr(e2); } finally { setBusyId(null); }
+                }}
+              />
+              <span className="ml-1 text-xs text-muted-foreground">%</span>
+            </div>
+
+            {/* Active toggle */}
+            <div>
+              <label className="inline-flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={!!u.is_active}
+                  disabled={busyId === u.id}
+                  onChange={async (e) => {
+                    setBusyId(u.id);
+                    try {
+                      const next = await setUserActive(u.id, e.target.checked);
+                      setRows((prev) => prev.map((r) => (r.id === u.id ? next : r)));
+                    } catch (e2) { setErr(e2); } finally { setBusyId(null); }
+                  }}
+                />
+                <span className="text-xs text-muted-foreground">Active</span>
+              </label>
+            </div>
+
+            <div className="text-xs text-muted-foreground">
+              {u.updated_at ? new Date(u.updated_at).toLocaleString() : "—"}
+            </div>
+          </div>
+        ))}
+
+        {filtered.length === 0 && (
+          <div className="px-3 py-3 text-sm text-muted-foreground">No users found.</div>
+        )}
       </div>
     </div>
   );

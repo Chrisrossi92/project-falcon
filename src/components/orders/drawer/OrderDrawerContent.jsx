@@ -6,7 +6,6 @@ import { useRole } from "@/lib/hooks/useRole";
 import OrderAdminInfoPanel from "@/components/orders/view/OrderAdminInfoPanel";
 // correct path
 import OrderActivity from "@/components/orders/view/OrderActivity";
-import ActivityNoteForm from "@/components/activity/ActivityNoteForm";
 import OrderOpenFullLink from "@/components/orders/drawer/OrderOpenFullLink";
 
 // Appraiser/Reviewer summary (map)
@@ -52,9 +51,6 @@ export default function OrderDrawerContent({ orderId, order: row, compact = true
             <div className="min-h-0 overflow-y-auto">
               <OrderActivity orderId={order.id} />
             </div>
-            <div className="bg-white border rounded-xl p-3">
-              <ActivityNoteForm orderId={order.id} onSaved={onRefresh} />
-            </div>
           </div>
         </div>
         <div className="col-span-1 h-full">
@@ -75,10 +71,7 @@ export default function OrderDrawerContent({ orderId, order: row, compact = true
 
       <div className="bg-white border rounded-xl p-3">
         <OrderActivity orderId={order.id} />
-        <div className="mt-2">
-          <ActivityNoteForm orderId={order.id} onSaved={onRefresh} />
         </div>
-      </div>
     </div>
   );
 }

@@ -1,24 +1,33 @@
-// src/pages/AdminDashboard.jsx (only calendar part shown)
-import React, { useMemo, useState } from "react";
+// src/pages/admin/AdminDashboard.jsx
+import React, { useEffect, useMemo, useState } from "react";
 import DashboardTemplate from "@/templates/DashboardTemplate";
 import DashboardSplit from "@/components/dashboard/DashboardSplit";
 import KpiLink from "@/components/dashboard/KpiLink";
 import UpcomingEventsList from "@/components/dashboard/UpcomingEventsList";
-import TwoWeekCalendar from "@/components/calendar/TwoWeekCalendar";
-import useCalendarEvents from "@/components/calendar/useCalendarEvents";
+import DashboardCalendarPanel from "@/components/dashboard/DashboardCalendarPanel";
 import UnifiedOrdersTable from "@/features/orders/UnifiedOrdersTable";
 import { useOrders } from "@/lib/hooks/useOrders";
 import { useUsers } from "@/lib/hooks/useUsers";
 import { isInReview, isReadyToSend } from "@/lib/constants/orderStatus";
-import CalendarLegend from "@/components/calendar/CalendarLegend";
+import { listCalendarEvents } from "@/lib/services/calendarService";
 
 const HEADER_OFFSET = 260;
 
 export default function AdminDashboard() {
   const { data = [] } = useOrders({});
   const { data: allUsers = [] } = useUsers();
+
+  // upcoming list on second tab
   const [events, setEvents] = useState([]);
-  const getEvents = useCalendarEvents();
+
+  useEffect(() => {
+    // Fetch upcoming 14 days for everyone (admin scope)
+    const from = new Date();
+    const to = new Date(); to.setDate(to.getDate() + 14);
+    listCalendarEvents({ from: from.toISOString(), to: to.toISOString(), mineOnly: false, userId: null })
+      .then((rows) => setEvents(rows || []))
+      .catch(() => setEvents([]));
+  }, []);
 
   const kpis = useMemo(() => {
     const total = data.length;
@@ -41,12 +50,10 @@ export default function AdminDashboard() {
             label: "calendar",
             render: () => (
               <div className="h-full flex flex-col gap-2">
-                <CalendarLegend />
-                <TwoWeekCalendar
-                  className="h-full"
-                  getEvents={getEvents}
-                  onEventsChange={setEvents}
-                  onEventClick={(ev) => { if (ev.orderId) window.open(`/orders/${ev.orderId}`, "_self"); }}
+                <DashboardCalendarPanel
+                  onOpenOrder={(orderId) => {
+                    if (orderId) window.open(`/orders/${orderId}`, "_self");
+                  }}
                 />
               </div>
             ),
@@ -66,6 +73,7 @@ export default function AdminDashboard() {
     </DashboardTemplate>
   );
 }
+
 
 
 

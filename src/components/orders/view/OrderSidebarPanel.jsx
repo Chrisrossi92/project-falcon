@@ -151,30 +151,7 @@ export default function OrderSidebarPanel({ order, orderId, onRefresh }) {
           </ul>
         )}
       </div>
-
-      <div className="mt-1">
-        <textarea
-          data-no-drawer
-          className="w-full border rounded p-2 text-sm"
-          rows={2}
-          placeholder="Type a quick update for the activity log…"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          onClick={(e) => e.stopPropagation()}
-        />
-        <div className="mt-1 flex justify-end">
-          <button
-            type="button"
-            data-no-drawer
-            className="px-3 py-1 rounded border text-sm"
-            disabled={posting || !note.trim()}
-            onClick={(e) => { e.stopPropagation(); postNote(); }}
-          >
-            Post
-          </button>
-        </div>
-      </div>
-    </div>
+       </div>
   );
 }
 

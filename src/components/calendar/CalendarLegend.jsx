@@ -1,16 +1,29 @@
 // src/components/calendar/CalendarLegend.jsx
-export default function CalendarLegend() {
+export default function CalendarLegend({ className = "" }) {
   return (
-    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+    <div
+      className={
+        "flex items-center gap-4 text-xs text-muted-foreground opacity-80 hover:opacity-100 " +
+        className
+      }
+      aria-label="Calendar legend"
+    >
       <span className="inline-flex items-center gap-1">
-        <span className="w-2.5 h-2.5 rounded-full bg-pink-500/90"></span> Site Visit
+        <span role="img" aria-label="Site visit">📍</span>
+        <span className="hidden sm:inline">Site Visit</span>
+        <span className="sm:hidden">Site</span>
       </span>
       <span className="inline-flex items-center gap-1">
-        <span className="w-2.5 h-2.5 rounded-full bg-amber-500/90"></span> Due for Review
+        <span role="img" aria-label="Review due">📝</span>
+        <span className="hidden sm:inline">Review Due</span>
+        <span className="sm:hidden">Review</span>
       </span>
       <span className="inline-flex items-center gap-1">
-        <span className="w-2.5 h-2.5 rounded-full bg-blue-500/90"></span> Final / Global Due
+        <span role="img" aria-label="Final due">✅</span>
+        <span className="hidden sm:inline">Final Due</span>
+        <span className="sm:hidden">Final</span>
       </span>
     </div>
   );
 }
+

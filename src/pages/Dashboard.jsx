@@ -1,16 +1,20 @@
 // src/pages/Dashboard.jsx
 import React from "react";
-import { useSession } from "@/lib/hooks/useSession";
-import AdminDashboard from "./admin/AdminDashboard";
-import ReviewerDashboard from "./reviewers/ReviewerDashboard";
-import AppraiserDashboard from "./appraisers/AppraiserDashboard";
+import { useRole } from "@/lib/hooks/useRole";
+import AdminDashboard from "@/pages/admin/AdminDashboard";
+import AppraiserDashboard from "@/pages/appraisers/AppraiserDashboard";
 
+/**
+ * Chooses the right dashboard:
+ * - Admin/Reviewer -> AdminDashboard (sees all)
+ * - Everyone else  -> AppraiserDashboard (sees only my orders/events)
+ */
 export default function Dashboard() {
-  const { isAdmin, isReviewer } = useSession();
+  const { isAdmin, isReviewer } = useRole() || {};
+  const isAdminish = isAdmin || isReviewer;
 
-  if (isAdmin) return <AdminDashboard />;
-  if (isReviewer) return <ReviewerDashboard />;
-  return <AppraiserDashboard />;
+  return isAdminish ? <AdminDashboard /> : <AppraiserDashboard />;
 }
+
 
 
