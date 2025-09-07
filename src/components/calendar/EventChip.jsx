@@ -1,55 +1,61 @@
 // src/components/calendar/EventChip.jsx
 import React from "react";
 
-const ICON = {
-  site_visit: (
-    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5">
-      <path d="M12 21s-7-7.33-7-11a7 7 0 1 1 14 0c0 3.67-7 11-7 11z" fill="currentColor" />
-      <circle cx="12" cy="10" r="2.5" fill="#fff" />
-    </svg>
-  ),
-  due_for_review: (
-    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5">
-      <path d="M12 2a10 10 0 1 0 10 10" fill="none" stroke="currentColor" strokeWidth="2"/>
-      <path d="M12 6v6l4 2" fill="none" stroke="currentColor" strokeWidth="2"/>
-    </svg>
-  ),
-  due_to_client: (
-    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5">
-      <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" />
-      <path d="M22 2l-7 20-4-9-9-4 20-7z" fill="currentColor" />
-    </svg>
-  ),
+const EMOJI = {
+  site_visit: "📍",       // Appointment
+  due_for_review: "📝",   // Review due
+  due_to_client: "✅",    // Final due
 };
 
-function fmtShort(ts) {
-  if (!ts) return "";
-  const d = new Date(ts);
-  return isNaN(d) ? "" : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+function fmtTime(dt) {
+  try {
+    return new Date(dt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  } catch {
+    return "";
+  }
 }
 
-export default function EventChip({ event, onClick }) {
-  const { type, title, start, appraiser, colorClass } = event || {};
-  // urgency ring: add border-top color via utility classes outside
+/**
+ * Renders a calendar chip.
+ * RULE (per spec): Display only "Icon · Street Address".
+ * - We still include time (for appointments) and full address in the tooltip.
+ */
+export default function EventChip({ event, compact = true, onClick }) {
+  const type   = event?.type;
+  const emoji  = EMOJI[type] || "•";
+
+  // Street-only line (trim everything after first comma)
+  const fullAddress = event?.address || "";
+  const street      = fullAddress.split(",")[0]?.trim() || "—";
+
+  // Time matters only for appointments; shown in tooltip, not on the chip
+  const time = type === "site_visit" ? fmtTime(event?.start) : "";
+
+  // Build tooltip with helpful context, but keep chip minimal
+  const tipParts = [street];
+  if (event?.client) tipParts.push(event.client);
+  if (time) tipParts.push(time);
+  const tooltip = tipParts.join(" • ");
+
+  // Compact or full mode both show the same single-line text now
   return (
     <button
       type="button"
-      data-no-drawer
-      className={`group w-full text-left rounded border px-2 py-[6px] text-[12px] leading-tight transition
-                  hover:shadow-sm active:scale-[0.995] ${colorClass} text-slate-900`}
-      onClick={() => onClick?.(event)}
-      title={`${title || ""}${start ? " • " + new Date(start).toLocaleString() : ""}`}
+      title={tooltip}
+      className={
+        "w-full text-left " +
+        (compact
+          ? "text-[11px] px-1 py-0.5"
+          : "text-xs px-2 py-1") +
+        " rounded border hover:bg-gray-50 truncate"
+      }
+      onClick={onClick}
     >
-      <div className="flex items-start gap-2">
-        <div className="flex-shrink-0 text-white opacity-95">{ICON[type] || <div className="w-3.5 h-3.5 rounded bg-slate-500" />}</div>
-        <div className="min-w-0 flex-1">
-          <div className="truncate font-medium">{title || "Event"}</div>
-          <div className="flex items-center justify-between">
-            <div className="truncate text-[11px] opacity-80">{appraiser || ""}</div>
-            <div className="text-[11px] opacity-80 pl-2">{fmtShort(start)}</div>
-          </div>
-        </div>
-      </div>
+      <span className="mr-1">{emoji}</span>
+      <span className="truncate">{street}</span>
     </button>
   );
 }
+
+
+

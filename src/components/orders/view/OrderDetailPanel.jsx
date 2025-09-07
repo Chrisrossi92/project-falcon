@@ -1,12 +1,10 @@
-// src/components/orders/OrderDetailPanel.jsx
 import React from "react";
 import MetaItem from "@/components/ui/MetaItem";
 import { useNavigate } from "react-router-dom";
 import { labelForStatus } from "@/lib/constants/orderStatus";
 import MapContainer from "@/components/maps/MapContainer";
 
-
-export default function OrderDetailPanel({ order, isAdmin }) {
+export default function OrderDetailPanel({ order, isAdmin, showMap = false }) {
   const navigate = useNavigate();
 
   const fmtDateTime = (v) => (v ? new Date(v).toLocaleString() : "—");
@@ -15,28 +13,22 @@ export default function OrderDetailPanel({ order, isAdmin }) {
       ? n.toLocaleString(undefined, { style: "currency", currency: "USD" })
       : "—";
 
-  if (!order) {
-    return <div className="text-sm text-gray-500 p-4">Loading order details…</div>;
-  }
+  if (!order) return <div className="text-sm text-gray-500 p-4">Loading order details…</div>;
 
   const handleEdit = () => navigate(`/orders/${order.id}/edit`);
 
-  // Prefer canonical field names; keep fallbacks for older data
   const address = order.property_address || order.address || "—";
   const city = order.city || "—";
   const state = order.state || "—";
   const zip = order.postal_code || order.zip || "—";
 
   const statusLabel = labelForStatus(order.status || "");
-
-  // Dates: canonical {site_visit_at, review_due_at, final_due_at}
   const siteVisitAt = order.site_visit_at || null;
   const reviewDueAt = order.review_due_at || null;
   const finalDueAt = order.final_due_at || order.due_date || null;
 
   return (
     <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm text-sm space-y-4">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-base font-semibold">Order Info</h2>
         {isAdmin && (
@@ -46,9 +38,7 @@ export default function OrderDetailPanel({ order, isAdmin }) {
         )}
       </div>
 
-      {/* Main Fields in 3 Columns */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Column 1: General Info */}
         <div className="space-y-3">
           <MetaItem label="Client">{order.client_name || order.client?.name || "—"}</MetaItem>
           <MetaItem label="Appraiser">
@@ -60,7 +50,6 @@ export default function OrderDetailPanel({ order, isAdmin }) {
           <MetaItem label="Zip">{zip}</MetaItem>
         </div>
 
-        {/* Column 2: Fees & Assignment */}
         <div className="space-y-3">
           <MetaItem label="Base Fee">{fmtMoney(order.base_fee)}</MetaItem>
           {isAdmin && (
@@ -75,7 +64,6 @@ export default function OrderDetailPanel({ order, isAdmin }) {
           )}
         </div>
 
-        {/* Column 3: Dates & Status */}
         <div className="space-y-3">
           <MetaItem label="Status">{statusLabel || "—"}</MetaItem>
           <MetaItem label="Site Visit">{fmtDateTime(siteVisitAt)}</MetaItem>
@@ -90,40 +78,38 @@ export default function OrderDetailPanel({ order, isAdmin }) {
         </div>
       </div>
 
-      {/* Notes Section */}
       <div>
-        <h3 className="text-[11px] font-medium text-gray-500 uppercase tracking-wide mb-1">
-          Notes
-        </h3>
+        <h3 className="text-[11px] font-medium text-gray-500 uppercase tracking-wide mb-1">Notes</h3>
         <div className="text-sm text-gray-800 whitespace-pre-wrap">{order.notes || "—"}</div>
       </div>
-      
-      +      {/* Mini Map (compact, only if mappable) */}
-      {(() => {
-        // build a safe, non-empty query string for the map
-        const parts = [
-          address !== "—" ? address : "",
-          city !== "—" ? city : "",
-          state !== "—" ? state : "",
-          zip !== "—" ? zip : "",
-        ].filter(Boolean);
-        const mapAddress = parts.join(", ").trim();
-        if (!mapAddress || mapAddress.length < 5) return null; // avoid rendering an empty/world map
-        return (
-          <div>
-            <h3 className="text-[11px] font-medium text-gray-500 uppercase tracking-wide mb-1">
-              Location
-            </h3>
-            <div className="rounded-lg overflow-hidden border">
-              {/* MapContainer uses your Google key (VITE_GOOGLE_MAPS_API_KEY) behind the scenes */}
-              <MapContainer address={mapAddress} />
+
+      {showMap &&
+        (() => {
+          const parts = [
+            address !== "—" ? address : "",
+            city !== "—" ? city : "",
+            state !== "—" ? state : "",
+            zip !== "—" ? zip : "",
+          ].filter(Boolean);
+          const mapAddress = parts.join(", ").trim();
+          if (!mapAddress || mapAddress.length < 5) return null;
+          return (
+            <div>
+              <h3 className="text-[11px] font-medium text-gray-500 uppercase tracking-wide mb-1">
+                Location
+              </h3>
+              <div className="rounded-lg overflow-hidden border">
+                <MapContainer address={mapAddress} />
+              </div>
             </div>
-          </div>
-        );
-      })()}
+          );
+        })()}
     </div>
   );
 }
+
+
+
 
 
 

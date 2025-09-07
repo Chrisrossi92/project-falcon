@@ -1,91 +1,63 @@
 // src/lib/services/activityService.js
 import supabase from "@/lib/supabaseClient";
 
-/** Normalize DB row → UI shape expected in Activity components */
-function toUi(row) {
-  if (!row) return null;
-  const actor = row.created_by ?? row.user_id ?? null;
+function normalize(row = {}) {
   return {
     id: row.id,
     order_id: row.order_id,
+    event_type: row.event_type,
     created_at: row.created_at,
-    created_by: actor,                 // prefer created_by, fallback user_id
-    user_id: actor,                    // keep a unified "actor" under user_id too
-
-    // Friendly fields Activity UIs expect:
-    event_type: row.event_type ?? row.event ?? row.action ?? null,
-    message: row.message ?? row.note ?? null,
-
-    // Originals kept for other callers:
-    action: row.action ?? null,
-    note: row.note ?? null,
+    actor_id: row.actor_id ?? null,
+    actor_name: row.actor_name ?? null,
+    detail: row.detail ?? row.details ?? row.data ?? row.payload ?? {},
   };
 }
 
-/** Fetch recent activity rows for a given order (default 50). Throws on error. */
-export async function listOrderActivity(orderId, { limit = 50 } = {}) {
-  if (!orderId) return [];
+export async function listOrderActivity(orderId) {
   const { data, error } = await supabase
-    .from("order_activity")
+    .from("activity_log")
     .select("*")
     .eq("order_id", orderId)
-    .order("created_at", { ascending: false })
-    .limit(limit);
-
+    .order("created_at", { ascending: false });
   if (error) throw error;
-  return (data || []).map(toUi);
+  return (data || []).map(normalize);
 }
 
-/** Back-compat names used elsewhere */
-export function fetchOrderActivity(orderId, opts = {}) {
-  return listOrderActivity(orderId, opts);
-}
-export const getOrderActivity = listOrderActivity;
-
-/**
- * Realtime subscription for new activity on an order.
- * Calls onChange() on each INSERT. Returns an unsubscribe function.
- */
-export function subscribeOrderActivity(orderId, onChange) {
-  if (!orderId) return () => {};
-  const channel = supabase
-    .channel(`order-activity:${orderId}`)
-    .on(
-      "postgres_changes",
-      { event: "INSERT", schema: "public", table: "order_activity", filter: `order_id=eq.${orderId}` },
-      () => { try { onChange?.(); } catch {} }
-    )
-    .subscribe();
-
-  return () => {
-    try { supabase.removeChannel(channel); } catch {}
-  };
-}
-
-/**
- * Add a free-form note to an order’s activity log.
- * RPC-only (server handles schema differences & RLS).
- */
-export async function logNote(orderId, message) {
-  if (!orderId) throw new Error("orderId required");
-  const text = String(message || "").trim();
-  if (!text) return true;
-
-  const { data, error } = await supabase.rpc("rpc_order_log_note", {
+export async function logNote(orderId, text) {
+  const payload = { text: String(text || "").trim() };
+  if (!payload.text) return false;
+  const { error } = await supabase.rpc("rpc_log_event", {
     p_order_id: orderId,
-    p_note: text,
+    p_type: "note_added",
+    p_detail: payload,
   });
   if (error) throw error;
-  return data ?? true;
+  return true;
 }
 
-export default {
-  listOrderActivity,
-  fetchOrderActivity,
-  getOrderActivity,
-  subscribeOrderActivity,
-  logNote,
-};
+/** Realtime: listen to both INSERT and UPDATE for this order_id */
+export function subscribeOrderActivity(orderId, onChange) {
+  if (!orderId || typeof onChange !== "function") return () => {};
+  const channel = supabase
+    .channel(`activity:order:${orderId}`)
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "activity_log", filter: `order_id=eq.${orderId}` },
+      (payload) => onChange(normalize(payload.new || {}))
+    )
+    .on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "activity_log", filter: `order_id=eq.${orderId}` },
+      (payload) => onChange(normalize(payload.new || {}))
+    )
+    .subscribe();
+  return () => { try { supabase.removeChannel(channel); } catch {} };
+}
+
+
+
+
+
 
 
 

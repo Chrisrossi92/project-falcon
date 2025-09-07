@@ -9,24 +9,24 @@ import { useRole } from "@/lib/hooks/useRole";
 // Pages
 import Login from "@/pages/auth/Login";
 import Settings from "@/pages/Settings";
-import AdminDashboard from "@/pages/AdminDashboard";
-import AppraiserDashboard from "@/pages/AppraiserDashboard";
-import ReviewerDashboard from "@/pages/ReviewerDashboard";
-import Orders from "@/pages/Orders";
+import AdminDashboard from "@/pages/admin/AdminDashboard";
+import AppraiserDashboard from "@/pages/appraisers/AppraiserDashboard";
+import ReviewerDashboard from "@/pages/reviewers/ReviewerDashboard";
+import Orders from "@/pages/orders/Orders";
 import NewOrder from "@/pages/NewOrder";
 import OrderDetail from "@/pages/orders/OrderDetail";
-import EditOrder from "@/pages/EditOrder";
+import EditOrder from "@/pages/orders/EditOrder";
 import Calendar from "@/pages/Calendar";
-import ClientsDashboard from "@/pages/ClientsDashboard";
-import NewClient from "@/pages/NewClient";
+import ClientsDashboard from "@/pages/clients/ClientsDashboard";
+import NewClient from "@/pages/clients/NewClient";
 // ⬇️ use the new client profile page
 import ClientProfile from "@/pages/clients/ClientProfile";
-import EditClient from "@/pages/EditClient";
-import UsersDashboard from "@/pages/UsersDashboard";
-import AdminUsers from "@/pages/AdminUsers";
-import UserDetail from "@/pages/UserDetail";
-import EditUser from "@/pages/EditUser";
-import UserHub from "@/pages/UserHub";
+import EditClient from "@/pages/clients/EditClient";
+import UsersDashboard from "@/pages/admin/UsersDashboard";
+import AdminUsers from "@/pages/admin/AdminUsers";
+import UserDetail from "@/pages/users/UserDetail";
+import EditUser from "@/pages/users/EditUser";
+import UserHub from "@/pages/users/UserHub";
 
 function RoleSwitch() {
   const { role } = useRole() || {};

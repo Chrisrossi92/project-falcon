@@ -1,12 +1,10 @@
-// src/components/orders/view/QuickActionsDrawerPanel.jsx
 import React, { useState } from "react";
 import { useRole } from "@/lib/hooks/useRole";
 import { updateOrderStatus } from "@/lib/services/ordersService";
 
-export default function QuickActionsDrawerPanel({ orderId, onAfterChange }) {
+export default function QuickActionsDrawerPanel({ orderId, onAfterChange, layout = "stack" }) {
   const { isAdmin, isReviewer } = useRole() || {};
   const [busy, setBusy] = useState(false);
-
   if (!orderId) return null;
 
   async function setStatus(next, label) {
@@ -21,18 +19,26 @@ export default function QuickActionsDrawerPanel({ orderId, onAfterChange }) {
     }
   }
 
-  const showReviewerActions = isAdmin || isReviewer;
-  const showAppraiserAction = !isAdmin && !isReviewer; // appraiser
+  // role gating
+  const showReviewerActions = !isAdmin && isReviewer;
+  const showAppraiserAction = !isAdmin && !isReviewer;
+
+  const Wrap = ({ children }) =>
+    layout === "bar" ? (
+      <div className="flex flex-wrap items-center gap-2">{children}</div>
+    ) : (
+      <div className="space-y-2">{children}</div>
+    );
+
+  const btn = "px-4 py-2 rounded-md border text-sm hover:bg-slate-50 disabled:opacity-50";
 
   return (
-    <div className="space-y-2">
-      <div className="text-sm font-medium">Actions</div>
-
+    <Wrap>
       {showAppraiserAction && (
         <button
           type="button"
           data-no-drawer
-          className="px-3 py-1.5 rounded border text-sm hover:bg-slate-50 disabled:opacity-50"
+          className={btn}
           onClick={() => setStatus("in_review", "In Review")}
           disabled={busy}
           title="Send this order to review"
@@ -42,11 +48,11 @@ export default function QuickActionsDrawerPanel({ orderId, onAfterChange }) {
       )}
 
       {showReviewerActions && (
-        <div className="flex items-center gap-2">
+        <>
           <button
             type="button"
             data-no-drawer
-            className="px-3 py-1.5 rounded border text-sm hover:bg-slate-50 disabled:opacity-50"
+            className={btn}
             onClick={() => setStatus("ready_to_send", "Ready to Send")}
             disabled={busy}
             title="Approve review → Ready to Send"
@@ -56,15 +62,20 @@ export default function QuickActionsDrawerPanel({ orderId, onAfterChange }) {
           <button
             type="button"
             data-no-drawer
-            className="px-3 py-1.5 rounded border text-sm hover:bg-slate-50 disabled:opacity-50"
+            className={btn}
             onClick={() => setStatus("revisions", "Revisions")}
             disabled={busy}
             title="Request revisions"
           >
             Request Revisions
           </button>
-        </div>
+        </>
       )}
-    </div>
+    </Wrap>
   );
 }
+
+
+
+
+

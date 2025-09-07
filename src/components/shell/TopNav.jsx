@@ -1,53 +1,20 @@
 // src/components/shell/TopNav.jsx
-import React, { useMemo } from "react";
-import { NavLink } from "react-router-dom";
-import { useSession } from "@/lib/hooks/useSession";
+import React, { useState } from "react";
+import { NavLink, useNavigate } from "react-router-dom";
 import { useRole } from "@/lib/hooks/useRole";
-import NotificationBell from "@/components/notifications/NotificationBell";
-import NewOrderButton from "@/components/orders/form/NewOrderButton";
 import supabase from "@/lib/supabaseClient";
 
-function BrandButton() {
-  return (
-    <NavLink
-      to="/dashboard"
-      title="Go to Dashboard"
-      className="relative group inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white/90 backdrop-blur transition-transform hover:-translate-y-0.5 hover:shadow-md"
-      style={{ WebkitTapHighlightColor: "transparent" }}
-    >
-      {/* watermark inside the button (subtle Falcon nod) */}
-      <img
-        src="/images/falcon-bg.png"
-        alt=""
-        aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-15 group-hover:opacity-20 object-cover rounded-xl"
-        style={{ mixBlendMode: "multiply" }}
-      />
-      {/* company logo */}
-      <img
-        src="/assets/logo.png"
-        alt="Continental Real Estate Solutions"
-        className="h-6 w-auto relative z-10"
-        draggable="false"
-      />
-      {/* tiny “Dashboard” label for clarity */}
-      <span className="relative z-10 hidden sm:inline text-sm font-medium text-gray-900">
-        Dashboard
-      </span>
-    </NavLink>
-  );
-}
-
-function NavItem({ to, children }) {
+/** Local helper so we don't depend on external NavItem components */
+function NavItem({ to, children, onClick }) {
   return (
     <NavLink
       to={to}
+      onClick={onClick}
       className={({ isActive }) =>
-        [
-          "px-3 py-1.5 rounded-full text-sm transition-colors",
-          isActive ? "bg-gray-900 text-white" : "text-gray-700 hover:bg-gray-100",
-        ].join(" ")
+        "px-3 py-2 rounded-md text-sm font-medium transition-colors " +
+        (isActive ? "bg-gray-900 text-white" : "text-gray-700 hover:bg-gray-100")
       }
+      end
     >
       {children}
     </NavLink>
@@ -55,85 +22,108 @@ function NavItem({ to, children }) {
 }
 
 export default function TopNav() {
-  const { user } = useSession();
-  const { isAdmin, isReviewer } = useRole() || {};
+  const { isAdmin } = useRole() || {};
+  const [open, setOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const navigate = useNavigate();
 
-  const firstName = useMemo(() => {
-    const metaName =
-      user?.user_metadata?.name ||
-      user?.user_metadata?.full_name ||
-      user?.user_metadata?.given_name ||
-      "";
-    const base = metaName || (user?.email ? user.email.split("@")[0].replace(/\./g, " ") : "");
-    const first = String(base).trim().split(/\s+/)[0] || "there";
-    return first.charAt(0).toUpperCase() + first.slice(1);
-  }, [user]);
+  const toggle = () => setOpen((v) => !v);
+  const close = () => setOpen(false);
 
-  async function logout() {
-    try { await supabase.auth.signOut(); } finally { window.location.href = "/login"; }
+  async function onLogout() {
+    try {
+      setLoggingOut(true);
+      await supabase.auth.signOut();
+      navigate("/login", { replace: true }); // adjust if your sign-in route differs
+    } finally {
+      setLoggingOut(false);
+    }
   }
 
   return (
-    <header className="bg-white/85 backdrop-blur border-b">
-      <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between">
-        {/* Left: logo-as-dashboard + nav */}
-        <div className="flex items-center gap-4">
-          <BrandButton />
-          <nav className="hidden md:flex items-center gap-1">
-            {/* Removed separate “Dashboard” link — the logo is the button now */}
+    <header className="w-full border-b bg-white">
+      <div className="mx-auto max-w-7xl px-4 py-2">
+        <div className="flex items-center justify-between gap-3">
+          {/* Brand */}
+          <div className="flex items-center gap-2">
+            <NavLink to="/" className="text-base font-semibold text-gray-900">
+              Falcon
+            </NavLink>
+          </div>
+
+          {/* Desktop nav */}
+          <nav className="hidden md:flex items-center gap-2">
             <NavItem to="/orders">Orders</NavItem>
             <NavItem to="/calendar">Calendar</NavItem>
-            {isAdmin && <NavItem to="/clients">Clients</NavItem>}
+            <NavItem to="/clients">Clients</NavItem>
             <NavItem to="/users">Users</NavItem>
-            {isAdmin && <NavItem to="/admin/users">Manage Roles</NavItem>}
-            <NavItem to="/settings">Settings</NavItem>
+            {isAdmin && <NavItem to="/admin/manage-roles">Manage Roles</NavItem>}
+
+            {/* Divider */}
+            <span className="mx-2 h-6 w-px bg-gray-200 self-stretch" />
+
+            {/* Logout button */}
+            <button
+              onClick={onLogout}
+              disabled={loggingOut}
+              className="px-3 py-2 rounded-md text-sm font-medium border text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+              title="Sign out"
+            >
+              {loggingOut ? "Logging out…" : "Logout"}
+            </button>
           </nav>
+
+          {/* Mobile toggle */}
+          <button
+            className="md:hidden inline-flex items-center rounded-md border px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            onClick={toggle}
+            aria-label="Open menu"
+          >
+            Menu
+          </button>
         </div>
 
-        {/* Right: quick actions + greeting */}
-        <div className="flex items-center gap-2">
-          {isAdmin && <NewOrderButton />}
-          <NotificationBell />
-          {user ? (
-            <div className="hidden sm:flex items-center gap-2 pl-2">
-              <span className="text-sm text-gray-700">
-                Hi, <span className="font-medium">{firstName}</span>
-              </span>
-              <span
-                className={[
-                  "text-[11px] px-2 py-0.5 rounded-full border",
-                  isAdmin
-                    ? "bg-gray-900 text-white border-gray-900"
-                    : isReviewer
-                    ? "bg-blue-50 text-blue-700 border-blue-200"
-                    : "bg-gray-50 text-gray-700 border-gray-200",
-                ].join(" ")}
-                title="Your role"
-              >
-                {isAdmin ? "Admin" : isReviewer ? "Reviewer" : "Appraiser"}
-              </span>
-              <button
-                className="ml-1 px-2 py-1 border rounded text-sm hover:bg-gray-50"
-                onClick={logout}
-              >
-                Logout
-              </button>
-            </div>
-          ) : null}
-        </div>
-      </div>
+        {/* Mobile menu */}
+        {open && (
+          <nav className="md:hidden mt-2 flex flex-col gap-1 pb-2">
+            <NavItem to="/orders" onClick={close}>
+              Orders
+            </NavItem>
+            <NavItem to="/calendar" onClick={close}>
+              Calendar
+            </NavItem>
+            <NavItem to="/clients" onClick={close}>
+              Clients
+            </NavItem>
+            <NavItem to="/users" onClick={close}>
+              Users
+            </NavItem>
+            {isAdmin && (
+              <NavItem to="/admin/manage-roles" onClick={close}>
+                Manage Roles
+              </NavItem>
+            )}
 
-      {/* Mobile nav */}
-      <div className="md:hidden border-t px-4 py-2 flex gap-1 overflow-x-auto">
-        <NavItem to="/orders">Orders</NavItem>
-        <NavItem to="/calendar">Calendar</NavItem>
-        {isAdmin && <NavItem to="/clients">Clients</NavItem>}
-        <NavItem to="/users">Users</NavItem>
-        {isAdmin && <NavItem to="/admin/users">Manage Roles</NavItem>}
-        <NavItem to="/settings">Settings</NavItem>
+            {/* Divider */}
+            <div className="my-1 h-px bg-gray-200" />
+
+            <button
+              onClick={() => {
+                close();
+                onLogout();
+              }}
+              disabled={loggingOut}
+              className="text-left px-3 py-2 rounded-md text-sm font-medium border text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+            >
+              {loggingOut ? "Logging out…" : "Logout"}
+            </button>
+          </nav>
+        )}
       </div>
     </header>
   );
 }
+
+
 
 

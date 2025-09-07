@@ -1,226 +1,134 @@
-import React, { useMemo, useState, useEffect, useRef } from "react";
-import DayCell from "./DayCell";
-import DayAccordion from "./DayAccordion";
-import CalendarFiltersBar from "./CalendarFiltersBar";
-import useCalendarEvents from "./useCalendarEvents";
-import useCalendarFilters from "./useCalendarFilters";
+// src/components/calendar/TwoWeekCalendar.jsx
+import React, { useEffect, useMemo, useState } from "react";
+import EventChip from "@/components/calendar/EventChip";
 
-// date helpers
-function startOfWeek(date, firstDay = 0) {
-  const d = new Date(date);
-  const diff = (d.getDay() - firstDay + 7) % 7;
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() - diff);
-  return d;
-}
-function addDays(date, n) { const d = new Date(date); d.setDate(d.getDate() + n); return d; }
-function sameDay(a, b) { return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate(); }
+function startOfWeek(d) { const x=new Date(d); const day=x.getDay(); x.setDate(x.getDate()-day); x.setHours(0,0,0,0); return x; }
+function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
+function sameDate(a,b){ return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate(); }
 
-/**
- * TwoWeekCalendar
- *  - two-week grid, current week on top
- *  - reusable; accepts a custom getEvents loader
- *  - filters (+mine), heat-tint, keyboard nav, inline day accordion
- *
- * props:
- *  - className, style
- *  - firstDay (0=Sun, 1=Mon)
- *  - weeks (default 2)
- *  - dense (tighter cell height)
- *  - getEvents(start:Date, end:Date) -> Promise<events[]>
- *  - onEventsChange(filteredEvents)
- *  - onEventClick(event)
- *  - meName (string used when "Mine" is toggled; we can move to id-based later)
- *  - defaultMine (bool; default off)
- *  - hideMineChip (bool; hide the “Mine” chip entirely)
- *  - showFilters (default true)
- *  - showWeekdayHeader (default true)
- */
+const WD = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
 export default function TwoWeekCalendar({
-  className = "",
-  style = {},
-  firstDay = 0,
-  weeks = 2,
-  dense = false,
-  getEvents,
-  onEventsChange,
+  getEvents,                 // (start, end) => Promise<events[]>
   onEventClick,
-  meName = "",
-  defaultMine = false,
-  hideMineChip = false,
-  showFilters = true,
+  weeks = 2,
   showWeekdayHeader = true,
+  showWeekends = true,
+  compact = true,
+  focusToday = false,        // when weeks=1 shows a stacked list for today
 }) {
-  // anchor dates & visible range
-  const [anchor, setAnchor] = useState(() => new Date());
-  const start = useMemo(() => startOfWeek(anchor, firstDay), [anchor, firstDay]);
-  const end   = useMemo(() => addDays(start, 7 * weeks), [start, weeks]);
+  const [anchor, setAnchor] = useState(() => startOfWeek(new Date()));
+  const daysPerRow = showWeekends ? 7 : 5;
 
-  // events
-  const defaultLoader = useCalendarEvents();
-  const [rawEvents, setRawEvents] = useState([]);
-  const [expandedKey, setExpandedKey] = useState(null);
-  const gridRef = useRef(null);
+  // Visible day sequence
+  const days = useMemo(() => {
+    const seq = [];
+    let d = new Date(anchor);
+    while (seq.length < weeks * daysPerRow) {
+      const w = d.getDay();
+      if (showWeekends || (w !== 0 && w !== 6)) seq.push(new Date(d));
+      d = addDays(d, 1);
+    }
+    return seq;
+  }, [anchor, weeks, showWeekends, daysPerRow]);
 
-  // filters
-  const { chips, predicate } = useCalendarFilters({ defaultMine });
-  const displayChips = hideMineChip ? chips.filter((c) => c.key !== "mine") : chips;
+  // Query window
+  const range = useMemo(() => ({ start: new Date(anchor), end: addDays(anchor, weeks * 7 - 1) }), [anchor, weeks]);
+  const [events, setEvents] = useState([]);
 
-  // fetch events for visible range
   useEffect(() => {
     let ok = true;
     (async () => {
-      try {
-        const list = await (getEvents ? getEvents(start, end) : defaultLoader(start, end));
-        if (!ok) return;
-        setRawEvents(list || []);
-      } catch (e) {
-        console.warn("calendar events error:", e?.message || e);
-        setRawEvents([]);
-      }
+      try { const rows = await getEvents?.(range.start, range.end); if (ok) setEvents(rows || []); }
+      catch { if (ok) setEvents([]); }
     })();
     return () => { ok = false; };
-  }, [start, end, getEvents, defaultLoader]);
+  }, [range.start.getTime(), range.end.getTime(), getEvents]);
 
-  // filter & counts
-  const filteredEvents = useMemo(
-    () => (rawEvents || []).filter((ev) => predicate(ev, meName)),
-    [rawEvents, predicate, meName]
-  );
-
-  useEffect(() => { onEventsChange?.(filteredEvents); }, [filteredEvents, onEventsChange]);
-
-  const typeCounts = useMemo(() => {
-    const acc = { site_visit: 0, due_for_review: 0, due_to_client: 0, mine: 0 };
-    for (const ev of rawEvents) {
-      if (ev.type && acc.hasOwnProperty(ev.type)) acc[ev.type]++;
-      if (meName && ev.appraiser && String(ev.appraiser).toLowerCase().includes(meName.toLowerCase())) acc.mine++;
-    }
-    return acc;
-  }, [rawEvents, meName]);
-
-  // visible days
-  const days = useMemo(() => Array.from({ length: 7 * weeks }, (_, i) => addDays(start, i)), [start, weeks]);
-
-  // map day -> events
-  const eventsByDay = useMemo(() => {
-    const map = new Map(days.map((d) => [d.toDateString(), []]));
-    (filteredEvents || []).forEach((ev) => {
-      const d = new Date(ev.start);
-      const key = new Date(d.getFullYear(), d.getMonth(), d.getDate()).toDateString();
-      if (map.has(key)) map.get(key).push(ev);
+  // Bucket events by visible day
+  const byDay = useMemo(() => {
+    const m = new Map(days.map(d=>[d.toDateString(), []]));
+    (events || []).forEach(ev => {
+      const dt = new Date(ev.start);
+      for (const d of days) { if (sameDate(d, dt)) { m.get(d.toDateString())?.push(ev); break; } }
     });
-    for (const [, list] of map) list.sort((a, b) => new Date(a.start) - new Date(b.start));
-    return map;
-  }, [days, filteredEvents]);
+    return m;
+  }, [events, days]);
 
-  // heat tint per day (based on filtered count)
-  const heatByDay = useMemo(() => {
-    const counts = new Map();
-    let max = 0;
-    for (const d of days) {
-      const key = d.toDateString();
-      const count = (eventsByDay.get(key) || []).length;
-      counts.set(key, count);
-      if (count > max) max = count;
-    }
-    // normalize 0..1
-    const map = new Map();
-    for (const [k, c] of counts.entries()) {
-      map.set(k, max ? Math.min(1, c / Math.max(3, max)) : 0);
-    }
-    return map;
-  }, [days, eventsByDay]);
-
-  // keyboard nav (on container focus)
-  useEffect(() => {
-    const el = gridRef.current;
-    if (!el) return;
-    function onKeyDown(e) {
-      if (e.key === "ArrowLeft")  { e.preventDefault(); setAnchor((a) => addDays(a, -1)); }
-      if (e.key === "ArrowRight") { e.preventDefault(); setAnchor((a) => addDays(a, +1)); }
-      if (e.key === "PageUp")     { e.preventDefault(); setAnchor((a) => addDays(a, -7)); }
-      if (e.key === "PageDown")   { e.preventDefault(); setAnchor((a) => addDays(a, +7)); }
-      if (e.key.toLowerCase() === "t") { e.preventDefault(); setAnchor(new Date()); }
-      if (e.key === "Escape")     { setExpandedKey(null); }
-    }
-    el.addEventListener("keydown", onKeyDown);
-    return () => el.removeEventListener("keydown", onKeyDown);
-  }, []);
-
-  const weekdayLabels = firstDay === 1
-    ? ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
-    : ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-
-  const rowClass = dense ? "min-h-[104px]" : "min-h-[140px]";
-  const today = new Date();
-
-  return (
-    <div className={`h-full flex flex-col ${className}`} style={style}>
-      {/* Filters row */}
-      {showFilters && (
-        <CalendarFiltersBar
-          chips={displayChips}
-          counts={typeCounts}
-          className="mb-2"
-        />
-      )}
-
-      <div
-        ref={gridRef}
-        tabIndex={0}
-        className="flex-1 min-h-0 rounded-lg border bg-white overflow-hidden shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-      >
-        {/* Weekday header */}
-        {showWeekdayHeader && (
-          <div className="grid grid-cols-7 border-b text-[12px] font-medium text-muted-foreground bg-slate-50/40">
-            {weekdayLabels.map((w, i) => (
-              <div key={i} className="px-3 py-2">{w}</div>
-            ))}
+  // Day focus mode (used for "Day" tab)
+  if (focusToday && weeks === 1) {
+    const today = new Date();
+    const list = byDay.get(today.toDateString()) || [];
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-muted-foreground">Today</div>
+          <div className="text-sm">
+            {today.toLocaleDateString(undefined, { weekday:"long", month:"short", day:"numeric" })}
           </div>
-        )}
-
-        {/* Grid rows */}
-        <div className={`grid ${weeks === 2 ? "grid-rows-2" : `grid-rows-${weeks}`} h-[calc(100%-32px)]`}>
-          {Array.from({ length: weeks }).map((_, r) => (
-            <div key={r} className="grid grid-cols-7">
-              {days.slice(r * 7, r * 7 + 7).map((d, i) => {
-                const key = d.toDateString();
-                const list = eventsByDay.get(key) || [];
-                const heat = heatByDay.get(key) || 0;
-
-                return (
-                  <DayCell
-                    key={i}
-                    date={d}
-                    isToday={sameDay(d, today)}
-                    events={list}
-                    heat={heat}
-                    onEventClick={(ev) => onEventClick?.(ev)}
-                    onExpand={() => setExpandedKey(expandedKey === key ? null : key)}
-                    className={rowClass}
-                  />
-                );
-              })}
+        </div>
+        <div className="border rounded p-2 bg-white">
+          {list.length === 0 ? (
+            <div className="text-sm text-muted-foreground">No events today.</div>
+          ) : (
+            <div className="space-y-1">
+              {list.sort((a,b)=>new Date(a.start)-new Date(b.start)).map(ev => (
+                <EventChip key={ev.id} event={ev} compact={false} onClick={() => onEventClick?.(ev)} />
+              ))}
             </div>
-          ))}
+          )}
         </div>
       </div>
+    );
+  }
 
-      {/* Inline day accordion */}
-      {expandedKey && (
-        <div className="mt-2">
-          <DayAccordion
-            date={new Date(expandedKey)}
-            events={eventsByDay.get(expandedKey) || []}
-            onEventClick={(ev) => onEventClick?.(ev)}
-            onClose={() => setExpandedKey(null)}
-          />
+  return (
+    <div className="space-y-2">
+      {/* Weekday header */}
+      {showWeekdayHeader && (
+        <div className={"grid text-xs text-muted-foreground " + (showWeekends ? "grid-cols-7" : "grid-cols-5")}>
+          {WD.filter((_,i)=> showWeekends || (i!==0 && i!==6)).map((d)=>(
+            <div key={d} className="px-2 py-1">{d}</div>
+          ))}
         </div>
       )}
+
+      {/* Grid */}
+      <div className={"grid border rounded overflow-hidden bg-white " + (showWeekends ? "grid-cols-7" : "grid-cols-5")}>
+        {days.map((d, i) => {
+          const list = (byDay.get(d.toDateString()) || []).sort((a,b)=>new Date(a.start)-new Date(b.start));
+          return (
+            <div key={i} className="min-h-[140px] border -m-[0.5px] p-1 md:p-2">
+              <div className="text-[11px] md:text-xs font-medium">{d.getDate()}</div>
+              <div className="mt-1 space-y-1">
+                {list.slice(0, 4).map(ev => (
+                  <EventChip key={ev.id} event={ev} compact={compact} onClick={() => onEventClick?.(ev)} />
+                ))}
+                {list.length > 4 && (
+                  <div className="text-[11px] text-muted-foreground">+{list.length-4} more</div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Pager with Today */}
+      <div className="flex items-center justify-between">
+        <button className="border rounded px-2 py-1 text-sm" onClick={() => setAnchor(addDays(anchor, -(showWeekends?7:5)))}>Prev</button>
+        <div className="flex items-center gap-2">
+          <button className="border rounded px-2 py-1 text-sm" onClick={() => setAnchor(startOfWeek(new Date()))}>Today</button>
+          <div className="text-sm text-muted-foreground">
+            {days[0]?.toLocaleDateString()} – {days[days.length-1]?.toLocaleDateString()}
+          </div>
+        </div>
+        <button className="border rounded px-2 py-1 text-sm" onClick={() => setAnchor(addDays(anchor, (showWeekends?7:5)))}>Next</button>
+      </div>
     </div>
   );
 }
+
+
 
 
 
