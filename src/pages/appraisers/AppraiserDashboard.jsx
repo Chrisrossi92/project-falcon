@@ -13,20 +13,26 @@ import { useSession } from "@/lib/hooks/useSession";
 const HEADER_OFFSET = 260;
 
 export default function AppraiserDashboard() {
-  const { data = [] } = useOrders({});
   const { user } = useSession();
+  const me = user?.id || user?.user_id || user?.uid || null;
 
-  // upcoming list (mine only)
+  // KPIs use the same service hook but pinned to me
+  const { data = [] } = useOrders({ appraiserId: me });
+
+  // upcoming (mine only)
   const [events, setEvents] = useState([]);
-
   useEffect(() => {
     const from = new Date();
     const to = new Date(); to.setDate(to.getDate() + 14);
-    const userId = user?.id || user?.user_id || user?.uid || null;
-    listCalendarEvents({ from: from.toISOString(), to: to.toISOString(), mineOnly: true, userId })
+    listCalendarEvents({
+      from: from.toISOString(),
+      to: to.toISOString(),
+      mineOnly: true,
+      userId: me,
+    })
       .then((rows) => setEvents(rows || []))
       .catch(() => setEvents([]));
-  }, [user?.id]);
+  }, [me]);
 
   const kpis = useMemo(() => {
     const mine = data.length;
@@ -73,13 +79,14 @@ export default function AppraiserDashboard() {
             role="appraiser"
             pageSize={8}
             className="h-full"
-            initialFilters={{ appraiserId: user?.id || null }}
+            initialFilters={{ appraiserId: me }}
           />
         )}
       />
     </DashboardTemplate>
   );
 }
+
 
 
 

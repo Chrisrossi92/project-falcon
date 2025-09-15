@@ -11,6 +11,7 @@ import { ORDER_STATUS } from "@/lib/constants/orderStatus";
 import { toCsv, downloadCsv } from "@/lib/utils/csv";
 import { useSession } from "@/lib/hooks/useSession";
 import { useRole } from "@/lib/hooks/useRole";
+import NewOrderButton from "@/components/orders/NewOrderButton"; // ✅ correct path
 
 const PAGE_SIZE = 50;
 const ORDER_STATUSES = [
@@ -54,7 +55,6 @@ function FilterBar({ filters, onChange, clients, appraisers, showAppraiserPicker
       search: "",
       statusIn: [],
       clientId: null,
-      // keep appraiserId pinned if appraiser; else null
       appraiserId: showAppraiserPicker ? null : filters.appraiserId ?? null,
       from: "",
       to: "",
@@ -95,7 +95,6 @@ function FilterBar({ filters, onChange, clients, appraisers, showAppraiserPicker
           </select>
         </div>
 
-        {/* Appraiser picker is hidden for appraisers (we pin their id) */}
         {showAppraiserPicker && (
           <div className="col-span-6 lg:col-span-3">
             <label className="block text-xs text-muted-foreground mb-1">Appraiser</label>
@@ -136,7 +135,18 @@ function FilterBar({ filters, onChange, clients, appraisers, showAppraiserPicker
         <div className="col-span-12">
           <label className="block text-xs text-muted-foreground mb-1">Status</label>
           <div className="flex flex-wrap gap-2 border rounded px-2 py-2">
-            {ORDER_STATUSES.map((s) => {
+            {[
+              ORDER_STATUS.NEW,
+              ORDER_STATUS.IN_PROGRESS,
+              ORDER_STATUS.IN_REVIEW,
+              ORDER_STATUS.REVISIONS,
+              ORDER_STATUS.READY_TO_SEND,
+              ORDER_STATUS.COMPLETE,
+              ORDER_STATUS.ON_HOLD,
+              ORDER_STATUS.WAITING_ON_CLIENT,
+              ORDER_STATUS.PAUSED,
+              ORDER_STATUS.CANCELLED,
+            ].map((s) => {
               const checked = local.statusIn.includes(s);
               const label = s.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
               return (
@@ -161,7 +171,23 @@ function FilterBar({ filters, onChange, clients, appraisers, showAppraiserPicker
               </button>
               <button
                 className="px-2 py-1 text-xs border rounded"
-                onClick={() => setLocal((v) => ({ ...v, statusIn: ORDER_STATUSES }))}
+                onClick={() =>
+                  setLocal((v) => ({
+                    ...v,
+                    statusIn: [
+                      ORDER_STATUS.NEW,
+                      ORDER_STATUS.IN_PROGRESS,
+                      ORDER_STATUS.IN_REVIEW,
+                      ORDER_STATUS.REVISIONS,
+                      ORDER_STATUS.READY_TO_SEND,
+                      ORDER_STATUS.COMPLETE,
+                      ORDER_STATUS.ON_HOLD,
+                      ORDER_STATUS.WAITING_ON_CLIENT,
+                      ORDER_STATUS.PAUSED,
+                      ORDER_STATUS.CANCELLED,
+                    ],
+                  }))
+                }
               >
                 All
               </button>
@@ -202,7 +228,7 @@ export default function OrdersPage() {
   const { user } = useSession();
   const { isAdmin, isReviewer } = useRole() || {};
   const me = getUserId(user);
-  const showAppraiserPicker = !!(isAdmin || isReviewer); // appraiser cannot switch
+  const showAppraiserPicker = !!(isAdmin || isReviewer);
 
   const [clients, setClients] = useState([]);
   const [appraisers, setAppraisers] = useState([]);
@@ -210,7 +236,7 @@ export default function OrdersPage() {
     search: "",
     statusIn: [],
     clientId: null,
-    appraiserId: (!isAdmin && !isReviewer && me) ? String(me) : null, // pin to self if appraiser
+    appraiserId: (!isAdmin && !isReviewer && me) ? String(me) : null,
     from: "",
     to: "",
     activeOnly: true,
@@ -233,7 +259,6 @@ export default function OrdersPage() {
     [count, filters.pageSize]
   );
 
-  // Load picklists (admins/reviewers only need appraisers list)
   useEffect(() => {
     (async () => {
       const [{ data: cl }, { data: aps }] = await Promise.all([
@@ -245,7 +270,6 @@ export default function OrdersPage() {
     })();
   }, []);
 
-  // Fetch rows
   useEffect(() => {
     (async () => {
       setLoading(true);
@@ -276,7 +300,6 @@ export default function OrdersPage() {
     filters.lazy,
   ]);
 
-  // Infinite scroll sentinel
   useEffect(() => {
     if (!filters.lazy) return;
     if (filters.page + 1 >= totalPages) return;
@@ -294,7 +317,6 @@ export default function OrdersPage() {
   const toggleExpand = (id) => setExpandedId((x) => (x === id ? null : id));
 
   async function onExportCsv() {
-    // Fetch a larger chunk with current filters
     const { rows: data } = await fetchOrdersWithFilters({ ...filters, page: 0, pageSize: 1000 });
     const cols = [
       { header: "Order #", accessor: (r) => r.order_no ?? r.order_number ?? "" },
@@ -312,16 +334,17 @@ export default function OrdersPage() {
   return (
     <div className="p-4 space-y-4">
       <SectionHeader
-        title="Orders"
-        subtitle="Search, filter, and export orders"
-        right={
-          <div className="flex items-center gap-2">
-            <button className="border rounded px-3 py-1 text-sm" onClick={onExportCsv}>
-              Export CSV
-            </button>
-          </div>
-        }
-      />
+  title="Orders"
+  subtitle="Search, filter, and export orders"
+  actions={  /* <-- rename prop */
+    <div className="flex items-center gap-2">
+      <NewOrderButton />
+      <button className="border rounded px-3 py-1 text-sm" onClick={onExportCsv}>
+        Export CSV
+      </button>
+    </div>
+  }
+/>
 
       <FilterBar
         filters={filters}
@@ -383,14 +406,14 @@ export default function OrdersPage() {
                     </tr>
 
                     {expandedId === o.id && (
-   <tr className="border-b bg-white">
-     <td colSpan={7} className="p-0">
-       <div className="p-4">
-         <OrderDrawerContent orderId={o.id} order={o} compact />
-       </div>
-     </td>
-   </tr>
- )}
+                      <tr className="border-b bg-white">
+                        <td colSpan={7} className="p-0">
+                          <div className="p-4">
+                            <OrderDrawerContent orderId={o.id} order={o} compact />
+                          </div>
+                        </td>
+                      </tr>
+                    )}
                   </React.Fragment>
                 ))}
           </tbody>
@@ -407,6 +430,7 @@ export default function OrdersPage() {
     </div>
   );
 }
+
 
 
 
