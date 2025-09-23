@@ -34,10 +34,11 @@ export default function UnifiedOrdersTable({
   const { role: hookRole } = useRole() || {};
   const { user } = useSession() || {};
   const me = user?.id || user?.user_id || user?.uid || null;
+
   const role = (roleProp || hookRole || "").toLowerCase();
   const isAdminOrReviewer = role === "admin" || role === "reviewer";
 
-  // Pin appraiser to self unless caller overrides
+  // seed filters; if not admin/reviewer -> pin to me
   const seedFilters = useMemo(() => {
     const base = {
       activeOnly: true,
@@ -47,12 +48,11 @@ export default function UnifiedOrdersTable({
       ascending: false,
       ...initialFilters,
     };
-    if (!isAdminOrReviewer && me && base.appraiserId == null) {
-      base.appraiserId = String(me);
-    }
+    if (!isAdminOrReviewer) base.appraiserId = me || null;
     return base;
   }, [isAdminOrReviewer, me, pageSize, initialFilters]);
 
+  // Important: pass appraiserId in the initial call so the service filters server-side
   const {
     data = [],
     count = 0,
@@ -65,7 +65,8 @@ export default function UnifiedOrdersTable({
   const [expandedId, setExpandedId] = useState(null);
   const totalPages = Math.max(1, Math.ceil((count || 0) / (filters.pageSize || pageSize)));
 
-  const goToPage = (next) => setFilters((f) => ({ ...f, page: Math.min(Math.max(0, next), totalPages - 1) }));
+  const goToPage = (next) =>
+    setFilters((f) => ({ ...f, page: Math.min(Math.max(0, next), totalPages - 1) }));
 
   return (
     <div className={className} style={style}>
@@ -84,7 +85,7 @@ export default function UnifiedOrdersTable({
           ))
         ) : data.length === 0 ? (
           <div className="px-4 py-6 text-sm text-muted-foreground">No orders.</div>
-          ) : (
+        ) : (
           data.flatMap((o) => {
             const reviewDue = o.review_due_at ?? o.review_due_date ?? null;
             const finalDue  = o.final_due_at  ?? o.due_date ?? null;
@@ -158,7 +159,11 @@ export default function UnifiedOrdersTable({
               />,
               expandedId === o.id ? (
                 <div key={o.id + "-exp"} className="px-4 py-3 bg-muted/30">
-                  <OrderDrawerContent orderId={o.id} row={o} onAfterChange={() => setFilters((f) => ({ ...f }))} />
+                  <OrderDrawerContent
+                    orderId={o.id}
+                    row={o}
+                    onAfterChange={() => setFilters((f) => ({ ...f }))}
+                  />
                 </div>
               ) : null,
             ].filter(Boolean);
@@ -168,11 +173,16 @@ export default function UnifiedOrdersTable({
 
       <div className="flex items-center justify-between px-4 py-3 text-sm text-muted-foreground">
         <div>Page {filters.page + 1} / {totalPages} • {count ?? 0} total</div>
-        <OrdersTablePagination currentPage={filters.page + 1} totalPages={totalPages} goToPage={(p) => goToPage(p - 1)} />
+        <OrdersTablePagination
+          currentPage={filters.page + 1}
+          totalPages={totalPages}
+          goToPage={(p) => goToPage(p - 1)}
+        />
       </div>
     </div>
   );
 }
+
 
 
 

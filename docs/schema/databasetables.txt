@@ -1,0 +1,339 @@
+# DB Audit — Falcon MVP (Final Summary)
+
+This audit covers all current tables and views, grouping them into: **Keep as-is**, **Refactor/Consolidate**, and **Candidates for Removal**.
+
+---
+
+## ✅ Good to Keep (core + solid tables)
+
+* **users** → canonical app user table (linked to `auth.users`).
+* **user\_roles** → supports multi-role & fee splits (prefer over `users.role`).
+* **user\_settings** → simple personalization/preferences.
+* **user\_documents** → normalized user uploads.
+* **appraiser\_licenses** → well-structured license registry.
+* **orders** → core order entity. Needs cleanup, but must remain.
+* **order\_status\_log** → reliable immutable status history.
+* **order\_counters** → simple per-year counter. Fine as-is.
+* **clients** → single party table (lenders/AMCs/etc.).
+* **contacts** → structured client contacts.
+* **email\_queue** → solid background job table.
+* **notifications** → app notification delivery (clean up `read` vs `is_read` later).
+* **notification\_prefs / user\_notification\_prefs** → both handle prefs; keep one long-term.
+* **calendar\_events** → best calendar source (`start_at`/`end_at`).
+* **review\_flow** → explicit review task ledger.
+
+---
+
+## 🔧 Refactor / Consolidate (to reduce redundancy)
+
+* **user\_profiles** → duplicates `users`. Recommendation: migrate profile fields into `users` and deprecate this table (or replace with `v_user_profiles` view joining `users`).
+* **user\_roles vs users.role** → drop `role` column from `users`, rely solely on `user_roles`.
+* **user\_settings vs notification\_prefs** → merge notification flags into one system (`user_notification_prefs`).
+* **orders** → unify duplicate fields (`archived` vs `is_archived`, `client_invoice` types, multiple address fields, multiple due dates). For now, expose a normalized `v_orders` view for the app.
+* **appointments vs calendar\_events** → decide whether to merge. `calendar_events` is cleaner and should be canonical; migrate appointments into it if possible.
+* **order\_activity vs activity\_log** → consolidate into a single audit trail (`activity_log`) and phase out `order_activity`.
+* **amcs vs clients** → merge into `clients` using a `kind='amc'` field; drop standalone `amcs` later.
+
+---
+
+## 🗑️ Candidates for Removal (safe once migration done)
+
+* **amcs** → merge rows into `clients`; drop after migration.
+* **appointments** → migrate rows to `calendar_events`; drop.
+* **order\_activity** → consolidate into `activity_log`; drop.
+* **user\_profiles** → deprecate in favor of `users`.
+* **notification\_prefs** → migrate to `user_notification_prefs`; drop.
+* **staging\_orders\_2025 & staging\_raw\_orders\_2025\_csv** → scratch ETL only; drop after migration complete.
+
+---
+
+## 📊 Views (as-is)
+
+* **v\_orders, v\_orders\_all, v\_orders\_frontend, v\_orders\_list, v\_orders\_list\_with\_last\_activity** → multiple overlapping order views. Recommendation: collapse into one canonical `v_orders` for app reads, others can be dropped.
+* **v\_admin\_calendar** → keep if admin UI depends on it; else fold into `calendar_events` with role-based RLS.
+* **v\_client\_metrics** → useful if actively powering reports; else consolidate into analytics layer.
+* **v\_email\_queue** → redundant; query `email_queue` directly with indexes.
+* **v\_is\_admin** → keep (simple role check helper).
+* **v\_staging\_raw\_orders\_2025\_ord** → drop after staging tables removed.
+
+---
+
+## 🎯 Summary of Actions
+
+* **Keep & Index:** users, user\_roles, user\_documents, orders, order\_status\_log, clients, contacts, email\_queue, notifications, calendar\_events, review\_flow.
+* **Refactor:** collapse duplicates (users vs user\_profiles, notification\_prefs vs user\_notification\_prefs, order\_activity vs activity\_log, amcs vs clients, appointments vs calendar\_events).
+* **Remove:** amcs, appointments, order\_activity, user\_profiles, notification\_prefs, staging tables + related views.
+* **Views:** consolidate order-related views into one `v_orders`.
+
+This plan reduces clutter, prevents drift, and ensures the app consistently reads from one canonical table/view per concept.
+
+---
+
+# Views inventory (AS‑IS + consolidation plan)
+
+**Observed views (from your CSVs):**
+
+* `v_is_admin` — boolean/role flag per user/session.
+* `v_orders` — normalized order fields for UI.
+* `v_orders_all` — likely broader version of `v_orders` (maybe no RLS filters).
+* `v_orders_frontend` — subset tailored for FE.
+* `v_orders_list` — list‑oriented projection for index screens.
+* `v_orders_list_with_last_activity` — list + last activity join.
+* `v_staging_raw_orders_2025_ord` — staging helper view over raw 2025 import.
+* `v_admin_calendar` — admin calendar join (events/appointments/users/orders).
+* `v_client_metrics` — per‑client counts/metrics.
+* `v_email_queue` — email queue with enriched fields.
+
+**Risks:** multiple overlapping `v_orders*` views cause drift and confusion; some may bypass RLS if not `security_invoker`.
+
+**Consolidation plan (MVP):**
+
+1. Keep **one canonical**: `v_orders`.
+
+   * Include the columns needed by both dashboard and orders list (address, status, due\_at, client/appraiser names, reviewer, created/updated).
+   * Add optional `last_activity_at` via lateral subquery to replace `v_orders_list_with_last_activity`.
+2. Replace `v_orders_frontend` and `v_orders_list` usages with `v_orders`.
+3. Keep `v_is_admin` (tiny view or SQL function) but verify it reads from JWT claims or `public.user_roles`.
+4. Keep `v_admin_calendar` if your calendar screen uses it; otherwise, read directly from `calendar_events` with joins.
+5. Keep `v_client_metrics` (useful for admin reports). Make sure it is light enough to compute or materialize it if needed.
+6. Keep `v_email_queue` only if it enriches templates; otherwise read `email_queue` directly.
+7. Treat `v_staging_raw_orders_2025_ord` as **temporary**; drop after 2025 import is finalized.
+
+**View hardening checklist:**
+
+* Add `security_invoker` to all views touching RLS tables.
+* Ensure every `v_orders*` uses consistent joins to **public.users** (not `auth.users`).
+* Index the underlying columns used in WHERE/ORDER BY.
+
+---
+
+# Final wrap‑up — Keep / Refactor / Retire
+
+## ✅ Keep (no changes needed now)
+
+* `order_counters`
+* `order_status_log`
+* `email_queue`
+* `user_documents`
+* `user_roles`
+* `user_settings`
+* `appraiser_licenses`
+
+## 🛠️ Refactor (light, safe changes)
+
+* **Users model consistency:**
+
+  * Canonical app table: `public.users` (join to auth via `auth_id`).
+  * Gradually update FKs pointing at `auth.users` (`user_profiles`, `order_activity`, `calendar_events`) → `public.users`.
+* **Assignments:**
+
+  * `order_assignments.user_id` → reference `public.users(id)` (not `user_profiles`).
+* **Notifications:**
+
+  * Decide between `notification_prefs` (per‑user) and `user_notification_prefs` (per type×channel); prefer the latter, keep both until UI switched.
+  * In `notifications`, eventually collapse `read`/`is_read` to one boolean.
+* **Scheduling:**
+
+  * Prefer `calendar_events` as source of truth; keep `appointments` until UI fully on events. Add `start_at/end_at` to `appointments` if needed in interim.
+* **Orders simplicity via view:**
+
+  * Adopt a single `v_orders` view with normalized fields (address, due\_at, names, last\_activity\_at) to replace `v_orders_frontend`, `v_orders_list`, and `v_orders_list_with_last_activity`.
+* **Clients/AMCs:**
+
+  * Merge `amcs` into `clients` using a `kind` or `client_type` column; replace `orders.amc_id` with `managing_amc_id → clients.id` later.
+
+## 🧹 Retire / Archive when ready
+
+* `amcs` — after migrating rows into `clients` and updating code.
+* `appointments` — after calendar UI fully uses `calendar_events` and any historical rows are migrated.
+* `user_profiles` — if you commit to `public.users` as the single profile source; otherwise keep but ensure one place is canonical.
+* `order_activity` — after folding event logging into `activity_log` (or keep and stop writing new rows).
+* `staging_orders_2025`, `staging_raw_orders_2025_csv`, `v_staging_raw_orders_2025_ord` — drop after import completes.
+* `v_orders_frontend`, `v_orders_list`, `v_orders_list_with_last_activity` — replace with `v_orders`.
+
+## Indices & FK fixes (quick wins)
+
+* Add the listed indexes to: `orders`, `order_status_log`, `order_assignments`, `email_queue`, `contacts`, `calendar_events`, `user_documents`, `notifications`, `appraiser_licenses`.
+* Standardize FKs to **public.users** everywhere (avoid `auth.users` in domain tables).
+* Add FK: `notification_prefs.user_id → public.users(id)`.
+
+## Security & RLS
+
+* Ensure views are `security_invoker`.
+* RLS policies on `activity_log`, `orders`, `order_assignments`, `calendar_events` allow:
+
+  * Admins: full read/write
+  * Appraisers: read/write for orders they’re assigned to; read calendar items where they’re participant
+
+## Minimal migration sequence (safe order)
+
+1. Add non‑breaking columns / indexes / FKs.
+2. Create/Update **single `v_orders`** and switch frontend reads.
+3. Migrate AMCs → `clients(kind='amc')`; keep `v_amcs` for compatibility.
+4. Standardize user FKs to `public.users`.
+5. (Optional) Backfill `appointments.start_at` from `date`/`time`; then migrate calendar to `calendar_events`.
+6. Decommission retired tables/views once code no longer references them.
+
+## Net result
+
+* Fewer tables (party model unified; one calendar source; one activity/audit path; one orders view).
+* Clear user model (public.users everywhere).
+* Simpler frontend (one `v_orders`).
+* Safer, faster queries from added indexes.
+
+---
+
+# Final Summary — DB Source of Truth (post Phases 1–9)
+
+## Canonical tables (use these going forward)
+
+* **users** (↔ `auth.users` via `auth_id`) — single app user source
+* **user\_roles** — multi‑role mapping (admin/appraiser/reviewer/client)
+* **user\_settings** — personal prefs (non‑notif)
+* **user\_notification\_prefs** — granular notif prefs (type×channel)
+* **clients** — party model for lenders/borrowers/**AMCs** (`kind`)
+* **contacts** — per‑client additional contacts
+* **orders** — core order record
+* **order\_assignments** — who’s assigned + splits (FK → `public.users` staged via `user_uid`)
+* **order\_status\_log** — immutable status changes
+* **activity\_log** — unified audit/events (now backfilled from `order_activity`)
+* **calendar\_events** — canonical calendar (start/end)
+* **email\_queue** — outgoing email jobs
+* **appraiser\_licenses** — per‑user licensing
+* **order\_counters** — per‑year sequence
+* **user\_documents** — uploaded docs
+
+## Transitional tables (kept read‑only or for limited time)
+
+* **order\_activity** → backfilled into `activity_log`; **inserts blocked**; compatibility view `v_order_activity_compat` exists
+* **appointments** → feeding `v_calendar_unified`; slated for retirement once UI fully on `calendar_events`
+* **amcs** → data migrated into `clients(kind='amc')`; compatibility view `v_amcs` exists; drop when no longer referenced
+* **notification\_prefs** → coarse prefs; **migrated** into `user_notification_prefs`; kept only for legacy reads via `v_user_notification_prefs`
+* **staging\_orders\_2025**, **staging\_raw\_orders\_2025\_csv** → import scratch; drop after final ETL sign‑off
+
+## Canonical views (front‑end should use these)
+
+* **v\_orders\_unified** — normalized orders + `last_activity_at`
+* **v\_orders\_list** — list projection w/ `review_due_date`, `site_visit_at`, last action/message
+* **v\_orders\_frontend** — unified orders for FE
+* **v\_orders\_list\_with\_last\_activity** — alias of `v_orders_list`
+* **v\_calendar\_unified** — calendar\_events ∪ appointments
+* **v\_admin\_calendar\_v2** — admin calendar w/ joins
+* **v\_user\_notification\_prefs** — unified notif prefs (granular preferred, coarse as fallback)
+* **v\_notifications\_unified** — notifications with single `is_read`
+* **v\_amcs** — compatibility view over `clients(kind='amc')`
+* **v\_order\_activity\_compat** — compatibility view over `activity_log`
+
+## FK consistency (state)
+
+* FKs standardized to **public.users** via staged columns (`appraiser_user_id`, `user_uid`); legacy columns retained for now
+* `orders.managing_amc_id → clients(id)` validated; `orders.amc_id` still present for transition
+
+## Indexes added (performance)
+
+* Orders: `created_at desc`, plus `client_id`, `appraiser_id`, `status`, `due_date`
+* Order status log: `(order_id, created_at desc)`
+* Order assignments: `(order_id)`
+* Calendar: `(appraiser_id, start_at)` and appointments `(order_id, start_at)`
+* Email queue: `(status, created_at)`
+* Contacts: `(client_id)`
+* User docs: `(user_id)`, `(expires_at)`
+* Appraiser licenses: unique `(user_id, state)`, `(expires_at)`
+* Notifications: `(user_id, created_at desc)`, partial `(user_id, is_read) where is_read=false`
+
+## Security/RLS
+
+* Views rely on underlying table RLS; keep admin/appraiser policies per earlier notes
+* `order_activity`: **insert/update blocked** by RLS policy; reads allowed via compat view if needed
+
+---
+
+# Phase 10 — Optional cleanup & retirements (run when ready)
+
+> Run these only after the frontend is confirmed to be reading the canonical views and no code references legacy tables/columns.
+
+### 10.1) Staging cleanup (safe)
+
+```sql
+-- Inspect dependencies first
+select * from information_schema.view_table_usage where table_name = 'staging_orders_2025';
+select * from information_schema.view_table_usage where table_name = 'staging_raw_orders_2025_csv';
+
+-- If nothing depends on them and you’re done with imports:
+drop view if exists public.v_staging_raw_orders_2025_ord;
+truncate table public.staging_orders_2025;
+truncate table public.staging_raw_orders_2025_csv;
+-- (Optionally) drop tables entirely:
+-- drop table public.staging_orders_2025;
+-- drop table public.staging_raw_orders_2025_csv;
+```
+
+### 10.2) AMCs full cut‑over
+
+```sql
+-- Verify orders still using legacy amc_id
+select count(*) as orders_with_legacy_amc from public.orders where amc_id is not null;
+
+-- If zero and code uses managing_amc_id:
+-- 1) Drop legacy FK/column on orders (if FK exists)
+alter table public.orders drop constraint if exists orders_amc_id_fkey;
+alter table public.orders drop column if exists amc_id;
+
+-- 2) Drop physical amcs table (data already migrated)
+drop table if exists public.amcs;
+
+-- 3) Keep v_amcs (points at clients(kind='amc')) or drop if unused
+-- drop view if exists public.v_amcs;
+```
+
+### 10.3) Calendar full cut‑over
+
+```sql
+-- Verify UI reads v_calendar_unified / calendar_events only
+select count(*) from public.appointments where start_at is not null; -- remaining events
+
+-- If you’re done with appointments:
+drop view if exists public.v_admin_calendar;  -- old view if any
+-- Optionally migrate remaining appointments into calendar_events, then:
+drop table if exists public.appointments;
+```
+
+### 10.4) Retire order\_activity
+
+```sql
+-- Confirm compat view covers any legacy reads
+select count(*) from public.order_activity;
+
+-- When safe:
+drop view if exists public.v_order_activity_compat; -- if unused by code
+drop table if exists public.order_activity;
+```
+
+### 10.5) Users FK finalization (optional)
+
+```sql
+-- After code reads staged columns (appraiser_user_id, user_uid):
+alter table public.calendar_events drop column if exists appraiser_id; -- legacy auth.users FK
+alter table public.calendar_events rename column appraiser_user_id to appraiser_id;
+
+alter table public.order_assignments drop column if exists user_id;    -- legacy user_profiles FK
+alter table public.order_assignments rename column user_uid to user_id;
+```
+
+---
+
+# Done-state checklist (target)
+
+* [ ] FE reads orders via `v_orders_unified` / `v_orders_list`
+* [ ] FE reads calendar via `v_calendar_unified`
+* [ ] All event writes go through `public.log_activity()`; `order_activity` dropped
+* [ ] AMCs fully inside `clients`; `orders.managing_amc_id` in use; `amcs` dropped
+* [ ] Only **public.users** referenced by FKs in domain tables
+* [ ] Staging tables/views removed
+
+---
+
+When you’re ready, I can export this whole doc as a **repo‑ready README** with a concise table catalog (name, purpose, key columns, FKs) and the final view diagram.
+
+
+

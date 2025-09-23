@@ -1,12 +1,13 @@
 // src/components/orders/NewOrderButton.jsx
 import React from "react";
 import { Link } from "react-router-dom";
-import { useSession } from "@/lib/hooks/useSession";
+import { useRole } from "@/lib/hooks/useRole";
 
-/** Renders nothing unless the current user is an admin. */
-export default function NewOrderButton({ className = "" }) {
-  const { isAdmin } = useSession();
-  if (!isAdmin) return null;
+/** Renders nothing unless admin (or `show` prop = true). */
+export default function NewOrderButton({ className = "", show }) {
+  const { isAdmin } = useRole() || {};
+  const visible = show ?? isAdmin;
+  if (!visible) return null;
 
   return (
     <Link
@@ -22,3 +23,4 @@ export default function NewOrderButton({ className = "" }) {
     </Link>
   );
 }
+

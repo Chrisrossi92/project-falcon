@@ -1,26 +1,15 @@
-// src/lib/supabaseClient.js
+// /src/lib/supabaseClient.js
 import { createClient } from "@supabase/supabase-js";
 
-const url  = import.meta.env.VITE_SUPABASE_URL;
-const anon = import.meta.env.VITE_SUPABASE_ANON_KEY; // BROWSER = ANON ONLY
+// Read from Vite env (adjust var names if yours differ)
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// HMR-safe singleton to prevent multiple GoTrue instances
-const client =
-  globalThis.__falcon_supabase__ ||
-  createClient(url, anon, {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-      storage: window.localStorage,
-    },
-  });
+// Create the client once
+const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-if (!globalThis.__falcon_supabase__) {
-  globalThis.__falcon_supabase__ = client;
-}
-
-export default client;
-
+// Export both ways so all imports work:
+export const supabase = client;   // named export
+export default client;            // default export
 
 

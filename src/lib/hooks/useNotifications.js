@@ -1,79 +1,46 @@
-// src/lib/hooks/useNotifications.js
-import { useCallback, useEffect, useState } from "react";
-import {
-  listNotifications,
-  getUnreadCount,
-  markRead,
-  markAllRead,
-} from "@/lib/services/notificationsService";
+import { useEffect, useRef, useState } from "react";
+import { rpcGetNotifications, rpcMarkNotificationRead } from "@/lib/services/api";
+import supabase from "@/lib/supabaseClient"; // default import works whether you also have named
 
-export function useNotifications({ unreadOnly = false, pageSize = 25 } = {}) {
+export function useNotifications({ pollMs = 15000, enableRealtime = false } = {}) {
   const [items, setItems] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState(null);
-  const [before, setBefore] = useState(null); // for "load more"
+  const timerRef = useRef(null);
+  const channelRef = useRef(null);
 
-  const refreshCounts = useCallback(async () => {
+  async function refresh() {
+    setLoading(true);
     try {
-      const n = await getUnreadCount();
-      setUnreadCount(n || 0);
-    } catch (e) {
-      // swallow; bell can still render
-    }
-  }, []);
-
-  const refresh = useCallback(async () => {
-    try {
-      setLoading(true);
-      setErr(null);
-      const rows = await listNotifications({ unreadOnly, limit: pageSize });
-      setItems(rows);
-      await refreshCounts();
-    } catch (e) {
-      setErr(e?.message || String(e));
-      setItems([]);
+      const data = await rpcGetNotifications();
+      setItems(data);
     } finally {
       setLoading(false);
     }
-  }, [unreadOnly, pageSize, refreshCounts]);
+  }
 
-  const loadMore = useCallback(async () => {
-    try {
-      const last = items[items.length - 1];
-      if (!last) return;
-      const rows = await listNotifications({
-        unreadOnly,
-        limit: pageSize,
-        before: last.created_at,
-      });
-      setItems((s) => [...s, ...(rows || [])]);
-      if (rows?.length) setBefore(rows[rows.length - 1]?.created_at || null);
-    } catch {
-      // ignore
-    }
-  }, [items, unreadOnly, pageSize]);
-
-  const onMarkRead = useCallback(async (id) => {
-    await markRead(id);
-    setItems((s) => s.map((n) => (n.id === id ? { ...n, read_at: new Date().toISOString() } : n)));
-    await refreshCounts();
-  }, [refreshCounts]);
-
-  const onMarkAll = useCallback(async () => {
-    await markAllRead();
-    setItems((s) => s.map((n) => ({ ...n, read_at: n.read_at ?? new Date().toISOString() })));
-    await refreshCounts();
-  }, [refreshCounts]);
+  async function markRead(id) {
+    await rpcMarkNotificationRead(id);
+    setItems(prev => prev.map(n => (n.id === id ? { ...n, is_read: true } : n)));
+  }
 
   useEffect(() => {
     refresh();
-  }, [refresh]);
+    if (pollMs > 0) timerRef.current = setInterval(refresh, pollMs);
+    return () => timerRef.current && clearInterval(timerRef.current);
+  }, [pollMs]);
 
-  return {
-    items, unreadCount, loading, err,
-    refresh, loadMore,
-    markRead: onMarkRead,
-    markAllRead: onMarkAll,
-  };
+  useEffect(() => {
+    if (!enableRealtime) return;
+    channelRef.current = supabase
+      .channel("notif-center")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "notification_center" }, refresh)
+      .subscribe();
+    return () => channelRef.current && supabase.removeChannel(channelRef.current);
+  }, [enableRealtime]);
+
+  const unreadCount = items.filter(n => !n.is_read).length;
+  return { items, unreadCount, loading, refresh, markRead };
 }
+
+// If you import it as default anywhere, keep this:
+export default useNotifications;

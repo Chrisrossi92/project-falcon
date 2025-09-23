@@ -1,102 +1,66 @@
-// src/components/notifications/NotificationBell.jsx
-import React, { useEffect, useState } from "react";
-import supabase from "@/lib/supabaseClient";
-import {
-  getUnreadCount,
-  listNotifications,
-  markAllRead,
-} from "@/features/notifications/api";
+import { useState } from "react";
+import { useNotifications } from "@/lib/hooks/useNotifications";
 
 export default function NotificationBell() {
   const [open, setOpen] = useState(false);
-  const [count, setCount] = useState(0);
-  const [items, setItems] = useState([]);
-  const [uid, setUid] = useState(null);
-
-  async function refresh() {
-    const [c, list] = await Promise.all([getUnreadCount(), listNotifications({ limit: 10 })]);
-    setCount(c || 0);
-    setItems(Array.isArray(list) ? list : []);
-  }
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const { data } = await supabase.auth.getUser();
-        setUid(data?.user?.id ?? null);
-      } catch {
-        setUid(null);
-      }
-      await refresh();
-    })();
-  }, []);
-
-  // Realtime subscription for this user
-  useEffect(() => {
-    if (!uid) return;
-    const channel = supabase
-      .channel(`notifications:${uid}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${uid}` },
-        () => refresh()
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "notifications", filter: `user_id=eq.${uid}` },
-        () => refresh()
-      )
-      .subscribe();
-    return () => {
-      try { supabase.removeChannel(channel); } catch {}
-    };
-  }, [uid]);
-
-  async function onToggle() {
-    if (!open) await refresh();
-    setOpen((v) => !v);
-  }
-
-  async function onMarkAll() {
-    await markAllRead();
-    await refresh();
-  }
+  const { items, unreadCount, loading, markRead, refresh } = useNotifications({ pollMs: 15000 });
 
   return (
     <div className="relative">
       <button
-        type="button"
-        className="px-2 py-1 text-sm border rounded hover:bg-gray-50"
-        onClick={onToggle}
+        className="relative p-2 rounded-xl border"
+        onClick={() => setOpen((v) => !v)}
         aria-label="Notifications"
         title="Notifications"
       >
-        🔔 {count > 0 ? <span className="ml-1 text-xs">({count})</span> : null}
+        🔔
+        {unreadCount > 0 && (
+          <span className="absolute -top-1 -right-1 text-xs px-1.5 py-0.5 rounded-full bg-red-600 text-white">
+            {unreadCount}
+          </span>
+        )}
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-80 bg-white border rounded-xl shadow p-2 z-50">
+        <div className="absolute right-0 mt-2 w-[360px] max-h-[60vh] overflow-auto bg-white border rounded-xl shadow-lg p-2">
           <div className="flex items-center justify-between mb-2">
-            <div className="text-sm font-medium">Notifications</div>
-            <button
-              className="text-xs px-2 py-1 border rounded hover:bg-gray-50"
-              onClick={onMarkAll}
-            >
-              Mark all read
+            <h3 className="font-semibold">Notification Center</h3>
+            <button className="text-sm underline" onClick={refresh}>
+              Refresh
             </button>
           </div>
-
-          {items.length === 0 ? (
-            <div className="text-xs text-gray-500 p-2">No notifications.</div>
+          {loading ? (
+            <div className="p-4 text-sm text-gray-500">Loading…</div>
+          ) : items.length === 0 ? (
+            <div className="p-4 text-sm text-gray-500">No notifications.</div>
           ) : (
-            <ul className="space-y-1 max-h-64 overflow-y-auto">
+            <ul className="space-y-2">
               {items.map((n) => (
-                <li key={n.id} className="text-xs border rounded p-2">
-                  <div className="font-medium truncate">{n.title || "Notification"}</div>
-                  <div className="text-gray-600 line-clamp-2">{n.body || n.message || ""}</div>
-                  <div className="text-gray-400 mt-1">
-                    {n.created_at ? new Date(n.created_at).toLocaleString() : ""}
-                    {n.read_at ? " • read" : ""}
+                <li
+                  key={n.id}
+                  className={`p-2 rounded-lg border ${n.is_read ? "bg-white" : "bg-blue-50"}`}
+                >
+                  <div className="text-sm font-medium">{n.title || n.event}</div>
+                  {n.body && <div className="text-xs text-gray-600">{n.body}</div>}
+                  <div className="text-xs text-gray-500 mt-1">
+                    {new Date(n.created_at).toLocaleString()}
+                  </div>
+                  <div className="mt-2 flex gap-2">
+                    <a
+                      className="text-xs underline"
+                      href={`/orders/${n.target_id}`}
+                      onClick={() => setOpen(false)}
+                    >
+                      View order
+                    </a>
+                    {!n.is_read && (
+                      <button
+                        className="text-xs underline"
+                        onClick={() => markRead(n.id)}
+                      >
+                        Mark read
+                      </button>
+                    )}
                   </div>
                 </li>
               ))}
@@ -107,8 +71,6 @@ export default function NotificationBell() {
     </div>
   );
 }
-
-
 
 
 

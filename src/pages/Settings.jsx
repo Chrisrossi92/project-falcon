@@ -1,15 +1,28 @@
-// src/pages/Settings.jsx
 import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useSession } from "@/lib/hooks/useSession";
 import { getNotificationPrefs, updateNotificationPrefs } from "@/features/notifications/api";
 import { setUserColor } from "@/lib/services/usersService";
 
+// theme helpers
+const THEME_KEY = "falcon.theme";
+function applyTheme(theme) {
+  const root = document.documentElement;
+  const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)")?.matches;
+  const effective = theme === "system" ? (prefersDark ? "dark" : "light") : theme;
+  if (effective === "dark") root.classList.add("dark");
+  else root.classList.remove("dark");
+}
+
 export default function Settings() {
   const { user } = useSession();
+
   const [prefs, setPrefs] = useState({ dnd: false, dnd_until: null, snooze_until: null });
   const [savingPrefs, setSavingPrefs] = useState(false);
+
   const [color, setColor] = useState("");
+  const [theme, setTheme] = useState(() => localStorage.getItem(THEME_KEY) || "system");
 
   useEffect(() => {
     (async () => {
@@ -21,6 +34,17 @@ export default function Settings() {
       });
     })();
   }, []);
+
+  useEffect(() => {
+    applyTheme(theme);
+    localStorage.setItem(THEME_KEY, theme);
+    if (theme === "system") {
+      const mq = window.matchMedia("(prefers-color-scheme: dark)");
+      const listener = () => applyTheme("system");
+      mq.addEventListener?.("change", listener);
+      return () => mq.removeEventListener?.("change", listener);
+    }
+  }, [theme]);
 
   async function savePrefs() {
     setSavingPrefs(true);
@@ -49,12 +73,45 @@ export default function Settings() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-lg font-semibold">Settings</h1>
-        <p className="text-sm text-gray-600">Notification preferences and profile color.</p>
+    <div className="max-w-3xl mx-auto space-y-6 p-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-lg font-semibold">Settings</h1>
+          <p className="text-sm text-gray-600">Theme, Do Not Disturb, and profile preferences.</p>
+        </div>
+        {/* ✅ clear entry to notification settings */}
+        <Link
+          to="/settings/notifications"
+          className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-50"
+          title="Open Notification Settings"
+        >
+          Notification Settings →
+        </Link>
       </div>
 
+      {/* Theme */}
+      <div className="bg-white border rounded-xl p-4 space-y-3">
+        <div className="text-sm font-medium">Theme</div>
+        <div className="flex items-center gap-3">
+          {["light", "dark", "system"].map((t) => (
+            <label key={t} className="inline-flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name="theme"
+                value={t}
+                checked={theme === t}
+                onChange={(e) => setTheme(e.target.value)}
+              />
+              {t === "light" ? "Light" : t === "dark" ? "Dark" : "System"}
+            </label>
+          ))}
+        </div>
+        <div className="text-xs text-gray-500">
+          System follows your OS. We remember your choice for future sessions.
+        </div>
+      </div>
+
+      {/* DND / Snooze */}
       <div className="bg-white border rounded-xl p-4 space-y-3">
         <div className="text-sm font-medium">Notifications</div>
 
@@ -99,6 +156,7 @@ export default function Settings() {
         </div>
       </div>
 
+      {/* Profile color */}
       <div className="bg-white border rounded-xl p-4 space-y-3">
         <div className="text-sm font-medium">Profile Color</div>
         <div className="flex items-center gap-2">
@@ -109,18 +167,16 @@ export default function Settings() {
             onChange={(e) => setColor(e.target.value)}
           />
           <div className="h-6 w-6 rounded border" style={{ background: color || "#fff" }} />
-          <button
-            className="px-3 py-1.5 text-sm rounded border hover:bg-gray-50"
-            onClick={saveColor}
-          >
+          <button className="px-3 py-1.5 text-sm rounded border hover:bg-gray-50" onClick={saveColor}>
             Save Color
           </button>
         </div>
-        <div className="text-xs text-gray-500">Tip: paste a hex like <code>#A3E635</code>.</div>
       </div>
     </div>
   );
 }
+
+
 
 
 

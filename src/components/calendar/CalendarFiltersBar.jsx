@@ -1,39 +1,71 @@
 // src/components/calendar/CalendarFiltersBar.jsx
 import React from "react";
 
-/**
- * CalendarFiltersBar
- * props:
- *  - chips: [{ key, label, active, onClick, color }]
- *  - counts: { site_visit?:number, due_for_review?:number, due_to_client?:number, mine?:number }
- *  - className
- */
-export default function CalendarFiltersBar({ chips = [], counts = {}, className = "" }) {
+export default function CalendarFiltersBar({
+  view, setView,                // '2w' | 'month'
+  weeks, setWeeks,              // 1 | 2 | 4 (only used for 2w view)
+  showWeekends, setShowWeekends,
+  showSite, setShowSite,
+  showReview, setShowReview,
+  showFinal, setShowFinal,
+}) {
   return (
-    <div className={`flex items-center gap-2 flex-wrap ${className}`}>
-      {chips.map((c) => {
-        const count =
-          c.key === "site"   ? counts.site_visit :
-          c.key === "review" ? counts.due_for_review :
-          c.key === "final"  ? counts.due_to_client :
-          c.key === "mine"   ? counts.mine : undefined;
-
-        return (
+    <div className="flex flex-wrap items-center gap-3 mb-3">
+      {/* View */}
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-muted-foreground">View</span>
+        <div className="inline-flex border rounded overflow-hidden">
           <button
-            key={c.key}
-            data-no-drawer
-            type="button"
-            onClick={(e) => { e.stopPropagation(); c.onClick?.(); }}
-            className={`inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs border shadow-sm transition
-                        ${c.active ? "bg-white" : "bg-slate-50"} hover:brightness-[.98]`}
-            title={`Toggle ${c.label}`}
+            className={`px-2 py-1 text-sm ${view === "2w" ? "bg-black text-white" : "bg-white"}`}
+            onClick={() => setView("2w")}
           >
-            <span className={`w-2.5 h-2.5 rounded-full ${c.color}`} />
-            <span className="font-medium">{c.label}</span>
-            {typeof count === "number" && <span className="text-muted-foreground">({count})</span>}
+            2 weeks
           </button>
-        );
-      })}
+          <button
+            className={`px-2 py-1 text-sm ${view === "month" ? "bg-black text-white" : "bg-white"}`}
+            onClick={() => setView("month")}
+          >
+            Month
+          </button>
+        </div>
+      </div>
+
+      {/* 2w Options */}
+      {view === "2w" && (
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Weeks</span>
+          {[1,2,4].map(n => (
+            <button
+              key={n}
+              className={`px-2 py-1 text-sm border rounded ${weeks === n ? "bg-slate-900 text-white" : "bg-white"}`}
+              onClick={() => setWeeks(n)}
+            >
+              {n}
+            </button>
+          ))}
+          <label className="flex items-center gap-2 text-sm ml-2">
+            <input type="checkbox" checked={showWeekends} onChange={e => setShowWeekends(e.target.checked)} />
+            Weekends
+          </label>
+        </div>
+      )}
+
+      {/* Filters */}
+      <div className="flex items-center gap-3 ml-auto">
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={showSite} onChange={e => setShowSite(e.target.checked)} />
+          📍 Site
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={showReview} onChange={e => setShowReview(e.target.checked)} />
+          📝 Review
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={showFinal} onChange={e => setShowFinal(e.target.checked)} />
+          ✅ Final
+        </label>
+      </div>
     </div>
   );
 }
+

@@ -1,9 +1,10 @@
+// src/components/admin/AdminCalendar.jsx
 import React, { useRef, useState, useEffect, useCallback, useMemo } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
-import supabase from "@/lib/supabaseClient";
 
+import supabase from "@/lib/supabaseClient";
 
 const TYPE_COLORS = {
   site_visit: "#ec4899",
@@ -14,8 +15,8 @@ const TYPE_COLORS = {
 function startOfWeek(date, firstDay = 0) {
   const d = new Date(date);
   const diff = (d.getDay() - firstDay + 7) % 7;
-  d.setHours(0, 0, 0, 0);
   d.setDate(d.getDate() - diff);
+  d.setHours(0, 0, 0, 0);
   return d;
 }
 function addDays(date, n) {
@@ -27,7 +28,6 @@ function addDays(date, n) {
 export default function AdminCalendar({ className = "", style = {}, onEventsChange }) {
   const calRef = useRef(null);
   const lastRangeRef = useRef({ startMs: null, endMs: null });
-
   const [range, setRange] = useState({ start: null, end: null });
   const [events, setEvents] = useState([]);
 
@@ -36,9 +36,11 @@ export default function AdminCalendar({ className = "", style = {}, onEventsChan
 
     const { data, error } = await supabase
       .from("v_admin_calendar_enriched")
-      .select("id, event_type, title, start_at, end_at, order_id, appraiser_name, appraiser_color")
+      .select(
+        "id, event_type, title, start_at, end_at, order_id, appraiser_name, appraiser_color"
+      )
       .gte("start_at", start.toISOString())
-      .lte("start_at", end.toISOString())
+      .lt("start_at", end.toISOString())
       .order("start_at", { ascending: true });
 
     if (error) {
@@ -50,14 +52,17 @@ export default function AdminCalendar({ className = "", style = {}, onEventsChan
 
     const mapped = (data || []).map((row) => ({
       id: row.id,
-      title: row.title || (row.event_type || "Event"),
+      title: row.title || row.event_type || "Event",
       start: row.start_at,
       end: row.end_at,
-      orderId: row.order_id || null,
       backgroundColor: TYPE_COLORS[row.event_type] || row.appraiser_color || undefined,
       borderColor: TYPE_COLORS[row.event_type] || row.appraiser_color || undefined,
       textColor: "#111827",
-      extendedProps: { type: row.event_type, appraiser: row.appraiser_name || null },
+      extendedProps: {
+        type: row.event_type,
+        appraiser: row.appraiser_name || null,
+        orderId: row.order_id || null,
+      },
     }));
 
     setEvents(mapped);
@@ -83,46 +88,48 @@ export default function AdminCalendar({ className = "", style = {}, onEventsChan
     if (orderId) window.open(`/orders/${orderId}`, "_self");
   }
 
-  const views = useMemo(() => ({
-    twoWeeks: {
-      type: "dayGrid",
-      buttonText: "2 weeks",
-      visibleRange: (currentDate) => {
-        const start = startOfWeek(currentDate, 0); // top row = current week
-        const end = addDays(start, 14);
-        return { start, end };
+  const views = useMemo(
+    () => ({
+      twoWeeks: {
+        type: "dayGrid",
+        buttonText: "2 weeks",
+        visibleRange: (currentDate) => {
+          const start = startOfWeek(currentDate, 0);
+          const end = addDays(start, 14);
+          return { start, end };
+        },
       },
-    },
-    dayGridMonth: { type: "dayGrid", buttonText: "month" },
-    timeGridWeek:  { type: "timeGrid", buttonText: "week" },
-    timeGridDay:   { type: "timeGrid", buttonText: "day" },
-  }), []);
+      dayGridMonth: { type: "dayGrid", buttonText: "month" },
+      timeGridWeek: { type: "timeGrid", buttonText: "week" },
+      timeGridDay: { type: "timeGrid", buttonText: "day" },
+    }),
+    []
+  );
 
   return (
-    <div className={`h-full flex flex-col ${className}`} style={style}>
-      <div className="flex-1 min-h-0 text-[13px]">{/* put styling on wrapper, not FC */}
-        <FullCalendar
-          ref={calRef}
-          plugins={[dayGridPlugin, timeGridPlugin]}
-          initialView="twoWeeks"
-          initialDate={new Date()}
-          firstDay={0}
-          height="100%"
-          expandRows={true}
-          stickyHeaderDates={true}
-          headerToolbar={false}
-          dayMaxEventRows={3}
-          eventDisplay="block"
-          eventTextColor="#111827"
-          events={events}
-          datesSet={handleDatesSet}
-          eventClick={onEventClick}
-          views={views}
-        />
-      </div>
+    <div className={`min-h-[360px] ${className}`} style={style}>
+      <FullCalendar
+        ref={calRef}
+        plugins={[dayGridPlugin, timeGridPlugin]}
+        initialView="twoWeeks"
+        firstDay={0}
+        height={420}
+        contentHeight={360}
+        expandRows
+        stickyHeaderDates
+        headerToolbar={false}
+        dayMaxEventRows={3}
+        eventDisplay="block"
+        events={events}
+        datesSet={handleDatesSet}
+        eventClick={onEventClick}
+        views={views}
+      />
     </div>
   );
 }
+
+
 
 
 
