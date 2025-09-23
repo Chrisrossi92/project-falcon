@@ -1,10 +1,6 @@
 // src/components/calendar/useCalendarFilters.js
 import { useMemo, useState, useCallback } from "react";
 
-/**
- * Keeps type/mine filters and exposes a predicate.
- * Types: site_visit, due_for_review, due_to_client
- */
 export default function useCalendarFilters({ defaultMine = false } = {}) {
   const [site, setSite]     = useState(true);
   const [review, setRev]    = useState(true);
@@ -16,15 +12,16 @@ export default function useCalendarFilters({ defaultMine = false } = {}) {
   const toggleFinal = useCallback(() => setFinal(s => !s), []);
   const toggleMine  = useCallback(() => setMine(s => !s), []);
 
-  const predicate = useCallback((ev, meId) => {
-    // type filter
+  const predicate = useCallback((ev, me) => {
     if (ev.type === "site_visit"     && !site)   return false;
     if (ev.type === "due_for_review" && !review) return false;
     if (ev.type === "due_to_client"  && !finalD) return false;
-    // mine filter (optional)
-    if (mine && meId && ev.appraiser) {
-      // loose match on name when we don’t have IDs here; you can swap to id check in PR 3
-      if (!String(ev.appraiser).toLowerCase().includes(String(meId).toLowerCase())) return false;
+
+    if (mine && me) {
+      // Prefer strict id compare when available; fall back to name contains
+      const evAssigneeId = ev.assigneeId || ev.appraiser_id || ev.appraiserId;
+      if (evAssigneeId) return String(evAssigneeId) === String(me);
+      if (ev.appraiser) return String(ev.appraiser).toLowerCase().includes(String(me).toLowerCase());
     }
     return true;
   }, [site, review, finalD, mine]);
@@ -38,3 +35,4 @@ export default function useCalendarFilters({ defaultMine = false } = {}) {
 
   return { site, review, finalD, mine, toggleSite, toggleRev, toggleFinal, toggleMine, predicate, chips };
 }
+

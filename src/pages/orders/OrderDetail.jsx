@@ -3,6 +3,7 @@ import React from "react";
 import { useParams, Link } from "react-router-dom";
 import { useOrder } from "@/lib/hooks/useOrders";
 import OrderForm from "@/components/orders/form/OrderForm";
+import { toFormOrder } from "@/lib/utils/orderFormMapping";
 
 export default function OrderDetail() {
   const { id } = useParams();
@@ -12,7 +13,8 @@ export default function OrderDetail() {
   if (error) return <div className="p-4 text-sm text-red-600">Failed to load order: {error.message}</div>;
   if (!order) return <div className="p-4 text-sm text-amber-700">Order not found or you don’t have access.</div>;
 
-  const title = `Order ${order.order_no ?? order.order_number ?? id}`;
+  const formOrder = toFormOrder(order);
+  const title = `Order ${formOrder.order_no ?? formOrder.order_number ?? id}`;
 
   return (
     <div className="p-4 space-y-3">
@@ -24,7 +26,7 @@ export default function OrderDetail() {
       </div>
 
       {/* Same exact form as New Order, but prefilled and editable */}
-      <OrderForm order={order} onSaved={() => reload()} />
+      <OrderForm order={formOrder} onSaved={() => reload()} />
     </div>
   );
 }

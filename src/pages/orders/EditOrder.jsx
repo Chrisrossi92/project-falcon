@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import OrderForm from "@/components/orders/form/OrderForm";
 import { fetchOrderById, deleteOrder } from "@/lib/services/ordersService";
 import supabase from "@/lib/supabaseClient";   // ← THIS fixes “supabase is not defined”
+import { toFormOrder } from "@/lib/utils/orderFormMapping";
 
 
 export default function EditOrderPage() {
@@ -21,7 +22,7 @@ export default function EditOrderPage() {
       setLoading(true);
       setErr(null);
       const data = await fetchOrderById(id);
-      setRow(data);
+      setRow(toFormOrder(data));
     } catch (e) {
       setErr(e?.message || String(e));
       setRow(null);

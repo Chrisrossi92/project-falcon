@@ -1,13 +1,11 @@
-// src/pages/admin/AdminDashboard.jsx
+// src/components/calendar/DashboardCalendar.jsx
 import React, { useCallback, useMemo, useState } from "react";
-import DashboardOrdersTable from "@/components/dashboard/DashboardOrdersTable";
-import { Card } from "@/components/ui/Card.jsx";
 import TwoWeekCalendar from "@/components/calendar/TwoWeekCalendar";
-import CalendarFiltersBar from "@/components/calendar/CalendarFiltersBar"; // the lightweight bar I provided
+import CalendarFiltersBar from "@/components/calendar/CalendarFiltersBar";
 import supabase from "@/lib/supabaseClient";
 
-
-function mapRow(row) {
+// Map DB row → TwoWeekCalendar event shape (used by EventChip)
+function toTwoWeekEvent(row) {
   const t = (row.title || "").toLowerCase();
   const type =
     row.event_type === "site_visit" || row.event_type === "appointment"
@@ -15,10 +13,9 @@ function mapRow(row) {
       : t.includes("review")
       ? "due_for_review"
       : "due_to_client";
-
   return {
     id: row.id,
-    type,                          // 'site_visit' | 'due_for_review' | 'due_to_client'
+    type,                                        // 'site_visit' | 'due_for_review' | 'due_to_client'
     start: row.start_at,
     end: row.end_at,
     orderId: row.order_id,
@@ -29,9 +26,10 @@ function mapRow(row) {
   };
 }
 
-export default function AdminDashboard() {
+export default function DashboardCalendar() {
+  const [view] = useState("2w"); // dashboard uses the 2-week grid
   const [weeks, setWeeks] = useState(2);
-  const [showWeekends, setShowWeekends] = useState(true); // show weekends by default so Sunday deadlines appear
+  const [showWeekends, setShowWeekends] = useState(true);
   const [showSite, setShowSite] = useState(true);
   const [showReview, setShowReview] = useState(true);
   const [showFinal, setShowFinal] = useState(true);
@@ -45,7 +43,8 @@ export default function AdminDashboard() {
       .order("start_at", { ascending: true });
 
     if (error) { console.warn(error.message); return []; }
-    const rows = (data || []).map(mapRow);
+
+    const rows = (data || []).map(toTwoWeekEvent);
     return rows.filter(ev =>
       (showSite && ev.type === "site_visit") ||
       (showReview && ev.type === "due_for_review") ||
@@ -54,81 +53,23 @@ export default function AdminDashboard() {
   }, [showSite, showReview, showFinal]);
 
   return (
-    <div className="space-y-5 px-4 pb-6">
-      <Card className="p-4">
-        <div className="mb-3 text-sm font-medium">Calendar</div>
-
-        <CalendarFiltersBar
-          view="2w" setView={() => {}}
-          weeks={weeks} setWeeks={setWeeks}
-          showWeekends={showWeekends} setShowWeekends={setShowWeekends}
-          showSite={showSite} setShowSite={setShowSite}
-          showReview={showReview} setShowReview={setShowReview}
-          showFinal={showFinal} setShowFinal={setShowFinal}
-        />
-
-        <TwoWeekCalendar
-          getEvents={getEvents}
-          weeks={weeks}
-          showWeekends={showWeekends}
-          showWeekdayHeader
-          compact
-          onEventClick={(ev) => { if (ev?.orderId) window.open(`/orders/${ev.orderId}`, "_self"); }}
-        />
-      </Card>
-
-      <DashboardOrdersTable />
+    <div className="w-full">
+      <CalendarFiltersBar
+        view={view} setView={() => {}}
+        weeks={weeks} setWeeks={setWeeks}
+        showWeekends={showWeekends} setShowWeekends={setShowWeekends}
+        showSite={showSite} setShowSite={setShowSite}
+        showReview={showReview} setShowReview={setShowReview}
+        showFinal={showFinal} setShowFinal={setShowFinal}
+      />
+      <TwoWeekCalendar
+        getEvents={getEvents}
+        weeks={weeks}
+        showWeekends={showWeekends}
+        showWeekdayHeader
+        compact
+        onEventClick={(ev) => { if (ev?.orderId) window.open(`/orders/${ev.orderId}`, "_self"); }}
+      />
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

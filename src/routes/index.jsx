@@ -1,4 +1,3 @@
-// src/routes/index.jsx
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 
@@ -17,16 +16,25 @@ import NewOrder from "@/pages/NewOrder";
 import OrderDetail from "@/pages/orders/OrderDetail";
 import EditOrder from "@/pages/orders/EditOrder";
 import Calendar from "@/pages/Calendar";
+
+// Clients (legacy admin pages kept)
 import ClientsDashboard from "@/pages/clients/ClientsDashboard";
 import NewClient from "@/pages/clients/NewClient";
-// ⬇️ use the new client profile page
 import ClientProfile from "@/pages/clients/ClientProfile";
 import EditClient from "@/pages/clients/EditClient";
-import UsersDashboard from "@/pages/admin/UsersDashboard";
-import AdminUsers from "@/pages/admin/AdminUsers";
+
+// Users
+import UsersIndex from "@/pages/admin/UsersIndex";   // <- roster + role/split controls
 import UserDetail from "@/pages/users/UserDetail";
 import EditUser from "@/pages/users/EditUser";
 import UserHub from "@/pages/users/UserHub";
+
+// Optional: role-aware clients cards/detail (if you added them)
+import ClientsIndex from "@/pages/clients/ClientsIndex";
+import ClientDetail from "@/pages/clients/ClientDetail";
+
+// Notifications
+import NotificationSettings from "@/pages/settings/NotificationSettings";
 
 function RoleSwitch() {
   const { role } = useRole() || {};
@@ -64,157 +72,88 @@ export default function AppRoutes() {
         />
         <Route
           path="/orders/new"
-          element={
-            <ProtectedRoute roles={["admin"]}>
-              <NewOrder />
-            </ProtectedRoute>
-          }
+          element={<ProtectedRoute roles={["admin"]}><NewOrder /></ProtectedRoute>}
         />
         <Route
           path="/orders/:id"
-          element={
-            <ProtectedRoute roles={["admin", "reviewer", "appraiser"]}>
-              <OrderDetail />
-            </ProtectedRoute>
-          }
+          element={<ProtectedRoute roles={["admin", "reviewer", "appraiser"]}><OrderDetail /></ProtectedRoute>}
         />
         <Route
           path="/orders/:id/edit"
-          element={
-            <ProtectedRoute roles={["admin"]}>
-              <EditOrder />
-            </ProtectedRoute>
-          }
+          element={<ProtectedRoute roles={["admin"]}><EditOrder /></ProtectedRoute>}
         />
 
         {/* Calendar */}
         <Route
           path="/calendar"
-          element={
-            <ProtectedRoute roles={["admin", "reviewer", "appraiser"]}>
-              <Calendar />
-            </ProtectedRoute>
-          }
+          element={<ProtectedRoute roles={["admin", "reviewer", "appraiser"]}><Calendar /></ProtectedRoute>}
         />
 
-        {/* Clients */}
+        {/* Clients (legacy admin pages) */}
         <Route
           path="/clients"
-          element={
-            <ProtectedRoute roles={["admin"]}>
-              <ClientsDashboard />
-            </ProtectedRoute>
-          }
+          element={<ProtectedRoute roles={["admin"]}><ClientsDashboard /></ProtectedRoute>}
         />
         <Route
           path="/clients/new"
-          element={
-            <ProtectedRoute roles={["admin"]}>
-              <NewClient />
-            </ProtectedRoute>
-          }
-        />
-        {/* Client profile — support both :clientId and :id param names */}
-        <Route
-          path="/clients/:clientId"
-          element={
-            <ProtectedRoute roles={["admin"]}>
-              <ClientProfile />
-            </ProtectedRoute>
-          }
+          element={<ProtectedRoute roles={["admin"]}><NewClient /></ProtectedRoute>}
         />
         <Route
-          path="/clients/:id"
-          element={
-            <ProtectedRoute roles={["admin"]}>
-              <ClientProfile />
-            </ProtectedRoute>
-          }
+          path="/clients/profile/:clientId"
+          element={<ProtectedRoute roles={["admin"]}><ClientProfile /></ProtectedRoute>}
         />
         <Route
           path="/clients/edit/:clientId"
-          element={
-            <ProtectedRoute roles={["admin"]}>
-              <EditClient />
-            </ProtectedRoute>
-          }
+          element={<ProtectedRoute roles={["admin"]}><EditClient /></ProtectedRoute>}
         />
 
-        {/* Users */}
+        {/* Optional: cards + role-aware detail */}
         <Route
-          path="/users"
-          element={
-            <ProtectedRoute roles={["admin", "manager", "reviewer", "appraiser"]}>
-              <UsersDashboard />
-            </ProtectedRoute>
-          }
+          path="/clients/cards"
+          element={<ProtectedRoute roles={["admin", "appraiser"]}><ClientsIndex /></ProtectedRoute>}
         />
         <Route
-          path="/admin/users"
-          element={
-            <ProtectedRoute roles={["admin", "manager"]}>
-              <AdminUsers />
-            </ProtectedRoute>
-          }
+          path="/clients/:id"
+          element={<ProtectedRoute roles={["admin", "appraiser"]}><ClientDetail /></ProtectedRoute>}
+        />
+
+        {/* ✅ Users — single page with admin role/split controls */}
+        <Route
+          path="/users"
+          element={<ProtectedRoute roles={["admin", "manager", "reviewer", "appraiser"]}><UsersIndex /></ProtectedRoute>}
         />
         <Route
           path="/users/:userId"
-          element={
-            <ProtectedRoute roles={["admin"]}>
-              <UserDetail />
-            </ProtectedRoute>
-          }
+          element={<ProtectedRoute roles={["admin"]}><UserDetail /></ProtectedRoute>}
         />
         <Route
           path="/users/new"
-          element={
-            <ProtectedRoute roles={["admin"]}>
-              <UserDetail />
-            </ProtectedRoute>
-          }
-        />
-
-        {/* Profile / Settings */}
-        <Route
-          path="/profile/edit"
-          element={
-            <ProtectedRoute roles={["admin", "manager", "reviewer", "appraiser"]}>
-              <EditUser />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/settings"
-          element={
-            <ProtectedRoute roles={["admin", "manager", "reviewer", "appraiser"]}>
-              <Settings />
-            </ProtectedRoute>
-          }
+          element={<ProtectedRoute roles={["admin"]}><UserDetail /></ProtectedRoute>}
         />
         <Route
           path="/users/view/:userId"
-          element={
-            <ProtectedRoute roles={["admin", "manager", "reviewer", "appraiser"]}>
-              <UserHub />
-            </ProtectedRoute>
-          }
+          element={<ProtectedRoute roles={["admin", "manager", "reviewer", "appraiser"]}><UserHub /></ProtectedRoute>}
+        />
+
+        {/* Settings */}
+        <Route
+          path="/settings"
+          element={<ProtectedRoute roles={["admin", "manager", "reviewer", "appraiser"]}><Settings /></ProtectedRoute>}
+        />
+        <Route
+          path="/settings/notifications"
+          element={<ProtectedRoute roles={["admin", "manager", "reviewer", "appraiser"]}><NotificationSettings /></ProtectedRoute>}
         />
 
         {/* Default */}
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Route>
 
-      {/* Fallback for anything truly unmatched */}
+      {/* Fallback */}
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
 }
-
-
-
-
-
-
 
 
 

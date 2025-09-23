@@ -2,7 +2,7 @@
 import React, { useCallback, useMemo, useState } from "react";
 import CalendarLegend from "@/components/calendar/CalendarLegend";
 import TwoWeekCalendar from "@/components/calendar/TwoWeekCalendar";
-import MonthCalendar from "@/components/calendar/MonthCalendar";
+import MonthCalendar from "@/components/calendar/MonthsCalendar";
 import { listCalendarEvents } from "@/lib/services/calendarService";
 import { useSession } from "@/lib/hooks/useSession";
 import { useRole } from "@/lib/hooks/useRole";

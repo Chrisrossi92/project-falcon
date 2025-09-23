@@ -1,88 +1,72 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useMemo } from "react";
+import ClientHeader, { headerPalette } from "./ClientHeader";
 
-export default function ClientCard({ client }) {
-  const navigate = useNavigate();
+// Smart category detection; uses explicit fields first, name heuristic second
+function inferCategory(c = {}) {
+  const t = (c.type || c.client_type || c.category || c.kind || "").toString().toLowerCase();
+  if (t.includes("amc")) return "amc";
+  if (t.includes("lender")) return "lender";
+  const name = (c.name || c.client_name || "").toLowerCase();
+  if (/\b(amc|appraisal management)\b/.test(name)) return "amc";
+  if (/\b(bank|credit union|mortgage|finance|financial|banc|bancorp|savings|loan)\b/.test(name)) return "lender";
+  return "other";
+}
 
-  const {
-    id,
-    name,
-    client_type,
-    totalOrders = 0,
-    activeOrders = 0,
-    avgFee = 0,
-    lastOrderDate = null,
-    contact_name_1,
-    contact_email_1
-  } = client;
+const fmtUSD0 = (n) =>
+  typeof n === "number"
+    ? n.toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 })
+    : "—";
 
-  const formatDate = (dateString) => {
-    if (!dateString) return '—';
-    const date = new Date(dateString);
-    return date.toLocaleDateString();
-  };
+export default function ClientCard({ client, onOpen }) {
+  // normalize fields you already expose in different views
+  const name = client?.name || client?.client_name || "—";
+  const primary = client?.contact_name || client?.primary_contact || "—";
+  const phone = client?.primary_contact_phone || client?.phone || null;
+  const ordersCount = client?.orders_count ?? client?.total_orders ?? 0;
+  const avgFee = client?.avg_base_fee ?? client?.avg_total_fee ?? null;
+  const last = client?.last_ordered_at ? new Date(client.last_ordered_at).toLocaleDateString() : "—";
 
-  const labelColor = {
-    AMC: 'bg-blue-100 text-blue-700',
-    Lender: 'bg-green-100 text-green-700',
-    Private: 'bg-gray-100 text-gray-700',
-  }[client_type] || 'bg-gray-200 text-gray-800';
+  const category = useMemo(() => inferCategory(client), [client]);
+  const tint = headerPalette[category] || headerPalette.other;
 
   return (
-    <div className="bg-white rounded-xl shadow p-4 w-full max-w-md h-64 flex flex-col justify-between hover:shadow-lg transition">
-      {/* Header Row */}
-      <div>
-        <div className="flex items-center justify-between mb-1">
-          <h2
-            className="font-semibold leading-tight truncate"
-            style={{
-              fontSize:
-                name.length > 40
-                  ? '0.875rem' // text-sm
-                  : name.length > 25
-                  ? '1rem' // text-base
-                  : '1.125rem', // text-lg
-            }}
-            title={name}
-          >
-            {name}
-          </h2>
-          <span className={`text-xs font-semibold px-2 py-1 rounded ${labelColor}`}>
-            {client_type}
-          </span>
+    <article className="rounded-2xl border bg-white shadow-sm hover:shadow-md transition">
+      <ClientHeader name={name} category={category} onOpen={() => onOpen?.(client)} />
+
+      <div className="px-4 py-3 space-y-3">
+        {/* Primary contact */}
+        <div>
+          <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+            Primary Contact
+          </div>
+          <div className="text-sm">
+            <span className="font-medium">{primary}</span>
+            {phone && (
+              <a className="ml-2 underline text-sm" href={`tel:${phone}`}>
+                {phone}
+              </a>
+            )}
+          </div>
         </div>
 
-        {/* Stats */}
-        <ul className="text-sm space-y-1 mb-2">
-          <li>💼 Total Orders: {totalOrders}</li>
-          <li>🔥 Active Orders: {activeOrders}</li>
-          <li>💰 Avg Fee: ${avgFee.toFixed(2)}</li>
-          <li>📅 Last Order: {formatDate(lastOrderDate)}</li>
-        </ul>
+        {/* KPIs with a hint of the category color */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className={`rounded-xl border px-3 py-2 ring-1 ${tint.kpiRing}`}>
+            <div className="text-[11px] text-muted-foreground">Total Orders</div>
+            <div className="text-base font-semibold">{ordersCount}</div>
+          </div>
+          <div className={`rounded-xl border px-3 py-2 ring-1 ${tint.kpiRing}`}>
+            <div className="text-[11px] text-muted-foreground">Avg Fee</div>
+            <div className="text-base font-semibold">{fmtUSD0(avgFee)}</div>
+          </div>
+        </div>
 
-        {/* Contact */}
-        <div className="text-sm text-gray-600">
-          {contact_name_1 && <p>👤 {contact_name_1}</p>}
-          {contact_email_1 && <p>📧 {contact_email_1}</p>}
+        <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+          <div>Last: {last}</div>
+          <div>{client?.status || ""}</div>
         </div>
       </div>
-
-      {/* Buttons Row */}
-      <div className="flex gap-2 pt-3">
-        <button
-          onClick={() => navigate(`/clients/${id}`)}
-          className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm"
-        >
-          View
-        </button>
-        <button
-          onClick={() => navigate(`/clients/edit/${id}`)}
-          className="bg-gray-300 text-gray-800 px-3 py-1 rounded hover:bg-gray-400 text-sm"
-        >
-          Edit
-        </button>
-      </div>
-    </div>
+    </article>
   );
 }
 

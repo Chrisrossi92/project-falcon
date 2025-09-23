@@ -4,7 +4,7 @@ import DashboardSplit from "@/components/dashboard/DashboardSplit";
 import KpiLink from "@/components/dashboard/KpiLink";
 import UpcomingEventsList from "@/components/dashboard/UpcomingEventsList";
 import TwoWeekCalendar from "@/components/calendar/TwoWeekCalendar";
-import useCalendarEvents from "@/components/calendar/useCalendarEvents";
+import useCalendarEvents from "@/lib/hooks/useCalendarEvents";
 import useCurrentUserIds from "@/components/calendar/useCurrentUserIds";
 import UnifiedOrdersTable from "@/features/orders/UnifiedOrdersTable";
 
