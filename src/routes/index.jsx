@@ -36,6 +36,7 @@ import ClientDetail from "@/pages/clients/ClientDetail";
 // Notifications
 import NotificationSettings from "@/pages/settings/NotificationSettings";
 
+
 function RoleSwitch() {
   const { role } = useRole() || {};
   const r = String(role || "").toLowerCase();

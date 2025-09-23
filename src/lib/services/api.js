@@ -120,37 +120,72 @@ export async function rpcGetCalendarEvents({ from = null, to = null } = {}) {
  * We avoid selecting non-existent columns. Compose display_name from available fields.
  */
 export async function getCurrentUserProfile() {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+  // 1) Auth user
+  const { data: authData, error: authErr } = await supabase.auth.getUser();
+  if (authErr) throw authErr;
+  const authUser = authData?.user;
+  if (!authUser) return null;
 
-  // Pull a safe subset of columns we know exist in your schema
-  const { data, error } = await supabase
-    .from("users")
-    .select("id, email, full_name, name, role, fee_split, updated_at")
-    .eq("id", user.id)
-    .single();
+  const authId = authUser.id;
+  const authEmail = authUser.email || "";
 
-  if (error) throw error;
+  // columns we want from public.users
+  const cols =
+    "id, uid, email, display_name, full_name, name, role, fee_split, display_color, avatar_url, status, updated_at";
 
-  const display_name = data?.full_name || data?.name || data?.email || "";
-  // Attach prefs for convenience
-  let prefs = null;
-  try {
-    const res = await supabase.rpc("rpc_notification_prefs_get", {
-      p_user_id: data.id,
-    });
-    prefs = res.data ?? null;
-  } catch {
-    prefs = null;
+  // 2) Try by uid first (this is the canonical mapping)
+  let row = null;
+  if (authId) {
+    const { data, error } = await supabase.from("users").select(cols).eq("uid", authId).limit(1);
+    if (error) throw error;
+    row = data?.[0] || null;
   }
 
+  // 3) Fallback by email if uid not set yet
+  if (!row && authEmail) {
+    const { data, error } = await supabase.from("users").select(cols).eq("email", authEmail).limit(1);
+    if (error) throw error;
+    row = data?.[0] || null;
+  }
+
+  // 4) Auto-provision if still missing
+  if (!row) {
+    const insertPatch = {
+      uid: authId,
+      email: authEmail,
+      display_name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || null,
+      full_name: authUser.user_metadata?.full_name || null,
+      name: authUser.user_metadata?.name || null,
+      role: "appraiser",
+      status: "active",
+    };
+    const { data, error } = await supabase.from("users").insert(insertPatch).select(cols).single();
+    if (error) throw error;
+    row = data;
+  } else {
+    // Heal mapping if uid is wrong/missing
+    if (row.uid !== authId) {
+      await supabase.from("users").update({ uid: authId }).eq("id", row.id);
+      row.uid = authId;
+    }
+  }
+
+  const display_name = row.display_name || row.full_name || row.name || row.email;
+
+  // ✅ IMPORTANT: return *app user* id as .id, and auth id as .auth_id
   return {
-    id: data.id,
-    email: data.email,
+    id: row.id,               // public.users.id  <-- use this in links: /users/view/:id
+    auth_id: row.uid,         // auth.users.id    <-- use this only for policy checks
+    email: row.email,
     display_name,
-    notification_prefs: prefs,
+    full_name: row.full_name || null,
+    name: row.name || null,
+    role: row.role || "appraiser",
+    fee_split: row.fee_split ?? null,
+    display_color: row.display_color || null,
+    avatar_url: row.avatar_url || null,
+    status: row.status || "active",
+    updated_at: row.updated_at || null,
   };
 }
 
