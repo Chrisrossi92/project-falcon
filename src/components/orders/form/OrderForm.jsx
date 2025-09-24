@@ -1,49 +1,59 @@
+// src/components/orders/OrderForm.jsx
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import supabase from "@/lib/supabaseClient";
+import { useRole } from "@/lib/hooks/useRole";
 import AddressAutocomplete from "@/components/inputs/AddressAutocomplete";
 import OrderNumberField from "@/components/inputs/OrderNumberField";
-import { useRole } from "@/lib/hooks/useRole";
+import { PROPERTY_TYPES, REPORT_TYPES } from "@/components/orders/form/OrderEnums";
 
 function Label({ children }) {
   return <label className="block text-xs font-medium text-gray-600 mb-1">{children}</label>;
 }
 function TextInput(props) { return <input {...props} className={"w-full border rounded px-2 py-1 text-sm " + (props.className || "")} />; }
-function MoneyInput(props) { return <TextInput type="number" step="1" min="0" {...props} />; }
+function MoneyInput(props) { return <TextInput type="number" step="0.01" min="0" {...props} />; }
 function PercentInput(props) { return <TextInput type="number" step="0.01" min="0" max="100" {...props} />; }
-const roundCurrency = (n) => Math.round(Number(n || 0));
+const roundCents = (n) => Math.round(Number(n || 0) * 100) / 100;
 
 export default function OrderForm({ onSaved }) {
   const { isAdmin } = useRole() || {};
 
   // ------- form state -------
-  const [managingAmcId, setManagingAmcId] = useState("");   // AMC (if applicable)
-  const [clientId, setClientId] = useState("");              // Lender / direct client
+  // Parties
+  const [managingAmcId, setManagingAmcId] = useState(""); // AMC (if applicable)
+  const [clientId, setClientId] = useState("");            // Lender / direct client
   const [manualClient, setManualClient] = useState("");
 
+  // Assignment / fees
   const [appraiserId, setAppraiserId] = useState("");
-  const [splitPct, setSplitPct] = useState("");
+  const [splitPct, setSplitPct] = useState("");   // editable; defaults from appraiser
   const [baseFee, setBaseFee] = useState("");
   const [appraiserFee, setAppraiserFee] = useState("");
 
+  // Order number
   const [orderNo, setOrderNo] = useState("");
 
+  // Property
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [zip, setZip] = useState("");
 
+  // Property & report types
+  const [propertyType, setPropertyType] = useState("");
+  const [reportType, setReportType] = useState("");
+  const [reportTypeCustom, setReportTypeCustom] = useState("");
+
+  // Dates
   const [siteVisitAt, setSiteVisitAt] = useState("");
   const [reviewDueAt, setReviewDueAt] = useState("");
   const [finalDueAt, setFinalDueAt] = useState("");
 
-  const [invoiceNumber, setInvoiceNumber] = useState("");
-  const [invoicePaid, setInvoicePaid] = useState(false);
-
+  // Notes
   const [notes, setNotes] = useState("");
 
   // ------- lookups -------
-  const [clients, setClients] = useState([]);      // all clients (incl. lenders + AMCs)
-  const [amcs, setAmcs] = useState([]);            // subset of clients(kind='amc')
+  const [clients, setClients] = useState([]); // all clients
+  const [amcs, setAmcs] = useState([]);       // subset where kind='amc'
   const [appraisers, setAppraisers] = useState([]);
   const [amcLenderIds, setAmcLenderIds] = useState([]); // lenders allowed for selected AMC
 
@@ -51,15 +61,13 @@ export default function OrderForm({ onSaved }) {
   const [submitting, setSubmitting] = useState(false);
   const disableSubmit = submitting || !isAdmin;
 
-  // Prefill next order number (still editable) via RPC
+  // ---------- helpers ----------
+  // Prefill next order number (suggestion) on mount
   useEffect(() => {
-    (async () => {
-      const { data, error } = await supabase.rpc("rpc_next_order_no").select().maybeSingle();
-      if (!error && data?.order_no) setOrderNo(String(data.order_no));
-    })();
-  }, []); // :contentReference[oaicite:3]{index=3}
+    generateOrderNo(); // suggest immediately
+  }, []);
 
-  // Load clients (all), AMCs, and appraisers
+  // Load clients (all), AMCs, and active appraisers
   useEffect(() => {
     (async () => {
       const [{ data: cl }, { data: amcRows }, { data: aps }] = await Promise.all([
@@ -77,7 +85,7 @@ export default function OrderForm({ onSaved }) {
     })();
   }, []);
 
-  // If AMC selected, fetch its permitted lenders from join table and narrow Client dropdown
+  // If AMC selected, fetch its permitted lenders and narrow Client dropdown
   useEffect(() => {
     if (!managingAmcId) { setAmcLenderIds([]); return; }
     (async () => {
@@ -89,57 +97,94 @@ export default function OrderForm({ onSaved }) {
     })();
   }, [managingAmcId]);
 
-  // Filtered list for Client dropdown
+  // Filtered Clients dropdown options
   const filteredClients = useMemo(() => {
     const nonAmc = (clients || []).filter((c) => String(c.kind || "").toLowerCase() !== "amc");
     if (!managingAmcId) return nonAmc;
-    if (!amcLenderIds.length) return []; // none linked yet
+    if (!amcLenderIds.length) return [];
     const setIds = new Set(amcLenderIds);
     return nonAmc.filter((c) => setIds.has(c.id));
   }, [clients, managingAmcId, amcLenderIds]);
 
-  // Address from autocomplete
+  // Address returned from autocomplete
   const onAddressResolved = (parsed) => {
     setAddress(parsed.property_address || "");
     setCity(parsed.city || "");
-    setState(parsed.state || "");
+    setState((parsed.state || "").toUpperCase());
     setZip(parsed.postal_code || "");
-  }; // :contentReference[oaicite:4]{index=4}
+  };
 
-  // Generate order # (manual button)
+  // Generate order # in format YYYY### (e.g., 2025103) by looking up the most recent for the current year
   async function generateOrderNo() {
-    const { data, error } = await supabase.rpc("rpc_next_order_no").select().maybeSingle();
-    if (!error && data?.order_no) { setOrderNo(String(data.order_no)); return; }
-    const y = new Date().getFullYear();
-    setOrderNo(`${y}${Date.now().toString().slice(-6)}`);
-  } // :contentReference[oaicite:5]{index=5}
+    const year = String(new Date().getFullYear());
+    // 1) Try server RPC if you add one (optional)
+    try {
+      const { data, error } = await supabase.rpc("rpc_next_order_no").select().maybeSingle();
+      if (!error && data?.order_no) {
+        const s = String(data.order_no);
+        // Ensure it's in the right format; if not, fall through to client logic
+        if (/^\d{7}$/.test(s) && s.startsWith(year)) { setOrderNo(s); return; }
+      }
+    } catch {} // ignore RPC 404
 
-  // Load split when appraiser changes (prefer user_roles, fallback users.split_pct)
+    // 2) Client-side: fetch latest order_number for this year, increment sequence
+    const { data: rows, error: e2 } = await supabase
+      .from("orders")
+      .select("order_number")
+      .ilike("order_number", `${year}%`)
+      .order("order_number", { ascending: false })
+      .limit(1);
+
+    let seq = 1;
+    if (!e2 && rows?.length) {
+      const last = String(rows[0].order_number || "");
+      const m = last.match(/^(\d{4})(\d{3})$/);
+      if (m && m[1] === year) seq = Number(m[2]) + 1;
+    }
+    const suggestion = `${year}${String(seq).padStart(3, "0")}`;
+    setOrderNo(suggestion);
+  }
+
+  // When appraiser changes, preload their split (user_roles → users.fee_split|split|split_pct)
   useEffect(() => {
     if (!appraiserId) return;
     (async () => {
+      // Prefer a role-specific override if you use one
+      let pct = null;
       const { data: roles } = await supabase
-        .from("user_roles").select("split_pct, role")
-        .eq("user_id", appraiserId).eq("role", "appraiser").limit(1);
-      if (roles?.length && roles[0]?.split_pct != null) { setSplitPct(String(roles[0].split_pct)); return; }
-      const { data: u } = await supabase.from("users").select("split_pct").eq("id", appraiserId).maybeSingle();
-      if (u?.split_pct != null) setSplitPct(String(u.split_pct));
+        .from("user_roles")
+        .select("split_pct, role")
+        .eq("user_id", appraiserId)
+        .eq("role", "appraiser")
+        .limit(1);
+      if (roles?.length && roles[0]?.split_pct != null) pct = roles[0].split_pct;
+
+      if (pct == null) {
+        const { data: u } = await supabase
+          .from("users")
+          .select("fee_split, split, split_pct")
+          .eq("id", appraiserId)
+          .maybeSingle();
+        if (u) pct = u.fee_split ?? u.split ?? u.split_pct ?? null;
+      }
+      if (pct != null) setSplitPct(String(pct));
     })();
   }, [appraiserId]);
 
-  // Auto-calc appraiser fee when baseFee/splitPct change (manual override allowed)
+  // Auto-calc appraiser fee when baseFee or splitPct change (still editable)
   const lastCalcRef = useRef(null);
   useEffect(() => {
     const base = Number(baseFee || 0);
     const pct = Number(splitPct || 0);
-    const calc = roundCurrency(base * (pct / 100));
+    const calc = roundCents(base * (pct / 100));
+    // Only update if user hasn't typed a manual override since last calc
     if (appraiserFee === "" || appraiserFee === String(lastCalcRef.current)) {
       setAppraiserFee(String(calc));
       lastCalcRef.current = calc;
     }
   }, [baseFee, splitPct]);
 
-  // Clear manual client when a real client is chosen
+  // Clear manual client text if a real client is chosen
   useEffect(() => { if (clientId) setManualClient(""); }, [clientId]);
 
   async function onSubmit(e) {
@@ -163,20 +208,22 @@ export default function OrderForm({ onSaved }) {
         // Metadata
         order_number: orderNo || null,
 
-        // Property
+        // Property info
+        property_type: propertyType || null,
+        report_type: reportType === "Other"
+          ? (reportTypeCustom || "Other")
+          : (reportType || null),
+
+        // Address
         address: address || null,
         city: city || null,
         state: state || null,
         postal_code: zip || null,
 
         // Dates
-        site_visit_at: siteVisitAt || null, // datetime-local
-        review_due_at: reviewDueAt || null, // date-only
-        final_due_at: finalDueAt || null,   // date-only
-
-        // Invoicing
-        invoice_number: invoiceNumber || null,
-        invoice_paid: !!invoicePaid,
+        site_visit_at: siteVisitAt || null,  // datetime-local
+        review_due_at: reviewDueAt || null,  // date-only
+        final_due_at: finalDueAt || null,    // date-only
 
         // Notes
         notes: notes || null,
@@ -262,11 +309,11 @@ export default function OrderForm({ onSaved }) {
               </div>
               <div>
                 <Label>Base Fee</Label>
-                <MoneyInput placeholder="0" value={baseFee} onChange={(e) => setBaseFee(e.target.value)} />
+                <MoneyInput placeholder="0.00" value={baseFee} onChange={(e) => setBaseFee(e.target.value)} />
               </div>
               <div>
                 <Label>Appraiser Fee</Label>
-                <MoneyInput placeholder="0" value={appraiserFee} onChange={(e) => setAppraiserFee(e.target.value)} />
+                <MoneyInput placeholder="0.00" value={appraiserFee} onChange={(e) => setAppraiserFee(e.target.value)} />
               </div>
             </div>
 
@@ -301,7 +348,7 @@ export default function OrderForm({ onSaved }) {
               </div>
               <div className="col-span-1">
                 <Label>State</Label>
-                <TextInput value={state} onChange={(e) => setState(e.target.value)} />
+                <TextInput value={state} onChange={(e) => setState((e.target.value || "").toUpperCase())} maxLength={2} />
               </div>
               <div className="col-span-2">
                 <Label>Zip</Label>
@@ -309,17 +356,45 @@ export default function OrderForm({ onSaved }) {
               </div>
             </div>
 
-            {/* Invoice fields here to mirror bottom of Dates card */}
-            <div className="mt-3 grid grid-cols-3 gap-3">
-              <div className="col-span-2">
-                <Label>Invoice #</Label>
-                <TextInput placeholder="Optional" value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} />
+            {/* New: types */}
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <div>
+                <Label>Property Type</Label>
+                <select
+                  className="w-full border rounded px-2 py-1 text-sm"
+                  value={propertyType}
+                  onChange={(e) => setPropertyType(e.target.value)}
+                >
+                  <option value="">Select type…</option>
+                  {PROPERTY_TYPES.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
               </div>
-              <div className="col-span-1 flex items-end">
-                <label className="inline-flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={invoicePaid} onChange={(e) => setInvoicePaid(e.target.checked)} />
-                  Paid
-                </label>
+
+              <div>
+                <Label>Report Type</Label>
+                <select
+                  className="w-full border rounded px-2 py-1 text-sm"
+                  value={reportType}
+                  onChange={(e) => setReportType(e.target.value)}
+                >
+                  <option value="">Select report…</option>
+                  {REPORT_TYPES.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+
+                {reportType === "Other" && (
+                  <div className="mt-2">
+                    <Label>Report Type (custom)</Label>
+                    <TextInput
+                      placeholder="Describe report type"
+                      value={reportTypeCustom}
+                      onChange={(e) => setReportTypeCustom(e.target.value)}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -368,6 +443,7 @@ export default function OrderForm({ onSaved }) {
     </form>
   );
 }
+
 
 
 
