@@ -1,4 +1,3 @@
-// src/pages/clients/ClientsIndex.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { listClients } from "@/lib/services/clientsService";
 import { useRole } from "@/lib/hooks/useRole";
@@ -12,7 +11,7 @@ const usd0 = (n) =>
     ? n.toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 })
     : "—";
 
-// ---- Category helpers (same logic ClientCard uses)
+// Category detection (same logic ClientCard uses)
 function inferCategory(c = {}) {
   const t = (c.type || c.client_type || c.category || c.kind || "").toString().toLowerCase();
   if (t.includes("amc")) return "amc";
@@ -23,26 +22,32 @@ function inferCategory(c = {}) {
   return "other";
 }
 
-// Try RPC first, then fall back to Orders → Clients join
+// Filter rows by query (name/contact/etc.)
+function filterRows(rows, q) {
+  if (!q) return rows;
+  const needle = q.toLowerCase();
+  return (rows || []).filter((c) => {
+    const hay =
+      `${c.name || c.client_name || ""} ${c.contact_name || c.primary_contact || ""} ${c.type || c.client_type || c.category || ""}`.toLowerCase();
+    return hay.includes(needle);
+  });
+}
+
+// Try RPC first; fallback to Orders->Clients join
 async function fetchLendersForAmc(amcId) {
-  // 1) RPC (if you have it)
   try {
     const { data, error } = await supabase.rpc("rpc_lenders_for_amc", { p_amc_id: amcId });
     if (!error && Array.isArray(data)) return data;
   } catch (_) {}
-
-  // 2) Fallback: orders.managing_amc_id -> client ids -> clients table
+  // Fallback: orders.managing_amc_id -> client ids -> clients table
   try {
     const { data: orderRows, error: e1 } = await supabase
       .from("orders")
       .select("client_id")
       .eq("managing_amc_id", amcId);
     if (e1) throw e1;
-
     const ids = [...new Set((orderRows || []).map((r) => r.client_id).filter(Boolean))];
     if (!ids.length) return [];
-
-    // Pull just the fields the card needs
     const { data: clients, error: e2 } = await supabase
       .from("clients")
       .select(
@@ -51,8 +56,7 @@ async function fetchLendersForAmc(amcId) {
       .in("id", ids);
     if (e2) throw e2;
     return clients || [];
-  } catch (e) {
-    console.warn("Associated lender fetch failed", e.message || e);
+  } catch {
     return [];
   }
 }
@@ -65,7 +69,7 @@ export default function ClientsIndex() {
   const userId = user?.id || user?.user_id || user?.uid || null;
 
   // 'orders' | 'name' | 'last'
-  const [sortBy, setSortBy] = useState("orders"); // default: Most orders first
+  const [sortBy, setSortBy] = useState("orders");
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
@@ -89,47 +93,34 @@ export default function ClientsIndex() {
       setLoading(true);
       setErr(null);
       try {
-        // Prefer server-side; gracefully fall back to client filtering
-        const { rows: serverRows = [] } = await listClients({
-          ...svcSort,
-          mineOnly,
-          userId,
-          q: debouncedQ || undefined, // if your service supports it
-        });
+        // Always fetch the base list (server sort for large sets)
+        const { rows: base = [] } = await listClients({ ...svcSort, mineOnly, userId });
 
-        let base = serverRows;
+        // Always filter locally to honor search even if service ignores q
+        let filtered = filterRows(base, debouncedQ);
 
-        // If service doesn't support q, filter locally
-        if (debouncedQ && !serverRows.length) {
-          const { rows: allRows = [] } = await listClients({ ...svcSort, mineOnly, userId });
-          base = allRows.filter((r) =>
-            (r.name || "").toLowerCase().includes(debouncedQ.toLowerCase())
-          );
-        }
-
-        // AMC expansion: if query looks like an AMC, append lenders managed by that AMC
-        let expanded = base;
+        // AMC expansion: if you typed an AMC, also include its lenders
+        // (works even if there are 0 direct matches)
         if (debouncedQ) {
-          const amcCandidates = base
-            .filter((c) => inferCategory(c) === "amc")
-            .filter((c) => (c.name || "").toLowerCase().includes(debouncedQ.toLowerCase()));
+          const needle = debouncedQ.toLowerCase();
+          // Look for AMC in the *full* base list (not the filtered subset)
+          const amcs = (base || []).filter((c) => inferCategory(c) === "amc");
+          const bestAmc = amcs
+            .filter((a) => (a.name || "").toLowerCase().includes(needle))
+            .sort((a, b) => (b.orders_count ?? 0) - (a.orders_count ?? 0))[0];
 
-          // pick the strongest AMC (most orders)
-          const topAmc = amcCandidates.sort(
-            (a, b) => (b.orders_count ?? 0) - (a.orders_count ?? 0)
-          )[0];
-
-          if (topAmc?.id) {
-            const lenders = await fetchLendersForAmc(topAmc.id);
+          if (bestAmc?.id) {
+            const lenders = await fetchLendersForAmc(bestAmc.id);
             if (lenders.length) {
-              const byId = new Map(expanded.map((c) => [c.id, c]));
-              for (const l of lenders) byId.set(l.id, { ...byId.get(l.id), ...l });
-              expanded = Array.from(byId.values());
+              // merge lenders into filtered set without dupes
+              const map = new Map(filtered.map((c) => [c.id, c]));
+              for (const l of lenders) map.set(l.id, { ...map.get(l.id), ...l });
+              filtered = Array.from(map.values());
             }
           }
         }
 
-        setRows(expanded);
+        setRows(filtered);
       } catch (e) {
         setErr(e);
         setRows([]);
@@ -139,13 +130,12 @@ export default function ClientsIndex() {
     })();
   }, [svcSort, mineOnly, userId, debouncedQ]);
 
-  // unified client-side sort (also covers AMC expansion dataset)
+  // Final sort in UI (keeps stable after AMC expansion)
   const clients = useMemo(() => {
     const a = [...rows];
     if (sortBy === "orders") a.sort((x, y) => (y.orders_count ?? 0) - (x.orders_count ?? 0));
     if (sortBy === "name") a.sort((x, y) => (x.name || "").localeCompare(y.name || ""));
-    if (sortBy === "last")
-      a.sort((x, y) => new Date(y.last_ordered_at || 0) - new Date(x.last_ordered_at || 0));
+    if (sortBy === "last") a.sort((x, y) => new Date(y.last_ordered_at || 0) - new Date(x.last_ordered_at || 0));
     return a;
   }, [rows, sortBy]);
 
@@ -186,11 +176,9 @@ export default function ClientsIndex() {
         </div>
       </div>
 
-      {/* Optional hint when AMC expansion kicks in */}
       {debouncedQ && !loading && (
         <div className="mb-2 text-xs text-muted-foreground">
-          Tip: searching an <span className="font-medium">AMC</span> will also show lenders associated
-          via managed orders.
+          Tip: searching an <span className="font-medium">AMC</span> will also show lenders associated via managed orders.
         </div>
       )}
 
