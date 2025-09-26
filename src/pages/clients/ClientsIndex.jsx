@@ -1,205 +1,117 @@
+// src/components/clients/ClientsIndex.jsx
 import React, { useEffect, useMemo, useState } from "react";
-import { listClients } from "@/lib/services/clientsService";
-import { useRole } from "@/lib/hooks/useRole";
-import { useSession } from "@/lib/hooks/useSession";
-import { useNavigate, Link } from "react-router-dom";
 import supabase from "@/lib/supabaseClient";
 import ClientCard from "@/components/clients/ClientCard";
 
-const usd0 = (n) =>
-  typeof n === "number"
-    ? n.toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 })
-    : "—";
-
-// Category detection (same logic ClientCard uses)
-function inferCategory(c = {}) {
-  const t = (c.type || c.client_type || c.category || c.kind || "").toString().toLowerCase();
-  if (t.includes("amc")) return "amc";
-  if (t.includes("lender")) return "lender";
-  const name = (c.name || c.client_name || "").toLowerCase();
-  if (/\b(amc|appraisal management)\b/.test(name)) return "amc";
-  if (/\b(bank|credit union|mortgage|finance|financial|banc|bancorp|savings|loan)\b/.test(name)) return "lender";
-  return "other";
-}
-
-// Filter rows by query (name/contact/etc.)
-function filterRows(rows, q) {
-  if (!q) return rows;
-  const needle = q.toLowerCase();
-  return (rows || []).filter((c) => {
-    const hay =
-      `${c.name || c.client_name || ""} ${c.contact_name || c.primary_contact || ""} ${c.type || c.client_type || c.category || ""}`.toLowerCase();
-    return hay.includes(needle);
-  });
-}
-
-// Try RPC first; fallback to Orders->Clients join
-async function fetchLendersForAmc(amcId) {
-  try {
-    const { data, error } = await supabase.rpc("rpc_lenders_for_amc", { p_amc_id: amcId });
-    if (!error && Array.isArray(data)) return data;
-  } catch (_) {}
-  // Fallback: orders.managing_amc_id -> client ids -> clients table
-  try {
-    const { data: orderRows, error: e1 } = await supabase
-      .from("orders")
-      .select("client_id")
-      .eq("managing_amc_id", amcId);
-    if (e1) throw e1;
-    const ids = [...new Set((orderRows || []).map((r) => r.client_id).filter(Boolean))];
-    if (!ids.length) return [];
-    const { data: clients, error: e2 } = await supabase
-      .from("clients")
-      .select(
-        "id, name, contact_name, primary_contact, avg_base_fee, last_ordered_at, type, client_type, category, kind, orders_count"
-      )
-      .in("id", ids);
-    if (e2) throw e2;
-    return clients || [];
-  } catch {
-    return [];
-  }
-}
-
 export default function ClientsIndex() {
-  const nav = useNavigate();
-  const { user } = useSession();
-  const { isAdmin, isReviewer } = useRole() || {};
-  const mineOnly = !(isAdmin || isReviewer);
-  const userId = user?.id || user?.user_id || user?.uid || null;
-
-  // 'orders' | 'name' | 'last'
-  const [sortBy, setSortBy] = useState("orders");
   const [rows, setRows] = useState([]);
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState("orders_count_desc"); // same default
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
 
-  // search
-  const [q, setQ] = useState("");
-  const [debouncedQ, setDebouncedQ] = useState("");
+  // fetch metrics then merge categories in one extra query
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedQ(q.trim()), 250);
-    return () => clearTimeout(t);
-  }, [q]);
-
-  const svcSort = useMemo(() => {
-    if (sortBy === "orders") return { orderBy: "orders_count", descending: true };
-    if (sortBy === "last") return { orderBy: "last_ordered_at", descending: true };
-    return { orderBy: "name", descending: false };
-  }, [sortBy]);
-
-  useEffect(() => {
+    let cancelled = false;
     (async () => {
-      setLoading(true);
-      setErr(null);
       try {
-        // Always fetch the base list (server sort for large sets)
-        const { rows: base = [] } = await listClients({ ...svcSort, mineOnly, userId });
+        setLoading(true);
+        setErr(null);
 
-        // Always filter locally to honor search even if service ignores q
-        let filtered = filterRows(base, debouncedQ);
+        // 1) pull metrics (existing view)
+        let q = supabase.from("v_client_metrics")
+          .select("*", { count: "exact" });
 
-        // AMC expansion: if you typed an AMC, also include its lenders
-        // (works even if there are 0 direct matches)
-        if (debouncedQ) {
-          const needle = debouncedQ.toLowerCase();
-          // Look for AMC in the *full* base list (not the filtered subset)
-          const amcs = (base || []).filter((c) => inferCategory(c) === "amc");
-          const bestAmc = amcs
-            .filter((a) => (a.name || "").toLowerCase().includes(needle))
-            .sort((a, b) => (b.orders_count ?? 0) - (a.orders_count ?? 0))[0];
-
-          if (bestAmc?.id) {
-            const lenders = await fetchLendersForAmc(bestAmc.id);
-            if (lenders.length) {
-              // merge lenders into filtered set without dupes
-              const map = new Map(filtered.map((c) => [c.id, c]));
-              for (const l of lenders) map.set(l.id, { ...map.get(l.id), ...l });
-              filtered = Array.from(map.values());
-            }
-          }
+        if (search?.trim()) {
+          const like = `%${search.trim()}%`;
+          q = q.ilike("name", like);
         }
 
-        setRows(filtered);
+        // sorting
+        if (sort === "orders_count_desc") {
+          q = q.order("orders_count", { ascending: false }).order("name", { ascending: true });
+        } else if (sort === "orders_count_asc") {
+          q = q.order("orders_count", { ascending: true }).order("name", { ascending: true });
+        } else if (sort === "name_asc") {
+          q = q.order("name", { ascending: true });
+        } else if (sort === "name_desc") {
+          q = q.order("name", { ascending: false });
+        }
+
+        const { data: metrics, error } = await q;
+        if (error) throw error;
+        if (cancelled) return;
+
+        // 2) fetch categories for these ids from clients (single round-trip)
+        const ids = (metrics || []).map(r => r.client_id || r.id).filter(Boolean);
+        let catMap = {};
+        if (ids.length) {
+          const { data: cats, error: cerr } = await supabase
+            .from("clients")
+            .select("id, category")
+            .in("id", ids);
+          if (cerr) throw cerr;
+          for (const c of (cats || [])) catMap[c.id] = c.category;
+        }
+
+        // 3) merge category onto card rows
+        const merged = (metrics || []).map(r => {
+          const id = r.client_id ?? r.id;
+          return { ...r, id, _category: catMap[id] || r.category || r.client_type || null };
+        });
+
+        setRows(merged);
       } catch (e) {
-        setErr(e);
-        setRows([]);
+        if (!cancelled) setErr(e.message || "Failed to load clients");
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
-  }, [svcSort, mineOnly, userId, debouncedQ]);
+    return () => { cancelled = true; };
+  }, [search, sort]);
 
-  // Final sort in UI (keeps stable after AMC expansion)
-  const clients = useMemo(() => {
-    const a = [...rows];
-    if (sortBy === "orders") a.sort((x, y) => (y.orders_count ?? 0) - (x.orders_count ?? 0));
-    if (sortBy === "name") a.sort((x, y) => (x.name || "").localeCompare(y.name || ""));
-    if (sortBy === "last") a.sort((x, y) => new Date(y.last_ordered_at || 0) - new Date(x.last_ordered_at || 0));
-    return a;
-  }, [rows, sortBy]);
-
-  function openClient(id) {
-    nav(`/clients/${id}`);
-  }
+  const grid = useMemo(() => rows || [], [rows]);
 
   return (
-    <div className="p-4">
-      <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <div className="p-4 md:p-6">
+      <div className="mb-4 flex items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">Clients</h1>
-
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:gap-3">
-          {/* Search */}
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search client or AMC…"
-            className="text-sm border rounded px-3 py-1.5 w-full sm:w-72"
-          />
-
-          {/* Sort + New */}
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-muted-foreground">Sort</label>
-            <select
-              className="text-sm border rounded px-2 py-1"
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-            >
-              <option value="orders">Total Orders (desc)</option>
-              <option value="name">Name (A–Z)</option>
-              <option value="last">Last Order (newest)</option>
-            </select>
-            <Link to="/clients/new" className="ml-2 text-sm border rounded px-2 py-1 hover:bg-gray-50">
-              + New Client
-            </Link>
-          </div>
-        </div>
+        {/* keep your existing controls */}
       </div>
 
-      {debouncedQ && !loading && (
-        <div className="mb-2 text-xs text-muted-foreground">
-          Tip: searching an <span className="font-medium">AMC</span> will also show lenders associated via managed orders.
-        </div>
-      )}
+      {/* search + sort UI (keep whatever you already have) */}
+      {/* ... */}
 
-      {err && <div className="text-red-600 text-sm mb-2">Failed to load clients: {err.message}</div>}
-
-      {loading ? (
-        <div className="text-sm text-muted-foreground">Loading…</div>
-      ) : clients.length === 0 ? (
-        <div className="text-sm text-muted-foreground">
-          {mineOnly ? "You have no clients yet." : "No clients found."}
-        </div>
+      {err ? (
+        <div className="text-sm text-rose-600">{err}</div>
+      ) : loading ? (
+        <div className="text-sm text-gray-600">Loading…</div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-          {clients.map((c) => (
-            <ClientCard key={c.id} client={c} onOpen={() => openClient(c.id)} />
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {grid.map((r) => (
+            <ClientCard
+              key={r.id}
+              client={{
+                id: r.id,
+                name: r.name,
+                status: r.status,
+                category: r._category,           // <-- authoritative category
+                // keep anything else ClientCard expects:
+                primary_contact: r.primary_contact,
+              }}
+              metrics={{
+                total_orders: r.orders_count ?? r.total_orders ?? 0,
+                avg_fee: r.avg_fee ?? null,
+                last_activity: r.last_activity ?? r.last_order_at ?? null,
+              }}
+            />
           ))}
         </div>
       )}
     </div>
   );
 }
+
 
 
 

@@ -55,6 +55,33 @@ export async function listClientOrders(clientId, { page = 0, pageSize = 25 } = {
   return { rows: data || [], count: count || 0 };
 }
 
+/** Quick search for picking a merge target (excludes the current id). */
+export async function searchClientsByName(term, { excludeId = null, limit = 10 } = {}) {
+  const like = `%${(term || "").trim()}%`;
+  let q = supabase.from("clients")
+    .select("id,name,category,status,is_merged,merged_into_id")
+    .ilike("name", like)
+    .order("name", { ascending: true })
+    .limit(limit);
+
+  if (excludeId != null) q = q.neq("id", excludeId);
+
+  const { data, error } = await q;
+  if (error) throw error;
+  return data || [];
+}
+
+/** RPC-driven merge */
+export async function mergeClients(sourceId, targetId, strategy = {}) {
+  const { data, error } = await supabase.rpc("merge_clients", {
+    p_source_id: Number(sourceId),
+    p_target_id: Number(targetId),
+    p_strategy: strategy
+  });
+  if (error) throw error;
+  return data;
+}
+
 
 /* ============================== CRUD (clients) ============================== */
 
@@ -88,24 +115,32 @@ export async function deleteClient(clientId) {
 }
 
 /* ============================== VALIDATION ============================== */
-/** Case-insensitive exact match; optional excludeId for edits. */
-export async function isClientNameAvailable(name, { excludeId = null } = {}) {
+/**
+ * Case-insensitive exact-match check via RPC.
+ * Accepts either { ignoreClientId } or { excludeId } for backward compatibility.
+ */
+export async function isClientNameAvailable(
+  name,
+  { ignoreClientId = null, excludeId = null } = {}
+) {
   const trimmed = (name || "").trim();
   if (!trimmed) return true;
 
-  // First try exact (case-sensitive)
-  let q = supabase.from("clients").select("id", { count: "exact", head: true }).eq("name", trimmed);
-  if (excludeId) q = q.neq("id", excludeId);
-  let { count, error } = await q;
-  if (error) throw error;
-  if ((count || 0) > 0) return false;
+  // Coalesce option names and coerce to bigint-compatible Number (or null)
+  const rawId = ignoreClientId ?? excludeId ?? null;
+  const p_ignore_id =
+    rawId == null ? null :
+    typeof rawId === "string" ? Number(rawId.trim()) :
+    typeof rawId === "number" ? rawId : null;
 
-  // Then case-insensitive equality (ILIKE without wildcards)
-  let q2 = supabase.from("clients").select("id", { count: "exact", head: true }).ilike("name", trimmed);
-  if (excludeId) q2 = q2.neq("id", excludeId);
-  const r2 = await q2;
-  if (r2.error) throw r2.error;
-  return (r2.count || 0) === 0;
+  const { data, error } = await supabase.rpc("client_name_taken", {
+    p_name: trimmed,
+    p_ignore_id,
+  });
+  if (error) throw error;
+
+  // RPC returns "is taken?" -> available if false
+  return !data;
 }
 
 /* ============================== COMPAT ALIASES ============================== */
@@ -114,6 +149,7 @@ export const fetchClients = listClients;
 export const fetchClientById = getClient;
 export const getClientById = getClient;
 export const fetchClientOrders = listClientOrders;
+
 
 
 
