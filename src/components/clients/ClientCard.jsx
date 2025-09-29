@@ -1,72 +1,67 @@
-import React, { useMemo } from "react";
-import ClientHeader, { headerPalette } from "./ClientHeader";
+// src/components/clients/ClientCard.jsx
+import React from "react";
+import { Link } from "react-router-dom";
 
-// Smart category detection; uses explicit fields first, name heuristic second
-function inferCategory(c = {}) {
-  const t = (c.type || c.client_type || c.category || c.kind || "").toString().toLowerCase();
-  if (t.includes("amc")) return "amc";
-  if (t.includes("lender")) return "lender";
-  const name = (c.name || c.client_name || "").toLowerCase();
-  if (/\b(amc|appraisal management)\b/.test(name)) return "amc";
-  if (/\b(bank|credit union|mortgage|finance|financial|banc|bancorp|savings|loan)\b/.test(name)) return "lender";
-  return "other";
-}
+const toneFor = (cat) => {
+  switch ((cat || "").toLowerCase()) {
+    case "amc": return "bg-violet-100 text-violet-700 ring-violet-200";
+    case "lender": return "bg-blue-100 text-blue-700 ring-blue-200";
+    case "client": return "bg-green-100 text-green-700 ring-green-200";
+    default: return "bg-zinc-100 text-zinc-700 ring-zinc-200";
+  }
+};
 
-const fmtUSD0 = (n) =>
-  typeof n === "number"
-    ? n.toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 })
-    : "—";
-
-export default function ClientCard({ client, onOpen }) {
-  // normalize fields you already expose in different views
-  const name = client?.name || client?.client_name || "—";
-  const primary = client?.contact_name || client?.primary_contact || "—";
-  const phone = client?.primary_contact_phone || client?.phone || null;
-  const ordersCount = client?.orders_count ?? client?.total_orders ?? 0;
-  const avgFee = client?.avg_base_fee ?? client?.avg_total_fee ?? null;
-  const last = client?.last_ordered_at ? new Date(client.last_ordered_at).toLocaleDateString() : "—";
-
-  const category = useMemo(() => inferCategory(client), [client]);
-  const tint = headerPalette[category] || headerPalette.other;
+export default function ClientCard({ client, metrics }) {
+  const category =
+    client?.category                           // authoritative (from clients table)
+    || client?.client_type
+    || client?.type
+    || "client";
 
   return (
-    <article className="rounded-2xl border bg-white shadow-sm hover:shadow-md transition">
-      <ClientHeader name={name} category={category} onOpen={() => onOpen?.(client)} />
-
-      <div className="px-4 py-3 space-y-3">
-        {/* Primary contact */}
-        <div>
-          <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
-            Primary Contact
-          </div>
-          <div className="text-sm">
-            <span className="font-medium">{primary}</span>
-            {phone && (
-              <a className="ml-2 underline text-sm" href={`tel:${phone}`}>
-                {phone}
-              </a>
-            )}
+    <div className="rounded-2xl border bg-white p-4">
+      <div className="mb-2 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <h3 className="truncate text-base font-semibold">{client?.name || "—"}</h3>
+            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs ring-1 ${toneFor(category)}`}>
+              {(category || "").toUpperCase()}
+            </span>
           </div>
         </div>
+        <Link className="rounded border px-2 py-1 text-xs hover:bg-gray-50" to={`/clients/${client?.id}`}>
+          View Client
+        </Link>
+      </div>
 
-        {/* KPIs with a hint of the category color */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className={`rounded-xl border px-3 py-2 ring-1 ${tint.kpiRing}`}>
-            <div className="text-[11px] text-muted-foreground">Total Orders</div>
-            <div className="text-base font-semibold">{ordersCount}</div>
-          </div>
-          <div className={`rounded-xl border px-3 py-2 ring-1 ${tint.kpiRing}`}>
-            <div className="text-[11px] text-muted-foreground">Avg Fee</div>
-            <div className="text-base font-semibold">{fmtUSD0(avgFee)}</div>
-          </div>
+      <div className="text-xs text-gray-500 mb-2">
+        PRIMARY CONTACT
+        <div className="text-gray-800">{client?.primary_contact || "—"}</div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-xl border p-3">
+          <div className="text-xs text-gray-500">Total Orders</div>
+          <div className="text-lg font-semibold">{metrics?.total_orders ?? 0}</div>
         </div>
-
-        <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
-          <div>Last: {last}</div>
-          <div>{client?.status || ""}</div>
+        <div className="rounded-xl border p-3">
+          <div className="text-xs text-gray-500">Avg Fee</div>
+          <div className="text-lg font-semibold">
+            {typeof metrics?.avg_fee === "number"
+              ? metrics.avg_fee.toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 })
+              : "—"}
+          </div>
         </div>
       </div>
-    </article>
+
+      <div className="mt-3 text-xs text-gray-500">
+        Last:{" "}
+        {metrics?.last_activity
+          ? new Date(metrics.last_activity).toLocaleDateString()
+          : "—"}
+      </div>
+    </div>
   );
 }
+
 

@@ -44,7 +44,7 @@ export async function fetchOrdersWithFilters(filters = {}) {
     appraiserId = null,
     from = null,               // date_ordered >= from (YYYY-MM-DD)
     to = null,                 // date_ordered <= to (YYYY-MM-DD)
-    activeOnly = false,        // exclude Completed
+    activeOnly = true,         // exclude Complete by default
     page = 0,
     pageSize = 50,
     orderBy = "date_ordered",
@@ -58,7 +58,13 @@ export async function fetchOrdersWithFilters(filters = {}) {
 
   // build filters for both queries
   const applyFilters = (q) => {
-    if (activeOnly) q = q.neq("status", "Completed");
+    if (activeOnly) {
+      // v_orders_frontend uses "Complete" (not "Completed"); include a few variants to be safe.
+      const hide = ['Complete', 'COMPLETE', 'Completed'];
+      // If you also want to hide cancelled by default, add "Cancelled" here:
+      // hide.push('Cancelled', 'CANCELLED');
+      q = q.not('status', 'in', `("${hide.join('","')}")`);
+    }
     if (statusIn?.length) q = q.in("status", statusIn);
     if (clientId) q = q.eq("client_id", clientId);
     if (appraiserId) q = q.eq("appraiser_id", appraiserId);
