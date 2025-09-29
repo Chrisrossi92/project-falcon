@@ -1,91 +1,87 @@
 // src/pages/appraisers/AppraiserDashboard.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import DashboardTemplate from "@/templates/DashboardTemplate";
-import DashboardSplit from "@/components/dashboard/DashboardSplit";
 import KpiLink from "@/components/dashboard/KpiLink";
-import UpcomingEventsList from "@/components/dashboard/UpcomingEventsList";
 import DashboardCalendarPanel from "@/components/dashboard/DashboardCalendarPanel";
 import UnifiedOrdersTable from "@/features/orders/UnifiedOrdersTable";
 import { useOrders } from "@/lib/hooks/useOrders";
-import { listCalendarEvents } from "@/lib/services/calendarService";
 import { useSession } from "@/lib/hooks/useSession";
-
-const HEADER_OFFSET = 260;
 
 export default function AppraiserDashboard() {
   const { user } = useSession();
   const me = user?.id || user?.user_id || user?.uid || null;
 
-  // KPIs use the same service hook but pinned to me
+  // Pull "my" orders for KPIs (hook should already memoize/cache)
   const { data = [] } = useOrders({ appraiserId: me });
 
-  // upcoming (mine only)
-  const [events, setEvents] = useState([]);
-  useEffect(() => {
-    const from = new Date();
-    const to = new Date(); to.setDate(to.getDate() + 14);
-    listCalendarEvents({
-      from: from.toISOString(),
-      to: to.toISOString(),
-      mineOnly: true,
-      userId: me,
-    })
-      .then((rows) => setEvents(rows || []))
-      .catch(() => setEvents([]));
-  }, [me]);
-
   const kpis = useMemo(() => {
-    const mine = data.length;
-    const due7 = data.filter((o) => {
-      const d = o.due_date; if (!d) return false;
-      const dt = new Date(d), now = new Date();
-      const diff = (dt - now) / (1000 * 60 * 60 * 24);
-      return diff >= 0 && diff <= 7;
+    const now = new Date();
+    const active = data.filter((o) => {
+      const s = String(o.status || "").toUpperCase();
+      return s !== "COMPLETE" && s !== "CANCELLED";
+    });
+
+    const due7 = active.filter((o) => {
+      const d = o.due_date || o.final_due_at || o.review_due_at;
+      if (!d) return false;
+      const days = (new Date(d) - now) / 86400000;
+      return days >= 0 && days <= 7;
     }).length;
-    const inProg = data.filter((o) => String(o.status || "").toLowerCase() === "in_progress").length;
+
+    const inProg = active.filter(
+      (o) => String(o.status || "").toUpperCase() === "IN_PROGRESS"
+    ).length;
+
+    const overdue = active.filter((o) => {
+      const d = o.final_due_at || o.due_date || o.review_due_at;
+      return d && new Date(d) < now;
+    }).length;
+
     return [
-      <KpiLink key="mine" label="My Orders" value={mine} />,
+      <KpiLink key="mine" label="My Orders" value={active.length} />,
       <KpiLink key="due7" label="Due in 7 Days" value={due7} />,
       <KpiLink key="prog" label="In Progress" value={inProg} />,
+      <KpiLink key="od" label="Overdue" value={overdue} tone="rose" />,
     ];
   }, [data]);
 
-  const equalHeightStyle = { height: `calc(100vh - ${HEADER_OFFSET}px)` };
-
   return (
-    <DashboardTemplate title="My Dashboard" subtitle="At-a-glance queue & deadlines" kpis={kpis}>
-      <DashboardSplit
-        modes={{
-          calendar: {
-            label: "calendar",
-            render: () => (
-              <div className="h-full flex flex-col gap-2">
-                <DashboardCalendarPanel
-                  onOpenOrder={(orderId) => { if (orderId) window.open(`/orders/${orderId}`, "_self"); }}
-                />
-              </div>
-            ),
-          },
-          upcoming: {
-            label: "upcoming",
-            render: () => <UpcomingEventsList events={events} />,
-          },
-        }}
-        initial="calendar"
-        leftStyle={equalHeightStyle}
-        rightStyle={equalHeightStyle}
-        right={() => (
+    <DashboardTemplate
+      title="My Dashboard"
+      subtitle="Calendar and queue"
+      kpis={kpis}
+    >
+      <div className="space-y-4">
+        {/* TOP: Calendar (same look/feel as admin; mine only) */}
+        <section className="rounded-xl border bg-white p-3 h-[520px]">
+          <DashboardCalendarPanel
+            mineOnly
+            userId={me}
+            onOpenOrder={(orderId) => orderId && (window.location.href = `/orders/${orderId}`)}
+          />
+        </section>
+
+        {/* BOTTOM: Orders (mine only, active only) */}
+        <section className="rounded-xl border bg-white">
           <UnifiedOrdersTable
             role="appraiser"
-            pageSize={8}
-            className="h-full"
-            initialFilters={{ appraiserId: me }}
+            className="w-full"
+            pageSize={15}
+            hideActions
+            initialFilters={{
+              appraiserId: me,
+              activeOnly: true,
+              orderBy: "date_ordered",
+              ascending: false,
+            }}
           />
-        )}
-      />
+        </section>
+      </div>
     </DashboardTemplate>
   );
 }
+
+
 
 
 
