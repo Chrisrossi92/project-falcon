@@ -20,15 +20,90 @@ export default function ClientsIndex() {
         setLoading(true);
         setErr(null);
 
-        // 1) Base metrics from the view
-        let q = supabase.from("v_client_metrics").select("*", { count: "exact" });
-
-        if (search?.trim()) {
+        // ======== SEARCH MODE: expand AMC -> lenders and roll up metrics ========
+        if (search.trim()) {
           const like = `%${search.trim()}%`;
-          q = q.ilike("name", like);
+
+          // 1) Base matches by name
+          const { data: base, error: e1 } = await supabase
+            .from("clients")
+            .select("id,name,category,status")
+            .ilike("name", like)
+            .order("name", { ascending: true });
+          if (e1) throw e1;
+
+          // 2) Expand AMC hits -> include all lenders tied to them
+          const amcIds = (base || [])
+            .filter((r) => (r.category || "").toLowerCase() === "amc")
+            .map((r) => r.id);
+
+          let lenders = [];
+          if (amcIds.length) {
+            const { data: lrows, error: e2 } = await supabase
+              .from("clients")
+              .select("id,name,category,status,amc_id")
+              .in("amc_id", amcIds)
+              .order("name", { ascending: true });
+            if (e2) throw e2;
+            lenders = lrows || [];
+          }
+
+          // 3) Combine & dedupe
+          const map = new Map();
+          for (const r of [...(base || []), ...lenders]) map.set(r.id, r);
+          const combined = Array.from(map.values());
+
+          // 4) Roll-up metrics (AMCs include their lenders)
+          const ids = combined.map((r) => r.id);
+          let metricMap = {};
+          if (ids.length) {
+            const { data: roll, error: rerr } = await supabase.rpc("client_metrics_rollup", {
+              p_client_ids: ids,
+            });
+            if (rerr) throw rerr;
+            metricMap = Object.fromEntries(
+              (roll || []).map((m) => [
+                m.client_id,
+                {
+                  orders_count: Number(m.orders_count || 0),
+                  avg_fee: m.avg_fee == null ? null : Number(m.avg_fee),
+                  last_order_at: m.last_order_at || null,
+                },
+              ])
+            );
+          }
+
+          // 5) Build rows
+          let result = combined.map((r) => ({
+            id: r.id,
+            name: r.name,
+            status: r.status,
+            _category: r.category,
+            _orders_count: metricMap[r.id]?.orders_count ?? 0,
+            _avg_fee: metricMap[r.id]?.avg_fee ?? null,
+            _last_activity: metricMap[r.id]?.last_order_at ?? null,
+          }));
+
+          // 6) Sort
+          if (sort === "orders_count_desc" || sort === "orders_count_asc") {
+            const asc = sort === "orders_count_asc";
+            result.sort((a, b) =>
+              asc ? a._orders_count - b._orders_count : b._orders_count - a._orders_count
+            );
+          } else if (sort === "name_asc") {
+            result.sort((a, b) => a.name.localeCompare(b.name));
+          } else if (sort === "name_desc") {
+            result.sort((a, b) => b.name.localeCompare(a.name));
+          }
+
+          if (!cancelled) setRows(result);
+          if (!cancelled) setLoading(false);
+          return;
         }
 
-        // Sorting
+        // ======== DEFAULT MODE: use metrics view, then re-sort with roll-up where available ========
+        let q = supabase.from("v_client_metrics").select("*", { count: "exact" });
+
         if (sort === "orders_count_desc") {
           q = q.order("orders_count", { ascending: false }).order("name", { ascending: true });
         } else if (sort === "orders_count_asc") {
@@ -41,9 +116,8 @@ export default function ClientsIndex() {
 
         const { data: metrics, error } = await q;
         if (error) throw error;
-        if (cancelled) return;
 
-        // 2) Authoritative categories (from clients)
+        // categories from clients table
         const ids = (metrics || []).map((r) => r.client_id ?? r.id).filter(Boolean);
         let catMap = {};
         if (ids.length) {
@@ -55,46 +129,47 @@ export default function ClientsIndex() {
           for (const c of cats || []) catMap[c.id] = c.category;
         }
 
-        // 3) Merge category into rows first
-        let merged = (metrics || []).map((r) => {
-          const id = r.client_id ?? r.id;
-          return {
-            ...r,
-            id,
-            _category: catMap[id] || r.category || r.client_type || null,
-          };
-        });
-
-        // 4) Roll-up metrics (AMCs include their lenders)
+        // inject roll-up metrics so AMCs show aggregated values even in default list
+        let rollMap = {};
         if (ids.length) {
           const { data: roll, error: rerr } = await supabase.rpc("client_metrics_rollup", {
             p_client_ids: ids,
           });
           if (rerr) throw rerr;
-
-          const rm = Object.create(null);
-          for (const row of roll || []) {
-            rm[row.client_id] = {
-              orders_count: Number(row.orders_count || 0),
-              avg_fee: row.avg_fee == null ? null : Number(row.avg_fee),
-              last_order_at: row.last_order_at || null,
-            };
-          }
-
-          merged = merged.map((r) => {
-            const m = rm[r.id];
-            return m
-              ? {
-                  ...r,
-                  _orders_count: m.orders_count,
-                  _avg_fee: m.avg_fee,
-                  _last_activity: m.last_order_at,
-                }
-              : r;
-          });
+          rollMap = Object.fromEntries(
+            (roll || []).map((m) => [
+              m.client_id,
+              {
+                orders_count: Number(m.orders_count || 0),
+                avg_fee: m.avg_fee == null ? null : Number(m.avg_fee),
+                last_order_at: m.last_order_at || null,
+              },
+            ])
+          );
         }
 
-        setRows(merged);
+        let merged = (metrics || []).map((r) => {
+          const id = r.client_id ?? r.id;
+          const roll = rollMap[id];
+          return {
+            ...r,
+            id,
+            _category: catMap[id] || r.category || r.client_type || null,
+            _orders_count: roll?.orders_count ?? r.orders_count ?? r.total_orders ?? 0,
+            _avg_fee: roll?.avg_fee ?? (typeof r.avg_fee === "number" ? r.avg_fee : null),
+            _last_activity: roll?.last_order_at ?? r.last_activity ?? r.last_order_at ?? null,
+          };
+        });
+
+        // re-sort with roll-up counts if sorting by orders
+        if (sort === "orders_count_desc" || sort === "orders_count_asc") {
+          const asc = sort === "orders_count_asc";
+          merged.sort((a, b) =>
+            asc ? a._orders_count - b._orders_count : b._orders_count - a._orders_count
+          );
+        }
+
+        if (!cancelled) setRows(merged);
       } catch (e) {
         if (!cancelled) setErr(e?.message || "Failed to load clients");
       } finally {
@@ -160,19 +235,9 @@ export default function ClientsIndex() {
                 primary_contact: r.primary_contact,
               }}
               metrics={{
-                total_orders:
-                  r._orders_count ??
-                  r.orders_count ??
-                  r.total_orders ??
-                  0,
-                avg_fee:
-                  r._avg_fee ??
-                  (typeof r.avg_fee === "number" ? r.avg_fee : null),
-                last_activity:
-                  r._last_activity ??
-                  r.last_activity ??
-                  r.last_order_at ??
-                  null,
+                total_orders: r._orders_count ?? 0,
+                avg_fee: r._avg_fee ?? null,
+                last_activity: r._last_activity ?? null,
               }}
             />
           ))}
@@ -181,6 +246,7 @@ export default function ClientsIndex() {
     </div>
   );
 }
+
 
 
 
