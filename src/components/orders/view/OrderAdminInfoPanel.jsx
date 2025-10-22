@@ -1,45 +1,39 @@
 import React from "react";
-import MetaItem from "@/components/ui/MetaItem";
+import normalizeOrder, { num } from "@/lib/orders/normalizeOrder";
 
-const $ = (v) =>
-  v == null
-    ? "—"
-    : Number(v).toLocaleString(undefined, { style: "currency", currency: "USD" });
+const money = (n) =>
+  n == null ? "—" : Number(n).toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 
 export default function OrderAdminInfoPanel({ order }) {
-  if (!order) return null;
-
-  // Fallbacks for mixed row field names
-  const baseFee       = order.base_fee        ?? order.fee_amount ?? order.baseFee ?? null;
-  const appraiserFee  = order.appraiser_fee   ?? order.appraiserFee ?? null;
-  const splitPct      = order.appraiser_split ?? order.split_pct ?? order.fee_split ?? null;
-  const clientInvoice = order.client_invoice  ?? order.client_invoice_no ?? order.invoice_no ?? null;
-  const paidStatus    = order.paid_status     ?? order.payment_status ?? null;
-  const notes         = order.notes ?? order.internal_notes ?? null;
+  const n = normalizeOrder(order);
 
   return (
-    <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm text-sm space-y-4 h-full">
-      <h2 className="text-base font-semibold">Admin</h2>
+    <div className="rounded border bg-white p-3">
+      <div className="font-medium mb-2">Admin</div>
 
-      <div className="space-y-3">
-        <MetaItem label="Base Fee">{$(baseFee)}</MetaItem>
-        <MetaItem label="Appraiser Fee">{$(appraiserFee)}</MetaItem>
-        <MetaItem label="Appraiser Split">
-          {typeof splitPct === "number" ? `${splitPct}%` : splitPct ?? "—"}
-        </MetaItem>
-        <MetaItem label="Client Invoice #">{clientInvoice ?? "—"}</MetaItem>
-        <MetaItem label="Paid Status">{paidStatus ?? "—"}</MetaItem>
-      </div>
+      <div className="grid grid-cols-2 gap-y-2 text-sm">
+        <div className="text-xs text-muted-foreground">Base Fee</div>
+        <div>{money(n.baseFee)}</div>
 
-      <div>
-        <h3 className="text-[11px] font-medium text-gray-500 uppercase tracking-wide mb-1">
-          Notes
-        </h3>
-        <div className="text-sm text-gray-800 whitespace-pre-wrap">{notes || "—"}</div>
+        <div className="text-xs text-muted-foreground">Appraiser Fee</div>
+        <div>{money(n.appraiserFee)}</div>
+
+        <div className="text-xs text-muted-foreground">Appraiser Split</div>
+        <div>{n.splitPct != null ? `${n.splitPct}%` : "—"}</div>
+
+        <div className="text-xs text-muted-foreground">Client Invoice #</div>
+        <div>{order?.client_invoice_no ?? "—"}</div>
+
+        <div className="text-xs text-muted-foreground">Paid Status</div>
+        <div>{order?.paid_status ?? "—"}</div>
+
+        <div className="text-xs text-muted-foreground">Notes</div>
+        <div className="whitespace-pre-wrap break-words">{order?.notes || "—"}</div>
       </div>
     </div>
   );
 }
+
 
 
 

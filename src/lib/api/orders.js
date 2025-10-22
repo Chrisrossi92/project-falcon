@@ -1,156 +1,115 @@
 // src/lib/api/orders.js
 import supabase from "@/lib/supabaseClient";
 
-/* =========================================================================
-   Core list fetchers
-   ========================================================================= */
+const SOURCE = "v_orders_frontend"; // has fee, fee_amount per your column list
 
-/** UI list for Orders page (uses v_orders_frontend; safe display fields). */
-export async function fetchOrdersForList({ limit = 500, ascending = false } = {}) {
-  const { data, error } = await supabase
-    .from("v_orders_frontend")
-    .select(`
-      id,
-      order_no,
-      display_title,
-      display_subtitle,
-      client_name,
-      appraiser_name,
-      status,
-      due_date,
-      fee_amount,
-      date_ordered
-    `)
-    .order("date_ordered", { ascending })
-    .limit(limit);
-
-  if (error) {
-    console.error("fetchOrdersForList error:", error);
-    return [];
+function applyCommonFilters(q, {
+  activeOnly = true,
+  statusIn = null,
+  clientId = null,
+  appraiserId = null,
+  from = null,
+  to = null,
+  search = "",
+} = {}) {
+  if (activeOnly) {
+    // hide completed
+    q = q.not("status", "in", '("Complete","Completed","COMPLETE")');
+    // hide archived (treat null as false)
+    q = q.or("is_archived.is.null,is_archived.eq.false");
   }
-  return data ?? [];
+
+  if (statusIn?.length) q = q.in("status", statusIn);
+  if (clientId) q = q.eq("client_id", clientId);
+  if (appraiserId) q = q.eq("appraiser_id", appraiserId);
+  if (from) q = q.gte("date_ordered", from);
+  if (to)   q = q.lte("date_ordered", to);
+
+  if (search?.trim()) {
+    const s = `%${search.trim()}%`;
+    q = q.or([
+      `order_no.ilike.${s}`,
+      `display_title.ilike.${s}`,
+      `display_subtitle.ilike.${s}`,
+      `address.ilike.${s}`,
+    ].join(","));
+  }
+
+  return q;
 }
 
-/**
- * Powerful list with filters & pagination (for tables, exports, dashboards).
- * filters: { search, statusIn, clientId, appraiserId, from, to, activeOnly, page, pageSize, orderBy, ascending }
- * Returns { rows, count }
- */
 export async function fetchOrdersWithFilters(filters = {}) {
   const {
     search = "",
-    statusIn = null,           // e.g., ['in_progress','in_review']
+    statusIn = null,
     clientId = null,
     appraiserId = null,
-    from = null,               // date_ordered >= from (YYYY-MM-DD)
-    to = null,                 // date_ordered <= to (YYYY-MM-DD)
-    activeOnly = true,         // exclude Complete by default
+    from = null,
+    to = null,
+    activeOnly = true,
     page = 0,
     pageSize = 50,
     orderBy = "date_ordered",
     ascending = false,
   } = filters;
 
-  // count first
-  let queryForCount = supabase
-    .from("v_orders_frontend")
-    .select("*", { count: "exact", head: true });
+  // COUNT (make sure filters are applied here too)
+  let countQuery = supabase.from(SOURCE).select("*", { count: "exact", head: true });
+  countQuery = applyCommonFilters(countQuery, { activeOnly, statusIn, clientId, appraiserId, from, to, search });
+  const { count, error: countErr } = await countQuery;
+  if (countErr) {
+    console.error("fetchOrdersWithFilters count error:", countErr);
+  }
 
-  // build filters for both queries
-  const applyFilters = (q) => {
-    if (activeOnly) {
-      // v_orders_frontend uses "Complete" (not "Completed"); include a few variants to be safe.
-      const hide = ['Complete', 'COMPLETE', 'Completed'];
-      // If you also want to hide cancelled by default, add "Cancelled" here:
-      // hide.push('Cancelled', 'CANCELLED');
-      q = q.not('status', 'in', `("${hide.join('","')}")`);
-    }
-    if (statusIn?.length) q = q.in("status", statusIn);
-    if (clientId) q = q.eq("client_id", clientId);
-    if (appraiserId) q = q.eq("appraiser_id", appraiserId);
-    if (from) q = q.gte("date_ordered", from);
-    if (to) q = q.lte("date_ordered", to);
-    if (search) {
-      // simple tri-field ilike; add more fields if needed
-      const s = `%${search}%`;
-      q = q.or(`order_no.ilike.${s},display_title.ilike.${s},display_subtitle.ilike.${s}`);
-    }
-    return q;
-  };
-
-  // apply filters to count
-  const { count, error: countErr } = await applyFilters(queryForCount);
-  if (countErr) console.error("fetchOrdersWithFilters count error:", countErr);
-
-  // page rows
+  // DATA
   const fromIdx = page * pageSize;
-  const toIdx = fromIdx + pageSize - 1;
+  const toIdx   = fromIdx + pageSize - 1;
 
-  let query = supabase
-    .from("v_orders_frontend")
+  let dataQuery = supabase
+    .from(SOURCE)
     .select(`
-      id,
-      order_no,
-      display_title,
-      display_subtitle,
-      client_id,
-      client_name,
-      appraiser_id,
-      appraiser_name,
-      status,
-      due_date,
-      fee_amount,
-      date_ordered
-    `)
+  id,
+  order_no,
+  display_title,
+  display_subtitle,
+  client_id,
+  client_name,
+  appraiser_id,
+  appraiser_name,
+  assigned_appraiser_id,
+  assigned_appraiser_name,
+  status,
+  property_type,
+  address,
+  city,
+  state,
+  postal_code,
+  site_visit_at,
+  review_due_at,
+  final_due_at,
+  due_date,
+  fee_amount,
+  fee,
+  base_fee,
+  date_ordered,
+  is_archived
+`)
     .order(orderBy, { ascending })
     .range(fromIdx, toIdx);
 
-  const { data, error } = await applyFilters(query);
+  dataQuery = applyCommonFilters(dataQuery, { activeOnly, statusIn, clientId, appraiserId, from, to, search });
+
+  const { data, error } = await dataQuery;
   if (error) {
     console.error("fetchOrdersWithFilters error:", error);
     return { rows: [], count: 0 };
   }
-  return { rows: data ?? [], count: count ?? 0 };
+  return { rows: data || [], count: count || 0 };
 }
 
-/** All orders for a specific client (for Client Profile page). */
-export async function fetchOrdersByClient(clientId, { limit = 1000 } = {}) {
-  const { data, error } = await supabase
-    .from("v_orders_frontend")
-    .select(`
-      id,
-      order_no,
-      display_title,
-      display_subtitle,
-      status,
-      due_date,
-      fee_amount,
-      date_ordered
-    `)
-    .eq("client_id", clientId)
-    .order("date_ordered", { ascending: false })
-    .limit(limit);
-  if (error) {
-    console.error("fetchOrdersByClient error:", error);
-    return [];
-  }
-  return data ?? [];
-}
+/* (the rest of the file can stay as in your last working version – updateOrderStatus,
+   updateOrderDates, etc.) */
 
-/** One order for detailed view/drawer (UI-safe). */
-export async function fetchOrderForView(orderId) {
-  const { data, error } = await supabase
-    .from("v_orders_frontend")
-    .select("*")
-    .eq("id", orderId)
-    .single();
-
-  if (error) {
-    console.error("fetchOrderForView error:", error);
-    return null;
-  }
-  return data;
-}
 
 /* =========================================================================
    Mutations
@@ -160,7 +119,7 @@ export async function fetchOrderForView(orderId) {
 export async function updateOrderStatus(orderId, next) {
   const { data, error } = await supabase
     .from("orders")
-    .update({ status: next })
+    .update({ status: next, updated_at: new Date().toISOString() })
     .eq("id", orderId)
     .select()
     .single();
@@ -171,12 +130,15 @@ export async function updateOrderStatus(orderId, next) {
   return data;
 }
 
-/** Update important date fields; pass any subset: { siteVisit, reviewDue, finalDue } */
-export async function updateOrderDates(orderId, { siteVisit = null, reviewDue = null, finalDue = null } = {}) {
+/** Update date fields; pass any subset: { siteVisit, reviewDue, finalDue } */
+export async function updateOrderDates(
+  orderId,
+  { siteVisit = null, reviewDue = null, finalDue = null } = {}
+) {
   const patch = {};
   if (siteVisit !== null) patch.site_visit_at = siteVisit;
-  if (reviewDue !== null) patch.due_for_review = reviewDue;
-  if (finalDue !== null) patch.due_to_client = finalDue;
+  if (reviewDue !== null) patch.review_due_at = reviewDue;  // <-- correct field
+  if (finalDue !== null)  patch.final_due_at  = finalDue;   // <-- correct field
 
   const { data, error } = await supabase
     .from("orders")
@@ -226,7 +188,7 @@ export async function bulkUpdateStatus(orderIds = [], status) {
   if (!orderIds.length) return { updated: 0 };
   const { data, error } = await supabase
     .from("orders")
-    .update({ status })
+    .update({ status, updated_at: new Date().toISOString() })
     .in("id", orderIds)
     .select("id");
   if (error) {
@@ -273,7 +235,7 @@ export async function createOrder(payload = {}) {
 export async function archiveOrder(orderId) {
   const { data, error } = await supabase
     .from("orders")
-    .update({ is_archived: true })
+    .update({ is_archived: true, updated_at: new Date().toISOString() })
     .eq("id", orderId)
     .select()
     .single();
@@ -285,14 +247,14 @@ export async function archiveOrder(orderId) {
 }
 
 /* =========================================================================
-   Calendar helpers (kept from your previous file)
+   Calendar helpers
    ========================================================================= */
 
 /** Update site visit and mirror to calendar RPC (best-effort). */
 export const updateSiteVisitAt = async (orderId, newDateTime, extras) => {
   const { data, error } = await supabase
     .from("orders")
-    .update({ site_visit_at: newDateTime })
+    .update({ site_visit_at: newDateTime, updated_at: new Date().toISOString() })
     .eq("id", orderId)
     .select();
 
@@ -331,7 +293,7 @@ export const fetchSiteVisitAt = async (orderId) => {
     console.error("Error fetching site visit:", error);
     return null;
   }
-
   return data;
 };
+
 

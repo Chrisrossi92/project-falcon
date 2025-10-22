@@ -1,6 +1,6 @@
 import React from "react";
 import { Navigate } from "react-router-dom";
-import { useSession } from "@/lib/hooks/useSession";
+import  useSession  from "@/lib/hooks/useSession";
 import { useRole } from "@/lib/hooks/useRole";
 
 export default function ProtectedRoute({

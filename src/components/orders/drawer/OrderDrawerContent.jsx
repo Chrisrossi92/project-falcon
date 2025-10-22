@@ -1,80 +1,109 @@
 import React, { useEffect, useState } from "react";
 import supabase from "@/lib/supabaseClient";
-import { useRole } from "@/lib/hooks/useRole";
+import normalizeOrder from "@/lib/orders/normalizeOrder";
 
-// Admin view
+import OrderDetailPanel from "@/components/orders/view/OrderDetailPanel";
 import OrderAdminInfoPanel from "@/components/orders/view/OrderAdminInfoPanel";
-// correct path
-import OrderActivity from "@/components/orders/view/OrderActivity";
+import OrderDatesPanel from "@/components/orders/view/OrderDatesPanel";
+import ActivityLog from "@/components/activity/ActivityLog";
 import OrderOpenFullLink from "@/components/orders/drawer/OrderOpenFullLink";
+import OrderSidebarPanel from "@/components/orders/view/OrderSidebarPanel";
 
-// Appraiser/Reviewer summary (map)
-import AppraiserDrawerSummary from "@/components/orders/view/AppraiserDrawerSummary";
+const fmt = (d) => (!d ? "—" : isNaN(new Date(d)) ? "—" : new Date(d).toLocaleString());
 
-export default function OrderDrawerContent({ orderId, order: row, compact = true, onRefresh }) {
-  const { isAdmin } = useRole() || {};
-  const [order, setOrder] = useState(row || null);
-  const [loading, setLoading] = useState(!row);
-  const [err, setErr] = useState(null);
+// fetch a complete row from the view (already includes client_name, appraiser_name, fee_amount, etc.)
+async function fetchOrderFull(orderId) {
+  const res = await supabase
+    .from("v_orders_frontend")
+    .select("*")
+    .eq("id", orderId)
+    .maybeSingle();
+  if (res.error) throw res.error;
+  return res.data;
+}
 
-  useEffect(() => {
-    let cancel = false;
-    (async () => {
-      if (!orderId || row) return;
-      try {
-        setLoading(true); setErr(null);
-        const { data, error } = await supabase
-          .from("v_orders_frontend")
-          .select("*")
-          .eq("id", orderId)
-          .maybeSingle();
-        if (error) throw error;
-        if (!cancel) setOrder(data || null);
-      } catch (e) {
-        if (!cancel) setErr(e?.message || "Failed to load order");
-      } finally {
-        if (!cancel) setLoading(false);
-      }
-    })();
-    return () => { cancel = true; };
-  }, [orderId, row]);
-
-  if (loading) return <div className="p-3 text-sm text-muted-foreground">Loading order details…</div>;
-  if (err || !order) return <div className="p-3 text-sm text-red-600">{err || "Order not found"}</div>;
-
-  // ── ADMIN: Activity-first left, Admin info right ──
-  if (isAdmin) {
+function SafePanel({ children, title }) {
+  try {
+    return children;
+  } catch (e) {
     return (
-      <div className={`grid gap-3 ${compact ? "grid-cols-3" : "grid-cols-2"}`}>
-        <div className={compact ? "col-span-2" : "col-span-1"}>
-          <div className="grid h-full grid-rows-[1fr_auto] gap-3">
-            <div className="min-h-0 overflow-y-auto">
-              <OrderActivity orderId={order.id} />
-            </div>
-          </div>
-        </div>
-        <div className="col-span-1 h-full">
-          <OrderAdminInfoPanel order={order} />
-        </div>
+      <div className="rounded border bg-rose-50 p-2 text-rose-700 text-xs">
+        {title ? `${title}: ` : ""}{e?.message || "Panel failed to render"}
       </div>
     );
   }
+}
 
-  // ── APPRAISER / REVIEWER: actions moved to row → simple drawer ──
+export default function OrderDrawerContent({ orderId, order: rowFromTable, onRefresh }) {
+  const id = orderId ?? rowFromTable?.id ?? null;
+  const [row, setRow] = useState(rowFromTable || null);
+  const [loading, setLoading] = useState(!rowFromTable);
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      if (!id) return;
+      try {
+        setLoading(true);
+        const full = await fetchOrderFull(id);
+        if (mounted) setRow(full || rowFromTable || null);
+      } catch (e) {
+        if (mounted) setErr(e?.message || "Failed to load order");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [id, rowFromTable]);
+
+  const n = normalizeOrder(row || {});
+
+  if (!id) return <div className="p-3 text-sm text-muted-foreground">No order selected.</div>;
+  if (loading) return <div className="p-3 text-sm text-muted-foreground">Loading…</div>;
+  if (err) return <div className="p-3 text-sm text-rose-700 bg-rose-50 border rounded">{err}</div>;
+
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-end">
-        <OrderOpenFullLink orderId={order.id} />
+    <div className="grid grid-cols-12 gap-3">
+      {/* Left column */}
+      <div className="col-span-12 lg:col-span-8 space-y-3">
+        <div className="rounded border bg-white p-3">
+          <div className="text-sm font-semibold mb-1">Order {n.orderNo || n.id}</div>
+          <div className="text-xs text-muted-foreground">Created {fmt(n.createdAt)}</div>
+        </div>
+
+        <SafePanel title="Details">
+          <OrderDetailPanel order={row} />
+        </SafePanel>
+
+        <SafePanel title="Activity">
+          <ActivityLog orderId={id} />
+        </SafePanel>
       </div>
 
-      <AppraiserDrawerSummary order={order} height={300} />
-
-      <div className="bg-white border rounded-xl p-3">
-        <OrderActivity orderId={order.id} />
+      {/* Right column */}
+      <div className="col-span-12 lg:col-span-4 space-y-3">
+        <div className="flex items-center justify-between rounded border bg-white p-3">
+          <div className="font-medium">Admin</div>
+          <OrderOpenFullLink orderId={id} />
         </div>
+
+        <SafePanel title="Admin info">
+          <OrderAdminInfoPanel order={row} />
+        </SafePanel>
+
+        <SafePanel title="Dates">
+          <OrderDatesPanel order={row} />
+        </SafePanel>
+
+        <SafePanel title="Quick actions">
+          <OrderSidebarPanel order={row} orderId={id} onRefresh={onRefresh} />
+        </SafePanel>
+      </div>
     </div>
   );
 }
+
 
 
 

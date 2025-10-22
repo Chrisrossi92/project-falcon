@@ -1,65 +1,48 @@
-// src/lib/hooks/useRole.js
 import { useEffect, useState } from "react";
-import supabase from "@/lib/supabaseClient";
+import useSession from "@/lib/hooks/useSession";
+import { getMyRole } from "@/lib/services/rolesService";
 
-export function useRole() {
-  const [role, setRole] = useState(null);
+/**
+ * Resolves role via RPC (rpc_get_my_role) and exposes flags.
+ * Exports default AND named so imports can be either:
+ *   import useRole from "@/lib/hooks/useRole"
+ * or
+ *   import { useRole } from "@/lib/hooks/useRole"
+ */
+function useRoleHook() {
+  const { userId } = useSession();
+  const [role, setRole] = useState(null);       // "admin" | "reviewer" | "appraiser" | null
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
     let mounted = true;
-    (async () => {
+    async function load() {
+      setLoading(true);
       try {
-        setLoading(true);
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) { if (mounted) { setRole(null); setLoading(false); } return; }
-
-        // Read by auth_id (your schema)
-        let { data, error } = await supabase
-          .from("users")
-          .select("id, role, email")
-          .eq("auth_id", user.id)
-          .maybeSingle();
-
-        // If missing, self-create minimal row then re-read (defaults to appraiser)
-        if (!data && !error) {
-          const up = await supabase
-            .from("users")
-            .upsert([{
-              id: user.id,            // keep PK = auth id if possible
-              auth_id: user.id,
-              email: user.email,
-              name: user.user_metadata?.name || (user.email || "").split("@")[0] || "User",
-              role: "appraiser",
-              status: "active",
-            }], { onConflict: "auth_id" });
-          if (up.error) throw up.error;
-          const re = await supabase
-            .from("users")
-            .select("id, role, email")
-            .eq("auth_id", user.id)
-            .maybeSingle();
-          data = re.data; error = re.error;
-        }
-
-        if (error) throw error;
-        const normalized = String(data?.role || "").trim().toLowerCase();
-        if (mounted) setRole(normalized || null);
-      } catch (e) {
-        if (mounted) setError(e.message || "Failed to fetch role");
+        if (!userId) { setRole(null); return; }
+        const r = await getMyRole();            // <- your rolesService RPC
+        if (mounted) setRole((r || "").toLowerCase());
+      } catch {
+        if (mounted) setRole("appraiser");      // safe fallback
       } finally {
         if (mounted) setLoading(false);
       }
-    })();
+    }
+    load();
     return () => { mounted = false; };
-  }, []);
+  }, [userId]);
 
-  const isAdmin = String(role || "") === "admin";
-  const isReviewer = String(role || "") === "reviewer";
+  const isAdmin    = role === "admin";
+  const isReviewer = role === "reviewer";
+  const appraiserView = !isAdmin && !isReviewer;  // treat others as appraiser
 
-  return { role, isAdmin, isReviewer, loading, error };
+  return { role, isAdmin, isReviewer, appraiserView, userId, loading };
 }
+
+// allow both import styles
+export function useRole() { return useRoleHook(); }
+export default useRoleHook;
+
 
 
 
