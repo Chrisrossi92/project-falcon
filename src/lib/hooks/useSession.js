@@ -1,59 +1,39 @@
-// src/lib/hooks/useSession.js
 import { useEffect, useState } from "react";
 import supabase from "@/lib/supabaseClient";
 
-/**
- * Framework-agnostic session hook (no React helper context needed).
- * Works even if a provider is missing/mis-ordered.
- */
 function useSessionHook() {
-  const [user, setUser] = useState(undefined);     // undefined => loading
-  const [session, setSession] = useState(undefined);
-  const [loading, setLoading] = useState(true);
+  const [session, setSession] = useState(undefined); // undefined => still initializing
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
     let mounted = true;
 
-    // Prime from current session
-    (async () => {
-      try {
-        const { data } = await supabase.auth.getSession();
-        if (!mounted) return;
-        const s = data?.session ?? null;
-        setSession(s);
-        setUser(s?.user ?? null);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-
-    // Realtime auth changes
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    async function init() {
+      const { data } = await supabase.auth.getSession();
       if (!mounted) return;
-      const s = newSession ?? null;
-      setSession(s);
-      setUser(s?.user ?? null);
-      setLoading(false);
+      setSession(data?.session ?? null);
+      setUser(data?.session?.user ?? null);
+    }
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_evt, next) => {
+      if (!mounted) return;
+      setSession(next ?? null);
+      setUser(next?.user ?? null);
     });
 
+    init();
     return () => {
       mounted = false;
-      try { sub?.subscription?.unsubscribe?.(); } catch {}
+      sub?.subscription?.unsubscribe?.();
     };
   }, []);
 
-  return {
-    user: user ?? null,
-    session: session ?? null,
-    isAuthenticated: !!user,
-    isLoading: !!loading,
-  };
+  return { session, user, userId: user?.id ?? null, isLoading: session === undefined };
 }
 
+// allow both import styles
+export function useSession() { return useSessionHook(); }
 export default useSessionHook;
-export const useSession = useSessionHook;
-
-
 
 
 

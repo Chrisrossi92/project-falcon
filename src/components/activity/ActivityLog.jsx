@@ -1,77 +1,90 @@
-// src/components/activity/ActivityLog.jsx
-import React, { useCallback, useEffect, useState } from "react";
-import { fetchOrderActivity, subscribeOrderActivity } from "@/lib/services/activityService";
+import React, { useEffect, useState } from "react";
+import supabase from "@/lib/supabaseClient";
 
-function Row({ item }) {
-  const when = item?.created_at ? new Date(item.created_at).toLocaleString() : "—";
-  const label = item?.event_type || "event";
-  const msg = item?.message || "";
-  return (
-    <div className="flex items-start justify-between py-2 border-b last:border-b-0">
-      <div className="text-sm">
-        <div className="font-medium">{label}</div>
-        {msg ? <div className="text-gray-600">{msg}</div> : null}
-      </div>
-      <div className="text-xs text-gray-500 ml-4 whitespace-nowrap">{when}</div>
-    </div>
-  );
-}
+const LABEL = {
+  order_created: "Order created",
+  status_changed: "Status changed",
+  dates_updated: "Dates updated",
+  assignee_changed: "Assignee changed",
+  fee_changed: "Fee changed",
+  note: "Note",
+  note_added: "Note",
+};
+const icon = (t) =>
+  t === "order_created" ? "🆕" :
+  t === "status_changed" ? "🔁" :
+  t === "dates_updated"  ? "📅" :
+  t === "assignee_changed"? "👤" :
+  t === "fee_changed"     ? "💵" : "📝";
+const fmt = (ts) => (!ts ? "—" : isNaN(new Date(ts)) ? "—" : new Date(ts).toLocaleString());
 
-/**
- * Props:
- *  - orderId: string (required for order-scoped log)
- *  - limit?: number
- */
-export default function ActivityLog({ orderId, limit = 50 }) {
+export default function ActivityLog({ orderId }) {
   const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState(null);
-
-  const load = useCallback(async () => {
-    try {
-      setLoading(true); setErr(null);
-      const data = await fetchOrderActivity(orderId, { limit });
-      setRows(data || []);
-    } catch (e) {
-      setErr(e?.message || String(e));
-      setRows([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [orderId, limit]);
-
-  useEffect(() => { load(); }, [load]);
+  const [me, setMe] = useState(null);
 
   useEffect(() => {
-    if (!orderId) return;
-    const unsubscribe = subscribeOrderActivity(orderId, load);
-    return unsubscribe;
-  }, [orderId, load]);
+    supabase.auth.getUser().then((res) => setMe(res?.data?.user?.id || null));
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      if (!orderId) return;
+      const res = await supabase
+        .from("activity_log")
+        .select("id, order_id, event_type, action, message, role, user_id, actor_name, created_at")
+        .eq("order_id", orderId)
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (res.error) {
+        console.warn("activity load:", res.error.message);
+        if (mounted) setRows([]);
+        return;
+      }
+      const out = (res.data || []).map((r) => {
+        const type = (r.event_type || r.action || "").toLowerCase();
+        const who =
+          r.user_id && me && r.user_id === me ? "You" : r.actor_name || (r.role || "User");
+        return {
+          id: r.id,
+          type,
+          label: LABEL[type] || (type ? type.replace(/_/g, " ") : "Event"),
+          who,
+          msg: r.message || "",
+          when: r.created_at,
+          mine: r.user_id && me ? r.user_id === me : false,
+        };
+      });
+      if (mounted) setRows(out);
+    })();
+    return () => { mounted = false; };
+  }, [orderId, me]);
 
   return (
-    <div className="bg-white rounded-2xl shadow border p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Activity</h2>
-        <button
-          className="px-2 py-1 border rounded text-xs hover:bg-gray-50 disabled:opacity-50"
-          onClick={load}
-          disabled={loading}
-        >
-          Refresh
-        </button>
+    <div className="rounded border bg-white p-2">
+      <div className="font-medium mb-2">Activity</div>
+      <div className="max-h-[42vh] overflow-auto pr-1">
+        {!rows.length ? (
+          <div className="p-2 text-xs text-muted-foreground">No activity yet.</div>
+        ) : (
+          <ul className="space-y-2">
+            {rows.map((e) => (
+              <li key={e.id} className={`flex ${e.mine ? "justify-end" : "justify-start"}`}>
+                <div className={`max-w-[85%] rounded-lg border p-2 text-sm ${e.mine ? "bg-blue-50 border-blue-200" : "bg-white border-slate-200"}`}>
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="font-medium">{icon(e.type)} {e.label}</div>
+                    <div className="text-[11px] text-muted-foreground">{fmt(e.when)}</div>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-0.5">By: {e.who}</div>
+                  {e.msg ? <div className="mt-1 text-[13px] whitespace-pre-wrap break-words">{e.msg}</div> : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
-
-      {loading ? (
-        <div className="text-sm text-gray-600">Loading…</div>
-      ) : err ? (
-        <div className="text-sm text-red-600">Failed: {err}</div>
-      ) : rows.length === 0 ? (
-        <div className="text-sm text-gray-600">No activity yet.</div>
-      ) : (
-        <div className="divide-y">
-          {rows.map((r) => <Row key={r.id} item={r} />)}
-        </div>
-      )}
     </div>
   );
 }
+
+

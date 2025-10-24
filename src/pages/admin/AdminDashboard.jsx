@@ -1,89 +1,63 @@
 // src/pages/admin/AdminDashboard.jsx
-import React, { useCallback, useMemo, useState } from "react";
-import DashboardOrdersTable from "@/components/dashboard/DashboardOrdersTable";
-import { Card } from "@/components/ui/Card.jsx";
-import TwoWeekCalendar from "@/components/calendar/TwoWeekCalendar";
-import CalendarFiltersBar from "@/components/calendar/CalendarFiltersBar"; // the lightweight bar I provided
-import supabase from "@/lib/supabaseClient";
+import React, { useMemo } from "react";
+import DashboardTemplate from "@/templates/DashboardTemplate";
+import KpiLink from "@/components/dashboard/KpiLink";
+import DashboardCalendarPanel from "@/components/dashboard/DashboardCalendarPanel";
+import UnifiedOrdersTable from "@/features/orders/UnifiedOrdersTable";
+import { useOrders } from "@/lib/hooks/useOrders";
 
-
-function mapRow(row) {
-  const t = (row.title || "").toLowerCase();
-  const type =
-    row.event_type === "site_visit" || row.event_type === "appointment"
-      ? "site_visit"
-      : t.includes("review")
-      ? "due_for_review"
-      : "due_to_client";
-
-  return {
-    id: row.id,
-    type,                          // 'site_visit' | 'due_for_review' | 'due_to_client'
-    start: row.start_at,
-    end: row.end_at,
-    orderId: row.order_id,
-    address: row.address || "",
-    client: row.client_name || "",
-    appraiser: row.appraiser_name || "",
-    title: row.title || "",
-  };
-}
+const withinNext7Days = (iso) => {
+  if (!iso) return false;
+  const d = new Date(iso);
+  if (isNaN(d)) return false;
+  const now = new Date();
+  const days = (d - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000;
+  return days >= 0 && days <= 7;
+};
 
 export default function AdminDashboard() {
-  const [weeks, setWeeks] = useState(2);
-  const [showWeekends, setShowWeekends] = useState(true); // show weekends by default so Sunday deadlines appear
-  const [showSite, setShowSite] = useState(true);
-  const [showReview, setShowReview] = useState(true);
-  const [showFinal, setShowFinal] = useState(true);
+  // Lightweight KPI source: active-only, larger pageSize to cover most rows
+  const { data = [] } = useOrders({
+    activeOnly: true,
+    page: 0,
+    pageSize: 500,
+    orderBy: "date_ordered",
+    ascending: false,
+  });
 
-  const getEvents = useCallback(async (start, end) => {
-    const { data, error } = await supabase
-      .from("v_admin_calendar")
-      .select("id, event_type, title, start_at, end_at, order_id, appraiser_name, order_no, address, client_name")
-      .gte("start_at", start.toISOString())
-      .lt("start_at", end.toISOString())
-      .order("start_at", { ascending: true });
+  const kpis = useMemo(() => {
+    const nowActive = data; // already active-only
+    const inProgress = nowActive.filter(
+      (o) => String(o.status || "").toUpperCase() === "IN_PROGRESS"
+    ).length;
 
-    if (error) { console.warn(error.message); return []; }
-    const rows = (data || []).map(mapRow);
-    return rows.filter(ev =>
-      (showSite && ev.type === "site_visit") ||
-      (showReview && ev.type === "due_for_review") ||
-      (showFinal && ev.type === "due_to_client")
-    );
-  }, [showSite, showReview, showFinal]);
+    const dueSoon = nowActive.filter((o) =>
+      withinNext7Days(o.final_due_at || o.due_date || o.review_due_at)
+    ).length;
+
+    return [
+      <KpiLink key="mine" label="Active Orders" value={nowActive.length} />,
+      <KpiLink key="prog" label="In Progress" value={inProgress} />,
+      <KpiLink key="due7" label="Due in 7 Days" value={dueSoon} />,
+    ];
+  }, [data]);
 
   return (
-    <div className="space-y-5 px-4 pb-6">
-      <Card className="p-4">
-        <div className="mb-3 text-sm font-medium">Calendar</div>
+    <DashboardTemplate title="Admin Dashboard" subtitle="Calendar and queue" kpis={kpis}>
+      <div className="space-y-4">
+        {/* TOP: Calendar (all) */}
+        <section className="rounded-xl border bg-white p-3 h-[520px]">
+          <DashboardCalendarPanel />
+        </section>
 
-        <CalendarFiltersBar
-          view="2w" setView={() => {}}
-          weeks={weeks} setWeeks={setWeeks}
-          showWeekends={showWeekends} setShowWeekends={setShowWeekends}
-          showSite={showSite} setShowSite={setShowSite}
-          showReview={showReview} setShowReview={setShowReview}
-          showFinal={showFinal} setShowFinal={setShowFinal}
-        />
-
-        <TwoWeekCalendar
-          getEvents={getEvents}
-          weeks={weeks}
-          showWeekends={showWeekends}
-          showWeekdayHeader
-          compact
-          onEventClick={(ev) => { if (ev?.orderId) window.open(`/orders/${ev.orderId}`, "_self"); }}
-        />
-      </Card>
-
-      <DashboardOrdersTable />
-    </div>
+        {/* BOTTOM: Unified table (manager mode) */}
+        <section className="rounded-xl border bg-white">
+          <UnifiedOrdersTable role="admin" pageSize={15} />
+        </section>
+      </div>
+    </DashboardTemplate>
   );
 }
-
-
-
 
 
 

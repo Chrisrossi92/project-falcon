@@ -465,8 +465,8 @@ export default function OrderForm({ order = null, onSaved }) {
             {submitting ? (isEdit ? "Saving…" : "Creating…") : (isEdit ? "Save Changes" : "Create Order")}
           </button>
           {!isAdmin && <span className="ml-3 text-xs text-red-600">Admins only can save orders.</span>}
+          </div>
         </div>
-      </div>
     </form>
   );
 }

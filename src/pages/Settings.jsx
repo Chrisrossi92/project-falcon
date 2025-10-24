@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
-import { useSession } from "@/lib/hooks/useSession";
+import  useSession  from "@/lib/hooks/useSession";
 import { getNotificationPrefs, updateNotificationPrefs } from "@/features/notifications/api";
 import { setUserColor } from "@/lib/services/usersService";
 
