@@ -1,90 +1,139 @@
-import React, { useEffect, useState } from "react";
-import supabase from "@/lib/supabaseClient";
+// src/components/activity/ActivityLog.jsx
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { listOrderActivity, subscribeOrderActivity } from "@/lib/services/activityService";
+import ActivityNoteForm from "@/components/activity/ActivityNoteForm";
 
 const LABEL = {
+  note_added: "Note",
   order_created: "Order created",
   status_changed: "Status changed",
   dates_updated: "Dates updated",
   assignee_changed: "Assignee changed",
   fee_changed: "Fee changed",
-  note: "Note",
-  note_added: "Note",
 };
-const icon = (t) =>
-  t === "order_created" ? "🆕" :
-  t === "status_changed" ? "🔁" :
-  t === "dates_updated"  ? "📅" :
-  t === "assignee_changed"? "👤" :
-  t === "fee_changed"     ? "💵" : "📝";
-const fmt = (ts) => (!ts ? "—" : isNaN(new Date(ts)) ? "—" : new Date(ts).toLocaleString());
 
-export default function ActivityLog({ orderId }) {
-  const [rows, setRows] = useState([]);
-  const [me, setMe] = useState(null);
-
-  useEffect(() => {
-    supabase.auth.getUser().then((res) => setMe(res?.data?.user?.id || null));
-  }, []);
-
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      if (!orderId) return;
-      const res = await supabase
-        .from("activity_log")
-        .select("id, order_id, event_type, action, message, role, user_id, actor_name, created_at")
-        .eq("order_id", orderId)
-        .order("created_at", { ascending: false })
-        .limit(100);
-      if (res.error) {
-        console.warn("activity load:", res.error.message);
-        if (mounted) setRows([]);
-        return;
-      }
-      const out = (res.data || []).map((r) => {
-        const type = (r.event_type || r.action || "").toLowerCase();
-        const who =
-          r.user_id && me && r.user_id === me ? "You" : r.actor_name || (r.role || "User");
-        return {
-          id: r.id,
-          type,
-          label: LABEL[type] || (type ? type.replace(/_/g, " ") : "Event"),
-          who,
-          msg: r.message || "",
-          when: r.created_at,
-          mine: r.user_id && me ? r.user_id === me : false,
-        };
-      });
-      if (mounted) setRows(out);
-    })();
-    return () => { mounted = false; };
-  }, [orderId, me]);
+function Row({ item }) {
+  const when = item?.created_at ? new Date(item.created_at).toLocaleString() : "—";
+  const by =
+    item?.created_by_name?.trim?.() ||
+    item?.created_by_email?.trim?.() ||
+    item?.created_by ||
+    "User";
+  const label = LABEL[item?.event_type] || item?.event_type || "event";
+  const msg = item?.message || "";
 
   return (
-    <div className="rounded border bg-white p-2">
-      <div className="font-medium mb-2">Activity</div>
-      <div className="max-h-[42vh] overflow-auto pr-1">
-        {!rows.length ? (
-          <div className="p-2 text-xs text-muted-foreground">No activity yet.</div>
-        ) : (
-          <ul className="space-y-2">
-            {rows.map((e) => (
-              <li key={e.id} className={`flex ${e.mine ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-[85%] rounded-lg border p-2 text-sm ${e.mine ? "bg-blue-50 border-blue-200" : "bg-white border-slate-200"}`}>
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="font-medium">{icon(e.type)} {e.label}</div>
-                    <div className="text-[11px] text-muted-foreground">{fmt(e.when)}</div>
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-0.5">By: {e.who}</div>
-                  {e.msg ? <div className="mt-1 text-[13px] whitespace-pre-wrap break-words">{e.msg}</div> : null}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+    <div className="flex items-start justify-between py-2">
+      <div className="text-sm">
+        <div className="font-medium">{label}</div>
+        {msg ? <div className="text-xs text-gray-700 mt-0.5">{msg}</div> : null}
+        <div className="text-xs text-gray-500 mt-1">By: {by}</div>
       </div>
+      <div className="text-xs text-gray-500 whitespace-nowrap ml-3">{when}</div>
     </div>
   );
 }
+
+export default function ActivityLog({
+  orderId,
+  className = "",
+  showComposer = true,
+}) {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
+  const viewportRef = useRef(null);
+
+  const scrollToBottom = useCallback(() => {
+    const el = viewportRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, []);
+
+  const load = useCallback(async () => {
+    if (!orderId) return;
+    setLoading(true);
+    setErr("");
+    try {
+      const list = await listOrderActivity(orderId);
+      setRows(list || []);
+    } catch (e) {
+      setErr(e?.message || "Failed to load activity");
+    } finally {
+      setLoading(false);
+      setTimeout(scrollToBottom, 0);
+    }
+  }, [orderId, scrollToBottom]);
+
+  useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (!orderId) return;
+    const off = subscribeOrderActivity(orderId, (row) => {
+      setRows((curr) => [...curr, row].slice(-500));
+      setTimeout(scrollToBottom, 0);
+    });
+    return () => off?.();
+  }, [orderId, scrollToBottom]);
+
+  const content = useMemo(() => {
+    if (loading) return <div className="text-sm text-gray-600">Loading…</div>;
+    if (err) return <div className="text-sm text-red-600">Failed: {err}</div>;
+    if (!rows.length) return <div className="text-sm text-gray-600">No activity yet.</div>;
+    return <div className="divide-y">{rows.map((r) => <Row key={r.id || `${r.event_type}-${r.created_at}`} item={r} />)}</div>;
+  }, [loading, err, rows]);
+
+  // src/components/activity/ActivityLog.jsx
+// …imports & rest unchanged…
+
+function deriveNameFromEmail(email) {
+  if (!email) return null;
+  const local = String(email).split("@")[0] || "";
+  if (!local) return null;
+  // Title-case the local part (simple, readable)
+  return local.charAt(0).toUpperCase() + local.slice(1);
+}
+
+function Row({ item }) {
+  const when = item?.created_at ? new Date(item.created_at).toLocaleString() : "—";
+  // Prefer explicit name; else derive from email; else fallback id; else "User"
+  const by =
+    (item?.created_by_name && item.created_by_name.trim()) ||
+    deriveNameFromEmail(item?.created_by_email) ||
+    item?.created_by ||
+    "User";
+
+  const label = LABEL[item?.event_type] || item?.event_type || "event";
+  const msg = item?.message || "";
+
+  return (
+    <div className="flex items-start justify-between py-2">
+      <div className="text-sm">
+        <div className="font-medium">{label}</div>
+        {msg ? <div className="text-xs text-gray-700 mt-0.5">{msg}</div> : null}
+        <div className="text-xs text-gray-500 mt-1">By: {by}</div>
+      </div>
+      <div className="text-xs text-gray-500 whitespace-nowrap ml-3">{when}</div>
+    </div>
+  );
+}
+
+
+  return (
+    <div className={className}>
+      {/* Fixed height with internal scroll so the drawer doesn't grow */}
+      <div ref={viewportRef} className="rounded border bg-white p-3 h-64 overflow-y-auto">
+        {content}
+      </div>
+      {showComposer && (
+        <div className="mt-3">
+          <ActivityNoteForm orderId={orderId} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+
 
 
