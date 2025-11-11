@@ -7,7 +7,7 @@ import OrderAdminInfoPanel from "@/components/orders/view/OrderAdminInfoPanel";
 import OrderDatesPanel from "@/components/orders/view/OrderDatesPanel";
 import ActivityLog from "@/components/activity/ActivityLog";
 import OrderOpenFullLink from "@/components/orders/drawer/OrderOpenFullLink";
-import OrderSidebarPanel from "@/components/orders/view/OrderSidebarPanel";
+
 
 const fmt = (d) => (!d ? "—" : isNaN(new Date(d)) ? "—" : new Date(d).toLocaleString());
 
@@ -78,7 +78,7 @@ export default function OrderDrawerContent({ orderId, order: rowFromTable, onRef
 
         <SafePanel title="Activity">
           <ActivityLog orderId={id} />
-        </SafePanel>
+         </SafePanel>
       </div>
 
       {/* Right column */}
@@ -94,10 +94,6 @@ export default function OrderDrawerContent({ orderId, order: rowFromTable, onRef
 
         <SafePanel title="Dates">
           <OrderDatesPanel order={row} />
-        </SafePanel>
-
-        <SafePanel title="Quick actions">
-          <OrderSidebarPanel order={row} orderId={id} onRefresh={onRefresh} />
         </SafePanel>
       </div>
     </div>
