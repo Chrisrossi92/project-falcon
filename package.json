@@ -21,7 +21,6 @@
     "@fullcalendar/core": "6.1.19",
     "@fullcalendar/daygrid": "6.1.19",
     "@fullcalendar/interaction": "6.1.19",
-    "@fullcalendar/list": "6.1.19",
     "@fullcalendar/react": "6.1.19",
     "@fullcalendar/timegrid": "6.1.19",
     "@radix-ui/react-slot": "^1.2.3",
@@ -44,6 +43,8 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@babel/parser": "^7.28.5",
+    "@babel/traverse": "^7.28.5",
     "@eslint/js": "^9.9.0",
     "@testing-library/jest-dom": "^6.5.0",
     "@testing-library/react": "^16.0.0",
@@ -52,9 +53,11 @@
     "autoprefixer": "^10.4.19",
     "dotenv": "^17.2.1",
     "eslint": "^9.9.0",
+    "fast-glob": "^3.3.3",
     "jsdom": "^25.0.0",
     "knip": "^5.63.1",
     "madge": "^6.1.0",
+    "picocolors": "^1.1.1",
     "postcss": "^8.4.41",
     "tailwindcss": "^3.4.10",
     "tailwindcss-animate": "^1.0.7",
