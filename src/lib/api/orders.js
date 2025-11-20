@@ -1,7 +1,7 @@
 // src/lib/api/orders.js
 import supabase from "@/lib/supabaseClient";
 
-const SOURCE = "v_orders_frontend"; // has fee, fee_amount per your column list
+const SOURCE = "v_orders_frontend_v3";
 
 function applyCommonFilters(q, {
   activeOnly = true,

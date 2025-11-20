@@ -46,8 +46,7 @@ export default function ClientOrdersPanel({ clientId }) {
       setCount(total || 0);
 
       // page rows
-      let q = supabase
-        .from("v_orders_frontend")
+      let q = supabase.from("v_orders_frontend_v3")
         .select(`
           id,
           order_no,

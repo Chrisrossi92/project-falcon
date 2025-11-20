@@ -1,4 +1,3 @@
-// src/features/orders/UnifiedOrdersTable.jsx
 import React, { useMemo, useState } from "react";
 import useRole from "@/lib/hooks/useRole";
 import useSession from "@/lib/hooks/useSession";
@@ -12,27 +11,15 @@ import ReviewerActionCell from "@/components/orders/table/ReviewerActionCell";
 import { updateOrderStatus } from "@/lib/api/orders";
 
 import useColumnsConfig from "@/features/orders/columns/useColumnsConfig";
-import { getColumnsForRole } from "@/features/orders/columns/ordersColumns";
+import getColumnsForRole from "@/features/orders/columns/ordersColumns";
 
-// ---------- helpers ----------
-const fmtDate = (d) => (!d ? "—" : isNaN(new Date(d)) ? "—" : new Date(d).toLocaleDateString());
-const dueTone = (d) => {
-  if (!d) return "";
-  const dt = new Date(d);
-  if (isNaN(dt)) return "";
-  const days = Math.floor((dt - new Date()) / 86400000);
-  if (days < 0) return "text-rose-600 font-medium";
-  if (days <= 2) return "text-amber-600";
-  return "text-muted-foreground";
-};
-const feeOf = (r) => [r?.fee_amount, r?.fee, r?.base_fee].find((v) => v != null);
-const money = (n) =>
-  n == null ? "—" : Number(n).toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 });
-
+/* helpers */
+const feeOf = (r) => [r?.fee_amount, r?.fee, r?.base_fee, r?.fee_total].find((v) => v != null);
+const fmtMoney = (n) => (n == null ? "—" : Number(n).toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 }));
 const cityLine = (r) => {
   const c = r?.city || "";
   const s = r?.state || "";
-  const z = r?.postal_code || "";
+  const z = r?.zip || r?.postal_code || "";
   const left = [c, s].filter(Boolean).join(", ");
   return (left + (z ? ` ${z}` : "")).trim();
 };
@@ -40,10 +27,11 @@ const mapsHref = (street, cityline) => {
   const full = [street || "", cityline || ""].filter(Boolean).join(", ");
   return full ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(full)}` : null;
 };
+const fmtDate = (d) => (!d ? "—" : isNaN(new Date(d)) ? "—" : new Date(d).toLocaleDateString());
 
 export default function UnifiedOrdersTable({
   role: roleProp,
-  initialFilters = {},
+  filters: appliedFilters = {},
   pageSize = 15,
   className = "",
   style = {},
@@ -57,27 +45,42 @@ export default function UnifiedOrdersTable({
   const isReviewer = role === "reviewer";
   const isAppraiser = !isAdmin && !isReviewer;
 
-  // Filters + scoping
+  /* seed built from the **live** filters prop */
   const seed = useMemo(() => {
     const base = {
-      activeOnly: true,
-      page: 0,
-      pageSize,
-      orderBy: "date_ordered",
-      ascending: false,
-      ...initialFilters,
+      activeOnly: appliedFilters.activeOnly ?? false,     // <-- now respected
+      page: appliedFilters.page || 0,
+      pageSize: appliedFilters.pageSize || pageSize,
+      orderBy: appliedFilters.orderBy || "order_number",
+      ascending: appliedFilters.ascending ?? false,
+      search: appliedFilters.search || "",
+      statusIn: appliedFilters.statusIn || [],
+      clientId: appliedFilters.clientId || null,
+      appraiserId: appliedFilters.appraiserId || null,
+      priority: appliedFilters.priority || "",
+      dueWindow: appliedFilters.dueWindow || "",
+      from: appliedFilters.from || "",
+      to: appliedFilters.to || "",
     };
-    if (isAppraiser) base.appraiserId = userId || null; // appraisers: mine only
+    if (isAppraiser) base.appraiserId = userId || null;
     return base;
-  }, [isAppraiser, userId, initialFilters, pageSize]);
+  }, [appliedFilters, isAppraiser, userId, pageSize]);
 
-  const { data = [], count = 0, loading, error, filters, setFilters } = useOrders(seed);
+  const {
+    data = [],
+    count = 0,
+    loading,
+    error,
+    filters: tableFilters,
+    setFilters: setTableFilters,
+  } = useOrders(seed);
+
+  const totalPages = Math.max(1, Math.ceil((count || 0) / (tableFilters.pageSize || pageSize)));
   const [expandedId, setExpandedId] = useState(null);
-  const totalPages = Math.max(1, Math.ceil((count || 0) / (filters.pageSize || pageSize)));
-  const refresh = () => setFilters((f) => ({ ...f }));
-  const go = (p) => setFilters((f) => ({ ...f, page: Math.min(Math.max(0, p), totalPages - 1) }));
 
-  // Role actions
+  const refresh = () => setTableFilters((f) => ({ ...f }));
+  const go = (p) => setTableFilters((f) => ({ ...f, page: Math.min(Math.max(0, p), totalPages - 1) }));
+
   const actionsCell = (o) =>
     isReviewer ? (
       <ReviewerActionCell order={o} onChanged={refresh} />
@@ -97,58 +100,48 @@ export default function UnifiedOrdersTable({
       </button>
     );
 
-  // Columns + persistence (order/width) with drag/resize
-  const {
-    active: columns,
-    startResize,
-    endResize,
-    onDragStart,
-    onDragOver,
-    onDrop,
-  } = useColumnsConfig(role, actionsCell);
+  const { active: columns, onDragStart, onDragOver, onDrop, startResize, resizeTo, endResize } =
+    useColumnsConfig(role, actionsCell);
 
   const template = columns.map((c) => c.width).join(" ");
 
-  // resize handle
   function onResizeDown(e, key) {
     e.preventDefault();
-    e.stopPropagation();            // do not start drag-reorder
-    const startX = e.clientX;
-    const onUp = (ev) => {
-      window.removeEventListener("mouseup", onUp);
-      endResize(ev.clientX);
+    e.stopPropagation();
+    const startW = e.currentTarget.parentElement.getBoundingClientRect().width;
+    startResize(key, e.clientX, startW);
+    const move = (ev) => resizeTo(ev.clientX);
+    const up = () => {
+      endResize();
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", up);
     };
-    startResize(key, startX);
-    window.addEventListener("mouseup", onUp);
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
   }
 
-  // sticky first column
   const stickyHeader = "bg-white sticky left-0 z-20 pr-4 border-r border-slate-200";
-  const stickyCell   = "bg-white sticky left-0 z-10 pr-4 border-r border-slate-200";
+  const stickyCell   = "bg-white sticky left-0 z-10 pr-4 border-slate-200";
 
   return (
     <div className={`bg-white border rounded-xl overflow-hidden ${className}`} style={style}>
-      {error && (
-        <div className="px-3 py-2 text-sm text-rose-700 bg-rose-50 border-b">
-          Failed to load orders: {error.message}
-        </div>
-      )}
+      {error && <div className="px-3 py-2 text-sm text-rose-700 bg-rose-50 border-b">Failed to load orders: {error.message}</div>}
 
       <style>{`
-        .col-wrap { position: relative; min-height: 36px; display:flex; align-items:stretch; gap:.5rem; padding:2px 4px 2px 8px; border-radius:6px; }
-        .col-wrap:hover { background: rgba(0,0,0,.02); }
-        .col-label { display:flex; align-items:center; gap:.5rem; width: calc(100% - 14px); cursor: grab; user-select:none; padding-right:8px; }
-        .col-label:active { cursor: grabbing; }
-        .col-resize { position:absolute; right:-6px; top:0; height:100%; width:14px; cursor:col-resize; display:flex; align-items:center; }
-        .col-resize::after { content:""; width:2px; height:60%; background:#e5e7eb; border-radius:1px; opacity:0; transition:opacity .15s; margin-left:6px; }
-        .col-wrap:hover .col-resize::after { opacity:.9; }
+        .col-wrap{position:relative;min-height:36px;display:flex;align-items:stretch;gap:.5rem;padding:2px 4px 2px 8px;border-radius:6px;}
+        .col-wrap:hover{background:rgba(0,0,0,.02)}
+        .col-label{display:flex;align-items:center;gap:.5rem;width:calc(100% - 14px);cursor:grab;user-select:none;padding-right:8px}
+        .col-label:active{cursor:grabbing}
+        .col-resize{position:absolute;right:-6px;top:0;height:100%;width:14px;cursor:col-resize;display:flex;align-items:center}
+        .col-resize::after{content:"";width:2px;height:60%;background:#e5e7eb;border-radius:1px;opacity:0;transition:opacity .15s;margin-left:6px}
+        .col-wrap:hover .col-resize::after{opacity:.9}
       `}</style>
 
       {/* header */}
       <div className="overflow-x-auto">
         <div
-          className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b px-2 py-2 text-[12px] uppercase tracking-wide text-muted-foreground"
-          style={{ display: "grid", gridTemplateColumns: template, columnGap: "1rem", minWidth: "1024px" }}
+          className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b px-2 py-2 text-[11px] uppercase tracking-wide text-slate-500"
+          style={{ display: "grid", gridTemplateColumns: template, columnGap: ".25rem", minWidth: "900px" }}
         >
           {columns.map((c, idx) => (
             <div
@@ -165,119 +158,119 @@ export default function UnifiedOrdersTable({
               >
                 <div className="truncate">{c.header()}</div>
               </div>
-
-              <div
-                className="col-resize"
-                data-no-drawer
-                onMouseDown={(e) => onResizeDown(e, c.key)}
-                title="Drag to resize"
-              />
+              <div className="col-resize" data-no-drawer onMouseDown={(e) => onResizeDown(e, c.key)} title="Drag to resize" />
             </div>
           ))}
         </div>
 
         {/* rows */}
-        <div className="divide-y" style={{ minWidth: "1024px" }}>
+        <div className="divide-y" style={{ minWidth: "900px" }}>
           {loading ? (
-            [...Array(filters.pageSize || pageSize)].map((_, i) => (
-              <div key={i} className="px-4 py-3 text-sm text-muted-foreground">Loading…</div>
+            [...Array(tableFilters.pageSize || pageSize)].map((_, i) => (
+              <div key={i} className="px-4 py-3 text-sm text-slate-500">Loading…</div>
             ))
           ) : !data?.length ? (
-            <div className="px-4 py-8 text-center text-sm text-muted-foreground">No orders.</div>
+            <div className="px-4 py-8 text-center text-sm text-slate-500">No orders.</div>
           ) : (
-            data.map((row) => {
-              // drawer content once (so it’s built only when open)
+            data.map((o) => {
               const drawerNode = (
                 <div data-no-drawer>
                   <div className="flex items-center justify-between mb-2">
-                    <div className="text-sm font-semibold">Order {row.order_no ?? row.id?.slice(0, 8)}</div>
-                    <OrderOpenFullLink orderId={row.id} />
+                    <div className="text-sm font-semibold">Order {o.order_no ?? o.order_number ?? o.id?.slice(0, 8)}</div>
+                    <OrderOpenFullLink orderId={o.id} />
                   </div>
-                  <OrderDrawerContent orderId={row.id} order={row} onRefresh={refresh} />
+                  <OrderDrawerContent orderId={o.id} order={o} onRefresh={refresh} />
                 </div>
               );
 
               return (
                 <OrdersTableRow
-                  key={row.id}
-                  order={row}
-                  isOpen={expandedId === row.id}
-                  onToggle={() => setExpandedId((x) => (x === row.id ? null : row.id))}
+                  key={o.id}
+                  order={o}
+                  isOpen={expandedId === o.id}
+                  onToggle={() => setExpandedId((x) => (x === o.id ? null : o.id))}
                   className="py-2.5"
-                  renderCells={(o) => (
+                  renderCells={() => (
                     <div
-                      className="items-start"
-                      style={{ display: "grid", gridTemplateColumns: template, columnGap: "1rem" }}
+                      className="items-start text-sm text-slate-800"
+                      style={{ display: "grid", gridTemplateColumns: template, columnGap: ".25rem" }}
                     >
                       {columns.map((c, idx) => {
-                        // Make the address a tight maps link (only the text lines are clickable)
-                        // inside renderCells: address column branch
-if (c.key === "address") {
-  const street  = o.address || "";
-  const cline   = cityLine(o);
-  const href    = mapsHref(street, cline);
+                        /* ADDRESS */
+                        if (c.key === "address") {
+                          const street = o.address || o.property_address || "";
+                          const cline = cityLine(o);
+                          const href = mapsHref(street, cline);
+                          return (
+                            <div key={c.key} className={`min-w-0 ${idx === 0 ? stickyCell : ""}`}>
+                              <div className="text-sm leading-tight">
+                                {href ? (
+                                  <a
+                                    href={href}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sky-700 hover:underline"
+                                    data-no-drawer
+                                    onClick={(e) => e.stopPropagation()}
+                                    title={`${street}${cline ? `, ${cline}` : ""}`}
+                                  >
+                                    {street || "—"}
+                                  </a>
+                                ) : (
+                                  <span className="truncate">{street || "—"}</span>
+                                )}
+                              </div>
+                              <div className="text-xs leading-tight text-slate-500 truncate">
+                                {cline || "—"}
+                              </div>
+                            </div>
+                          );
+                        }
 
-  return (
-    <div key={c.key} className={`min-w-0 ${idx === 0 ? stickyCell : ""}`}>
-      {/* Street line */}
-      <div className="text-sm leading-tight">
-        {href ? (
-          // Truncate on span, not on the <a>; anchor stays inline so only the text is clickable
-          <span className="truncate inline-block max-w-full align-baseline">
-            <a
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-700 hover:underline align-baseline"
-              data-no-drawer
-              onClick={(e) => e.stopPropagation()}
-              title={`${street}${cline ? `, ${cline}` : ""}`}
-            >
-              {street || "—"}
-            </a>
-          </span>
-        ) : (
-          <span className="truncate inline-block max-w-full">{street || "—"}</span>
-        )}
-      </div>
+                        /* PROPERTY / REPORT TYPE */
+                        if (c.key === "propReport" || c.key === "prop_report") {
+                          return (
+                            <div key={c.key} className={`min-w-0 ${idx === 0 ? stickyCell : ""}`}>
+                              <div className="text-sm truncate">{o.property_type || "—"}</div>
+                              <div className="text-xs text-slate-500 truncate">{o.report_type || "—"}</div>
+                            </div>
+                          );
+                        }
 
-      {/* City / State / ZIP line */}
-      <div className="text-xs leading-tight">
-        {href ? (
-          <span className="truncate inline-block max-w-full align-baseline">
-            <a
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-700 hover:underline align-baseline"
-              data-no-drawer
-              onClick={(e) => e.stopPropagation()}
-              title={cline}
-            >
-              {cline || "—"}
-            </a>
-          </span>
-        ) : (
-          <span className="truncate inline-block max-w-full text-muted-foreground">
-            {cline || "—"}
-          </span>
-        )}
-      </div>
+                        /* FEE / APPRAISER */
+                        if (c.key === "meta") {
+                          return (
+                            <div key={c.key} className={`min-w-0 ${idx === 0 ? stickyCell : ""}`}>
+                              <div className="text-sm font-medium text-slate-900">{fmtMoney(feeOf(o))}</div>
+                              <div className="text-xs text-slate-500 truncate">{o.appraiser_name || "—"}</div>
+                            </div>
+                          );
+                        }
 
-      {/* Property Type (not a link) */}
-      <div className="text-xs text-muted-foreground leading-tight truncate">
-        {o.property_type || "—"}
-      </div>
-    </div>
-  );
-}
+                        /* FEE only (appraiser view) */
+                        if (c.key === "fee") {
+                          return (
+                            <div key={c.key} className={`min-w-0 ${idx === 0 ? stickyCell : ""}`}>
+                              <div className="text-sm font-medium text-slate-900">{fmtMoney(feeOf(o))}</div>
+                            </div>
+                          );
+                        }
 
+                        /* DATES */
+                        if (c.key === "dates") {
+                          const rev = o.review_due_at ?? o.due_for_review ?? null;
+                          const fin = o.final_due_at ?? o.due_date ?? null;
+                          return (
+                            <div key={c.key} className={`min-w-0 ${idx === 0 ? stickyCell : ""}`}>
+                              <div className="text-xs text-rose-600">Rev: {fmtDate(rev)}</div>
+                              <div className="text-xs text-rose-600">Final: {fmtDate(fin)}</div>
+                            </div>
+                          );
+                        }
 
+                        /* default cell from column config */
                         return (
-                          <div
-                            key={c.key}
-                            className={`truncate whitespace-nowrap overflow-hidden ${idx === 0 ? stickyCell : ""}`}
-                          >
+                          <div key={c.key} className={`truncate whitespace-nowrap overflow-hidden ${idx === 0 ? stickyCell : ""}`}>
                             {c.cell(o)}
                           </div>
                         );
@@ -293,17 +286,15 @@ if (c.key === "address") {
       </div>
 
       {/* footer */}
-      <div className="flex items-center justify-between px-4 py-3 text-sm text-muted-foreground">
-        <div>Page {filters.page + 1} / {totalPages} • {count ?? 0} total</div>
-        <OrdersTablePagination
-          currentPage={filters.page + 1}
-          totalPages={totalPages}
-          goToPage={(p) => go(p - 1)}
-        />
+      <div className="flex items-center justify-between px-4 py-3 text-sm text-slate-500">
+        <div>Page {tableFilters.page + 1} / {totalPages} • {count ?? 0} total</div>
+        <OrdersTablePagination currentPage={tableFilters.page + 1} totalPages={totalPages} goToPage={(p) => go(p - 1)} />
       </div>
     </div>
   );
 }
+
+
 
 
 

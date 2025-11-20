@@ -145,7 +145,7 @@ export default function ClientDetail() {
           let odata = [];
           if (ids.length) {
             const { data: ords, error: oErr } = await supabase
-              .from("v_orders_frontend")
+              .from("v_orders_frontend_v3")
               .select("*")
               .in("client_id", ids)
               .limit(200);
