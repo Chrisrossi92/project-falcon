@@ -4,190 +4,152 @@ import { Link } from "react-router-dom";
 import supabase from "@/lib/supabaseClient";
 import ClientCard from "@/components/clients/ClientCard";
 
+const normalizeCategory = (raw) => {
+  const v = (raw || "").toLowerCase();
+  if (!v) return "Client";
+  if (v === "amc") return "AMC";
+  if (v === "lender" || v === "bank") return "Lender";
+  return raw;
+};
+
 export default function ClientsIndex() {
-  const [rows, setRows] = useState([]);
+  const [baseRows, setBaseRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
 
   // UI controls
   const [search, setSearch] = useState("");
-  const [sort, setSort] = useState("orders_count_desc"); // 'orders_count_desc' | 'orders_count_asc' | 'name_asc' | 'name_desc'
+  const [sort, setSort] = useState("orders_desc"); // 'orders_desc' | 'orders_asc' | 'name_asc' | 'name_desc'
+  const [categoryFilter, setCategoryFilter] = useState("all"); // 'all' | 'amc' | 'lender' | 'client'
 
   useEffect(() => {
     let cancelled = false;
+
     (async () => {
       try {
         setLoading(true);
         setErr(null);
 
-        // ======== SEARCH MODE: expand AMC -> lenders and roll up metrics ========
-        if (search.trim()) {
-          const like = `%${search.trim()}%`;
+        // 1) KPI view = primary source for metrics + (usually) primary contact
+        const { data: kpiRows, error: kpiErr } = await supabase
+          .from("v_client_kpis")
+          .select("*");
+        if (kpiErr) throw kpiErr;
 
-          // 1) Base matches by name
-          const { data: base, error: e1 } = await supabase
-            .from("clients")
-            .select("id,name,category,status")
-            .ilike("name", like)
-            .order("name", { ascending: true });
-          if (e1) throw e1;
+        const metrics = kpiRows || [];
+        const ids = metrics.map((r) => r.client_id).filter((id) => id != null);
 
-          // 2) Expand AMC hits -> include all lenders tied to them
-          const amcIds = (base || [])
-            .filter((r) => (r.category || "").toLowerCase() === "amc")
-            .map((r) => r.id);
-
-          let lenders = [];
-          if (amcIds.length) {
-            const { data: lrows, error: e2 } = await supabase
-              .from("clients")
-              .select("id,name,category,status,amc_id")
-              .in("amc_id", amcIds)
-              .order("name", { ascending: true });
-            if (e2) throw e2;
-            lenders = lrows || [];
-          }
-
-          // 3) Combine & dedupe
-          const map = new Map();
-          for (const r of [...(base || []), ...lenders]) map.set(r.id, r);
-          const combined = Array.from(map.values());
-
-          // 4) Roll-up metrics (AMCs include their lenders)
-          const ids = combined.map((r) => r.id);
-          let metricMap = {};
-          if (ids.length) {
-            const { data: roll, error: rerr } = await supabase.rpc("client_metrics_rollup", {
-              p_client_ids: ids,
-            });
-            if (rerr) throw rerr;
-            metricMap = Object.fromEntries(
-              (roll || []).map((m) => [
-                m.client_id,
-                {
-                  orders_count: Number(m.orders_count || 0),
-                  avg_fee: m.avg_fee == null ? null : Number(m.avg_fee),
-                  last_order_at: m.last_order_at || null,
-                },
-              ])
-            );
-          }
-
-          // 5) Build rows
-          let result = combined.map((r) => ({
-            id: r.id,
-            name: r.name,
-            status: r.status,
-            _category: r.category,
-            _orders_count: metricMap[r.id]?.orders_count ?? 0,
-            _avg_fee: metricMap[r.id]?.avg_fee ?? null,
-            _last_activity: metricMap[r.id]?.last_order_at ?? null,
-          }));
-
-          // 6) Sort
-          if (sort === "orders_count_desc" || sort === "orders_count_asc") {
-            const asc = sort === "orders_count_asc";
-            result.sort((a, b) =>
-              asc ? a._orders_count - b._orders_count : b._orders_count - a._orders_count
-            );
-          } else if (sort === "name_asc") {
-            result.sort((a, b) => a.name.localeCompare(b.name));
-          } else if (sort === "name_desc") {
-            result.sort((a, b) => b.name.localeCompare(a.name));
-          }
-
-          if (!cancelled) setRows(result);
-          if (!cancelled) setLoading(false);
-          return;
-        }
-
-        // ======== DEFAULT MODE: use metrics view, then re-sort with roll-up where available ========
-        let q = supabase.from("v_client_metrics").select("*", { count: "exact" });
-
-        if (sort === "orders_count_desc") {
-          q = q.order("orders_count", { ascending: false }).order("name", { ascending: true });
-        } else if (sort === "orders_count_asc") {
-          q = q.order("orders_count", { ascending: true }).order("name", { ascending: true });
-        } else if (sort === "name_asc") {
-          q = q.order("name", { ascending: true });
-        } else if (sort === "name_desc") {
-          q = q.order("name", { ascending: false });
-        }
-
-        const { data: metrics, error } = await q;
-        if (error) throw error;
-
-        // categories from clients table
-        const ids = (metrics || []).map((r) => r.client_id ?? r.id).filter(Boolean);
-        let catMap = {};
+        // 2) Backing client records for category / status / fallback contact
+        let clientMetaMap = {};
         if (ids.length) {
-          const { data: cats, error: cerr } = await supabase
+          const { data: clientRows, error: clientErr } = await supabase
             .from("clients")
-            .select("id, category")
+            .select(
+              "id, category, client_type, kind, status, contact_name_1, contact_phone_1"
+            )
             .in("id", ids);
-          if (cerr) throw cerr;
-          for (const c of cats || []) catMap[c.id] = c.category;
+
+          if (clientErr) throw clientErr;
+
+          for (const c of clientRows || []) {
+            clientMetaMap[c.id] = c;
+          }
         }
 
-        // inject roll-up metrics so AMCs show aggregated values even in default list
-        let rollMap = {};
-        if (ids.length) {
-          const { data: roll, error: rerr } = await supabase.rpc("client_metrics_rollup", {
-            p_client_ids: ids,
-          });
-          if (rerr) throw rerr;
-          rollMap = Object.fromEntries(
-            (roll || []).map((m) => [
-              m.client_id,
-              {
-                orders_count: Number(m.orders_count || 0),
-                avg_fee: m.avg_fee == null ? null : Number(m.avg_fee),
-                last_order_at: m.last_order_at || null,
-              },
-            ])
-          );
-        }
+        // 3) Merge: view first, clients as fallback
+        const merged = metrics.map((m) => {
+          const meta = clientMetaMap[m.client_id] || {};
 
-        let merged = (metrics || []).map((r) => {
-          const id = r.client_id ?? r.id;
-          const roll = rollMap[id];
+          const primary_contact =
+            m.primary_contact_name || meta.contact_name_1 || null;
+
+          const phone =
+            m.primary_contact_phone || meta.contact_phone_1 || null;
+
+          const categoryRaw =
+            meta.category || meta.client_type || meta.kind || "client";
+
           return {
-            ...r,
-            id,
-            _category: catMap[id] || r.category || r.client_type || null,
-            _orders_count: roll?.orders_count ?? r.orders_count ?? r.total_orders ?? 0,
-            _avg_fee: roll?.avg_fee ?? (typeof r.avg_fee === "number" ? r.avg_fee : null),
-            _last_activity: roll?.last_order_at ?? r.last_activity ?? r.last_order_at ?? null,
+            id: m.client_id,
+            name: m.client_name,
+            status: meta.status || null,
+            category: normalizeCategory(categoryRaw),
+            primary_contact,
+            phone,
+            total_orders: Number(m.total_orders ?? 0),
+            avg_fee:
+              typeof m.avg_total_fee === "number" ? m.avg_total_fee : null,
+            last_activity: m.last_order_date || null,
           };
         });
 
-        // re-sort with roll-up counts if sorting by orders
-        if (sort === "orders_count_desc" || sort === "orders_count_asc") {
-          const asc = sort === "orders_count_asc";
-          merged.sort((a, b) =>
-            asc ? a._orders_count - b._orders_count : b._orders_count - a._orders_count
-          );
-        }
-
-        if (!cancelled) setRows(merged);
+        if (!cancelled) setBaseRows(merged);
       } catch (e) {
+        console.error("Failed to load clients", e);
         if (!cancelled) setErr(e?.message || "Failed to load clients");
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
+
     return () => {
       cancelled = true;
     };
-  }, [search, sort]);
+  }, []);
 
-  const grid = useMemo(() => rows || [], [rows]);
+  const gridRows = useMemo(() => {
+    let out = [...baseRows];
+
+    // Text search (name or primary contact)
+    if (search.trim()) {
+      const term = search.trim().toLowerCase();
+      out = out.filter((r) => {
+        return (
+          (r.name || "").toLowerCase().includes(term) ||
+          (r.primary_contact || "").toLowerCase().includes(term)
+        );
+      });
+    }
+
+    // Category filter
+    if (categoryFilter !== "all") {
+      const target = categoryFilter.toLowerCase();
+      out = out.filter((r) => {
+        const c = (r.category || "").toLowerCase();
+        if (target === "client") {
+          // treat anything NOT amc/lender as "direct client"
+          return c && c !== "amc" && c !== "lender";
+        }
+        return c === target;
+      });
+    }
+
+    // Sorting
+    if (sort === "orders_desc" || sort === "orders_asc") {
+      const asc = sort === "orders_asc";
+      out.sort((a, b) =>
+        asc ? a.total_orders - b.total_orders : b.total_orders - a.total_orders
+      );
+    } else if (sort === "name_asc") {
+      out.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    } else if (sort === "name_desc") {
+      out.sort((a, b) => (b.name || "").localeCompare(a.name || ""));
+    }
+
+    return out;
+  }, [baseRows, search, categoryFilter, sort]);
 
   return (
     <div className="p-4 md:p-6">
-      {/* Page header */}
+      {/* Header */}
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-xl font-semibold">Clients</h1>
+        <div>
+          <h1 className="text-xl font-semibold">Clients</h1>
+          <p className="mt-1 text-xs text-gray-500">
+            Ranked by total orders so your biggest relationships float to the
+            top.
+          </p>
+        </div>
 
         <div className="flex items-center gap-2">
           <label className="hidden sm:block text-xs text-gray-500">Sort</label>
@@ -196,48 +158,106 @@ export default function ClientsIndex() {
             value={sort}
             onChange={(e) => setSort(e.target.value)}
           >
-            <option value="orders_count_desc">Total Orders (desc)</option>
-            <option value="orders_count_asc">Total Orders (asc)</option>
+            <option value="orders_desc">Total Orders (desc)</option>
+            <option value="orders_asc">Total Orders (asc)</option>
             <option value="name_asc">Name (A–Z)</option>
             <option value="name_desc">Name (Z–A)</option>
           </select>
 
-          <Link to="/clients/new" className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50">
+          <Link
+            to="/clients/new"
+            className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50"
+          >
             + New Client
           </Link>
         </div>
       </div>
 
-      {/* Local search */}
-      <div className="mb-4">
-        <input
-          className="w-full max-w-xl rounded border px-3 py-2 text-sm"
-          placeholder="Search client or AMC…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+      {/* Filters + search */}
+      <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="flex gap-2 text-xs">
+          <button
+            type="button"
+            onClick={() => setCategoryFilter("all")}
+            className={`rounded-full border px-3 py-1 ${
+              categoryFilter === "all"
+                ? "bg-gray-900 text-white border-gray-900"
+                : "bg-white text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            All
+          </button>
+          <button
+            type="button"
+            onClick={() => setCategoryFilter("amc")}
+            className={`rounded-full border px-3 py-1 ${
+              categoryFilter === "amc"
+                ? "bg-violet-700 text-white border-violet-700"
+                : "bg-white text-gray-700 hover:bg-violet-50 border-violet-200"
+            }`}
+          >
+            AMCs
+          </button>
+          <button
+            type="button"
+            onClick={() => setCategoryFilter("lender")}
+            className={`rounded-full border px-3 py-1 ${
+              categoryFilter === "lender"
+                ? "bg-blue-700 text-white border-blue-700"
+                : "bg-white text-gray-700 hover:bg-blue-50 border-blue-200"
+            }`}
+          >
+            Lenders
+          </button>
+          <button
+            type="button"
+            onClick={() => setCategoryFilter("client")}
+            className={`rounded-full border px-3 py-1 ${
+              categoryFilter === "client"
+                ? "bg-green-700 text-white border-green-700"
+                : "bg-white text-gray-700 hover:bg-green-50 border-green-200"
+            }`}
+          >
+            Direct Clients
+          </button>
+        </div>
+
+        <div className="w-full md:w-auto">
+          <input
+            className="w-full md:min-w-[260px] rounded border px-3 py-2 text-sm"
+            placeholder="Search client or contact…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
       </div>
 
+      {/* Body */}
       {err ? (
         <div className="text-sm text-rose-600">{err}</div>
       ) : loading ? (
         <div className="text-sm text-gray-600">Loading…</div>
+      ) : gridRows.length === 0 ? (
+        <div className="text-sm text-gray-500">
+          No clients match those filters.
+        </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {grid.map((r) => (
+          {gridRows.map((row) => (
             <ClientCard
-              key={r.id}
+              key={row.id}
               client={{
-                id: r.id,
-                name: r.name,
-                status: r.status,
-                category: r._category, // authoritative category
-                primary_contact: r.primary_contact,
+                id: row.id,
+                name: row.name,
+                status: row.status,
+                category: row.category,
+                primary_contact: row.primary_contact,
+                phone: row.phone,
               }}
               metrics={{
-                total_orders: r._orders_count ?? 0,
-                avg_fee: r._avg_fee ?? null,
-                last_activity: r._last_activity ?? null,
+                total_orders: row.total_orders,
+                avg_fee: row.avg_fee,
+                last_activity: row.last_activity,
               }}
             />
           ))}
@@ -246,6 +266,7 @@ export default function ClientsIndex() {
     </div>
   );
 }
+
 
 
 
