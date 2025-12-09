@@ -39,7 +39,7 @@ export async function listClientOrders(clientId, { page = 0, pageSize = 25 } = {
   }
 
   const { data, error, count } = await supabase
-    .from("v_orders_frontend")
+    .from("v_orders_frontend_v3")
     .select(
       `
         id, order_no, client_name, address, status, fee_amount,

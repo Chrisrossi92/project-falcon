@@ -37,7 +37,7 @@ export default function AdminCalendar({ className = "", style = {}, onEventsChan
     const { data, error } = await supabase
       .from("v_admin_calendar_enriched")
       .select(
-        "id, event_type, title, start_at, end_at, order_id, appraiser_name, appraiser_color"
+        "id, event_type, title, start_at, end_at, order_id, order_number, client, street_address, address, city, state, zip, appraiser_name, appraiser_color"
       )
       .gte("start_at", start.toISOString())
       .lt("start_at", end.toISOString())
@@ -50,20 +50,32 @@ export default function AdminCalendar({ className = "", style = {}, onEventsChan
       return;
     }
 
-    const mapped = (data || []).map((row) => ({
-      id: row.id,
-      title: row.title || row.event_type || "Event",
-      start: row.start_at,
-      end: row.end_at,
-      backgroundColor: TYPE_COLORS[row.event_type] || row.appraiser_color || undefined,
-      borderColor: TYPE_COLORS[row.event_type] || row.appraiser_color || undefined,
-      textColor: "#111827",
-      extendedProps: {
-        type: row.event_type,
-        appraiser: row.appraiser_name || null,
-        orderId: row.order_id || null,
-      },
-    }));
+    const mapped = (data || []).map((row) => {
+      const address = row.address || row.street_address || "";
+      const city = row.city || "";
+      const state = row.state || "";
+      const zip = row.zip || "";
+
+      return {
+        id: row.id,
+        title: "",
+        start: row.start_at,
+        end: row.end_at,
+        backgroundColor: TYPE_COLORS[row.event_type] || row.appraiser_color || undefined,
+        borderColor: TYPE_COLORS[row.event_type] || row.appraiser_color || undefined,
+        textColor: "#111827",
+        extendedProps: {
+          type: row.event_type,
+          orderId: row.order_id || null,
+          orderNumber: row.order_number || "",
+          client: row.client || "",
+          address,
+          city,
+          state,
+          zip,
+        },
+      };
+    });
 
     setEvents(mapped);
     onEventsChange?.(mapped);
@@ -87,6 +99,72 @@ export default function AdminCalendar({ className = "", style = {}, onEventsChan
     const orderId = info.event.extendedProps?.orderId;
     if (orderId) window.open(`/orders/${orderId}`, "_self");
   }
+
+  const EventContent = ({ event }) => {
+    const [hovered, setHovered] = useState(false);
+    const type = event.extendedProps?.type || "";
+    const icon =
+      type === "site_visit" ? "📍" :
+      type === "due_for_review" ? "📝" :
+      type === "due_to_client" ? "✅" :
+      "•";
+
+    const shortAddress = event.extendedProps?.address || "";
+    const client = event.extendedProps?.client || "";
+    const orderNumber = event.extendedProps?.orderNumber || "";
+    const city = event.extendedProps?.city || "";
+    const state = event.extendedProps?.state || "";
+    const zip = event.extendedProps?.zip || "";
+    const orderId = event.extendedProps?.orderId || null;
+
+    const typeLabel =
+      type === "site_visit" ? "Site Visit" :
+      type === "due_for_review" ? "Review Due" :
+      type === "due_to_client" ? "Final Due" :
+      "Event";
+
+    const fullAddress = [shortAddress, [city, state].filter(Boolean).join(", "), zip].filter(Boolean).join(" • ");
+
+    return (
+      <div
+        className="relative flex items-center gap-1 text-[11px] leading-tight cursor-pointer"
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        onClick={() => setHovered((v) => !v)}
+      >
+        <span>{icon}</span>
+        <span>-</span>
+        <span className="truncate">{shortAddress}</span>
+
+        {hovered && (
+          <div className="absolute left-0 top-full mt-1 w-64 rounded-xl bg-white shadow-lg border p-3 text-xs z-20">
+            <div className="font-semibold mb-1">{orderNumber || client || "Order"}</div>
+            {client && <div className="text-slate-700 mb-1">{client}</div>}
+            {fullAddress && <div className="text-slate-600 mb-1">{fullAddress}</div>}
+            <div className="text-slate-600 mb-2">
+              <span className="font-medium">{typeLabel}</span>
+              {event.start && (
+                <span className="ml-1">
+                  {new Date(event.start).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                </span>
+              )}
+            </div>
+            {orderId && (
+              <button
+                className="px-2 py-1 text-[11px] rounded border bg-slate-50 hover:bg-slate-100"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open(`/orders/${orderId}`, "_self");
+                }}
+              >
+                Open order
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const views = useMemo(
     () => ({
@@ -122,26 +200,10 @@ export default function AdminCalendar({ className = "", style = {}, onEventsChan
         eventDisplay="block"
         events={events}
         datesSet={handleDatesSet}
+        eventContent={(args) => <EventContent {...args} />}
         eventClick={onEventClick}
         views={views}
       />
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -8,24 +8,17 @@ import CalendarLegend from "@/components/calendar/CalendarLegend";
 import OrderStatusBadge from "@/components/orders/table/OrderStatusBadge";
 import { useRole } from "@/lib/hooks/useRole";
 import { ORDER_STATUS } from "@/lib/constants/orderStatus";
+import useOrder from "@/lib/hooks/useOrder";
 
 /* ---------- helpers ---------- */
-const isUuid = (v) =>
-  typeof v === "string" &&
-  /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(v);
-
-const isOrderNo = (v) =>
-  typeof v === "string" && (/^\d{7}$/.test(v) || /^[A-Za-z]-?\d+$/i.test(v));
-
-const fmtDate = (s) => (s ? new Date(s).toLocaleDateString() : "—");
-const fmtDateTime = (s) => (s ? new Date(s).toLocaleString() : "—");
+const fmtDate = (s) => (s ? new Date(s).toLocaleDateString() : "-");
+const fmtDateTime = (s) => (s ? new Date(s).toLocaleString() : "-");
 const money = (n) =>
-  n == null ? "—" : Number(n).toLocaleString(undefined, { style: "currency", currency: "USD" });
+  n == null ? "-" : Number(n).toLocaleString(undefined, { style: "currency", currency: "USD" });
 
-const ICONS = { site_visit: "📍", due_for_review: "📝", due_to_client: "✅" };
+const ICONS = { site_visit: "SV", due_for_review: "REV", due_to_client: "FIN" };
 const pick = (...vals) => vals.find((v) => v !== undefined && v !== null && v !== "") ?? null;
-const reviewDateOf = (o) =>
-  pick(o.review_due_at, o.review_due, o.reviewer_due_at, o.review_due_by, o.date_review_due);
+const reviewDateOf = (o) => pick(o.review_due_at);
 
 const statusLabel = (s) =>
   s ? s.toLowerCase().replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase()) : "";
@@ -33,17 +26,15 @@ const statusLabel = (s) =>
 /* ============================== component ============================== */
 export default function OrderDetail() {
   const nav = useNavigate();
-  const params = useParams();
-  const ref = (params.ref ?? params.id ?? params.orderId ?? "").trim();
+  const { id } = useParams();
   const { isAdmin } = useRole() || {};
 
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState(null);
-  const [order, setOrder] = useState(null);
+  const { order, loading, error: loadErr, refresh } = useOrder(id);
 
-  const [clientName, setClientName] = useState("—");
-  const [amcName, setAmcName] = useState("—");
-  const [appraiserName, setAppraiserName] = useState("—");
+  // Display names
+  const [clientName, setClientName] = useState("-");
+  const [amcName, setAmcName] = useState("-");
+  const [appraiserName, setAppraiserName] = useState("-");
 
   // site-visit overlay
   const [showAppt, setShowAppt] = useState(false);
@@ -54,101 +45,19 @@ export default function OrderDetail() {
   const [statusError, setStatusError] = useState("");
 
   useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        setLoading(true);
-        setErr(null);
-        if (!ref) throw new Error("Missing order reference.");
-
-        // fetch by id or order_number
-        let q = supabase
-          .from("orders")
-          .select(
-            [
-              "id",
-              "order_number",
-              "status",
-              "base_fee",
-              "appraiser_fee",
-              "split_pct",
-              "property_type",
-              "report_type",
-              "address",
-              "property_address",
-              "city",
-              "state",
-              "postal_code",
-              "client_id",
-              "manual_client_name",
-              "managing_amc_id",
-              "appraiser_id",
-              "site_visit_at",
-              "review_due_at",
-              "final_due_at",
-              "due_date",
-              "entry_contact_name",
-              "entry_contact_phone",
-              "notes",
-              "created_at",
-              "updated_at",
-            ].join(",")
-          )
-          .limit(1);
-
-        if (isUuid(ref)) q = q.eq("id", ref);
-        else if (isOrderNo(ref)) q = q.eq("order_number", ref);
-        else throw new Error(`Invalid order reference: ${ref}`);
-
-        const { data, error } = await q;
-        if (error) throw error;
-        const row = data?.[0] || null;
-        if (!row) throw new Error("Order not found.");
-        if (!active) return;
-
-        setOrder(row);
-
-        // appraiser/client/amc names
-        if (row.client_id) {
-          const { data: c } = await supabase.from("clients").select("name").eq("id", row.client_id).maybeSingle();
-          if (active) setClientName(c?.name || row.manual_client_name || "—");
-        } else {
-          if (active) setClientName(row.manual_client_name || "—");
-        }
-
-        if (row.managing_amc_id) {
-          const { data: a } = await supabase.from("clients").select("name").eq("id", row.managing_amc_id).maybeSingle();
-          if (active) setAmcName(a?.name || "—");
-        }
-
-        if (row.appraiser_id) {
-          const { data: u } = await supabase
-            .from("users")
-            .select("full_name, display_name, name")
-            .eq("id", row.appraiser_id)
-            .maybeSingle();
-          if (active) setAppraiserName(u?.full_name || u?.display_name || u?.name || "—");
-        }
-      } catch (e) {
-        if (active) {
-          setErr(e?.message || String(e));
-          setOrder(null);
-        }
-      } finally {
-        if (active) setLoading(false);
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [ref]);
+    if (order) {
+      setClientName(order.client_name || "-");
+      setAmcName("-");
+      setAppraiserName(order.appraiser_name || "-");
+    }
+  }, [order]);
 
   const titleNo = useMemo(
     () => (order?.order_number || (order?.id ? String(order.id).slice(0, 8) : "")),
     [order]
   );
 
-  const addr1 = order?.property_address || order?.address || "";
+  const addr1 = order?.address_line1 || "";
   const addr2 =
     [order?.city, order?.state].filter(Boolean).join(", ") +
     (order?.postal_code ? ` ${order.postal_code}` : "");
@@ -164,7 +73,7 @@ export default function OrderDetail() {
         if (!dt) return;
         const when = new Date(dt);
         if (when >= start && when <= end) {
-          const icon = ICONS[type] || "•";
+          const icon = ICONS[type] || "*";
           return { id: `${order.id}-${type}`, type, start: when.toISOString(), end: when.toISOString(), label: icon, title: icon };
         }
       };
@@ -189,7 +98,7 @@ export default function OrderDetail() {
         .select("status, updated_at")
         .maybeSingle();
       if (error) throw error;
-      setOrder((o) => ({ ...o, status: data?.status ?? next, updated_at: data?.updated_at ?? o.updated_at }));
+      refresh();
     } catch (e) {
       setStatusError(e?.message || "Failed to update status");
     } finally {
@@ -204,43 +113,21 @@ export default function OrderDetail() {
 
   async function saveAppt() {
     const iso = apptInput ? new Date(apptInput).toISOString() : null;
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from("orders")
       .update({ site_visit_at: iso, updated_at: new Date().toISOString() })
-      .eq("id", order.id)
-      .select("site_visit_at, updated_at")
-      .maybeSingle();
+      .eq("id", order.id);
     if (error) {
       alert(error.message || "Failed to save site visit");
       return;
     }
-    setOrder((o) => ({ ...o, site_visit_at: data?.site_visit_at ?? iso, updated_at: data?.updated_at ?? o.updated_at }));
     setShowAppt(false);
+    refresh();
   }
 
-  if (loading) return null;
-
-  if (err) {
-    return (
-      <div className="p-4 text-sm text-rose-600 space-y-3">
-        <div>Failed to load order: {err}</div>
-        <button className="px-3 py-1.5 border rounded text-sm" onClick={() => nav("/orders")}>
-          ← Back to Orders
-        </button>
-      </div>
-    );
-  }
-
-  if (!order) {
-    return (
-      <div className="p-4 text-sm text-amber-700 space-y-3">
-        <div>Order not found.</div>
-        <button className="px-3 py-1.5 border rounded text-sm" onClick={() => nav("/orders")}>
-          ← Back to Orders
-        </button>
-      </div>
-    );
-  }
+  if (loading) return <div className="p-4 text-sm">Loading...</div>;
+  if (loadErr) return <div className="p-4 text-sm text-rose-600">Failed to load order.</div>;
+  if (!order) return <div className="p-4 text-sm text-amber-700">Order not found.</div>;
 
   return (
     <div className="p-4 space-y-4">
@@ -264,7 +151,7 @@ export default function OrderDetail() {
           </div>
           <div className="flex items-center gap-2">
             <Link to="/orders" className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50">
-              ← Back
+              {"<- Back"}
             </Link>
             <Link to={`/orders/${order.id}/edit`} className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50">
               Edit
@@ -282,23 +169,23 @@ export default function OrderDetail() {
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
                 <div className="text-xs text-gray-500 mb-1">AMC (optional)</div>
-                <div className="text-gray-800">{amcName || "—"}</div>
+                <div className="text-gray-800">{amcName || "-"}</div>
               </div>
               <div>
                 <div className="text-xs text-gray-500 mb-1">Client</div>
-                <div className="text-gray-800">{clientName || "—"}</div>
+                <div className="text-gray-800">{clientName || "-"}</div>
               </div>
             </div>
 
-            {/* Entry contact (new) */}
+            {/* Property contact */}
             <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
               <div>
-                <div className="text-xs text-gray-500 mb-1">Entry Contact</div>
-                <div className="text-gray-800">{order.entry_contact_name || "—"}</div>
+                <div className="text-xs text-gray-500 mb-1">Contact Name</div>
+                <div className="text-gray-800">{order.entry_contact_name || "-"}</div>
               </div>
               <div>
                 <div className="text-xs text-gray-500 mb-1">Contact Phone</div>
-                <div className="text-gray-800">{order.entry_contact_phone || "—"}</div>
+                <div className="text-gray-800">{order.entry_contact_phone || "-"}</div>
               </div>
             </div>
           </div>
@@ -327,7 +214,7 @@ export default function OrderDetail() {
                     </option>
                   ))}
                 </select>
-                {savingStatus && <span className="text-[11px] text-gray-500">Saving…</span>}
+                {savingStatus && <span className="text-[11px] text-gray-500">Saving...</span>}
                 {statusError && <span className="text-[11px] text-rose-600">{statusError}</span>}
               </div>
             </div>
@@ -335,7 +222,7 @@ export default function OrderDetail() {
             <div className="grid grid-cols-3 gap-3 text-sm">
               <div>
                 <div className="text-xs text-gray-500 mb-1">Split %</div>
-                <div className="text-gray-800">{order.split_pct != null ? `${order.split_pct}` : "—"}</div>
+                <div className="text-gray-800">{order.split_pct != null ? `${order.split_pct}` : "-"}</div>
               </div>
               <div>
                 <div className="text-xs text-gray-500 mb-1">Base Fee</div>
@@ -360,16 +247,16 @@ export default function OrderDetail() {
             <div className="grid grid-cols-12 gap-4 items-start mb-3">
               <div className="col-span-12 md:col-span-6">
                 <div className="text-xs text-gray-500 mb-0.5">Address</div>
-                <div className="text-sm text-gray-800">{addr1 || "—"}</div>
-                <div className="text-xs text-gray-500">{addr2 || "—"}</div>
+                <div className="text-sm text-gray-800">{addr1 || "-"}</div>
+                <div className="text-xs text-gray-500">{addr2 || "-"}</div>
               </div>
               <div className="col-span-6 md:col-span-3">
                 <div className="text-xs text-gray-500 mb-0.5">Property Type</div>
-                <div className="text-sm text-gray-800">{order.property_type || "—"}</div>
+                <div className="text-sm text-gray-800">{order.property_type || "-"}</div>
               </div>
               <div className="col-span-6 md:col-span-3">
                 <div className="text-xs text-gray-500 mb-0.5">Report Type</div>
-                <div className="text-sm text-gray-800">{order.report_type || "—"}</div>
+                <div className="text-sm text-gray-800">{order.report_type || "-"}</div>
               </div>
             </div>
 
@@ -437,7 +324,7 @@ export default function OrderDetail() {
       {/* Notes */}
       <div className="rounded-md bg-white p-3 border">
         <div className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-2">Notes</div>
-        <div className="text-sm text-gray-800 whitespace-pre-wrap">{order.notes || "—"}</div>
+        <div className="text-sm text-gray-800 whitespace-pre-wrap">{order.access_notes || order.notes || "-"}</div>
       </div>
 
       {/* Site-visit overlay modal */}
@@ -466,7 +353,3 @@ export default function OrderDetail() {
     </div>
   );
 }
-
-
-
-

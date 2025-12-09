@@ -1,61 +1,60 @@
 // src/components/calendar/EventChip.jsx
 import React from "react";
 
-const EMOJI = {
-  site_visit: "📍",       // Appointment
-  due_for_review: "📝",   // Review due
-  due_to_client: "✅",    // Final due
-};
+function normalizeType(t) {
+  const s = (t || "").toString().toLowerCase();
+  if (s.includes("site")) return "site";
+  if (s.includes("review")) return "review";
+  if (s.includes("final") || s.includes("client")) return "final";
+  return "other";
+}
 
-function fmtTime(dt) {
-  try {
-    return new Date(dt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-  } catch {
-    return "";
+function iconFor(type) {
+  switch (type) {
+    case "site":   return "📍";
+    case "review": return "🧪";
+    case "final":  return "✅";
+    default:       return "•";
   }
 }
 
-/**
- * Renders a calendar chip.
- * RULE (per spec): Display only "Icon · Street Address".
- * - We still include time (for appointments) and full address in the tooltip.
- */
-export default function EventChip({ event, compact = true, onClick }) {
-  const type   = event?.type;
-  const emoji  = EMOJI[type] || "•";
+function labelFor(type) {
+  switch (type) {
+    case "site":   return "Site Visit";
+    case "review": return "Review Due";
+    case "final":  return "Final Due";
+    default:       return "Event";
+  }
+}
 
-  // Street-only line (trim everything after first comma)
-  const fullAddress = event?.address || "";
-  const street      = fullAddress.split(",")[0]?.trim() || "—";
+export default function EventChip({ event, onClick }) {
+  const type = normalizeType(event?.type ?? event?.event_type);
+  const icon = iconFor(type);
+  const base = (event?.title || event?.label || "").trim();
 
-  // Time matters only for appointments; shown in tooltip, not on the chip
-  const time = type === "site_visit" ? fmtTime(event?.start) : "";
+  // Build a sane fallback if loader didn’t provide a title
+  let text = base;
+  if (!text) {
+    const addr = [event?.address, event?.city && event?.state ? `${event.city}, ${event.state}` : null]
+      .filter(Boolean)
+      .join(" · ");
+    const orderRef = event?.order_no || event?.order_number || event?.orderId || event?.order_id;
+    const suffix = addr || (orderRef ? `Order ${orderRef}` : "");
+    text = suffix ? `${labelFor(type)} — ${suffix}` : labelFor(type);
+  }
 
-  // Build tooltip with helpful context, but keep chip minimal
-  const tipParts = [street];
-  if (event?.client) tipParts.push(event.client);
-  if (time) tipParts.push(time);
-  const tooltip = tipParts.join(" • ");
-
-  // Compact or full mode both show the same single-line text now
   return (
-    <button
-      type="button"
-      title={tooltip}
-      className={
-        "w-full text-left " +
-        (compact
-          ? "text-[11px] px-1 py-0.5"
-          : "text-xs px-2 py-1") +
-        " rounded border hover:bg-gray-50 truncate"
-      }
-      onClick={onClick}
+    <div
+      className="inline-flex items-center gap-1 text-xs px-2 py-[2px] rounded border bg-white cursor-pointer hover:bg-gray-50"
+      onClick={() => onClick?.(event)}
+      title={text}
     >
-      <span className="mr-1">{emoji}</span>
-      <span className="truncate">{street}</span>
-    </button>
+      <span aria-hidden="true">{icon}</span>
+      <span className="truncate">{text}</span>
+    </div>
   );
 }
+
 
 
 

@@ -27,6 +27,8 @@
   vertical-align: middle;
 }
 
+/* optional: utility class for consistent numeric alignment */
+.tabular-nums { font-variant-numeric: tabular-nums; }
 
 
 

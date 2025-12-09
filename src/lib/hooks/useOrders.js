@@ -1,113 +1,103 @@
 // src/lib/hooks/useOrders.js
-import { useEffect, useMemo, useRef, useState } from "react";
-import supabase from "@/lib/supabaseClient";
-import { listOrders, getOrder } from "@/lib/services/ordersService";
+import { useEffect, useMemo, useState } from "react";
+import { fetchOrdersWithFilters } from "@/lib/api/orders";
+import { ORDER_STATUS } from "@/lib/constants/orderStatus";
+import { mapOrderRows } from "@/lib/mappers/orderMapper";
 
-/* ------------------------ small debounce helper ------------------------ */
-function useDebounce(value, delay = 300) {
-  const [v, setV] = useState(value);
-  useEffect(() => {
-    const t = setTimeout(() => setV(value), delay);
-    return () => clearTimeout(t);
-  }, [value, delay]);
-  return v;
-}
+const DEFAULT_FILTERS = {
+  activeOnly: false,
+  page: 0,
+  pageSize: 15,
+  orderBy: "order_number",
+  ascending: false,
+  search: "",
+  statusIn: [],
+  clientId: null,
+  appraiserId: null,
+  assignedAppraiserId: null,
+  priority: "",
+  dueWindow: "",
+  from: "",
+  to: "",
+};
 
-/* ============================== LIST HOOK ============================== */
+const ACTIVE_STATUSES = new Set([
+  ORDER_STATUS.NEW,
+  ORDER_STATUS.IN_PROGRESS,
+  ORDER_STATUS.IN_REVIEW,
+]);
+
 /**
- * Unified orders list
- * - reads via ordersService.listOrders (v_orders_frontend)
- * - role scoping enforced by RLS
- * - lightweight realtime: refreshes on INSERT/UPDATE/DELETE to public.orders
+ * useOrders
+ *
+ * Now backed by the Supabase view (v_orders_frontend_v3) via fetchOrdersWithFilters.
+ * Filters are sent to the API; paging/sorting happen server-side.
  */
-export function useOrders(initial = {}) {
-  const [filters, setFilters] = useState({
-    activeOnly: true,
-    search: "",
-    statusIn: [],
-    clientId: null,
-    appraiserId: null,
-    from: "",
-    to: "",
-    page: 0,
-    pageSize: 50,
-    orderBy: "date_ordered",
-    ascending: false,
-    ...initial,
-  });
+export function useOrders(initialSeed = {}) {
+  const seed = useMemo(
+    () => ({ ...DEFAULT_FILTERS, ...(initialSeed || {}) }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [JSON.stringify(initialSeed)]
+  );
 
-  const debouncedSearch = useDebounce(filters.search, 350);
+  const [filters, setFilters] = useState(seed);
   const [data, setData] = useState([]);
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [error, setErr] = useState(null);
+  const [error, setError] = useState(null);
 
-  const refreshLock = useRef(false);
-  const refresh = async () => {
-    try {
+  // keep filters in sync if the seed changes from outside
+  useEffect(() => {
+    setFilters((prev) => ({ ...prev, ...seed }));
+  }, [seed]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
       setLoading(true);
-      setErr(null);
-      const { rows, count: c } = await listOrders({
-        ...filters,
-        search: debouncedSearch,
-      });
-      setData(rows || []);
-      setCount(c || 0);
-    } catch (e) {
-      setErr(e);
-    } finally {
-      setLoading(false);
-    }
-  };
+      setError(null);
 
-  // fetch on filter changes
-  useEffect(() => {
-    refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    debouncedSearch,
-    filters.activeOnly,
-    filters.statusIn.join("|"),
-    filters.clientId,
-    filters.appraiserId,
-    filters.from,
-    filters.to,
-    filters.page,
-    filters.pageSize,
-    filters.orderBy,
-    filters.ascending,
-  ]);
+      try {
+        const { rows, count, error: fetchErr } = await fetchOrdersWithFilters({
+          search: filters.search || "",
+          statusIn: filters.statusIn?.filter(Boolean) || [],
+          clientId: filters.clientId || null,
+          appraiserId: filters.appraiserId || null,
+          assignedAppraiserId: filters.assignedAppraiserId || null,
+          from: filters.from || null,
+          to: filters.to || null,
+          activeOnly: false, // fetch all; we'll filter active locally if needed
+          page: filters.page || 0,
+          pageSize: filters.pageSize || 15,
+          orderBy: filters.orderBy || "order_number",
+          ascending: filters.ascending ?? false,
+        });
 
-  // realtime: refresh list after small debounce whenever orders change
-  useEffect(() => {
-    const chan = supabase
-      .channel("orders:list")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "orders" }, schedule)
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders" }, schedule)
-      .on("postgres_changes", { event: "DELETE", schema: "public", table: "orders" }, schedule)
-      .subscribe();
-
-    let timer;
-    function schedule() {
-      if (refreshLock.current) return;
-      refreshLock.current = true;
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        refresh().finally(() => (refreshLock.current = false));
-      }, 250);
+        if (cancelled) return;
+        if (fetchErr) {
+          setError(fetchErr);
+          setData([]);
+          setCount(0);
+          return;
+        }
+        setData(mapOrderRows(rows || []));
+        setCount(count ?? (rows ? rows.length : 0));
+      } catch (e) {
+        if (cancelled) return;
+        setError(e);
+        setData([]);
+        setCount(0);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
 
+    load();
     return () => {
-      clearTimeout(timer);
-      try { supabase.removeChannel(chan); } catch {}
+      cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const totalPages = useMemo(
-    () => Math.max(1, Math.ceil((count || 0) / (filters.pageSize || 50))),
-    [count, filters.pageSize]
-  );
+  }, [JSON.stringify(filters)]);
 
   return {
     data,
@@ -116,77 +106,83 @@ export function useOrders(initial = {}) {
     error,
     filters,
     setFilters,
-    totalPages,
-    refresh,
   };
 }
 
-/* ============================= DETAIL HOOK ============================= */
 /**
- * Single order detail
- * - reads via ordersService.getOrder
- * - realtime: refresh on UPDATE/DELETE for this id
- * Returns: { data, loading, error, reload }
+ * useOrdersSummary
+ *
+ * Lightweight summary for dashboards, using the same view-backed fetcher.
+ * - count: total rows matching filters
+ * - inProgress: status === in_progress
+ * - dueIn7: final_due_at/due_date within next 7 days (>= today)
  */
-export function useOrder(orderId) {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(Boolean(orderId));
-  const [error, setErr] = useState(null);
+export function useOrdersSummary(filters = {}, { enabled = true } = {}) {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [rows, setRows] = useState([]);
+  const [count, setCount] = useState(0);
 
-  const reload = async () => {
-    if (!orderId) { setData(null); setLoading(false); setErr(null); return; }
-    try {
-      setLoading(true);
-      setErr(null);
-      const row = await getOrder(orderId);
-      setData(row || null);
-    } catch (e) {
-      setErr(e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { reload(); }, [orderId]); // load on id change
-
-  // realtime updates for this specific order id
   useEffect(() => {
-    if (!orderId) return;
-    const chan = supabase
-      .channel(`orders:detail:${orderId}`)
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "orders", filter: `id=eq.${orderId}` },
-        () => reload()
-      )
-      .on(
-        "postgres_changes",
-        { event: "DELETE", schema: "public", table: "orders", filter: `id=eq.${orderId}` },
-        () => reload()
-      )
-      .subscribe();
+    let cancelled = false;
 
-    return () => { try { supabase.removeChannel(chan); } catch {} };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orderId]);
+    async function load() {
+      if (!enabled) {
+        setLoading(false);
+        setRows([]);
+        setCount(0);
+        return;
+      }
 
-  return { data, loading, error, reload };
+      setLoading(true);
+      setError(null);
+
+      try {
+        const { rows, count } = await fetchOrdersWithFilters({
+          ...filters,
+          activeOnly: false, // fetch all, filter active locally if needed
+          page: 0,
+          pageSize: 1000, // pull enough to compute aggregates client-side
+          orderBy: filters.orderBy || "order_number",
+          ascending: filters.ascending ?? false,
+        });
+        if (cancelled) return;
+        setRows(mapOrderRows(rows || []));
+        setCount(count ?? (rows ? rows.length : 0));
+      } catch (e) {
+        if (cancelled) return;
+        setError(e);
+        setRows([]);
+        setCount(0);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled, JSON.stringify(filters)]);
+
+  const inProgress = rows.filter((o) => o.status_normalized === ORDER_STATUS.IN_PROGRESS).length;
+
+  const dueIn7 = rows.filter((o) => {
+    const dateStr = o.final_due_at || o.due_date;
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diffDays = (d - now) / (1000 * 60 * 60 * 24);
+    return diffDays >= 0 && diffDays <= 7;
+  }).length;
+
+  return {
+    loading,
+    error,
+    count,
+    inProgress,
+    dueIn7,
+    rows,
+  };
 }
-
-// Optional alias if any legacy code expects a different name
-export const useOrderById = useOrder;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

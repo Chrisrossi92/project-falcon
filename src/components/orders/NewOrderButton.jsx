@@ -11,7 +11,8 @@ export default function NewOrderButton({ className = "", show }) {
 
   return (
     <Link
-      to="/orders/new"
+      to="new"                 // <-- relative to current (/orders => /orders/new)
+      relative="path"          // <-- ensure v6+ relative behavior
       className={
         "inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 " +
         className
@@ -23,4 +24,5 @@ export default function NewOrderButton({ className = "", show }) {
     </Link>
   );
 }
+
 

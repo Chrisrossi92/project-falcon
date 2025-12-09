@@ -3,7 +3,7 @@ import supabase from "@/lib/supabaseClient";
 
 /** Source of truth */
 const ORDERS_TABLE = "orders";
-const ORDERS_VIEW  = "v_orders_frontend";
+const ORDERS_VIEW  = "v_orders_frontend_v4";
 
 /* ============================================================================
    READS
@@ -32,23 +32,34 @@ export async function listOrders({
     .select(
       `
         id,
-        order_no,
-        client_name,
-        display_title,
-        display_subtitle,
-        address,
+        order_no:order_number,
+        order_number,
         status,
+        client_name,
+        appraiser_name,
+        reviewer_name,
+        client_id,
+        appraiser_id,
+        reviewer_id,
+        address_line1,
+        city,
+        state,
+        postal_code,
+        property_type,
+        report_type,
         fee_amount,
-        date_ordered,
-        site_visit_at,
-        review_due_at,
-        final_due_at,
-        due_date,
-        assigned_appraiser_name,
-        assigned_appraiser_id,
+        base_fee,
+        appraiser_fee,
+        review_due_date:review_due_at,
+        final_due_date:final_due_at,
+        site_visit_date:site_visit_at,
         created_at,
         updated_at,
-        is_archived
+        property_contact_name,
+        property_contact_phone,
+        access_notes,
+        appraiser_color,
+        reviewer_color
       `,
       { count: "exact" }
     );
@@ -62,14 +73,14 @@ export async function listOrders({
   if (search) {
     const like = `%${search}%`;
     q = q.or(
-      [
-        `order_no.ilike.${like}`,
-        `client_name.ilike.${like}`,
-        `display_title.ilike.${like}`,
-        `display_subtitle.ilike.${like}`,
-        `address.ilike.${like}`,
-      ].join(",")
-    );
+  [
+    `order_number.ilike.${like}`,
+    `client_name.ilike.${like}`,
+    `address_line1.ilike.${like}`,
+    `city.ilike.${like}`,
+  ].join(",")
+);
+
   }
 
   if (statusIn?.length) q = q.in("status", statusIn);
@@ -93,21 +104,36 @@ export async function getOrder(orderId) {
     .select(
       `
         id,
-        order_no,
-        client_name,
-        address,
+        order_number,
         status,
-        fee_amount,
-        date_ordered,
-        site_visit_at,
-        review_due_at,
-        final_due_at,
-        due_date,
-        assigned_appraiser_name,
-        assigned_appraiser_id,
+        client_id,
+        client_name,
+        amc_id,
+        amc_name,
+        address_line1,
+        city,
+        state,
+        postal_code,
+        property_type,
+        report_type,
+        site_visit_date,
+        review_due_date,
+        final_due_date,
+        base_fee,
+        appraiser_fee,
+        split_pct,
+        appraiser_id,
+        appraiser_name,
+        reviewer_id,
+        reviewer_name,
+        property_contact_name,
+        property_contact_phone,
+        entry_contact_name,
+        entry_contact_phone,
+        access_notes,
+        notes,
         created_at,
-        updated_at,
-        is_archived
+        updated_at
       `
     )
     .eq("id", orderId)
@@ -264,13 +290,29 @@ export async function markDelivered(orderId, note = null)      { return sendToCl
 export const fetchOrders    = listOrders;
 export const fetchOrderById = getOrder;
 
-export async function updateOrderStatus(orderId, status, note) {
-  return setOrderStatus(orderId, status);
-}
-
 export async function updateAssignees(orderId, patch) {
   const { appraiser_id = null, reviewer_id = null } = patch || {};
   return assignParticipants(orderId, { appraiser_id, reviewer_id });
+}
+
+export async function updateOrderStatus(orderId, status, extra = {}) {
+  const patch = { status, ...(extra || {}) };
+  return updateOrder(orderId, patch);
+}
+
+export async function sendOrderToReview(order, actorId) {
+  const patch = {
+    status: "IN_REVIEW",
+  };
+  return updateOrder(order.id, patch);
+}
+
+export async function sendOrderBackToAppraiser(order, actorId) {
+  return updateOrderStatus(order.id, "NEEDS_REVISIONS");
+}
+
+export async function completeOrder(order, actorId) {
+  return updateOrderStatus(order.id, "COMPLETE");
 }
 
 /** Utility used elsewhere */

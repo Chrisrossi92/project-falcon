@@ -3,14 +3,11 @@ import { Routes, Route, Navigate } from "react-router-dom";
 
 import Layout from "@/layout/Layout";
 import ProtectedRoute from "@/lib/hooks/ProtectedRoute";
-import { useRole } from "@/lib/hooks/useRole";
 
 // Pages
 import Login from "@/pages/auth/Login";
 import Settings from "@/pages/Settings";
-import AdminDashboard from "@/pages/admin/AdminDashboard";
-import AppraiserDashboard from "@/pages/appraisers/AppraiserDashboard";
-import ReviewerDashboard from "@/pages/reviewers/ReviewerDashboard";
+import DashboardPage from "@/features/dashboard/DashboardPage";
 import Orders from "@/pages/orders/Orders";
 import NewOrder from "@/pages/NewOrder";
 import OrderDetail from "@/pages/orders/OrderDetail";
@@ -36,15 +33,6 @@ import ClientDetail from "@/pages/clients/ClientDetail";
 // Notifications
 import NotificationSettings from "@/pages/settings/NotificationSettings";
 
-
-function RoleSwitch() {
-  const { role } = useRole() || {};
-  const r = String(role || "").toLowerCase();
-  if (r === "admin") return <AdminDashboard />;
-  if (r === "reviewer") return <ReviewerDashboard />;
-  return <AppraiserDashboard />;
-}
-
 export default function AppRoutes() {
   return (
     <Routes>
@@ -57,7 +45,7 @@ export default function AppRoutes() {
           path="/dashboard"
           element={
             <ProtectedRoute roles={["admin", "reviewer", "appraiser"]}>
-              <RoleSwitch />
+              <DashboardPage />
             </ProtectedRoute>
           }
         />

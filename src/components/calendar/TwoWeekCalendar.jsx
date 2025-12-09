@@ -1,4 +1,3 @@
-// src/components/calendar/TwoWeekCalendar.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import EventChip from "@/components/calendar/EventChip";
 
@@ -84,12 +83,22 @@ export default function TwoWeekCalendar({
 
   return (
     <div className="space-y-2">
+      {/* NEW: pager/header ABOVE calendar */}
+      <div className="flex items-center justify-between sticky top-0 z-[1] bg-white/90 backdrop-blur px-1 py-1 border rounded">
+        <button className="border rounded px-2 py-1 text-sm" onClick={() => setAnchor(addDays(anchor, -(showWeekends?7:5)))}>Prev</button>
+        <div className="flex items-center gap-2">
+          <button className="border rounded px-2 py-1 text-sm" onClick={() => setAnchor(startOfWeek(new Date()))}>Today</button>
+          <div className="text-sm text-muted-foreground">
+            {days[0]?.toLocaleDateString()} – {days[days.length-1]?.toLocaleDateString()}
+          </div>
+        </div>
+        <button className="border rounded px-2 py-1 text-sm" onClick={() => setAnchor(addDays(anchor, (showWeekends?7:5)))}>Next</button>
+      </div>
+
       {/* Weekday header */}
       {showWeekdayHeader && (
         <div className={"grid text-xs text-muted-foreground " + (showWeekends ? "grid-cols-7" : "grid-cols-5")}>
-          {WD.filter((_,i)=> showWeekends || (i!==0 && i!==6)).map((d)=>(
-            <div key={d} className="px-2 py-1">{d}</div>
-          ))}
+          {WD.filter((_,i)=> showWeekends || (i!==0 && i!==6)).map((d)=>(<div key={d} className="px-2 py-1">{d}</div>))}
         </div>
       )}
 
@@ -104,32 +113,15 @@ export default function TwoWeekCalendar({
                 {list.slice(0, 4).map(ev => (
                   <EventChip key={ev.id} event={ev} compact={compact} onClick={() => onEventClick?.(ev)} />
                 ))}
-                {list.length > 4 && (
-                  <div className="text-[11px] text-muted-foreground">+{list.length-4} more</div>
-                )}
+                {list.length > 4 && <div className="text-[11px] text-muted-foreground">+{list.length-4} more</div>}
               </div>
             </div>
           );
         })}
       </div>
-
-      {/* Pager with Today */}
-      <div className="flex items-center justify-between">
-        <button className="border rounded px-2 py-1 text-sm" onClick={() => setAnchor(addDays(anchor, -(showWeekends?7:5)))}>Prev</button>
-        <div className="flex items-center gap-2">
-          <button className="border rounded px-2 py-1 text-sm" onClick={() => setAnchor(startOfWeek(new Date()))}>Today</button>
-          <div className="text-sm text-muted-foreground">
-            {days[0]?.toLocaleDateString()} – {days[days.length-1]?.toLocaleDateString()}
-          </div>
-        </div>
-        <button className="border rounded px-2 py-1 text-sm" onClick={() => setAnchor(addDays(anchor, (showWeekends?7:5)))}>Next</button>
-      </div>
     </div>
   );
 }
-
-
-
 
 
 

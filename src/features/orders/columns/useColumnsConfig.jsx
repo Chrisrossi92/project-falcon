@@ -1,160 +1,90 @@
 // src/features/orders/columns/useColumnsConfig.jsx
-import { useEffect, useMemo, useState } from "react";
-import { getColumnsForRole } from "./ordersColumns";
+import { useEffect, useMemo, useRef, useState } from "react";
+import getColumnsForRole from "./ordersColumns";
 
-// Each role gets its own saved state
-const keyFor = (role) => `cols:orders:${role}`;
+// bump so everyone gets new defaults once
+const KEY = (role) => `falcon:columns:v6:${role}`;
 
-function clamp(n, min, max) {
-  return Math.max(min, Math.min(max, n));
-}
+export default function useColumnsConfig(role, columnOptions = {}) {
+  const defaults = useMemo(() => getColumnsForRole(role, columnOptions), [role, columnOptions]);
 
-/**
- * Manages per-role columns: order, width, visibility.
- * - role: "admin" | "reviewer" | "appraiser"
- * - actionsCell: fn(row)->JSX
- * Returns: { active, defaults, startResize, endResize, onDrag*, saveOrder, toggle, reset }
- */
-export default function useColumnsConfig(role, actionsCell) {
-  const STORAGE_KEY = keyFor(role);
-
-  // Defaults from registry
-  const defaults = useMemo(() => getColumnsForRole(role, actionsCell), [role, actionsCell]);
-  const defaultMap = useMemo(() => {
-    const m = new Map();
-    defaults.forEach((d) => m.set(d.key, d));
-    return m;
-  }, [defaults]);
-
-  // Load saved
-  const [saved, setSaved] = useState(null);
-  useEffect(() => {
+  // safe hydrate
+  const [active, setActive] = useState(() => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      setSaved(raw ? JSON.parse(raw) : null);
-    } catch {
-      setSaved(null);
-    }
-  }, [STORAGE_KEY]);
+      const raw = localStorage.getItem(KEY(role));
+      if (!raw) return defaults;
+      const stored = JSON.parse(raw);
+      if (!Array.isArray(stored.active)) return defaults;
 
-  // Build active columns from defaults + saved (keeps any new columns that weren't saved)
-  const active = useMemo(() => {
-    // saved model: [{ key, width, hidden }]
-    const byKey = new Map();
-    defaults.forEach((d) => {
-      byKey.set(d.key, { ...d, width: d.width || "160px", hidden: false, locked: !!d.locked });
-    });
+      // rebuild by key (always take current header/cell/locked)
+      const dict = new Map(defaults.map((c) => [c.key, c]));
+      const rebuilt = stored.active
+        .map((s) => {
+          const base = dict.get(s.key);
+          if (!base) return null;
+          return { ...base, width: s.width || base.width };
+        })
+        .filter(Boolean);
 
-    const list = [];
-    if (saved && Array.isArray(saved)) {
-      saved.forEach((s) => {
-        const d = byKey.get(s.key);
-        if (!d) return;
-        const width = typeof s.width === "number" ? `${s.width}px` : s.width || d.width;
-        list.push({ ...d, width, hidden: !!s.hidden });
-        byKey.delete(s.key);
+      // ensure all defaults exist
+      defaults.forEach((d) => {
+        if (!rebuilt.find((c) => c.key === d.key)) rebuilt.push(d);
       });
+
+      return rebuilt;
+    } catch {
+      return defaults;
     }
+  });
 
-    // add any new defaults not in saved
-    byKey.forEach((d) => list.push(d));
+  useEffect(() => {
+    try { localStorage.setItem(KEY(role), JSON.stringify({ active })); } catch {}
+  }, [active, role]);
 
-    // only visible columns in this table
-    return list.filter((c) => !c.hidden);
-  }, [defaults, saved]);
-
-  // Persist order/width
-  function persist(nextList) {
-    const payload = nextList.map((c) => ({
-      key: c.key,
-      width: c.width,
-      hidden: !!c.hidden,
-    }));
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-    setSaved(payload);
-  }
-
-  // -------- resize ----------
-  const [resizing, setResizing] = useState(null); // { key, startX, startW }
-  function startResize(key, startX) {
-    const col = active.find((c) => c.key === key);
-    if (!col) return;
-    const startW = parseInt(col.width, 10) || 160;
-    setResizing({ key, startX, startW });
-  }
-  function endResize(clientX) {
-    if (!resizing) return;
-    const delta = clientX - resizing.startX;
-    const nextW = clamp(resizing.startW + delta, 100, 640); // min/max px
-    const next = active.map((c) =>
-      c.key === resizing.key ? { ...c, width: `${nextW}px` } : c
-    );
-    persist(next);
-    setResizing(null);
-  }
-
-  // -------- reorder ----------
-  const [dragIdx, setDragIdx] = useState(null);
-  function onDragStart(idx) { setDragIdx(idx); }
-  function onDragOver(e) { e.preventDefault(); }
-  function onDrop(idx) {
-    if (dragIdx == null || dragIdx === idx) return;
-    // prevent moving locked column
-    if (active[dragIdx]?.locked || active[idx]?.locked) {
-      setDragIdx(null);
-      return;
-    }
-    const next = [...active];
-    const [item] = next.splice(dragIdx, 1);
-    next.splice(idx, 0, item);
-    persist(next);
-    setDragIdx(null);
-  }
-
-  // Toggle visibility (if you want to add checkboxes later)
-  function toggle(key, hidden) {
-    const full = saved && Array.isArray(saved)
-      ? [...saved]
-      : defaults.map((d) => ({ key: d.key, width: d.width || "160px", hidden: false }));
-    const i = full.findIndex((x) => x.key === key);
-    if (i >= 0) full[i] = { ...full[i], hidden: !!hidden };
-    else full.push({ key, width: "160px", hidden: !!hidden });
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(full));
-    setSaved(full);
-  }
-
-  function saveOrder(orderKeys) {
-    const full = (saved && Array.isArray(saved))
-      ? saved.map((s) => ({ ...s }))
-      : defaults.map((d) => ({ key: d.key, width: d.width || "160px", hidden: false }));
-    // maintain widths/hidden, just reorder by given keys
-    const mapS = new Map(full.map((s) => [s.key, s]));
-    const next = [];
-    orderKeys.forEach((k) => {
-      const s = mapS.get(k);
-      if (s) next.push(s);
-      mapS.delete(k);
+  // --- drag to reorder
+  const dragIndex = useRef(null);
+  function onDragStart(i) { dragIndex.current = i; }
+  function onDragOver(e) { e.dataTransfer.dropEffect = "move"; }
+  function onDrop(i) {
+    if (dragIndex.current == null) return;
+    const from = dragIndex.current, to = i;
+    if (from === to) return;
+    setActive((cols) => {
+      const next = cols.slice();
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
     });
-    mapS.forEach((s) => next.push(s));
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    setSaved(next);
+    dragIndex.current = null;
   }
 
-  function reset() {
-    localStorage.removeItem(STORAGE_KEY);
-    setSaved(null);
+  // --- resize: start / move / end
+  const resizeRef = useRef(null); // { key, startX, startW }
+  function startResize(key, startX, startW) {
+    resizeRef.current = { key, startX, startW: Math.max(80, Math.round(startW)) };
+  }
+  function resizeTo(clientX) {
+    const r = resizeRef.current;
+    if (!r) return;
+    const delta = clientX - r.startX;
+    const nextPx = Math.max(120, Math.min(520, r.startW + delta)); // clamp
+    setActive((cols) =>
+      cols.map((c) => (c.key === r.key ? { ...c, width: `${nextPx}px` } : c))
+    );
+  }
+  function endResize() {
+    resizeRef.current = null;
   }
 
   return {
-    defaults,
     active,
-    startResize,
-    endResize,
     onDragStart,
     onDragOver,
     onDrop,
-    saveOrder,
-    toggle,
-    reset,
+    startResize,
+    resizeTo,
+    endResize,
   };
 }
+
+
