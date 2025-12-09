@@ -59,53 +59,31 @@ export default function OrdersTable() {
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search title, order #, address…"
-          className="w-full max-w-xl rounded-md border px-3 py-2 text-sm"
+          placeholder="Search orders"
+          className="border rounded px-3 py-2 text-sm"
         />
+        {loading && <div className="text-xs text-gray-500">Loading…</div>}
+        {error && <div className="text-xs text-rose-600">Failed: {error.message}</div>}
       </div>
 
-      {loading && (
-        <div className="p-3 text-sm text-gray-600">Loading orders…</div>
-      )}
-      {error && (
-        <div className="p-3 text-sm text-red-700 bg-red-50 border rounded">
-          Failed to load orders: {error.message}
-        </div>
-      )}
-
-      {!loading && !error && (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="text-xs text-gray-500 border-b">
-                <th className="px-3 py-2">Order #</th>
-                <th className="px-3 py-2">Title</th>
-                <th className="px-3 py-2">Address</th>
-                <th className="px-3 py-2">Status</th>
-                <th className="px-3 py-2">Due</th>
-                <th className="px-3 py-2">Priority</th>
-                <th className="px-3 py-2">Last Activity</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-3 py-6 text-sm text-gray-500">
-                    No orders found.
-                  </td>
-                </tr>
-              ) : (
-                rows.map((o) => <Row key={o.id} o={o} />)
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <div className="overflow-x-auto">
+        <table className="min-w-full bg-white border rounded-lg text-sm">
+          <thead className="bg-gray-50 text-left">
+            <tr>
+              <th className="px-3 py-2">Order #</th>
+              <th className="px-3 py-2">Title</th>
+              <th className="px-3 py-2">Address</th>
+              <th className="px-3 py-2">Status</th>
+              <th className="px-3 py-2">Due</th>
+              <th className="px-3 py-2">Priority</th>
+              <th className="px-3 py-2">Last activity</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((o) => <Row key={o.id} o={o} />)}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
-
-
-
-
-

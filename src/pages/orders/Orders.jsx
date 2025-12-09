@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import OrdersFilters from "@/features/orders/OrdersFilters";
 import UnifiedOrdersTable from "@/features/orders/UnifiedOrdersTable";
-import NewOrderButton from "@/components/orders/NewOrderButton";  // <-- add
+import NewOrderButton from "@/components/orders/NewOrderButton";
 
 function useQuery() {
   const { search } = useLocation();
@@ -22,7 +22,7 @@ function readFilters(qs) {
     statusIn,
     page: Math.max(0, parseInt(qs.get("page") || "0", 10)),
     pageSize: Math.max(10, parseInt(qs.get("pageSize") || "15", 10)),
-    orderBy: "order_no",
+    orderBy: "order_number",
     ascending: false,
   };
 }
@@ -57,14 +57,12 @@ export default function OrdersPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Orders</h1>
-        {/* Use router-aware button instead of <a href> */}
         <NewOrderButton show className="ml-2" />
       </div>
 
       <OrdersFilters value={filters} onChange={onChange} />
 
       <UnifiedOrdersTable
-        role="admin"
         key={JSON.stringify({
           q: filters.search,
           s: filters.statusIn?.[0] || "",
@@ -80,6 +78,8 @@ export default function OrdersPage() {
     </div>
   );
 }
+
+
 
 
 

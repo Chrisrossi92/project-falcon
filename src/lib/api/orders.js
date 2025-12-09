@@ -1,38 +1,73 @@
 // src/lib/api/orders.js
+// src/lib/api/orders.js
 import supabase from "@/lib/supabaseClient";
 
-const SOURCE = "v_orders_frontend_v3";
+const SOURCE = "v_orders_frontend_v4";
 
-function applyCommonFilters(q, {
-  activeOnly = true,
-  statusIn = null,
-  clientId = null,
-  appraiserId = null,
-  from = null,
-  to = null,
-  search = "",
-} = {}) {
-  if (activeOnly) {
-    // hide completed
-    q = q.not("status", "in", '("Complete","Completed","COMPLETE")');
-    // hide archived (treat null as false)
-    q = q.or("is_archived.is.null,is_archived.eq.false");
-  }
+const BASE_SELECT = `
+  id,
+  order_number,
+  status,
+  client_id,
+  client_name,
+  amc_id,
+  amc_name,
+  address_line1,
+  city,
+  state,
+  postal_code,
+  property_type,
+  report_type,
+  site_visit_date,
+  review_due_date,
+  final_due_date,
+  base_fee,
+  appraiser_fee,
+  split_pct,
+  appraiser_id,
+  appraiser_name,
+  reviewer_id,
+  reviewer_name,
+  created_at,
+  updated_at
+`;
 
+function applyCommonFilters(
+  q,
+  {
+    activeOnly = false,
+    statusIn = null,
+    clientId = null,
+    appraiserId = null,
+    assignedTo = null,
+    from = null,
+    to = null,
+    search = "",
+  } = {}
+) {
   if (statusIn?.length) q = q.in("status", statusIn);
   if (clientId) q = q.eq("client_id", clientId);
   if (appraiserId) q = q.eq("appraiser_id", appraiserId);
-  if (from) q = q.gte("date_ordered", from);
-  if (to)   q = q.lte("date_ordered", to);
+  if (assignedTo) q = q.eq("assigned_to", assignedTo);
+
+  // Date window – use created_at (or swap to due_date if you prefer)
+  if (from) q = q.gte("created_at", from);
+  if (to) q = q.lte("created_at", to);
 
   if (search?.trim()) {
     const s = `%${search.trim()}%`;
-    q = q.or([
-      `order_no.ilike.${s}`,
-      `display_title.ilike.${s}`,
-      `display_subtitle.ilike.${s}`,
-      `address.ilike.${s}`,
-    ].join(","));
+    q = q.or(
+      [
+        `order_number.ilike.${s}`,
+        `client_name.ilike.${s}`,
+        `appraiser_name.ilike.${s}`,
+        `address_line1.ilike.${s}`,
+        `city.ilike.${s}`,
+        `state.ilike.${s}`,
+        `property_type.ilike.${s}`,
+        `report_type.ilike.${s}`,
+      ].join(",")
+    );
   }
 
   return q;
@@ -44,18 +79,32 @@ export async function fetchOrdersWithFilters(filters = {}) {
     statusIn = null,
     clientId = null,
     appraiserId = null,
+    assignedTo = null,
     from = null,
     to = null,
-    activeOnly = true,
+    activeOnly = false,
     page = 0,
     pageSize = 50,
-    orderBy = "date_ordered",
+    orderBy = "created_at", // or "order_number"
     ascending = false,
   } = filters;
 
-  // COUNT (make sure filters are applied here too)
-  let countQuery = supabase.from(SOURCE).select("*", { count: "exact", head: true });
-  countQuery = applyCommonFilters(countQuery, { activeOnly, statusIn, clientId, appraiserId, from, to, search });
+  // COUNT
+  let countQuery = supabase
+    .from(SOURCE)
+    .select("id", { count: "exact", head: true });
+
+  countQuery = applyCommonFilters(countQuery, {
+    activeOnly,
+    statusIn,
+    clientId,
+    appraiserId,
+    assignedTo,
+    from,
+    to,
+    search,
+  });
+
   const { count, error: countErr } = await countQuery;
   if (countErr) {
     console.error("fetchOrdersWithFilters count error:", countErr);
@@ -63,49 +112,36 @@ export async function fetchOrdersWithFilters(filters = {}) {
 
   // DATA
   const fromIdx = page * pageSize;
-  const toIdx   = fromIdx + pageSize - 1;
+  const toIdx = fromIdx + pageSize - 1;
 
   let dataQuery = supabase
     .from(SOURCE)
-    .select(`
-  id,
-  order_no,
-  display_title,
-  display_subtitle,
-  client_id,
-  client_name,
-  appraiser_id,
-  appraiser_name,
-  assigned_appraiser_id,
-  assigned_appraiser_name,
-  status,
-  property_type,
-  address,
-  city,
-  state,
-  postal_code,
-  site_visit_at,
-  review_due_at,
-  final_due_at,
-  due_date,
-  fee_amount,
-  fee,
-  base_fee,
-  date_ordered,
-  is_archived
-`)
+    .select(BASE_SELECT, { count: "exact" })
     .order(orderBy, { ascending })
     .range(fromIdx, toIdx);
 
-  dataQuery = applyCommonFilters(dataQuery, { activeOnly, statusIn, clientId, appraiserId, from, to, search });
+  dataQuery = applyCommonFilters(dataQuery, {
+    activeOnly,
+    statusIn,
+    clientId,
+    appraiserId,
+    assignedTo,
+    from,
+    to,
+    search,
+  });
 
   const { data, error } = await dataQuery;
   if (error) {
-    console.error("fetchOrdersWithFilters error:", error);
-    return { rows: [], count: 0 };
+    console.error("useOrders Supabase error:", error);
+    return { rows: [], count: 0, error };
   }
+
   return { rows: data || [], count: count || 0 };
 }
+
+// (leave the rest of the file as-is)
+
 
 /* (the rest of the file can stay as in your last working version – updateOrderStatus,
    updateOrderDates, etc.) */
@@ -219,16 +255,72 @@ export async function bulkAssignAppraiser(orderIds = [], appraiserId) {
 
 /** Minimal create (expand as your schema evolves). */
 export async function createOrder(payload = {}) {
-  const { data, error } = await supabase
-    .from("orders")
-    .insert(payload)
-    .select()
-    .single();
-  if (error) {
-    console.error("createOrder error:", error);
-    throw error;
+  // Map form-friendly fields to real columns and drop unknown keys
+  const prepared = {
+    order_number: payload.order_number || payload.order_no || null,
+    status: payload.status || "new",
+    manual_client: payload.manual_client ?? payload.manual_client_name ?? payload.client_name ?? null,
+    client_id: payload.client_id ?? null,
+    manual_appraiser: payload.manual_appraiser ?? null,
+    appraiser_id: payload.appraiser_id ?? null,
+    reviewer_id: payload.reviewer_id ?? null,
+    assigned_to: payload.assigned_to ?? payload.appraiser_id ?? null,
+    address: payload.address ?? payload.property_address ?? null,
+    property_address: payload.property_address ?? payload.address ?? null,
+    city: payload.city ?? payload.property_city ?? null,
+    state: payload.state ?? payload.property_state ?? null,
+    zip: payload.zip ?? payload.postal_code ?? payload.property_zip ?? null,
+    property_type: payload.property_type ?? null,
+    report_type: payload.report_type ?? null,
+    base_fee: payload.base_fee ?? null,
+    fee_amount: payload.fee_amount ?? null,
+    appraiser_fee: payload.appraiser_fee ?? null,
+    appraiser_split: payload.appraiser_split ?? null,
+    split_pct: payload.split_pct ?? null,
+    site_visit_at: payload.site_visit_at ?? null,
+    review_due_at: payload.review_due_at ?? payload.due_for_review ?? null,
+    final_due_at: payload.final_due_at ?? payload.due_to_client ?? null,
+    date_ordered: payload.date_ordered ?? new Date().toISOString(),
+    due_date: payload.due_date ?? null,
+    notes: payload.notes ?? null,
+    special_instructions: payload.special_instructions ?? null,
+    entry_contact_name: payload.entry_contact_name ?? null,
+    entry_contact_phone: payload.entry_contact_phone ?? null,
+    property_contact_name: payload.property_contact_name ?? null,
+    property_contact_phone: payload.property_contact_phone ?? null,
+    access_notes: payload.access_notes ?? null,
+    amc_id: payload.amc_id ?? null,
+    managing_amc_id: payload.managing_amc_id ?? null,
+    external_order_no: payload.external_order_no ?? null,
+    client_invoice_amount: payload.client_invoice_amount ?? null,
+    client_invoice: payload.client_invoice ?? null,
+    invoice_number: payload.invoice_number ?? null,
+    paid_status: payload.paid_status ?? null,
+    paid_at: payload.paid_at ?? null,
+  };
+
+  // Strip undefined keys; allow nulls to be explicit
+  const insertPayload = Object.fromEntries(
+    Object.entries(prepared).filter(([, v]) => v !== undefined)
+  );
+
+  try {
+    const { data, error } = await supabase
+      .from("orders")
+      .insert(insertPayload)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("createOrder failed", error);
+      throw error;
+    }
+
+    return data;
+  } catch (err) {
+    console.error("createOrder failed", err);
+    throw err;
   }
-  return data;
 }
 
 /** Soft delete (archive). */

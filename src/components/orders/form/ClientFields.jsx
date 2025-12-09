@@ -34,7 +34,7 @@ export default function ClientFields({ value, onChange }) {
         onChange={(e) => onChange({ managing_amc_id: e.target.value || null, client_id: null })}
         className="w-full border rounded px-2 py-1 text-sm"
       >
-        <option value="">— None / Direct —</option>
+        <option value="">- None / Direct -</option>
         {amcs.map((a) => (<option key={a.id} value={a.id}>{a.name}</option>))}
       </select>
 
@@ -45,7 +45,7 @@ export default function ClientFields({ value, onChange }) {
           onChange={(e) => onChange({ client_id: e.target.value || null, manual_client_name: "" })}
           className="w-full border rounded px-2 py-1 text-sm"
         >
-          <option value="">{value.managing_amc_id ? "Select client tied to this AMC…" : "Select client…"}</option>
+          <option value="">{value.managing_amc_id ? "Select client tied to this AMC..." : "Select client..."}</option>
           {filteredClients.map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}
         </select>
       </div>

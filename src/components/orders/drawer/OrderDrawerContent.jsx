@@ -1,30 +1,45 @@
-// src/components/orders/view/OrderDrawerContent.jsx
+﻿// src/components/orders/view/OrderDrawerContent.jsx
 import React, { useEffect, useState } from "react";
 import supabase from "@/lib/supabaseClient";
 import ActivityLog from "@/components/activity/ActivityLog";
 import OrderDatesPanel from "@/components/orders/view/OrderDatesPanel";
 import AppraiserDrawerSummary from "@/components/orders/view/AppraiserDrawerSummary";
 
-/** Try v3 first; fall back to v2 if v3 isn't created yet. */
+/** Pull from the normalized v3 view (no legacy fallback). */
 async function fetchViewRow(orderId) {
-  let { data, error } = await supabase
+  const { data, error } = await supabase
     .from("v_orders_frontend_v3")
-    .select("*")
+    .select(
+      `
+        id,
+        order_no:order_number,
+        order_number,
+        status,
+        client_name,
+        appraiser_name,
+        client_id,
+        appraiser_id,
+        address,
+        city,
+        state,
+        zip,
+        property_type,
+        report_type,
+        fee_amount,
+        base_fee,
+        appraiser_fee,
+        review_due_at,
+        final_due_at,
+        due_date,
+        created_at,
+        property_contact_name,
+        property_contact_phone,
+        access_notes,
+        site_visit_at
+      `
+    )
     .eq("id", orderId)
     .maybeSingle();
-
-  const relMissing =
-    error && String(error.message || "").toLowerCase().includes("relation");
-
-  if (relMissing) {
-    const res = await supabase
-      .from("v_orders_frontend_v2")
-      .select("*")
-      .eq("id", orderId)
-      .maybeSingle();
-    if (res.error) throw res.error;
-    return res.data || null;
-  }
   if (error) throw error;
   return data || null;
 }
@@ -109,6 +124,9 @@ export default function OrderDrawerContent({ orderId, order: rowFromTable }) {
   if (loading) return <div className="p-3 text-sm text-muted-foreground">Loading…</div>;
   if (err) return <div className="p-3 text-sm text-rose-700 bg-rose-50 border rounded">{err}</div>;
 
+  const orderNumber =
+    row?.order_no || row?.order_number || (row?.id ? row.id.slice(0, 8) : "");
+
 // ---- Resolve Property Contact from whatever columns exist on orders ----
 function firstTruthy(obj, keys) {
   for (const k of keys) {
@@ -142,7 +160,7 @@ const contactName = (
     "property_contact_name",
   ]) ??
   findByKeyIncludes(row, ["contact"], ["phone", "email"])
-) || "—";
+) || "â€”";
 
 let rawPhone = (
   firstTruthy(row, [
@@ -190,7 +208,7 @@ const telHref =
       <div className="col-span-12 lg:col-span-8 space-y-3">
         <div className="rounded border bg-white flex flex-col">
           <div className="flex items-center justify-between border-b px-3 py-2">
-            <div className="text-sm font-medium">Activity</div>
+            <div className="text-sm font-medium">Order {orderNumber || "—"}</div>
           </div>
           <div className="p-3 min-h-[700px] flex-1 flex flex-col">
             <ActivityLog orderId={id} showComposer fill className="h-full flex-1" />
@@ -207,7 +225,7 @@ const telHref =
           </div>
           <div className="p-3 text-sm">
             <div className="text-xs text-muted-foreground">Name</div>
-            <div>{contactName || "—"}</div>
+            <div>{contactName || "â€”"}</div>
 
             <div className="mt-2 text-xs text-muted-foreground">Phone</div>
             <div>
@@ -216,7 +234,7 @@ const telHref =
                   {rawPhone}
                 </a>
               ) : (
-                rawPhone || "—"
+                rawPhone || "â€”"
               )}
             </div>
           </div>
@@ -250,6 +268,8 @@ const telHref =
     </div>
   );
 }
+
+
 
 
 

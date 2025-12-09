@@ -1,5 +1,5 @@
 import React, { useMemo, useCallback, useState } from "react";
-import useCalendarEventLoader from "@/lib/hooks/useCalendarEvents"; // default export
+import useCalendarEventLoader from "@/lib/hooks/useCalendarEvents"; // fallback to backend view/RPC
 import CalendarLegend from "@/components/calendar/CalendarLegend";
 import TwoWeekCalendar from "@/components/calendar/TwoWeekCalendar";
 import MonthCalendar from "@/components/calendar/MonthsCalendar";
@@ -16,9 +16,9 @@ function normalizeType(t) {
 function iconFor(type) {
   switch (type) {
     case "site":   return "📍";
-    case "review": return "🧪";
-    case "final":  return "✅";
-    default:       return "•";
+    case "review": return "📝";
+    case "final":  return "📨";
+    default:       return "📅";
   }
 }
 
@@ -34,34 +34,70 @@ function labelFor(type) {
 function shortAddress(address = "", client = "") {
   const a = (address || "").trim();
   const c = (client || "").trim();
-  if (a && c) return `${a} — ${c}`;
+  if (a && c) return `${a} - ${c}`;
   if (a) return a;
   if (c) return c;
   return "";
 }
 
-export default function DashboardCalendarPanel({ onOpenOrder, fixedHeader = true }) {
-  // your canonical loader that hits v_admin_calendar_enriched
-  const baseLoader = useCalendarEventLoader();
+function buildTitle(type, suffix) {
+  const icon = iconFor(type);
+  const human = labelFor(type);
+  return suffix ? `${icon} ${human} - ${suffix}` : `${icon} ${human}`;
+}
 
-  // Wrap loader to guarantee icon + human title
-  const loader = useCallback(async (start, end) => {
-    const rows = await baseLoader(start, end);
-    return (rows || []).map((r) => {
-      const type = normalizeType(r.type || r.event_type);
-      const icon = iconFor(type);
-      const human = labelFor(type);
-      const suffix = shortAddress(r.address, r.client);
-      // Always build a readable title; ignore “— —” from backend
-      const title = suffix ? `${icon} ${human} — ${suffix}` : `${icon} ${human}`;
-      return {
-        ...r,
-        title,
-        // keep the order id reachable for clickthroughs
-        orderId: r.orderId || r.order_id || r.id || null,
-      };
-    });
-  }, [baseLoader]);
+export default function DashboardCalendarPanel({ orders = [], onOpenOrder, fixedHeader = true }) {
+  const hasOrders = Array.isArray(orders) && orders.length > 0;
+  const baseLoader = useCalendarEventLoader(); // fallback when no orders provided
+
+  // Loader that prefers local orders list; falls back to backend loader
+  const loader = useCallback(
+    async (start, end) => {
+      if (hasOrders) {
+        const startMs = start.getTime();
+        const endMs = end.getTime();
+        const events = [];
+
+        orders.forEach((o) => {
+          const suffix = shortAddress(o.address, o.client_name || o.client || "");
+          const pushEvent = (type, ts) => {
+            if (!ts) return;
+            const when = new Date(ts);
+            const ms = when.getTime();
+            if (Number.isNaN(ms)) return;
+            if (ms < startMs || ms > endMs) return;
+            events.push({
+              id: `${o.id}-${type}-${ms}`,
+              type,
+              title: buildTitle(type, suffix),
+              start: when.toISOString(),
+              end: when.toISOString(),
+              orderId: o.id || null,
+            });
+          };
+
+          pushEvent("site", o.site_visit_at);
+          pushEvent("review", o.review_due_at);
+          pushEvent("final", o.final_due_at || o.due_date);
+        });
+
+        return events;
+      }
+
+      // fallback to backend loader if no orders supplied
+      const rows = await baseLoader(start, end);
+      return (rows || []).map((r) => {
+        const type = normalizeType(r.type || r.event_type);
+        const suffix = shortAddress(r.address, r.client);
+        return {
+          ...r,
+          title: buildTitle(type, suffix),
+          orderId: r.orderId || r.order_id || r.id || null,
+        };
+      });
+    },
+    [baseLoader, hasOrders, orders]
+  );
 
   const tabs = useMemo(
     () => [
@@ -149,8 +185,3 @@ export default function DashboardCalendarPanel({ onOpenOrder, fixedHeader = true
     </div>
   );
 }
-
-
-
-
-

@@ -1,4 +1,4 @@
-import { supa as defaultClient } from '../../lib/supa.client';
+import { supabase as defaultClient } from '@/lib/supabaseClient';
 
 export async function updateOrderStatus(orderId, newStatus, note, client = defaultClient) {
   const { data, error } = await client.rpc('rpc_update_order_status', {

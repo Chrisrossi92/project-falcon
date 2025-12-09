@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import useRole from "@/lib/hooks/useRole";
 import useSession from "@/lib/hooks/useSession";
 import { useOrders } from "@/lib/hooks/useOrders";
+import { formatOrderStatusLabel } from "@/lib/constants/orderStatus";
 
 import OrdersTableRow from "@/components/orders/table/OrdersTableRow";
 import OrdersTablePagination from "@/components/orders/table/OrdersTablePagination";
@@ -9,17 +10,18 @@ import OrderDrawerContent from "@/components/orders/drawer/OrderDrawerContent";
 import OrderOpenFullLink from "@/components/orders/drawer/OrderOpenFullLink";
 import ReviewerActionCell from "@/components/orders/table/ReviewerActionCell";
 import { updateOrderStatus } from "@/lib/api/orders";
+import { sendOrderToReview, sendOrderBackToAppraiser, completeOrder } from "@/lib/services/ordersService";
 
 import useColumnsConfig from "@/features/orders/columns/useColumnsConfig";
 import getColumnsForRole from "@/features/orders/columns/ordersColumns";
 
 /* helpers */
-const feeOf = (r) => [r?.fee_amount, r?.fee, r?.base_fee, r?.fee_total].find((v) => v != null);
-const fmtMoney = (n) => (n == null ? "—" : Number(n).toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 }));
+const feeOf = (r) => [r?.base_fee, r?.appraiser_fee].find((v) => v != null);
+const fmtMoney = (n) => (n == null ? "-" : Number(n).toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 }));
 const cityLine = (r) => {
   const c = r?.city || "";
   const s = r?.state || "";
-  const z = r?.zip || r?.postal_code || "";
+  const z = r?.postal_code || "";
   const left = [c, s].filter(Boolean).join(", ");
   return (left + (z ? ` ${z}` : "")).trim();
 };
@@ -27,7 +29,9 @@ const mapsHref = (street, cityline) => {
   const full = [street || "", cityline || ""].filter(Boolean).join(", ");
   return full ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(full)}` : null;
 };
-const fmtDate = (d) => (!d ? "—" : isNaN(new Date(d)) ? "—" : new Date(d).toLocaleDateString());
+const fmtDate = (d) => (!d ? "-" : isNaN(new Date(d)) ? "-" : new Date(d).toLocaleDateString());
+const orderNumberOf = (row) =>
+  row?.order_number || (row?.id ? row.id.slice(0, 8) : "");
 
 export default function UnifiedOrdersTable({
   role: roleProp,
@@ -36,14 +40,16 @@ export default function UnifiedOrdersTable({
   className = "",
   style = {},
 }) {
-  const { role: hookRole } = useRole() || {};
-  const { user } = useSession() || {};
-  const userId = user?.id || user?.user_id || user?.uid || null;
+  const { user: sessionUser } = useSession() || {};
+  const userId = sessionUser?.id || sessionUser?.user_id || sessionUser?.uid || null;
 
-  const role = (roleProp || hookRole || "appraiser").toLowerCase();
-  const isAdmin = role === "admin";
-  const isReviewer = role === "reviewer";
-  const isAppraiser = !isAdmin && !isReviewer;
+  const { role: hookRole } = useRole() || {};
+  const normalizedRole = (roleProp || hookRole || "appraiser").toString().toLowerCase();
+  const isAdminLike = normalizedRole === "owner" || normalizedRole === "admin";
+  const isReviewer = normalizedRole === "reviewer";
+  const isAppraiser = normalizedRole === "appraiser";
+  const role = normalizedRole;
+  const assignmentLabel = isAppraiser ? "Reviewer" : "Appraiser";
 
   /* seed built from the **live** filters prop */
   const seed = useMemo(() => {
@@ -100,8 +106,28 @@ export default function UnifiedOrdersTable({
       </button>
     );
 
+  async function handleSendToReview(order) {
+    await sendOrderToReview(order, sessionUser?.id);
+    refresh();
+  }
+
+  async function handleSendBackToAppraiser(order) {
+    await sendOrderBackToAppraiser(order, sessionUser?.id);
+    refresh();
+  }
+
+  async function handleCompleteOrder(order) {
+    await completeOrder(order, sessionUser?.id);
+    refresh();
+  }
+
   const { active: columns, onDragStart, onDragOver, onDrop, startResize, resizeTo, endResize } =
-    useColumnsConfig(role, actionsCell);
+    useColumnsConfig(normalizedRole, {
+      actionsCell,
+      onSendToReview: handleSendToReview,
+      onSendBackToAppraiser: handleSendBackToAppraiser,
+      onComplete: handleCompleteOrder,
+    });
 
   const template = columns.map((c) => c.width).join(" ");
 
@@ -167,7 +193,7 @@ export default function UnifiedOrdersTable({
         <div className="divide-y" style={{ minWidth: "900px" }}>
           {loading ? (
             [...Array(tableFilters.pageSize || pageSize)].map((_, i) => (
-              <div key={i} className="px-4 py-3 text-sm text-slate-500">Loading…</div>
+              <div key={i} className="px-4 py-3 text-sm text-slate-500">Loading...</div>
             ))
           ) : !data?.length ? (
             <div className="px-4 py-8 text-center text-sm text-slate-500">No orders.</div>
@@ -176,7 +202,7 @@ export default function UnifiedOrdersTable({
               const drawerNode = (
                 <div data-no-drawer>
                   <div className="flex items-center justify-between mb-2">
-                    <div className="text-sm font-semibold">Order {o.order_no ?? o.order_number ?? o.id?.slice(0, 8)}</div>
+                    <div className="text-sm font-semibold">Order {orderNumberOf(o)}</div>
                     <OrderOpenFullLink orderId={o.id} />
                   </div>
                   <OrderDrawerContent orderId={o.id} order={o} onRefresh={refresh} />
@@ -196,82 +222,67 @@ export default function UnifiedOrdersTable({
                       style={{ display: "grid", gridTemplateColumns: template, columnGap: ".25rem" }}
                     >
                       {columns.map((c, idx) => {
-                        /* ADDRESS */
+                        // Address
                         if (c.key === "address") {
-                          const street = o.address || o.property_address || "";
-                          const cline = cityLine(o);
-                          const href = mapsHref(street, cline);
+                          const street = o.address_line1 || "-";
+                          const cityLineStr = [o.city, o.state].filter(Boolean).join(", ");
+                          const cityZip = [cityLineStr, o.postal_code].filter(Boolean).join(" ");
                           return (
-                            <div key={c.key} className={`min-w-0 ${idx === 0 ? stickyCell : ""}`}>
-                              <div className="text-sm leading-tight">
-                                {href ? (
-                                  <a
-                                    href={href}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-sky-700 hover:underline"
-                                    data-no-drawer
-                                    onClick={(e) => e.stopPropagation()}
-                                    title={`${street}${cline ? `, ${cline}` : ""}`}
-                                  >
-                                    {street || "—"}
-                                  </a>
-                                ) : (
-                                  <span className="truncate">{street || "—"}</span>
-                                )}
+                            <div key={c.key} className={idx === 0 ? stickyCell : ""}>
+                              <div className="flex flex-col">
+                                <span className="text-sm text-slate-800 truncate">{street}</span>
+                                {cityZip && <span className="text-xs text-slate-500 truncate">{cityZip}</span>}
                               </div>
-                              <div className="text-xs leading-tight text-slate-500 truncate">
-                                {cline || "—"}
+                              {mapsHref(o.address_line1, cityLineStr) && (
+                                <a className="text-[11px] text-indigo-600 hover:underline" href={mapsHref(o.address_line1, cityLineStr)} target="_blank" rel="noreferrer">
+                                  Open in Maps
+                                </a>
+                              )}
+                            </div>
+                          );
+                        }
+
+                        // Client
+                        if (c.key === "client") {
+                          return (
+                            <div key={c.key} className={idx === 0 ? stickyCell : ""}>
+                              <div className="font-medium">{o.client_name || "-"}</div>
+                              <div className="text-xs text-slate-500">#{orderNumberOf(o)}</div>
+                            </div>
+                          );
+                        }
+
+                        // Status
+                        if (c.key === "status") {
+                          const rawStatus = o.status_normalized || o.status;
+                          const statusLabel = formatOrderStatusLabel(rawStatus) || rawStatus || "-";
+                          return (
+                            <div key={c.key} className="flex flex-col gap-1">
+                              <div className="text-xs font-semibold uppercase tracking-wide">{statusLabel}</div>
+                              <div className="text-[11px] text-slate-500">
+                                {o.review_due_at ? `Review: ${fmtDate(o.review_due_at)}` : ""}
+                                {o.final_due_at ? ` Final: ${fmtDate(o.final_due_at)}` : ""}
                               </div>
                             </div>
                           );
                         }
 
-                        /* PROPERTY / REPORT TYPE */
-                        if (c.key === "propReport" || c.key === "prop_report") {
-                          return (
-                            <div key={c.key} className={`min-w-0 ${idx === 0 ? stickyCell : ""}`}>
-                              <div className="text-sm truncate">{o.property_type || "—"}</div>
-                              <div className="text-xs text-slate-500 truncate">{o.report_type || "—"}</div>
-                            </div>
-                          );
-                        }
-
-                        /* FEE / APPRAISER */
-                        if (c.key === "meta") {
-                          return (
-                            <div key={c.key} className={`min-w-0 ${idx === 0 ? stickyCell : ""}`}>
-                              <div className="text-sm font-medium text-slate-900">{fmtMoney(feeOf(o))}</div>
-                              <div className="text-xs text-slate-500 truncate">{o.appraiser_name || "—"}</div>
-                            </div>
-                          );
-                        }
-
-                        /* FEE only (appraiser view) */
+                        // Fee
                         if (c.key === "fee") {
+                          const fee = feeOf(o);
                           return (
-                            <div key={c.key} className={`min-w-0 ${idx === 0 ? stickyCell : ""}`}>
-                              <div className="text-sm font-medium text-slate-900">{fmtMoney(feeOf(o))}</div>
+                            <div key={c.key} className="text-sm font-semibold text-slate-700">
+                              {fmtMoney(fee)}
                             </div>
                           );
                         }
 
-                        /* DATES */
-                        if (c.key === "dates") {
-                          const rev = o.review_due_at ?? o.due_for_review ?? null;
-                          const fin = o.final_due_at ?? o.due_date ?? null;
-                          return (
-                            <div key={c.key} className={`min-w-0 ${idx === 0 ? stickyCell : ""}`}>
-                              <div className="text-xs text-rose-600">Rev: {fmtDate(rev)}</div>
-                              <div className="text-xs text-rose-600">Final: {fmtDate(fin)}</div>
-                            </div>
-                          );
-                        }
-
-                        /* default cell from column config */
+                        // Default
                         return (
-                          <div key={c.key} className={`truncate whitespace-nowrap overflow-hidden ${idx === 0 ? stickyCell : ""}`}>
-                            {c.cell(o)}
+                          <div key={c.key} className={idx === 0 ? stickyCell : ""}>
+                            {getColumnsForRole(role, actionsCell)
+                              .find((col) => col.key === c.key)
+                              ?.cell({ order: o, actions: { refresh } })}
                           </div>
                         );
                       })}
@@ -286,43 +297,12 @@ export default function UnifiedOrdersTable({
       </div>
 
       {/* footer */}
-      <div className="flex items-center justify-between px-4 py-3 text-sm text-slate-500">
-        <div>Page {tableFilters.page + 1} / {totalPages} • {count ?? 0} total</div>
+      <div className="border-t bg-slate-50/80 px-2 py-1.5 flex items-center justify-between text-xs text-slate-600">
+        <div>
+          Page {tableFilters.page + 1} / {totalPages} — {count || 0} total
+        </div>
         <OrdersTablePagination currentPage={tableFilters.page + 1} totalPages={totalPages} goToPage={(p) => go(p - 1)} />
       </div>
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

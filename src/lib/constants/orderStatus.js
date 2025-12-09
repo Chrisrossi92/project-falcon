@@ -19,9 +19,64 @@ export const ORDER_STATUS = {
   CANCELLED: "cancelled",
 };
 
+const STATUS_MAP = {
+  // new
+  new: ORDER_STATUS.NEW,
+  New: ORDER_STATUS.NEW,
+  NEW: ORDER_STATUS.NEW,
+
+  // in progress
+  in_progress: ORDER_STATUS.IN_PROGRESS,
+  "in progress": ORDER_STATUS.IN_PROGRESS,
+  IN_PROGRESS: ORDER_STATUS.IN_PROGRESS,
+
+  // review / in review
+  review: ORDER_STATUS.IN_REVIEW,
+  Review: ORDER_STATUS.IN_REVIEW,
+  "In Review": ORDER_STATUS.IN_REVIEW,
+  in_review: ORDER_STATUS.IN_REVIEW,
+  IN_REVIEW: ORDER_STATUS.IN_REVIEW,
+
+  // complete
+  complete: ORDER_STATUS.COMPLETE,
+  COMPLETE: ORDER_STATUS.COMPLETE,
+  completed: ORDER_STATUS.COMPLETE,
+  Completed: ORDER_STATUS.COMPLETE,
+
+  // cancelled
+  cancelled: ORDER_STATUS.CANCELLED,
+  canceled: ORDER_STATUS.CANCELLED,
+  CANCELLED: ORDER_STATUS.CANCELLED,
+};
+
 // Normalize to lowercase snake_case (defensive)
 export function normalizeStatus(s) {
   return String(s ?? "").toLowerCase().trim();
+}
+
+export function normalizeOrderStatus(raw) {
+  if (!raw) return null;
+  const key = String(raw).trim();
+  const lower = key.toLowerCase();
+  return STATUS_MAP[key] || STATUS_MAP[lower] || normalizeStatus(raw) || null;
+}
+
+export function formatOrderStatusLabel(normalized) {
+  if (!normalized) return "";
+  switch (normalized) {
+    case ORDER_STATUS.NEW:
+      return "New";
+    case ORDER_STATUS.IN_PROGRESS:
+      return "In Progress";
+    case ORDER_STATUS.IN_REVIEW:
+      return "In Review";
+    case ORDER_STATUS.COMPLETE:
+      return "Complete";
+    case ORDER_STATUS.CANCELLED:
+      return "Cancelled";
+    default:
+      return normalized;
+  }
 }
 
 /**

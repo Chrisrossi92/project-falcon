@@ -1,10 +1,11 @@
 // src/components/orders/form/OrderForm.jsx
 import React, { useEffect, useState } from "react";
-import supabase from "@/lib/supabaseClient";
+import { useNavigate } from "react-router-dom";
 import ClientFields from "./ClientFields";
 import AssignmentFields from "./AssignmentFields";
 import PropertyFields from "./PropertyFields";
 import DatesFields from "./DatesFields";
+import { createOrder, updateOrder } from "@/lib/services/ordersService";
 
 // ---- date helpers ----
 const toYMD = (value) => {
@@ -37,67 +38,81 @@ const fromLocalDateTimeInputToISO = (value) => {
   return d.toISOString();
 };
 
-// columns that really exist on `orders`
-const ORDER_UPDATE_KEYS = [
-  "status",
-  "base_fee",
-  "split_pct",
-  "appraiser_fee",
-  "order_number",
-  "appraiser_id",
-  "client_id",
-  "manual_client_name",
-  "managing_amc_id",
-  "entry_contact_name",
-  "entry_contact_phone",
-  "property_address",
-  "city",
-  "state",
-  "zip",
-  "property_type",
-  "report_type",
-  "site_visit_at",
-  "review_due_at",
-  "final_due_at",
-  "property_contact_name",
-  "property_contact_phone",
-  "access_notes",
-];
+function buildOrderPayload(values) {
+  return {
+    status: values.status || "New",
+    order_number: values.order_number || null,
 
-export default function OrderForm({ order, onClose, onSaved }) {
+    client_id: values.client_id || null,
+    manual_client_name: values.manual_client_name || null,
+    managing_amc_id: values.managing_amc_id || null,
+
+    appraiser_id: values.appraiser_id || null,
+    reviewer_id: values.reviewer_id || null,
+
+    base_fee: values.base_fee ? Number(values.base_fee) : null,
+    split_pct: values.split_pct ? Number(values.split_pct) : null,
+    appraiser_fee: values.appraiser_fee ? Number(values.appraiser_fee) : null,
+
+    property_address: values.address_line1 || values.property_address || null,
+    city: values.city || values.property_city || null,
+    state: values.state || values.property_state || null,
+    postal_code: values.postal_code || values.zip || values.property_zip || null,
+
+    property_type: values.property_type || null,
+    report_type: values.report_type || null,
+
+    entry_contact_name: values.entry_contact_name || null,
+    entry_contact_phone: values.entry_contact_phone || null,
+
+    site_visit_at: values.site_visit_at || null,
+    review_due_at: values.review_due_at || null,
+    final_due_at: values.final_due_at || null,
+
+    notes: values.notes || null,
+  };
+}
+
+export default function OrderForm({ order, onClose, onSaved, onCancel }) {
+  const navigate = useNavigate();
   const [values, setValues] = useState({});
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState(null);
 
-  // hydrate from merged view + orders row
+  // hydrate from OrderFrontend
   useEffect(() => {
     if (!order) return;
     setValues({
-      ...order,
-      // front-end "property_*" convenience fields
-      property_city: order.city ?? order.property_city ?? "",
-      property_state: order.state ?? order.property_state ?? "",
-      property_zip: order.zip ?? order.property_zip ?? "",
+      order_number: order.order_number ?? "",
+      status: order.status ?? "",
+      client_id: order.client_id ?? null,
+      manual_client_name: order.manual_client_name ?? order.client_name ?? "",
+      managing_amc_id: order.managing_amc_id ?? order.amc_id ?? null,
+      appraiser_id: order.appraiser_id ?? null,
+      reviewer_id: order.reviewer_id ?? null,
+      split_pct: order.split_pct ?? "",
+      base_fee: order.base_fee ?? "",
+      appraiser_fee: order.appraiser_fee ?? "",
+      address_line1: order.address_line1 ?? order.property_address ?? "",
+      city: order.city ?? "",
+      state: order.state ?? "",
+      postal_code: order.postal_code ?? order.zip ?? "",
+      property_type: order.property_type ?? "",
+      report_type: order.report_type ?? "",
       site_visit_at: toLocalDateTimeInput(order.site_visit_at),
       review_due_at: toYMD(order.review_due_at),
-      final_due_at: toYMD(order.final_due_at),
+      final_due_at: toYMD(order.final_due_at ?? order.due_date),
+      property_contact_name: order.property_contact_name ?? "",
+      property_contact_phone: order.property_contact_phone ?? "",
+      entry_contact_name: order.entry_contact_name ?? "",
+      entry_contact_phone: order.entry_contact_phone ?? "",
+      access_notes: order.access_notes ?? order.notes ?? "",
     });
   }, [order]);
 
   const applyPatch = (patch) => {
     setValues((prev) => {
       const next = { ...prev, ...patch };
-
-      // keep DB city/state/zip in sync with property_* fields
-      if (Object.prototype.hasOwnProperty.call(patch, "property_city")) {
-        next.city = patch.property_city;
-      }
-      if (Object.prototype.hasOwnProperty.call(patch, "property_state")) {
-        next.state = patch.property_state;
-      }
-      if (Object.prototype.hasOwnProperty.call(patch, "property_zip")) {
-        next.zip = patch.property_zip;
-      }
 
       // auto-calc appraiser_fee from base_fee * split_pct
       if ("base_fee" in patch || "split_pct" in patch) {
@@ -123,52 +138,40 @@ export default function OrderForm({ order, onClose, onSaved }) {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!order?.id) return;
+  function handleCancel() {
+    if (onCancel) {
+      onCancel();
+    } else {
+      navigate(-1);
+    }
+  }
 
-    setIsSaving(true);
+  async function handleSubmit(event) {
+    event.preventDefault();
     setError(null);
-
+    setIsSaving(true);
     try {
-      const raw = {
+      const payload = buildOrderPayload({
         ...values,
-        review_due_at: values.review_due_at || null,
-        final_due_at: values.final_due_at || null,
         site_visit_at: values.site_visit_at
           ? fromLocalDateTimeInputToISO(values.site_visit_at)
           : null,
-      };
+      });
 
-      const payload = {};
-      for (const key of ORDER_UPDATE_KEYS) {
-        if (Object.prototype.hasOwnProperty.call(raw, key)) {
-          payload[key] = raw[key];
-        }
-      }
+      const isEdit = Boolean(order?.id);
+      const result = isEdit
+        ? await updateOrder(order.id, payload)
+        : await createOrder(payload);
 
-      const { data, error: supabaseError } = await supabase
-        .from("orders")
-        .update(payload)
-        .eq("id", order.id)
-        .select()
-        .single();
-
-      if (supabaseError) {
-        console.error(supabaseError);
-        throw supabaseError;
-      }
-
-      // only navigate if we actually got an id back
-      if (onSaved && data?.id) onSaved(data.id);
-      if (onClose) onClose();
+      if (onSaved) onSaved(result);
+      if (result?.id) navigate(`/orders/${result.id}`);
     } catch (err) {
-      console.error(err);
-      setError("Failed to save order. Please try again.");
+      console.error("Failed to save order", err);
+      setError(err.message || "Failed to save order. Please try again.");
     } finally {
       setIsSaving(false);
     }
-  };
+  }
 
   return (
     <form
@@ -185,7 +188,7 @@ export default function OrderForm({ order, onClose, onSaved }) {
           )}
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleCancel}
             className="text-sm px-3 py-1 rounded-md border border-slate-200 hover:bg-slate-50"
           >
             Cancel
@@ -195,7 +198,7 @@ export default function OrderForm({ order, onClose, onSaved }) {
             disabled={isSaving}
             className="text-sm px-4 py-1.5 rounded-md bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-60"
           >
-            {isSaving ? "Saving…" : "Save"}
+            {isSaving ? "Saving..." : "Save"}
           </button>
         </div>
       </div>

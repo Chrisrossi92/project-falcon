@@ -1,5 +1,5 @@
 // src/features/orders/api.js
-import { supa as defaultClient } from '../../lib/supa.client';
+import { supabase as defaultClient } from '@/lib/supabaseClient';
 
 function normalizeQuery(q) {
   const page = Math.max(1, Number(q?.page ?? 1) || 1);

@@ -5,27 +5,37 @@ create or replace view public.v_orders_frontend as
 select
   o.id,
 
-  -- order number & client/appraiser
-  o.order_number                         as order_no,
-  o.manual_client                        as client_name,
-  o.manual_appraiser                     as assigned_appraiser_name,
-  coalesce(o.appraiser_id, o.assigned_to) as assigned_appraiser_id,
+  -- order number & client/appraiser/reviewer
+  o.order_number                          as order_number,
+  coalesce(c.name, o.manual_client)       as client_name,
+  o.client_id,
+  coalesce(o.appraiser_id, o.assigned_to) as assigned_to,
+  o.appraiser_id,
+  o.reviewer_id,
+  coalesce(o.manual_appraiser, ua.display_name, ua.full_name, ua.name) as appraiser_name,
+  coalesce(o.manual_reviewer, ur.display_name, ur.full_name, ur.name)  as reviewer_name,
 
-  -- display fields for list rows
-  coalesce(nullif(o.manual_client, ''),'—')                              as display_title,
-  coalesce(nullif(o.property_address, ''), nullif(o.address, ''), '—')   as display_subtitle,
+  -- colors from users
+  coalesce(ua.color, ua.display_color) as appraiser_color,
+  coalesce(ur.color, ur.display_color) as reviewer_color,
 
   -- raw address (prefer property_address if present)
   coalesce(o.property_address, o.address)  as address,
+  o.city,
+  o.state,
+  o.zip,
+  o.property_type,
+  o.report_type,
 
   -- status
   o.status,
 
   -- fees (prefer fee_amount, else base_fee)
   coalesce(o.fee_amount, o.base_fee)       as fee_amount,
+  o.base_fee,
+  o.appraiser_fee,
 
   -- ordering / dates
-  o.date_ordered,
   -- site visit: prefer timestamp, else cast known dates
   coalesce(
     o.site_visit_at,
@@ -58,12 +68,12 @@ select
 
   -- bookkeeping
   o.created_at,
-  o.updated_at,
   coalesce(o.is_archived, o.archived, false) as is_archived
 
-from public.orders o;
+from public.orders o
+left join public.clients c on c.id = o.client_id
+left join public.users ua on ua.id = o.appraiser_id
+left join public.users ur on ur.id = o.reviewer_id;
 
 -- Grant read to app roles (adjust to your model)
 grant select on public.v_orders_frontend to anon, authenticated;
-
-

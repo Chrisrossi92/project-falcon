@@ -13,9 +13,10 @@ export default function PropertyFields({ value, onChange }) {
 
       <Label>Address</Label>
       <TextInput
+        name="address_line1"
         placeholder="123 Main St"
-        value={value.address || ""}
-        onChange={(e) => onChange({ address: e.target.value })}
+        value={value.address_line1 || ""}
+        onChange={(e) => onChange({ address_line1: e.target.value })}
       />
 
       <div className="mt-3 grid grid-cols-6 gap-3">
@@ -29,7 +30,7 @@ export default function PropertyFields({ value, onChange }) {
         </div>
         <div className="col-span-2">
           <Label>Zip</Label>
-          <TextInput value={value.postal_code || ""} onChange={(e) => onChange({ postal_code: e.target.value })} />
+          <TextInput value={value.postal_code || value.zip || ""} onChange={(e) => onChange({ postal_code: e.target.value })} />
         </div>
       </div>
 
@@ -41,7 +42,7 @@ export default function PropertyFields({ value, onChange }) {
             value={value.property_type || ""}
             onChange={(e) => onChange({ property_type: e.target.value })}
           >
-            <option value="">Select type…</option>
+            <option value="">Select type...</option>
             {PROPERTY_TYPES.map((t) => (<option key={t} value={t}>{t}</option>))}
           </select>
         </div>
@@ -52,7 +53,7 @@ export default function PropertyFields({ value, onChange }) {
             value={value.report_type || ""}
             onChange={(e) => onChange({ report_type: e.target.value })}
           >
-            <option value="">Select report…</option>
+            <option value="">Select report...</option>
             {REPORT_TYPES.map((t) => (<option key={t} value={t}>{t}</option>))}
           </select>
         </div>

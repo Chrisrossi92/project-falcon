@@ -5,8 +5,8 @@ import getColumnsForRole from "./ordersColumns";
 // bump so everyone gets new defaults once
 const KEY = (role) => `falcon:columns:v6:${role}`;
 
-export default function useColumnsConfig(role, actionsCell) {
-  const defaults = useMemo(() => getColumnsForRole(role, actionsCell), [role, actionsCell]);
+export default function useColumnsConfig(role, columnOptions = {}) {
+  const defaults = useMemo(() => getColumnsForRole(role, columnOptions), [role, columnOptions]);
 
   // safe hydrate
   const [active, setActive] = useState(() => {

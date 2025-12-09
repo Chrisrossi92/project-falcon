@@ -3,25 +3,41 @@ import { useParams, useNavigate } from "react-router-dom";
 import supabase from "@/lib/supabaseClient";
 import OrderForm from "@/components/orders/form/OrderForm";
 
-// try v3, fall back to v2
+// Pull from the normalized view (v3) with the columns our UI expects
 async function fetchView(orderId) {
-  let q = supabase
+  const { data, error } = await supabase
     .from("v_orders_frontend_v3")
-    .select("*")
+    .select(
+      `
+        id,
+        order_no:order_number,
+        order_number,
+        status,
+        client_name,
+        appraiser_name,
+        client_id,
+        appraiser_id,
+        address,
+        city,
+        state,
+        zip,
+        property_type,
+        report_type,
+        fee_amount,
+        base_fee,
+        appraiser_fee,
+        review_due_at,
+        final_due_at,
+        due_date,
+        created_at,
+        property_contact_name,
+        property_contact_phone,
+        access_notes,
+        site_visit_at
+      `
+    )
     .eq("id", orderId)
     .maybeSingle();
-  let { data, error } = await q;
-  const relMissing =
-    error && String(error.message || "").toLowerCase().includes("relation");
-  if (relMissing) {
-    const res = await supabase
-      .from("v_orders_frontend_v2")
-      .select("*")
-      .eq("id", orderId)
-      .maybeSingle();
-    if (res.error) throw res.error;
-    return res.data || null;
-  }
   if (error) throw error;
   return data || null;
 }
