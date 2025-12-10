@@ -1,6 +1,7 @@
 // src/lib/api/orders.js
 // src/lib/api/orders.js
 import supabase from "@/lib/supabaseClient";
+import { OrderStatus } from "@/lib/services/ordersService";
 
 const SOURCE = "v_orders_frontend_v4";
 
@@ -87,6 +88,9 @@ export async function fetchOrdersWithFilters(filters = {}) {
     pageSize = 50,
     orderBy = "created_at", // or "order_number"
     ascending = false,
+    mode = null,
+    reviewerId = null,
+    reviewerName = null,
   } = filters;
 
   // COUNT
@@ -130,6 +134,12 @@ export async function fetchOrdersWithFilters(filters = {}) {
     to,
     search,
   });
+
+  if (mode === "reviewerQueue") {
+    const REVIEW_QUEUE_STATUSES = [OrderStatus.IN_REVIEW, OrderStatus.NEEDS_REVISIONS];
+    console.log("[fetchOrdersWithFilters] reviewerQueue filter", { statuses: REVIEW_QUEUE_STATUSES });
+    dataQuery = dataQuery.in("status", REVIEW_QUEUE_STATUSES);
+  }
 
   const { data, error } = await dataQuery;
   if (error) {
@@ -387,5 +397,3 @@ export const fetchSiteVisitAt = async (orderId) => {
   }
   return data;
 };
-
-

@@ -50,16 +50,23 @@ export default function AssignmentFields({ value, onChange, isEdit }) {
         setReviewers([]);
         return;
       }
-      const active = (data || []).filter((u) => String(u.status || "").toLowerCase() === "active");
+      const active = (data || []).filter((u) => {
+        const status = String(u.status || "").toLowerCase();
+        return status === "" || status === "active";
+      });
       const appraiserList = active.filter((u) => String(u.role || "").toLowerCase() === "appraiser");
-      const reviewersList = active.filter((u) => ["appraiser", "reviewer"].includes(String(u.role || "").toLowerCase()));
+      const reviewersList = active.filter((u) =>
+        ["appraiser", "reviewer", "admin", "owner"].includes(String(u.role || "").toLowerCase())
+      );
 
       setAppraisers(
-        appraiserList.map((u) => ({
-          id: u.id,
-          name: u.full_name,
-          default_split_pct: u.fee_split ?? u.split ?? null,
-        }))
+        appraiserList
+          .filter((u) => !!u.full_name)
+          .map((u) => ({
+            id: u.id,
+            name: u.full_name,
+            default_split_pct: u.fee_split ?? u.split ?? null,
+          }))
       );
 
       setReviewers(
@@ -68,7 +75,7 @@ export default function AssignmentFields({ value, onChange, isEdit }) {
           .map((u) => ({
             id: u.id,
             name: u.full_name,
-            role: u.role,
+            role: String(u.role || "").toLowerCase(),
           }))
       );
 
@@ -142,20 +149,6 @@ export default function AssignmentFields({ value, onChange, isEdit }) {
       </div>
 
       <div className="mt-3 grid grid-cols-3 gap-3">
-        <div className="col-span-3 md:col-span-1">
-          <Label>Reviewer</Label>
-          <select
-            value={value.reviewer_id || ""}
-            onChange={(e) => onChange({ reviewer_id: e.target.value || null })}
-            className="w-full border rounded px-2 py-1 text-sm"
-          >
-            <option value="">Select reviewer...</option>
-            {reviewers.map((r) => (<option key={r.id} value={r.id}>{r.name}</option>))}
-          </select>
-        </div>
-      </div>
-
-      <div className="mt-3 grid grid-cols-3 gap-3">
         <div>
           <Label>Split %</Label>
           <PercentInput value={value.split_pct || ""} onChange={(e)=>handleSplitChange(e.target.value)}/>
@@ -170,13 +163,26 @@ export default function AssignmentFields({ value, onChange, isEdit }) {
         </div>
       </div>
 
-      <div className="mt-3">
-        <Label>Order #</Label>
-        <input
-          className="w-full border rounded px-2 py-1 text-sm"
-          value={value.order_number || ""}
-          onChange={(e)=>onChange({ order_number: e.target.value })}
-        />
+      <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <Label>Order #</Label>
+          <input
+            className="w-full border rounded px-2 py-1 text-sm"
+            value={value.order_number || ""}
+            onChange={(e)=>onChange({ order_number: e.target.value })}
+          />
+        </div>
+        <div>
+          <Label>Reviewer</Label>
+          <select
+            value={value.reviewer_id || ""}
+            onChange={(e) => onChange({ reviewer_id: e.target.value || null })}
+            className="w-full border rounded px-2 py-1 text-sm"
+          >
+            <option value="">Select reviewer...</option>
+            {reviewers.map((r) => (<option key={r.id} value={r.id}>{r.name}</option>))}
+          </select>
+        </div>
       </div>
     </div>
   );

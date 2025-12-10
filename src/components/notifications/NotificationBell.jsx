@@ -1,15 +1,93 @@
-import { useState } from "react";
-import { useNotifications } from "@/lib/hooks/useNotifications";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/lib/supabaseClient";
+import useSession from "@/lib/hooks/useSession";
 
 export default function NotificationBell() {
   const [open, setOpen] = useState(false);
-  const { items, unreadCount, loading, markRead, refresh } = useNotifications({ pollMs: 15000 });
+  const { session } = useSession() || {};
+  const userId = session?.user?.id || null;
+  const [items, setItems] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const navigate = useNavigate();
+
+  const loadNotifications = async () => {
+    if (!userId) return;
+    setLoading(true);
+    setError(null);
+    const { data, error } = await supabase
+      .from("notifications")
+      .select("id, type, title, body, is_read, created_at, link_path, order_id")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (error) {
+      console.error("loadNotifications error", error);
+      setError(error);
+      setItems([]);
+      setUnreadCount(0);
+    } else {
+      setItems(data || []);
+      setUnreadCount((data || []).filter((n) => !n.is_read).length);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadNotifications();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
+  const handleNotificationClick = async (n) => {
+    if (!n) return;
+    if (!n.is_read) {
+      await supabase
+        .from("notifications")
+        .update({ is_read: true, read_at: new Date().toISOString() })
+        .eq("id", n.id);
+    }
+    if (n.link_path) {
+      navigate(n.link_path);
+    } else if (n.order_id) {
+      navigate(`/orders/${n.order_id}`);
+    }
+    loadNotifications();
+    setOpen(false);
+  };
+
+  const markAllRead = async () => {
+    if (!userId) return;
+    const unreadIds = items.filter((n) => !n.is_read).map((n) => n.id);
+    if (!unreadIds.length) return;
+    const { error } = await supabase
+      .from("notifications")
+      .update({ is_read: true, read_at: new Date().toISOString() })
+      .in("id", unreadIds);
+    if (error) {
+      console.error("markAllRead error", error);
+      return;
+    }
+    setItems((prev) =>
+      prev.map((n) => (unreadIds.includes(n.id) ? { ...n, is_read: true } : n))
+    );
+    setUnreadCount((prev) => Math.max(0, prev - unreadIds.length));
+  };
+
+  const handleOpenChange = async (nextOpen) => {
+    setOpen(nextOpen);
+    if (nextOpen) {
+      await loadNotifications();
+      await markAllRead();
+    }
+  };
 
   return (
     <div className="relative">
       <button
         className="relative p-2 rounded-xl border"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => handleOpenChange(!open)}
         aria-label="Notifications"
         title="Notifications"
       >
@@ -25,55 +103,45 @@ export default function NotificationBell() {
         <div className="absolute right-0 mt-2 w-[360px] max-h-[60vh] overflow-auto bg-white border rounded-xl shadow-lg p-2">
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-semibold">Notification Center</h3>
-            <button className="text-sm underline" onClick={refresh}>
+            <button className="text-sm underline" onClick={loadNotifications}>
               Refresh
             </button>
           </div>
-          {loading ? (
-            <div className="p-4 text-sm text-gray-500">Loading…</div>
-          ) : items.length === 0 ? (
-            <div className="p-4 text-sm text-gray-500">No notifications.</div>
-          ) : (
-            <ul className="space-y-2">
-              {items.map((n) => (
-                <li
+          <div className="max-h-80 overflow-y-auto">
+            {loading && (
+              <div className="p-3 text-sm text-muted-foreground">Loading…</div>
+            )}
+            {!loading && error && (
+              <div className="p-3 text-sm text-rose-600">Failed to load notifications.</div>
+            )}
+            {!loading && !error && items.length === 0 && (
+              <div className="p-3 text-sm text-muted-foreground">No notifications.</div>
+            )}
+            {!loading &&
+              !error &&
+              items.length > 0 &&
+              items.map((n) => (
+                <button
                   key={n.id}
-                  className={`p-2 rounded-lg border ${n.is_read ? "bg-white" : "bg-blue-50"}`}
+                  className={`w-full text-left px-3 py-2 text-sm hover:bg-muted ${
+                    n.is_read ? "opacity-60" : ""
+                  }`}
+                  onClick={() => handleNotificationClick(n)}
                 >
-                  <div className="text-sm font-medium">{n.title || n.event}</div>
-                  {n.body && <div className="text-xs text-gray-600">{n.body}</div>}
-                  <div className="text-xs text-gray-500 mt-1">
-                    {new Date(n.created_at).toLocaleString()}
-                  </div>
-                  <div className="mt-2 flex gap-2">
-                    <a
-                      className="text-xs underline"
-                      href={`/orders/${n.target_id}`}
-                      onClick={() => setOpen(false)}
-                    >
-                      View order
-                    </a>
-                    {!n.is_read && (
-                      <button
-                        className="text-xs underline"
-                        onClick={() => markRead(n.id)}
-                      >
-                        Mark read
-                      </button>
-                    )}
-                  </div>
-                </li>
+                  <div className="font-medium">{n.title || n.type || "Notification"}</div>
+                  {n.body && (
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      {n.body}
+                    </div>
+                  )}
+                </button>
               ))}
-            </ul>
-          )}
+          </div>
         </div>
       )}
     </div>
   );
 }
-
-
-
 
 
 

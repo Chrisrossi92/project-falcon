@@ -5,6 +5,8 @@ import { useDashboardSummary } from "@/lib/hooks/useDashboardSummary";
 import UnifiedOrdersTable from "@/features/orders/UnifiedOrdersTable";
 import DashboardCalendarPanel from "@/components/dashboard/DashboardCalendarPanel";
 import Card from "@/components/ui/Card";
+import useSession from "@/lib/hooks/useSession";
+import useOrderEvents from "@/lib/hooks/useOrderEvents";
 
 const DASHBOARD_CONFIG = {
   owner:     { showOrdersTable: true, showReviewQueue: false },
@@ -17,7 +19,10 @@ const DASHBOARD_CONFIG = {
 export default function DashboardPage() {
   const nav = useNavigate();
   const summary = useDashboardSummary();
+  const { session } = useSession() || {};
   const { role, isAdmin, isReviewer, loading, tableFilters, ordersRows } = summary;
+  const reviewerId = session?.user?.id || null;
+  const normalizedRole = role || "appraiser";
 
   const cfg = DASHBOARD_CONFIG[role] || DASHBOARD_CONFIG.appraiser;
 
@@ -59,6 +64,8 @@ export default function DashboardPage() {
             orders={ordersRows || []}
             onOpenOrder={handleOpenOrder}
             fixedHeader={true}
+            mode={isReviewer ? "reviewerQueue" : undefined}
+            reviewerId={isReviewer ? reviewerId : undefined}
           />
         </div>
       </section>
@@ -74,7 +81,12 @@ export default function DashboardPage() {
               {ordersCount} order{ordersCount === 1 ? "" : "s"}
             </div>
           </div>
-          <UnifiedOrdersTable role={role} filters={tableFilters} pageSize={10} />
+          <UnifiedOrdersTable
+            role={isReviewer ? "reviewer" : "admin"}
+            mode={isReviewer ? "reviewerQueue" : undefined}
+            filters={tableFilters}
+            pageSize={10}
+          />
         </section>
       )}
 

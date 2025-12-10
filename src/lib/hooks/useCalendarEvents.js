@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import supabase from "@/lib/supabaseClient";
+import { OrderStatus } from "@/lib/services/ordersService";
 
 /**
  * Dashboard calendar loader: (start, end) => Promise<Event[]>
@@ -7,7 +8,7 @@ import supabase from "@/lib/supabaseClient";
  * - Falls back to RPC `get_calendar_events`
  * - Always returns { id, type, title, start, end, orderId, colorClass }
  */
-export default function useCalendarEventLoader() {
+export default function useCalendarEventLoader({ mode = null, reviewerId = null } = {}) {
   return useCallback(async (start, end) => {
     if (!start || !end) return [];
 
@@ -45,12 +46,19 @@ export default function useCalendarEventLoader() {
 
     // -------- 1) Try the view -----------
     try {
-      const { data, error } = await supabase
+      let viewQuery = supabase
         .from("v_admin_calendar_enriched")
-        .select("id, event_type, title, start_at, end_at, order_id, client, address, appraiser_name, appraiser_color")
+        .select("id, event_type, title, start_at, end_at, order_id, client, address, appraiser_name, appraiser_color, status")
         .gte("start_at", iso(start))
         .lt("start_at", iso(end))
         .order("start_at", { ascending: true });
+
+      if (mode === "reviewerQueue") {
+        const REVIEW_QUEUE_STATUSES = [OrderStatus.IN_REVIEW, OrderStatus.NEEDS_REVISIONS];
+        viewQuery = viewQuery.in("status", REVIEW_QUEUE_STATUSES);
+      }
+
+      const { data, error } = await viewQuery;
 
       if (error) throw error;
 
@@ -115,5 +123,3 @@ export default function useCalendarEventLoader() {
 export function useCalendarEvents({ from, to }) {
   // ... (your existing code)
 }
-
-

@@ -33,7 +33,8 @@ const ACTIVE_STATUSES = new Set([
  * Now backed by the Supabase view (v_orders_frontend_v3) via fetchOrdersWithFilters.
  * Filters are sent to the API; paging/sorting happen server-side.
  */
-export function useOrders(initialSeed = {}) {
+export function useOrders(initialSeed = {}, options = {}) {
+  const { mode = null, reviewerId = null, reviewerName = null } = options || {};
   const seed = useMemo(
     () => ({ ...DEFAULT_FILTERS, ...(initialSeed || {}) }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -59,6 +60,10 @@ export function useOrders(initialSeed = {}) {
       setError(null);
 
       try {
+        if (mode === "reviewerQueue") {
+          console.log("[useOrders] reviewerQueue mode", { reviewerId, reviewerName });
+        }
+
         const { rows, count, error: fetchErr } = await fetchOrdersWithFilters({
           search: filters.search || "",
           statusIn: filters.statusIn?.filter(Boolean) || [],
@@ -72,6 +77,9 @@ export function useOrders(initialSeed = {}) {
           pageSize: filters.pageSize || 15,
           orderBy: filters.orderBy || "order_number",
           ascending: filters.ascending ?? false,
+          mode,
+          reviewerId,
+          reviewerName,
         });
 
         if (cancelled) return;
@@ -185,4 +193,3 @@ export function useOrdersSummary(filters = {}, { enabled = true } = {}) {
     rows,
   };
 }
-

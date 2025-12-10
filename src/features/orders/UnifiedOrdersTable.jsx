@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import useRole from "@/lib/hooks/useRole";
 import useSession from "@/lib/hooks/useSession";
 import { useOrders } from "@/lib/hooks/useOrders";
@@ -13,7 +13,7 @@ import { updateOrderStatus } from "@/lib/api/orders";
 import { sendOrderToReview, sendOrderBackToAppraiser, completeOrder } from "@/lib/services/ordersService";
 
 import useColumnsConfig from "@/features/orders/columns/useColumnsConfig";
-import getColumnsForRole from "@/features/orders/columns/ordersColumns";
+import { useToast } from "@/lib/hooks/useToast";
 
 /* helpers */
 const feeOf = (r) => [r?.base_fee, r?.appraiser_fee].find((v) => v != null);
@@ -39,9 +39,12 @@ export default function UnifiedOrdersTable({
   pageSize = 15,
   className = "",
   style = {},
+  mode = null,
+  reviewerId = null,
 }) {
   const { user: sessionUser } = useSession() || {};
   const userId = sessionUser?.id || sessionUser?.user_id || sessionUser?.uid || null;
+  const { toast } = useToast();
 
   const { role: hookRole } = useRole() || {};
   const normalizedRole = (roleProp || hookRole || "appraiser").toString().toLowerCase();
@@ -79,12 +82,12 @@ export default function UnifiedOrdersTable({
     error,
     filters: tableFilters,
     setFilters: setTableFilters,
-  } = useOrders(seed);
+  } = useOrders(seed, { mode, reviewerId });
 
   const totalPages = Math.max(1, Math.ceil((count || 0) / (tableFilters.pageSize || pageSize)));
   const [expandedId, setExpandedId] = useState(null);
 
-  const refresh = () => setTableFilters((f) => ({ ...f }));
+  const refresh = useCallback(() => setTableFilters((f) => ({ ...f })), [setTableFilters]);
   const go = (p) => setTableFilters((f) => ({ ...f, page: Math.min(Math.max(0, p), totalPages - 1) }));
 
   const actionsCell = (o) =>
@@ -106,51 +109,95 @@ export default function UnifiedOrdersTable({
       </button>
     );
 
-  async function handleSendToReview(order) {
-    await sendOrderToReview(order, sessionUser?.id);
-    refresh();
-  }
+  const handleSendToReview = useCallback(
+    async (order) => {
+      try {
+        await sendOrderToReview(order, sessionUser?.id);
+        refresh();
+        toast({
+          title: "Sent to review",
+          description: `Order ${order.order_number || order.id} was sent to review.`,
+          tone: "success",
+        });
+      } catch (err) {
+        console.error("Failed to send to review", err);
+        toast({
+          title: "Error",
+          description: "Failed to send order to review.",
+          tone: "error",
+        });
+      }
+    },
+    [sessionUser?.id, refresh, toast]
+  );
 
-  async function handleSendBackToAppraiser(order) {
-    await sendOrderBackToAppraiser(order, sessionUser?.id);
-    refresh();
-  }
+  const handleSendBackToAppraiser = useCallback(
+    async (order) => {
+      try {
+        await sendOrderBackToAppraiser(order, sessionUser?.id);
+        refresh();
+        toast({
+          title: "Sent back to appraiser",
+          description: `Order ${order.order_number || order.id} was sent back for revisions.`,
+          tone: "success",
+        });
+      } catch (err) {
+        console.error("Failed to send back to appraiser", err);
+        toast({
+          title: "Error",
+          description: "Failed to send order back to appraiser.",
+          tone: "error",
+        });
+      }
+    },
+    [sessionUser?.id, refresh, toast]
+  );
 
-  async function handleCompleteOrder(order) {
-    await completeOrder(order, sessionUser?.id);
-    refresh();
-  }
+  const handleCompleteOrder = useCallback(
+    async (order) => {
+      try {
+        await completeOrder(order, sessionUser?.id);
+        refresh();
+        toast({
+          title: "Order completed",
+          description: `Order ${order.order_number || order.id} was marked complete.`,
+          tone: "success",
+        });
+      } catch (err) {
+        console.error("Failed to complete order", err);
+        toast({
+          title: "Error",
+          description: "Failed to mark order complete.",
+          tone: "error",
+        });
+      }
+    },
+    [sessionUser?.id, refresh, toast]
+  );
 
-  const { active: columns, onDragStart, onDragOver, onDrop, startResize, resizeTo, endResize } =
-    useColumnsConfig(normalizedRole, {
-      actionsCell,
+  const columnActions = useMemo(
+    () => ({
       onSendToReview: handleSendToReview,
       onSendBackToAppraiser: handleSendBackToAppraiser,
       onComplete: handleCompleteOrder,
-    });
+    }),
+    [handleSendToReview, handleSendBackToAppraiser, handleCompleteOrder]
+  );
+
+  const columns = useColumnsConfig(normalizedRole, columnActions);
 
   const template = columns.map((c) => c.width).join(" ");
 
-  function onResizeDown(e, key) {
-    e.preventDefault();
-    e.stopPropagation();
-    const startW = e.currentTarget.parentElement.getBoundingClientRect().width;
-    startResize(key, e.clientX, startW);
-    const move = (ev) => resizeTo(ev.clientX);
-    const up = () => {
-      endResize();
-      window.removeEventListener("mousemove", move);
-      window.removeEventListener("mouseup", up);
-    };
-    window.addEventListener("mousemove", move);
-    window.addEventListener("mouseup", up);
-  }
+  const onDragStart = () => {};
+  const onDragOver = () => {};
+  const onDrop = () => {};
+  const onResizeDown = () => {};
 
   const stickyHeader = "bg-white sticky left-0 z-20 pr-4 border-r border-slate-200";
   const stickyCell   = "bg-white sticky left-0 z-10 pr-4 border-slate-200";
 
   return (
-    <div className={`bg-white border rounded-xl overflow-hidden ${className}`} style={style}>
+    <div className={`bg-white border rounded-xl overflow-x-auto ${className}`} style={style}>
       {error && <div className="px-3 py-2 text-sm text-rose-700 bg-rose-50 border-b">Failed to load orders: {error.message}</div>}
 
       <style>{`
@@ -280,9 +327,7 @@ export default function UnifiedOrdersTable({
                         // Default
                         return (
                           <div key={c.key} className={idx === 0 ? stickyCell : ""}>
-                            {getColumnsForRole(role, actionsCell)
-                              .find((col) => col.key === c.key)
-                              ?.cell({ order: o, actions: { refresh } })}
+                            {c.cell(o)}
                           </div>
                         );
                       })}

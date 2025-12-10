@@ -1,9 +1,18 @@
 // src/lib/services/ordersService.js
 import supabase from "@/lib/supabaseClient";
+import { emitNotification } from "@/lib/services/notificationsService";
 
 /** Source of truth */
 const ORDERS_TABLE = "orders";
 const ORDERS_VIEW  = "v_orders_frontend_v4";
+
+export const OrderStatus = {
+  NEW: "new",
+  IN_PROGRESS: "in_progress",
+  IN_REVIEW: "in_review",
+  NEEDS_REVISIONS: "revisions",
+  COMPLETED: "complete",
+};
 
 /* ============================================================================
    READS
@@ -58,8 +67,6 @@ export async function listOrders({
         property_contact_name,
         property_contact_phone,
         access_notes,
-        appraiser_color,
-        reviewer_color
       `,
       { count: "exact" }
     );
@@ -147,13 +154,24 @@ export async function getOrder(orderId) {
    WRITES (direct table; RLS enforces permissions)
    ========================================================================== */
 
-export async function createOrder(payload) {
+export async function createOrder(payload, context = {}) {
   const { data, error } = await supabase
     .from(ORDERS_TABLE)
     .insert(payload)
     .select("*")
     .single();
   if (error) throw error;
+
+  const recipients = payload.appraiser_id
+    ? [{ userId: payload.appraiser_id, role: "appraiser" }]
+    : [];
+
+  if (recipients.length) {
+    emitNotification("order.new_assigned", { recipients, order: data }).catch((err) =>
+      console.error("order.new_assigned notification failed", err)
+    );
+  }
+
   return data;
 }
 
@@ -301,18 +319,37 @@ export async function updateOrderStatus(orderId, status, extra = {}) {
 }
 
 export async function sendOrderToReview(order, actorId) {
-  const patch = {
-    status: "IN_REVIEW",
-  };
-  return updateOrder(order.id, patch);
+  const updated = await updateOrderStatus(order.id, OrderStatus.IN_REVIEW);
+  const recipients = [];
+  if (order.reviewer_id) {
+    recipients.push({ userId: order.reviewer_id, role: "reviewer" });
+  }
+  emitNotification("order.sent_to_review", { recipients, order }).catch((err) =>
+    console.error("order.sent_to_review notification failed", err)
+  );
+  return updated;
 }
 
 export async function sendOrderBackToAppraiser(order, actorId) {
-  return updateOrderStatus(order.id, "NEEDS_REVISIONS");
+  const updated = await updateOrderStatus(order.id, OrderStatus.NEEDS_REVISIONS);
+  const recipients = [];
+  if (order.appraiser_id) {
+    recipients.push({ userId: order.appraiser_id, role: "appraiser" });
+  }
+  emitNotification("order.sent_back_to_appraiser", { recipients, order }).catch((err) =>
+    console.error("order.sent_back_to_appraiser notification failed", err)
+  );
+  return updated;
 }
 
 export async function completeOrder(order, actorId) {
-  return updateOrderStatus(order.id, "COMPLETE");
+  const updated = await updateOrderStatus(order.id, OrderStatus.COMPLETED);
+  const recipients = [];
+  // optionally notify admins; placeholder for admin list if available
+  emitNotification("order.completed", { recipients, order }).catch((err) =>
+    console.error("order.completed notification failed", err)
+  );
+  return updated;
 }
 
 /** Utility used elsewhere */
@@ -330,11 +367,6 @@ export async function isOrderNumberAvailable(orderNo, { excludeId = null } = {})
   if (res2.error) throw res2.error;
   return (res2.count || 0) === 0;
 }
-
-
-
-
-
 
 
 

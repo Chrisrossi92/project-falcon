@@ -1,5 +1,12 @@
-import React from "react";
 import OrderStatusBadge from "@/components/orders/table/OrderStatusBadge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuPortal,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const fmtDate = (d) =>
   !d ? "-" : isNaN(new Date(d)) ? "-" : new Date(d).toLocaleDateString();
@@ -36,11 +43,11 @@ const addressCell = (o) => (
   </div>
 );
 
-const propReportColumn = {
+const propertyReportColumnBase = {
   id: "property_report",
   width: "200px",
   header: () => "Property / Report",
-  cell: ({ order }) => {
+  cell: (order) => {
     const propertyType = order?.property_type || "–";
     const reportType = order?.report_type || "–";
     return (
@@ -56,11 +63,11 @@ const feeOnlyCell = (o) => (
   <div className="text-sm whitespace-nowrap font-medium">{money(pickFee(o))}</div>
 );
 
-const datesColumn = {
+const datesColumnBase = {
   id: "dates",
   width: "200px",
   header: () => "Dates",
-  cell: ({ order }) => {
+  cell: (order) => {
     const rev = order?.review_due_at ?? null;
     const fin = order?.final_due_at ?? null;
     return (
@@ -72,88 +79,97 @@ const datesColumn = {
   },
 };
 
-const appraiserColumn = {
-  id: "appraiser",
-  header: () => "Appraiser",
-  width: "140px",
-  cell: (info) => {
-    const row = info?.row;
-    const o = row?.original || {};
-    return o.appraiser_name || "–";
-  },
-};
-
 const col = (key, width, header, cell, extras = {}) => ({ key, width, header, cell, ...extras });
 
 export function getColumnsForRole(role, actions = {}) {
+  const normalizedRole = (role || "appraiser").toString().toLowerCase();
+  const isAppraiser = normalizedRole === "appraiser";
   const { onSendToReview, onSendBackToAppraiser, onComplete } = actions || {};
-  const normalizedRole = (role || "appraiser").toLowerCase();
-  const orderStatusColumn = col("order",      "140px",              () => "Order / Stat.",       ({ order }) => orderCell(order), { locked: true });
-  const clientCol = col("client",    "160px",              () => "Client",                clientCell);
-  const addressCol = col("address",  "minmax(200px,1fr)",  () => "Address",               addressCell);
-  const propCol = col("propReport",  propReportColumn.width,  propReportColumn.header, ({ order }) => propReportColumn.cell({ order }));
-  const feeCol = col("fee",          "140px",              () => "Fee",                   feeOnlyCell);
-  const datesColDef = col("dates",   datesColumn.width,   datesColumn.header, ({ order }) => datesColumn.cell({ order }));
+  const orderStatusColumn = col("order",      "140px",              () => "Order / Stat.",       (order) => orderCell(order), { locked: true });
+  const clientColumn = col("client",    "160px",              () => "Client",                clientCell);
+  const addressColumn = col("address",  "minmax(200px,1fr)",  () => "Address",               addressCell);
+  const propertyReportColumn = col("propReport",  propertyReportColumnBase.width,  propertyReportColumnBase.header, (order) => propertyReportColumnBase.cell(order));
+  const feeColumn = col("fee",          "140px",              () => "Fee",                   feeOnlyCell);
+  const datesColumn = col("dates",   datesColumnBase.width,   datesColumnBase.header, (order) => datesColumnBase.cell(order));
+
+  const ACTIONS_COL_WIDTH = "w-[140px]";
 
   const actionsColumn = {
     id: "actions",
-    width: "150px",
-    header: () => "Actions",
-    cell: (info) => {
-      const row = info?.row;
-      const o = row?.original;
-      if (!o) return null;
-      if (normalizedRole === "appraiser") {
-        return (
-          <button
-            className="text-xs px-2 py-1 border rounded"
-            disabled={!onSendToReview}
-            onClick={() => onSendToReview?.(o)}
-          >
-            Send to Review
-          </button>
-        );
-      }
+    header: () => (
+      <div className={`${ACTIONS_COL_WIDTH} flex justify-center text-xs font-medium text-muted-foreground`}>
+        Actions
+      </div>
+    ),
+    cell: (order) => {
+      if (!order) return null;
+
+      const button = isAppraiser ? (
+        <Button
+          size="sm"
+          disabled={!onSendToReview}
+          onClick={() => onSendToReview?.(order)}
+        >
+          Send to Review
+        </Button>
+      ) : (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="outline">
+              Send / Update
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuPortal>
+            <DropdownMenuContent
+              side="top"
+              align="center"
+              sideOffset={4}
+              className="z-50"
+            >
+              <DropdownMenuItem onClick={() => onSendToReview?.(order)}>
+                Send to review
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => onSendBackToAppraiser?.(order)}
+              >
+                Send back to appraiser
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onComplete?.(order)}>
+                Mark complete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenuPortal>
+        </DropdownMenu>
+      );
+
       return (
-        <div className="flex flex-col gap-1 text-xs">
-          <button
-            className="px-2 py-1 border rounded"
-            disabled={!onSendToReview}
-            onClick={() => onSendToReview?.(o)}
-          >
-            Send to Review
-          </button>
-          <button
-            className="px-2 py-1 border rounded"
-            disabled={!onSendBackToAppraiser}
-            onClick={() => onSendBackToAppraiser?.(o)}
-          >
-            Send back to appraiser
-          </button>
-          <button
-            className="px-2 py-1 border rounded"
-            disabled={!onComplete}
-            onClick={() => onComplete?.(o)}
-          >
-            Mark complete
-          </button>
+        <div className={`${ACTIONS_COL_WIDTH} flex justify-center`}>
+          {button}
         </div>
       );
     },
   };
 
-  const cols = [
+  const appraiserColumn = {
+    key: "appraiser",
+    id: "appraiser",
+    width: "140px",
+    header: () => "Appraiser",
+    cell: (order) => order?.appraiser_name || "–",
+  };
+
+  const columns = [
     orderStatusColumn,
-    clientCol,
-    addressCol,
-    propCol,
-    feeCol,
+    clientColumn,
+    addressColumn,
+    propertyReportColumn,
+    feeColumn,
     actionsColumn,
-    datesColDef,
+    datesColumn,
     appraiserColumn,
   ];
 
-  return cols;
+  return columns;
 }
 
 export default getColumnsForRole;

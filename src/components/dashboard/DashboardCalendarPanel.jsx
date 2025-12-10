@@ -46,9 +46,9 @@ function buildTitle(type, suffix) {
   return suffix ? `${icon} ${human} - ${suffix}` : `${icon} ${human}`;
 }
 
-export default function DashboardCalendarPanel({ orders = [], onOpenOrder, fixedHeader = true }) {
+export default function DashboardCalendarPanel({ orders = [], onOpenOrder, fixedHeader = true, mode = null, reviewerId = null }) {
   const hasOrders = Array.isArray(orders) && orders.length > 0;
-  const baseLoader = useCalendarEventLoader(); // fallback when no orders provided
+  const baseLoader = useCalendarEventLoader({ mode, reviewerId }); // fallback when no orders provided
 
   // Loader that prefers local orders list; falls back to backend loader
   const loader = useCallback(
@@ -109,7 +109,7 @@ export default function DashboardCalendarPanel({ orders = [], onOpenOrder, fixed
     []
   );
 
-  const [mode, setMode] = useState("twoWeek");
+  const [viewMode, setViewMode] = useState("twoWeek");
   const [monFriOnly, setMonFriOnly] = useState(true);
   const [compact, setCompact] = useState(true);
 
@@ -121,8 +121,8 @@ export default function DashboardCalendarPanel({ orders = [], onOpenOrder, fixed
             {tabs.map((t) => (
               <button
                 key={t.key}
-                onClick={() => setMode(t.key)}
-                className={`px-3 py-1 text-sm rounded ${mode === t.key ? "bg-black text-white" : "hover:bg-gray-100"}`}
+                onClick={() => setViewMode(t.key)}
+                className={`px-3 py-1 text-sm rounded ${viewMode === t.key ? "bg-black text-white" : "hover:bg-gray-100"}`}
               >
                 {t.label}
               </button>
@@ -143,14 +143,14 @@ export default function DashboardCalendarPanel({ orders = [], onOpenOrder, fixed
       )}
 
       <div className="overflow-hidden rounded-lg border">
-        {mode === "month" && (
+        {viewMode === "month" && (
           <MonthCalendar
             getEvents={loader}
             showWeekends={!monFriOnly}
             onEventClick={(ev) => onOpenOrder?.(ev?.orderId)}
           />
         )}
-        {mode === "twoWeek" && (
+        {viewMode === "twoWeek" && (
           <TwoWeekCalendar
             getEvents={loader}
             weeks={2}
@@ -160,7 +160,7 @@ export default function DashboardCalendarPanel({ orders = [], onOpenOrder, fixed
             onEventClick={(ev) => onOpenOrder?.(ev?.orderId)}
           />
         )}
-        {mode === "week" && (
+        {viewMode === "week" && (
           <TwoWeekCalendar
             getEvents={loader}
             weeks={1}
@@ -170,7 +170,7 @@ export default function DashboardCalendarPanel({ orders = [], onOpenOrder, fixed
             onEventClick={(ev) => onOpenOrder?.(ev?.orderId)}
           />
         )}
-        {mode === "day" && (
+        {viewMode === "day" && (
           <TwoWeekCalendar
             getEvents={loader}
             weeks={1}

@@ -1,133 +1,135 @@
-// src/lib/services/notificationsService.js
-import supabase from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabaseClient";
 
-/** Utilities */
-const rpcMissing = (e) => {
-  const m = (e?.message || "").toLowerCase();
-  return m.includes("404") || m.includes("not found") || m.includes("does not exist");
-};
+/**
+ * recipients: array of { userId: string, role: "appraiser" | "admin" | "reviewer" | "owner" }
+ * order: OrderFrontend or raw order row (must at least have id & order_number)
+ */
+export async function emitNotification(eventKey, { recipients, order, payload = {} }) {
+  console.log("[emitNotification] called", { eventKey, recipients, orderId: order?.id });
+  if (!recipients || recipients.length === 0) return;
 
-/** ------------------------------------------------------------------ */
-/** Fetch notifications (with simple filters/pagination)               */
-/** ------------------------------------------------------------------ */
-export async function listNotifications({
-  unreadOnly = false,
-  limit = 25,
-  before = null,       // ISO string or Date
-} = {}) {
-  // Try RPC first if you add it later:
-  // const { data, error } = await supabase.rpc("rpc_list_notifications", { p_unread_only: unreadOnly, p_limit: limit, p_before: before });
-  // if (!error) return data ?? [];
+  // 1. Load policy for this event
+  const { data: policyRow, error: policyError } = await supabase
+    .from("notification_policies")
+    .select("rules")
+    .eq("key", eventKey)
+    .maybeSingle();
 
-  // Fallback: direct view/table query
-  let q = supabase
-    .from("notifications")
-    .select(`
-      id,
-      type,
+  if (policyError || !policyRow?.rules) {
+    console.error("[emitNotification] no policy for key", eventKey, policyError);
+    return;
+  }
+  console.log("[emitNotification] policy loaded", { eventKey });
+
+  const rules = policyRow.rules;
+  const category = rules.category || "order";
+  const priority = rules.priority || "normal";
+
+  const notificationsToInsert = [];
+
+  for (const recipient of recipients) {
+    const { userId, role } = recipient;
+    if (!userId || !role) continue;
+
+    const roleRules = rules.roles?.[role];
+    if (!roleRules) continue;
+
+    // For MVP we only care about in_app.default / required
+    const inAppDefault = !!roleRules.in_app?.default;
+    const inAppRequired = !!roleRules.in_app?.required;
+
+    const shouldInApp = inAppRequired || inAppDefault;
+    if (!shouldInApp) continue;
+
+    // Build title/body – keep it simple for now
+    const orderNumber = order?.order_number || order?.orderNumber || order?.id;
+    const title = buildNotificationTitle(eventKey, orderNumber);
+    const body = buildNotificationBody(eventKey, order, payload);
+
+    notificationsToInsert.push({
+      user_id: userId,
+      type: eventKey,
+      category,
+      priority,
       title,
-      message,
-      link_url,
-      order_id,
-      created_at,
-      read_at
-    `)
-    .order("created_at", { ascending: false })
-    .limit(limit);
-
-  if (unreadOnly) q = q.is("read_at", null);
-  if (before) {
-    const iso = before instanceof Date ? before.toISOString() : String(before);
-    q = q.lt("created_at", iso);
+      body,
+      order_id: order?.id || null,
+      link_path: order?.id ? `/orders/${order.id}` : null,
+      payload: {
+        order_number: orderNumber,
+        status: order?.status,
+        client_name: order?.client_name,
+        address_line1: order?.address_line1,
+        city: order?.city,
+        state: order?.state,
+        review_due_at: order?.review_due_at,
+        final_due_at: order?.final_due_at,
+        ...payload,
+      },
+    });
   }
 
-  const { data, error } = await q;
-  if (error) throw error;
-  return data ?? [];
-}
+  if (notificationsToInsert.length === 0) {
+    console.log("[emitNotification] nothing to insert for", eventKey);
+    return;
+  }
 
-/** Unread count */
-export async function getUnreadCount() {
-  // RPC version (add when ready)
-  // const { data, error } = await supabase.rpc("rpc_notifications_unread_count");
-  // if (!error && typeof data === "number") return data;
-
-  const { count, error } = await supabase
+  console.log("[emitNotification] inserting", notificationsToInsert);
+  const { error: insertError } = await supabase
     .from("notifications")
-    .select("id", { head: true, count: "exact" })
-    .is("read_at", null);
+    .insert(notificationsToInsert);
 
-  if (error) throw error;
-  return count ?? 0;
+  if (insertError) {
+    console.error("[emitNotification] insert failed", insertError);
+  } else {
+    console.log("[emitNotification] insert success", { count: notificationsToInsert.length });
+  }
 }
 
-/** Mark one notification read */
-export async function markRead(notificationId) {
-  // RPC first
-  // const { error } = await supabase.rpc("rpc_notification_mark_read", { p_id: notificationId });
-  // if (!error) return;
-
-  const { error } = await supabase
-    .from("notifications")
-    .update({ read_at: new Date().toISOString() })
-    .eq("id", notificationId);
-
-  if (error) throw error;
-}
-
-/** Mark all read */
-export async function markAllRead() {
-  // RPC first
-  // const { error } = await supabase.rpc("rpc_notifications_mark_all_read");
-  // if (!error) return;
-
-  const { error } = await supabase
-    .from("notifications")
-    .update({ read_at: new Date().toISOString() })
-    .is("read_at", null);
-
-  if (error) throw error;
-}
-
-/** ------------------------------------------------------------------ */
-/** Preferences (get / update)                                         */
-/** ------------------------------------------------------------------ */
-export async function getNotificationPrefs() {
-  // RPC version:
-  // const { data, error } = await supabase.rpc("rpc_notification_prefs_get");
-  // if (!error) return data ?? {};
-
+export async function markRead(id) {
+  if (!id) return null;
   const { data, error } = await supabase
-    .from("notification_prefs")
-    .select(`
-      dnd,
-      dnd_until,
-      snooze_until
-    `)
-    .single();
-
-  if (error && !rpcMissing(error)) throw error;
-  return data ?? { dnd: false, dnd_until: null, snooze_until: null };
+    .from("notifications")
+    .update({ read_at: new Date().toISOString() })
+    .eq("id", id)
+    .select()
+    .maybeSingle();
+  if (error) {
+    console.error("[markRead] failed", error);
+    throw error;
+  }
+  return data;
 }
 
-export async function updateNotificationPrefs(patch) {
-  // RPC version:
-  // const { error } = await supabase.rpc("rpc_notification_prefs_set", { p: patch });
-  // if (!error) return;
-
-  // Upsert (one row per user)
-  const { error } = await supabase
-    .from("notification_prefs")
-    .upsert(
-      {
-        dnd: !!patch.dnd,
-        dnd_until: patch.dnd_until ?? null,
-        snooze_until: patch.snooze_until ?? null,
-      },
-      { onConflict: "user_id" } // ensure your table has (user_id) unique
-    );
-
-  if (error) throw error;
+function buildNotificationTitle(eventKey, orderNumber) {
+  const num = orderNumber || "order";
+  switch (eventKey) {
+    case "order.new_assigned":
+      return `Order ${num} assigned`;
+    case "order.sent_to_review":
+      return `Order ${num} sent to review`;
+    case "order.sent_back_to_appraiser":
+      return `Revisions requested: ${num}`;
+    case "order.completed":
+      return `Order ${num} completed`;
+    default:
+      return `Order ${num} updated`;
+  }
 }
 
-
+function buildNotificationBody(eventKey, order, payload) {
+  const client = order?.client_name || "client";
+  switch (eventKey) {
+    case "order.new_assigned":
+      // keep admin anonymous
+      return `A new order was assigned for ${client}.`;
+    case "order.sent_to_review":
+      return `Appraiser sent this report for review.`;
+    case "order.sent_back_to_appraiser":
+      return `Reviewer requested changes to this report.`;
+    case "order.completed":
+      return `Report for ${client} was marked complete.`;
+    default:
+      return payload?.message || "";
+  }
+}

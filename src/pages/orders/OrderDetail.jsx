@@ -198,7 +198,14 @@ export default function OrderDetail() {
 
             {/* inline row: Appraiser (left) + Status (right) */}
             <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-              <div className="text-sm text-gray-800">{appraiserName}</div>
+              <div className="flex flex-col gap-1">
+                <div className="text-xs text-gray-500 uppercase">Appraiser</div>
+                <div className="text-sm text-gray-800">{appraiserName}</div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <div className="text-xs text-gray-500 uppercase">Reviewer</div>
+                <div className="text-sm text-gray-800">{order.reviewer_name || "–"}</div>
+              </div>
 
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-500">Status</span>
