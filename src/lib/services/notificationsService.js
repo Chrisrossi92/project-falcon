@@ -1,5 +1,21 @@
 import { supabase } from "@/lib/supabaseClient";
 
+export async function fetchAdminRecipients() {
+  const { data, error } = await supabase
+    .from("users")
+    .select("id, role, status")
+    .in("role", ["owner", "admin"]);
+
+  if (error) {
+    console.error("fetchAdminRecipients error", error);
+    return [];
+  }
+
+  return (data || [])
+    .filter((u) => !u.status || u.status.toLowerCase() === "active")
+    .map((u) => ({ userId: u.id, role: "admin" }));
+}
+
 /**
  * recipients: array of { userId: string, role: "appraiser" | "admin" | "reviewer" | "owner" }
  * order: OrderFrontend or raw order row (must at least have id & order_number)

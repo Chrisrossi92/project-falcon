@@ -1,6 +1,6 @@
 // src/lib/services/ordersService.js
 import supabase from "@/lib/supabaseClient";
-import { emitNotification } from "@/lib/services/notificationsService";
+import { emitNotification, fetchAdminRecipients } from "@/lib/services/notificationsService";
 
 /** Source of truth */
 const ORDERS_TABLE = "orders";
@@ -155,24 +155,30 @@ export async function getOrder(orderId) {
    ========================================================================== */
 
 export async function createOrder(payload, context = {}) {
-  const { data, error } = await supabase
+  const { data: order, error } = await supabase
     .from(ORDERS_TABLE)
     .insert(payload)
     .select("*")
-    .single();
+    .maybeSingle();
   if (error) throw error;
+  if (!order) return null;
 
-  const recipients = payload.appraiser_id
-    ? [{ userId: payload.appraiser_id, role: "appraiser" }]
-    : [];
+  const recipients = [];
 
-  if (recipients.length) {
-    emitNotification("order.new_assigned", { recipients, order: data }).catch((err) =>
-      console.error("order.new_assigned notification failed", err)
+  if (order.appraiser_id) {
+    recipients.push({ userId: order.appraiser_id, role: "appraiser" });
+  }
+
+  const adminRecipients = await fetchAdminRecipients();
+  recipients.push(...adminRecipients);
+
+  if (recipients.length > 0) {
+    emitNotification("order.new_assigned", { recipients, order }).catch(
+      (err) => console.error("order.new_assigned notification failed", err)
     );
   }
 
-  return data;
+  return order;
 }
 
 export async function updateOrder(orderId, patch) {
@@ -318,38 +324,120 @@ export async function updateOrderStatus(orderId, status, extra = {}) {
   return updateOrder(orderId, patch);
 }
 
-export async function sendOrderToReview(order, actorId) {
-  const updated = await updateOrderStatus(order.id, OrderStatus.IN_REVIEW);
+export async function sendOrderToReview(orderId, actorId) {
+  const { data: order, error } = await supabase
+    .from(ORDERS_TABLE)
+    .update({ status: OrderStatus.IN_REVIEW })
+    .eq("id", orderId)
+    .select("*")
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!order) return null;
+
   const recipients = [];
+
   if (order.reviewer_id) {
     recipients.push({ userId: order.reviewer_id, role: "reviewer" });
   }
-  emitNotification("order.sent_to_review", { recipients, order }).catch((err) =>
-    console.error("order.sent_to_review notification failed", err)
-  );
-  return updated;
+
+  const adminRecipients = await fetchAdminRecipients();
+  recipients.push(...adminRecipients);
+
+  if (recipients.length > 0) {
+    emitNotification("order.sent_to_review", { recipients, order }).catch(
+      (err) => console.error("order.sent_to_review notification failed", err)
+    );
+  }
+
+  return order;
 }
 
-export async function sendOrderBackToAppraiser(order, actorId) {
-  const updated = await updateOrderStatus(order.id, OrderStatus.NEEDS_REVISIONS);
+export async function sendOrderBackToAppraiser(orderId, actorId) {
+  console.log("[sendOrderBackToAppraiser] called", { orderId, actorId });
+
+  // 1. Only update the status column
+  const statusPatch = { status: "Needs Revisions" }; // or OrderStatus.NEEDS_REVISIONS if that constant matches DB
+  console.log("[sendOrderBackToAppraiser] patch", statusPatch);
+
+  const { data, error } = await supabase
+  .from("orders")
+  .update(statusPatch)
+  .eq("id", orderId)
+  .select("id, appraiser_id, reviewer_id, order_number, status")
+  .maybeSingle();
+
+  if (error) {
+    console.error("[sendOrderBackToAppraiser] update error", error);
+    throw error;
+  }
+
+  const order = data;
+  if (!order) {
+    console.warn("[sendOrderBackToAppraiser] no order found for id", orderId);
+    return null;
+  }
+
   const recipients = [];
+
   if (order.appraiser_id) {
     recipients.push({ userId: order.appraiser_id, role: "appraiser" });
   }
-  emitNotification("order.sent_back_to_appraiser", { recipients, order }).catch((err) =>
-    console.error("order.sent_back_to_appraiser notification failed", err)
-  );
-  return updated;
+
+  const adminRecipients = await fetchAdminRecipients();
+  recipients.push(...adminRecipients);
+
+  if (recipients.length > 0) {
+    emitNotification("order.sent_back_to_appraiser", { recipients, order }).catch(
+      (err) =>
+        console.error("order.sent_back_to_appraiser notification failed", err)
+    );
+  }
+
+  return order;
 }
 
-export async function completeOrder(order, actorId) {
-  const updated = await updateOrderStatus(order.id, OrderStatus.COMPLETED);
+
+export async function completeOrder(orderId, actorId) {
+  console.log("[completeOrder] called", { orderId, actorId });
+
+  const statusPatch = { status: OrderStatus.COMPLETED };
+  console.log("[completeOrder] patch", statusPatch);
+
+  const { data, error } = await supabase
+    .from(ORDERS_TABLE)
+    .update(statusPatch)
+    .eq("id", orderId)
+    .select("id, appraiser_id, reviewer_id, order_number, status")
+    .maybeSingle();
+
+  if (error) {
+    console.error("[completeOrder] update error", error);
+    throw error;
+  }
+
+  const order = data;
+  if (!order) {
+    console.warn("[completeOrder] no order found for id", orderId);
+    return null;
+  }
+
   const recipients = [];
-  // optionally notify admins; placeholder for admin list if available
-  emitNotification("order.completed", { recipients, order }).catch((err) =>
-    console.error("order.completed notification failed", err)
-  );
-  return updated;
+
+  const adminRecipients = await fetchAdminRecipients();
+  recipients.push(...adminRecipients);
+
+  if (order.appraiser_id) {
+    recipients.push({ userId: order.appraiser_id, role: "appraiser" });
+  }
+
+  if (recipients.length > 0) {
+    emitNotification("order.completed", { recipients, order }).catch((err) =>
+      console.error("order.completed notification failed", err)
+    );
+  }
+
+  return order;
 }
 
 /** Utility used elsewhere */
@@ -367,11 +455,6 @@ export async function isOrderNumberAvailable(orderNo, { excludeId = null } = {})
   if (res2.error) throw res2.error;
   return (res2.count || 0) === 0;
 }
-
-
-
-
-
 
 
 

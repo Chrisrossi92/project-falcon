@@ -134,19 +134,19 @@ export default function UnifiedOrdersTable({
   const handleSendBackToAppraiser = useCallback(
     async (order) => {
       try {
-        await sendOrderBackToAppraiser(order, sessionUser?.id);
-        refresh();
+        await sendOrderBackToAppraiser(order.id, sessionUser?.id);
+        await refresh();
         toast({
           title: "Sent back to appraiser",
-          description: `Order ${order.order_number || order.id} was sent back for revisions.`,
-          tone: "success",
+          description: `Revisions requested for order ${order.order_number || order.id}.`,
+          variant: "success",
         });
       } catch (err) {
         console.error("Failed to send back to appraiser", err);
         toast({
           title: "Error",
-          description: "Failed to send order back to appraiser.",
-          tone: "error",
+          description: "Could not send order back to appraiser.",
+          variant: "destructive",
         });
       }
     },
@@ -156,19 +156,19 @@ export default function UnifiedOrdersTable({
   const handleCompleteOrder = useCallback(
     async (order) => {
       try {
-        await completeOrder(order, sessionUser?.id);
-        refresh();
+        await completeOrder(order.id, sessionUser?.id);
+        await refresh();
         toast({
           title: "Order completed",
           description: `Order ${order.order_number || order.id} was marked complete.`,
-          tone: "success",
+          variant: "success",
         });
       } catch (err) {
         console.error("Failed to complete order", err);
         toast({
           title: "Error",
-          description: "Failed to mark order complete.",
-          tone: "error",
+          description: "Could not mark order complete.",
+          variant: "destructive",
         });
       }
     },
