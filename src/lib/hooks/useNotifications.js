@@ -20,7 +20,7 @@ export function useNotifications({ pollMs = 15000, enableRealtime = false } = {}
 
   async function markRead(id) {
     await rpcMarkNotificationRead(id);
-    setItems(prev => prev.map(n => (n.id === id ? { ...n, is_read: true } : n)));
+    setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read_at: n.read_at || new Date().toISOString() } : n)));
   }
 
   useEffect(() => {
@@ -33,12 +33,16 @@ export function useNotifications({ pollMs = 15000, enableRealtime = false } = {}
     if (!enableRealtime) return;
     channelRef.current = supabase
       .channel("notif-center")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "notification_center" }, refresh)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "notifications" },
+        refresh
+      )
       .subscribe();
     return () => channelRef.current && supabase.removeChannel(channelRef.current);
   }, [enableRealtime]);
 
-  const unreadCount = items.filter(n => !n.is_read).length;
+  const unreadCount = items.filter((n) => !n.read_at).length;
   return { items, unreadCount, loading, refresh, markRead };
 }
 

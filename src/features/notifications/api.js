@@ -66,70 +66,33 @@ export async function updateNotificationPrefs(patch = {}) {
 
 /* ---------- counts & lists ---------- */
 export async function getUnreadCount() {
-  try {
-    const rpc = await supabase.rpc("rpc_notifications_count");
-    if (!rpc.error && typeof rpc.data === "number") return rpc.data;
-  } catch {}
-  try {
-    const { count } = await supabase
-      .from("notifications")
-      .select("id", { head: true, count: "exact" })
-      .is("read_at", null);
-    return count ?? 0;
-  } catch {}
-  return 0;
+  const { data, error } = await supabase.rpc("rpc_get_unread_count");
+  if (error) throw error;
+  return Number(data || 0);
 }
 // back-compat alias expected by hooks.js
 export const unreadCount = getUnreadCount;
 
 export async function listNotifications({ limit = 10 } = {}) {
-  try {
-    const rpc = await supabase.rpc("rpc_notifications_list", { p_limit: limit });
-    if (!rpc.error && Array.isArray(rpc.data)) return rpc.data;
-  } catch {}
-  try {
-    const { data } = await supabase
-      .from("notifications")
-      .select("id, created_at, title, body, message, read_at")
-      .order("created_at", { ascending: false })
-      .limit(limit);
-    return data ?? [];
-  } catch {}
-  return [];
+  const { data, error } = await supabase.rpc("rpc_get_notifications", { p_limit: limit });
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
 }
 // back-compat alias expected by hooks.js
 export const fetchNotifications = listNotifications;
 
 /* ---------- mutations on notifications ---------- */
 export async function markAllRead() {
-  try {
-    const rpc = await supabase.rpc("rpc_notifications_mark_all_read");
-    if (!rpc.error) return rpc.data ?? true;
-  } catch {}
-  try {
-    await supabase
-      .from("notifications")
-      .update({ read_at: new Date().toISOString() })
-      .is("read_at", null);
-    return true;
-  } catch {}
-  return false;
+  const { error } = await supabase.rpc("rpc_mark_all_notifications_read");
+  if (error) throw error;
+  return true;
 }
 
 export async function markAsRead(notificationId) {
   if (!notificationId) return false;
-  try {
-    const rpc = await supabase.rpc("rpc_notification_mark_read", { p_id: String(notificationId) });
-    if (!rpc.error) return rpc.data ?? true;
-  } catch {}
-  try {
-    await supabase
-      .from("notifications")
-      .update({ read_at: new Date().toISOString() })
-      .eq("id", notificationId);
-    return true;
-  } catch {}
-  return false;
+  const { error } = await supabase.rpc("rpc_mark_notification_read", { p_notification_id: String(notificationId) });
+  if (error) throw error;
+  return true;
 }
 
 /* ---------- convenience flags used by hooks ---------- */
@@ -161,5 +124,4 @@ export default {
 };
 
 export { markRead } from "@/lib/services/notificationsService";
-
 

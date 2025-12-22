@@ -41,7 +41,7 @@ export async function emitNotification(eventKey, { recipients, order, payload = 
   const category = rules.category || "order";
   const priority = rules.priority || "normal";
 
-  const notificationsToInsert = [];
+  const inserts = [];
 
   for (const recipient of recipients) {
     const { userId, role } = recipient;
@@ -62,7 +62,7 @@ export async function emitNotification(eventKey, { recipients, order, payload = 
     const title = buildNotificationTitle(eventKey, orderNumber);
     const body = buildNotificationBody(eventKey, order, payload);
 
-    notificationsToInsert.push({
+    inserts.push({
       user_id: userId,
       type: eventKey,
       category,
@@ -85,31 +85,26 @@ export async function emitNotification(eventKey, { recipients, order, payload = 
     });
   }
 
-  if (notificationsToInsert.length === 0) {
+  if (inserts.length === 0) {
     console.log("[emitNotification] nothing to insert for", eventKey);
     return;
   }
 
-  console.log("[emitNotification] inserting", notificationsToInsert);
-  const { error: insertError } = await supabase
-    .from("notifications")
-    .insert(notificationsToInsert);
-
-  if (insertError) {
+  try {
+    await Promise.all(
+      inserts.map((row) =>
+        supabase.rpc("rpc_notification_create", { patch: row })
+      )
+    );
+    console.log("[emitNotification] insert success", { count: inserts.length });
+  } catch (insertError) {
     console.error("[emitNotification] insert failed", insertError);
-  } else {
-    console.log("[emitNotification] insert success", { count: notificationsToInsert.length });
   }
 }
 
 export async function markRead(id) {
   if (!id) return null;
-  const { data, error } = await supabase
-    .from("notifications")
-    .update({ read_at: new Date().toISOString() })
-    .eq("id", id)
-    .select()
-    .maybeSingle();
+  const { data, error } = await supabase.rpc("rpc_mark_notification_read", { p_notification_id: id });
   if (error) {
     console.error("[markRead] failed", error);
     throw error;

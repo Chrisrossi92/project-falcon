@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import useSession from "@/lib/hooks/useSession";
@@ -13,16 +13,13 @@ export default function NotificationBell() {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
+  const channelName = useMemo(() => (userId ? `notif:${userId}` : null), [userId]);
+
   const loadNotifications = async () => {
     if (!userId) return;
     setLoading(true);
     setError(null);
-    const { data, error } = await supabase
-      .from("notifications")
-      .select("id, type, title, body, is_read, created_at, link_path, order_id")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(20);
+    const { data, error } = await supabase.rpc("rpc_get_notifications", { p_limit: 20 });
     if (error) {
       console.error("loadNotifications error", error);
       setError(error);
@@ -30,7 +27,7 @@ export default function NotificationBell() {
       setUnreadCount(0);
     } else {
       setItems(data || []);
-      setUnreadCount((data || []).filter((n) => !n.is_read).length);
+      setUnreadCount((data || []).filter((n) => !n.read_at).length);
     }
     setLoading(false);
   };
@@ -42,11 +39,8 @@ export default function NotificationBell() {
 
   const handleNotificationClick = async (n) => {
     if (!n) return;
-    if (!n.is_read) {
-      await supabase
-        .from("notifications")
-        .update({ is_read: true, read_at: new Date().toISOString() })
-        .eq("id", n.id);
+    if (!n.read_at) {
+      await supabase.rpc("rpc_mark_notification_read", { p_notification_id: n.id });
     }
     if (n.link_path) {
       navigate(n.link_path);
@@ -59,20 +53,13 @@ export default function NotificationBell() {
 
   const markAllRead = async () => {
     if (!userId) return;
-    const unreadIds = items.filter((n) => !n.is_read).map((n) => n.id);
-    if (!unreadIds.length) return;
-    const { error } = await supabase
-      .from("notifications")
-      .update({ is_read: true, read_at: new Date().toISOString() })
-      .in("id", unreadIds);
+    const { error } = await supabase.rpc("rpc_mark_all_notifications_read");
     if (error) {
       console.error("markAllRead error", error);
       return;
     }
-    setItems((prev) =>
-      prev.map((n) => (unreadIds.includes(n.id) ? { ...n, is_read: true } : n))
-    );
-    setUnreadCount((prev) => Math.max(0, prev - unreadIds.length));
+    setItems((prev) => prev.map((n) => ({ ...n, read_at: n.read_at || new Date().toISOString() })));
+    setUnreadCount(0);
   };
 
   const handleOpenChange = async (nextOpen) => {
@@ -82,6 +69,23 @@ export default function NotificationBell() {
       await markAllRead();
     }
   };
+
+  useEffect(() => {
+    if (!channelName) return;
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
+        () => {
+          loadNotifications();
+        }
+      )
+      .subscribe();
+    return () => {
+      try { supabase.removeChannel(channel); } catch {}
+    };
+  }, [channelName, userId]);
 
   return (
     <div className="relative">
@@ -124,7 +128,7 @@ export default function NotificationBell() {
                 <button
                   key={n.id}
                   className={`w-full text-left px-3 py-2 text-sm hover:bg-muted ${
-                    n.is_read ? "opacity-60" : ""
+                    n.read_at ? "opacity-60" : ""
                   }`}
                   onClick={() => handleNotificationClick(n)}
                 >
@@ -142,7 +146,6 @@ export default function NotificationBell() {
     </div>
   );
 }
-
 
 
 

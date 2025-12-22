@@ -9,15 +9,14 @@ import supabase from "@/lib/supabaseClient";
  * @param {string} params.message - Message to display
  */
 export const sendNotification = async ({ user_id, order_id, type, message }) => {
-  const { error } = await supabase.from("notifications").insert([
-    {
+  const { error } = await supabase.rpc("rpc_notification_create", {
+    patch: {
       user_id,
       order_id,
       type,
       message,
-      read: false,
     },
-  ]);
+  });
 
   if (error) throw new Error(error.message);
 };

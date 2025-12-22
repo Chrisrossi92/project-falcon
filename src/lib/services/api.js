@@ -5,8 +5,8 @@ import supabase from "@/lib/supabaseClient";
 /* ----------------------------- NOTIFICATIONS ----------------------------- */
 
 /**
- * List notifications for the current user.
- * Maps to: public.rpc_notifications_list(category, is_read, page_limit, before, after)
+ * List notifications for the current user (RPC-only).
+ * Maps to: public.rpc_get_notifications(p_limit int, p_before timestamptz)
  */
 export async function rpcGetNotifications({
   category = null,
@@ -15,31 +15,30 @@ export async function rpcGetNotifications({
   before = null,
   after = null,
 } = {}) {
-  const { data, error } = await supabase.rpc("rpc_notifications_list", {
-    category,
-    is_read: isRead,
-    page_limit: limit,
-    before,
-    after,
+  const { data, error } = await supabase.rpc("rpc_get_notifications", {
+    p_limit: limit,
+    p_before: before ?? after ?? null, // simple cursor fallback; API ignores filters today
   });
   if (error) throw error;
   return data ?? [];
 }
 
 /**
- * Mark one (or many) notifications as read.
- * Maps to: public.rpc_notifications_mark_read(ids uuid[])
+ * Mark one (or many) notifications as read (read_at populated).
+ * Maps to: public.rpc_mark_notification_read(p_notification_id uuid)
  */
 export async function rpcMarkNotificationRead(idOrIds) {
   const ids = Array.isArray(idOrIds) ? idOrIds : [idOrIds];
   if (!ids.length) return;
-  const { error } = await supabase.rpc("rpc_notifications_mark_read", { ids });
-  if (error) throw error;
+  for (const id of ids) {
+    const { error } = await supabase.rpc("rpc_mark_notification_read", { p_notification_id: id });
+    if (error) throw error;
+  }
 }
 
 /* Optionally expose “mark all read” if you want it in UI later.
 export async function rpcMarkAllNotificationsRead() {
-  const { error } = await supabase.rpc("rpc_notifications_mark_all_read");
+  const { error } = await supabase.rpc("rpc_mark_all_notifications_read");
   if (error) throw error;
 }
 */

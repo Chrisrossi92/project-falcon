@@ -4,39 +4,28 @@ import supabase from '@/lib/supabaseClient';
 // NotificationRow and UserPref types removed
 
 export async function fetchNotifications(limit = 50) {
-  const { data, error } = await supabase
-    .from('notifications')
-    .select('id, order_id, action, priority, link_path, payload, is_read, created_at')
-    .order('created_at', { ascending: false })
-    .limit(limit);
+  const { data, error } = await supabase.rpc("rpc_get_notifications", { p_limit: limit });
   if (error) throw error;
   return data || [];
 }
 
 export async function markAsRead(ids) {
   if (!ids?.length) return;
-  const { error } = await supabase
-    .from('notifications')
-    .update({ is_read: true })
-    .in('id', ids);
-  if (error) throw error;
+  for (const id of ids) {
+    const { error } = await supabase.rpc("rpc_mark_notification_read", { p_notification_id: id });
+    if (error) throw error;
+  }
 }
 
 export async function markAllRead() {
-  const { error } = await supabase
-    .from('notifications')
-    .update({ is_read: true })
-    .eq('is_read', false);
+  const { error } = await supabase.rpc("rpc_mark_all_notifications_read");
   if (error) throw error;
 }
 
 export async function unreadCount() {
-  const { count, error } = await supabase
-    .from('notifications')
-    .select('*', { count: 'exact', head: true })
-    .eq('is_read', false);
+  const { data, error } = await supabase.rpc("rpc_get_unread_count");
   if (error) throw error;
-  return count ?? 0;
+  return Number(data || 0);
 }
 
 // Load current user's notification prefs (in-app + email + meta)
