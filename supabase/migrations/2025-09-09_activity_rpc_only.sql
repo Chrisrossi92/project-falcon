@@ -17,6 +17,20 @@ drop policy if exists activity_update_none on public.activity_log;
 create policy activity_update_none on public.activity_log
   for update using (false) with check (false);
 
+-- Allow inserts when caller can see the order (for triggers / RPC definer)
+drop policy if exists activity_insert_visible_order on public.activity_log;
+create policy activity_insert_visible_order on public.activity_log
+  for insert with check (
+    exists (
+      select 1 from public.orders o
+       where o.id = activity_log.order_id
+         and (
+           (current_setting('request.jwt.claims', true)::jsonb ->> 'role') in ('admin','reviewer')
+           or coalesce(o.appraiser_id, o.assigned_to) = auth.uid()
+         )
+    )
+  );
+
 -- Keep existing SELECT policies; we rely on them to gate feed visibility.
 
 -- 2) UI-facing feed view (includes basic actor info)

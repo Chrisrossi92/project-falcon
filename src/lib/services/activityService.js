@@ -17,12 +17,25 @@ function shape(row) {
 
 // Read feed (include joined name+email when profiles exists)
 export async function listOrderActivity(orderId) {
-  const { data, error } = await supabase.rpc("rpc_get_activity_feed", {
-    p_order_id: orderId,
-  });
-
-  if (error) throw error;
-  return (data || []).map(shape);
+  try {
+    const { data, error } = await supabase.rpc("rpc_get_activity_feed", {
+      p_order_id: orderId,
+    });
+    if (error) throw error;
+    return (data || []).map(shape);
+  } catch (err) {
+    console.error("[listOrderActivity] RPC failed, attempting fallback", err);
+    const { data, error: tblErr } = await supabase
+      .from("activity_log")
+      .select(`
+        id, order_id, event_type, message, created_at, created_by, created_by_name, created_by_email,
+        profiles:created_by ( full_name, email )
+      `)
+      .eq("order_id", orderId)
+      .order("created_at", { ascending: true });
+    if (tblErr) throw tblErr;
+    return (data || []).map(shape);
+  }
 }
 
 // Realtime inserts (hydrate name/email if needed)
@@ -62,10 +75,13 @@ export async function logNote(orderId, message) {
     p_message: message,
   });
 
-  if (error) throw error;
+  if (error) {
+    // Surface a clearer failure to the UI
+    const msg = error?.message || "Failed to log note";
+    throw new Error(`${msg} (ensure activity migrations are applied)`);
+  }
   return shape(data);
 }
-
 
 
 
