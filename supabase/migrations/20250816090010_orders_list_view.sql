@@ -12,7 +12,7 @@ create index if not exists orders_active_created_at_idx      on public.orders(cr
 -- === ORDERS LIST VIEW (tailored to your columns) ============================
 create or replace view public.v_orders_list as
 select
-  o.id,
+  o.id as order_id,
   o.order_number,
   o.title,
   o.status,
@@ -63,7 +63,7 @@ from public.v_orders_list l
 left join lateral (
   select created_at
   from public.activity_log
-  where order_id = l.id
+  where order_id = l.order_id
   order by created_at desc
   limit 1
 ) a on true;
