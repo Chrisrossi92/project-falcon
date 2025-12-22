@@ -89,6 +89,7 @@ export async function logNote(orderId, message) {
   const { data, error } = await supabase.rpc("rpc_log_note", {
     p_order_id: orderId,
     p_message: message,
+    p_context: {}, // force canonical 3-arg signature
   });
 
   if (error) {
@@ -98,7 +99,6 @@ export async function logNote(orderId, message) {
   }
   return shape(data);
 }
-
 
 
 
