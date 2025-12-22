@@ -10,26 +10,16 @@ function shape(row) {
     message: row.message ?? row.note ?? "",
     created_at: row.created_at,
     created_by: row.created_by,
-    // try server value, joined profile name/email, then cached email
-    created_by_name:
-      row.created_by_name ||
-      row.profiles?.full_name ||
-      null,
-    created_by_email:
-      row.profiles?.email || row.created_by_email || null,
+    created_by_name: row.created_by_name || null,
+    created_by_email: row.created_by_email || null,
   };
 }
 
 // Read feed (include joined name+email when profiles exists)
 export async function listOrderActivity(orderId) {
-  const { data, error } = await supabase
-    .from("activity_log")
-    .select(`
-      id, order_id, event_type, message, created_at, created_by, created_by_name, created_by_email,
-      profiles:created_by ( full_name, email )
-    `)
-    .eq("order_id", orderId)
-    .order("created_at", { ascending: true });
+  const { data, error } = await supabase.rpc("rpc_get_activity_feed", {
+    p_order_id: orderId,
+  });
 
   if (error) throw error;
   return (data || []).map(shape);
@@ -66,34 +56,15 @@ export function subscribeOrderActivity(orderId, cb) {
 // Insert a note with cached author info for robustness
 export async function logNote(orderId, message) {
   if (!orderId) throw new Error("Missing orderId");
-  const { data: userRes, error: uerr } = await supabase.auth.getUser();
-  if (uerr) throw uerr;
-  const user = userRes?.user;
 
-  const authorName =
-    user?.user_metadata?.full_name ||
-    user?.user_metadata?.name ||
-    null;
-
-  const authorEmail = user?.email || null;
-
-  const { data, error } = await supabase
-    .from("activity_log")
-    .insert([{
-      order_id: orderId,
-      event_type: "note_added",
-      message,
-      created_by: user?.id ?? null,
-      created_by_name: authorName,  // cache so UI has a name even if join fails
-      created_by_email: authorEmail // cache email as fallback
-    }])
-    .select()
-    .single();
+  const { data, error } = await supabase.rpc("rpc_log_note", {
+    p_order_id: orderId,
+    p_message: message,
+  });
 
   if (error) throw error;
   return shape(data);
 }
-
 
 
 

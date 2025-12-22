@@ -2,8 +2,7 @@
 import supabase from "@/lib/supabaseClient";
 
 /**
- * Log a normalized activity entry for an order.
- * RPC-first, with a safe fallback to direct insert.
+ * Log a normalized activity entry for an order via RPC (no direct inserts).
  *
  * @param {Object} payload
  * @param {string} payload.order_id            - REQUIRED
@@ -42,43 +41,19 @@ export default async function logOrderEvent(payload = {}) {
     // non-fatal; leave actor as-is
   }
 
-  // 1) Try RPC path first
-  try {
-    const { error: rpcErr, data: rpcData } = await supabase.rpc("rpc_log_event", {
-      p_order_id: order_id,
-      p_action: action,
-      p_message: message,
-      p_event_type: event_type,
-      p_event_data: event_data, // pass through as JSON if provided
-      p_actor: actor,
-    });
+  const { data, error: rpcErr } = await supabase.rpc("rpc_log_event", {
+    p_order_id: order_id,
+    p_event_type: event_type || action,
+    p_message: message,
+    p_payload: {
+      event_data: event_data ?? null,
+      actor,
+    },
+  });
 
-    if (!rpcErr) return rpcData || { ok: true };
-    // fall through to fallback on RPC error
-  } catch {
-    // fall through to fallback
-  }
-
-  // 2) Fallback: direct insert (keeps site usable if RPC missing)
-  const insertRow = {
-    order_id,
-    action,
-    message,
-    event_type,
-    event_data: event_data ?? null,
-    actor,
-  };
-
-  const { data, error } = await supabase
-    .from("order_activity")
-    .insert(insertRow)
-    .select("*")
-    .single();
-
-  if (error) throw error;
-  return data;
+  if (rpcErr) throw rpcErr;
+  return data || { ok: true };
 }
-
 
 
 

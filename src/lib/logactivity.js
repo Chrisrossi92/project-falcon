@@ -2,7 +2,7 @@
 import supabase from './supabaseClient';
 
 export async function fetchActivity(orderId) {
-  const { data, error } = await supabase.rpc('get_order_activity_flexible_v3', {
+  const { data, error } = await supabase.rpc("rpc_get_activity_feed", {
     p_order_id: orderId,
   });
   if (error) throw error;
@@ -21,15 +21,17 @@ export async function logActivity({
   new_status = null,
 }) {
   if (!order_id || !action) throw new Error("logActivity requires order_id and action");
+  const payload = {
+    context,
+    prev_status,
+    new_status,
+  };
   const { error, data } = await supabase.rpc("rpc_log_event", {
     p_order_id: order_id,
-    p_action: action,
+    p_event_type: action,
     p_message: message,
-    p_context: context,
-    p_prev_status: prev_status,
-    p_new_status: new_status,
+    p_payload: payload,
   });
   if (error) throw error;
   return data ?? null;
 }
-
