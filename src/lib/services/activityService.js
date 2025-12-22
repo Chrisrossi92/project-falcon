@@ -3,15 +3,31 @@ import supabase from "@/lib/supabaseClient";
 
 // normalize row for UI
 function shape(row) {
+  const from =
+    row?.detail?.from_status ||
+    row?.detail?.from ||
+    row?.prev_status ||
+    null;
+  const to =
+    row?.detail?.to_status ||
+    row?.detail?.to ||
+    row?.new_status ||
+    null;
+  const statusMsg =
+    row?.event_type === "status_changed" && from && to
+      ? `Status changed: ${from} → ${to}`
+      : null;
+
   return {
     id: row.id,
     order_id: row.order_id,
     event_type: row.event_type,
-    message: row.message ?? row.note ?? "",
+    message: row.message ?? statusMsg ?? row.note ?? "",
     created_at: row.created_at,
     created_by: row.created_by,
     created_by_name: row.created_by_name || null,
     created_by_email: row.created_by_email || null,
+    detail: row.detail || null,
   };
 }
 
@@ -82,7 +98,6 @@ export async function logNote(orderId, message) {
   }
   return shape(data);
 }
-
 
 
 
