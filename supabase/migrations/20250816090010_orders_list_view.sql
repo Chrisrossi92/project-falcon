@@ -10,6 +10,9 @@ create index if not exists orders_active_created_at_idx      on public.orders(cr
   where not coalesce(is_archived,false);
 
 -- === ORDERS LIST VIEW (tailored to your columns) ============================
+drop view if exists public.v_orders_list_with_last_activity;
+drop view if exists public.v_orders_list cascade;
+
 create or replace view public.v_orders_list as
 select
   o.id as order_id,
