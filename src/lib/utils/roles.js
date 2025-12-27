@@ -7,7 +7,7 @@ export function getCapabilities(user) {
   const baseRole = (user?.role || "appraiser").toLowerCase();
 
   const isOwner = baseRole === "owner";
-  const isAdmin = isOwner || !!user?.is_admin;
+  const isAdmin = baseRole === "admin" || isOwner;
   const isReviewer = baseRole === "reviewer";
   const isAppraiser = baseRole === "appraiser";
 

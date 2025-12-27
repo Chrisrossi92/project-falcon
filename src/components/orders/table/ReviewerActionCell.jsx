@@ -1,6 +1,7 @@
 // src/components/orders/table/ReviewerActionCell.jsx
 import React, { useState } from "react";
 import { updateOrderStatus } from "@/lib/api/orders";
+import { ORDER_STATUS } from "@/lib/constants/orderStatus";
 
 /**
  * Reviewer actions:
@@ -30,7 +31,7 @@ export default function ReviewerActionCell({ order, onChanged }) {
       <button
         className="px-2 py-1 text-xs rounded border hover:bg-gray-50 disabled:opacity-50"
         disabled={busy}
-        onClick={() => setStatus("REVISIONS")}
+        onClick={() => setStatus(ORDER_STATUS.NEEDS_REVISIONS)}
         title="Send back to appraiser with revisions"
       >
         {busy ? "Working…" : "Revisions"}
@@ -38,7 +39,7 @@ export default function ReviewerActionCell({ order, onChanged }) {
       <button
         className="px-2 py-1 text-xs rounded border hover:bg-gray-50 disabled:opacity-50"
         disabled={busy}
-        onClick={() => setStatus("READY_TO_SEND")}
+        onClick={() => setStatus(ORDER_STATUS.COMPLETED)}
         title="Move to admin queue to send to client"
       >
         {busy ? "Working…" : "Send to Client"}

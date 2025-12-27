@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useState } from "react";
 import useRole from "@/lib/hooks/useRole";
 import useSession from "@/lib/hooks/useSession";
 import { useOrders } from "@/lib/hooks/useOrders";
-import { formatOrderStatusLabel } from "@/lib/constants/orderStatus";
+import { formatOrderStatusLabel, normalizeOrderStatus, ORDER_STATUS } from "@/lib/constants/orderStatus";
 
 import OrdersTableRow from "@/components/orders/table/OrdersTableRow";
 import OrdersTablePagination from "@/components/orders/table/OrdersTablePagination";
@@ -31,7 +31,7 @@ const mapsHref = (street, cityline) => {
 };
 const fmtDate = (d) => (!d ? "-" : isNaN(new Date(d)) ? "-" : new Date(d).toLocaleDateString());
 const orderNumberOf = (row) =>
-  row?.order_number || (row?.id ? row.id.slice(0, 8) : "");
+  row?.order_number || (row?.id || row?.order_id ? (row?.id || row?.order_id).slice(0, 8) : "");
 
 export default function UnifiedOrdersTable({
   role: roleProp,
@@ -41,12 +41,12 @@ export default function UnifiedOrdersTable({
   style = {},
   mode = null,
   reviewerId = null,
+  scope = null,
 }) {
   const { user: sessionUser } = useSession() || {};
-  const userId = sessionUser?.id || sessionUser?.user_id || sessionUser?.uid || null;
   const { toast } = useToast();
 
-  const { role: hookRole } = useRole() || {};
+  const { role: hookRole, userId: internalUserId, loading: roleLoading } = useRole() || {};
   const normalizedRole = (roleProp || hookRole || "appraiser").toString().toLowerCase();
   const isAdminLike = normalizedRole === "owner" || normalizedRole === "admin";
   const isReviewer = normalizedRole === "reviewer";
@@ -71,9 +71,12 @@ export default function UnifiedOrdersTable({
       from: appliedFilters.from || "",
       to: appliedFilters.to || "",
     };
-    if (isAppraiser) base.appraiserId = userId || null;
+    if (isAppraiser) base.appraiserId = internalUserId || null;
+    if (role === "reviewer" && reviewerId) {
+      base.reviewerId = reviewerId;
+    }
     return base;
-  }, [appliedFilters, isAppraiser, userId, pageSize]);
+  }, [appliedFilters, isAppraiser, internalUserId, pageSize, role, reviewerId]);
 
   const {
     data = [],
@@ -82,7 +85,7 @@ export default function UnifiedOrdersTable({
     error,
     filters: tableFilters,
     setFilters: setTableFilters,
-  } = useOrders(seed, { mode, reviewerId });
+  } = useOrders(seed, { mode, reviewerId, scope, enabled: !roleLoading });
 
   const totalPages = Math.max(1, Math.ceil((count || 0) / (tableFilters.pageSize || pageSize)));
   const [expandedId, setExpandedId] = useState(null);
@@ -99,10 +102,10 @@ export default function UnifiedOrdersTable({
         className="px-2 py-1 text-xs rounded border hover:bg-gray-50 disabled:opacity-50"
         onClick={async (e) => {
           e.stopPropagation();
-          await updateOrderStatus(o.id, "IN_REVIEW");
+          await updateOrderStatus(o.id, ORDER_STATUS.IN_REVIEW);
           refresh();
         }}
-        disabled={String(o.status || "").toUpperCase() !== "IN_PROGRESS"}
+        disabled={normalizeOrderStatus(o.status) !== ORDER_STATUS.IN_PROGRESS}
         title="Send this order to review"
       >
         Send to Review
@@ -301,7 +304,7 @@ export default function UnifiedOrdersTable({
 
                         // Status
                         if (c.key === "status") {
-                          const rawStatus = o.status_normalized || o.status;
+                          const rawStatus = normalizeOrderStatus(o.status_normalized || o.status);
                           const statusLabel = formatOrderStatusLabel(rawStatus) || rawStatus || "-";
                           return (
                             <div key={c.key} className="flex flex-col gap-1">

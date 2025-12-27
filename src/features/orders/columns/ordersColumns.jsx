@@ -1,4 +1,5 @@
 import OrderStatusBadge from "@/components/orders/table/OrderStatusBadge";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -25,7 +26,19 @@ const cityLine = (r) => {
 
 const orderCell = (o) => (
   <div className="text-sm">
-    <div className="font-medium leading-tight">{o.order_number ?? o.id?.slice(0, 8) ?? "–"}</div>
+    <div className="font-medium leading-tight">
+      {o?.id ? (
+        <Link
+          to={`/orders/${o.id}`}
+          onClick={(e) => e.stopPropagation()}
+          className="hover:underline"
+        >
+          {o.order_number ?? o.id?.slice(0, 8) ?? "–"}
+        </Link>
+      ) : (
+        o.order_number ?? o.id?.slice(0, 8) ?? "–"
+      )}
+    </div>
     <div className="mt-1"><OrderStatusBadge status={o.status} /></div>
   </div>
 );

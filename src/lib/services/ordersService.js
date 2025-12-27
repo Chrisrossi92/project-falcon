@@ -10,8 +10,8 @@ export const OrderStatus = {
   NEW: "new",
   IN_PROGRESS: "in_progress",
   IN_REVIEW: "in_review",
-  NEEDS_REVISIONS: "revisions",
-  COMPLETED: "complete",
+  NEEDS_REVISIONS: "needs_revisions",
+  COMPLETED: "completed",
 };
 
 /* ============================================================================
@@ -74,7 +74,7 @@ export async function listOrders({
   // Active only: not archived + (status is NULL OR NOT ILIKE 'complete%')
   if (activeOnly) {
     q = q.neq("is_archived", true);
-    q = q.or("status.is.null,status.not.ilike.complete*");
+    q = q.or("status.is.null,status.neq.completed");
   }
 
   if (search) {
@@ -297,14 +297,14 @@ export async function assignReviewer(orderId, reviewer_id) {
    WORKFLOW HELPERS
    ========================================================================== */
 
-export async function startReview(orderId, note = null)        { return setOrderStatus(orderId, "in_review"); }
-export async function requestRevisions(orderId, note = null)   { return setOrderStatus(orderId, "revisions"); }
-export async function approveReview(orderId, note = null)      { return setOrderStatus(orderId, "ready_to_send"); }
-export async function markReadyToSend(orderId, note = null)    { return setOrderStatus(orderId, "ready_to_send"); }
-export async function markComplete(orderId, note = null)       { return setOrderStatus(orderId, "complete"); }
-export async function putOnHold(orderId, note = null)          { return setOrderStatus(orderId, "on_hold"); }
-export async function resumeInProgress(orderId, note = null)   { return setOrderStatus(orderId, "in_progress"); }
-export async function sendToClient(orderId, note = null)       { return setOrderStatus(orderId, "delivered"); }
+export async function startReview(orderId, note = null)        { return setOrderStatus(orderId, OrderStatus.IN_REVIEW); }
+export async function requestRevisions(orderId, note = null)   { return setOrderStatus(orderId, OrderStatus.NEEDS_REVISIONS); }
+export async function approveReview(orderId, note = null)      { return setOrderStatus(orderId, OrderStatus.COMPLETED); }
+export async function markReadyToSend(orderId, note = null)    { return setOrderStatus(orderId, OrderStatus.COMPLETED); }
+export async function markComplete(orderId, note = null)       { return setOrderStatus(orderId, OrderStatus.COMPLETED); }
+export async function putOnHold(orderId, note = null)          { return setOrderStatus(orderId, OrderStatus.IN_PROGRESS); }
+export async function resumeInProgress(orderId, note = null)   { return setOrderStatus(orderId, OrderStatus.IN_PROGRESS); }
+export async function sendToClient(orderId, note = null)       { return setOrderStatus(orderId, OrderStatus.COMPLETED); }
 export async function markDelivered(orderId, note = null)      { return sendToClient(orderId, note); }
 
 /* ============================================================================
@@ -357,7 +357,7 @@ export async function sendOrderBackToAppraiser(orderId, actorId) {
   console.log("[sendOrderBackToAppraiser] called", { orderId, actorId });
 
   // 1. Only update the status column
-  const statusPatch = { status: "Needs Revisions" }; // or OrderStatus.NEEDS_REVISIONS if that constant matches DB
+  const statusPatch = { status: OrderStatus.NEEDS_REVISIONS };
   console.log("[sendOrderBackToAppraiser] patch", statusPatch);
 
   const { data, error } = await supabase
@@ -455,10 +455,6 @@ export async function isOrderNumberAvailable(orderNo, { excludeId = null } = {})
   if (res2.error) throw res2.error;
   return (res2.count || 0) === 0;
 }
-
-
-
-
 
 
 

@@ -59,6 +59,7 @@ export default function DashboardCalendarPanel({ orders = [], onOpenOrder, fixed
         const events = [];
 
         orders.forEach((o) => {
+          const orderId = o.id || o.order_id || null;
           const suffix = shortAddress(o.address, o.client_name || o.client || "");
           const pushEvent = (type, ts) => {
             if (!ts) return;
@@ -67,12 +68,12 @@ export default function DashboardCalendarPanel({ orders = [], onOpenOrder, fixed
             if (Number.isNaN(ms)) return;
             if (ms < startMs || ms > endMs) return;
             events.push({
-              id: `${o.id}-${type}-${ms}`,
+              id: `${orderId || "order"}-${type}-${ms}`,
               type,
               title: buildTitle(type, suffix),
               start: when.toISOString(),
               end: when.toISOString(),
-              orderId: o.id || null,
+              orderId,
             });
           };
 

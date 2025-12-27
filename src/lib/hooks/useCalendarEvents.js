@@ -48,7 +48,7 @@ export default function useCalendarEventLoader({ mode = null, reviewerId = null 
     try {
       let viewQuery = supabase
         .from("v_admin_calendar_enriched")
-        .select("id, event_type, title, start_at, end_at, order_id, client, address, appraiser_name, appraiser_color, status")
+        .select("id, event_type, title, start_at, end_at, order_id, client_name, address, appraiser_name, appraiser_color, status")
         .gte("start_at", iso(start))
         .lt("start_at", iso(end))
         .order("start_at", { ascending: true });
@@ -69,7 +69,7 @@ export default function useCalendarEventLoader({ mode = null, reviewerId = null 
           type,
           title: buildTitle(type, {
             title: row.title,
-            client: row.client,
+            client: row.client_name,
             address: row.address,
             orderId: row.order_id,
           }),

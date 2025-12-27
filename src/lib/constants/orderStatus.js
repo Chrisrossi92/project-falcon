@@ -4,19 +4,13 @@
  * Keep this as the *only* place that knows the vocabulary.
  */
 
-// Vocabulary (server-aligned: lowercase snake_case)
+// Canonical vocabulary (server-aligned: lowercase snake_case)
 export const ORDER_STATUS = {
   NEW: "new",
   IN_PROGRESS: "in_progress",
   IN_REVIEW: "in_review",
-  REVISIONS: "revisions",
-  READY_TO_SEND: "ready_to_send",
-  COMPLETE: "complete",
-  ON_HOLD: "on_hold",
-  HOLD_CLIENT: "hold_client",
-  WAITING_ON_CLIENT: "waiting_on_client",
-  PAUSED: "paused",
-  CANCELLED: "cancelled",
+  NEEDS_REVISIONS: "needs_revisions",
+  COMPLETED: "completed",
 };
 
 const STATUS_MAP = {
@@ -29,6 +23,10 @@ const STATUS_MAP = {
   in_progress: ORDER_STATUS.IN_PROGRESS,
   "in progress": ORDER_STATUS.IN_PROGRESS,
   IN_PROGRESS: ORDER_STATUS.IN_PROGRESS,
+  on_hold: ORDER_STATUS.IN_PROGRESS,
+  hold_client: ORDER_STATUS.IN_PROGRESS,
+  waiting_on_client: ORDER_STATUS.IN_PROGRESS,
+  paused: ORDER_STATUS.IN_PROGRESS,
 
   // review / in review
   review: ORDER_STATUS.IN_REVIEW,
@@ -36,17 +34,25 @@ const STATUS_MAP = {
   "In Review": ORDER_STATUS.IN_REVIEW,
   in_review: ORDER_STATUS.IN_REVIEW,
   IN_REVIEW: ORDER_STATUS.IN_REVIEW,
+  ready_to_send: ORDER_STATUS.IN_REVIEW,
+  "ready to send": ORDER_STATUS.IN_REVIEW,
+
+  // needs revisions
+  revisions: ORDER_STATUS.NEEDS_REVISIONS,
+  REVISIONS: ORDER_STATUS.NEEDS_REVISIONS,
+  needs_revisions: ORDER_STATUS.NEEDS_REVISIONS,
+  "needs revisions": ORDER_STATUS.NEEDS_REVISIONS,
+  needs_revision: ORDER_STATUS.NEEDS_REVISIONS,
+  revision: ORDER_STATUS.NEEDS_REVISIONS,
 
   // complete
-  complete: ORDER_STATUS.COMPLETE,
-  COMPLETE: ORDER_STATUS.COMPLETE,
-  completed: ORDER_STATUS.COMPLETE,
-  Completed: ORDER_STATUS.COMPLETE,
-
-  // cancelled
-  cancelled: ORDER_STATUS.CANCELLED,
-  canceled: ORDER_STATUS.CANCELLED,
-  CANCELLED: ORDER_STATUS.CANCELLED,
+  complete: ORDER_STATUS.COMPLETED,
+  COMPLETE: ORDER_STATUS.COMPLETED,
+  completed: ORDER_STATUS.COMPLETED,
+  Completed: ORDER_STATUS.COMPLETED,
+  cancelled: ORDER_STATUS.COMPLETED,
+  canceled: ORDER_STATUS.COMPLETED,
+  CANCELLED: ORDER_STATUS.COMPLETED,
 };
 
 // Normalize to lowercase snake_case (defensive)
@@ -63,20 +69,15 @@ export function normalizeOrderStatus(raw) {
 
 export function formatOrderStatusLabel(normalized) {
   if (!normalized) return "";
-  switch (normalized) {
-    case ORDER_STATUS.NEW:
-      return "New";
-    case ORDER_STATUS.IN_PROGRESS:
-      return "In Progress";
-    case ORDER_STATUS.IN_REVIEW:
-      return "In Review";
-    case ORDER_STATUS.COMPLETE:
-      return "Complete";
-    case ORDER_STATUS.CANCELLED:
-      return "Cancelled";
-    default:
-      return normalized;
-  }
+  const key = normalizeStatus(normalized);
+  const labels = {
+    [ORDER_STATUS.NEW]: "New",
+    [ORDER_STATUS.IN_PROGRESS]: "In Progress",
+    [ORDER_STATUS.IN_REVIEW]: "In Review",
+    [ORDER_STATUS.NEEDS_REVISIONS]: "Needs Revisions",
+    [ORDER_STATUS.COMPLETED]: "Completed",
+  };
+  return labels[key] || key;
 }
 
 /**
@@ -85,16 +86,10 @@ export function formatOrderStatusLabel(normalized) {
  */
 export function statusGroup(s) {
   const x = normalizeStatus(s);
-  if ([ORDER_STATUS.ON_HOLD, ORDER_STATUS.HOLD_CLIENT, ORDER_STATUS.WAITING_ON_CLIENT, ORDER_STATUS.PAUSED].includes(x)) {
-    return "hold";
-  }
-  if ([ORDER_STATUS.IN_REVIEW, ORDER_STATUS.REVISIONS].includes(x)) {
+  if ([ORDER_STATUS.IN_REVIEW, ORDER_STATUS.NEEDS_REVISIONS].includes(x)) {
     return "review";
   }
-  if ([ORDER_STATUS.READY_TO_SEND].includes(x)) {
-    return "ready";
-  }
-  if ([ORDER_STATUS.COMPLETE, ORDER_STATUS.CANCELLED].includes(x)) {
+  if ([ORDER_STATUS.COMPLETED].includes(x)) {
     return "complete";
   }
   return "progress"; // new, in_progress, etc.
@@ -103,7 +98,7 @@ export function statusGroup(s) {
 /** Is this considered "active" for dashboards/lists? */
 export function isActiveStatus(s) {
   const x = normalizeStatus(s);
-  return x !== ORDER_STATUS.COMPLETE && x !== ORDER_STATUS.CANCELLED;
+  return x !== ORDER_STATUS.COMPLETED;
 }
 
 /** Badge palette (Tailwind classes) by group */
@@ -120,14 +115,8 @@ export const STATUS_LABEL = {
   [ORDER_STATUS.NEW]: "New",
   [ORDER_STATUS.IN_PROGRESS]: "In Progress",
   [ORDER_STATUS.IN_REVIEW]: "In Review",
-  [ORDER_STATUS.REVISIONS]: "Revisions",
-  [ORDER_STATUS.READY_TO_SEND]: "Ready to Send",
-  [ORDER_STATUS.COMPLETE]: "Complete",
-  [ORDER_STATUS.ON_HOLD]: "On Hold",
-  [ORDER_STATUS.HOLD_CLIENT]: "On Hold (Client)",
-  [ORDER_STATUS.WAITING_ON_CLIENT]: "Waiting on Client",
-  [ORDER_STATUS.PAUSED]: "Paused",
-  [ORDER_STATUS.CANCELLED]: "Cancelled",
+  [ORDER_STATUS.NEEDS_REVISIONS]: "Needs Revisions",
+  [ORDER_STATUS.COMPLETED]: "Completed",
 };
 
 export const isInReview = (s) => normalizeStatus(s) === ORDER_STATUS.IN_REVIEW;
@@ -138,6 +127,5 @@ export function labelForStatus(s) {
   // fallback: "some_status" -> "Some status"
   return key ? key.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase()) : "";
 }
-
 
 

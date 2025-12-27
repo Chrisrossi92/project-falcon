@@ -65,7 +65,7 @@ export default function UserDetail() {
         setLoading(true);
         setErr(null);
         const { data, error } = await supabase
-          .from("users")
+          .from("profiles")
           .select(
             "id, email, display_name, full_name, name, role, status, fee_split, avatar_url, display_color, created_at, updated_at"
           )
@@ -207,7 +207,6 @@ export default function UserDetail() {
     </div>
   );
 }
-
 
 
 

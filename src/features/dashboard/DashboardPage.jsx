@@ -13,15 +13,15 @@ const DASHBOARD_CONFIG = {
   admin:     { showOrdersTable: true, showReviewQueue: false },
   appraiser: { showOrdersTable: true, showReviewQueue: false },
   client:    { showOrdersTable: true, showReviewQueue: false },
-  reviewer:  { showOrdersTable: false, showReviewQueue: false }, // we'll add review queue later
+  reviewer:  { showOrdersTable: true, showReviewQueue: false }, // show reviewer queue in orders table
 };
 
 export default function DashboardPage() {
   const nav = useNavigate();
   const summary = useDashboardSummary();
   const { session } = useSession() || {};
-  const { role, isAdmin, isReviewer, loading, tableFilters, ordersRows } = summary;
-  const reviewerId = session?.user?.id || null;
+  const { role, isAdmin, isReviewer, loading, tableFilters, ordersRows, user } = summary;
+  const reviewerId = isReviewer ? user?.id || null : null;
   const normalizedRole = role || "appraiser";
 
   const cfg = DASHBOARD_CONFIG[role] || DASHBOARD_CONFIG.appraiser;
@@ -84,8 +84,10 @@ export default function DashboardPage() {
           <UnifiedOrdersTable
             role={isReviewer ? "reviewer" : "admin"}
             mode={isReviewer ? "reviewerQueue" : undefined}
+            reviewerId={isReviewer ? reviewerId : undefined}
             filters={tableFilters}
             pageSize={10}
+            scope="dashboard"
           />
         </section>
       )}

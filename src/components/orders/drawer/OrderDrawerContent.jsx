@@ -208,7 +208,7 @@ const telHref =
       <div className="col-span-12 lg:col-span-8 space-y-3">
         <div className="rounded border bg-white flex flex-col">
           <div className="flex items-center justify-between border-b px-3 py-2">
-            <div className="text-sm font-medium">Order {orderNumber || "—"}</div>
+            <div className="text-sm font-medium">Activity</div>
           </div>
           <div className="p-3 min-h-[700px] flex-1 flex flex-col">
             <ActivityLog orderId={id} showComposer fill className="h-full flex-1" />
@@ -268,7 +268,6 @@ const telHref =
     </div>
   );
 }
-
 
 
 

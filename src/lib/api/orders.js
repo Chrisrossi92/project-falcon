@@ -3,16 +3,23 @@
 import supabase from "@/lib/supabaseClient";
 import { OrderStatus } from "@/lib/services/ordersService";
 
-const SOURCE = "v_orders_frontend_v4";
+const VIEW_BY_SCOPE = {
+  dashboard: "v_orders_active_frontend_v4",
+  orders: "v_orders_frontend_v4",
+};
+
+const DEFAULT_VIEW = VIEW_BY_SCOPE.orders;
 
 const BASE_SELECT = `
   id,
+  order_id,
   order_number,
   status,
   client_id,
   client_name,
   amc_id,
   amc_name,
+  assigned_appraiser_id,
   address_line1,
   city,
   state,
@@ -40,7 +47,8 @@ function applyCommonFilters(
     statusIn = null,
     clientId = null,
     appraiserId = null,
-    assignedTo = null,
+    reviewerId = null,
+    assignedAppraiserId = null,
     from = null,
     to = null,
     search = "",
@@ -48,8 +56,11 @@ function applyCommonFilters(
 ) {
   if (statusIn?.length) q = q.in("status", statusIn);
   if (clientId) q = q.eq("client_id", clientId);
-  if (appraiserId) q = q.eq("appraiser_id", appraiserId);
-  if (assignedTo) q = q.eq("assigned_to", assignedTo);
+  const targetAppraiserId = assignedAppraiserId || appraiserId;
+  if (targetAppraiserId) {
+    q = q.eq("assigned_appraiser_id", targetAppraiserId);
+  }
+  if (reviewerId) q = q.eq("reviewer_id", reviewerId);
 
   // Date window – use created_at (or swap to due_date if you prefer)
   if (from) q = q.gte("created_at", from);
@@ -80,7 +91,8 @@ export async function fetchOrdersWithFilters(filters = {}) {
     statusIn = null,
     clientId = null,
     appraiserId = null,
-    assignedTo = null,
+    reviewerId = null,
+    assignedAppraiserId = null,
     from = null,
     to = null,
     activeOnly = false,
@@ -89,21 +101,24 @@ export async function fetchOrdersWithFilters(filters = {}) {
     orderBy = "created_at", // or "order_number"
     ascending = false,
     mode = null,
-    reviewerId = null,
-    reviewerName = null,
+    scope = null,
   } = filters;
+
+  const source = VIEW_BY_SCOPE[scope] || DEFAULT_VIEW;
 
   // COUNT
   let countQuery = supabase
-    .from(SOURCE)
-    .select("id", { count: "exact", head: true });
+    .from(source)
+    .select("*", { count: "exact", head: true });
 
   countQuery = applyCommonFilters(countQuery, {
     activeOnly,
     statusIn,
     clientId,
     appraiserId,
-    assignedTo,
+    assignedAppraiserId,
+    reviewerId,
+    assignedAppraiserId,
     from,
     to,
     search,
@@ -119,7 +134,7 @@ export async function fetchOrdersWithFilters(filters = {}) {
   const toIdx = fromIdx + pageSize - 1;
 
   let dataQuery = supabase
-    .from(SOURCE)
+    .from(source)
     .select(BASE_SELECT, { count: "exact" })
     .order(orderBy, { ascending })
     .range(fromIdx, toIdx);
@@ -129,7 +144,9 @@ export async function fetchOrdersWithFilters(filters = {}) {
     statusIn,
     clientId,
     appraiserId,
-    assignedTo,
+    assignedAppraiserId,
+    reviewerId,
+    assignedAppraiserId,
     from,
     to,
     search,
@@ -142,12 +159,13 @@ export async function fetchOrdersWithFilters(filters = {}) {
   }
 
   const { data, error } = await dataQuery;
+  const derivedCount = typeof count === "number" ? count : (data ? data.length : 0);
   if (error) {
     console.error("useOrders Supabase error:", error);
-    return { rows: [], count: 0, error };
+    return { rows: [], count: derivedCount, error };
   }
 
-  return { rows: data || [], count: count || 0 };
+  return { rows: data || [], count: derivedCount, countError: countErr || null };
 }
 
 // (leave the rest of the file as-is)
@@ -274,7 +292,6 @@ export async function createOrder(payload = {}) {
     manual_appraiser: payload.manual_appraiser ?? null,
     appraiser_id: payload.appraiser_id ?? null,
     reviewer_id: payload.reviewer_id ?? null,
-    assigned_to: payload.assigned_to ?? payload.appraiser_id ?? null,
     address: payload.address ?? payload.property_address ?? null,
     property_address: payload.property_address ?? payload.address ?? null,
     city: payload.city ?? payload.property_city ?? null,

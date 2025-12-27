@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { useCurrentUser } from "./useCurrentUser";
 import { getCapabilities } from "../utils/roles";
 import { useOrdersSummary } from "./useOrders";
+import { ORDER_STATUS } from "@/lib/constants/orderStatus";
 
 /**
  * Centralized dashboard data:
@@ -20,10 +21,16 @@ export function useDashboardSummary() {
     const f = { activeOnly: false };
 
     if (isAppraiser) {
-      const appraiserId = user?.id || user?.auth_id || null;
+      const appraiserId = user?.id || null;
       if (appraiserId) {
         f.appraiserId = appraiserId;
         f.assignedAppraiserId = appraiserId;
+      }
+    } else if (isReviewer) {
+      const reviewerId = user?.id || null;
+      if (reviewerId) {
+        f.reviewerId = reviewerId;
+        f.statusIn = [ORDER_STATUS.IN_REVIEW, ORDER_STATUS.NEEDS_REVISIONS];
       }
     }
 
@@ -35,8 +42,10 @@ export function useDashboardSummary() {
     return f;
   }, [role, isAppraiser, user?.id, user?.auth_id, user?.client_id, user?.managing_amc_id]);
 
-  const hasIdForRole = !isAppraiser || Boolean(tableFilters.appraiserId || tableFilters.assignedAppraiserId);
-  const summary = useOrdersSummary(tableFilters, { enabled: hasIdForRole && !userLoading });
+  const hasIdForRole =
+    (!isAppraiser || Boolean(tableFilters.appraiserId || tableFilters.assignedAppraiserId)) &&
+    (!isReviewer || Boolean(tableFilters.reviewerId));
+  const summary = useOrdersSummary(tableFilters, { enabled: hasIdForRole && !userLoading, scope: "dashboard" });
 
   return {
     user,

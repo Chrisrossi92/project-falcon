@@ -466,7 +466,7 @@ export default function UsersIndex() {
   async function saveUserPatch(id, patch) {
     setSavingId(id);
     try {
-      const { error } = await supabase.from("users").update(patch).eq("id", id);
+      const { error } = await supabase.from("profiles").update(patch).eq("id", id);
       if (error) throw error;
       await load();
     } finally {
@@ -477,7 +477,7 @@ export default function UsersIndex() {
   async function deleteUser(id) {
     setSavingId(id);
     try {
-      const { error } = await supabase.from("users").delete().eq("id", id);
+      const { error } = await supabase.from("profiles").delete().eq("id", id);
       if (error) throw error;
       await load();
     } finally {
@@ -486,7 +486,7 @@ export default function UsersIndex() {
   }
 
   async function createUser(patch) {
-    const { error } = await supabase.from("users").insert([patch]).select().single();
+    const { error } = await supabase.from("profiles").insert([patch]).select().single();
     if (error) throw error;
     await load();
   }

@@ -5,6 +5,8 @@ export function num(val) {
 }
 
 export default function normalizeOrder(o = {}) {
+  const primaryId = o.id ?? o.order_id ?? null;
+  const orderId   = o.order_id ?? o.id ?? null;
   const street = o.address || o.property_address || "";
   const city   = o.city || o.cty || "";
   const state  = o.state || o.st || "";
@@ -13,8 +15,9 @@ export default function normalizeOrder(o = {}) {
   const cityLine = [city, state].filter(Boolean).join(", ") + (postal ? ` ${postal}` : "");
 
   return {
-    id: o.id ?? o.order_id ?? null,
-    orderNo: o.order_no ?? o.order_number ?? o.display_title ?? null,
+    id: primaryId,
+    order_id: orderId ?? primaryId,
+    orderNo: o.order_no ?? o.order_number ?? o.display_title ?? primaryId ?? null,
     status: o.status ?? null,
 
     clientName: o.client_name ?? o.client?.name ?? o.manual_client_name ?? null,

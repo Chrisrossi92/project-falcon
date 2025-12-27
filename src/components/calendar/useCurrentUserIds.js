@@ -19,7 +19,7 @@ export default function useCurrentUserIds() {
 
         // map auth.uid() -> public.users row
         const { data: u, error: e1 } = await supabase
-          .from("users")
+          .from("profiles")
           .select("id, name, email, auth_id")
           .eq("auth_id", uid)
           .maybeSingle();

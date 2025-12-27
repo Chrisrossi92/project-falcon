@@ -37,7 +37,7 @@ export default function AdminCalendar({ className = "", style = {}, onEventsChan
     const { data, error } = await supabase
       .from("v_admin_calendar_enriched")
       .select(
-        "id, event_type, title, start_at, end_at, order_id, order_number, client, street_address, address, city, state, zip, appraiser_name, appraiser_color"
+        "id, event_type, title, start_at, end_at, order_id, order_number, client_name, street_address, address, city, state, zip, appraiser_name, appraiser_color"
       )
       .gte("start_at", start.toISOString())
       .lt("start_at", end.toISOString())
@@ -68,7 +68,7 @@ export default function AdminCalendar({ className = "", style = {}, onEventsChan
           type: row.event_type,
           orderId: row.order_id || null,
           orderNumber: row.order_number || "",
-          client: row.client || "",
+          client: row.client_name || "",
           address,
           city,
           state,

@@ -2,7 +2,7 @@ import { supabase } from "@/lib/supabaseClient";
 
 export async function fetchAdminRecipients() {
   const { data, error } = await supabase
-    .from("users")
+    .from("profiles")
     .select("id, role, status")
     .in("role", ["owner", "admin"]);
 

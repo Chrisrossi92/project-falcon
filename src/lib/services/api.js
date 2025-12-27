@@ -128,45 +128,38 @@ export async function getCurrentUserProfile() {
   const authId = authUser.id;
   const authEmail = authUser.email || "";
 
-  // columns we want from public.users
+  // columns we want from public.profiles
   const cols =
     "id, uid, email, display_name, full_name, name, role, fee_split, display_color, avatar_url, status, updated_at";
 
   // 2) Try by uid first (this is the canonical mapping)
   let row = null;
   if (authId) {
-    const { data, error } = await supabase.from("users").select(cols).eq("uid", authId).limit(1);
+    const { data, error } = await supabase.from("profiles").select(cols).eq("uid", authId).limit(1);
     if (error) throw error;
     row = data?.[0] || null;
   }
 
   // 3) Fallback by email if uid not set yet
   if (!row && authEmail) {
-    const { data, error } = await supabase.from("users").select(cols).eq("email", authEmail).limit(1);
+    const { data, error } = await supabase.from("profiles").select(cols).eq("email", authEmail).limit(1);
     if (error) throw error;
     row = data?.[0] || null;
   }
 
-  // 4) Auto-provision if still missing
+  // 4) Fallback: synthesize from auth user if view returned nothing (should be rare)
   if (!row) {
-    const insertPatch = {
+    row = {
+      id: authId,
       uid: authId,
       email: authEmail,
-      display_name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || null,
+      display_name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || authEmail,
       full_name: authUser.user_metadata?.full_name || null,
       name: authUser.user_metadata?.name || null,
       role: "appraiser",
       status: "active",
+      updated_at: authUser?.updated_at || null,
     };
-    const { data, error } = await supabase.from("users").insert(insertPatch).select(cols).single();
-    if (error) throw error;
-    row = data;
-  } else {
-    // Heal mapping if uid is wrong/missing
-    if (row.uid !== authId) {
-      await supabase.from("users").update({ uid: authId }).eq("id", row.id);
-      row.uid = authId;
-    }
   }
 
   const display_name = row.display_name || row.full_name || row.name || row.email;

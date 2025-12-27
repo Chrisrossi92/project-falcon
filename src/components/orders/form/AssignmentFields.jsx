@@ -41,7 +41,7 @@ export default function AssignmentFields({ value, onChange, isEdit }) {
   useEffect(() => {
     (async () => {
       const { data, error } = await supabase
-        .from("users")
+        .from("profiles")
         .select("id, full_name, role, status, fee_split, split")
         .order("full_name");
       if (error) {
@@ -98,7 +98,7 @@ export default function AssignmentFields({ value, onChange, isEdit }) {
         .select("split_pct,role").eq("user_id", value.appraiser_id).eq("role","appraiser").limit(1);
       if (roles?.length && roles[0]?.split_pct != null) pct = roles[0].split_pct;
       if (pct == null) {
-        const { data: u } = await supabase.from("users").select("fee_split,split,split_pct").eq("id", value.appraiser_id).maybeSingle();
+        const { data: u } = await supabase.from("profiles").select("fee_split,split,split_pct").eq("id", value.appraiser_id).maybeSingle();
         if (u) pct = u.fee_split ?? u.split ?? u.split_pct ?? null;
       }
       if (pct != null) onChange({ split_pct: String(pct) });

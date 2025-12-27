@@ -6,6 +6,7 @@ import { normalizeOrderStatus } from "@/lib/constants/orderStatus";
  * @property {string|null} id
  * @property {string|null} order_number        Canonical order number (falls back to order_no or id prefix)
  * @property {string|null} order_no            Alias of order_number for legacy callers
+ * @property {string|null} order_id            Alias of id for callers that still expect order_id
  * @property {string|null} status              Raw status from backend
  * @property {string|null} status_normalized   Normalized status (snake-case uppercase)
  * @property {string|null} client_id
@@ -44,6 +45,7 @@ import { normalizeOrderStatus } from "@/lib/constants/orderStatus";
 
 const emptyOrder = {
   id: null,
+  order_id: null,
   order_number: null,
   order_no: null,
   status: null,
@@ -90,7 +92,8 @@ const emptyOrder = {
 export function mapOrderRow(row = {}) {
   if (!row || typeof row !== "object") return { ...emptyOrder };
 
-  const id = row.id ?? null;
+  const id = row.id ?? row.order_id ?? null;
+  const orderId = row.order_id ?? row.id ?? null;
   const orderNumber =
     row.order_number ??
     row.order_no ??
@@ -111,6 +114,7 @@ export function mapOrderRow(row = {}) {
   return {
     ...emptyOrder,
     id,
+    order_id: orderId,
     order_number: orderNumber,
     order_no: orderNumber,
     status,

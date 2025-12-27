@@ -5,7 +5,7 @@ import supabase from "@/lib/supabaseClient";
 
 export async function listUsers() {
   const { data, error } = await supabase
-    .from("users")
+    .from("profiles")
     .select("id, email, full_name, display_name, role, fee_split, is_active, color, created_at, updated_at")
     .order("role", { ascending: true })
     .order("email", { ascending: true });
@@ -16,7 +16,7 @@ export async function listUsers() {
 /** Get user by primary key (auth user id) */
 export async function getUserById(userId) {
   if (!userId) return null;
-  const { data, error } = await supabase.from("users").select("*").eq("id", userId).single();
+  const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).single();
   // PostgREST returns 406/empty result for .single() w/ no row
   if (error && (error.code === "PGRST116" || error.details?.includes("Results contain 0 rows"))) return null;
   if (error) throw error;
@@ -27,7 +27,7 @@ export async function getUserById(userId) {
 export async function getUserByEmail(email) {
   if (!email) return null;
   const { data, error } = await supabase
-    .from("users")
+    .from("profiles")
     .select("*")
     .ilike("email", email) // case-insensitive exact (no %)
     .maybeSingle?.() ?? { data: null, error: null }; // for older clients w/o maybeSingle
@@ -68,7 +68,7 @@ export async function getMyUser() {
 
 export async function setUserRole(userId, role) {
   const { data, error } = await supabase
-    .from("users")
+    .from("profiles")
     .update({ role })
     .eq("id", userId)
     .select("*")
@@ -79,7 +79,7 @@ export async function setUserRole(userId, role) {
 
 export async function setUserFeeSplit(userId, feeSplit) {
   const { data, error } = await supabase
-    .from("users")
+    .from("profiles")
     .update({ fee_split: feeSplit })
     .eq("id", userId)
     .select("*")
@@ -90,7 +90,7 @@ export async function setUserFeeSplit(userId, feeSplit) {
 
 export async function setUserActive(userId, isActive) {
   const { data, error } = await supabase
-    .from("users")
+    .from("profiles")
     .update({ is_active: !!isActive })
     .eq("id", userId)
     .select("*")
@@ -106,7 +106,7 @@ export async function setUserStatus(userId, status) {
 
   // 1) try by primary key id
   let { data, error } = await supabase
-    .from("users")
+    .from("profiles")
     .update({ is_active: isActive })
     .eq("id", userId)
     .select("*");
@@ -117,7 +117,7 @@ export async function setUserStatus(userId, status) {
   // 2) fallback: some schemas carry an auth_id column (legacy)
   try {
     const res = await supabase
-      .from("users")
+      .from("profiles")
       .update({ is_active: isActive })
       .eq("auth_id", userId)
       .select("*");
@@ -128,7 +128,7 @@ export async function setUserStatus(userId, status) {
   // 3) ultimate fallback: if caller accidentally passed an email
   if (typeof userId === "string" && userId.includes("@")) {
     const res2 = await supabase
-      .from("users")
+      .from("profiles")
       .update({ is_active: isActive })
       .ilike("email", userId) // case-insensitive equality (no % wildcard)
       .select("*");
@@ -144,7 +144,7 @@ export async function setUserStatus(userId, status) {
 export async function setUserColor(userId, color) {
   const safe = (color ?? "").trim();
   const { data, error } = await supabase
-    .from("users")
+    .from("profiles")
     .update({ color: safe || null })
     .eq("id", userId)
     .select("*")
@@ -153,7 +153,7 @@ export async function setUserColor(userId, color) {
   return data;
 }
 
-/** Keep public.users synced with session profile (display fields) */
+/** Keep public.profiles synced with session profile (display fields) */
 export async function meUpsert(profile = {}) {
   const { error } = await supabase.rpc("rpc_me_upsert", { p_profile: profile });
   if (error) throw error;
@@ -166,8 +166,6 @@ export const fetchUsers = listUsers;
 export const fetchUserById = getUserById;
 export const fetchUserByAuthId = getUserByAuthId;
 export const getUser = getUserById;
-
-
 
 
 

@@ -6,15 +6,8 @@ const STATUS = [
   ["new", "New"],
   ["in_progress", "In progress"],
   ["in_review", "In review"],
-  ["revisions", "Revisions"],
-  ["ready_to_send", "Ready to send"],
-  ["sent_to_client", "Sent to client"],
-  ["complete", "Complete"],
-  ["on_hold", "On hold"],
-  ["hold_client", "Hold client"],
-  ["waiting_on_client", "Waiting on client"],
-  ["paused", "Paused"],
-  ["cancelled", "Cancelled"],
+  ["needs_revisions", "Needs revisions"],
+  ["completed", "Completed"],
 ];
 
 const PRIORITY = [
@@ -42,7 +35,7 @@ export default function OrdersFilters({ value, onChange }) {
   useEffect(() => {
     (async () => {
       const [{ data: users }, { data: clis }] = await Promise.all([
-        supabase.from("users").select("id, display_name, name, role").order("display_name", { ascending: true }),
+        supabase.from("profiles").select("id, display_name, name, role").order("display_name", { ascending: true }),
         supabase.from("clients").select("id, name").order("name", { ascending: true }),
       ]);
       setAppraisers((users || []).filter((u) => String(u.role || "").toLowerCase() === "appraiser"));
@@ -53,9 +46,8 @@ export default function OrdersFilters({ value, onChange }) {
   const set = (patch) => onChange?.({ ...v, ...patch });
 
   // helper: convert single status to statusIn array for the table
- // Keep internal values UPPERCASE to match DB/enum and your hook
- const isActive = (key) => (v.statusIn?.[0] || "") === key.toUpperCase();
- const setStatus = (key) => set({ statusIn: key ? [key.toUpperCase()] : [] });
+  const isActive = (key) => (v.statusIn?.[0] || "") === key;
+  const setStatus = (key) => set({ statusIn: key ? [key] : [] });
 
   return (
     <div className="rounded-2xl border bg-white p-4 space-y-3">
@@ -141,4 +133,3 @@ export default function OrdersFilters({ value, onChange }) {
     </div>
   );
 }
-
