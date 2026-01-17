@@ -22,7 +22,9 @@ function shape(row) {
     id: row.id,
     order_id: row.order_id,
     event_type: row.event_type,
-    message: row.message ?? statusMsg ?? row.note ?? "",
+    message: row.message ?? statusMsg ?? row.note ?? row.body ?? "",
+    body: row.body ?? row.message ?? statusMsg ?? row.note ?? "",
+    title: row.title ?? null,
     created_at: row.created_at,
     created_by: row.created_by,
     created_by_name: row.created_by_name || null,
@@ -40,17 +42,8 @@ export async function listOrderActivity(orderId) {
     if (error) throw error;
     return (data || []).map(shape);
   } catch (err) {
-    console.error("[listOrderActivity] RPC failed, attempting fallback", err);
-    const { data, error: tblErr } = await supabase
-      .from("activity_log")
-      .select(`
-        id, order_id, event_type, message, created_at, created_by, created_by_name, created_by_email,
-        profiles:created_by ( full_name, email )
-      `)
-      .eq("order_id", orderId)
-      .order("created_at", { ascending: true });
-    if (tblErr) throw tblErr;
-    return (data || []).map(shape);
+    console.error("[listOrderActivity] RPC failed", err);
+    throw err;
   }
 }
 
@@ -86,10 +79,10 @@ export function subscribeOrderActivity(orderId, cb) {
 export async function logNote(orderId, message) {
   if (!orderId) throw new Error("Missing orderId");
 
-  const { data, error } = await supabase.rpc("rpc_log_note", {
+  const { data: newId, error } = await supabase.rpc("rpc_log_event", {
     p_order_id: orderId,
-    p_message: message,
-    p_context: {}, // force canonical 3-arg signature
+    p_event_type: "note",
+    p_details: { note: message },
   });
 
   if (error) {
@@ -97,11 +90,11 @@ export async function logNote(orderId, message) {
     const msg = error?.message || "Failed to log note";
     throw new Error(`${msg} (ensure activity migrations are applied)`);
   }
-  return shape(data);
+  // Best-effort fetch of the new row via feed
+  const feed = await listOrderActivity(orderId);
+  const found = feed.find((r) => r.id === newId) || null;
+  return found || { id: newId, order_id: orderId, event_type: "note", message, created_at: new Date().toISOString() };
 }
-
-
-
 
 
 

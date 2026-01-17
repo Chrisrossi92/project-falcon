@@ -2,7 +2,8 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import supabase from "@/lib/supabaseClient";
-import MapContainer from "@/components/maps/MapContainer";
+import GoogleMapEmbed from "@/components/maps/GoogleMapEmbed";
+import SiteVisitPicker from "@/components/dates/SiteVisitPicker";
 import TwoWeekCalendar from "@/components/calendar/TwoWeekCalendar";
 import CalendarLegend from "@/components/calendar/CalendarLegend";
 import OrderStatusBadge from "@/components/orders/table/OrderStatusBadge";
@@ -36,10 +37,6 @@ export default function OrderDetail() {
   const [amcName, setAmcName] = useState("-");
   const [appraiserName, setAppraiserName] = useState("-");
 
-  // site-visit overlay
-  const [showAppt, setShowAppt] = useState(false);
-  const [apptInput, setApptInput] = useState("");
-
   // inline status save
   const [savingStatus, setSavingStatus] = useState(false);
   const [statusError, setStatusError] = useState("");
@@ -47,7 +44,7 @@ export default function OrderDetail() {
   useEffect(() => {
     if (order) {
       setClientName(order.client_name || "-");
-      setAmcName("-");
+      setAmcName(order.amc_name || "-");
       setAppraiserName(order.appraiser_name || "-");
     }
   }, [order]);
@@ -61,7 +58,6 @@ export default function OrderDetail() {
   const addr2 =
     [order?.city, order?.state].filter(Boolean).join(", ") +
     (order?.postal_code ? ` ${order.postal_code}` : "");
-  const fullAddress = [addr1, addr2].filter(Boolean).join(", ");
 
   const copyNo = () => navigator.clipboard?.writeText(titleNo).catch(() => {});
 
@@ -106,22 +102,15 @@ export default function OrderDetail() {
     }
   }
 
-  function openApptEditor() {
-    setApptInput(order?.site_visit_at ? order.site_visit_at.slice(0, 16) : "");
-    setShowAppt(true);
-  }
-
-  async function saveAppt() {
-    const iso = apptInput ? new Date(apptInput).toISOString() : null;
+  async function saveAppt(iso) {
     const { error } = await supabase
       .from("orders")
-      .update({ site_visit_at: iso, updated_at: new Date().toISOString() })
+      .update({ site_visit_at: iso || null, updated_at: new Date().toISOString() })
       .eq("id", order.id);
     if (error) {
       alert(error.message || "Failed to save site visit");
       return;
     }
-    setShowAppt(false);
     refresh();
   }
 
@@ -268,7 +257,14 @@ export default function OrderDetail() {
             </div>
 
             <div className="w-full h-64 md:h-72">
-              <MapContainer address={fullAddress} />
+              <GoogleMapEmbed
+                addressLine1={order.address_line1 || order.address || order.property_address}
+                city={order.city}
+                state={order.state}
+                zip={order.postal_code || order.zip}
+                height={260}
+                zoom={13}
+              />
             </div>
           </div>
         </div>
@@ -280,16 +276,8 @@ export default function OrderDetail() {
 
             <div className="grid grid-cols-12 gap-3 items-start mb-2 text-sm">
               <div className="col-span-6 md:col-span-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500">Site Visit</span>
-                  <button
-                    className="text-[11px] px-2 py-0.5 border rounded hover:bg-gray-50"
-                    onClick={() => openApptEditor()}
-                  >
-                    Edit
-                  </button>
-                </div>
-                <div className="text-gray-800">{fmtDateTime(order.site_visit_at)}</div>
+                <div className="text-xs text-gray-500 mb-1">Site Visit</div>
+                <SiteVisitPicker value={order.site_visit_at} onChange={saveAppt} />
               </div>
               <div className="col-span-6 md:col-span-3">
                 <div className="text-xs text-gray-500">Review Due</div>
@@ -334,29 +322,6 @@ export default function OrderDetail() {
         <div className="text-sm text-gray-800 whitespace-pre-wrap">{order.access_notes || order.notes || "-"}</div>
       </div>
 
-      {/* Site-visit overlay modal */}
-      {showAppt && (
-        <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-sm p-4">
-            <div className="text-sm font-medium mb-2">Update Site Visit</div>
-            <input
-              type="datetime-local"
-              step="900"
-              className="w-full border rounded px-2 py-2 text-sm"
-              value={apptInput}
-              onChange={(e) => setApptInput(e.target.value)}
-            />
-            <div className="mt-3 flex items-center justify-end gap-2">
-              <button className="px-3 py-1.5 border rounded text-sm" onClick={() => setShowAppt(false)}>
-                Cancel
-              </button>
-              <button className="px-3 py-1.5 border rounded text-sm bg-black text-white" onClick={saveAppt}>
-                Save
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

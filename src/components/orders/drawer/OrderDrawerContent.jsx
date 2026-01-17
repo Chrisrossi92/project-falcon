@@ -5,10 +5,10 @@ import ActivityLog from "@/components/activity/ActivityLog";
 import OrderDatesPanel from "@/components/orders/view/OrderDatesPanel";
 import AppraiserDrawerSummary from "@/components/orders/view/AppraiserDrawerSummary";
 
-/** Pull from the normalized v3 view (no legacy fallback). */
+/** Pull from the normalized v4 view (no legacy fallback). */
 async function fetchViewRow(orderId) {
   const { data, error } = await supabase
-    .from("v_orders_frontend_v3")
+    .from("v_orders_frontend_v4")
     .select(
       `
         id,
@@ -40,6 +40,7 @@ async function fetchViewRow(orderId) {
     )
     .eq("id", orderId)
     .maybeSingle();
+
   if (error) throw error;
   return data || null;
 }
@@ -51,26 +52,47 @@ async function fetchOrdersRow(orderId) {
     .select("*")
     .eq("id", orderId)
     .maybeSingle();
+
   if (error) throw error;
   return data || null;
 }
 
-// Helpers to resolve contact fields from whatever the table actually has
+/** Helpers to resolve contact fields from whatever columns exist on orders. */
 function firstTruthy(obj, keys) {
   for (const k of keys) {
-    if (k in obj && obj[k] != null && String(obj[k]).trim() !== "") return obj[k];
+    if (obj && k in obj && obj[k] != null && String(obj[k]).trim() !== "") return obj[k];
   }
   return null;
 }
 
-function findByPattern(obj, patterns) {
+function findByKeyIncludes(obj, includeAny = [], excludeAny = []) {
   const entries = Object.entries(obj || {});
+  const inc = includeAny.map((s) => String(s).toLowerCase());
+  const exc = excludeAny.map((s) => String(s).toLowerCase());
+
   for (const [k, v] of entries) {
-    const lk = k.toLowerCase();
-    if (patterns.some((re) => re.test(lk))) {
+    const lk = String(k).toLowerCase();
+    if (inc.some((s) => lk.includes(s)) && !exc.some((s) => lk.includes(s))) {
       const val = v == null ? "" : String(v).trim();
       if (val !== "") return v;
     }
+  }
+  return null;
+}
+
+function findByKeyIncludesAll(obj, mustInclude = [], mustNotInclude = []) {
+  const entries = Object.entries(obj || {});
+  const inc = mustInclude.map((s) => String(s).toLowerCase());
+  const exc = mustNotInclude.map((s) => String(s).toLowerCase());
+
+  for (const [k, v] of entries) {
+    const lk = String(k).toLowerCase();
+    const val = v == null ? "" : String(v).trim();
+    if (!val) continue;
+
+    const hasAll = inc.every((s) => lk.includes(s));
+    const hasAnyBlocked = exc.some((s) => lk.includes(s));
+    if (hasAll && !hasAnyBlocked) return v;
   }
   return null;
 }
@@ -84,14 +106,18 @@ export default function OrderDrawerContent({ orderId, order: rowFromTable }) {
 
   useEffect(() => {
     let mounted = true;
+
     (async () => {
       if (!id) return;
       try {
         setLoading(true);
+        setErr("");
+
         const [viewRow, ordersRow] = await Promise.all([
           fetchViewRow(id),
           fetchOrdersRow(id),
         ]);
+
         if (!mounted) return;
 
         // Merge: view (pretty) then raw orders (so native fields win)
@@ -102,6 +128,7 @@ export default function OrderDrawerContent({ orderId, order: rowFromTable }) {
         if (mounted) setLoading(false);
       }
     })();
+
     return () => {
       mounted = false;
     };
@@ -109,14 +136,17 @@ export default function OrderDrawerContent({ orderId, order: rowFromTable }) {
 
   async function handleSetAppointment(iso) {
     if (!id) return;
+
     const { error } = await supabase
       .from("orders")
       .update({ site_visit_at: iso })
       .eq("id", id);
+
     if (error) {
       console.error(error);
       return;
     }
+
     setRow((r) => ({ ...(r || {}), site_visit_at: iso })); // instant UI
   }
 
@@ -124,83 +154,36 @@ export default function OrderDrawerContent({ orderId, order: rowFromTable }) {
   if (loading) return <div className="p-3 text-sm text-muted-foreground">Loading…</div>;
   if (err) return <div className="p-3 text-sm text-rose-700 bg-rose-50 border rounded">{err}</div>;
 
-  const orderNumber =
-    row?.order_no || row?.order_number || (row?.id ? row.id.slice(0, 8) : "");
+  // ---- Resolve Property Contact from whatever columns exist on orders ----
+  const contactName =
+    firstTruthy(row, [
+      "property_entry_contact",
+      "entry_contact",
+      "contact_name",
+      "property_contact_name",
+    ]) ??
+    findByKeyIncludes(row, ["contact"], ["phone", "email"]) ??
+    "—";
 
-// ---- Resolve Property Contact from whatever columns exist on orders ----
-function firstTruthy(obj, keys) {
-  for (const k of keys) {
-    if (k in obj && obj[k] != null && String(obj[k]).trim() !== "") return obj[k];
-  }
-  return null;
-}
+  let rawPhone =
+    firstTruthy(row, [
+      "contact_phone",
+      "property_contact_phone",
+      "phone",
+      "phone_number",
+      "primary_phone",
+    ]) ??
+    // require BOTH terms to appear in the key name
+    findByKeyIncludesAll(row, ["phone", "contact"]) ??
+    findByKeyIncludesAll(row, ["phone", "site"]) ??
+    findByKeyIncludesAll(row, ["phone", "access"]) ??
+    "";
 
-function findByKeyIncludes(obj, includeAny = [], excludeAny = []) {
-  const entries = Object.entries(obj || {});
-  const inc = includeAny.map((s) => s.toLowerCase());
-  const exc = excludeAny.map((s) => s.toLowerCase());
-
-  for (const [k, v] of entries) {
-    const lk = k.toLowerCase();
-    if (inc.some((s) => lk.includes(s)) && !exc.some((s) => lk.includes(s))) {
-      const val = v == null ? "" : String(v).trim();
-      if (val !== "") return v;
-    }
-  }
-  return null;
-}
-
-// Prefer explicit/known keys; otherwise scan keys by includes()
-// Prefer explicit/known keys; otherwise scan keys by includes()
-const contactName = (
-  firstTruthy(row, [
-    "property_entry_contact",
-    "entry_contact",
-    "contact_name",
-    "property_contact_name",
-  ]) ??
-  findByKeyIncludes(row, ["contact"], ["phone", "email"])
-) || "â€”";
-
-let rawPhone = (
-  firstTruthy(row, [
-    "contact_phone",
-    "property_contact_phone",
-    "phone",
-    "phone_number",
-    "primary_phone",
-  ]) ??
-  // now require BOTH terms to appear in the key name
-  findByKeyIncludesAll(row, ["phone", "contact"]) ??
-  findByKeyIncludesAll(row, ["phone", "site"]) ??
-  findByKeyIncludesAll(row, ["phone", "access"])
-) || "";
-
-rawPhone = rawPhone == null ? "" : String(rawPhone).trim();
-const telHref =
-  rawPhone && /\d/.test(rawPhone)
-    ? `tel:${rawPhone.replace(/[^\d+]/g, "")}`
-    : null;
-
-
-    function findByKeyIncludesAll(obj, mustInclude = [], mustNotInclude = []) {
-  const entries = Object.entries(obj || {});
-  const inc = mustInclude.map((s) => s.toLowerCase());
-  const exc = mustNotInclude.map((s) => s.toLowerCase());
-
-  for (const [k, v] of entries) {
-    const lk = k.toLowerCase();
-    const val = v == null ? "" : String(v).trim();
-    if (!val) continue;
-
-    const hasAll = inc.every((s) => lk.includes(s));
-    const hasAnyBlocked = exc.some((s) => lk.includes(s));
-    if (hasAll && !hasAnyBlocked) return v;
-  }
-  return null;
-}
-
-
+  rawPhone = rawPhone == null ? "" : String(rawPhone).trim();
+  const telHref =
+    rawPhone && /\d/.test(rawPhone)
+      ? `tel:${rawPhone.replace(/[^\d+]/g, "")}`
+      : null;
 
   return (
     <div className="grid grid-cols-12 gap-3">
@@ -225,7 +208,7 @@ const telHref =
           </div>
           <div className="p-3 text-sm">
             <div className="text-xs text-muted-foreground">Name</div>
-            <div>{contactName || "â€”"}</div>
+            <div>{contactName}</div>
 
             <div className="mt-2 text-xs text-muted-foreground">Phone</div>
             <div>
@@ -234,7 +217,7 @@ const telHref =
                   {rawPhone}
                 </a>
               ) : (
-                rawPhone || "â€”"
+                rawPhone || "—"
               )}
             </div>
           </div>
@@ -247,7 +230,7 @@ const telHref =
           </div>
           <div className="p-3">
             <OrderDatesPanel
-              order={row}     // includes site_visit_at from orders
+              order={row} // includes site_visit_at from orders
               hideTitle
               editable
               onSetAppointment={handleSetAppointment}

@@ -8,8 +8,8 @@ export function useUsers(opts = {}) {
   const [error, setError] = useState(null);
 
   const deps = useMemo(
-    () => [opts.search || "", opts.role || ""],
-    [opts.search, opts.role]
+    () => [opts.search || "", opts.role || "", String(!!opts.includeInactive)],
+    [opts.search, opts.role, opts.includeInactive]
   );
 
   useEffect(() => {

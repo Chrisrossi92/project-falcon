@@ -1,27 +1,15 @@
 // src/components/calendar/MonthsCalendar.jsx
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import CalendarGrid from "@/components/calendar/CalendarGrid";
-import supabase from "@/lib/supabaseClient";
+import useCalendarEventLoader from "@/lib/hooks/useCalendarEvents";
+import useRole from "@/lib/hooks/useRole";
 
-// Normalize DB event rows → Month grid shape
-function mapRow(row) {
-  const t = (row.title || "").toLowerCase();
-  const eventType =
-    row.event_type === "site_visit" || row.event_type === "appointment"
-      ? "site"
-      : t.includes("review")
-      ? "review"
-      : "final";
-
-  return {
-    id: row.id,
-    type: eventType,                // 'site' | 'review' | 'final'  (CalendarGrid expects this)
-    start: new Date(row.start_at),
-    orderId: row.order_id,
-    orderNo: row.order_no || row.order_id?.slice(0, 8),
-    client: row.client_name || "—",
-    address: row.address || "—",
-  };
+function normalizeType(t) {
+  const s = (t || "").toString().toLowerCase();
+  if (s.includes("site")) return "site";
+  if (s.includes("review")) return "review";
+  if (s.includes("final") || s.includes("client")) return "final";
+  return "other";
 }
 
 export default function MonthsCalendar({
@@ -30,6 +18,9 @@ export default function MonthsCalendar({
   filters = { site: true, review: true, final: true },
 }) {
   const [events, setEvents] = useState([]);
+  const roleHook = useRole() || {};
+  const isReviewer = roleHook?.isReviewer;
+  const loader = useCalendarEventLoader({ mode: isReviewer ? "reviewerQueue" : null, reviewerId: isReviewer ? roleHook.userId : null });
 
   const monthStart = useMemo(
     () => new Date(anchor.getFullYear(), anchor.getMonth(), 1),
@@ -41,16 +32,20 @@ export default function MonthsCalendar({
   );
 
   const load = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("v_admin_calendar")
-      .select("id, event_type, title, start_at, end_at, order_id, appraiser_name, order_no, address, client_name")
-      .gte("start_at", monthStart.toISOString())
-      .lte("start_at", monthEnd.toISOString())
-      .order("start_at", { ascending: true });
-
-    if (error) { console.warn(error.message); setEvents([]); return; }
-    setEvents((data || []).map(mapRow));
-  }, [monthStart, monthEnd]);
+    try {
+      const rows = await loader(monthStart, monthEnd);
+      const mapped = (rows || []).map((ev) => ({
+        id: ev.id,
+        type: normalizeType(ev.type),
+        start: new Date(ev.start),
+        orderId: ev.orderId || ev.order_id,
+        address: ev.address || ev.address_line1 || ev.title || "—",
+      }));
+      setEvents(mapped);
+    } catch {
+      setEvents([]);
+    }
+  }, [loader, monthStart, monthEnd]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -73,5 +68,4 @@ export default function MonthsCalendar({
     />
   );
 }
-
 

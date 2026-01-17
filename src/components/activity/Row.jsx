@@ -1,6 +1,6 @@
 // Row.jsx
 import React from "react";
-import { LABEL, EVENT_ICON, formatWhen, displayNameFrom } from "./utils";
+import { LABEL, EVENT_ICON, formatWhen, displayNameFrom, formatActivity } from "./utils";
 import { TypeBadge, UserBadge } from "./Badges";
 
 // Treat notes as "user"; everything else as "system" (adjust if you add more types)
@@ -22,6 +22,11 @@ export default function Row({ item }) {
     item?.created_by_email,
     item?.created_by
   );
+
+  let body = formatActivity(item);
+  if (!body) {
+    return null; // skip empty/robotic entries
+  }
 
   const Icon = EVENT_ICON[et] || EVENT_ICON.order_created;
   const isSystem = SYSTEM_TYPES.has(et);
@@ -46,9 +51,9 @@ export default function Row({ item }) {
               )}
             </div>
 
-            {item?.message ? (
-              <div className="mt-1 whitespace-pre-wrap text-[13px] leading-5 text-gray-800">
-                {item.message}
+            {body ? (
+              <div className="mt-1 whitespace-pre-wrap text-sm leading-5 text-slate-600">
+                {body}
               </div>
             ) : null}
 
@@ -59,4 +64,3 @@ export default function Row({ item }) {
     </div>
   );
 }
-

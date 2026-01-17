@@ -14,24 +14,28 @@ export async function fetchActivity(orderId) {
  */
 export async function logActivity({
   order_id,
+  orderId,
   action,
   message = null,
   context = null,
   prev_status = null,
   new_status = null,
 }) {
-  if (!order_id || !action) throw new Error("logActivity requires order_id and action");
-  const payload = {
+  const oid = order_id || orderId;
+  if (!oid || !action) throw new Error("logActivity requires order_id and action");
+  const detail = {
     context,
-    prev_status,
-    new_status,
+    from: prev_status,
+    to: new_status,
   };
+  Object.keys(detail).forEach((k) => detail[k] == null && delete detail[k]);
+  const hasDetail = Object.keys(detail).length > 0;
   const { error, data } = await supabase.rpc("rpc_log_event", {
-    p_order_id: order_id,
+    p_order_id: oid,
     p_event_type: action,
+    p_details: hasDetail ? detail : {},
     p_message: message,
-    p_payload: payload,
   });
-  if (error) throw error;
+  if (error) throw new Error(error.message || "Failed to log activity");
   return data ?? null;
 }

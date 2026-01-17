@@ -210,17 +210,20 @@ export async function getOrdersList(q = {}, client = defaultClient) {
 export async function getOrderById(orderId, client = defaultClient) {
   try {
     const { data, error } = await client
-      .from('v_orders_list_with_last_activity')
-      .select('*')
-      .eq('id', orderId)
+      .from("v_orders_list_with_last_activity")
+      .select("*")
+      .eq("order_id", orderId)   // ✅ correct column
       .single();
+
     if (!error && data) return { data };
   } catch {}
+
   const { data, error } = await client
-    .from('orders')
-    .select('*, address, city, state, zip, due_date, review_due_date, site_visit_at')
-    .eq('id', orderId)
+    .from("orders")
+    .select("*, address, city, state, zip, due_date, review_due_date, site_visit_at")
+    .eq("id", orderId)
     .single();
+
   if (error) return { data: null, error: error.message };
   return { data };
 }

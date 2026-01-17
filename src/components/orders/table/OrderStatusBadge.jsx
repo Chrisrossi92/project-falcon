@@ -1,5 +1,5 @@
 import React from "react";
-import { formatOrderStatusLabel, normalizeStatus, ORDER_STATUS } from "@/lib/constants/orderStatus";
+import { formatOrderStatusLabel, normalizeStatus } from "@/lib/constants/orderStatus";
 
 // Tiny, pretty status pill for tables/cards
 const TONE = {
@@ -7,6 +7,7 @@ const TONE = {
   in_progress: "bg-amber-50 text-amber-700 border-amber-200",
   in_review: "bg-indigo-50 text-indigo-700 border-indigo-200",
   needs_revisions: "bg-rose-50 text-rose-700 border-rose-200",
+  ready_for_client: "bg-emerald-50 text-emerald-700 border-emerald-200",
   completed: "bg-gray-100 text-gray-700 border-gray-200",
   default: "bg-slate-100 text-slate-700 border-slate-200",
 };

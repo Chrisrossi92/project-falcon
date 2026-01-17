@@ -7,6 +7,8 @@ import DashboardCalendarPanel from "@/components/dashboard/DashboardCalendarPane
 import Card from "@/components/ui/Card";
 import useSession from "@/lib/hooks/useSession";
 import useOrderEvents from "@/lib/hooks/useOrderEvents";
+import useRole from "@/lib/hooks/useRole";
+import { useMemo, useState } from "react";
 
 const DASHBOARD_CONFIG = {
   owner:     { showOrdersTable: true, showReviewQueue: false },
@@ -18,13 +20,57 @@ const DASHBOARD_CONFIG = {
 
 export default function DashboardPage() {
   const nav = useNavigate();
+  const roleHook = useRole() || {};
   const summary = useDashboardSummary();
   const { session } = useSession() || {};
-  const { role, isAdmin, isReviewer, loading, tableFilters, ordersRows, user } = summary;
-  const reviewerId = isReviewer ? user?.id || null : null;
-  const normalizedRole = role || "appraiser";
+  const {
+    role: summaryRole,
+    isAdmin: summaryIsAdmin,
+    isReviewer: summaryIsReviewer,
+    loading: summaryLoading,
+    tableFilters,
+    ordersRows,
+    user,
+  } = summary;
+  const normalizedRole = roleHook.role || summaryRole || "appraiser";
+  const isAdmin = roleHook.isAdmin ?? summaryIsAdmin;
+  const isReviewer = roleHook.isReviewer ?? summaryIsReviewer;
+  const loading = summaryLoading || roleHook.loading;
+  const reviewerId = isReviewer ? roleHook.userId || user?.id || null : null;
 
-  const cfg = DASHBOARD_CONFIG[role] || DASHBOARD_CONFIG.appraiser;
+  const cfg = DASHBOARD_CONFIG[normalizedRole] || DASHBOARD_CONFIG.appraiser;
+  const [statusFilter, setStatusFilter] = useState("");
+
+  const statusFilters = useMemo(
+    () => (tableFilters?.statusIn && tableFilters.statusIn.length ? tableFilters.statusIn[0] : ""),
+    [tableFilters?.statusIn]
+  );
+
+  const chipValue = statusFilter || statusFilters || "";
+
+  const appliedFilters = useMemo(() => {
+    const next = { ...(tableFilters || {}) };
+    if (chipValue) {
+      next.statusIn = [chipValue];
+      next.page = 0;
+    } else {
+      next.statusIn = [];
+      next.page = next.page || 0;
+    }
+    return next;
+  }, [tableFilters, chipValue]);
+
+  const toggleStatus = (val) => {
+    setStatusFilter((curr) => (curr === val ? "" : val));
+  };
+
+  const statusChips = [
+    { label: "All", value: "" },
+    { label: "Ready for Client", value: "ready_for_client" },
+    { label: "In Review", value: "in_review" },
+    { label: "Needs Revisions", value: "needs_revisions" },
+    { label: "New", value: "new" },
+  ];
 
   const title = isReviewer
     ? "Reviewer Dashboard"
@@ -81,11 +127,31 @@ export default function DashboardPage() {
               {ordersCount} order{ordersCount === 1 ? "" : "s"}
             </div>
           </div>
+          {isAdmin && (
+            <div className="flex flex-wrap gap-2">
+              {statusChips.map((chip) => {
+                const active = chipValue === chip.value;
+                return (
+                  <button
+                    key={chip.value || "all"}
+                    onClick={() => toggleStatus(chip.value)}
+                    className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                      active
+                        ? "border-slate-800 bg-slate-800 text-white"
+                        : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                    }`}
+                  >
+                    {chip.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
           <UnifiedOrdersTable
-            role={isReviewer ? "reviewer" : "admin"}
+            role={normalizedRole}
             mode={isReviewer ? "reviewerQueue" : undefined}
             reviewerId={isReviewer ? reviewerId : undefined}
-            filters={tableFilters}
+            filters={appliedFilters}
             pageSize={10}
             scope="dashboard"
           />

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import supabase from "@/lib/supabaseClient";
+import { listUsers, setUserRole, setUserActive, updateUserProfile, createUserRecord } from "@/lib/services/usersService";
 import { getCurrentUserProfile } from "@/lib/services/api";
+import toast from "react-hot-toast";
 
 const DEFAULT_COLOR = "#6B82A7";
 
@@ -40,7 +41,7 @@ function NewUserModal({ open, onClose, onCreate, currentUser }) {
     full_name: "",
     email: "",
     role: isOwner ? "owner" : "appraiser",
-    fee_split: 50,
+    split_pct: 50,
     phone: "",
     title: "",
   });
@@ -64,9 +65,8 @@ function NewUserModal({ open, onClose, onCreate, currentUser }) {
         full_name: form.full_name,
         email: form.email,
         role: form.role,
-        fee_split: form.fee_split === "" ? null : Number(form.fee_split),
+        fee_split: form.split_pct === "" ? null : Number(form.split_pct),
         phone: form.phone || null,
-        // title: form.title || null, // enable when DB column exists
         status: "active",
         is_active: true,
         color: DEFAULT_COLOR,
@@ -77,7 +77,7 @@ function NewUserModal({ open, onClose, onCreate, currentUser }) {
         full_name: "",
         email: "",
         role: isOwner ? "owner" : "appraiser",
-        fee_split: 50,
+        split_pct: 50,
         phone: "",
         title: "",
       });
@@ -143,8 +143,8 @@ function NewUserModal({ open, onClose, onCreate, currentUser }) {
                 type="number"
                 step="0.01"
                 className="mt-1 w-full border rounded-lg px-3 py-2"
-                value={form.fee_split}
-                onChange={handleChange("fee_split")}
+                value={form.split_pct}
+                onChange={handleChange("split_pct")}
                 disabled={submitting}
               />
             </label>
@@ -180,9 +180,9 @@ function NewUserModal({ open, onClose, onCreate, currentUser }) {
 function UserCard({ user, currentUser, savingId, onSavePatch, onDelete }) {
   const [isEditing, setIsEditing] = useState(false);
   const [form, setForm] = useState({
+    display_name: user.display_name || user.full_name || user.name || "",
     role: user.role || "",
-    fee_split: user.fee_split ?? "",
-    status: user.status || (user.is_active === false ? "inactive" : "active"),
+    split_pct: user.fee_split ?? "",
     is_active: user.is_active ?? true,
     color: getUserColor(user),
   });
@@ -191,9 +191,9 @@ function UserCard({ user, currentUser, savingId, onSavePatch, onDelete }) {
 
   useEffect(() => {
     setForm({
+      display_name: user.display_name || user.full_name || user.name || "",
       role: user.role || "",
-      fee_split: user.fee_split ?? "",
-      status: user.status || (user.is_active === false ? "inactive" : "active"),
+      split_pct: user.fee_split ?? "",
       is_active: user.is_active ?? true,
       color: getUserColor(user),
     });
@@ -215,17 +215,25 @@ function UserCard({ user, currentUser, savingId, onSavePatch, onDelete }) {
 
   const handleSave = async () => {
     const payload = {
+      display_name: form.display_name || name,
       color: form.color,
       display_color: form.color,
     };
 
+    const roleChanged = (form.role || "").toLowerCase() !== targetRole;
+
     if (isOwnerOrAdmin) {
       if (!(targetRole === "owner" && !isOwner)) {
-        payload.role = form.role || null;
-        payload.fee_split = form.fee_split === "" ? null : Number(form.fee_split);
+        if (roleChanged) payload.role = form.role || null;
+        const pctVal = form.split_pct === "" ? null : Number(form.split_pct);
+        payload.fee_split = pctVal;
       }
-      payload.status = form.status || null;
+      payload.status = form.is_active ? "active" : "inactive";
       payload.is_active = form.is_active;
+    } else if (roleChanged) {
+      // Non-owners shouldn't change roles; warn but continue with other fields
+      // eslint-disable-next-line no-console
+      console.warn("Only the owner can change roles");
     }
 
     await onSavePatch(user.id, payload);
@@ -257,8 +265,11 @@ function UserCard({ user, currentUser, savingId, onSavePatch, onDelete }) {
           <div className="mt-3 space-y-1">
             <Row label="Role" value={<Badge>{roleLabel(user.role)}</Badge>} />
             <Row label="Email" value={user.email} />
-            {isOwnerOrAdmin && "fee_split" in user && (
-              <Row label="Fee split" value={user.fee_split != null ? `${Number(user.fee_split).toFixed(2)}%` : "-"} />
+            {isOwnerOrAdmin && (
+              <Row
+                label="Fee split"
+                value={user.fee_split != null ? `${Number(user.fee_split).toFixed(2)}%` : "-"}
+              />
             )}
             {user.phone && <Row label="Phone" value={<a className="underline" href={`tel:${user.phone}`}>{user.phone}</a>} />}
             <Row
@@ -329,6 +340,16 @@ function UserCard({ user, currentUser, savingId, onSavePatch, onDelete }) {
           </div>
 
           <div className="flex-1 overflow-y-auto space-y-3 border-t pt-3">
+            <label className="block text-sm">
+              <span className="text-gray-600">Display name</span>
+              <input
+                type="text"
+                className="mt-1 w-full border rounded-lg px-3 py-2"
+                value={form.display_name}
+                onChange={(e) => setForm((f) => ({ ...f, display_name: e.target.value }))}
+              />
+            </label>
+
             {isOwnerOrAdmin && (
               <>
                 <label className="block text-sm">
@@ -354,8 +375,8 @@ function UserCard({ user, currentUser, savingId, onSavePatch, onDelete }) {
                     type="number"
                     step="0.01"
                     className="mt-1 w-full border rounded-lg px-3 py-2"
-                    value={form.fee_split}
-                    onChange={(e) => setForm((f) => ({ ...f, fee_split: e.target.value }))}
+                    value={form.split_pct}
+                    onChange={(e) => setForm((f) => ({ ...f, split_pct: e.target.value }))}
                     disabled={targetRole === "owner" && !isOwner}
                   />
                 </label>
@@ -367,10 +388,10 @@ function UserCard({ user, currentUser, savingId, onSavePatch, onDelete }) {
                 <span className="text-gray-600">Status</span>
                 <select
                   className="mt-1 w-full border rounded-lg px-3 py-2"
-                  value={form.status || ""}
+                  value={form.is_active ? "active" : "inactive"}
                   onChange={(e) => {
                     const next = e.target.value || "inactive";
-                    setForm((f) => ({ ...f, status: next, is_active: next === "active" }));
+                    setForm((f) => ({ ...f, is_active: next === "active" }));
                   }}
                 >
                   <option value="active">Active</option>
@@ -396,8 +417,9 @@ function UserCard({ user, currentUser, savingId, onSavePatch, onDelete }) {
               className="text-sm px-3 py-1.5 rounded-lg border"
               onClick={() => {
                 setForm({
+                  display_name: user.display_name || user.full_name || user.name || "",
                   role: user.role || "",
-                  fee_split: user.fee_split ?? "",
+                  split_pct: user.fee_split ?? "",
                   status: user.status || (user.is_active === false ? "inactive" : "active"),
                   is_active: user.is_active ?? true,
                   color: getUserColor(user),
@@ -421,13 +443,13 @@ function UserCard({ user, currentUser, savingId, onSavePatch, onDelete }) {
                 className="text-sm px-3 py-1.5 rounded-lg border border-red-300 text-red-700"
                 onClick={() => {
                   const ok = window.confirm(
-                    "This will permanently remove the user from the directory. Historical orders will not be rewritten. Continue?"
+                    "This will deactivate the user in the directory (no hard delete). Historical orders will not be rewritten. Continue?"
                   );
                   if (ok) onDelete(user.id);
                 }}
                 disabled={savingId === user.id}
               >
-                Delete user
+                Deactivate user
               </button>
             )}
           </div>
@@ -443,14 +465,17 @@ export default function UsersIndex() {
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState(null);
   const [newOpen, setNewOpen] = useState(false);
+  const [showInactive, setShowInactive] = useState(false);
 
-  async function load() {
+  const isOwnerOrAdmin = ["owner", "admin"].includes(String(me?.role || "").toLowerCase());
+
+
+  async function load(includeInactiveParam) {
+    const includeInactive = isOwnerOrAdmin ? !!(includeInactiveParam ?? showInactive) : false;
     setLoading(true);
     try {
       const prof = await getCurrentUserProfile();
-      const { data, error } = await supabase.rpc("admin_list_users");
-      if (error) throw error;
-      const rows = data || [];
+      const rows = await listUsers({ includeInactive });
       const mergedMe = prof ? rows.find((u) => u.id === prof.id) || prof : prof;
       setMe(mergedMe || prof);
       setList(rows);
@@ -461,13 +486,39 @@ export default function UsersIndex() {
 
   useEffect(() => {
     load();
-  }, []);
+  }, [showInactive, isOwnerOrAdmin]);
 
   async function saveUserPatch(id, patch) {
     setSavingId(id);
     try {
-      const { error } = await supabase.from("profiles").update(patch).eq("id", id);
-      if (error) throw error;
+      const isOwner = String(me?.role || "").toLowerCase() === "owner";
+      if (patch.role !== undefined) {
+        if (!isOwner) {
+          console.warn("Only owner can change roles");
+        } else {
+          await setUserRole(id, patch.role);
+        }
+      }
+
+      const profilePatch = {};
+      const copyKeys = [
+        "display_name",
+        "full_name",
+        "name",
+        "color",
+        "display_color",
+        "avatar_url",
+        "fee_split",
+        "is_active",
+        "status",
+      ];
+      copyKeys.forEach((k) => {
+        if (patch[k] !== undefined) profilePatch[k] = patch[k];
+      });
+      if (Object.keys(profilePatch).length > 0) {
+        await updateUserProfile(id, profilePatch);
+      }
+
       await load();
     } finally {
       setSavingId(null);
@@ -477,8 +528,7 @@ export default function UsersIndex() {
   async function deleteUser(id) {
     setSavingId(id);
     try {
-      const { error } = await supabase.from("profiles").delete().eq("id", id);
-      if (error) throw error;
+      await setUserActive(id, false);
       await load();
     } finally {
       setSavingId(null);
@@ -486,18 +536,36 @@ export default function UsersIndex() {
   }
 
   async function createUser(patch) {
-    const { error } = await supabase.from("profiles").insert([patch]).select().single();
-    if (error) throw error;
-    await load();
+    try {
+      const row = await createUserRecord(patch);
+      toast.success("User created");
+      await load();
+    } catch (e) {
+      if (e?.code === "23505" || (e?.message || "").toLowerCase().includes("duplicate")) {
+        toast.error("Email already exists");
+      } else {
+        toast.error(e?.message || "Failed to create user");
+      }
+      throw e;
+    }
   }
-
-  const isOwnerOrAdmin = ["owner", "admin"].includes(String(me?.role || "").toLowerCase());
 
   return (
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Users</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {isOwnerOrAdmin && (
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                className="rounded border-gray-300"
+                checked={showInactive}
+                onChange={(e) => setShowInactive(e.target.checked)}
+              />
+              Show inactive
+            </label>
+          )}
           {isOwnerOrAdmin && (
             <button className="px-3 py-1.5 rounded-lg border text-sm" onClick={() => setNewOpen(true)}>
               + New user

@@ -44,7 +44,7 @@ export default function AppRoutes() {
         <Route
           path="/dashboard"
           element={
-            <ProtectedRoute roles={["admin", "reviewer", "appraiser"]}>
+            <ProtectedRoute roles={["owner", "admin", "reviewer", "appraiser"]}>
               <DashboardPage />
             </ProtectedRoute>
           }
@@ -54,84 +54,84 @@ export default function AppRoutes() {
         <Route
           path="/orders"
           element={
-            <ProtectedRoute roles={["admin", "reviewer", "appraiser"]}>
+            <ProtectedRoute roles={["owner", "admin", "reviewer", "appraiser"]}>
               <Orders />
             </ProtectedRoute>
           }
         />
         <Route
           path="/orders/new"
-          element={<ProtectedRoute roles={["admin"]}><NewOrder /></ProtectedRoute>}
+          element={<ProtectedRoute roles={["owner", "admin"]}><NewOrder /></ProtectedRoute>}
         />
         <Route
           path="/orders/:id"
-          element={<ProtectedRoute roles={["admin", "reviewer", "appraiser"]}><OrderDetail /></ProtectedRoute>}
+          element={<ProtectedRoute roles={["owner", "admin", "reviewer", "appraiser"]}><OrderDetail /></ProtectedRoute>}
         />
         <Route
           path="/orders/:id/edit"
-          element={<ProtectedRoute roles={["admin"]}><EditOrder /></ProtectedRoute>}
+          element={<ProtectedRoute roles={["owner", "admin"]}><EditOrder /></ProtectedRoute>}
         />
 
         {/* Calendar */}
         <Route
           path="/calendar"
-          element={<ProtectedRoute roles={["admin", "reviewer", "appraiser"]}><Calendar /></ProtectedRoute>}
+          element={<ProtectedRoute roles={["owner", "admin", "reviewer", "appraiser"]}><Calendar /></ProtectedRoute>}
         />
 
         {/* Clients (legacy admin pages) */}
         <Route
           path="/clients"
-          element={<ProtectedRoute roles={["admin"]}><ClientsDashboard /></ProtectedRoute>}
+          element={<ProtectedRoute roles={["owner", "admin"]}><ClientsDashboard /></ProtectedRoute>}
         />
         <Route
           path="/clients/new"
-          element={<ProtectedRoute roles={["admin"]}><NewClient /></ProtectedRoute>}
+          element={<ProtectedRoute roles={["owner", "admin"]}><NewClient /></ProtectedRoute>}
         />
         <Route
           path="/clients/profile/:clientId"
-          element={<ProtectedRoute roles={["admin"]}><ClientProfile /></ProtectedRoute>}
+          element={<ProtectedRoute roles={["owner", "admin"]}><ClientProfile /></ProtectedRoute>}
         />
         <Route
           path="/clients/edit/:clientId"
-          element={<ProtectedRoute roles={["admin"]}><EditClient /></ProtectedRoute>}
+          element={<ProtectedRoute roles={["owner", "admin"]}><EditClient /></ProtectedRoute>}
         />
 
         {/* Optional: cards + role-aware detail */}
         <Route
           path="/clients/cards"
-          element={<ProtectedRoute roles={["admin", "appraiser"]}><ClientsIndex /></ProtectedRoute>}
+          element={<ProtectedRoute roles={["owner", "admin", "appraiser"]}><ClientsIndex /></ProtectedRoute>}
         />
         <Route
           path="/clients/:id"
-          element={<ProtectedRoute roles={["admin", "appraiser"]}><ClientDetail /></ProtectedRoute>}
+          element={<ProtectedRoute roles={["owner", "admin", "appraiser"]}><ClientDetail /></ProtectedRoute>}
         />
 
         {/* ✅ Users — single page with admin role/split controls */}
         <Route
           path="/users"
-          element={<ProtectedRoute roles={["admin", "manager", "reviewer", "appraiser"]}><UsersIndex /></ProtectedRoute>}
+          element={<ProtectedRoute roles={["owner", "admin", "manager", "reviewer", "appraiser"]}><UsersIndex /></ProtectedRoute>}
         />
         <Route
           path="/users/:userId"
-          element={<ProtectedRoute roles={["admin"]}><UserDetail /></ProtectedRoute>}
+          element={<ProtectedRoute roles={["owner", "admin"]}><UserDetail /></ProtectedRoute>}
         />
         <Route
           path="/users/new"
-          element={<ProtectedRoute roles={["admin"]}><UserDetail /></ProtectedRoute>}
+          element={<ProtectedRoute roles={["owner", "admin"]}><UserDetail /></ProtectedRoute>}
         />
         <Route
           path="/users/view/:userId"
-          element={<ProtectedRoute roles={["admin", "manager", "reviewer", "appraiser"]}><UserHub /></ProtectedRoute>}
+          element={<ProtectedRoute roles={["owner", "admin", "manager", "reviewer", "appraiser"]}><UserHub /></ProtectedRoute>}
         />
 
         {/* Settings */}
         <Route
           path="/settings"
-          element={<ProtectedRoute roles={["admin", "manager", "reviewer", "appraiser"]}><Settings /></ProtectedRoute>}
+          element={<ProtectedRoute roles={["owner", "admin", "manager", "reviewer", "appraiser"]}><Settings /></ProtectedRoute>}
         />
         <Route
           path="/settings/notifications"
-          element={<ProtectedRoute roles={["admin", "manager", "reviewer", "appraiser"]}><NotificationSettings /></ProtectedRoute>}
+          element={<ProtectedRoute roles={["owner", "admin", "manager", "reviewer", "appraiser"]}><NotificationSettings /></ProtectedRoute>}
         />
 
         {/* Default */}
@@ -143,7 +143,6 @@ export default function AppRoutes() {
     </Routes>
   );
 }
-
 
 
 

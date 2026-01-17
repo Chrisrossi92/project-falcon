@@ -14,7 +14,16 @@ export default function useOrder(id) {
     setError(null);
     try {
       const row = await getOrder(id);
-      setOrder(row ? mapOrderRow(row) : null);
+      const mapped = row ? mapOrderRow(row) : null;
+      if (import.meta?.env?.DEV && mapped) {
+        console.debug("[useOrder] loaded", {
+          id: mapped.id,
+          managing_amc_id: mapped.managing_amc_id,
+          amc_name: mapped.amc_name,
+          split_pct: mapped.split_pct,
+        });
+      }
+      setOrder(mapped);
     } catch (err) {
       console.error("Failed to load order", err);
       setError(err);

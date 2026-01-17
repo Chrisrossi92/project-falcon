@@ -12,18 +12,9 @@ function normalizeType(t) {
 function iconFor(type) {
   switch (type) {
     case "site":   return "📍";
-    case "review": return "🧪";
+    case "review": return "📝";
     case "final":  return "✅";
     default:       return "•";
-  }
-}
-
-function labelFor(type) {
-  switch (type) {
-    case "site":   return "Site Visit";
-    case "review": return "Review Due";
-    case "final":  return "Final Due";
-    default:       return "Event";
   }
 }
 
@@ -35,12 +26,9 @@ export default function EventChip({ event, onClick }) {
   // Build a sane fallback if loader didn’t provide a title
   let text = base;
   if (!text) {
-    const addr = [event?.address, event?.city && event?.state ? `${event.city}, ${event.state}` : null]
-      .filter(Boolean)
-      .join(" · ");
+    const addr = (event?.address || event?.address_line1 || "").trim();
     const orderRef = event?.order_no || event?.order_number || event?.orderId || event?.order_id;
-    const suffix = addr || (orderRef ? `Order ${orderRef}` : "");
-    text = suffix ? `${labelFor(type)} — ${suffix}` : labelFor(type);
+    text = addr || (orderRef ? `Order ${orderRef}` : "Event");
   }
 
   return (
@@ -54,7 +42,6 @@ export default function EventChip({ event, onClick }) {
     </div>
   );
 }
-
 
 
 

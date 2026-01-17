@@ -2,6 +2,13 @@ import { useCallback } from "react";
 import supabase from "@/lib/supabaseClient";
 import { OrderStatus } from "@/lib/services/ordersService";
 
+export function formatCalendarEventTitle(type, { address = "", orderId = null } = {}) {
+  const addr = (address || "").trim();
+  if (addr) return addr;
+  if (orderId) return `Order ${orderId.toString().slice(0, 8)}`;
+  return "Event";
+}
+
 /**
  * Dashboard calendar loader: (start, end) => Promise<Event[]>
  * - Tries view `v_admin_calendar_enriched`
@@ -14,34 +21,10 @@ export default function useCalendarEventLoader({ mode = null, reviewerId = null 
 
     // helpers
     const iso = (d) => d.toISOString();
-    const TYPE_ICONS = {
-      site_visit: "📍",
-      due_for_review: "🧪",
-      due_to_client: "✅",
-    };
-    const TYPE_LABELS = {
-      site_visit: "Site Visit",
-      due_for_review: "Review Due",
-      due_to_client: "Final Due",
-      due: "Due",
-      event: "Event",
-    };
     const TYPE_COLORS = {
       site_visit: "bg-pink-500/90 border-pink-500/90",
       due_for_review: "bg-amber-500/90 border-amber-500/90",
       due_to_client: "bg-blue-500/90 border-blue-500/90",
-    };
-
-    const buildTitle = (type, { title, client, address, orderId }) => {
-      // Prefer supplied title; otherwise synthesize "🧪 Review Due — <addr/client> / Order ####"
-      if (title && title.trim()) {
-        const icon = TYPE_ICONS[type] || "•";
-        return `${icon} ${title.trim()}`;
-      }
-      const icon = TYPE_ICONS[type] || "•";
-      const label = TYPE_LABELS[type] || TYPE_LABELS.event;
-      const suffix = [client, address].filter(Boolean).join(" — ") || (orderId ? `Order ${orderId}` : "");
-      return suffix ? `${icon} ${label} — ${suffix}` : `${icon} ${label}`;
     };
 
     // -------- 1) Try the view -----------
@@ -67,12 +50,7 @@ export default function useCalendarEventLoader({ mode = null, reviewerId = null 
         return {
           id: row.id,
           type,
-          title: buildTitle(type, {
-            title: row.title,
-            client: row.client_name,
-            address: row.address,
-            orderId: row.order_id,
-          }),
+          title: formatCalendarEventTitle(type, { address: row.address, orderId: row.order_id }),
           start: row.start_at,
           end: row.end_at,
           orderId: row.order_id || null,
@@ -104,12 +82,7 @@ export default function useCalendarEventLoader({ mode = null, reviewerId = null 
       return {
         id: `${e.order_id}-${type}-${e.at}`,
         type,
-        title: buildTitle(type, {
-          title: "",         // RPC usually has no title
-          client: e.client,  // include these in your RPC if available
-          address: e.address,
-          orderId: e.order_id,
-        }),
+        title: formatCalendarEventTitle(type, { address: e.address, orderId: e.order_id }),
         start: e.at,
         end: e.at,
         orderId: e.order_id,

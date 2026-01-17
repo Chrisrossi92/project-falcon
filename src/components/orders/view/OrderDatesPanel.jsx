@@ -1,6 +1,6 @@
 import React from "react";
 import normalizeOrder from "@/lib/orders/normalizeOrder";
-import AppointmentCell from "@/components/orders/drawer/AppointmentCell"; // path you used for this component
+import SiteVisitPicker from "@/components/dates/SiteVisitPicker";
 
 const fmt = (d) => (!d ? "—" : isNaN(new Date(d)) ? "—" : new Date(d).toLocaleString());
 
@@ -19,11 +19,7 @@ export default function OrderDatesPanel({
         <div className="text-xs text-muted-foreground">Site Visit</div>
         <div className="min-h-[28px]">
           {editable ? (
-            <AppointmentCell
-              siteVisitAt={n.siteVisitAt}
-              onSetAppointment={onSetAppointment}
-              compact
-            />
+            <SiteVisitPicker value={n.siteVisitAt} onChange={onSetAppointment} />
           ) : (
             fmt(n.siteVisitAt)
           )}
@@ -41,5 +37,4 @@ export default function OrderDatesPanel({
     </div>
   );
 }
-
 

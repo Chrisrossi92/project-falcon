@@ -40,7 +40,7 @@ const fromLocalDateTimeInputToISO = (value) => {
 
 function buildOrderPayload(values) {
   return {
-    status: values.status || "New",
+    status: String(values.status || "new").toLowerCase(),
     order_number: values.order_number || null,
 
     client_id: values.client_id || null,
@@ -84,7 +84,7 @@ export default function OrderForm({ order, onClose, onSaved, onCancel }) {
     if (!order) return;
     setValues({
       order_number: order.order_number ?? "",
-      status: order.status ?? "",
+      status: (order.status || "").toLowerCase(),
       client_id: order.client_id ?? null,
       manual_client_name: order.manual_client_name ?? order.client_name ?? "",
       managing_amc_id: order.managing_amc_id ?? order.amc_id ?? null,
@@ -106,7 +106,8 @@ export default function OrderForm({ order, onClose, onSaved, onCancel }) {
       property_contact_phone: order.property_contact_phone ?? "",
       entry_contact_name: order.entry_contact_name ?? "",
       entry_contact_phone: order.entry_contact_phone ?? "",
-      access_notes: order.access_notes ?? order.notes ?? "",
+      access_notes: order.access_notes ?? "",
+      notes: order.notes ?? "",
     });
   }, [order]);
 
@@ -208,14 +209,22 @@ export default function OrderForm({ order, onClose, onSaved, onCancel }) {
         <AssignmentFields value={values} values={values} onChange={handleChange} />
         <PropertyFields value={values} values={values} onChange={handleChange} />
         <DatesFields value={values} values={values} onChange={handleChange} />
+        <div className="col-span-1 xl:col-span-2 space-y-2">
+          <label className="block text-sm font-medium text-gray-700">
+            Special Instructions (Internal)
+          </label>
+          <textarea
+            name="notes"
+            value={values.notes || ""}
+            onChange={handleChange}
+            className="w-full border rounded-lg px-3 py-2 text-sm min-h-[96px]"
+            placeholder="Internal instructions for appraisers/reviewers"
+          />
+        </div>
       </div>
     </form>
   );
 }
-
-
-
-
 
 
 

@@ -11,6 +11,7 @@ import {
   sendToClient,
 } from "@/lib/services/ordersService";
 import { logNote } from "@/lib/services/activityService";
+import { ORDER_STATUS, normalizeStatus } from "@/lib/constants/orderStatus";
 
 export default function OrderActions({ order, onAfterAction }) {
   const { isAdmin, isReviewer } = useRole() || {};
@@ -19,7 +20,7 @@ export default function OrderActions({ order, onAfterAction }) {
   if (!order) return null;
 
   const id = order.id;
-  const status = String(order.status || "").toLowerCase();
+  const status = normalizeStatus(order.status);
   const reviewerAssigned = !!order.reviewer_id;
 
   const doAction = async (fn, label, args = []) => {
@@ -34,18 +35,19 @@ export default function OrderActions({ order, onAfterAction }) {
   };
 
   // === Gate logic (admins have all reviewer powers) ===
-  const canStart      = (isReviewer || isAdmin) && status !== "in_review" && status !== "complete";
-  const canApprove    = (isReviewer || isAdmin) && status === "in_review";
-  const canRequestRev = (isReviewer || isAdmin) && status === "in_review";
-  const canReady      = (isReviewer || isAdmin) && (status === "in_review" || status === "revisions");
-  const canSend       = (isReviewer || isAdmin) && status === "ready_to_send";
-  const canComplete   =  isAdmin && status !== "complete";   // <-- admin override allowed anytime pre-complete
+  const canStart      = (isReviewer || isAdmin) && status !== ORDER_STATUS.IN_REVIEW && status !== ORDER_STATUS.COMPLETED;
+  const canApprove    = (isReviewer || isAdmin) && status === ORDER_STATUS.IN_REVIEW;
+  const canRequestRev = (isReviewer || isAdmin) && status === ORDER_STATUS.IN_REVIEW;
+  const canReady      = (isReviewer || isAdmin) && (status === ORDER_STATUS.IN_REVIEW || status === ORDER_STATUS.NEEDS_REVISIONS);
 
-  // Add-note is always allowed for signed-in roles (RPC enforces)
+  // IMPORTANT: “Send to Client” is an admin/conductor action
+  const canSend       = isAdmin && status === ORDER_STATUS.READY_FOR_CLIENT;
+
+  const canComplete   = isAdmin && status !== ORDER_STATUS.COMPLETED;
+
   const canAddNote = Boolean(note.trim());
 
-  // Override check: warn if order does NOT appear reviewed
-  const looksReviewed = reviewerAssigned && status === "ready_to_send";
+  const looksReviewed = reviewerAssigned && status === ORDER_STATUS.READY_FOR_CLIENT;
   const confirmCompleteText = looksReviewed
     ? "Complete this order?"
     : "Are you sure you want to mark this order COMPLETE?\n\nIt does not appear to be reviewed. This will override the review process.";

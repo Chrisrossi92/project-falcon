@@ -10,21 +10,15 @@ import OrderDrawerContent from "@/components/orders/drawer/OrderDrawerContent";
 import OrderOpenFullLink from "@/components/orders/drawer/OrderOpenFullLink";
 import ReviewerActionCell from "@/components/orders/table/ReviewerActionCell";
 import { updateOrderStatus } from "@/lib/api/orders";
-import { sendOrderToReview, sendOrderBackToAppraiser, completeOrder } from "@/lib/services/ordersService";
+import { sendOrderToReview, sendOrderBackToAppraiser, completeOrder, markReadyForClient } from "@/lib/services/ordersService";
 
 import useColumnsConfig from "@/features/orders/columns/useColumnsConfig";
 import { useToast } from "@/lib/hooks/useToast";
 
 /* helpers */
 const feeOf = (r) => [r?.base_fee, r?.appraiser_fee].find((v) => v != null);
-const fmtMoney = (n) => (n == null ? "-" : Number(n).toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 }));
-const cityLine = (r) => {
-  const c = r?.city || "";
-  const s = r?.state || "";
-  const z = r?.postal_code || "";
-  const left = [c, s].filter(Boolean).join(", ");
-  return (left + (z ? ` ${z}` : "")).trim();
-};
+const fmtMoney = (n) =>
+  n == null ? "-" : Number(n).toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 const mapsHref = (street, cityline) => {
   const full = [street || "", cityline || ""].filter(Boolean).join(", ");
   return full ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(full)}` : null;
@@ -32,6 +26,10 @@ const mapsHref = (street, cityline) => {
 const fmtDate = (d) => (!d ? "-" : isNaN(new Date(d)) ? "-" : new Date(d).toLocaleDateString());
 const orderNumberOf = (row) =>
   row?.order_number || (row?.id || row?.order_id ? (row?.id || row?.order_id).slice(0, 8) : "");
+
+function orderPkOf(o) {
+  return o?.id || o?.order_id || null;
+}
 
 export default function UnifiedOrdersTable({
   role: roleProp,
@@ -52,12 +50,11 @@ export default function UnifiedOrdersTable({
   const isReviewer = normalizedRole === "reviewer";
   const isAppraiser = normalizedRole === "appraiser";
   const role = normalizedRole;
-  const assignmentLabel = isAppraiser ? "Reviewer" : "Appraiser";
 
   /* seed built from the **live** filters prop */
   const seed = useMemo(() => {
     const base = {
-      activeOnly: appliedFilters.activeOnly ?? false,     // <-- now respected
+      activeOnly: appliedFilters.activeOnly ?? false,
       page: appliedFilters.page || 0,
       pageSize: appliedFilters.pageSize || pageSize,
       orderBy: appliedFilters.orderBy || "order_number",
@@ -66,17 +63,29 @@ export default function UnifiedOrdersTable({
       statusIn: appliedFilters.statusIn || [],
       clientId: appliedFilters.clientId || null,
       appraiserId: appliedFilters.appraiserId || null,
+      assignedAppraiserId: appliedFilters.assignedAppraiserId || null,
       priority: appliedFilters.priority || "",
       dueWindow: appliedFilters.dueWindow || "",
       from: appliedFilters.from || "",
       to: appliedFilters.to || "",
     };
-    if (isAppraiser) base.appraiserId = internalUserId || null;
-    if (role === "reviewer" && reviewerId) {
-      base.reviewerId = reviewerId;
-    }
+    if (role === "reviewer" && reviewerId) base.reviewerId = reviewerId;
     return base;
-  }, [appliedFilters, isAppraiser, internalUserId, pageSize, role, reviewerId]);
+  }, [appliedFilters, pageSize, role, reviewerId]);
+
+  const seedFinal = useMemo(() => {
+    const enforced = { ...seed };
+    if (isAppraiser) {
+      enforced.appraiserId = internalUserId || null;
+      enforced.assignedAppraiserId = null;
+    }
+    if (process.env.NODE_ENV === "development" && isAppraiser) {
+      console.debug("[UnifiedOrdersTable] seedFinal (appraiser)", enforced);
+    }
+    return enforced;
+  }, [seed, isAppraiser, internalUserId]);
+
+  const [refreshTick, setRefreshTick] = useState(0);
 
   const {
     data = [],
@@ -85,48 +94,43 @@ export default function UnifiedOrdersTable({
     error,
     filters: tableFilters,
     setFilters: setTableFilters,
-  } = useOrders(seed, { mode, reviewerId, scope, enabled: !roleLoading });
+  } = useOrders(
+    useMemo(() => ({ ...seedFinal, _tick: refreshTick }), [seedFinal, refreshTick]),
+    {
+      mode,
+      reviewerId,
+      scope,
+      enabled: !roleLoading && (isAdminLike || isReviewer || (isAppraiser && Boolean(internalUserId))),
+    }
+  );
 
   const totalPages = Math.max(1, Math.ceil((count || 0) / (tableFilters.pageSize || pageSize)));
   const [expandedId, setExpandedId] = useState(null);
 
-  const refresh = useCallback(() => setTableFilters((f) => ({ ...f })), [setTableFilters]);
+  const refresh = useCallback(() => setRefreshTick((x) => x + 1), []);
   const go = (p) => setTableFilters((f) => ({ ...f, page: Math.min(Math.max(0, p), totalPages - 1) }));
-
-  const actionsCell = (o) =>
-    isReviewer ? (
-      <ReviewerActionCell order={o} onChanged={refresh} />
-    ) : (
-      <button
-        data-no-drawer
-        className="px-2 py-1 text-xs rounded border hover:bg-gray-50 disabled:opacity-50"
-        onClick={async (e) => {
-          e.stopPropagation();
-          await updateOrderStatus(o.id, ORDER_STATUS.IN_REVIEW);
-          refresh();
-        }}
-        disabled={normalizeOrderStatus(o.status) !== ORDER_STATUS.IN_PROGRESS}
-        title="Send this order to review"
-      >
-        Send to Review
-      </button>
-    );
 
   const handleSendToReview = useCallback(
     async (order) => {
+      const orderPk = orderPkOf(order);
+      if (!orderPk) {
+        toast({ title: "Error", description: "Missing order id.", tone: "error" });
+        return;
+      }
+
       try {
-        await sendOrderToReview(order, sessionUser?.id);
+        await sendOrderToReview(orderPk, sessionUser?.id); // ✅ correct signature
         refresh();
         toast({
           title: "Sent to review",
-          description: `Order ${order.order_number || order.id} was sent to review.`,
+          description: `Order ${order.order_number || orderPk} was sent to review.`,
           tone: "success",
         });
       } catch (err) {
         console.error("Failed to send to review", err);
         toast({
           title: "Error",
-          description: "Failed to send order to review.",
+          description: err?.message ? `Failed to send to review: ${err.message}` : "Failed to send order to review.",
           tone: "error",
         });
       }
@@ -136,20 +140,26 @@ export default function UnifiedOrdersTable({
 
   const handleSendBackToAppraiser = useCallback(
     async (order) => {
+      const orderPk = orderPkOf(order);
+      if (!orderPk) {
+        toast({ title: "Error", description: "Missing order id.", tone: "error" });
+        return;
+      }
+
       try {
-        await sendOrderBackToAppraiser(order.id, sessionUser?.id);
-        await refresh();
+        await sendOrderBackToAppraiser(orderPk, sessionUser?.id);
+        refresh();
         toast({
           title: "Sent back to appraiser",
-          description: `Revisions requested for order ${order.order_number || order.id}.`,
-          variant: "success",
+          description: `Revisions requested for order ${order.order_number || orderPk}.`,
+          tone: "success",
         });
       } catch (err) {
         console.error("Failed to send back to appraiser", err);
         toast({
           title: "Error",
-          description: "Could not send order back to appraiser.",
-          variant: "destructive",
+          description: err?.message ? `Could not send back: ${err.message}` : "Could not send order back to appraiser.",
+          tone: "error",
         });
       }
     },
@@ -158,20 +168,54 @@ export default function UnifiedOrdersTable({
 
   const handleCompleteOrder = useCallback(
     async (order) => {
+      const orderPk = orderPkOf(order);
+      if (!orderPk) {
+        toast({ title: "Error", description: "Missing order id.", tone: "error" });
+        return;
+      }
+
       try {
-        await completeOrder(order.id, sessionUser?.id);
-        await refresh();
+        await completeOrder(orderPk, sessionUser?.id);
+        refresh();
         toast({
           title: "Order completed",
-          description: `Order ${order.order_number || order.id} was marked complete.`,
-          variant: "success",
+          description: `Order ${order.order_number || orderPk} was marked complete.`,
+          tone: "success",
         });
       } catch (err) {
         console.error("Failed to complete order", err);
         toast({
           title: "Error",
-          description: "Could not mark order complete.",
-          variant: "destructive",
+          description: err?.message ? `Could not complete: ${err.message}` : "Could not mark order complete.",
+          tone: "error",
+        });
+      }
+    },
+    [sessionUser?.id, refresh, toast]
+  );
+
+  const handleReadyForClient = useCallback(
+    async (order) => {
+      const orderPk = orderPkOf(order);
+      if (!orderPk) {
+        toast({ title: "Error", description: "Missing order id.", tone: "error" });
+        return;
+      }
+
+      try {
+        await markReadyForClient(orderPk, sessionUser?.id);
+        refresh();
+        toast({
+          title: "Marked ready for client",
+          description: `Order ${order.order_number || orderPk} moved to client queue.`,
+          tone: "success",
+        });
+      } catch (err) {
+        console.error("Failed to mark ready for client", err);
+        toast({
+          title: "Error",
+          description: err?.message ? `Could not mark ready: ${err.message}` : "Could not mark ready for client.",
+          tone: "error",
         });
       }
     },
@@ -183,35 +227,24 @@ export default function UnifiedOrdersTable({
       onSendToReview: handleSendToReview,
       onSendBackToAppraiser: handleSendBackToAppraiser,
       onComplete: handleCompleteOrder,
+      onReadyForClient: handleReadyForClient,
     }),
-    [handleSendToReview, handleSendBackToAppraiser, handleCompleteOrder]
+    [handleSendToReview, handleSendBackToAppraiser, handleCompleteOrder, handleReadyForClient]
   );
 
   const columns = useColumnsConfig(normalizedRole, columnActions);
-
   const template = columns.map((c) => c.width).join(" ");
 
-  const onDragStart = () => {};
-  const onDragOver = () => {};
-  const onDrop = () => {};
-  const onResizeDown = () => {};
-
   const stickyHeader = "bg-white sticky left-0 z-20 pr-4 border-r border-slate-200";
-  const stickyCell   = "bg-white sticky left-0 z-10 pr-4 border-slate-200";
+  const stickyCell = "bg-white sticky left-0 z-10 pr-4 border-slate-200";
 
   return (
     <div className={`bg-white border rounded-xl overflow-x-auto ${className}`} style={style}>
-      {error && <div className="px-3 py-2 text-sm text-rose-700 bg-rose-50 border-b">Failed to load orders: {error.message}</div>}
-
-      <style>{`
-        .col-wrap{position:relative;min-height:36px;display:flex;align-items:stretch;gap:.5rem;padding:2px 4px 2px 8px;border-radius:6px;}
-        .col-wrap:hover{background:rgba(0,0,0,.02)}
-        .col-label{display:flex;align-items:center;gap:.5rem;width:calc(100% - 14px);cursor:grab;user-select:none;padding-right:8px}
-        .col-label:active{cursor:grabbing}
-        .col-resize{position:absolute;right:-6px;top:0;height:100%;width:14px;cursor:col-resize;display:flex;align-items:center}
-        .col-resize::after{content:"";width:2px;height:60%;background:#e5e7eb;border-radius:1px;opacity:0;transition:opacity .15s;margin-left:6px}
-        .col-wrap:hover .col-resize::after{opacity:.9}
-      `}</style>
+      {error && (
+        <div className="px-3 py-2 text-sm text-rose-700 bg-rose-50 border-b">
+          Failed to load orders: {error.message}
+        </div>
+      )}
 
       {/* header */}
       <div className="overflow-x-auto">
@@ -220,21 +253,8 @@ export default function UnifiedOrdersTable({
           style={{ display: "grid", gridTemplateColumns: template, columnGap: ".25rem", minWidth: "900px" }}
         >
           {columns.map((c, idx) => (
-            <div
-              key={c.key}
-              className={`col-wrap ${idx === 0 ? stickyHeader : ""}`}
-              onDragOver={(e) => { e.preventDefault(); onDragOver(e); }}
-              onDrop={() => onDrop(idx)}
-            >
-              <div
-                className={`col-label ${c.locked ? "cursor-default opacity-90" : ""}`}
-                draggable={!c.locked}
-                onDragStart={() => onDragStart(idx)}
-                title={c.locked ? "Locked" : "Drag to reorder"}
-              >
-                <div className="truncate">{c.header()}</div>
-              </div>
-              <div className="col-resize" data-no-drawer onMouseDown={(e) => onResizeDown(e, c.key)} title="Drag to resize" />
+            <div key={c.key} className={`px-2 py-1 ${idx === 0 ? stickyHeader : ""}`}>
+              <div className="truncate">{c.header()}</div>
             </div>
           ))}
         </div>
@@ -243,66 +263,41 @@ export default function UnifiedOrdersTable({
         <div className="divide-y" style={{ minWidth: "900px" }}>
           {loading ? (
             [...Array(tableFilters.pageSize || pageSize)].map((_, i) => (
-              <div key={i} className="px-4 py-3 text-sm text-slate-500">Loading...</div>
+              <div key={i} className="px-4 py-3 text-sm text-slate-500">
+                Loading...
+              </div>
             ))
           ) : !data?.length ? (
             <div className="px-4 py-8 text-center text-sm text-slate-500">No orders.</div>
           ) : (
-            data.map((o) => {
+            data.map((o, idx) => {
+              const rowKey = o.order_id || o.id || o.order_number || `row-${tableFilters?.page ?? 0}-${idx}`;
+              const orderPk = orderPkOf(o);
+
               const drawerNode = (
                 <div data-no-drawer>
                   <div className="flex items-center justify-between mb-2">
                     <div className="text-sm font-semibold">Order {orderNumberOf(o)}</div>
-                    <OrderOpenFullLink orderId={o.id} />
+                    <OrderOpenFullLink orderId={orderPk} />
                   </div>
-                  <OrderDrawerContent orderId={o.id} order={o} onRefresh={refresh} />
+                  <OrderDrawerContent orderId={orderPk} order={o} onRefresh={refresh} />
                 </div>
               );
 
               return (
                 <OrdersTableRow
-                  key={o.id}
+                  key={rowKey}
                   order={o}
-                  isOpen={expandedId === o.id}
-                  onToggle={() => setExpandedId((x) => (x === o.id ? null : o.id))}
+                  isOpen={expandedId === rowKey}
+                  onToggle={() => setExpandedId((x) => (x === rowKey ? null : rowKey))}
                   className="py-2.5"
                   renderCells={() => (
                     <div
                       className="items-start text-sm text-slate-800"
                       style={{ display: "grid", gridTemplateColumns: template, columnGap: ".25rem" }}
                     >
-                      {columns.map((c, idx) => {
-                        // Address
-                        if (c.key === "address") {
-                          const street = o.address_line1 || "-";
-                          const cityLineStr = [o.city, o.state].filter(Boolean).join(", ");
-                          const cityZip = [cityLineStr, o.postal_code].filter(Boolean).join(" ");
-                          return (
-                            <div key={c.key} className={idx === 0 ? stickyCell : ""}>
-                              <div className="flex flex-col">
-                                <span className="text-sm text-slate-800 truncate">{street}</span>
-                                {cityZip && <span className="text-xs text-slate-500 truncate">{cityZip}</span>}
-                              </div>
-                              {mapsHref(o.address_line1, cityLineStr) && (
-                                <a className="text-[11px] text-indigo-600 hover:underline" href={mapsHref(o.address_line1, cityLineStr)} target="_blank" rel="noreferrer">
-                                  Open in Maps
-                                </a>
-                              )}
-                            </div>
-                          );
-                        }
-
-                        // Client
-                        if (c.key === "client") {
-                          return (
-                            <div key={c.key} className={idx === 0 ? stickyCell : ""}>
-                              <div className="font-medium">{o.client_name || "-"}</div>
-                              <div className="text-xs text-slate-500">#{orderNumberOf(o)}</div>
-                            </div>
-                          );
-                        }
-
-                        // Status
+                      {columns.map((c, cIdx) => {
+                        // Status column special rendering
                         if (c.key === "status") {
                           const rawStatus = normalizeOrderStatus(o.status_normalized || o.status);
                           const statusLabel = formatOrderStatusLabel(rawStatus) || rawStatus || "-";
@@ -317,19 +312,9 @@ export default function UnifiedOrdersTable({
                           );
                         }
 
-                        // Fee
-                        if (c.key === "fee") {
-                          const fee = feeOf(o);
-                          return (
-                            <div key={c.key} className="text-sm font-semibold text-slate-700">
-                              {fmtMoney(fee)}
-                            </div>
-                          );
-                        }
-
-                        // Default
+                        // Default cell
                         return (
-                          <div key={c.key} className={idx === 0 ? stickyCell : ""}>
+                          <div key={c.key} className={cIdx === 0 ? stickyCell : ""}>
                             {c.cell(o)}
                           </div>
                         );

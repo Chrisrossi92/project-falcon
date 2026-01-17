@@ -24,17 +24,16 @@ export default async function updateOrderStatus(orderId, newStatus, note = null)
       if (error) throw error;
 
       await logOrderEvent({
-        orderId,
-        action: 'status_change',
+        order_id: orderId,
+        action: 'status_changed',
         prev_status: prev,
         new_status: newStatus,
-        message: note ?? `Status changed to ${newStatus}`,
+        message: note ?? null,
       });
     }
   );
 
   return true;
 }
-
 
 

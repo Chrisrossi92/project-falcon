@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useRole } from "@/lib/hooks/useRole";
 import { updateOrderStatus } from "@/lib/services/ordersService";
+import { ORDER_STATUS } from "@/lib/constants/orderStatus";
 
 export default function QuickActionsDrawerPanel({ orderId, onAfterChange, layout = "stack" }) {
   const { isAdmin, isReviewer } = useRole() || {};
@@ -39,7 +40,7 @@ export default function QuickActionsDrawerPanel({ orderId, onAfterChange, layout
           type="button"
           data-no-drawer
           className={btn}
-          onClick={() => setStatus("in_review", "In Review")}
+          onClick={() => setStatus(ORDER_STATUS.IN_REVIEW, "In Review")}
           disabled={busy}
           title="Send this order to review"
         >
@@ -53,7 +54,7 @@ export default function QuickActionsDrawerPanel({ orderId, onAfterChange, layout
             type="button"
             data-no-drawer
             className={btn}
-            onClick={() => setStatus("ready_to_send", "Ready to Send")}
+            onClick={() => setStatus(ORDER_STATUS.READY_FOR_CLIENT, "Ready for Client")}
             disabled={busy}
             title="Approve review → Ready to Send"
           >
@@ -63,7 +64,7 @@ export default function QuickActionsDrawerPanel({ orderId, onAfterChange, layout
             type="button"
             data-no-drawer
             className={btn}
-            onClick={() => setStatus("revisions", "Revisions")}
+            onClick={() => setStatus(ORDER_STATUS.NEEDS_REVISIONS, "Revisions")}
             disabled={busy}
             title="Request revisions"
           >
@@ -74,7 +75,6 @@ export default function QuickActionsDrawerPanel({ orderId, onAfterChange, layout
     </Wrap>
   );
 }
-
 
 
 

@@ -3,10 +3,10 @@ import { useParams, useNavigate } from "react-router-dom";
 import supabase from "@/lib/supabaseClient";
 import OrderForm from "@/components/orders/form/OrderForm";
 
-// Pull from the normalized view (v3) with the columns our UI expects
+// Pull from the normalized view (v4) with the columns our UI expects
 async function fetchView(orderId) {
   const { data, error } = await supabase
-    .from("v_orders_frontend_v3")
+    .from("v_orders_frontend_v4")
     .select(
       `
         id,
@@ -105,6 +105,5 @@ export default function EditOrder() {
     </div>
   );
 }
-
 
 

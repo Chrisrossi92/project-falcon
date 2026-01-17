@@ -11,6 +11,7 @@ export const OrderStatus = {
   IN_PROGRESS: "in_progress",
   IN_REVIEW: "in_review",
   NEEDS_REVISIONS: "needs_revisions",
+  READY_FOR_CLIENT: "ready_for_client",
   COMPLETED: "completed",
 };
 
@@ -93,7 +94,7 @@ export async function listOrders({
   if (statusIn?.length) q = q.in("status", statusIn);
 
   // Pin to appraiser when provided (appraiser dashboards/tables)
-  if (appraiserId) q = q.eq("assigned_appraiser_id", String(appraiserId));
+  if (appraiserId) q = q.eq("appraiser_id", String(appraiserId));
 
   q = q.order(orderBy, { ascending }).range(fromIdx, toIdx);
 
@@ -299,12 +300,13 @@ export async function assignReviewer(orderId, reviewer_id) {
 
 export async function startReview(orderId, note = null)        { return setOrderStatus(orderId, OrderStatus.IN_REVIEW); }
 export async function requestRevisions(orderId, note = null)   { return setOrderStatus(orderId, OrderStatus.NEEDS_REVISIONS); }
-export async function approveReview(orderId, note = null)      { return setOrderStatus(orderId, OrderStatus.COMPLETED); }
-export async function markReadyToSend(orderId, note = null)    { return setOrderStatus(orderId, OrderStatus.COMPLETED); }
+export async function markReadyForClient(orderId, note = null) { return setOrderStatus(orderId, OrderStatus.READY_FOR_CLIENT); }
+export async function approveReview(orderId, note = null)      { return markReadyForClient(orderId, note); }
+export async function markReadyToSend(orderId, note = null)    { return markReadyForClient(orderId, note); }
 export async function markComplete(orderId, note = null)       { return setOrderStatus(orderId, OrderStatus.COMPLETED); }
 export async function putOnHold(orderId, note = null)          { return setOrderStatus(orderId, OrderStatus.IN_PROGRESS); }
 export async function resumeInProgress(orderId, note = null)   { return setOrderStatus(orderId, OrderStatus.IN_PROGRESS); }
-export async function sendToClient(orderId, note = null)       { return setOrderStatus(orderId, OrderStatus.COMPLETED); }
+export async function sendToClient(orderId, note = null)       { return markComplete(orderId, note); }
 export async function markDelivered(orderId, note = null)      { return sendToClient(orderId, note); }
 
 /* ============================================================================
@@ -333,7 +335,7 @@ export async function sendOrderToReview(orderId, actorId) {
     .maybeSingle();
 
   if (error) throw error;
-  if (!order) return null;
+  if (!order) throw new Error("No order updated (permission or id mismatch).");
 
   const recipients = [];
 
@@ -374,8 +376,7 @@ export async function sendOrderBackToAppraiser(orderId, actorId) {
 
   const order = data;
   if (!order) {
-    console.warn("[sendOrderBackToAppraiser] no order found for id", orderId);
-    return null;
+    throw new Error("No order updated (permission or id mismatch).");
   }
 
   const recipients = [];
@@ -418,8 +419,7 @@ export async function completeOrder(orderId, actorId) {
 
   const order = data;
   if (!order) {
-    console.warn("[completeOrder] no order found for id", orderId);
-    return null;
+    throw new Error("No order updated (permission or id mismatch).");
   }
 
   const recipients = [];
@@ -455,8 +455,6 @@ export async function isOrderNumberAvailable(orderNo, { excludeId = null } = {})
   if (res2.error) throw res2.error;
   return (res2.count || 0) === 0;
 }
-
-
 
 
 

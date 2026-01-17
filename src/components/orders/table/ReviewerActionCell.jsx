@@ -6,7 +6,7 @@ import { ORDER_STATUS } from "@/lib/constants/orderStatus";
 /**
  * Reviewer actions:
  *  - Revisions -> status = REVISIONS (back to appraiser queue)
- *  - Send to Client -> status = READY_TO_SEND (admin queue to process/send)
+ *  - Send to Client -> status = READY_FOR_CLIENT (admin queue to process/send)
  */
 export default function ReviewerActionCell({ order, onChanged }) {
   const [busy, setBusy] = useState(false);
@@ -39,7 +39,7 @@ export default function ReviewerActionCell({ order, onChanged }) {
       <button
         className="px-2 py-1 text-xs rounded border hover:bg-gray-50 disabled:opacity-50"
         disabled={busy}
-        onClick={() => setStatus(ORDER_STATUS.COMPLETED)}
+        onClick={() => setStatus(ORDER_STATUS.READY_FOR_CLIENT)}
         title="Move to admin queue to send to client"
       >
         {busy ? "Working…" : "Send to Client"}

@@ -24,18 +24,14 @@ export const submitReviewDecision = async ({
     throw new Error(updateError.message);
   }
 
-  // 2. Log the action in activity_log
+  // 2. Log the action in activity feed
   const action = `review_${new_status.toLowerCase().replace(" ", "_")}`; // e.g. review_approved
   const visible_to = ["admin", "reviewer", "appraiser"];
 
   await logActivity({
-    user_id: reviewer_id,
     order_id,
     action,
-    role: reviewer_role,
-    visible_to,
-    context: {
-      comment,
-    },
+    message: comment || null,
+    context: { comment, visible_to, reviewer_id, reviewer_role },
   });
 };

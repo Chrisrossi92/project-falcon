@@ -58,6 +58,8 @@ const emptyOrder = {
   appraiser_name: null,
   reviewer_id: null,
   reviewer_name: null,
+  managing_amc_id: null,
+  split_pct: null,
   assigned_to: null,
   address_line1: null,
   address: null,
@@ -85,7 +87,7 @@ const emptyOrder = {
 };
 
 /**
- * Map a raw Supabase row (v_orders_frontend_v3) into the canonical OrderFrontend shape.
+ * Map a raw Supabase row (v_orders_frontend_v4) into the canonical OrderFrontend shape.
  * @param {object} row
  * @returns {OrderFrontend}
  */
@@ -127,11 +129,12 @@ export function mapOrderRow(row = {}) {
       null,
     amc_id: row.amc_id ?? null,
     amc_name: row.amc_name ?? null,
+    managing_amc_id: row.managing_amc_id ?? null,
     appraiser_id: row.appraiser_id || null,
     appraiser_name: row.appraiser_name || null,
     reviewer_id: row.reviewer_id || null,
     reviewer_name: row.reviewer_name || null,
-    assigned_to: row.assigned_to ?? row.assigned_appraiser_id ?? null,
+    assigned_to: row.assigned_to ?? row.appraiser_id ?? null,
     address_line1: addressLine1,
     address: addressLine1,
     city,
@@ -143,6 +146,7 @@ export function mapOrderRow(row = {}) {
     fee_amount: row.fee_amount ?? null,
     base_fee: row.base_fee ?? row.fee_amount ?? null,
     appraiser_fee: row.appraiser_fee ?? null,
+    split_pct: row.split_pct ?? row.appraiser_split ?? null,
     review_due_at:
       row.review_due_at ??
       row.review_due_date ??

@@ -30,13 +30,25 @@ const statusChipClasses = (status) => {
   return "bg-slate-50 text-slate-700 border-slate-200";
 };
 
+const parseFee = (val) => {
+  if (val == null) return null;
+  if (typeof val === "number") return Number.isFinite(val) ? val : null;
+  if (typeof val === "string") {
+    const cleaned = val.replace(/[$,]/g, "");
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+};
+
 /* ============================== main ============================== */
 
 export default function ClientDetail() {
-  const { clientId } = useParams();
+  const params = useParams();
+  const clientIdParam = params.clientId || params.id || null;
   const nav = useNavigate();
 
-  const numericId = Number(clientId);
+  const numericId = Number(clientIdParam);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
 
@@ -48,7 +60,7 @@ export default function ClientDetail() {
   const [editing, setEditing] = useState(false);
 
   useEffect(() => {
-    if (!clientId || Number.isNaN(numericId)) {
+    if (!clientIdParam || Number.isNaN(numericId) || !Number.isFinite(numericId)) {
       setErr("Invalid client id");
       setLoading(false);
       return;
@@ -75,9 +87,9 @@ export default function ClientDetail() {
           .maybeSingle();
 
         const ordersPromise = supabase
-          .from("v_orders_frontend_v3")
+          .from("v_orders_frontend_v4")
           .select(
-            "id, order_number, status, address, city, state, zip, fee_amount, created_at, review_due_at, final_due_at, due_date"
+            "id, order_number, status, address, city, state, zip, fee_amount, base_fee, appraiser_fee, created_at, review_due_at, final_due_at, due_date"
           )
           .eq("client_id", numericId)
           .order("created_at", { ascending: false })
@@ -105,6 +117,13 @@ export default function ClientDetail() {
         setClient(clientRow);
         setKpis(kpiRow || null);
         setOrders(orderRows || []);
+        if (process.env.NODE_ENV === "development" && (orderRows || []).length) {
+          console.debug("[ClientDetail orders sample]", orderRows[0]?.order_number, {
+            fee_amount: orderRows[0]?.fee_amount,
+            base_fee: orderRows[0]?.base_fee,
+            appraiser_fee: orderRows[0]?.appraiser_fee,
+          });
+        }
 
         // 2) If this client is tied to an AMC, load that AMC
         const category =
@@ -140,7 +159,7 @@ export default function ClientDetail() {
     return () => {
       cancelled = true;
     };
-  }, [clientId, numericId]);
+  }, [clientIdParam, numericId]);
 
   const stats = useMemo(() => {
     if (!orders || orders.length === 0) {
@@ -159,9 +178,11 @@ export default function ClientDetail() {
     let lastDate = null;
 
     for (const o of orders) {
-      const fee = Number(o.fee_amount ?? 0);
-      if (!Number.isNaN(fee)) totalFees += fee;
-      if ((o.status || "").toUpperCase() === "COMPLETE") completed += 1;
+      const fee = [o.fee_amount, o.base_fee, o.appraiser_fee].map(parseFee).find((v) => v != null);
+      if (typeof fee === "number" && Number.isFinite(fee)) totalFees += fee;
+
+      const status = (o.status || "").toLowerCase();
+      if (status === "completed" || status === "complete") completed += 1;
 
       const candidate =
         o.final_due_at ||
@@ -471,6 +492,7 @@ export default function ClientDetail() {
 /* ============================== subcomponents ============================== */
 
 function OrdersTable({ rows }) {
+  const feeFor = (o) => [o.fee_amount, o.base_fee, o.appraiser_fee].map(parseFee).find((v) => v != null);
   if (!rows || rows.length === 0) return null;
 
   return (
@@ -489,6 +511,9 @@ function OrdersTable({ rows }) {
           {rows.map((o) => {
             const due =
               o.final_due_at || o.due_date || o.review_due_at || o.created_at;
+            const fee = [o.fee_amount, o.base_fee, o.appraiser_fee]
+              .map(parseFee)
+              .find((v) => typeof v === "number");
             return (
               <tr
                 key={o.id}
@@ -511,7 +536,7 @@ function OrdersTable({ rows }) {
                   {fmtDate(due)}
                 </td>
                 <td className="px-3 py-1.5 text-right text-[11px]">
-                  {money0(o.fee_amount ?? 0)}
+                  {fee ? money0(fee) : "—"}
                 </td>
               </tr>
             );
@@ -521,5 +546,3 @@ function OrdersTable({ rows }) {
     </div>
   );
 }
-
-

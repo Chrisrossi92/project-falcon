@@ -1,5 +1,5 @@
 import React from "react";
-import MapContainer from "@/components/maps/MapContainer";
+import GoogleMapEmbed from "@/components/maps/GoogleMapEmbed";
 
 export default function AppraiserDrawerSummary({ order, height = 280 }) {
   if (!order) return null;
@@ -20,10 +20,14 @@ export default function AppraiserDrawerSummary({ order, height = 280 }) {
       <div className="px-3 py-2 text-xs text-gray-500 border-b">
         Location
       </div>
-      <div style={{ height }} className="w-full">
-        <MapContainer address={address} />
-      </div>
+      <GoogleMapEmbed
+        addressLine1={order.property_address || order.address}
+        city={order.city}
+        state={order.state}
+        zip={order.postal_code || order.zip}
+        height={height}
+        zoom={13}
+      />
     </div>
   );
 }
-

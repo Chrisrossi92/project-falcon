@@ -1,5 +1,5 @@
 import React, { useMemo, useCallback, useState } from "react";
-import useCalendarEventLoader from "@/lib/hooks/useCalendarEvents"; // fallback to backend view/RPC
+import useCalendarEventLoader, { formatCalendarEventTitle } from "@/lib/hooks/useCalendarEvents"; // fallback to backend view/RPC
 import CalendarLegend from "@/components/calendar/CalendarLegend";
 import TwoWeekCalendar from "@/components/calendar/TwoWeekCalendar";
 import MonthCalendar from "@/components/calendar/MonthsCalendar";
@@ -11,39 +11,6 @@ function normalizeType(t) {
   if (s.includes("review")) return "review";
   if (s.includes("final") || s.includes("client")) return "final";
   return "other";
-}
-
-function iconFor(type) {
-  switch (type) {
-    case "site":   return "📍";
-    case "review": return "📝";
-    case "final":  return "📨";
-    default:       return "📅";
-  }
-}
-
-function labelFor(type) {
-  switch (type) {
-    case "site":   return "Site Visit";
-    case "review": return "Review Due";
-    case "final":  return "Final Due";
-    default:       return "Event";
-  }
-}
-
-function shortAddress(address = "", client = "") {
-  const a = (address || "").trim();
-  const c = (client || "").trim();
-  if (a && c) return `${a} - ${c}`;
-  if (a) return a;
-  if (c) return c;
-  return "";
-}
-
-function buildTitle(type, suffix) {
-  const icon = iconFor(type);
-  const human = labelFor(type);
-  return suffix ? `${icon} ${human} - ${suffix}` : `${icon} ${human}`;
 }
 
 export default function DashboardCalendarPanel({ orders = [], onOpenOrder, fixedHeader = true, mode = null, reviewerId = null }) {
@@ -60,7 +27,7 @@ export default function DashboardCalendarPanel({ orders = [], onOpenOrder, fixed
 
         orders.forEach((o) => {
           const orderId = o.id || o.order_id || null;
-          const suffix = shortAddress(o.address, o.client_name || o.client || "");
+          const addr = o.address || o.address_line1 || "";
           const pushEvent = (type, ts) => {
             if (!ts) return;
             const when = new Date(ts);
@@ -70,10 +37,11 @@ export default function DashboardCalendarPanel({ orders = [], onOpenOrder, fixed
             events.push({
               id: `${orderId || "order"}-${type}-${ms}`,
               type,
-              title: buildTitle(type, suffix),
+              title: formatCalendarEventTitle(type, { address: addr, orderId }),
               start: when.toISOString(),
               end: when.toISOString(),
               orderId,
+              address: addr,
             });
           };
 
@@ -89,10 +57,10 @@ export default function DashboardCalendarPanel({ orders = [], onOpenOrder, fixed
       const rows = await baseLoader(start, end);
       return (rows || []).map((r) => {
         const type = normalizeType(r.type || r.event_type);
-        const suffix = shortAddress(r.address, r.client);
         return {
           ...r,
-          title: buildTitle(type, suffix),
+          type,
+          title: formatCalendarEventTitle(type, { address: r.address, orderId: r.orderId || r.order_id || r.id }),
           orderId: r.orderId || r.order_id || r.id || null,
         };
       });

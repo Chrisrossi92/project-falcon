@@ -10,6 +10,7 @@ export const ORDER_STATUS = {
   IN_PROGRESS: "in_progress",
   IN_REVIEW: "in_review",
   NEEDS_REVISIONS: "needs_revisions",
+  READY_FOR_CLIENT: "ready_for_client",
   COMPLETED: "completed",
 };
 
@@ -34,9 +35,6 @@ const STATUS_MAP = {
   "In Review": ORDER_STATUS.IN_REVIEW,
   in_review: ORDER_STATUS.IN_REVIEW,
   IN_REVIEW: ORDER_STATUS.IN_REVIEW,
-  ready_to_send: ORDER_STATUS.IN_REVIEW,
-  "ready to send": ORDER_STATUS.IN_REVIEW,
-
   // needs revisions
   revisions: ORDER_STATUS.NEEDS_REVISIONS,
   REVISIONS: ORDER_STATUS.NEEDS_REVISIONS,
@@ -44,6 +42,12 @@ const STATUS_MAP = {
   "needs revisions": ORDER_STATUS.NEEDS_REVISIONS,
   needs_revision: ORDER_STATUS.NEEDS_REVISIONS,
   revision: ORDER_STATUS.NEEDS_REVISIONS,
+
+  // ready for client / ready to send
+  ready_for_client: ORDER_STATUS.READY_FOR_CLIENT,
+  "ready for client": ORDER_STATUS.READY_FOR_CLIENT,
+  ready_to_send: ORDER_STATUS.READY_FOR_CLIENT,
+  "ready to send": ORDER_STATUS.READY_FOR_CLIENT,
 
   // complete
   complete: ORDER_STATUS.COMPLETED,
@@ -75,6 +79,7 @@ export function formatOrderStatusLabel(normalized) {
     [ORDER_STATUS.IN_PROGRESS]: "In Progress",
     [ORDER_STATUS.IN_REVIEW]: "In Review",
     [ORDER_STATUS.NEEDS_REVISIONS]: "Needs Revisions",
+    [ORDER_STATUS.READY_FOR_CLIENT]: "Ready for Client",
     [ORDER_STATUS.COMPLETED]: "Completed",
   };
   return labels[key] || key;
@@ -88,6 +93,9 @@ export function statusGroup(s) {
   const x = normalizeStatus(s);
   if ([ORDER_STATUS.IN_REVIEW, ORDER_STATUS.NEEDS_REVISIONS].includes(x)) {
     return "review";
+  }
+  if ([ORDER_STATUS.READY_FOR_CLIENT].includes(x)) {
+    return "ready";
   }
   if ([ORDER_STATUS.COMPLETED].includes(x)) {
     return "complete";
@@ -116,16 +124,15 @@ export const STATUS_LABEL = {
   [ORDER_STATUS.IN_PROGRESS]: "In Progress",
   [ORDER_STATUS.IN_REVIEW]: "In Review",
   [ORDER_STATUS.NEEDS_REVISIONS]: "Needs Revisions",
+  [ORDER_STATUS.READY_FOR_CLIENT]: "Ready for Client",
   [ORDER_STATUS.COMPLETED]: "Completed",
 };
 
 export const isInReview = (s) => normalizeStatus(s) === ORDER_STATUS.IN_REVIEW;
-export const isReadyToSend = (s) => normalizeStatus(s) === ORDER_STATUS.READY_TO_SEND;
+export const isReadyToSend = (s) => normalizeStatus(s) === ORDER_STATUS.READY_FOR_CLIENT;
 export function labelForStatus(s) {
   const key = normalizeStatus(s);
   if (STATUS_LABEL[key]) return STATUS_LABEL[key];
   // fallback: "some_status" -> "Some status"
   return key ? key.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase()) : "";
 }
-
-

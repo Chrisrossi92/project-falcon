@@ -1,5 +1,4 @@
 // src/lib/api/orders.js
-// src/lib/api/orders.js
 import supabase from "@/lib/supabaseClient";
 import { OrderStatus } from "@/lib/services/ordersService";
 
@@ -9,6 +8,15 @@ const VIEW_BY_SCOPE = {
 };
 
 const DEFAULT_VIEW = VIEW_BY_SCOPE.orders;
+const ORDERABLE_COLUMNS = new Set([
+  "created_at",
+  "order_number",
+  "status",
+  "client_name",
+  "appraiser_name",
+  "review_due_date",
+  "final_due_date",
+]);
 
 const BASE_SELECT = `
   id,
@@ -19,7 +27,6 @@ const BASE_SELECT = `
   client_name,
   amc_id,
   amc_name,
-  assigned_appraiser_id,
   address_line1,
   city,
   state,
@@ -57,12 +64,9 @@ function applyCommonFilters(
   if (statusIn?.length) q = q.in("status", statusIn);
   if (clientId) q = q.eq("client_id", clientId);
   const targetAppraiserId = assignedAppraiserId || appraiserId;
-  if (targetAppraiserId) {
-    q = q.eq("assigned_appraiser_id", targetAppraiserId);
-  }
+  if (targetAppraiserId) q = q.eq("appraiser_id", targetAppraiserId);
   if (reviewerId) q = q.eq("reviewer_id", reviewerId);
 
-  // Date window – use created_at (or swap to due_date if you prefer)
   if (from) q = q.gte("created_at", from);
   if (to) q = q.lte("created_at", to);
 
@@ -98,7 +102,7 @@ export async function fetchOrdersWithFilters(filters = {}) {
     activeOnly = false,
     page = 0,
     pageSize = 50,
-    orderBy = "created_at", // or "order_number"
+    orderBy = "created_at",
     ascending = false,
     mode = null,
     scope = null,
@@ -106,7 +110,6 @@ export async function fetchOrdersWithFilters(filters = {}) {
 
   const source = VIEW_BY_SCOPE[scope] || DEFAULT_VIEW;
 
-  // COUNT
   let countQuery = supabase
     .from(source)
     .select("*", { count: "exact", head: true });
@@ -118,25 +121,23 @@ export async function fetchOrdersWithFilters(filters = {}) {
     appraiserId,
     assignedAppraiserId,
     reviewerId,
-    assignedAppraiserId,
     from,
     to,
     search,
   });
 
   const { count, error: countErr } = await countQuery;
-  if (countErr) {
-    console.error("fetchOrdersWithFilters count error:", countErr);
-  }
+  if (countErr) console.warn("fetchOrdersWithFilters count error:", countErr?.message || countErr);
 
-  // DATA
   const fromIdx = page * pageSize;
   const toIdx = fromIdx + pageSize - 1;
+
+  const safeOrderBy = ORDERABLE_COLUMNS.has(orderBy) ? orderBy : "created_at";
 
   let dataQuery = supabase
     .from(source)
     .select(BASE_SELECT, { count: "exact" })
-    .order(orderBy, { ascending })
+    .order(safeOrderBy, { ascending })
     .range(fromIdx, toIdx);
 
   dataQuery = applyCommonFilters(dataQuery, {
@@ -144,7 +145,6 @@ export async function fetchOrdersWithFilters(filters = {}) {
     statusIn,
     clientId,
     appraiserId,
-    assignedAppraiserId,
     reviewerId,
     assignedAppraiserId,
     from,
@@ -153,26 +153,19 @@ export async function fetchOrdersWithFilters(filters = {}) {
   });
 
   if (mode === "reviewerQueue") {
-    const REVIEW_QUEUE_STATUSES = [OrderStatus.IN_REVIEW, OrderStatus.NEEDS_REVISIONS];
-    console.log("[fetchOrdersWithFilters] reviewerQueue filter", { statuses: REVIEW_QUEUE_STATUSES });
+    const REVIEW_QUEUE_STATUSES = [OrderStatus.IN_REVIEW];
     dataQuery = dataQuery.in("status", REVIEW_QUEUE_STATUSES);
   }
 
   const { data, error } = await dataQuery;
   const derivedCount = typeof count === "number" ? count : (data ? data.length : 0);
-  if (error) {
-    console.error("useOrders Supabase error:", error);
-    return { rows: [], count: derivedCount, error };
-  }
+  if (error) return { rows: [], count: derivedCount, error };
 
   return { rows: data || [], count: derivedCount, countError: countErr || null };
 }
 
-// (leave the rest of the file as-is)
+// (rest of file unchanged)
 
-
-/* (the rest of the file can stay as in your last working version – updateOrderStatus,
-   updateOrderDates, etc.) */
 
 
 /* =========================================================================

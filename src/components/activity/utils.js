@@ -1,5 +1,6 @@
 // utils.js
 import { FileText, Shuffle, CalendarCheck, UserPlus, DollarSign, MessageSquareText } from "lucide-react";
+import { formatOrderStatusLabel, normalizeOrderStatus } from "@/lib/constants/orderStatus";
 
 /** Build a "First L." style display name from name or email */
 export function displayNameFrom(createdByName, createdByEmail, createdById) {
@@ -29,10 +30,14 @@ export function displayNameFrom(createdByName, createdByEmail, createdById) {
 export const LABEL = {
   note_added: "Note",
   order_created: "Order created",
-  status_changed: "Status changed",
-  dates_updated: "Dates updated",
-  assignee_changed: "Assignee changed",
+  status_changed: "Status",
+  dates_updated: "Dates",
+  assignee_changed: "Assignment",
   fee_changed: "Fee changed",
+  sent_to_review: "Workflow",
+  sent_back_to_appraiser: "Workflow",
+  ready_for_client: "Workflow",
+  completed: "Workflow",
 };
 
 export const EVENT_ICON = {
@@ -85,3 +90,117 @@ export function colorForUser(seed) {
 }
 
 export function hsl({ h, s, l }) { return `hsl(${h} ${s}% ${l}%)`; }
+
+function statusLabel(raw) {
+  if (!raw) return null;
+  return formatOrderStatusLabel(normalizeOrderStatus(raw)) || raw;
+}
+
+function fmtDateLocal(raw) {
+  if (!raw) return null;
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return null;
+  return d.toLocaleDateString();
+}
+
+export function formatActivity(item = {}) {
+  const type = item.event_type || "";
+  let parsedBody = null;
+  if (typeof item.body === "string") {
+    const trimmed = item.body.trim();
+    if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+      try {
+        parsedBody = JSON.parse(trimmed);
+      } catch {
+        parsedBody = null;
+      }
+    }
+  }
+  const detail = item.detail || {};
+  const meta = (detail && Object.keys(detail).length > 0 && detail) ||
+    (typeof item.body === "object" && item.body !== null ? item.body : null) ||
+    (parsedBody && typeof parsedBody === "object" ? parsedBody : null) ||
+    null;
+  const hasMeta = meta && Object.keys(meta).length > 0;
+
+  switch (type) {
+    case "status_changed": {
+      const from = statusLabel(meta?.from || meta?.from_status);
+      const to = statusLabel(meta?.to || meta?.to_status);
+      if (from && to) return `${from} → ${to}`;
+      if (to) return `${to}`;
+      return "";
+    }
+    case "sent_to_review":
+      return "Sent to review";
+    case "sent_back_to_appraiser":
+      return "Returned to appraiser for revisions";
+    case "ready_for_client":
+      return "Marked ready for client";
+    case "completed":
+      return "Order completed";
+    case "dates_updated": {
+      const parts = [];
+      const review = fmtDateLocal(meta?.review_due_at || meta?.review_due_date);
+      const final = fmtDateLocal(meta?.final_due_at || meta?.final_due_date || meta?.due_date);
+      const site = fmtDateLocal(meta?.site_visit_at || meta?.site_visit_date);
+      if (review) parts.push(`Review due ${review}`);
+      if (final) parts.push(`Final due ${final}`);
+      if (site) parts.push(`Site visit ${site}`);
+      if (parts.length) return `Dates updated: ${parts.join(" • ")}`;
+      return "Dates updated";
+    }
+    case "assignee_changed": {
+      const toName =
+        meta?.assignee_to_name ||
+        meta?.to_name ||
+        meta?.name ||
+        meta?.assignee_name;
+      const toEmail =
+        meta?.assignee_to_email ||
+        meta?.to_email ||
+        meta?.email ||
+        null;
+      const toDisplay = toName || (toEmail ? titleCaseLocal(toEmail) : null);
+      const field = (meta?.assignee_field || meta?.field || "").toLowerCase();
+      if (toDisplay && field) {
+        if (field.includes("reviewer")) return `Reviewer assigned: ${toDisplay}`;
+        if (field.includes("appraiser")) return `Appraiser assigned: ${toDisplay}`;
+        if (field.includes("owner")) return `Owner assigned: ${toDisplay}`;
+      }
+
+      const pieces = [];
+      if (meta?.appraiser_name) pieces.push(`Appraiser: ${meta.appraiser_name}`);
+      if (meta?.reviewer_name) pieces.push(`Reviewer: ${meta.reviewer_name}`);
+      if (pieces.length === 1) return pieces[0].replace("Appraiser:", "Appraiser assigned:").replace("Reviewer:", "Reviewer assigned:");
+      if (pieces.length > 1) return `Assignees updated: ${pieces.join(" • ")}`;
+      return "Assignees updated";
+    }
+    default:
+      break;
+  }
+
+  // Fallbacks: prefer explicit message/body text if meaningful
+  const msg = typeof item.message === "string" ? item.message.trim() : "";
+  if (msg) return msg;
+
+  if (typeof item.body === "string") {
+    const trimmed = item.body.trim();
+    if (!trimmed) return "";
+    // Avoid dumping raw JSON blobs
+    if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        return parsed.message || parsed.note || parsed.text || "";
+      } catch {
+        return "";
+      }
+    }
+    return trimmed;
+  }
+
+  // If meta is empty and no message, skip rendering
+  if (!hasMeta) return "";
+
+  return "";
+}

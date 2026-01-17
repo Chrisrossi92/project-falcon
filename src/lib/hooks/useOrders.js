@@ -30,7 +30,7 @@ const ACTIVE_STATUSES = new Set([
 /**
  * useOrders
  *
- * Now backed by the Supabase view (v_orders_frontend_v3) via fetchOrdersWithFilters.
+ * Now backed by the Supabase view (v_orders_frontend_v4) via fetchOrdersWithFilters.
  * Filters are sent to the API; paging/sorting happen server-side.
  */
 export function useOrders(initialSeed = {}, options = {}) {

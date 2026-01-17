@@ -39,13 +39,16 @@ const orderCell = (o) => (
         o.order_number ?? o.id?.slice(0, 8) ?? "–"
       )}
     </div>
-    <div className="mt-1"><OrderStatusBadge status={o.status} /></div>
+    <div className="mt-1">
+      <OrderStatusBadge status={o.status} />
+    </div>
   </div>
 );
 
 const clientCell = (o) => (
   <div className="text-sm truncate">
     <div className="font-medium truncate">{o.client_name ?? "–"}</div>
+    <div className="text-xs text-muted-foreground truncate">{o.appraiser_name ?? "–"}</div>
   </div>
 );
 
@@ -97,9 +100,10 @@ const col = (key, width, header, cell, extras = {}) => ({ key, width, header, ce
 export function getColumnsForRole(role, actions = {}) {
   const normalizedRole = (role || "appraiser").toString().toLowerCase();
   const isAppraiser = normalizedRole === "appraiser";
-  const { onSendToReview, onSendBackToAppraiser, onComplete } = actions || {};
-  const orderStatusColumn = col("order",      "140px",              () => "Order / Stat.",       (order) => orderCell(order), { locked: true });
-  const clientColumn = col("client",    "160px",              () => "Client",                clientCell);
+  const isReviewer = normalizedRole === "reviewer";
+  const { onSendToReview, onSendBackToAppraiser, onComplete, onReadyForClient } = actions || {};
+  const orderStatusColumn = col("order",      "180px",              () => "Order / Stat.",       (order) => orderCell(order), { locked: true });
+  const clientColumn = col("client",    "200px",              () => "Client / Appraiser",                clientCell);
   const addressColumn = col("address",  "minmax(200px,1fr)",  () => "Address",               addressCell);
   const propertyReportColumn = col("propReport",  propertyReportColumnBase.width,  propertyReportColumnBase.header, (order) => propertyReportColumnBase.cell(order));
   const feeColumn = col("fee",          "140px",              () => "Fee",                   feeOnlyCell);
@@ -108,7 +112,9 @@ export function getColumnsForRole(role, actions = {}) {
   const ACTIONS_COL_WIDTH = "w-[140px]";
 
   const actionsColumn = {
+    key: "actions",
     id: "actions",
+    width: "140px",
     header: () => (
       <div className={`${ACTIONS_COL_WIDTH} flex justify-center text-xs font-medium text-muted-foreground`}>
         Actions
@@ -125,6 +131,35 @@ export function getColumnsForRole(role, actions = {}) {
         >
           Send to Review
         </Button>
+      ) : isReviewer ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="outline">
+              Send / Update
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuPortal>
+            <DropdownMenuContent
+              side="top"
+              align="center"
+              sideOffset={4}
+              className="z-50"
+            >
+              <DropdownMenuItem
+                onClick={() => onSendBackToAppraiser?.(order)}
+                disabled={!onSendBackToAppraiser}
+              >
+                Send back to appraiser
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => onReadyForClient?.(order)}
+                disabled={!onReadyForClient}
+              >
+                Mark ready for client
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenuPortal>
+        </DropdownMenu>
       ) : (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -163,14 +198,6 @@ export function getColumnsForRole(role, actions = {}) {
     },
   };
 
-  const appraiserColumn = {
-    key: "appraiser",
-    id: "appraiser",
-    width: "140px",
-    header: () => "Appraiser",
-    cell: (order) => order?.appraiser_name || "–",
-  };
-
   const columns = [
     orderStatusColumn,
     clientColumn,
@@ -179,7 +206,6 @@ export function getColumnsForRole(role, actions = {}) {
     feeColumn,
     actionsColumn,
     datesColumn,
-    appraiserColumn,
   ];
 
   return columns;

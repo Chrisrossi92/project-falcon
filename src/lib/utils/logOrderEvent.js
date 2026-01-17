@@ -15,15 +15,26 @@ import supabase from "@/lib/supabaseClient";
 export default async function logOrderEvent(payload = {}) {
   const {
     order_id,
+    orderId,
     action,
-    message = null,
     event_type = null,
+    message = null,
+    prev_status = null,
+    new_status = null,
+    from = null,
+    to = null,
+    review_due_at = null,
+    final_due_at = null,
+    site_visit_at = null,
     event_data = null,
     actor: actorIn = null,
+    assignee = null, // { field, to_id, to_name, to_email }
   } = payload || {};
 
-  if (!order_id) throw new Error("[logOrderEvent] order_id is required");
-  if (!action) throw new Error("[logOrderEvent] action is required");
+  const oid = order_id || orderId;
+  if (!oid) throw new Error("[logOrderEvent] order_id is required");
+  const evt = event_type || action;
+  if (!evt) throw new Error("[logOrderEvent] action is required");
 
   // Build actor if not provided
   let actor = actorIn || { source: "ui" };
@@ -41,20 +52,35 @@ export default async function logOrderEvent(payload = {}) {
     // non-fatal; leave actor as-is
   }
 
+  const detail = {
+    from: prev_status ?? from ?? null,
+    to: new_status ?? to ?? null,
+    review_due_at: review_due_at ?? null,
+    final_due_at: final_due_at ?? null,
+    site_visit_at: site_visit_at ?? null,
+    assignee_field: assignee?.field ?? null,
+    assignee_to_id: assignee?.to_id ?? null,
+    assignee_to_name: assignee?.to_name ?? null,
+    assignee_to_email: assignee?.to_email ?? null,
+    event_data: event_data ?? null,
+  };
+
+  // Remove nulls to avoid {} noise
+  Object.keys(detail).forEach((k) => detail[k] == null && delete detail[k]);
+
+  // If nothing to log besides message, keep detail empty
+  const hasDetail = Object.keys(detail).length > 0;
+
   const { data, error: rpcErr } = await supabase.rpc("rpc_log_event", {
-    p_order_id: order_id,
-    p_event_type: event_type || action,
+    p_order_id: oid,
+    p_event_type: evt,
+    p_details: hasDetail ? detail : {},
     p_message: message,
-    p_payload: {
-      event_data: event_data ?? null,
-      actor,
-    },
   });
 
   if (rpcErr) throw rpcErr;
   return data || { ok: true };
 }
-
 
 
 

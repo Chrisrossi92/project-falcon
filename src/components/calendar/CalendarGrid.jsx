@@ -14,7 +14,7 @@ const TYPE_EMOJI = {
 
 export default function CalendarGrid({
   anchor,               // Date (any day in current month)
-  events = [],          // [{orderId, orderNo, type, start, client, address}]
+  events = [],          // [{orderId, orderNo, type, start, address}]
   onPrev, onNext,       // () => void
   onSelectOrder,        // (orderId) => void
 }) {
@@ -74,27 +74,21 @@ export default function CalendarGrid({
               <div className="mt-1 space-y-1">
                 {dayEvents.slice(0, 3).map((ev) => {
                   const emoji = TYPE_EMOJI[ev.type] || "•";
-                  const orderLabel = ev.orderNo ?? ev.orderId?.slice(0, 8) ?? "—";
-                  const client = ev.client && ev.client !== "—" ? ev.client : "";
                   const address = ev.address && ev.address !== "—" ? ev.address : "";
+                  const orderLabel = ev.orderNo ?? ev.orderId?.slice(0, 8) ?? "";
+                  const fallback = address || (orderLabel ? `Order ${orderLabel}` : "Event");
 
                   return (
                     <button
                       key={ev.id || `${ev.orderId}:${ev.type}`}
                       className="w-full text-left text-[11px] md:text-xs px-1 py-0.5 rounded hover:bg-gray-100 border"
-                      title={[orderLabel, client, address].filter(Boolean).join(" • ")}
+                      title={fallback}
                       onClick={() => onSelectOrder?.(ev.orderId)}
                     >
                       <div className="truncate">
                         <span className="mr-1">{emoji}</span>
-                        <span className="font-medium">{orderLabel}</span>
-                        {client && <span className="ml-1 text-muted-foreground">– {client}</span>}
+                        <span className="font-medium">{address || fallback}</span>
                       </div>
-                      {address && (
-                        <div className="mt-0.5 text-[10px] text-muted-foreground truncate">
-                          {address}
-                        </div>
-                      )}
                     </button>
                   );
                 })}
@@ -109,4 +103,3 @@ export default function CalendarGrid({
     </div>
   );
 }
-

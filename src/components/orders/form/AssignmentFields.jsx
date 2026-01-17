@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import supabase from "@/lib/supabaseClient";
+import { listAssignableUsers } from "@/lib/services/usersService";
 
 function Label({ children }) { return <label className="block text-xs font-medium text-gray-600 mb-1">{children}</label>; }
 function MoneyInput(props){ return <input type="number" step="0.01" min="0" {...props} className={"w-full border rounded px-2 py-1 text-sm "+(props.className||"")} />; }
@@ -9,6 +10,8 @@ const round2 = (n) => Math.round(Number(n || 0) * 100) / 100;
 export default function AssignmentFields({ value, onChange, isEdit }) {
   const [appraisers, setAppraisers] = useState([]);
   const [reviewers, setReviewers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const lastCalcRef = useRef(null);
 
   const handleAppraiserChange = (appraiserId) => {
@@ -40,50 +43,52 @@ export default function AssignmentFields({ value, onChange, isEdit }) {
 
   useEffect(() => {
     (async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, full_name, role, status, fee_split, split")
-        .order("full_name");
-      if (error) {
-        console.error("Failed to load appraisers", error);
+      setLoading(true);
+      setLoadError("");
+      try {
+        const [appraiserRows, reviewerRows] = await Promise.all([
+          listAssignableUsers({ roles: ["appraiser", "admin", "owner"] }),
+          listAssignableUsers({ roles: ["reviewer", "admin", "owner"] }),
+        ]);
+
+        setAppraisers(
+          (appraiserRows || [])
+            .filter((u) => !!(u.full_name || u.display_name || u.name))
+            .map((u) => ({
+              id: u.id,
+              name: u.display_name || u.full_name || u.name || u.email || u.id,
+              default_split_pct: u.fee_split ?? u.split ?? null,
+            }))
+        );
+
+        setReviewers(
+          (reviewerRows || [])
+            .filter((u) => !!(u.full_name || u.display_name || u.name))
+            .map((u) => ({
+              id: u.id,
+              name: u.display_name || u.full_name || u.name || u.email || u.id,
+              role: String(u.role || "").toLowerCase(),
+              email: u.email,
+              is_active: u.is_active,
+              status: u.status,
+            }))
+        );
+
+        if (!value.reviewer_id) {
+          const pam = (reviewerRows || []).find(
+            (u) => String(u.email || "").toLowerCase() === "pcasper@continentalres.net" && (u.is_active !== false) && String(u.status || "").toLowerCase() !== "inactive"
+          );
+          const fallback = (reviewerRows || [])[0];
+          const target = pam || fallback;
+          if (target) onChange({ reviewer_id: target.id });
+        }
+      } catch (error) {
+        console.error("Failed to load assignable users", error);
         setAppraisers([]);
         setReviewers([]);
-        return;
-      }
-      const active = (data || []).filter((u) => {
-        const status = String(u.status || "").toLowerCase();
-        return status === "" || status === "active";
-      });
-      const appraiserList = active.filter((u) => String(u.role || "").toLowerCase() === "appraiser");
-      const reviewersList = active.filter((u) =>
-        ["appraiser", "reviewer", "admin", "owner"].includes(String(u.role || "").toLowerCase())
-      );
-
-      setAppraisers(
-        appraiserList
-          .filter((u) => !!u.full_name)
-          .map((u) => ({
-            id: u.id,
-            name: u.full_name,
-            default_split_pct: u.fee_split ?? u.split ?? null,
-          }))
-      );
-
-      setReviewers(
-        reviewersList
-          .filter((u) => !!u.full_name)
-          .map((u) => ({
-            id: u.id,
-            name: u.full_name,
-            role: String(u.role || "").toLowerCase(),
-          }))
-      );
-
-      if (!value.reviewer_id) {
-        const pam = reviewersList.find((u) => String(u.role || "").toLowerCase() === "reviewer");
-        const fallback = reviewersList[0];
-        const target = pam || fallback;
-        if (target) onChange({ reviewer_id: target.id });
+        setLoadError(error?.message || "Failed to load users");
+      } finally {
+        setLoading(false);
       }
     })();
   }, []);
@@ -126,10 +131,10 @@ export default function AssignmentFields({ value, onChange, isEdit }) {
           <Label>Status</Label>
           <select
             className="w-full border rounded px-2 py-1 text-sm"
-            value={value.status || "NEW"}
-            onChange={(e) => onChange({ status: e.target.value })}
+            value={(value.status || "new").toLowerCase()}
+            onChange={(e) => onChange({ status: e.target.value.toLowerCase() })}
           >
-            {["NEW","IN_PROGRESS","COMPLETE","ON_HOLD","CANCELED"].map((s) => (
+            {["new","in_progress","in_review","needs_revisions","completed"].map((s) => (
               <option key={s} value={s}>{s.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())}</option>
             ))}
           </select>
@@ -141,10 +146,12 @@ export default function AssignmentFields({ value, onChange, isEdit }) {
             value={value.appraiser_id || ""}
             onChange={(e) => handleAppraiserChange(e.target.value || null)}
             className="w-full border rounded px-2 py-1 text-sm"
+            disabled={loading}
           >
             <option value="">Select appraiser...</option>
             {appraisers.map((u) => (<option key={u.id} value={u.id}>{u.name}</option>))}
           </select>
+          {!loading && appraisers.length === 0 && <div className="text-xs text-red-600 mt-1">No active appraisers found.</div>}
         </div>
       </div>
 
@@ -178,10 +185,13 @@ export default function AssignmentFields({ value, onChange, isEdit }) {
             value={value.reviewer_id || ""}
             onChange={(e) => onChange({ reviewer_id: e.target.value || null })}
             className="w-full border rounded px-2 py-1 text-sm"
+            disabled={loading}
           >
             <option value="">Select reviewer...</option>
             {reviewers.map((r) => (<option key={r.id} value={r.id}>{r.name}</option>))}
           </select>
+          {!loading && reviewers.length === 0 && <div className="text-xs text-red-600 mt-1">No active reviewers found.</div>}
+          {loadError && <div className="text-xs text-red-600 mt-1">{loadError}</div>}
         </div>
       </div>
     </div>

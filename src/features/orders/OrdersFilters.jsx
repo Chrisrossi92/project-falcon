@@ -1,5 +1,7 @@
+// src/features/orders/OrdersFilters.jsx
 import React, { useEffect, useState } from "react";
 import supabase from "@/lib/supabaseClient";
+import { listAssignableUsers } from "@/lib/services/usersService";
 
 const STATUS = [
   ["", "All"],
@@ -7,6 +9,7 @@ const STATUS = [
   ["in_progress", "In progress"],
   ["in_review", "In review"],
   ["needs_revisions", "Needs revisions"],
+  ["ready_for_client", "Ready for client"],
   ["completed", "Completed"],
 ];
 
@@ -29,16 +32,17 @@ const DUE = [
 
 export default function OrdersFilters({ value, onChange }) {
   const v = value || {};
-  const [appraisers, setAppraisers] = useState([]);
+  const [users, setUsers] = useState([]);
   const [clients, setClients] = useState([]);
 
   useEffect(() => {
     (async () => {
-      const [{ data: users }, { data: clis }] = await Promise.all([
-        supabase.from("profiles").select("id, display_name, name, role").order("display_name", { ascending: true }),
+      const [assignable, { data: clis }] = await Promise.all([
+        listAssignableUsers({ roles: ["appraiser", "admin", "owner"] }),
         supabase.from("clients").select("id, name").order("name", { ascending: true }),
       ]);
-      setAppraisers((users || []).filter((u) => String(u.role || "").toLowerCase() === "appraiser"));
+
+      setUsers(assignable || []);
       setClients(clis || []);
     })();
   }, []);
@@ -68,7 +72,11 @@ export default function OrdersFilters({ value, onChange }) {
             onChange={(e) => set({ clientId: e.target.value, page: 0 })}
           >
             <option value="">All</option>
-            {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -80,7 +88,11 @@ export default function OrdersFilters({ value, onChange }) {
             onChange={(e) => set({ appraiserId: e.target.value, page: 0 })}
           >
             <option value="">All</option>
-            {appraisers.map((a) => <option key={a.id} value={a.id}>{a.display_name || a.name}</option>)}
+            {users.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.display_name || u.full_name || u.id}
+              </option>
+            ))}
           </select>
         </div>
       </div>
@@ -115,7 +127,11 @@ export default function OrdersFilters({ value, onChange }) {
             value={v.priority ?? ""}
             onChange={(e) => set({ priority: e.target.value, page: 0 })}
           >
-            {PRIORITY.map(([val, label]) => <option key={val} value={val}>{label}</option>)}
+            {PRIORITY.map(([val, label]) => (
+              <option key={val} value={val}>
+                {label}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -126,7 +142,11 @@ export default function OrdersFilters({ value, onChange }) {
             value={v.dueWindow ?? ""}
             onChange={(e) => set({ dueWindow: e.target.value, page: 0 })}
           >
-            {DUE.map(([val, label]) => <option key={val} value={val}>{label}</option>)}
+            {DUE.map(([val, label]) => (
+              <option key={val} value={val}>
+                {label}
+              </option>
+            ))}
           </select>
         </div>
       </div>

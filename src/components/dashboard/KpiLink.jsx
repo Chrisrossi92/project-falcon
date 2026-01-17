@@ -6,7 +6,7 @@ import Card from "@/components/ui/Card.jsx";
 export default function KpiLink({ label, value, filter }) {
   const nav = useNavigate();
   const onClick = () => {
-    // filter example: { status: "ready_to_send" } or { q: "Acme" }
+    // filter example: { status: "ready_for_client" } or { q: "Acme" }
     const params = new URLSearchParams();
     Object.entries(filter || {}).forEach(([k, v]) => {
       if (v != null && v !== "") params.set(k, String(v));
