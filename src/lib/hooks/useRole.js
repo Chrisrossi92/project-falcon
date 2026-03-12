@@ -110,12 +110,6 @@ function useRoleHook() {
   const isReviewer = role === "reviewer";
   const appraiserView = !isAdmin && !isReviewer;
 
-  useEffect(() => {
-    console.log("AUTH USER ID", authUserId);
-    console.log("PUBLIC USER ID", userId);
-    console.log("ROLE", role);
-  }, [authUserId, userId, role]);
-
   return { role, isAdmin, isReviewer, appraiserView, userId, authUserId, loading };
 }
 

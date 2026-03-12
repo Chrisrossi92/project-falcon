@@ -1,3 +1,5 @@
+// DEPRECATED: Legacy dashboard page retained for audit script compatibility.
+// Do not add imports/usages; use "@/features/dashboard/DashboardPage" instead.
 import React, { useEffect, useMemo, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import FullCalendar from "@fullcalendar/react";
@@ -253,6 +255,5 @@ function StatusPill({ status }) {
     </span>
   );
 }
-
 
 

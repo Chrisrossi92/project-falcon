@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { rpcGetNotifications, rpcMarkNotificationRead } from "@/lib/services/api";
+import { listNotifications, markAsRead } from "@/features/notifications/api";
 import supabase from "@/lib/supabaseClient"; // default import works whether you also have named
 
 export function useNotifications({ pollMs = 15000, enableRealtime = false } = {}) {
@@ -11,7 +11,7 @@ export function useNotifications({ pollMs = 15000, enableRealtime = false } = {}
   async function refresh() {
     setLoading(true);
     try {
-      const data = await rpcGetNotifications();
+      const data = await listNotifications({ limit: 50 });
       setItems(data);
     } finally {
       setLoading(false);
@@ -19,7 +19,7 @@ export function useNotifications({ pollMs = 15000, enableRealtime = false } = {}
   }
 
   async function markRead(id) {
-    await rpcMarkNotificationRead(id);
+    await markAsRead(id);
     setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read_at: n.read_at || new Date().toISOString() } : n)));
   }
 

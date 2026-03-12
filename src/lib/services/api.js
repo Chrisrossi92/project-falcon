@@ -1,4 +1,6 @@
 // src/lib/api.js
+// DEPRECATED: Do not add new imports here.
+// Prefer domain modules (e.g. "@/features/notifications/api", "@/lib/api/users", "@/lib/api/orders").
 // Adjust supabase import path to your project
 import supabase from "@/lib/supabaseClient";
 
