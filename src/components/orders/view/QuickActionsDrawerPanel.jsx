@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useRole } from "@/lib/hooks/useRole";
-import { updateOrderStatus } from "@/lib/services/ordersService";
+import { updateOrderStatus } from "@/lib/domain/ordersWorkflow";
 import { ORDER_STATUS } from "@/lib/constants/orderStatus";
 
 export default function QuickActionsDrawerPanel({ orderId, onAfterChange, layout = "stack" }) {
@@ -75,7 +75,6 @@ export default function QuickActionsDrawerPanel({ orderId, onAfterChange, layout
     </Wrap>
   );
 }
-
 
 
 

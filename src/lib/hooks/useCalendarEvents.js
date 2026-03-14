@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import supabase from "@/lib/supabaseClient";
-import { OrderStatus } from "@/lib/services/ordersService";
+import { ORDER_STATUS } from "@/lib/constants/orderStatus";
 
 export function formatCalendarEventTitle(type, { address = "", orderId = null } = {}) {
   const addr = (address || "").trim();
@@ -37,7 +37,7 @@ export default function useCalendarEventLoader({ mode = null, reviewerId = null 
         .order("start_at", { ascending: true });
 
       if (mode === "reviewerQueue") {
-        const REVIEW_QUEUE_STATUSES = [OrderStatus.IN_REVIEW, OrderStatus.NEEDS_REVISIONS];
+        const REVIEW_QUEUE_STATUSES = [ORDER_STATUS.IN_REVIEW, ORDER_STATUS.NEEDS_REVISIONS];
         viewQuery = viewQuery.in("status", REVIEW_QUEUE_STATUSES);
       }
 

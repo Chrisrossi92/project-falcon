@@ -1,6 +1,6 @@
 // src/lib/hooks/useOrder.js
 import { useEffect, useState } from "react";
-import { getOrder } from "@/lib/services/ordersService";
+import { getOrder } from "@/lib/api/orders";
 import { mapOrderRow } from "@/lib/mappers/orderMapper";
 
 export default function useOrder(id) {

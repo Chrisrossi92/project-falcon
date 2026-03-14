@@ -1,6 +1,6 @@
 // src/lib/api/orders.js
 import supabase from "@/lib/supabaseClient";
-import { OrderStatus } from "@/lib/services/ordersService";
+import { ORDER_STATUS } from "@/lib/constants/orderStatus";
 
 const VIEW_BY_SCOPE = {
   dashboard: "v_orders_active_frontend_v4",
@@ -153,7 +153,7 @@ export async function fetchOrdersWithFilters(filters = {}) {
   });
 
   if (mode === "reviewerQueue") {
-    const REVIEW_QUEUE_STATUSES = [OrderStatus.IN_REVIEW];
+    const REVIEW_QUEUE_STATUSES = [ORDER_STATUS.IN_REVIEW];
     dataQuery = dataQuery.in("status", REVIEW_QUEUE_STATUSES);
   }
 
@@ -162,6 +162,54 @@ export async function fetchOrdersWithFilters(filters = {}) {
   if (error) return { rows: [], count: derivedCount, error };
 
   return { rows: data || [], count: derivedCount, countError: countErr || null };
+}
+
+/** Single order detail from the canonical orders view. */
+export async function getOrder(orderId) {
+  if (!orderId) return null;
+
+  const { data, error } = await supabase
+    .from(DEFAULT_VIEW)
+    .select(
+      `
+        id,
+        order_number,
+        status,
+        client_id,
+        client_name,
+        amc_id,
+        amc_name,
+        address_line1,
+        city,
+        state,
+        postal_code,
+        property_type,
+        report_type,
+        site_visit_date,
+        review_due_date,
+        final_due_date,
+        base_fee,
+        appraiser_fee,
+        split_pct,
+        appraiser_id,
+        appraiser_name,
+        reviewer_id,
+        reviewer_name,
+        property_contact_name,
+        property_contact_phone,
+        entry_contact_name,
+        entry_contact_phone,
+        access_notes,
+        notes,
+        created_at,
+        updated_at
+      `
+    )
+    .eq("id", orderId)
+    .single();
+
+  if (error) throw error;
+  return data ?? null;
 }
 
 // (rest of file unchanged)
@@ -184,6 +232,18 @@ export async function updateOrderStatus(orderId, next) {
     console.error("updateOrderStatus error:", error);
     throw error;
   }
+  return data;
+}
+
+/** Generic patch update for an order row. */
+export async function updateOrder(orderId, patch = {}) {
+  const { data, error } = await supabase
+    .from("orders")
+    .update(patch)
+    .eq("id", orderId)
+    .select("*")
+    .single();
+  if (error) throw error;
   return data;
 }
 

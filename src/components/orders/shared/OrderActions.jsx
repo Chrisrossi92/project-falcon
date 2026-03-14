@@ -9,7 +9,7 @@ import {
   markReadyToSend,
   markComplete,
   sendToClient,
-} from "@/lib/services/ordersService";
+} from "@/lib/domain/ordersWorkflow";
 import { logNote } from "@/lib/services/activityService";
 import { ORDER_STATUS, normalizeStatus } from "@/lib/constants/orderStatus";
 
@@ -139,5 +139,4 @@ export default function OrderActions({ order, onAfterAction }) {
     </div>
   );
 }
-
 

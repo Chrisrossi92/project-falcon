@@ -5,7 +5,8 @@ import ClientFields from "./ClientFields";
 import AssignmentFields from "./AssignmentFields";
 import PropertyFields from "./PropertyFields";
 import DatesFields from "./DatesFields";
-import { createOrder, updateOrder } from "@/lib/services/ordersService";
+import { createOrder } from "@/lib/services/ordersService";
+import { updateOrder } from "@/lib/api/orders";
 
 // ---- date helpers ----
 const toYMD = (value) => {
@@ -225,7 +226,6 @@ export default function OrderForm({ order, onClose, onSaved, onCancel }) {
     </form>
   );
 }
-
 
 
 

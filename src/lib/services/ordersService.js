@@ -1,19 +1,28 @@
 // src/lib/services/ordersService.js
 import supabase from "@/lib/supabaseClient";
 import { emitNotification, fetchAdminRecipients } from "@/lib/services/notificationsService";
+import {
+  OrderStatus,
+  updateOrderStatus as workflowUpdateOrderStatus,
+  startReview as workflowStartReview,
+  requestRevisions as workflowRequestRevisions,
+  markReadyForClient as workflowMarkReadyForClient,
+  approveReview as workflowApproveReview,
+  markReadyToSend as workflowMarkReadyToSend,
+  markComplete as workflowMarkComplete,
+  putOnHold as workflowPutOnHold,
+  resumeInProgress as workflowResumeInProgress,
+  sendToClient as workflowSendToClient,
+  markDelivered as workflowMarkDelivered,
+  sendOrderToReview as workflowSendOrderToReview,
+  sendOrderBackToAppraiser as workflowSendOrderBackToAppraiser,
+  completeOrder as workflowCompleteOrder,
+} from "@/lib/domain/ordersWorkflow";
 
 /** Source of truth */
 const ORDERS_TABLE = "orders";
 const ORDERS_VIEW  = "v_orders_frontend_v4";
-
-export const OrderStatus = {
-  NEW: "new",
-  IN_PROGRESS: "in_progress",
-  IN_REVIEW: "in_review",
-  NEEDS_REVISIONS: "needs_revisions",
-  READY_FOR_CLIENT: "ready_for_client",
-  COMPLETED: "completed",
-};
+export { OrderStatus };
 
 /* ============================================================================
    READS
@@ -298,16 +307,18 @@ export async function assignReviewer(orderId, reviewer_id) {
    WORKFLOW HELPERS
    ========================================================================== */
 
-export async function startReview(orderId, note = null)        { return setOrderStatus(orderId, OrderStatus.IN_REVIEW); }
-export async function requestRevisions(orderId, note = null)   { return setOrderStatus(orderId, OrderStatus.NEEDS_REVISIONS); }
-export async function markReadyForClient(orderId, note = null) { return setOrderStatus(orderId, OrderStatus.READY_FOR_CLIENT); }
-export async function approveReview(orderId, note = null)      { return markReadyForClient(orderId, note); }
-export async function markReadyToSend(orderId, note = null)    { return markReadyForClient(orderId, note); }
-export async function markComplete(orderId, note = null)       { return setOrderStatus(orderId, OrderStatus.COMPLETED); }
-export async function putOnHold(orderId, note = null)          { return setOrderStatus(orderId, OrderStatus.IN_PROGRESS); }
-export async function resumeInProgress(orderId, note = null)   { return setOrderStatus(orderId, OrderStatus.IN_PROGRESS); }
-export async function sendToClient(orderId, note = null)       { return markComplete(orderId, note); }
-export async function markDelivered(orderId, note = null)      { return sendToClient(orderId, note); }
+// DEPRECATED: Workflow/status transition logic has moved to "@/lib/domain/ordersWorkflow".
+// Keep these pass-through exports temporarily to avoid breaking existing imports.
+export async function startReview(orderId, note = null)        { return workflowStartReview(orderId, note); }
+export async function requestRevisions(orderId, note = null)   { return workflowRequestRevisions(orderId, note); }
+export async function markReadyForClient(orderId, note = null) { return workflowMarkReadyForClient(orderId, note); }
+export async function approveReview(orderId, note = null)      { return workflowApproveReview(orderId, note); }
+export async function markReadyToSend(orderId, note = null)    { return workflowMarkReadyToSend(orderId, note); }
+export async function markComplete(orderId, note = null)       { return workflowMarkComplete(orderId, note); }
+export async function putOnHold(orderId, note = null)          { return workflowPutOnHold(orderId, note); }
+export async function resumeInProgress(orderId, note = null)   { return workflowResumeInProgress(orderId, note); }
+export async function sendToClient(orderId, note = null)       { return workflowSendToClient(orderId, note); }
+export async function markDelivered(orderId, note = null)      { return workflowMarkDelivered(orderId, note); }
 
 /* ============================================================================
    COMPAT / ALIASES (for older imports)
@@ -322,122 +333,24 @@ export async function updateAssignees(orderId, patch) {
 }
 
 export async function updateOrderStatus(orderId, status, extra = {}) {
-  const patch = { status, ...(extra || {}) };
-  return updateOrder(orderId, patch);
+  // DEPRECATED: use "@/lib/domain/ordersWorkflow" directly.
+  return workflowUpdateOrderStatus(orderId, status, extra);
 }
 
 export async function sendOrderToReview(orderId, actorId) {
-  const { data: order, error } = await supabase
-    .from(ORDERS_TABLE)
-    .update({ status: OrderStatus.IN_REVIEW })
-    .eq("id", orderId)
-    .select("*")
-    .maybeSingle();
-
-  if (error) throw error;
-  if (!order) throw new Error("No order updated (permission or id mismatch).");
-
-  const recipients = [];
-
-  if (order.reviewer_id) {
-    recipients.push({ userId: order.reviewer_id, role: "reviewer" });
-  }
-
-  const adminRecipients = await fetchAdminRecipients();
-  recipients.push(...adminRecipients);
-
-  if (recipients.length > 0) {
-    emitNotification("order.sent_to_review", { recipients, order }).catch(
-      (err) => console.error("order.sent_to_review notification failed", err)
-    );
-  }
-
-  return order;
+  // DEPRECATED: use "@/lib/domain/ordersWorkflow" directly.
+  return workflowSendOrderToReview(orderId, actorId);
 }
 
 export async function sendOrderBackToAppraiser(orderId, actorId) {
-  console.log("[sendOrderBackToAppraiser] called", { orderId, actorId });
-
-  // 1. Only update the status column
-  const statusPatch = { status: OrderStatus.NEEDS_REVISIONS };
-  console.log("[sendOrderBackToAppraiser] patch", statusPatch);
-
-  const { data, error } = await supabase
-  .from("orders")
-  .update(statusPatch)
-  .eq("id", orderId)
-  .select("id, appraiser_id, reviewer_id, order_number, status")
-  .maybeSingle();
-
-  if (error) {
-    console.error("[sendOrderBackToAppraiser] update error", error);
-    throw error;
-  }
-
-  const order = data;
-  if (!order) {
-    throw new Error("No order updated (permission or id mismatch).");
-  }
-
-  const recipients = [];
-
-  if (order.appraiser_id) {
-    recipients.push({ userId: order.appraiser_id, role: "appraiser" });
-  }
-
-  const adminRecipients = await fetchAdminRecipients();
-  recipients.push(...adminRecipients);
-
-  if (recipients.length > 0) {
-    emitNotification("order.sent_back_to_appraiser", { recipients, order }).catch(
-      (err) =>
-        console.error("order.sent_back_to_appraiser notification failed", err)
-    );
-  }
-
-  return order;
+  // DEPRECATED: use "@/lib/domain/ordersWorkflow" directly.
+  return workflowSendOrderBackToAppraiser(orderId, actorId);
 }
 
 
 export async function completeOrder(orderId, actorId) {
-  console.log("[completeOrder] called", { orderId, actorId });
-
-  const statusPatch = { status: OrderStatus.COMPLETED };
-  console.log("[completeOrder] patch", statusPatch);
-
-  const { data, error } = await supabase
-    .from(ORDERS_TABLE)
-    .update(statusPatch)
-    .eq("id", orderId)
-    .select("id, appraiser_id, reviewer_id, order_number, status")
-    .maybeSingle();
-
-  if (error) {
-    console.error("[completeOrder] update error", error);
-    throw error;
-  }
-
-  const order = data;
-  if (!order) {
-    throw new Error("No order updated (permission or id mismatch).");
-  }
-
-  const recipients = [];
-
-  const adminRecipients = await fetchAdminRecipients();
-  recipients.push(...adminRecipients);
-
-  if (order.appraiser_id) {
-    recipients.push({ userId: order.appraiser_id, role: "appraiser" });
-  }
-
-  if (recipients.length > 0) {
-    emitNotification("order.completed", { recipients, order }).catch((err) =>
-      console.error("order.completed notification failed", err)
-    );
-  }
-
-  return order;
+  // DEPRECATED: use "@/lib/domain/ordersWorkflow" directly.
+  return workflowCompleteOrder(orderId, actorId);
 }
 
 /** Utility used elsewhere */
@@ -455,9 +368,6 @@ export async function isOrderNumberAvailable(orderNo, { excludeId = null } = {})
   if (res2.error) throw res2.error;
   return (res2.count || 0) === 0;
 }
-
-
-
 
 
 

@@ -10,7 +10,7 @@ import OrderDrawerContent from "@/components/orders/drawer/OrderDrawerContent";
 import OrderOpenFullLink from "@/components/orders/drawer/OrderOpenFullLink";
 import ReviewerActionCell from "@/components/orders/table/ReviewerActionCell";
 import { updateOrderStatus } from "@/lib/api/orders";
-import { sendOrderToReview, sendOrderBackToAppraiser, completeOrder, markReadyForClient } from "@/lib/services/ordersService";
+import { sendOrderToReview, sendOrderBackToAppraiser, completeOrder, markReadyForClient } from "@/lib/domain/ordersWorkflow";
 
 import useColumnsConfig from "@/features/orders/columns/useColumnsConfig";
 import { useToast } from "@/lib/hooks/useToast";
