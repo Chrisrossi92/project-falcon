@@ -1,1 +1,3 @@
+# DEPRECATED: retained only to return a retirement response.
+# Canonical runtime worker is supabase/functions/email-worker.
 verify_jwt = false

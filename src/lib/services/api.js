@@ -46,12 +46,11 @@ export async function rpcMarkAllNotificationsRead() {
 */
 
 /**
- * Get current user's notification prefs (row from notification_prefs).
+ * Get current user's notification prefs (canonical prefs RPC path).
  * Maps to: public.rpc_notification_prefs_get(p_user_id uuid?)
  */
-export async function rpcGetNotificationPolicies() {
-  // Ensure a row exists, then fetch it
-  await supabase.rpc("rpc_notification_prefs_ensure").catch(() => {});
+export async function rpcGetMyNotificationPrefs() {
+  await supabase.rpc("rpc_notification_prefs_ensure", { p_user_id: null }).catch(() => {});
   const { data, error } = await supabase.rpc("rpc_notification_prefs_get", {
     p_user_id: null, // use auth.uid()
   });
@@ -60,28 +59,29 @@ export async function rpcGetNotificationPolicies() {
 }
 
 /**
- * Set a single policy toggle.
- * For fine-grained per-type/channel toggles, your DB exposes:
- *   public.rpc_set_notification_pref_v1(p_user_id, p_type, p_channel, p_enabled, p_meta)
- * This wrapper keeps the old signature: (key, rules)
- *   - key: the notification type (e.g., 'order_assigned', 'self_actions', '*', etc.)
- *   - rules: { channel: 'in_app'|'email', enabled: boolean, meta?: object, userId?: uuid }
+ * Get notification policy rows (canonical policy source).
+ * Returns rows from public.notification_policies.
+ */
+export async function rpcGetNotificationPolicies() {
+  const { data, error } = await supabase
+    .from("notification_policies")
+    .select("key, rules, updated_at")
+    .order("key", { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+}
+
+/**
+ * Upsert a single policy row by key.
+ * `rules` should be a JSON object.
  */
 export async function rpcSetNotificationPolicy(key, rules = {}) {
-  const {
-    channel = "in_app",
-    enabled = true,
-    meta = null,
-    userId = null,
-  } = typeof rules === "boolean" ? { enabled: rules } : rules;
-
-  const { error } = await supabase.rpc("rpc_set_notification_pref_v1", {
-    p_user_id: userId, // null → auth.uid()
-    p_type: key,
-    p_channel: channel,
-    p_enabled: !!enabled,
-    p_meta: meta,
-  });
+  if (!key) throw new Error("rpcSetNotificationPolicy: key is required");
+  const rulesObj =
+    typeof rules === "object" && rules !== null ? rules : { enabled: !!rules };
+  const { error } = await supabase
+    .from("notification_policies")
+    .upsert({ key, rules: rulesObj }, { onConflict: "key" });
   if (error) throw error;
 }
 
@@ -130,21 +130,21 @@ export async function getCurrentUserProfile() {
   const authId = authUser.id;
   const authEmail = authUser.email || "";
 
-  // columns we want from public.profiles
+  // columns we want from canonical public.users
   const cols =
-    "id, uid, email, display_name, full_name, name, role, fee_split, display_color, avatar_url, status, updated_at";
+    "id, auth_id, uid, email, display_name, full_name, name, role, fee_split, display_color, avatar_url, status, updated_at";
 
-  // 2) Try by uid first (this is the canonical mapping)
+  // 2) Canonical mapping: auth.uid() -> users.auth_id
   let row = null;
   if (authId) {
-    const { data, error } = await supabase.from("profiles").select(cols).eq("uid", authId).limit(1);
+    const { data, error } = await supabase.from("users").select(cols).eq("auth_id", authId).limit(1);
     if (error) throw error;
     row = data?.[0] || null;
   }
 
-  // 3) Fallback by email if uid not set yet
+  // 3) Compatibility fallback by email
   if (!row && authEmail) {
-    const { data, error } = await supabase.from("profiles").select(cols).eq("email", authEmail).limit(1);
+    const { data, error } = await supabase.from("users").select(cols).eq("email", authEmail).limit(1);
     if (error) throw error;
     row = data?.[0] || null;
   }
@@ -153,28 +153,35 @@ export async function getCurrentUserProfile() {
   if (!row) {
     row = {
       id: authId,
+      auth_id: authId,
       uid: authId,
       email: authEmail,
       display_name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || authEmail,
       full_name: authUser.user_metadata?.full_name || null,
       name: authUser.user_metadata?.name || null,
-      role: "appraiser",
+      role: null,
       status: "active",
       updated_at: authUser?.updated_at || null,
     };
   }
 
   const display_name = row.display_name || row.full_name || row.name || row.email;
+  let canonicalRole = "";
+  try {
+    canonicalRole = String((await supabase.rpc("rpc_get_my_role")).data || "").toLowerCase().trim();
+  } catch {
+    canonicalRole = "";
+  }
 
   // ✅ IMPORTANT: return *app user* id as .id, and auth id as .auth_id
   return {
     id: row.id,               // public.users.id  <-- use this in links: /users/view/:id
-    auth_id: row.uid,         // auth.users.id    <-- use this only for policy checks
+    auth_id: row.auth_id || row.uid || authId, // auth.users.id    <-- use this only for policy checks
     email: row.email,
     display_name,
     full_name: row.full_name || null,
     name: row.name || null,
-    role: row.role || "appraiser",
+    role: canonicalRole || row.role || "appraiser",
     fee_split: row.fee_split ?? null,
     display_color: row.display_color || null,
     avatar_url: row.avatar_url || null,
@@ -194,7 +201,8 @@ export async function updateMyNotificationPrefs(nextPrefs) {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth?.user?.id) throw new Error("No auth user");
   const { error } = await supabase.rpc("rpc_notification_prefs_update", {
-    patch: nextPrefs,
+    p_patch: nextPrefs,
+    p_user_id: null,
   });
   if (error) throw error;
 }

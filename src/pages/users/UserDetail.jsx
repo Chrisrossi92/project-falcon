@@ -10,7 +10,7 @@ function isUuid(v) {
 
 export default function UserDetail() {
   const nav = useNavigate();
-  const { id: routeId } = useParams();
+  const { userId: routeId } = useParams();
   const { isAdmin, role } = useRole() || {};
   const isAdminish = !!(isAdmin || String(role || "").toLowerCase() === "admin");
 
@@ -19,9 +19,9 @@ export default function UserDetail() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
 
-  // Resolve an ID to load:
-  // 1) use :id from the route if provided and valid
-  // 2) else, fall back to current auth user id
+  // Resolve an internal public.users.id to load:
+  // 1) use :userId from route when valid
+  // 2) else map current auth user via users.auth_id
   useEffect(() => {
     let active = true;
     (async () => {
@@ -35,18 +35,30 @@ export default function UserDetail() {
           return;
         }
 
-        // Fallback: current signed-in user
+        // Fallback: current signed-in user mapped to internal users.id
         const { data, error } = await supabase.auth.getUser();
         if (error) throw error;
-        const selfId = data?.user?.id || null;
+        const authId = data?.user?.id || null;
 
-        if (!selfId) {
+        if (!authId) {
           // No id anywhere — send them back to Users list with a friendly message
           if (active) setErr("No user selected and no signed-in user found.");
           return;
         }
 
-        if (active) setEffectiveId(selfId);
+        const { data: me, error: meErr } = await supabase
+          .from("users")
+          .select("id")
+          .eq("auth_id", authId)
+          .maybeSingle();
+        if (meErr) throw meErr;
+
+        if (!me?.id) {
+          if (active) setErr("Signed-in user is not mapped to public.users.");
+          return;
+        }
+
+        if (active) setEffectiveId(me.id);
       } catch (e) {
         if (active) setErr(e?.message || String(e));
       } finally {
@@ -65,7 +77,7 @@ export default function UserDetail() {
         setLoading(true);
         setErr(null);
         const { data, error } = await supabase
-          .from("profiles")
+          .from("users")
           .select(
             "id, email, display_name, full_name, name, role, status, split_pct, fee_split, avatar_url, display_color, created_at, updated_at"
           )
@@ -207,7 +219,6 @@ export default function UserDetail() {
     </div>
   );
 }
-
 
 
 

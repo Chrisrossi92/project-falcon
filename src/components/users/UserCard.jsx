@@ -1,10 +1,10 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSession } from '@/lib/hooks/useSession';
+import { useRole } from '@/lib/hooks/useRole';
 
 export default function UserCard({ user }) {
   const navigate = useNavigate();
-  const { user: sessionUser } = useSession();
+  const roleInfo = useRole() || {};
 
   const {
     id,
@@ -28,8 +28,8 @@ export default function UserCard({ user }) {
     ? avatar_url
     : `https://api.dicebear.com/7.x/initials/svg?seed=${display_name || name}`;
 
-  const isSelf = sessionUser?.id === id;
-  const isAdmin = sessionUser?.role === 'admin';
+  const isSelf = roleInfo.userId === id;
+  const isAdmin = !!roleInfo.isAdmin;
 
   const handleClick = () => {
     if (isAdmin) {
@@ -68,6 +68,4 @@ export default function UserCard({ user }) {
     </div>
   );
 }
-
-
 

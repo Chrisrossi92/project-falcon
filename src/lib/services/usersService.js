@@ -1,5 +1,6 @@
 // src/lib/services/usersService.js
 import supabase from "@/lib/supabaseClient";
+import rpcFirst from "@/lib/utils/rpcFirst";
 
 /* ============================== READS ============================== */
 
@@ -14,7 +15,23 @@ export async function listUsers(opts = {}) {
   }
   const { data, error } = await query;
   if (error) throw error;
-  return data || [];
+
+  const rows = data || [];
+  const ids = rows.map((u) => u.id).filter(Boolean);
+  if (!ids.length) return rows;
+
+  // Canonical role authority lives in user_roles; overlay for runtime display/edits.
+  const { data: roleRows, error: roleErr } = await supabase
+    .from("user_roles")
+    .select("user_id, role")
+    .in("user_id", ids);
+  if (roleErr) return rows;
+
+  const roleByUserId = new Map();
+  for (const rr of roleRows || []) {
+    if (!roleByUserId.has(rr.user_id)) roleByUserId.set(rr.user_id, rr.role);
+  }
+  return rows.map((u) => ({ ...u, role: roleByUserId.get(u.id) ?? u.role }));
 }
 
 /**
@@ -47,10 +64,10 @@ export async function listAssignableUsers({ roles, includeInactive = false } = {
   });
 }
 
-/** Get user by primary key (auth user id) */
+/** Get user by primary key (internal public.users.id) */
 export async function getUserById(userId) {
   if (!userId) return null;
-  const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).single();
+  const { data, error } = await supabase.from("users").select("*").eq("id", userId).single();
   // PostgREST returns 406/empty result for .single() w/ no row
   if (error && (error.code === "PGRST116" || error.details?.includes("Results contain 0 rows"))) return null;
   if (error) throw error;
@@ -61,7 +78,7 @@ export async function getUserById(userId) {
 export async function getUserByEmail(email) {
   if (!email) return null;
   const { data, error } = await supabase
-    .from("profiles")
+    .from("users")
     .select("*")
     .ilike("email", email) // case-insensitive exact (no %)
     .maybeSingle?.() ?? { data: null, error: null }; // for older clients w/o maybeSingle
@@ -75,9 +92,15 @@ export async function getUserByEmail(email) {
  * so legacy rows keyed by email still resolve under RLS.
  */
 export async function getUserByAuthId(authId, { fallbackToEmail = true } = {}) {
-  // Try by id first
-  const byId = await getUserById(authId);
-  if (byId || !fallbackToEmail) return byId;
+  if (authId) {
+    const { data, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("auth_id", authId)
+      .maybeSingle();
+    if (error && !(error.code === "PGRST116" || error.details?.includes("Results contain 0 rows"))) throw error;
+    if (data || !fallbackToEmail) return data || null;
+  }
 
   // Fallback: current session email (or the email claim if available)
   try {
@@ -93,18 +116,22 @@ export async function getUserByAuthId(authId, { fallbackToEmail = true } = {}) {
 /** Current signed-in user's row (or null) */
 export async function getMyUser() {
   const { data: session } = await supabase.auth.getUser();
-  const uid = session?.user?.id;
-  if (!uid) return null;
-  return await getUserById(uid);
+  const authId = session?.user?.id;
+  if (!authId) return null;
+  return await getUserByAuthId(authId, { fallbackToEmail: true });
 }
 
 /* ============================== WRITES ============================== */
 
 export async function setUserRole(userId, role) {
-  const { error } = await supabase.rpc("rpc_admin_users_update", {
-    p_user_id: userId,
-    p_patch: { role },
-  });
+  const { error } = await rpcFirst(
+    () => supabase.rpc("rpc_admin_set_user_role", { p_user_id: userId, p_role: role }),
+    () =>
+      supabase.rpc("rpc_admin_users_update", {
+        p_user_id: userId,
+        p_patch: { role },
+      })
+  );
   if (error) throw error;
   return true;
 }
@@ -116,10 +143,14 @@ export async function setUserFeeSplit(userId, feeSplit) {
 }
 
 export async function setUserActive(userId, isActive) {
-  const { error } = await supabase.rpc("rpc_admin_users_set_active", {
-    p_user_id: userId,
-    p_is_active: !!isActive,
-  });
+  const { error } = await rpcFirst(
+    () => supabase.rpc("rpc_admin_set_user_active", { p_user_id: userId, p_is_active: !!isActive }),
+    () =>
+      supabase.rpc("rpc_admin_users_set_active", {
+        p_user_id: userId,
+        p_is_active: !!isActive,
+      })
+  );
   if (error) throw error;
   return true;
 }
@@ -180,10 +211,18 @@ export async function updateUserProfile(userId, patch = {}) {
     phone: phone ?? null,
   };
   Object.keys(update).forEach((k) => update[k] === null && delete update[k]);
-  const { error } = await supabase.rpc("rpc_admin_users_update", {
-    p_user_id: userId,
-    p_patch: update,
-  });
+  const { error } = await rpcFirst(
+    () =>
+      supabase.rpc("rpc_admin_update_user_profile", {
+        p_user_id: userId,
+        p_patch: update,
+      }),
+    () =>
+      supabase.rpc("rpc_admin_users_update", {
+        p_user_id: userId,
+        p_patch: update,
+      })
+  );
   if (error) throw error;
   return true;
 }

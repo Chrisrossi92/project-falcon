@@ -57,7 +57,7 @@ export default function OrdersPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Orders</h1>
-        <NewOrderButton show className="ml-2" />
+        <NewOrderButton className="ml-2" />
       </div>
 
       <OrdersFilters value={filters} onChange={onChange} />
@@ -78,7 +78,6 @@ export default function OrdersPage() {
     </div>
   );
 }
-
 
 
 

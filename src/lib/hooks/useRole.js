@@ -45,46 +45,26 @@ function useRoleHook() {
 
           setUserId(urow.id);
 
-          const r = (urow.role || "").toLowerCase().trim();
-          if (r) {
-            setRole(r);
-          } else {
-            // fall back to RPC role if user row doesn't have role yet
-            const rr = ((await getMyRole()) || "").toLowerCase().trim();
-            setRole(rr || "appraiser");
+          // Canonical role authority: DB helper/RPC via user_roles.
+          // users.role remains compatibility-only fallback.
+          let rr = "";
+          try {
+            rr = ((await getMyRole()) || "").toLowerCase().trim();
+          } catch {
+            rr = "";
           }
-
+          const fallbackRole = (urow.role || "").toLowerCase().trim();
+          setRole(rr || fallbackRole || "appraiser");
           return;
         }
 
-        // 2) Legacy fallback: profiles (if it exists)
-        const { data: profile, error: profileErr } = await supabase
-          .from("profiles")
-          .select("id, role, auth_id")
-          .eq("auth_id", authUserId)
-          .maybeSingle();
-
-        if (!profileErr && profile?.id) {
-          if (!mounted) return;
-
-          // profiles.id might NOT equal public.users.id in your schema.
-          // If we get here, still try to map into public.users by auth_id.
-          const { data: u2 } = await supabase
-            .from("users")
-            .select("id, role")
-            .eq("auth_id", authUserId)
-            .maybeSingle();
-
-          setUserId(u2?.id ?? null);
-
-          const r = (profile.role || "").toLowerCase().trim();
-          if (r) setRole(r);
-          else setRole(((await getMyRole()) || "").toLowerCase().trim() || "appraiser");
-          return;
+        // 2) Final fallback: role helper RPC + no internal mapping
+        let r = "";
+        try {
+          r = ((await getMyRole()) || "").toLowerCase().trim();
+        } catch {
+          r = "";
         }
-
-        // 3) Final fallback: RPC role + no internal mapping
-        const r = ((await getMyRole()) || "").toLowerCase().trim();
         if (mounted) {
           setRole(r || "appraiser");
           setUserId(null);

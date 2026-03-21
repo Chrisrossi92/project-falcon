@@ -81,7 +81,7 @@ export default function AppRoutes() {
         {/* Clients (legacy admin pages) */}
         <Route
           path="/clients"
-          element={<ProtectedRoute roles={["owner", "admin"]}><ClientsDashboard /></ProtectedRoute>}
+          element={<ProtectedRoute roles={["owner", "admin", "manager", "reviewer", "appraiser"]}><ClientsDashboard /></ProtectedRoute>}
         />
         <Route
           path="/clients/new"
@@ -143,7 +143,6 @@ export default function AppRoutes() {
     </Routes>
   );
 }
-
 
 
 

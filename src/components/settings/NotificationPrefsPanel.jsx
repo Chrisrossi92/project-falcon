@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useRole } from "@/lib/hooks/useRole";
 import {
-  getCurrentUserProfile,
+  rpcGetMyNotificationPrefs,
   rpcGetNotificationPolicies,
   rpcSetNotificationPolicy,
   updateMyNotificationPrefs,
@@ -43,18 +44,25 @@ function Switch({ checked, onChange, disabled }) {
  *  - showTitle: boolean (render H1 when used as a full page)
  */
 export default function NotificationPrefsPanel({ showAdminSections = false, showTitle = false }) {
-  const [me, setMe] = useState(null);
+  const roleHook = useRole() || {};
   const [policies, setPolicies] = useState([]);                 // admin-only policy rows
   const [userPrefs, setUserPrefs] = useState({ center: {}, email: {} });
   const [locks, setLocks] = useState({ email_required: [] });
 
-  const isAdmin = showAdminSections || me?.role === "admin";
+  const isAdmin = showAdminSections || !!roleHook.isAdmin;
+
+  function normalizePrefs(input) {
+    const raw = input?.prefs ?? input ?? {};
+    return {
+      center: typeof raw.center === "object" && raw.center ? raw.center : {},
+      email: typeof raw.email === "object" && raw.email ? raw.email : {},
+    };
+  }
 
   useEffect(() => {
     (async () => {
-      const prof = await getCurrentUserProfile();
-      setMe(prof);
-      setUserPrefs(prof?.notification_prefs ?? { center: {}, email: {} });
+      const prefsRow = await rpcGetMyNotificationPrefs();
+      setUserPrefs(normalizePrefs(prefsRow));
 
       if (isAdmin) {
         const p = await rpcGetNotificationPolicies();

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { listUsers, setUserRole, setUserActive, updateUserProfile, createUserRecord } from "@/lib/services/usersService";
 import { getCurrentUserProfile } from "@/lib/services/api";
+import { useRole } from "@/lib/hooks/useRole";
 import toast from "react-hot-toast";
 
 const DEFAULT_COLOR = "#6B82A7";
@@ -35,8 +36,8 @@ function roleLabel(role) {
   return map[key] || role;
 }
 
-function NewUserModal({ open, onClose, onCreate, currentUser }) {
-  const isOwner = String(currentUser?.role || "").toLowerCase() === "owner";
+function NewUserModal({ open, onClose, onCreate, currentRole }) {
+  const isOwner = String(currentRole || "").toLowerCase() === "owner";
   const [form, setForm] = useState({
     full_name: "",
     email: "",
@@ -177,7 +178,7 @@ function NewUserModal({ open, onClose, onCreate, currentUser }) {
   );
 }
 
-function UserCard({ user, currentUser, savingId, onSavePatch, onDelete }) {
+function UserCard({ user, currentRole, currentUserId, savingId, onSavePatch, onDelete }) {
   const [isEditing, setIsEditing] = useState(false);
   const [form, setForm] = useState({
     display_name: user.display_name || user.full_name || user.name || "",
@@ -204,11 +205,11 @@ function UserCard({ user, currentUser, savingId, onSavePatch, onDelete }) {
   const themeColor = getUserColor(user);
   const borderTint = `${themeColor}33`;
   const name = user.display_name || user.full_name || user.name || user.email;
-  const isSelf = user.id === currentUser?.id;
-  const currentRole = String(currentUser?.role || "").toLowerCase();
+  const isSelf = user.id === currentUserId;
+  const current = String(currentRole || "").toLowerCase();
   const targetRole = String(user.role || "").toLowerCase();
-  const isOwner = currentRole === "owner";
-  const isAdmin = currentRole === "admin";
+  const isOwner = current === "owner";
+  const isAdmin = current === "admin";
   const isOwnerOrAdmin = isOwner || isAdmin;
   const canManage = isOwnerOrAdmin && !(targetRole === "owner" && !isOwner);
   const isActive = user.is_active ?? (user.status ? user.status.toLowerCase() !== "inactive" : true);
@@ -231,9 +232,9 @@ function UserCard({ user, currentUser, savingId, onSavePatch, onDelete }) {
       payload.status = form.is_active ? "active" : "inactive";
       payload.is_active = form.is_active;
     } else if (roleChanged) {
-      // Non-owners shouldn't change roles; warn but continue with other fields
+      // Non-admin users should not change roles; warn but continue with other fields.
       // eslint-disable-next-line no-console
-      console.warn("Only the owner can change roles");
+      console.warn("Only admin/owner can change roles");
     }
 
     await onSavePatch(user.id, payload);
@@ -460,6 +461,7 @@ function UserCard({ user, currentUser, savingId, onSavePatch, onDelete }) {
 }
 
 export default function UsersIndex() {
+  const { role: canonicalRole } = useRole();
   const [me, setMe] = useState(null);
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -467,7 +469,9 @@ export default function UsersIndex() {
   const [newOpen, setNewOpen] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
 
-  const isOwnerOrAdmin = ["owner", "admin"].includes(String(me?.role || "").toLowerCase());
+  const normalizedRole = String(canonicalRole || "").toLowerCase();
+  const isOwner = normalizedRole === "owner";
+  const isOwnerOrAdmin = isOwner || normalizedRole === "admin";
 
 
   async function load(includeInactiveParam) {
@@ -491,10 +495,11 @@ export default function UsersIndex() {
   async function saveUserPatch(id, patch) {
     setSavingId(id);
     try {
-      const isOwner = String(me?.role || "").toLowerCase() === "owner";
       if (patch.role !== undefined) {
-        if (!isOwner) {
-          console.warn("Only owner can change roles");
+        if (!isOwnerOrAdmin) {
+          console.warn("Only admin/owner can change roles");
+        } else if (String(patch.role || "").toLowerCase() === "owner" && !isOwner) {
+          console.warn("Only owner can assign owner role");
         } else {
           await setUserRole(id, patch.role);
         }
@@ -587,7 +592,8 @@ export default function UsersIndex() {
             <UserCard
               key={u.id}
               user={u}
-              currentUser={me}
+              currentRole={canonicalRole}
+              currentUserId={me?.id || null}
               savingId={savingId}
               onSavePatch={saveUserPatch}
               onDelete={deleteUser}
@@ -596,7 +602,7 @@ export default function UsersIndex() {
         </div>
       )}
 
-      <NewUserModal open={newOpen} onClose={() => setNewOpen(false)} onCreate={createUser} currentUser={me} />
+      <NewUserModal open={newOpen} onClose={() => setNewOpen(false)} onCreate={createUser} currentRole={canonicalRole} />
     </div>
   );
 }

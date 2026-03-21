@@ -1,2 +1,2 @@
-[functions.email-sender]
+[functions.email-worker]
 verify_jwt = false

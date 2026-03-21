@@ -4,12 +4,13 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   type EmailTemplateKey,
   renderEmailTemplate,
-} from "../../src/lib/notifications/emailTemplates.ts";
+} from "../../../src/lib/notifications/emailTemplates.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? Deno.env.get("RESEND_KEY");
-const EMAIL_FROM = Deno.env.get("EMAIL_FROM") || "Falcon <no-reply@yourdomain>";
+const EMAIL_FROM = (Deno.env.get("EMAIL_FROM") || "Falcon <no-reply@continentalres.com>")
+  .replace(/continentalres\.net/gi, "continentalres.com");
 const APP_BASE_URL = Deno.env.get("APP_BASE_URL") || "";
 const BATCH_LIMIT = Number(Deno.env.get("EMAIL_BATCH_SIZE") || "25");
 
@@ -19,11 +20,18 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 
 type OutboxRow = {
   id: string;
-  notification_id?: string | null;
+  user_id?: string | null;
   to_email: string;
   subject?: string | null;
-  body_text?: string | null;
-  body_html?: string | null;
+  template?: string | null;
+  payload?: Record<string, unknown> | null;
+  status?: string | null;
+  attempts?: number | null;
+  created_at?: string | null;
+  sent_at?: string | null;
+  claimed_at?: string | null;
+  locked_by?: string | null;
+  error?: string | null;
 };
 
 type NotificationRow = {
@@ -40,11 +48,12 @@ type NotificationRow = {
 type OrderRow = {
   id: string;
   order_number?: string | null;
-  order_no?: string | null;
-  address_line1?: string | null;
+  address?: string | null;
+  property_address?: string | null;
   city?: string | null;
   state?: string | null;
   postal_code?: string | null;
+  zip?: string | null;
   entry_contact_name?: string | null;
   entry_contact_phone?: string | null;
   property_contact_name?: string | null;
@@ -65,18 +74,18 @@ const NOTIFICATION_TEMPLATE_MAP: Record<string, EmailTemplateKey> = {
 };
 
 async function claimBatch(limit = BATCH_LIMIT) {
-  const { data, error } = await supabase.rpc("rpc_claim_email_outbox", { p_limit: limit });
+  const { data, error } = await supabase.rpc("rpc_claim_email_batch_v1", { p_limit: limit, p_worker: "email-worker" });
   if (error) throw new Error(`claim failed: ${error.message}`);
   return data || [];
 }
 
 async function markSent(id: string) {
-  const { error } = await supabase.rpc("rpc_mark_email_outbox_sent", { p_id: id });
+  const { error } = await supabase.rpc("rpc_mark_email_sent_v1", { p_id: id });
   if (error) throw new Error(`mark sent failed: ${error.message}`);
 }
 
 async function markFailed(id: string, err: string) {
-  await supabase.rpc("rpc_mark_email_outbox_failed", { p_id: id, p_error: err.slice(0, 1000) });
+  await supabase.rpc("rpc_mark_email_failed_v1", { p_id: id, p_error: err.slice(0, 1000) });
 }
 
 async function sendEmail(to: string, subject: string, html: string, text?: string) {
@@ -117,7 +126,7 @@ async function fetchOrder(orderId: string) {
   const { data, error } = await supabase
     .from("orders")
     .select(
-      "id, order_number, order_no, address_line1, city, state, postal_code, entry_contact_name, entry_contact_phone, property_contact_name, property_contact_phone, special_instructions, access_notes, review_due_at, final_due_at"
+      "id, order_number, address, property_address, city, state, postal_code, zip, entry_contact_name, entry_contact_phone, property_contact_name, property_contact_phone, special_instructions, access_notes, review_due_at, final_due_at"
     )
     .eq("id", orderId)
     .maybeSingle();
@@ -132,10 +141,10 @@ function formatDate(raw: unknown) {
 }
 
 function buildPropertyAddress(payload: Record<string, unknown>, order: OrderRow | null) {
-  const fromPayload =
-    payload.property_address || payload.address || payload.address_line1 || payload.address1 || payload.street;
+  const fromPayload = payload.property_address || payload.address || payload.address1 || payload.street;
   if (fromPayload) return String(fromPayload);
-  const parts = [order?.address_line1, order?.city, order?.state, order?.postal_code].filter(Boolean);
+  const street = order?.property_address || order?.address;
+  const parts = [street, order?.city, order?.state, order?.postal_code || order?.zip].filter(Boolean);
   return parts.join(", ");
 }
 
@@ -164,7 +173,7 @@ function buildPayload(notification: NotificationRow | null, order: OrderRow | nu
   const payload: Record<string, unknown> = { ...(notification?.payload || {}) };
   payload.order_id = payload.order_id || notification?.order_id || order?.id;
   payload.order_number =
-    payload.order_number || order?.order_number || order?.order_no || notification?.payload?.order_number || order?.id;
+    payload.order_number || order?.order_number || notification?.payload?.order_number || order?.id;
   payload.property_address = buildPropertyAddress(payload, order);
 
   const dueRaw =
@@ -218,11 +227,23 @@ function renderBody(body: string) {
 }
 
 async function renderTemplate(row: OutboxRow) {
-  const notification = row.notification_id ? await fetchNotification(row.notification_id) : null;
-  const order = notification?.order_id ? await fetchOrder(notification.order_id) : null;
+  const queuePayload = { ...((row.payload || {}) as Record<string, unknown>) };
+  const notificationId =
+    (queuePayload.notification_id as string) ||
+    (queuePayload.notificationId as string) ||
+    null;
+  const notification = notificationId ? await fetchNotification(notificationId) : null;
+  const orderId = (queuePayload.order_id as string) || notification?.order_id || null;
+  const order = orderId ? await fetchOrder(orderId) : null;
 
-  const templateKey = resolveTemplateKey(notification);
   const payload = buildPayload(notification, order);
+  Object.assign(payload, queuePayload);
+  const templateKey =
+    isEmailTemplateKey(queuePayload.email_template_key) ? queuePayload.email_template_key :
+    isEmailTemplateKey(queuePayload.template_key) ? queuePayload.template_key :
+    isEmailTemplateKey(queuePayload.templateKey) ? queuePayload.templateKey :
+    isEmailTemplateKey(row.template) ? row.template :
+    resolveTemplateKey(notification);
 
   if (templateKey) {
     const rendered = renderEmailTemplate(templateKey, payload);
@@ -232,8 +253,16 @@ async function renderTemplate(row: OutboxRow) {
   }
 
   const subject = row.subject || notification?.title || "New notification";
-  const bodyText = row.body_text || notification?.body || notification?.message || "";
-  const bodyHtml = row.body_html || markdownToHtml(bodyText);
+  const bodyText =
+    String(
+      queuePayload.body_text ??
+      queuePayload.body ??
+      queuePayload.message ??
+      notification?.body ??
+      notification?.message ??
+      ""
+    );
+  const bodyHtml = markdownToHtml(bodyText);
   const orderUrl = buildOrderUrl(payload, notification, order);
   const html = orderUrl ? `${bodyHtml}<p><a href="${orderUrl}">Open in Falcon</a></p>` : bodyHtml;
 

@@ -33,7 +33,7 @@ function shape(row) {
   };
 }
 
-// Read feed (include joined name+email when profiles exists)
+// Read feed from canonical RPC.
 export async function listOrderActivity(orderId) {
   try {
     const { data, error } = await supabase.rpc("rpc_get_activity_feed", {
@@ -55,16 +55,27 @@ export function subscribeOrderActivity(orderId, cb) {
       "postgres_changes",
       { event: "INSERT", schema: "public", table: "activity_log", filter: `order_id=eq.${orderId}` },
       async ({ new: row }) => {
-        // if missing display fields, try enrich from profiles
+        // If display fields are missing, enrich from canonical users first.
         if ((!row.created_by_name || !row.created_by_email) && row.created_by) {
-          const { data } = await supabase
-            .from("profiles")
-            .select("full_name, email")
+          const { data: u } = await supabase
+            .from("users")
+            .select("full_name, display_name, name, email")
             .eq("id", row.created_by)
             .maybeSingle();
-          if (data) {
-            row.created_by_name ||= data.full_name || null;
-            row.created_by_email ||= data.email || null;
+          if (u) {
+            row.created_by_name ||= u.full_name || u.display_name || u.name || null;
+            row.created_by_email ||= u.email || null;
+          } else {
+            // Transitional display-only fallback for legacy historical rows.
+            const { data: p } = await supabase
+              .from("profiles")
+              .select("full_name, email")
+              .eq("id", row.created_by)
+              .maybeSingle();
+            if (p) {
+              row.created_by_name ||= p.full_name || null;
+              row.created_by_email ||= p.email || null;
+            }
           }
         }
         cb(shape(row));
@@ -95,7 +106,6 @@ export async function logNote(orderId, message) {
   const found = feed.find((r) => r.id === newId) || null;
   return found || { id: newId, order_id: orderId, event_type: "note", message, created_at: new Date().toISOString() };
 }
-
 
 
 

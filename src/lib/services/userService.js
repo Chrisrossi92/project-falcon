@@ -13,7 +13,7 @@ export async function listTeam({ includeInactive = false } = {}) {
       supabase.rpc("team_list_users", { include_inactive: includeInactive }),
     async () => {
       let q = supabase
-        .from("profiles")
+        .from("users")
         .select("id, display_name, name, email, role, status, avatar_url")
         .order("display_name", { ascending: true });
 
@@ -37,7 +37,7 @@ export async function getUserById(userId) {
     () => supabase.rpc("team_get_user", { user_id: userId }),
     async () => {
       const { data: row, error: err } = await supabase
-        .from("profiles")
+        .from("users")
         .select("id, display_name, name, email, role, status, avatar_url")
         .eq("id", userId)
         .single();
@@ -62,4 +62,3 @@ export async function listAppraisers({ includeInactive = false } = {}) {
       )
     );
 }
-

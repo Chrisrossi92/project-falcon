@@ -38,9 +38,9 @@ export function useCurrentUser() {
       }
 
       const { data, error: userError } = await supabase
-        .from("profiles")
+        .from("users")
         .select("*")
-        .or(`auth_id.eq.${authId},uid.eq.${authId}`)
+        .eq("auth_id", authId)
         .maybeSingle();
 
       if (cancelled) return;

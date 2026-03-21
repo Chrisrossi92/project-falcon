@@ -1,19 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useSession } from '@/lib/hooks/useSession';
+import { useParams } from 'react-router-dom';
+import { useRole } from '@/lib/hooks/useRole';
 import supabase from '@/lib/supabaseClient';
 
 const UserHub = () => {
   const { userId } = useParams();
-  const { user: sessionUser } = useSession();
-  const navigate = useNavigate();
+  const roleInfo = useRole() || {};
 
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  const isSelf = sessionUser?.id === userId;
-  const isAdmin = sessionUser?.role === 'admin';
+  const isSelf = roleInfo.userId === userId;
+  const isAdmin = !!roleInfo.isAdmin;
 
   useEffect(() => {
     const fetchUser = async () => {
