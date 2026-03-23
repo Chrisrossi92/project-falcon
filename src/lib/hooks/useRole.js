@@ -17,6 +17,7 @@ function useRoleHook() {
   const [role, setRole] = useState(null);
   const [userId, setUserId] = useState(null); // public.users.id
   const [loading, setLoading] = useState(true);
+  const [resolvedAuthUserId, setResolvedAuthUserId] = useState(null);
 
   useEffect(() => {
     let mounted = true;
@@ -29,6 +30,7 @@ function useRoleHook() {
           if (!mounted) return;
           setRole(null);
           setUserId(null);
+          setResolvedAuthUserId(null);
           setLoading(false);
           return;
         }
@@ -55,6 +57,7 @@ function useRoleHook() {
           }
           const fallbackRole = (urow.role || "").toLowerCase().trim();
           setRole(rr || fallbackRole || "appraiser");
+          setResolvedAuthUserId(authUserId);
           return;
         }
 
@@ -68,12 +71,14 @@ function useRoleHook() {
         if (mounted) {
           setRole(r || "appraiser");
           setUserId(null);
+          setResolvedAuthUserId(authUserId);
         }
       } catch (e) {
         console.warn("[useRole] failed to resolve role; defaulting to appraiser", e);
         if (mounted) {
           setRole("appraiser");
           setUserId(null);
+          setResolvedAuthUserId(authUserId);
         }
       } finally {
         if (mounted) setLoading(false);
@@ -89,8 +94,11 @@ function useRoleHook() {
   const isAdmin = role === "admin" || role === "owner";
   const isReviewer = role === "reviewer";
   const appraiserView = !isAdmin && !isReviewer;
+  const unresolvedForAuthenticatedUser =
+    !!authUserId && (resolvedAuthUserId !== authUserId || !String(role || "").trim());
+  const roleLoading = loading || unresolvedForAuthenticatedUser;
 
-  return { role, isAdmin, isReviewer, appraiserView, userId, authUserId, loading };
+  return { role, isAdmin, isReviewer, appraiserView, userId, authUserId, loading: roleLoading };
 }
 
 export function useRole() {
