@@ -17,6 +17,7 @@ function useRoleHook() {
   const [role, setRole] = useState(null);
   const [userId, setUserId] = useState(null); // public.users.id
   const [loading, setLoading] = useState(true);
+  const [settledAuthUserId, setSettledAuthUserId] = useState(null);
 
   useEffect(() => {
     let mounted = true;
@@ -29,6 +30,7 @@ function useRoleHook() {
           if (!mounted) return;
           setRole(null);
           setUserId(null);
+          setSettledAuthUserId(null);
           setLoading(false);
           return;
         }
@@ -53,6 +55,7 @@ function useRoleHook() {
             const rr = ((await getMyRole()) || "").toLowerCase().trim();
             setRole(rr || "appraiser");
           }
+          setSettledAuthUserId(authUserId);
 
           return;
         }
@@ -80,6 +83,7 @@ function useRoleHook() {
           const r = (profile.role || "").toLowerCase().trim();
           if (r) setRole(r);
           else setRole(((await getMyRole()) || "").toLowerCase().trim() || "appraiser");
+          setSettledAuthUserId(authUserId);
           return;
         }
 
@@ -88,12 +92,14 @@ function useRoleHook() {
         if (mounted) {
           setRole(r || "appraiser");
           setUserId(null);
+          setSettledAuthUserId(authUserId);
         }
       } catch (e) {
         console.warn("[useRole] failed to resolve role; defaulting to appraiser", e);
         if (mounted) {
           setRole("appraiser");
           setUserId(null);
+          setSettledAuthUserId(authUserId);
         }
       } finally {
         if (mounted) setLoading(false);
@@ -109,6 +115,8 @@ function useRoleHook() {
   const isAdmin = role === "admin" || role === "owner";
   const isReviewer = role === "reviewer";
   const appraiserView = !isAdmin && !isReviewer;
+  const unresolvedForAuthUser = !!authUserId && settledAuthUserId !== authUserId;
+  const effectiveLoading = loading || unresolvedForAuthUser;
 
   useEffect(() => {
     console.log("AUTH USER ID", authUserId);
@@ -116,7 +124,7 @@ function useRoleHook() {
     console.log("ROLE", role);
   }, [authUserId, userId, role]);
 
-  return { role, isAdmin, isReviewer, appraiserView, userId, authUserId, loading };
+  return { role, isAdmin, isReviewer, appraiserView, userId, authUserId, loading: effectiveLoading };
 }
 
 export function useRole() {
