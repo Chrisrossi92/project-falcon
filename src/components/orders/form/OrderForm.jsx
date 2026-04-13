@@ -6,6 +6,7 @@ import AssignmentFields from "./AssignmentFields";
 import PropertyFields from "./PropertyFields";
 import DatesFields from "./DatesFields";
 import { createOrder, updateOrder } from "@/lib/services/ordersService";
+import supabase from "@/lib/supabaseClient";
 
 // ---- date helpers ----
 const toYMD = (value) => {
@@ -109,6 +110,29 @@ export default function OrderForm({ order, onClose, onSaved, onCancel }) {
       access_notes: order.access_notes ?? "",
       notes: order.notes ?? "",
     });
+  }, [order]);
+
+  useEffect(() => {
+    if (order) return;
+
+    let cancelled = false;
+
+    (async () => {
+      const { data, error: rpcError } = await supabase.rpc(
+        "rpc_get_next_order_number"
+      );
+
+      if (cancelled || rpcError || !data) return;
+
+      setValues((prev) => {
+        if (prev.order_number) return prev;
+        return { ...prev, order_number: data };
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [order]);
 
   const applyPatch = (patch) => {
@@ -225,7 +249,6 @@ export default function OrderForm({ order, onClose, onSaved, onCancel }) {
     </form>
   );
 }
-
 
 
 
