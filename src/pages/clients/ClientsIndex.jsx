@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import supabase from "@/lib/supabaseClient";
 import ClientCard from "@/components/clients/ClientCard";
+import { useRole } from "@/lib/hooks/useRole";
 
 const normalizeCategory = (raw) => {
   const v = (raw || "").toLowerCase();
@@ -13,6 +14,7 @@ const normalizeCategory = (raw) => {
 };
 
 export default function ClientsIndex() {
+  const { isAdmin, loading: roleLoading } = useRole() || {};
   const [baseRows, setBaseRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
@@ -26,17 +28,95 @@ export default function ClientsIndex() {
     let cancelled = false;
 
     (async () => {
+      if (roleLoading) return;
+
       try {
         setLoading(true);
         setErr(null);
 
-        // 1) KPI view = primary source for metrics + (usually) primary contact
-        const { data: kpiRows, error: kpiErr } = await supabase
-          .from("v_client_kpis")
-          .select("*");
-        if (kpiErr) throw kpiErr;
+        let metrics = [];
 
-        const metrics = kpiRows || [];
+        if (isAdmin) {
+          // 1) Admin path: KPI view = primary source for global metrics + contact
+          const { data: kpiRows, error: kpiErr } = await supabase
+            .from("v_client_kpis")
+            .select("*");
+          if (kpiErr) throw kpiErr;
+          metrics = kpiRows || [];
+        } else {
+          // 1) Non-admin path: derive cards only from visible orders
+          const { data: orderRows, error: ordersErr } = await supabase
+            .from("v_orders_frontend_v4")
+            .select(
+              `
+                client_id,
+                client_name,
+                fee_amount,
+                base_fee,
+                appraiser_fee,
+                date_ordered,
+                created_at,
+                last_activity_at
+              `
+            )
+            .not("client_id", "is", null);
+
+          if (ordersErr) throw ordersErr;
+
+          const byClient = new Map();
+
+          for (const row of orderRows || []) {
+            const clientId = row?.client_id;
+            if (clientId == null) continue;
+
+            const fee = [row?.fee_amount, row?.base_fee, row?.appraiser_fee]
+              .map((v) => (typeof v === "number" ? v : Number(v)))
+              .find((v) => Number.isFinite(v));
+
+            const candidateDate =
+              row?.last_activity_at ||
+              row?.date_ordered ||
+              row?.created_at ||
+              null;
+
+            const current = byClient.get(clientId) || {
+              client_id: clientId,
+              client_name: row?.client_name || null,
+              total_orders: 0,
+              fee_sum: 0,
+              fee_count: 0,
+              last_order_date: null,
+            };
+
+            current.total_orders += 1;
+
+            if (Number.isFinite(fee)) {
+              current.fee_sum += fee;
+              current.fee_count += 1;
+            }
+
+            if (candidateDate) {
+              const nextTs = new Date(candidateDate).getTime();
+              const prevTs = current.last_order_date
+                ? new Date(current.last_order_date).getTime()
+                : null;
+              if (!prevTs || nextTs > prevTs) {
+                current.last_order_date = candidateDate;
+              }
+            }
+
+            byClient.set(clientId, current);
+          }
+
+          metrics = Array.from(byClient.values()).map((row) => ({
+            client_id: row.client_id,
+            client_name: row.client_name,
+            total_orders: row.total_orders,
+            avg_total_fee: row.fee_count > 0 ? row.fee_sum / row.fee_count : null,
+            last_order_date: row.last_order_date,
+          }));
+        }
+
         const ids = metrics.map((r) => r.client_id).filter((id) => id != null);
 
         // 2) Backing client records for category / status / fallback contact
@@ -95,7 +175,7 @@ export default function ClientsIndex() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isAdmin, roleLoading]);
 
   const gridRows = useMemo(() => {
     let out = [...baseRows];
@@ -235,7 +315,7 @@ export default function ClientsIndex() {
       {/* Body */}
       {err ? (
         <div className="text-sm text-rose-600">{err}</div>
-      ) : loading ? (
+      ) : loading || roleLoading ? (
         <div className="text-sm text-gray-600">Loading…</div>
       ) : gridRows.length === 0 ? (
         <div className="text-sm text-gray-500">
@@ -266,7 +346,6 @@ export default function ClientsIndex() {
     </div>
   );
 }
-
 
 
 
