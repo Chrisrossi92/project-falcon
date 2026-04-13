@@ -43,12 +43,12 @@ export async function listClientOrders(clientId, { page = 0, pageSize = 25 } = {
     .select(
       `
         id, order_no, client_name, address, status, fee_amount,
-        site_visit_at, review_due_at, final_due_at, date_ordered, created_at, client_id
+        site_visit_at, review_due_at, final_due_at, created_at, client_id
       `,
       { count: "exact" }
     )
     .eq("client_id", idNum)
-    .order("date_ordered", { ascending: false })
+    .order("created_at", { ascending: false })
     .range(fromIdx, toIdx);
 
   if (error) throw error;
@@ -149,7 +149,6 @@ export const fetchClients = listClients;
 export const fetchClientById = getClient;
 export const getClientById = getClient;
 export const fetchClientOrders = listClientOrders;
-
 
 
 

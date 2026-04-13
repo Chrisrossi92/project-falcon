@@ -30,7 +30,7 @@ export async function listOrders({
   activeOnly = true,
   page = 0,
   pageSize = 50,
-  orderBy = "date_ordered",
+  orderBy = "created_at",
   ascending = false,
   appraiserId = null,
 } = {}) {
@@ -455,7 +455,6 @@ export async function isOrderNumberAvailable(orderNo, { excludeId = null } = {})
   if (res2.error) throw res2.error;
   return (res2.count || 0) === 0;
 }
-
 
 
 
