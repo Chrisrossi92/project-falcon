@@ -300,7 +300,34 @@ export async function assignReviewer(orderId, reviewer_id) {
 
 export async function startReview(orderId, note = null)        { return setOrderStatus(orderId, OrderStatus.IN_REVIEW); }
 export async function requestRevisions(orderId, note = null)   { return setOrderStatus(orderId, OrderStatus.NEEDS_REVISIONS); }
-export async function markReadyForClient(orderId, note = null) { return setOrderStatus(orderId, OrderStatus.READY_FOR_CLIENT); }
+export async function markReadyForClient(orderId, note = null) {
+  const { data: order, error } = await supabase
+    .from(ORDERS_TABLE)
+    .update({ status: OrderStatus.READY_FOR_CLIENT })
+    .eq("id", orderId)
+    .select("id, reviewer_id, order_number, status, client_name")
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!order) throw new Error("No order updated (permission or id mismatch).");
+
+  const recipients = [];
+
+  if (order.reviewer_id) {
+    recipients.push({ userId: order.reviewer_id, role: "reviewer" });
+  }
+
+  const adminRecipients = await fetchAdminRecipients();
+  recipients.push(...adminRecipients);
+
+  if (recipients.length > 0) {
+    emitNotification("order.ready_for_client", { recipients, order }).catch(
+      (err) => console.error("order.ready_for_client notification failed", err)
+    );
+  }
+
+  return order;
+}
 export async function approveReview(orderId, note = null)      { return markReadyForClient(orderId, note); }
 export async function markReadyToSend(orderId, note = null)    { return markReadyForClient(orderId, note); }
 export async function markComplete(orderId, note = null)       { return setOrderStatus(orderId, OrderStatus.COMPLETED); }
@@ -455,7 +482,6 @@ export async function isOrderNumberAvailable(orderNo, { excludeId = null } = {})
   if (res2.error) throw res2.error;
   return (res2.count || 0) === 0;
 }
-
 
 
 
