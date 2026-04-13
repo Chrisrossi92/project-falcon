@@ -10,10 +10,12 @@ export default function NotificationBell() {
   const [items, setItems] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [markingAllRead, setMarkingAllRead] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
   const channelName = useMemo(() => (userId ? `notif:${userId}` : null), [userId]);
+  const unreadItems = useMemo(() => items.filter((n) => !n.read_at), [items]);
 
   const formatTimestamp = (value) => {
     if (!value) return "";
@@ -59,13 +61,18 @@ export default function NotificationBell() {
   };
 
   const markAllRead = async () => {
-    if (!userId) return;
+    if (!userId || markingAllRead) return;
+    setMarkingAllRead(true);
+    setError(null);
     const { error } = await supabase.rpc("rpc_mark_all_notifications_read");
     if (error) {
       console.error("markAllRead error", error);
+      setError(error);
+      setMarkingAllRead(false);
       return;
     }
     await loadNotifications();
+    setMarkingAllRead(false);
   };
 
   const handleOpenChange = async (nextOpen) => {
@@ -113,8 +120,12 @@ export default function NotificationBell() {
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-semibold">Notification Center</h3>
             <div className="flex items-center gap-3">
-              <button className="text-sm underline" onClick={markAllRead}>
-                Mark all as read
+              <button
+                className="text-sm underline disabled:opacity-60"
+                onClick={markAllRead}
+                disabled={markingAllRead}
+              >
+                {markingAllRead ? "Marking..." : "Mark all as read"}
               </button>
               <button className="text-sm underline" onClick={loadNotifications}>
                 Refresh
@@ -128,13 +139,13 @@ export default function NotificationBell() {
             {!loading && error && (
               <div className="p-3 text-sm text-rose-600">Failed to load notifications.</div>
             )}
-            {!loading && !error && items.length === 0 && (
-              <div className="p-3 text-sm text-muted-foreground">No notifications.</div>
+            {!loading && !error && unreadItems.length === 0 && (
+              <div className="p-3 text-sm text-muted-foreground">All caught up.</div>
             )}
             {!loading &&
               !error &&
-              items.length > 0 &&
-              items.map((n) => (
+              unreadItems.length > 0 &&
+              unreadItems.map((n) => (
                 <button
                   key={n.id}
                   className={`w-full text-left px-3 py-2 text-sm hover:bg-muted ${
@@ -161,7 +172,6 @@ export default function NotificationBell() {
     </div>
   );
 }
-
 
 
 
