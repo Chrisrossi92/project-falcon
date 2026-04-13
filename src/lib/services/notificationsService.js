@@ -114,7 +114,11 @@ export async function emitNotification(eventKey, { recipients, order, payload = 
     const seenRecipientIds = new Set();
 
     for (const recipient of recipients) {
-      const { userId, role } = recipient;
+      const userId = recipient?.userId ?? null;
+      const role =
+        typeof recipient?.role === "string" && recipient.role.trim()
+          ? recipient.role.trim().toLowerCase()
+          : null;
       if (!userId || !role) continue;
 
       const authUserId = await resolveRecipientAuthId(userId);
