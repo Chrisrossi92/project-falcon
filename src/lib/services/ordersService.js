@@ -305,7 +305,7 @@ export async function markReadyForClient(orderId, note = null) {
     .from(ORDERS_TABLE)
     .update({ status: OrderStatus.READY_FOR_CLIENT })
     .eq("id", orderId)
-    .select("id, reviewer_id, order_number, status, client_name")
+    .select("id, reviewer_id, order_number, status")
     .maybeSingle();
 
   if (error) throw error;
@@ -482,7 +482,6 @@ export async function isOrderNumberAvailable(orderNo, { excludeId = null } = {})
   if (res2.error) throw res2.error;
   return (res2.count || 0) === 0;
 }
-
 
 
 
