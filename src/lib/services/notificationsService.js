@@ -20,7 +20,8 @@ export async function fetchAdminRecipients() {
         if (data && data.length) {
           return (data || [])
             .filter((u) => !u.status || u.status.toLowerCase() === "active")
-            .map((u) => ({ userId: u.auth_id || u.id, role: "admin" }))
+            .filter((u) => !!u.auth_id)
+            .map((u) => ({ userId: u.auth_id, role: "admin" }))
             .filter((u) => !!u.userId);
         }
       } catch (innerErr) {
@@ -56,8 +57,8 @@ async function resolveRecipientAuthId(userId) {
       .or(`id.eq.${userId},auth_id.eq.${userId}`)
       .maybeSingle();
 
-    if (!profileErr && (profileRow?.auth_id || profileRow?.id)) {
-      return profileRow.auth_id || profileRow.id;
+    if (!profileErr && profileRow?.auth_id) {
+      return profileRow.auth_id;
     }
   } catch (err) {
     if (debug) console.debug("[resolveRecipientAuthId] profiles lookup failed", err?.message || err);
