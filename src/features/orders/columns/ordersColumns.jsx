@@ -9,6 +9,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+const APPRAISER_SEND_TO_REVIEW_STATUSES = new Set([
+  "new",
+  "in_progress",
+  "needs_revisions",
+]);
+
 const fmtDate = (d) =>
   !d ? "-" : isNaN(new Date(d)) ? "-" : new Date(d).toLocaleDateString();
 
@@ -123,10 +129,16 @@ export function getColumnsForRole(role, actions = {}) {
     cell: (order) => {
       if (!order) return null;
 
+      const normalizedStatus = String(order?.status || "").toLowerCase().trim();
+      const canSendToReview =
+        isAppraiser &&
+        APPRAISER_SEND_TO_REVIEW_STATUSES.has(normalizedStatus) &&
+        Boolean(onSendToReview);
+
       const button = isAppraiser ? (
         <Button
           size="sm"
-          disabled={!onSendToReview}
+          disabled={!canSendToReview}
           onClick={() => onSendToReview?.(order)}
         >
           Send to Review

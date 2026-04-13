@@ -15,6 +15,12 @@ export const OrderStatus = {
   COMPLETED: "completed",
 };
 
+const APPRAISER_SEND_TO_REVIEW_STATUSES = new Set([
+  OrderStatus.NEW,
+  OrderStatus.IN_PROGRESS,
+  OrderStatus.NEEDS_REVISIONS,
+]);
+
 /* ============================================================================
    READS
    ========================================================================== */
@@ -354,6 +360,20 @@ export async function updateOrderStatus(orderId, status, extra = {}) {
 }
 
 export async function sendOrderToReview(orderId, actorId) {
+  const { data: existingOrder, error: existingOrderError } = await supabase
+    .from(ORDERS_TABLE)
+    .select("id, status")
+    .eq("id", orderId)
+    .maybeSingle();
+
+  if (existingOrderError) throw existingOrderError;
+  if (!existingOrder) throw new Error("Order not found.");
+
+  const currentStatus = String(existingOrder.status || "").toLowerCase().trim();
+  if (!APPRAISER_SEND_TO_REVIEW_STATUSES.has(currentStatus)) {
+    throw new Error("Order cannot be sent to review from its current status.");
+  }
+
   const { data: order, error } = await supabase
     .from(ORDERS_TABLE)
     .update({ status: OrderStatus.IN_REVIEW })
@@ -482,7 +502,6 @@ export async function isOrderNumberAvailable(orderNo, { excludeId = null } = {})
   if (res2.error) throw res2.error;
   return (res2.count || 0) === 0;
 }
-
 
 
 
