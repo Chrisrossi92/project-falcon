@@ -5,6 +5,7 @@ import NotificationBell from "@/components/notifications/NotificationBell";
 import CommandPalette from "@/components/nav/CommandPalette";
 import { getCurrentUserProfile } from "@/lib/services/api";
 import AvatarBadge from "@/components/ui/AvatarBadge";
+import { useRole } from "@/lib/hooks/useRole";
 
 function Brand() {
   return (
@@ -100,6 +101,8 @@ export default function TopNav() {
   const [me, setMe]      = useState(null);
   const [open, setOpen]  = useState(false); // mobile sheet
   const [pal, setPal]    = useState(false); // command palette
+  const { isAdmin }      = useRole() || {};
+  const clientsPath      = isAdmin ? "/clients" : "/clients/cards";
 
   useEffect(() => {
     (async () => {
@@ -129,7 +132,7 @@ export default function TopNav() {
           <nav className="hidden md:flex items-center gap-1 ml-2">
             <NavItem to="/orders">Orders</NavItem>
             <NavItem to="/calendar">Calendar</NavItem>
-            <NavItem to="/clients">Clients</NavItem>
+            <NavItem to={clientsPath}>Clients</NavItem>
             <NavItem to="/users">Users</NavItem>
           </nav>
 
@@ -164,7 +167,7 @@ export default function TopNav() {
             <nav className="px-3 py-3 flex flex-col gap-1">
               <NavItem to="/orders"   onClick={() => setOpen(false)}>Orders</NavItem>
               <NavItem to="/calendar" onClick={() => setOpen(false)}>Calendar</NavItem>
-              <NavItem to="/clients"  onClick={() => setOpen(false)}>Clients</NavItem>
+              <NavItem to={clientsPath} onClick={() => setOpen(false)}>Clients</NavItem>
               <NavItem to="/users"    onClick={() => setOpen(false)}>Users</NavItem>
               <div className="h-px bg-gray-200 my-1" />
               <NavItem to="/settings" onClick={() => setOpen(false)}>Settings</NavItem>
@@ -176,12 +179,12 @@ export default function TopNav() {
       <CommandPalette
         open={pal}
         onClose={() => setPal(false)}
+        clientsPath={clientsPath}
         onNavigate={(to) => { setPal(false); if (to) navigate(to); }}
       />
     </>
   );
 }
-
 
 
 
