@@ -11,6 +11,10 @@ import supabase from "@/lib/supabaseClient";
  * - userId     = public.users.id (internal id used by orders.appraiser_id/reviewer_id/owner_id)
  *
  * We map via public.users.auth_id = authUserId.
+ * Role resolution is canonicalized as:
+ *   1) rpc_get_my_role()
+ *   2) profiles.role
+ *   3) null
  */
 function useRoleHook() {
   const { userId: authUserId } = useSession(); // auth.users.id
@@ -35,69 +39,46 @@ function useRoleHook() {
           return;
         }
 
-        // 1) Canonical mapping: public.users row by auth_id
+        // Resolve internal public.users.id, but do not trust users.role.
         const { data: urow, error: uerr } = await supabase
           .from("users")
-          .select("id, role, full_name, email, auth_id")
+          .select("id, auth_id")
           .eq("auth_id", authUserId)
           .maybeSingle();
 
-        if (!uerr && urow?.id) {
-          if (!mounted) return;
-
+        if (!uerr && urow?.id && mounted) {
           setUserId(urow.id);
-
-          const r = (urow.role || "").toLowerCase().trim();
-          if (r) {
-            setRole(r);
-          } else {
-            // fall back to RPC role if user row doesn't have role yet
-            const rr = ((await getMyRole()) || "").toLowerCase().trim();
-            setRole(rr || "appraiser");
-          }
-          setSettledAuthUserId(authUserId);
-
-          return;
         }
 
-        // 2) Legacy fallback: profiles (if it exists)
+        let resolvedRole = null;
+
+        try {
+          const rpcRole = await getMyRole();
+          const normalizedRpcRole = String(rpcRole || "").toLowerCase().trim();
+          if (normalizedRpcRole) resolvedRole = normalizedRpcRole;
+        } catch {
+          // Fall through to profiles.role when RPC is unavailable or errors.
+        }
+
         const { data: profile, error: profileErr } = await supabase
           .from("profiles")
-          .select("id, role, auth_id")
+          .select("role")
           .eq("auth_id", authUserId)
           .maybeSingle();
 
-        if (!profileErr && profile?.id) {
-          if (!mounted) return;
-
-          // profiles.id might NOT equal public.users.id in your schema.
-          // If we get here, still try to map into public.users by auth_id.
-          const { data: u2 } = await supabase
-            .from("users")
-            .select("id, role")
-            .eq("auth_id", authUserId)
-            .maybeSingle();
-
-          setUserId(u2?.id ?? null);
-
-          const r = (profile.role || "").toLowerCase().trim();
-          if (r) setRole(r);
-          else setRole(((await getMyRole()) || "").toLowerCase().trim() || "appraiser");
-          setSettledAuthUserId(authUserId);
-          return;
+        if (!resolvedRole && !profileErr) {
+          const normalizedProfileRole = String(profile?.role || "").toLowerCase().trim();
+          if (normalizedProfileRole) resolvedRole = normalizedProfileRole;
         }
 
-        // 3) Final fallback: RPC role + no internal mapping
-        const r = ((await getMyRole()) || "").toLowerCase().trim();
         if (mounted) {
-          setRole(r || "appraiser");
-          setUserId(null);
+          setRole(resolvedRole || null);
           setSettledAuthUserId(authUserId);
         }
       } catch (e) {
-        console.warn("[useRole] failed to resolve role; defaulting to appraiser", e);
+        console.warn("[useRole] failed to resolve role", e);
         if (mounted) {
-          setRole("appraiser");
+          setRole(null);
           setUserId(null);
           setSettledAuthUserId(authUserId);
         }
