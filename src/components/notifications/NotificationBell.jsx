@@ -15,6 +15,13 @@ export default function NotificationBell() {
 
   const channelName = useMemo(() => (userId ? `notif:${userId}` : null), [userId]);
 
+  const formatTimestamp = (value) => {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleString();
+  };
+
   const loadNotifications = async () => {
     if (!userId) return;
     setLoading(true);
@@ -58,15 +65,13 @@ export default function NotificationBell() {
       console.error("markAllRead error", error);
       return;
     }
-    setItems((prev) => prev.map((n) => ({ ...n, read_at: n.read_at || new Date().toISOString() })));
-    setUnreadCount(0);
+    await loadNotifications();
   };
 
   const handleOpenChange = async (nextOpen) => {
     setOpen(nextOpen);
     if (nextOpen) {
       await loadNotifications();
-      await markAllRead();
     }
   };
 
@@ -107,9 +112,14 @@ export default function NotificationBell() {
         <div className="absolute right-0 mt-2 w-[360px] max-h-[60vh] overflow-auto bg-white border rounded-xl shadow-lg p-2">
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-semibold">Notification Center</h3>
-            <button className="text-sm underline" onClick={loadNotifications}>
-              Refresh
-            </button>
+            <div className="flex items-center gap-3">
+              <button className="text-sm underline" onClick={markAllRead}>
+                Mark all as read
+              </button>
+              <button className="text-sm underline" onClick={loadNotifications}>
+                Refresh
+              </button>
+            </div>
           </div>
           <div className="max-h-80 overflow-y-auto">
             {loading && (
@@ -138,6 +148,11 @@ export default function NotificationBell() {
                       {n.body}
                     </div>
                   )}
+                  {n.created_at && (
+                    <div className="text-[11px] text-muted-foreground mt-1">
+                      {formatTimestamp(n.created_at)}
+                    </div>
+                  )}
                 </button>
               ))}
           </div>
@@ -146,7 +161,6 @@ export default function NotificationBell() {
     </div>
   );
 }
-
 
 
 
