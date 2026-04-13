@@ -54,8 +54,8 @@ export default function ClientsIndex() {
                 fee_amount,
                 base_fee,
                 appraiser_fee,
-                created_at,
-                last_activity_at
+                updated_at,
+                created_at
               `
             )
             .not("client_id", "is", null);
@@ -80,7 +80,7 @@ export default function ClientsIndex() {
               .find((v) => Number.isFinite(v));
 
             const candidateDate =
-              row?.last_activity_at ||
+              row?.updated_at ||
               row?.created_at ||
               null;
 
@@ -351,8 +351,6 @@ export default function ClientsIndex() {
     </div>
   );
 }
-
-
 
 
 
