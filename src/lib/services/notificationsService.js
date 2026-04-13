@@ -6,8 +6,8 @@ export async function fetchAdminRecipients() {
   try {
     // Prefer public.users when it has role/status; fall back to profiles.
     const tables = [
-      { name: "users", fields: "id, role, status" },
-      { name: "profiles", fields: "id, role, status" },
+      { name: "users", fields: "id, auth_id, role, status" },
+      { name: "profiles", fields: "id, auth_id, role, status" },
     ];
 
     for (const tbl of tables) {
@@ -20,7 +20,8 @@ export async function fetchAdminRecipients() {
         if (data && data.length) {
           return (data || [])
             .filter((u) => !u.status || u.status.toLowerCase() === "active")
-            .map((u) => ({ userId: u.id, role: "admin" }));
+            .map((u) => ({ userId: u.auth_id || u.id, role: "admin" }))
+            .filter((u) => !!u.userId);
         }
       } catch (innerErr) {
         if (debug) console.debug(`[fetchAdminRecipients] ${tbl.name} fallback`, innerErr?.message || innerErr);
@@ -31,6 +32,38 @@ export async function fetchAdminRecipients() {
     if (debug) console.debug("[fetchAdminRecipients] failed", err?.message || err);
   }
   return [];
+}
+
+async function resolveRecipientAuthId(userId) {
+  if (!userId) return null;
+
+  try {
+    const { data: userRow, error: userErr } = await supabase
+      .from("users")
+      .select("id, auth_id")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (!userErr && userRow?.auth_id) return userRow.auth_id;
+  } catch (err) {
+    if (debug) console.debug("[resolveRecipientAuthId] users lookup failed", err?.message || err);
+  }
+
+  try {
+    const { data: profileRow, error: profileErr } = await supabase
+      .from("profiles")
+      .select("id, auth_id")
+      .or(`id.eq.${userId},auth_id.eq.${userId}`)
+      .maybeSingle();
+
+    if (!profileErr && (profileRow?.auth_id || profileRow?.id)) {
+      return profileRow.auth_id || profileRow.id;
+    }
+  } catch (err) {
+    if (debug) console.debug("[resolveRecipientAuthId] profiles lookup failed", err?.message || err);
+  }
+
+  return null;
 }
 
 /**
@@ -57,10 +90,15 @@ export async function emitNotification(eventKey, { recipients, order, payload = 
     const priority = rules.priority || "normal";
 
     const inserts = [];
+    const seenRecipientIds = new Set();
 
     for (const recipient of recipients) {
       const { userId, role } = recipient;
       if (!userId || !role) continue;
+
+      const authUserId = await resolveRecipientAuthId(userId);
+      if (!authUserId) continue;
+      if (seenRecipientIds.has(authUserId)) continue;
 
       const roleRules = rules.roles?.[role];
       if (!roleRules) continue;
@@ -76,8 +114,9 @@ export async function emitNotification(eventKey, { recipients, order, payload = 
       const title = buildNotificationTitle(eventKey, orderNumber);
       const body = buildNotificationBody(eventKey, order, payload);
 
+      seenRecipientIds.add(authUserId);
       inserts.push({
-        user_id: userId,
+        user_id: authUserId,
         type: eventKey,
         category,
         priority,
