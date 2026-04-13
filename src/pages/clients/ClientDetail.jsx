@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 import supabase from "@/lib/supabaseClient";
 import ClientForm from "@/components/clients/ClientForm";
 import { updateClient } from "@/lib/services/clientsService";
+import { useRole } from "@/lib/hooks/useRole";
 
 /* ============================== helpers ============================== */
 
@@ -47,6 +48,7 @@ export default function ClientDetail() {
   const params = useParams();
   const clientIdParam = params.clientId || params.id || null;
   const nav = useNavigate();
+  const { isAdmin, isReviewer, userId: publicUserId, loading: roleLoading } = useRole() || {};
 
   const numericId = Number(clientIdParam);
   const [loading, setLoading] = useState(true);
@@ -60,6 +62,8 @@ export default function ClientDetail() {
   const [editing, setEditing] = useState(false);
 
   useEffect(() => {
+    if (roleLoading) return;
+
     if (!clientIdParam || Number.isNaN(numericId) || !Number.isFinite(numericId)) {
       setErr("Invalid client id");
       setLoading(false);
@@ -86,12 +90,19 @@ export default function ClientDetail() {
           .eq("client_id", numericId)
           .maybeSingle();
 
-        const ordersPromise = supabase
+        let ordersQuery = supabase
           .from("v_orders_frontend_v4")
           .select(
             "id, order_number, status, address, city, state, zip, fee_amount, base_fee, appraiser_fee, created_at, review_due_at, final_due_at, due_date"
           )
-          .eq("client_id", numericId)
+          .eq("client_id", numericId);
+
+        if (!isAdmin && publicUserId) {
+          if (isReviewer) ordersQuery = ordersQuery.eq("reviewer_id", publicUserId);
+          else ordersQuery = ordersQuery.eq("appraiser_id", publicUserId);
+        }
+
+        const ordersPromise = ordersQuery
           .order("created_at", { ascending: false })
           .limit(100);
 
@@ -159,17 +170,17 @@ export default function ClientDetail() {
     return () => {
       cancelled = true;
     };
-  }, [clientIdParam, numericId]);
+  }, [clientIdParam, numericId, isAdmin, isReviewer, publicUserId, roleLoading]);
 
   const stats = useMemo(() => {
     if (!orders || orders.length === 0) {
       return {
-        totalOrders: kpis?.total_orders ?? 0,
+        totalOrders: isAdmin ? (kpis?.total_orders ?? 0) : 0,
         activeOrders: 0,
         completedOrders: 0,
         totalFees: 0,
-        lastOrderDate: kpis?.last_order_date || null,
-        avgFee: kpis?.avg_total_fee ?? null,
+        lastOrderDate: isAdmin ? (kpis?.last_order_date || null) : null,
+        avgFee: isAdmin ? (kpis?.avg_total_fee ?? null) : null,
       };
     }
 
@@ -209,7 +220,7 @@ export default function ClientDetail() {
       lastOrderDate: lastDate ? new Date(lastDate).toISOString() : null,
       avgFee,
     };
-  }, [orders, kpis]);
+  }, [orders, kpis, isAdmin]);
 
   async function handleUpdateClient(patch) {
     if (!client) return;
@@ -224,7 +235,7 @@ export default function ClientDetail() {
     }
   }
 
-  if (loading) {
+  if (loading || roleLoading) {
     return (
       <div className="p-4 md:p-6">
         <div className="text-sm text-gray-600">Loading client…</div>
