@@ -54,7 +54,6 @@ export default function ClientsIndex() {
                 fee_amount,
                 base_fee,
                 appraiser_fee,
-                date_ordered,
                 created_at,
                 last_activity_at
               `
@@ -82,7 +81,6 @@ export default function ClientsIndex() {
 
             const candidateDate =
               row?.last_activity_at ||
-              row?.date_ordered ||
               row?.created_at ||
               null;
 
@@ -353,7 +351,6 @@ export default function ClientsIndex() {
     </div>
   );
 }
-
 
 
 
