@@ -136,13 +136,14 @@ export function getColumnsForRole(role, actions = {}) {
         Boolean(onSendToReview);
 
       const button = isAppraiser ? (
-        <Button
-          size="sm"
-          disabled={!canSendToReview}
-          onClick={() => onSendToReview?.(order)}
-        >
-          Send to Review
-        </Button>
+        canSendToReview ? (
+          <Button
+            size="sm"
+            onClick={() => onSendToReview?.(order)}
+          >
+            Send to Review
+          </Button>
+        ) : null
       ) : isReviewer ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
