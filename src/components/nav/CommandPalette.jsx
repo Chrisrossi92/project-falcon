@@ -3,23 +3,27 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 const ITEMS = [
   { id: "orders",    label: "Go to Orders",          hint: "g o", to: "/orders" },
   { id: "calendar",  label: "Go to Calendar",        hint: "g c", to: "/calendar" },
-  { id: "clients",   label: "Go to Clients",         hint: "g l", to: "/clients" },
   { id: "users",     label: "Go to Users",           hint: "g u", to: "/users" },
   { id: "settings",  label: "Open Settings",         hint: ",",   to: "/settings" },
   { id: "notif",     label: "Notification Settings", hint: "",    to: "/settings/notifications" },
 ];
 
-export default function CommandPalette({ open, onClose, onNavigate }) {
+export default function CommandPalette({ open, onClose, onNavigate, clientsPath = "/clients" }) {
   const [q, setQ]   = useState("");
   const [idx, setI] = useState(0);
   const inputRef    = useRef(null);
 
   // Filter first so effects can depend on it safely
   const filtered = useMemo(() => {
+    const items = [
+      ...ITEMS.slice(0, 2),
+      { id: "clients", label: "Go to Clients", hint: "g l", to: clientsPath },
+      ...ITEMS.slice(2),
+    ];
     const needle = q.trim().toLowerCase();
-    if (!needle) return ITEMS;
-    return ITEMS.filter((it) => it.label.toLowerCase().includes(needle));
-  }, [q]);
+    if (!needle) return items;
+    return items.filter((it) => it.label.toLowerCase().includes(needle));
+  }, [q, clientsPath]);
 
   // Reset & focus when opened
   useEffect(() => {
@@ -102,4 +106,3 @@ export default function CommandPalette({ open, onClose, onNavigate }) {
     </div>
   );
 }
-
