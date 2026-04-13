@@ -181,6 +181,13 @@ export async function createOrder(payload, context = {}) {
   recipients.push(...adminRecipients);
 
   if (recipients.length > 0) {
+    console.log("[createOrder][order.new_assigned] emit attempt", {
+      orderId: order?.id ?? null,
+      orderAppraiserId: order?.appraiser_id ?? null,
+      payloadAppraiserId: payload?.appraiser_id ?? null,
+      derivedAppraiserId: appraiserId,
+      recipients,
+    });
     try {
       await emitNotification("order.new_assigned", { recipients, order });
     } catch (err) {
@@ -505,7 +512,6 @@ export async function isOrderNumberAvailable(orderNo, { excludeId = null } = {})
   if (res2.error) throw res2.error;
   return (res2.count || 0) === 0;
 }
-
 
 
 

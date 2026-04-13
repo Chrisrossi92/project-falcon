@@ -73,7 +73,15 @@ async function resolveRecipientAuthId(userId) {
  */
 export async function emitNotification(eventKey, { recipients, order, payload = {} }) {
   try {
+    const isAssignedDebug = eventKey === "order.new_assigned";
     if (!recipients || recipients.length === 0) return;
+    if (isAssignedDebug) {
+      console.log("[emitNotification][order.new_assigned] start", {
+        eventKey,
+        rawRecipients: recipients,
+        orderId: order?.id ?? null,
+      });
+    }
 
     const { data: policyRow, error: policyError } = await supabase
       .from("notification_policies")
@@ -82,8 +90,20 @@ export async function emitNotification(eventKey, { recipients, order, payload = 
       .maybeSingle();
 
     if (policyError || !policyRow?.rules) {
+      if (isAssignedDebug) {
+        console.log("[emitNotification][order.new_assigned] policy lookup", {
+          foundPolicy: Boolean(policyRow?.rules),
+          policyError: policyError ?? null,
+        });
+      }
       if (debug) console.debug("[emitNotification] no policy for key", eventKey);
       return;
+    }
+    if (isAssignedDebug) {
+      console.log("[emitNotification][order.new_assigned] policy lookup", {
+        foundPolicy: true,
+        policyKeys: Object.keys(policyRow.rules || {}),
+      });
     }
 
     const rules = policyRow.rules;
@@ -98,10 +118,23 @@ export async function emitNotification(eventKey, { recipients, order, payload = 
       if (!userId || !role) continue;
 
       const authUserId = await resolveRecipientAuthId(userId);
+      if (isAssignedDebug) {
+        console.log("[emitNotification][order.new_assigned] recipient resolution", {
+          rawUserId: userId,
+          role,
+          resolvedAuthUserId: authUserId,
+        });
+      }
       if (!authUserId) continue;
       if (seenRecipientIds.has(authUserId)) continue;
 
       const roleRules = rules.roles?.[role];
+      if (isAssignedDebug) {
+        console.log("[emitNotification][order.new_assigned] role rules", {
+          role,
+          roleRules: roleRules ?? null,
+        });
+      }
       if (!roleRules) continue;
 
       // For MVP we only care about in_app.default / required
@@ -109,6 +142,14 @@ export async function emitNotification(eventKey, { recipients, order, payload = 
       const inAppRequired = !!roleRules.in_app?.required;
 
       const shouldInApp = inAppRequired || inAppDefault;
+      if (isAssignedDebug) {
+        console.log("[emitNotification][order.new_assigned] in_app decision", {
+          role,
+          inAppDefault,
+          inAppRequired,
+          shouldInApp,
+        });
+      }
       if (!shouldInApp) continue;
 
       const orderNumber = order?.order_number || order?.orderNumber || order?.id;
@@ -139,17 +180,32 @@ export async function emitNotification(eventKey, { recipients, order, payload = 
       });
     }
 
+    if (isAssignedDebug) {
+      console.log("[emitNotification][order.new_assigned] inserts prepared", {
+        insertsLength: inserts.length,
+        inserts,
+      });
+    }
     if (!inserts.length) return;
 
     await Promise.all(
       inserts.map((row) =>
         supabase.rpc("rpc_notification_create", { patch: row }).catch((err) => {
+          if (isAssignedDebug) {
+            console.error("[emitNotification][order.new_assigned] rpc_notification_create failed", {
+              patch: row,
+              error: err,
+            });
+          }
           if (debug) console.debug("[emitNotification] insert failed", err?.message || err);
           return null;
         })
       )
     );
   } catch (err) {
+    if (eventKey === "order.new_assigned") {
+      console.error("[emitNotification][order.new_assigned] failed", err);
+    }
     if (debug) console.debug("[emitNotification] failed", err?.message || err);
   }
 }
