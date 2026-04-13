@@ -180,9 +180,11 @@ export async function createOrder(payload, context = {}) {
   recipients.push(...adminRecipients);
 
   if (recipients.length > 0) {
-    emitNotification("order.new_assigned", { recipients, order }).catch(
-      (err) => console.error("order.new_assigned notification failed", err)
-    );
+    try {
+      await emitNotification("order.new_assigned", { recipients, order });
+    } catch (err) {
+      console.error("order.new_assigned notification failed", err);
+    }
   }
 
   return order;
@@ -502,7 +504,6 @@ export async function isOrderNumberAvailable(orderNo, { excludeId = null } = {})
   if (res2.error) throw res2.error;
   return (res2.count || 0) === 0;
 }
-
 
 
 
