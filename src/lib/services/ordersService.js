@@ -171,9 +171,10 @@ export async function createOrder(payload, context = {}) {
   if (!order) return null;
 
   const recipients = [];
+  const appraiserId = order?.appraiser_id ?? payload?.appraiser_id ?? null;
 
-  if (order.appraiser_id) {
-    recipients.push({ userId: order.appraiser_id, role: "appraiser" });
+  if (appraiserId) {
+    recipients.push({ userId: appraiserId, role: "appraiser" });
   }
 
   const adminRecipients = await fetchAdminRecipients();
@@ -504,7 +505,6 @@ export async function isOrderNumberAvailable(orderNo, { excludeId = null } = {})
   if (res2.error) throw res2.error;
   return (res2.count || 0) === 0;
 }
-
 
 
 
