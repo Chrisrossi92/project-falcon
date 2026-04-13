@@ -14,7 +14,7 @@ const normalizeCategory = (raw) => {
 };
 
 export default function ClientsIndex() {
-  const { isAdmin, loading: roleLoading } = useRole() || {};
+  const { isAdmin, isReviewer, userId: publicUserId, loading: roleLoading } = useRole() || {};
   const [baseRows, setBaseRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
@@ -45,7 +45,7 @@ export default function ClientsIndex() {
           metrics = kpiRows || [];
         } else {
           // 1) Non-admin path: derive cards only from visible orders
-          const { data: orderRows, error: ordersErr } = await supabase
+          let ordersQuery = supabase
             .from("v_orders_frontend_v4")
             .select(
               `
@@ -60,6 +60,13 @@ export default function ClientsIndex() {
               `
             )
             .not("client_id", "is", null);
+
+          if (publicUserId) {
+            if (isReviewer) ordersQuery = ordersQuery.eq("reviewer_id", publicUserId);
+            else ordersQuery = ordersQuery.eq("appraiser_id", publicUserId);
+          }
+
+          const { data: orderRows, error: ordersErr } = await ordersQuery;
 
           if (ordersErr) throw ordersErr;
 
@@ -175,7 +182,7 @@ export default function ClientsIndex() {
     return () => {
       cancelled = true;
     };
-  }, [isAdmin, roleLoading]);
+  }, [isAdmin, isReviewer, publicUserId, roleLoading]);
 
   const gridRows = useMemo(() => {
     let out = [...baseRows];
@@ -346,7 +353,6 @@ export default function ClientsIndex() {
     </div>
   );
 }
-
 
 
 
