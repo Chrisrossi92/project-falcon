@@ -74,9 +74,17 @@ async function resolveRecipientAuthId(userId) {
 export async function emitNotification(eventKey, { recipients, order, payload = {} }) {
   try {
     const isAssignedDebug = eventKey === "order.new_assigned";
+    const isWorkflowNoteDebug = eventKey === "note.reviewer_added" || eventKey === "note.appraiser_added";
     if (!recipients || recipients.length === 0) return;
     if (isAssignedDebug) {
       console.log("[emitNotification][order.new_assigned] start", {
+        eventKey,
+        rawRecipients: recipients,
+        orderId: order?.id ?? null,
+      });
+    }
+    if (isWorkflowNoteDebug) {
+      console.log("[emitNotification][workflow-note] start", {
         eventKey,
         rawRecipients: recipients,
         orderId: order?.id ?? null,
@@ -96,11 +104,25 @@ export async function emitNotification(eventKey, { recipients, order, payload = 
           policyError: policyError ?? null,
         });
       }
+      if (isWorkflowNoteDebug) {
+        console.log("[emitNotification][workflow-note] policy lookup", {
+          eventKey,
+          foundPolicy: Boolean(policyRow?.rules),
+          policyError: policyError ?? null,
+        });
+      }
       if (debug) console.debug("[emitNotification] no policy for key", eventKey);
       return;
     }
     if (isAssignedDebug) {
       console.log("[emitNotification][order.new_assigned] policy lookup", {
+        foundPolicy: true,
+        policyKeys: Object.keys(policyRow.rules || {}),
+      });
+    }
+    if (isWorkflowNoteDebug) {
+      console.log("[emitNotification][workflow-note] policy lookup", {
+        eventKey,
         foundPolicy: true,
         policyKeys: Object.keys(policyRow.rules || {}),
       });
@@ -129,12 +151,27 @@ export async function emitNotification(eventKey, { recipients, order, payload = 
           resolvedAuthUserId: authUserId,
         });
       }
+      if (isWorkflowNoteDebug) {
+        console.log("[emitNotification][workflow-note] recipient resolution", {
+          eventKey,
+          rawUserId: userId,
+          role,
+          resolvedAuthUserId: authUserId,
+        });
+      }
       if (!authUserId) continue;
       if (seenRecipientIds.has(authUserId)) continue;
 
       const roleRules = rules.roles?.[role];
       if (isAssignedDebug) {
         console.log("[emitNotification][order.new_assigned] role rules", {
+          role,
+          roleRules: roleRules ?? null,
+        });
+      }
+      if (isWorkflowNoteDebug) {
+        console.log("[emitNotification][workflow-note] role rules", {
+          eventKey,
           role,
           roleRules: roleRules ?? null,
         });
@@ -148,6 +185,15 @@ export async function emitNotification(eventKey, { recipients, order, payload = 
       const shouldInApp = inAppRequired || inAppDefault;
       if (isAssignedDebug) {
         console.log("[emitNotification][order.new_assigned] in_app decision", {
+          role,
+          inAppDefault,
+          inAppRequired,
+          shouldInApp,
+        });
+      }
+      if (isWorkflowNoteDebug) {
+        console.log("[emitNotification][workflow-note] in_app decision", {
+          eventKey,
           role,
           inAppDefault,
           inAppRequired,
@@ -190,6 +236,12 @@ export async function emitNotification(eventKey, { recipients, order, payload = 
         inserts,
       });
     }
+    if (isWorkflowNoteDebug) {
+      console.log("[emitNotification][workflow-note] inserts prepared", {
+        eventKey,
+        insertsLength: inserts.length,
+      });
+    }
     if (!inserts.length) return;
 
     await Promise.all(
@@ -197,6 +249,13 @@ export async function emitNotification(eventKey, { recipients, order, payload = 
         supabase.rpc("rpc_notification_create", { patch: row }).catch((err) => {
           if (isAssignedDebug) {
             console.error("[emitNotification][order.new_assigned] rpc_notification_create failed", {
+              patch: row,
+              error: err,
+            });
+          }
+          if (isWorkflowNoteDebug) {
+            console.error("[emitNotification][workflow-note] rpc_notification_create failed", {
+              eventKey,
               patch: row,
               error: err,
             });

@@ -133,6 +133,13 @@ export default function UnifiedOrdersTable({
           const formattedNote = `Resubmission note:\n${noteText.trim()}`;
           await logNote(orderPk, formattedNote);
           if (order?.reviewer_id) {
+            console.log("[workflow-note] emit note.appraiser_added", {
+              eventKey: "note.appraiser_added",
+              orderId: order?.id ?? null,
+              appraiserId: order?.appraiser_id ?? null,
+              reviewerId: order?.reviewer_id ?? null,
+              recipient: { userId: order.reviewer_id, role: "reviewer" },
+            });
             await emitNotification("note.appraiser_added", {
               recipients: [{ userId: order.reviewer_id, role: "reviewer" }],
               order,
@@ -172,6 +179,13 @@ export default function UnifiedOrdersTable({
           const formattedNote = `Revision note:\n${noteText.trim()}`;
           await logNote(orderPk, formattedNote);
           if (order?.appraiser_id) {
+            console.log("[workflow-note] emit note.reviewer_added", {
+              eventKey: "note.reviewer_added",
+              orderId: order?.id ?? null,
+              appraiserId: order?.appraiser_id ?? null,
+              reviewerId: order?.reviewer_id ?? null,
+              recipient: { userId: order.appraiser_id, role: "appraiser" },
+            });
             await emitNotification("note.reviewer_added", {
               recipients: [{ userId: order.appraiser_id, role: "appraiser" }],
               order,
