@@ -11,6 +11,8 @@ import OrderOpenFullLink from "@/components/orders/drawer/OrderOpenFullLink";
 import ReviewerActionCell from "@/components/orders/table/ReviewerActionCell";
 import { updateOrderStatus } from "@/lib/api/orders";
 import { sendOrderToReview, sendOrderBackToAppraiser, completeOrder, markReadyForClient } from "@/lib/services/ordersService";
+import { logNote } from "@/lib/services/activityService";
+import WorkflowNoteModal from "@/components/orders/WorkflowNoteModal";
 
 import useColumnsConfig from "@/features/orders/columns/useColumnsConfig";
 import { useToast } from "@/lib/hooks/useToast";
@@ -86,6 +88,8 @@ export default function UnifiedOrdersTable({
   }, [seed, isAppraiser, internalUserId]);
 
   const [refreshTick, setRefreshTick] = useState(0);
+  const [workflowModal, setWorkflowModal] = useState(null);
+  const [workflowBusy, setWorkflowBusy] = useState(false);
 
   const {
     data = [],
@@ -110,8 +114,13 @@ export default function UnifiedOrdersTable({
   const refresh = useCallback(() => setRefreshTick((x) => x + 1), []);
   const go = (p) => setTableFilters((f) => ({ ...f, page: Math.min(Math.max(0, p), totalPages - 1) }));
 
+  const closeWorkflowModal = useCallback(() => {
+    if (workflowBusy) return;
+    setWorkflowModal(null);
+  }, [workflowBusy]);
+
   const handleSendToReview = useCallback(
-    async (order) => {
+    async (order, noteText = "") => {
       const orderPk = orderPkOf(order);
       if (!orderPk) {
         toast({ title: "Error", description: "Missing order id.", tone: "error" });
@@ -119,6 +128,9 @@ export default function UnifiedOrdersTable({
       }
 
       try {
+        if (noteText.trim()) {
+          await logNote(orderPk, `Resubmission note:\n${noteText.trim()}`);
+        }
         await sendOrderToReview(orderPk, sessionUser?.id); // ✅ correct signature
         refresh();
         toast({
@@ -139,7 +151,7 @@ export default function UnifiedOrdersTable({
   );
 
   const handleSendBackToAppraiser = useCallback(
-    async (order) => {
+    async (order, noteText = "") => {
       const orderPk = orderPkOf(order);
       if (!orderPk) {
         toast({ title: "Error", description: "Missing order id.", tone: "error" });
@@ -147,6 +159,9 @@ export default function UnifiedOrdersTable({
       }
 
       try {
+        if (noteText.trim()) {
+          await logNote(orderPk, `Revision note:\n${noteText.trim()}`);
+        }
         await sendOrderBackToAppraiser(orderPk, sessionUser?.id);
         refresh();
         toast({
@@ -164,6 +179,29 @@ export default function UnifiedOrdersTable({
       }
     },
     [sessionUser?.id, refresh, toast]
+  );
+
+  const openWorkflowModal = useCallback((action, order) => {
+    setWorkflowModal({ action, order });
+  }, []);
+
+  const confirmWorkflowModal = useCallback(
+    async (noteText) => {
+      if (!workflowModal?.order) return;
+
+      setWorkflowBusy(true);
+      try {
+        if (workflowModal.action === "send_back_to_appraiser") {
+          await handleSendBackToAppraiser(workflowModal.order, noteText);
+        } else if (workflowModal.action === "send_to_review") {
+          await handleSendToReview(workflowModal.order, noteText);
+        }
+        setWorkflowModal(null);
+      } finally {
+        setWorkflowBusy(false);
+      }
+    },
+    [workflowModal, handleSendBackToAppraiser, handleSendToReview]
   );
 
   const handleCompleteOrder = useCallback(
@@ -224,12 +262,12 @@ export default function UnifiedOrdersTable({
 
   const columnActions = useMemo(
     () => ({
-      onSendToReview: handleSendToReview,
-      onSendBackToAppraiser: handleSendBackToAppraiser,
+      onSendToReview: (order) => openWorkflowModal("send_to_review", order),
+      onSendBackToAppraiser: (order) => openWorkflowModal("send_back_to_appraiser", order),
       onComplete: handleCompleteOrder,
       onReadyForClient: handleReadyForClient,
     }),
-    [handleSendToReview, handleSendBackToAppraiser, handleCompleteOrder, handleReadyForClient]
+    [openWorkflowModal, handleCompleteOrder, handleReadyForClient]
   );
 
   const columns = useColumnsConfig(normalizedRole, columnActions);
@@ -239,7 +277,8 @@ export default function UnifiedOrdersTable({
   const stickyCell = "bg-white sticky left-0 z-10 pr-4 border-slate-200";
 
   return (
-    <div className={`bg-white border rounded-xl overflow-x-auto ${className}`} style={style}>
+    <>
+      <div className={`bg-white border rounded-xl overflow-x-auto ${className}`} style={style}>
       {error && (
         <div className="px-3 py-2 text-sm text-rose-700 bg-rose-50 border-b">
           Failed to load orders: {error.message}
@@ -336,6 +375,21 @@ export default function UnifiedOrdersTable({
         </div>
         <OrdersTablePagination currentPage={tableFilters.page + 1} totalPages={totalPages} goToPage={(p) => go(p - 1)} />
       </div>
-    </div>
+      </div>
+
+      <WorkflowNoteModal
+        open={Boolean(workflowModal)}
+        busy={workflowBusy}
+        title={workflowModal?.action === "send_back_to_appraiser" ? "Send Back to Appraiser" : "Send to Review"}
+        description={
+          workflowModal?.action === "send_back_to_appraiser"
+            ? "Add an optional revision note before sending the order back."
+            : "Add an optional resubmission note before sending the order to review."
+        }
+        confirmLabel={workflowModal?.action === "send_back_to_appraiser" ? "Send Back" : "Send to Review"}
+        onCancel={closeWorkflowModal}
+        onConfirm={confirmWorkflowModal}
+      />
+    </>
   );
 }
