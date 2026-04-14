@@ -12,6 +12,7 @@ import ReviewerActionCell from "@/components/orders/table/ReviewerActionCell";
 import { updateOrderStatus } from "@/lib/api/orders";
 import { sendOrderToReview, sendOrderBackToAppraiser, completeOrder, markReadyForClient } from "@/lib/services/ordersService";
 import { logNote } from "@/lib/services/activityService";
+import { emitNotification } from "@/lib/services/notificationsService";
 import WorkflowNoteModal from "@/components/orders/WorkflowNoteModal";
 
 import useColumnsConfig from "@/features/orders/columns/useColumnsConfig";
@@ -129,7 +130,15 @@ export default function UnifiedOrdersTable({
 
       try {
         if (noteText.trim()) {
-          await logNote(orderPk, `Resubmission note:\n${noteText.trim()}`);
+          const formattedNote = `Resubmission note:\n${noteText.trim()}`;
+          await logNote(orderPk, formattedNote);
+          if (order?.reviewer_id) {
+            await emitNotification("note.appraiser_added", {
+              recipients: [{ userId: order.reviewer_id, role: "reviewer" }],
+              order,
+              payload: { message: formattedNote },
+            });
+          }
         }
         await sendOrderToReview(orderPk, sessionUser?.id); // ✅ correct signature
         refresh();
@@ -160,7 +169,15 @@ export default function UnifiedOrdersTable({
 
       try {
         if (noteText.trim()) {
-          await logNote(orderPk, `Revision note:\n${noteText.trim()}`);
+          const formattedNote = `Revision note:\n${noteText.trim()}`;
+          await logNote(orderPk, formattedNote);
+          if (order?.appraiser_id) {
+            await emitNotification("note.reviewer_added", {
+              recipients: [{ userId: order.appraiser_id, role: "appraiser" }],
+              order,
+              payload: { message: formattedNote },
+            });
+          }
         }
         await sendOrderBackToAppraiser(orderPk, sessionUser?.id);
         refresh();
