@@ -52,7 +52,13 @@ export default function WorkflowNoteModal({
           </button>
           <button
             type="button"
-            onClick={() => onConfirm?.(note)}
+            onClick={() => {
+              console.log("WORKFLOW NOTE MODAL CONFIRM CLICK", {
+                noteTextPresent: Boolean(note?.trim?.()),
+                noteLength: typeof note === "string" ? note.length : 0,
+              });
+              onConfirm?.(note);
+            }}
             className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
             disabled={busy}
           >

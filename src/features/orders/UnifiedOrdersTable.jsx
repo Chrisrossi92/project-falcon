@@ -122,6 +122,11 @@ export default function UnifiedOrdersTable({
 
   const handleSendToReview = useCallback(
     async (order, noteText = "") => {
+      console.log("WORKFLOW NOTE PARENT HANDLER START", {
+        action: "send_to_review",
+        orderId: order?.id ?? null,
+        noteTextPresent: Boolean(noteText.trim()),
+      });
       const orderPk = orderPkOf(order);
       if (!orderPk) {
         toast({ title: "Error", description: "Missing order id.", tone: "error" });
@@ -131,22 +136,46 @@ export default function UnifiedOrdersTable({
       try {
         if (noteText.trim()) {
           const formattedNote = `Resubmission note:\n${noteText.trim()}`;
+          console.log("WORKFLOW NOTE BEFORE LOG NOTE", {
+            action: "send_to_review",
+            orderId: order?.id ?? null,
+            noteTextPresent: true,
+          });
           await logNote(orderPk, formattedNote);
           if (order?.reviewer_id) {
-            console.log("[workflow-note] emit note.appraiser_added", {
-              eventKey: "note.appraiser_added",
-              orderId: order?.id ?? null,
-              appraiserId: order?.appraiser_id ?? null,
-              reviewerId: order?.reviewer_id ?? null,
-              recipient: { userId: order.reviewer_id, role: "reviewer" },
-            });
-            await emitNotification("note.appraiser_added", {
-              recipients: [{ userId: order.reviewer_id, role: "reviewer" }],
-              order,
-              payload: { message: formattedNote },
-            });
+            const recipient = { userId: order.reviewer_id, role: "reviewer" };
+            try {
+              console.log("WORKFLOW NOTE EMIT START", {
+                eventKey: "note.appraiser_added",
+                orderId: order?.id ?? null,
+                noteTextPresent: Boolean(noteText.trim()),
+                recipient,
+              });
+              await emitNotification("note.appraiser_added", {
+                recipients: [recipient],
+                order,
+                payload: { message: formattedNote },
+              });
+              console.log("WORKFLOW NOTE EMIT SUCCESS", {
+                eventKey: "note.appraiser_added",
+                orderId: order?.id ?? null,
+                recipient,
+              });
+            } catch (emitErr) {
+              console.error("WORKFLOW NOTE EMIT ERROR", {
+                eventKey: "note.appraiser_added",
+                orderId: order?.id ?? null,
+                noteTextPresent: Boolean(noteText.trim()),
+                recipient,
+                error: emitErr,
+              });
+            }
           }
         }
+        console.log("WORKFLOW NOTE BEFORE STATUS TRANSITION", {
+          action: "send_to_review",
+          orderId: order?.id ?? null,
+        });
         await sendOrderToReview(orderPk, sessionUser?.id); // ✅ correct signature
         refresh();
         toast({
@@ -168,6 +197,11 @@ export default function UnifiedOrdersTable({
 
   const handleSendBackToAppraiser = useCallback(
     async (order, noteText = "") => {
+      console.log("WORKFLOW NOTE PARENT HANDLER START", {
+        action: "send_back_to_appraiser",
+        orderId: order?.id ?? null,
+        noteTextPresent: Boolean(noteText.trim()),
+      });
       const orderPk = orderPkOf(order);
       if (!orderPk) {
         toast({ title: "Error", description: "Missing order id.", tone: "error" });
@@ -177,22 +211,46 @@ export default function UnifiedOrdersTable({
       try {
         if (noteText.trim()) {
           const formattedNote = `Revision note:\n${noteText.trim()}`;
+          console.log("WORKFLOW NOTE BEFORE LOG NOTE", {
+            action: "send_back_to_appraiser",
+            orderId: order?.id ?? null,
+            noteTextPresent: true,
+          });
           await logNote(orderPk, formattedNote);
           if (order?.appraiser_id) {
-            console.log("[workflow-note] emit note.reviewer_added", {
-              eventKey: "note.reviewer_added",
-              orderId: order?.id ?? null,
-              appraiserId: order?.appraiser_id ?? null,
-              reviewerId: order?.reviewer_id ?? null,
-              recipient: { userId: order.appraiser_id, role: "appraiser" },
-            });
-            await emitNotification("note.reviewer_added", {
-              recipients: [{ userId: order.appraiser_id, role: "appraiser" }],
-              order,
-              payload: { message: formattedNote },
-            });
+            const recipient = { userId: order.appraiser_id, role: "appraiser" };
+            try {
+              console.log("WORKFLOW NOTE EMIT START", {
+                eventKey: "note.reviewer_added",
+                orderId: order?.id ?? null,
+                noteTextPresent: Boolean(noteText.trim()),
+                recipient,
+              });
+              await emitNotification("note.reviewer_added", {
+                recipients: [recipient],
+                order,
+                payload: { message: formattedNote },
+              });
+              console.log("WORKFLOW NOTE EMIT SUCCESS", {
+                eventKey: "note.reviewer_added",
+                orderId: order?.id ?? null,
+                recipient,
+              });
+            } catch (emitErr) {
+              console.error("WORKFLOW NOTE EMIT ERROR", {
+                eventKey: "note.reviewer_added",
+                orderId: order?.id ?? null,
+                noteTextPresent: Boolean(noteText.trim()),
+                recipient,
+                error: emitErr,
+              });
+            }
           }
         }
+        console.log("WORKFLOW NOTE BEFORE STATUS TRANSITION", {
+          action: "send_back_to_appraiser",
+          orderId: order?.id ?? null,
+        });
         await sendOrderBackToAppraiser(orderPk, sessionUser?.id);
         refresh();
         toast({
@@ -218,6 +276,12 @@ export default function UnifiedOrdersTable({
 
   const confirmWorkflowModal = useCallback(
     async (noteText) => {
+      console.log("WORKFLOW NOTE PARENT CONFIRM ENTRY", {
+        action: workflowModal?.action ?? null,
+        hasOrder: Boolean(workflowModal?.order),
+        orderId: workflowModal?.order?.id ?? null,
+        noteTextPresent: Boolean(noteText?.trim?.()),
+      });
       if (!workflowModal?.order) return;
 
       setWorkflowBusy(true);
