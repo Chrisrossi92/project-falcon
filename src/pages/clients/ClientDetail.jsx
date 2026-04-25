@@ -6,6 +6,8 @@ import supabase from "@/lib/supabaseClient";
 import ClientForm from "@/components/clients/ClientForm";
 import { updateClient } from "@/lib/services/clientsService";
 import { useRole } from "@/lib/hooks/useRole";
+import { useCan } from "@/lib/hooks/usePermissions";
+import { PERMISSIONS } from "@/lib/permissions/constants";
 
 /* ============================== helpers ============================== */
 
@@ -49,6 +51,9 @@ export default function ClientDetail() {
   const clientIdParam = params.clientId || params.id || null;
   const nav = useNavigate();
   const { isAdmin, isReviewer, userId: publicUserId, loading: roleLoading } = useRole() || {};
+  const canUpdateAllClientsPermission = useCan(PERMISSIONS.CLIENTS_UPDATE_ALL);
+  const canUpdateAllClients = canUpdateAllClientsPermission.allowed
+    || ((canUpdateAllClientsPermission.loading || canUpdateAllClientsPermission.error) && isAdmin);
 
   const numericId = Number(clientIdParam);
   const [loading, setLoading] = useState(true);
@@ -224,6 +229,8 @@ export default function ClientDetail() {
 
   async function handleUpdateClient(patch) {
     if (!client) return;
+    if (!canUpdateAllClients) return;
+
     try {
       const row = await updateClient(client.id, patch);
       setClient(row);
@@ -322,13 +329,15 @@ export default function ClientDetail() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setEditing((v) => !v)}
-            className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50"
-          >
-            {editing ? "Cancel" : "Edit Client"}
-          </button>
+          {canUpdateAllClients && (
+            <button
+              type="button"
+              onClick={() => setEditing((v) => !v)}
+              className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50"
+            >
+              {editing ? "Cancel" : "Edit Client"}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => nav("/clients")}
@@ -345,7 +354,7 @@ export default function ClientDetail() {
         <div className="space-y-4">
           {/* Client details / edit form */}
           <div className="rounded-xl border bg-white p-4">
-            {editing ? (
+            {editing && canUpdateAllClients ? (
               <ClientForm
                 initial={client}
                 onSubmit={handleUpdateClient}

@@ -86,7 +86,14 @@ export default function AppRoutes() {
         />
         <Route
           path="/clients/new"
-          element={<ProtectedRoute roles={["owner", "admin"]}><NewClient /></ProtectedRoute>}
+          element={
+            <ProtectedRoute
+              requiredPermission={PERMISSIONS.CLIENTS_CREATE}
+              roles={["owner", "admin"]}
+            >
+              <NewClient />
+            </ProtectedRoute>
+          }
         />
         <Route
           path="/clients/profile/:clientId"
@@ -94,7 +101,14 @@ export default function AppRoutes() {
         />
         <Route
           path="/clients/edit/:clientId"
-          element={<ProtectedRoute roles={["owner", "admin"]}><EditClient /></ProtectedRoute>}
+          element={
+            <ProtectedRoute
+              requiredPermission={PERMISSIONS.CLIENTS_UPDATE_ALL}
+              roles={["owner", "admin"]}
+            >
+              <EditClient />
+            </ProtectedRoute>
+          }
         />
 
         {/* Optional: cards + role-aware detail */}
@@ -165,7 +179,6 @@ export default function AppRoutes() {
     </Routes>
   );
 }
-
 
 
 

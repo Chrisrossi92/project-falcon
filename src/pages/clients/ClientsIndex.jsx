@@ -4,6 +4,8 @@ import { Link } from "react-router-dom";
 import supabase from "@/lib/supabaseClient";
 import ClientCard from "@/components/clients/ClientCard";
 import { useRole } from "@/lib/hooks/useRole";
+import { useCan } from "@/lib/hooks/usePermissions";
+import { PERMISSIONS } from "@/lib/permissions/constants";
 
 const normalizeCategory = (raw) => {
   const v = (raw || "").toLowerCase();
@@ -15,6 +17,9 @@ const normalizeCategory = (raw) => {
 
 export default function ClientsIndex() {
   const { isAdmin, isReviewer, userId: publicUserId, loading: roleLoading } = useRole() || {};
+  const canCreateClientsPermission = useCan(PERMISSIONS.CLIENTS_CREATE);
+  const canCreateClients = canCreateClientsPermission.allowed
+    || ((canCreateClientsPermission.loading || canCreateClientsPermission.error) && isAdmin);
   const [baseRows, setBaseRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
@@ -249,12 +254,14 @@ export default function ClientsIndex() {
             <option value="name_desc">Name (Z–A)</option>
           </select>
 
-          <Link
-            to="/clients/new"
-            className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50"
-          >
-            + New Client
-          </Link>
+          {canCreateClients && (
+            <Link
+              to="/clients/new"
+              className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50"
+            >
+              + New Client
+            </Link>
+          )}
         </div>
       </div>
 
@@ -351,6 +358,5 @@ export default function ClientsIndex() {
     </div>
   );
 }
-
 
 
