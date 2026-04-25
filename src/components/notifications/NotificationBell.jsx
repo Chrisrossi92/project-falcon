@@ -60,6 +60,8 @@ export default function NotificationBell() {
     setOpen(false);
   };
 
+  const orderLabelFor = (n) => n?.payload?.order_number || n?.order_id || null;
+
   const markAllRead = async () => {
     if (!userId || markingAllRead) return;
     setMarkingAllRead(true);
@@ -146,12 +148,11 @@ export default function NotificationBell() {
               !error &&
               unreadItems.length > 0 &&
               unreadItems.map((n) => (
-                <button
+                <div
                   key={n.id}
-                  className={`w-full text-left px-3 py-2 text-sm hover:bg-muted ${
+                  className={`w-full px-3 py-2 text-left text-sm ${
                     n.read_at ? "opacity-60" : ""
                   }`}
-                  onClick={() => handleNotificationClick(n)}
                 >
                   <div className="font-medium">{n.title || n.type || "Notification"}</div>
                   {n.body && (
@@ -159,12 +160,21 @@ export default function NotificationBell() {
                       {n.body}
                     </div>
                   )}
+                  {orderLabelFor(n) && (
+                    <button
+                      type="button"
+                      className="mt-1 text-xs font-semibold text-slate-900 underline underline-offset-2 hover:text-slate-700"
+                      onClick={() => handleNotificationClick(n)}
+                    >
+                      {orderLabelFor(n)}
+                    </button>
+                  )}
                   {n.created_at && (
                     <div className="text-[11px] text-muted-foreground mt-1">
                       {formatTimestamp(n.created_at)}
                     </div>
                   )}
-                </button>
+                </div>
               ))}
           </div>
         </div>
@@ -172,7 +182,6 @@ export default function NotificationBell() {
     </div>
   );
 }
-
 
 
 
