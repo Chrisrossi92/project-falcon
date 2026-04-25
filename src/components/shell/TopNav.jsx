@@ -105,10 +105,12 @@ export default function TopNav() {
   const [pal, setPal]    = useState(false); // command palette
   const { isAdmin }      = useRole() || {};
   const canReadAllClients = useCan(PERMISSIONS.CLIENTS_READ_ALL);
+  const canReadUsers = useCan(PERMISSIONS.USERS_READ);
   const useLegacyClientsPath = canReadAllClients.loading || canReadAllClients.error;
   const clientsPath = useLegacyClientsPath
     ? (isAdmin ? "/clients" : "/clients/cards")
     : (canReadAllClients.allowed ? "/clients" : "/clients/cards");
+  const showUsersNav = canReadUsers.allowed || ((canReadUsers.loading || canReadUsers.error) && isAdmin);
 
   useEffect(() => {
     (async () => {
@@ -139,7 +141,7 @@ export default function TopNav() {
             <NavItem to="/orders">Orders</NavItem>
             <NavItem to="/calendar">Calendar</NavItem>
             <NavItem to={clientsPath}>Clients</NavItem>
-            <NavItem to="/users">Users</NavItem>
+            {showUsersNav && <NavItem to="/users">Users</NavItem>}
           </nav>
 
           {/* global search launcher */}
@@ -174,7 +176,7 @@ export default function TopNav() {
               <NavItem to="/orders"   onClick={() => setOpen(false)}>Orders</NavItem>
               <NavItem to="/calendar" onClick={() => setOpen(false)}>Calendar</NavItem>
               <NavItem to={clientsPath} onClick={() => setOpen(false)}>Clients</NavItem>
-              <NavItem to="/users"    onClick={() => setOpen(false)}>Users</NavItem>
+              {showUsersNav && <NavItem to="/users" onClick={() => setOpen(false)}>Users</NavItem>}
               <div className="h-px bg-gray-200 my-1" />
               <NavItem to="/settings" onClick={() => setOpen(false)}>Settings</NavItem>
             </nav>
@@ -191,7 +193,6 @@ export default function TopNav() {
     </>
   );
 }
-
 
 
 

@@ -1,10 +1,17 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSession } from '@/lib/hooks/useSession';
+import { useCan } from '@/lib/hooks/usePermissions';
+import { PERMISSIONS } from '@/lib/permissions/constants';
 
 export default function UserCard({ user }) {
   const navigate = useNavigate();
   const { user: sessionUser } = useSession();
+  const {
+    allowed: canUpdateUsers,
+    loading: permissionsLoading,
+    error: permissionsError,
+  } = useCan(PERMISSIONS.USERS_UPDATE);
 
   const {
     id,
@@ -30,9 +37,10 @@ export default function UserCard({ user }) {
 
   const isSelf = sessionUser?.id === id;
   const isAdmin = sessionUser?.role === 'admin';
+  const canEditUser = canUpdateUsers || ((permissionsLoading || permissionsError) && isAdmin);
 
   const handleClick = () => {
-    if (isAdmin) {
+    if (canEditUser) {
       navigate(`/users/${id}`);
     } else if (isSelf) {
       navigate(`/profile/edit`);
@@ -62,12 +70,11 @@ export default function UserCard({ user }) {
           onClick={handleClick}
           className="bg-blue-600 text-white px-4 py-1 rounded hover:bg-blue-700 text-sm"
         >
-          {isAdmin ? 'Edit Details' : isSelf ? 'Edit My Profile' : 'View Profile'}
+          {canEditUser ? 'Edit Details' : isSelf ? 'Edit My Profile' : 'View Profile'}
         </button>
       </div>
     </div>
   );
 }
-
 
 
