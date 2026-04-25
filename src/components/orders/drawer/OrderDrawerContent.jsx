@@ -17,6 +17,7 @@ async function fetchViewRow(orderId) {
         status,
         client_name,
         appraiser_name,
+        reviewer_name,
         client_id,
         appraiser_id,
         address,
@@ -251,7 +252,6 @@ export default function OrderDrawerContent({ orderId, order: rowFromTable }) {
     </div>
   );
 }
-
 
 
 

@@ -55,7 +55,7 @@ export default function ActivityNoteForm({ orderId, order = null, onSaved }) {
       return;
     }
 
-    const orderNumber = order?.order_number || order?.order_no || order?.id || orderId || null;
+    const orderNumber = order?.order_number || order?.order_no || null;
     const actorName = participantName(actorRoleOnOrder);
     const recipientName = participantName(recipientRoleOnOrder);
     const kindLabel =

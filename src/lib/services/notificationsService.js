@@ -208,8 +208,14 @@ export async function emitNotification(eventKey, { recipients, order, payload = 
       }
       if (!shouldInApp) continue;
 
-      const orderNumber = order?.order_number || order?.orderNumber || order?.id;
-      const title = buildNotificationTitle(eventKey, orderNumber);
+      const isNoteEvent = eventKey === "note.appraiser_added" || eventKey === "note.reviewer_added";
+      const orderNumber =
+        order?.order_number ||
+        order?.orderNumber ||
+        order?.order_no ||
+        payload?.order_number ||
+        (isNoteEvent ? null : order?.id);
+      const title = buildNotificationTitle(eventKey, orderNumber, payload);
       const body = buildNotificationBody(eventKey, order, payload);
 
       seenRecipientIds.add(recipientUserId);
@@ -308,7 +314,7 @@ export async function markRead(id) {
   }
 }
 
-function buildNotificationTitle(eventKey, orderNumber) {
+function buildNotificationTitle(eventKey, orderNumber, payload = {}) {
   const num = orderNumber || "order";
   switch (eventKey) {
     case "order.new_assigned":
@@ -319,6 +325,9 @@ function buildNotificationTitle(eventKey, orderNumber) {
       return `Revisions requested: ${num}`;
     case "order.completed":
       return `Order ${num} completed`;
+    case "note.appraiser_added":
+    case "note.reviewer_added":
+      return `${payload?.actor?.name || "Someone"} added a note`;
     default:
       return `Order ${num} updated`;
   }
@@ -336,6 +345,9 @@ function buildNotificationBody(eventKey, order, payload) {
       return `Reviewer requested changes to this report.`;
     case "order.completed":
       return `Report for ${client} was marked complete.`;
+    case "note.appraiser_added":
+    case "note.reviewer_added":
+      return payload?.note_text || payload?.message || "";
     default:
       return payload?.message || "";
   }

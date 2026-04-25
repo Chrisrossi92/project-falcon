@@ -60,7 +60,26 @@ export default function NotificationBell() {
     setOpen(false);
   };
 
-  const orderLabelFor = (n) => n?.payload?.order_number || n?.order_id || null;
+  const isUuid = (value) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(value || ""));
+
+  const shortOrderId = (value) => {
+    const raw = String(value || "");
+    return raw ? raw.slice(0, 8) : null;
+  };
+
+  const orderLabelFor = (n) => {
+    const orderNumber = n?.payload?.order_number || n?.order_number || null;
+    if (orderNumber && !isUuid(orderNumber)) return orderNumber;
+    return shortOrderId(n?.order_id);
+  };
+
+  const titleFor = (n) => {
+    if ((n?.type === "note.appraiser_added" || n?.type === "note.reviewer_added") && n?.payload?.actor?.name) {
+      return `${n.payload.actor.name} added a note`;
+    }
+    return n?.title || n?.type || "Notification";
+  };
 
   const markAllRead = async () => {
     if (!userId || markingAllRead) return;
@@ -154,7 +173,7 @@ export default function NotificationBell() {
                     n.read_at ? "opacity-60" : ""
                   }`}
                 >
-                  <div className="font-medium">{n.title || n.type || "Notification"}</div>
+                  <div className="font-medium">{titleFor(n)}</div>
                   {n.body && (
                     <div className="text-xs text-muted-foreground mt-0.5">
                       {n.body}
@@ -182,6 +201,5 @@ export default function NotificationBell() {
     </div>
   );
 }
-
 
 
