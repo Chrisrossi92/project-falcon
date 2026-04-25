@@ -1,29 +1,43 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useEffectivePermissions } from "@/lib/hooks/usePermissions";
+import { PERMISSIONS } from "@/lib/permissions/constants";
 
 const ITEMS = [
-  { id: "orders",    label: "Go to Orders",          hint: "g o", to: "/orders" },
+  { id: "orders",    label: "Go to Orders",          hint: "g o", to: "/orders", permission: PERMISSIONS.NAVIGATION_ORDERS_VIEW },
   { id: "calendar",  label: "Go to Calendar",        hint: "g c", to: "/calendar" },
-  { id: "users",     label: "Go to Users",           hint: "g u", to: "/users" },
-  { id: "settings",  label: "Open Settings",         hint: ",",   to: "/settings" },
-  { id: "notif",     label: "Notification Settings", hint: "",    to: "/settings/notifications" },
+  { id: "users",     label: "Go to Users",           hint: "g u", to: "/users", permissionAny: [PERMISSIONS.USERS_READ, PERMISSIONS.NAVIGATION_USERS_VIEW] },
+  { id: "settings",  label: "Open Settings",         hint: ",",   to: "/settings", permissionAny: [PERMISSIONS.SETTINGS_VIEW, PERMISSIONS.NAVIGATION_SETTINGS_VIEW] },
+  { id: "notif",     label: "Notification Settings", hint: "",    to: "/settings/notifications", permission: PERMISSIONS.NOTIFICATIONS_PREFERENCES_MANAGE_OWN },
 ];
 
 export default function CommandPalette({ open, onClose, onNavigate, clientsPath = "/clients" }) {
   const [q, setQ]   = useState("");
   const [idx, setI] = useState(0);
   const inputRef    = useRef(null);
+  const { loading, error, hasPermission, hasAnyPermission } = useEffectivePermissions();
+  const useLegacyItems = loading || error;
 
   // Filter first so effects can depend on it safely
   const filtered = useMemo(() => {
-    const items = [
+    const allItems = [
       ...ITEMS.slice(0, 2),
-      { id: "clients", label: "Go to Clients", hint: "g l", to: clientsPath },
+      { id: "clients", label: "Go to Clients", hint: "g l", to: clientsPath, permission: PERMISSIONS.NAVIGATION_CLIENTS_VIEW },
       ...ITEMS.slice(2),
     ];
+    const items = useLegacyItems
+      ? allItems
+      : allItems.filter((it) => {
+          if (it.permission) return hasPermission(it.permission);
+          if (it.permissionAny) return hasAnyPermission(it.permissionAny);
+          return true;
+        });
     const needle = q.trim().toLowerCase();
     if (!needle) return items;
     return items.filter((it) => it.label.toLowerCase().includes(needle));
-  }, [q, clientsPath]);
+  }, [q, clientsPath, hasAnyPermission, hasPermission, useLegacyItems]);
+
+  const canSearchOrders =
+    useLegacyItems || hasPermission(PERMISSIONS.NAVIGATION_ORDERS_VIEW);
 
   // Reset & focus when opened
   useEffect(() => {
@@ -54,7 +68,7 @@ export default function CommandPalette({ open, onClose, onNavigate, clientsPath 
         const item = filtered[idx];
         if (item) {
           onNavigate?.(item.to);
-        } else if (q.trim()) {
+        } else if (q.trim() && canSearchOrders) {
           onNavigate?.(`/orders?q=${encodeURIComponent(q.trim())}`);
         } else {
           onClose?.();
@@ -63,7 +77,7 @@ export default function CommandPalette({ open, onClose, onNavigate, clientsPath 
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, idx, q, filtered, onNavigate, onClose]);
+  }, [open, idx, q, filtered, canSearchOrders, onNavigate, onClose]);
 
   if (!open) return null;
 
@@ -96,9 +110,14 @@ export default function CommandPalette({ open, onClose, onNavigate, clientsPath 
               )}
             </li>
           ))}
-          {filtered.length === 0 && (
+          {filtered.length === 0 && canSearchOrders && (
             <li className="px-3 py-3 text-sm text-gray-500">
               Press Enter to search Orders for “{q}”
+            </li>
+          )}
+          {filtered.length === 0 && !canSearchOrders && (
+            <li className="px-3 py-3 text-sm text-gray-500">
+              No available commands match “{q}”
             </li>
           )}
         </ul>
