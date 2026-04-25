@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { logNote } from "@/lib/services/activityService";
 import { emitNotification } from "@/lib/services/notificationsService";
 import useRole from "@/lib/hooks/useRole";
+import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
 import { resolveOrderParticipants } from "@/lib/orders/resolveOrderParticipants";
 
 export default function ActivityNoteForm({ orderId, order = null, onSaved }) {
@@ -10,10 +11,27 @@ export default function ActivityNoteForm({ orderId, order = null, onSaved }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const { role, userId } = useRole() || {};
+  const { user: currentUser } = useCurrentUser();
 
-  function participantName(roleName) {
+  function currentUserDisplayName() {
+    const fields = [
+      currentUser?.display_name,
+      currentUser?.full_name,
+      currentUser?.name,
+      currentUser?.email,
+    ];
+    const normalizedGeneric = new Set(["user", "demo user"]);
+    const firstReal = fields
+      .map((value) => String(value || "").trim())
+      .find((value) => value && !normalizedGeneric.has(value.toLowerCase()));
+
+    return firstReal || "User";
+  }
+
+  function participantName(roleName, { preferCurrentUser = false } = {}) {
     if (roleName === "appraiser") return order?.appraiser_name || "Appraiser";
     if (roleName === "reviewer") return order?.reviewer_name || "Reviewer";
+    if (preferCurrentUser) return currentUserDisplayName();
     if (roleName === "owner") return "Owner";
     if (roleName === "admin") return "Admin";
     return "User";
@@ -41,7 +59,7 @@ export default function ActivityNoteForm({ orderId, order = null, onSaved }) {
     }
 
     const orderNumber = order?.order_number || order?.order_no || null;
-    const actorName = participantName(actorRoleOnOrder);
+    const actorName = participantName(actorRoleOnOrder, { preferCurrentUser: true });
     const recipientName = participantName(recipientRoleOnOrder);
     const kindLabel =
       actorRoleOnOrder === "appraiser"
