@@ -146,7 +146,14 @@ export default function AppRoutes() {
         />
         <Route
           path="/settings/notifications"
-          element={<ProtectedRoute roles={["owner", "admin", "manager", "reviewer", "appraiser"]}><NotificationSettings /></ProtectedRoute>}
+          element={
+            <ProtectedRoute
+              requiredPermission={PERMISSIONS.NOTIFICATIONS_PREFERENCES_MANAGE_OWN}
+              roles={["owner", "admin", "manager", "reviewer", "appraiser"]}
+            >
+              <NotificationSettings />
+            </ProtectedRoute>
+          }
         />
 
         {/* Default */}
@@ -158,7 +165,6 @@ export default function AppRoutes() {
     </Routes>
   );
 }
-
 
 
 
