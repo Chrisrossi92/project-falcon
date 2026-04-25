@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { logNote } from "@/lib/services/activityService";
 import { emitNotification } from "@/lib/services/notificationsService";
 import useRole from "@/lib/hooks/useRole";
+import { resolveOrderParticipants } from "@/lib/orders/resolveOrderParticipants";
 
 export default function ActivityNoteForm({ orderId, order = null, onSaved }) {
   const [msg, setMsg] = useState("");
@@ -19,39 +20,23 @@ export default function ActivityNoteForm({ orderId, order = null, onSaved }) {
   }
 
   async function emitNoteNotification(message) {
-    const normalizedRole = String(role || "").toLowerCase();
-    let eventKey = null;
-    let recipient = null;
-    let actorRoleOnOrder = null;
-    let recipientRoleOnOrder = null;
-
-    if (userId && userId === order?.appraiser_id) {
-      eventKey = "note.appraiser_added";
-      recipient = order?.reviewer_id ? { userId: order.reviewer_id, role: "reviewer" } : null;
-      actorRoleOnOrder = "appraiser";
-      recipientRoleOnOrder = "reviewer";
-    } else if (userId && userId === order?.reviewer_id) {
-      eventKey = "note.reviewer_added";
-      recipient = order?.appraiser_id ? { userId: order.appraiser_id, role: "appraiser" } : null;
-      actorRoleOnOrder = "reviewer";
-      recipientRoleOnOrder = "appraiser";
-    } else if (normalizedRole === "reviewer" || normalizedRole === "admin" || normalizedRole === "owner") {
-      eventKey = "note.reviewer_added";
-      recipient = order?.appraiser_id ? { userId: order.appraiser_id, role: "appraiser" } : null;
-      actorRoleOnOrder = normalizedRole;
-      recipientRoleOnOrder = "appraiser";
-    } else if (normalizedRole === "appraiser") {
-      eventKey = "note.appraiser_added";
-      recipient = order?.reviewer_id ? { userId: order.reviewer_id, role: "reviewer" } : null;
-      actorRoleOnOrder = "appraiser";
-      recipientRoleOnOrder = "reviewer";
-    }
+    const resolved = resolveOrderParticipants(order, {
+      actorUserId: userId,
+      actorRole: role,
+      event: "activity_note",
+    });
+    const actorRoleOnOrder = resolved.actor.roleOnOrder;
+    const recipientUserId = resolved.recipients[0] || null;
+    const recipientRoleOnOrder =
+      recipientUserId && recipientUserId === order?.reviewer_id ? "reviewer" : "appraiser";
+    const eventKey = actorRoleOnOrder === "appraiser" ? "note.appraiser_added" : "note.reviewer_added";
+    const recipient = recipientUserId ? { userId: recipientUserId, role: recipientRoleOnOrder } : null;
 
     if (!eventKey || !recipient?.userId) {
       return;
     }
 
-    if (recipient.userId === userId) {
+    if (resolved.suppressUserIds.includes(recipient.userId)) {
       return;
     }
 
