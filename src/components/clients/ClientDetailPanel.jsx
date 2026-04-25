@@ -2,12 +2,24 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import supabase from '@/lib/supabaseClient';
+import { useRole } from '@/lib/hooks/useRole';
+import { useCan } from '@/lib/hooks/usePermissions';
+import { PERMISSIONS } from '@/lib/permissions/constants';
 
 
 const ClientDetailPanel = ({ clientData }) => {
   const navigate = useNavigate();
+  const { isAdmin } = useRole() || {};
+  const canUpdateAllClientsPermission = useCan(PERMISSIONS.CLIENTS_UPDATE_ALL);
+  const canDeleteClientsPermission = useCan(PERMISSIONS.CLIENTS_DELETE);
+  const canUpdateAllClients = canUpdateAllClientsPermission.allowed
+    || ((canUpdateAllClientsPermission.loading || canUpdateAllClientsPermission.error) && isAdmin);
+  const canDeleteClients = canDeleteClientsPermission.allowed
+    || ((canDeleteClientsPermission.loading || canDeleteClientsPermission.error) && isAdmin);
 
   const handleEditClick = () => {
+    if (!canUpdateAllClients) return;
+
     const clientId = clientData?.id;
     if (clientId) {
       navigate(`/clients/edit/${clientId}`);
@@ -17,6 +29,8 @@ const ClientDetailPanel = ({ clientData }) => {
   };
 
   const handleDeleteClick = async () => {
+  if (!canDeleteClients) return;
+
   const clientId = clientData?.id;
   if (!clientId) {
     console.warn('No client ID provided for deletion.');
@@ -89,20 +103,24 @@ const ClientDetailPanel = ({ clientData }) => {
       </div>
 
       <div className="mt-4">
-        <button
-          type="button"
-          onClick={handleEditClick}
-          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-        >
-          Edit
-        </button>
-        <button
-  type="button"
-  onClick={handleDeleteClick}
-  className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 ml-2"
->
-  Delete
-</button>
+        {canUpdateAllClients && (
+          <button
+            type="button"
+            onClick={handleEditClick}
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+          >
+            Edit
+          </button>
+        )}
+        {canDeleteClients && (
+          <button
+            type="button"
+            onClick={handleDeleteClick}
+            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 ml-2"
+          >
+            Delete
+          </button>
+        )}
       </div>
     </div>
   );

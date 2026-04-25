@@ -5,8 +5,15 @@ import { Doughnut } from 'react-chartjs-2';
 import 'chart.js/auto';
 import ClientDetailPanel from './ClientDetailPanel';
 import ClientSidebarPanel from './ClientSidebarPanel';
+import { useRole } from '@/lib/hooks/useRole';
+import { useCan } from '@/lib/hooks/usePermissions';
+import { PERMISSIONS } from '@/lib/permissions/constants';
 
 const ClientDrawerContent = ({ data, onClose, onClientDeleted }) => {
+  const { isAdmin } = useRole() || {};
+  const canUpdateAllClientsPermission = useCan(PERMISSIONS.CLIENTS_UPDATE_ALL);
+  const canUpdateAllClients = canUpdateAllClientsPermission.allowed
+    || ((canUpdateAllClientsPermission.loading || canUpdateAllClientsPermission.error) && isAdmin);
   const [clientData, setClientData] = useState(data);
   const [isEditing, setIsEditing] = useState(false);
   const [stats, setStats] = useState({ active: 0, last30: 0, total: 0, avgFee: 0 });
@@ -117,6 +124,8 @@ const ClientDrawerContent = ({ data, onClose, onClientDeleted }) => {
   }, [parsedClientId, isNewClient]);
 
   const handleSave = async (updatedData) => {
+    if (!canUpdateAllClients) return;
+
     try {
       const { error } = await supabase
         .from('clients')
