@@ -17,6 +17,7 @@ const SYSTEM_TYPES = new Set([
 
 export default function ActivityLog({
   orderId,
+  order = null,
   className = "",
   showComposer = true,
   height = 520, // fixed-height viewport
@@ -160,13 +161,12 @@ const grouped = useMemo(() => {
 
       {showComposer && (
         <div className="mt-3">
-          <ActivityNoteForm orderId={orderId} />
+          <ActivityNoteForm orderId={orderId} order={order} />
         </div>
       )}
     </div>
   );
 }
-
 
 
 

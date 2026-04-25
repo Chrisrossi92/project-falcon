@@ -194,7 +194,7 @@ export default function OrderDrawerContent({ orderId, order: rowFromTable }) {
             <div className="text-sm font-medium">Activity</div>
           </div>
           <div className="p-3 min-h-[700px] flex-1 flex flex-col">
-            <ActivityLog orderId={id} showComposer fill className="h-full flex-1" />
+            <ActivityLog orderId={id} order={row} showComposer fill className="h-full flex-1" />
           </div>
         </div>
       </div>
@@ -251,7 +251,6 @@ export default function OrderDrawerContent({ orderId, order: rowFromTable }) {
     </div>
   );
 }
-
 
 
 

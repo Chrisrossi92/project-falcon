@@ -245,8 +245,25 @@ export async function emitNotification(eventKey, { recipients, order, payload = 
     if (!inserts.length) return;
 
     await Promise.all(
-      inserts.map((row) =>
-        supabase.rpc("rpc_notification_create", { patch: row }).catch((err) => {
+      inserts.map(async (row) => {
+        try {
+          const { error } = await supabase.rpc("rpc_notification_create", { patch: row });
+          if (!error) return;
+          if (isAssignedDebug) {
+            console.error("[emitNotification][order.new_assigned] rpc_notification_create failed", {
+              patch: row,
+              error,
+            });
+          }
+          if (isWorkflowNoteDebug) {
+            console.error("[emitNotification][workflow-note] rpc_notification_create failed", {
+              eventKey,
+              patch: row,
+              error,
+            });
+          }
+          if (debug) console.debug("[emitNotification] insert failed", error?.message || error);
+        } catch (err) {
           if (isAssignedDebug) {
             console.error("[emitNotification][order.new_assigned] rpc_notification_create failed", {
               patch: row,
@@ -261,9 +278,9 @@ export async function emitNotification(eventKey, { recipients, order, payload = 
             });
           }
           if (debug) console.debug("[emitNotification] insert failed", err?.message || err);
-          return null;
-        })
-      )
+        }
+        return null;
+      })
     );
   } catch (err) {
     if (eventKey === "order.new_assigned") {

@@ -1,18 +1,49 @@
 // src/components/activity/ActivityNoteForm.jsx
 import React, { useState } from "react";
 import { logNote } from "@/lib/services/activityService";
+import { emitNotification } from "@/lib/services/notificationsService";
+import useRole from "@/lib/hooks/useRole";
 
-export default function ActivityNoteForm({ orderId, onSaved }) {
+export default function ActivityNoteForm({ orderId, order = null, onSaved }) {
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
+  const { role, userId } = useRole() || {};
+
+  async function emitNoteNotification(message) {
+    const normalizedRole = String(role || "").toLowerCase();
+    let eventKey = null;
+    let recipient = null;
+
+    if (normalizedRole === "appraiser") {
+      eventKey = "note.appraiser_added";
+      recipient = order?.reviewer_id ? { userId: order.reviewer_id, role: "reviewer" } : null;
+    } else if (normalizedRole === "reviewer" || normalizedRole === "admin" || normalizedRole === "owner") {
+      eventKey = "note.reviewer_added";
+      recipient = order?.appraiser_id ? { userId: order.appraiser_id, role: "appraiser" } : null;
+    }
+
+    if (!eventKey || !recipient?.userId || recipient.userId === userId) return;
+
+    await emitNotification(eventKey, {
+      recipients: [recipient],
+      order: order || { id: orderId },
+      payload: { message },
+    });
+  }
 
   async function onSubmit(e) {
     e?.preventDefault?.();
     if (!msg.trim()) return;
+    const message = msg.trim();
     try {
       setBusy(true); setErr(null);
-      await logNote(orderId, msg.trim());
+      await logNote(orderId, message);
+      try {
+        await emitNoteNotification(message);
+      } catch (notifyErr) {
+        console.error("[ActivityNoteForm] note notification failed", notifyErr);
+      }
       setMsg("");
       onSaved?.();
     } catch (e2) {
