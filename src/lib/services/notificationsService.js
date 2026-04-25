@@ -20,8 +20,8 @@ export async function fetchAdminRecipients() {
         if (data && data.length) {
           return (data || [])
             .filter((u) => !u.status || u.status.toLowerCase() === "active")
-            .filter((u) => !!u.auth_id)
-            .map((u) => ({ userId: u.auth_id, role: "admin" }))
+            .filter((u) => !!u.id)
+            .map((u) => ({ userId: u.id, role: "admin" }))
             .filter((u) => !!u.userId);
         }
       } catch (innerErr) {
@@ -35,19 +35,19 @@ export async function fetchAdminRecipients() {
   return [];
 }
 
-async function resolveRecipientAuthId(userId) {
+async function resolveRecipientUserId(userId) {
   if (!userId) return null;
 
   try {
     const { data: userRow, error: userErr } = await supabase
       .from("users")
       .select("id, auth_id")
-      .eq("id", userId)
+      .or(`id.eq.${userId},auth_id.eq.${userId}`)
       .maybeSingle();
 
-    if (!userErr && userRow?.auth_id) return userRow.auth_id;
+    if (!userErr && userRow?.id) return userRow.id;
   } catch (err) {
-    if (debug) console.debug("[resolveRecipientAuthId] users lookup failed", err?.message || err);
+    if (debug) console.debug("[resolveRecipientUserId] users lookup failed", err?.message || err);
   }
 
   try {
@@ -58,10 +58,16 @@ async function resolveRecipientAuthId(userId) {
       .maybeSingle();
 
     if (!profileErr && profileRow?.auth_id) {
-      return profileRow.auth_id;
+      const { data: userRow, error: userErr } = await supabase
+        .from("users")
+        .select("id")
+        .eq("auth_id", profileRow.auth_id)
+        .maybeSingle();
+
+      if (!userErr && userRow?.id) return userRow.id;
     }
   } catch (err) {
-    if (debug) console.debug("[resolveRecipientAuthId] profiles lookup failed", err?.message || err);
+    if (debug) console.debug("[resolveRecipientUserId] profiles lookup failed", err?.message || err);
   }
 
   return null;
@@ -143,12 +149,12 @@ export async function emitNotification(eventKey, { recipients, order, payload = 
           : null;
       if (!userId || !role) continue;
 
-      const authUserId = await resolveRecipientAuthId(userId);
+      const recipientUserId = await resolveRecipientUserId(userId);
       if (isAssignedDebug) {
         console.log("[emitNotification][order.new_assigned] recipient resolution", {
           rawUserId: userId,
           role,
-          resolvedAuthUserId: authUserId,
+          resolvedUserId: recipientUserId,
         });
       }
       if (isWorkflowNoteDebug) {
@@ -156,11 +162,11 @@ export async function emitNotification(eventKey, { recipients, order, payload = 
           eventKey,
           rawUserId: userId,
           role,
-          resolvedAuthUserId: authUserId,
+          resolvedUserId: recipientUserId,
         });
       }
-      if (!authUserId) continue;
-      if (seenRecipientIds.has(authUserId)) continue;
+      if (!recipientUserId) continue;
+      if (seenRecipientIds.has(recipientUserId)) continue;
 
       const roleRules = rules.roles?.[role];
       if (isAssignedDebug) {
@@ -206,9 +212,9 @@ export async function emitNotification(eventKey, { recipients, order, payload = 
       const title = buildNotificationTitle(eventKey, orderNumber);
       const body = buildNotificationBody(eventKey, order, payload);
 
-      seenRecipientIds.add(authUserId);
+      seenRecipientIds.add(recipientUserId);
       inserts.push({
-        user_id: authUserId,
+        user_id: recipientUserId,
         type: eventKey,
         category,
         priority,
