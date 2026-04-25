@@ -197,6 +197,28 @@ Current risk:
 
 No behavior is wired to permissions yet, so existing role/helper paths still control access.
 
+Progress:
+
+- Phase 2 Step 2 added read-only compatibility resolver functions that can return current app user permission keys.
+- Phase 2 Step 3 added frontend permission constants and hooks that can consume resolver output.
+- Phase 2 Step 4 wired initial navigation, route guard, New Order button, and user edit/view permission plumbing: `TopNav` now uses `CLIENTS_READ_ALL` for clients route selection and `USERS_READ` for Users nav visibility with legacy fallback, `ProtectedRoute` accepts optional permission gate props, `/users` uses `USERS_READ`, `/settings` uses `SETTINGS_VIEW`, `/settings/notifications` uses `NOTIFICATIONS_PREFERENCES_MANAGE_OWN`, CommandPalette filters commands by permission, NewOrderButton uses `ORDERS_CREATE`, and UserDetail/UserCard edit behavior uses `USERS_UPDATE`.
+- Chris, Pam, and Abby validated access successfully.
+- Chris/appraiser validated no New Order button; Abby/admin validated New Order button visible.
+- Users directory access model is finalized: `USERS_READ` grants read-only directory access, `USERS_UPDATE` grants edit actions, and `USERS_CREATE` grants user creation.
+- `USERS_READ` is granted to Appraiser, Reviewer, and Billing template roles.
+- `USERS_CREATE` is granted to the Admin template role.
+- UsersIndex edit/create UI is fully permission-driven.
+- Chris/appraiser validated read-only Users access; Abby/admin validated full Users access.
+- Client create/edit UI and routes now use `CLIENTS_CREATE` and `CLIENTS_UPDATE_ALL`.
+- Remaining client panel Edit/Delete actions are gated by `CLIENTS_UPDATE_ALL` / `CLIENTS_DELETE`.
+- Client drawer direct save/update path is gated by `CLIENTS_UPDATE_ALL`.
+- ClientCard text reflects `CLIENTS_UPDATE_ALL`.
+- Client query/KPI/scoped visibility logic remains legacy and responsibility-dependent.
+- `/clients` and `/clients/cards` visibility behavior was not changed.
+- Chris/appraiser validated scoped read-only client access, no client Edit/Delete actions, and `Click to see orders` card text.
+- Abby/admin validated client edit access and admin edit capability.
+- SQL editor has no app auth context, so validation must run through an authenticated app context or manual user-id joins.
+
 Canonical replacement:
 
 None. This is the canonical permission catalog.
@@ -204,8 +226,10 @@ None. This is the canonical permission catalog.
 Migration action:
 
 - Phase 2 Step 1 created and seeded this table with system permissions.
-- Phase 2 Step 2 should add a compatibility permission resolver.
-- Later wire RLS, RPCs, and frontend gates to permission checks.
+- Phase 2 Step 2 added a compatibility permission resolver.
+- Phase 2 Step 3 added `PERMISSIONS`, `ALL_PERMISSION_KEYS`, `useEffectivePermissions()`, `useCan()`, and `useCanAny()`.
+- Phase 2 Step 4 wired permission helpers into initial navigation, CommandPalette, selected route guard, New Order button, and user edit/view plumbing.
+- Later wire RLS, RPCs, navigation, and order action gates to permission checks.
 
 Drop/archive condition:
 
@@ -225,7 +249,12 @@ Template and future company-scoped role bundles.
 
 Current risk:
 
-Template roles exist, but users are not assigned through normalized roles yet. Existing `public.user_roles` text roles still drive behavior.
+Template roles exist, but users are not assigned through normalized roles yet. Existing `public.user_roles` text roles still drive fallback behavior.
+Some remaining top-level navigation visibility and all workflow/action visibility still use legacy frontend paths. Phase 2 Step 4 completed low-risk CommandPalette filtering, started route guard migration, finalized Users directory access, gated the New Order button by `ORDERS_CREATE`, gated UserDetail/UserCard/UsersIndex edit behavior by `USERS_UPDATE`, gated UsersIndex creation by `USERS_CREATE`, gated Users nav visibility by `USERS_READ`, and gated client create/edit UI and routes by `CLIENTS_CREATE`/`CLIENTS_UPDATE_ALL`.
+
+Progress:
+
+- Compatibility resolver maps legacy `public.user_roles.role` values to matching seeded template role names.
 
 Canonical replacement:
 
@@ -235,7 +264,34 @@ Migration action:
 
 - Phase 2 Step 1 created this table.
 - Template roles seeded: Owner, Admin, Appraiser, Reviewer, Billing.
-- Phase 2 Step 2 should read these roles through a compatibility resolver without changing behavior.
+- Phase 2 Step 2 reads these roles through a compatibility resolver without changing behavior.
+- Phase 2 Step 3 exposes frontend hooks but does not change UI behavior.
+- Phase 2 Step 4 partially wires frontend navigation and selected route guard plumbing without changing order action behavior.
+- `/users` now uses `USERS_READ`; `/settings` now uses `SETTINGS_VIEW`.
+- `/settings/notifications` now uses `NOTIFICATIONS_PREFERENCES_MANAGE_OWN`.
+- CommandPalette gates Orders, Clients, Users, Settings, and Notification Settings commands by permission.
+- CommandPalette preserves legacy command visibility during permission loading/errors.
+- NewOrderButton uses `ORDERS_CREATE` and preserves legacy admin fallback during permission loading/errors.
+- UserDetail edit action uses `USERS_UPDATE` and preserves legacy admin-ish fallback during permission loading/errors.
+- UserCard edit/view behavior uses `USERS_UPDATE` and preserves legacy admin fallback during permission loading/errors.
+- Users nav visibility uses `USERS_READ` and preserves legacy admin fallback during permission loading/errors.
+- Existing self-profile/view behavior remains unchanged.
+- `USERS_READ` is granted to Appraiser, Reviewer, and Billing.
+- `USERS_CREATE` is granted to Admin.
+- UsersIndex edit/create UI is fully permission-driven.
+- Chris/appraiser has read-only Users access.
+- Abby/admin has full Users access.
+- Client create/edit UI and routes use `CLIENTS_CREATE` and `CLIENTS_UPDATE_ALL`.
+- Remaining client panel Edit/Delete actions use `CLIENTS_UPDATE_ALL` / `CLIENTS_DELETE`.
+- Client drawer direct save/update path uses `CLIENTS_UPDATE_ALL`.
+- ClientCard text reflects `CLIENTS_UPDATE_ALL`.
+- Client query/KPI/scoped visibility logic remains legacy and responsibility-dependent.
+- `/clients` and `/clients/cards` visibility behavior was not changed.
+- Chris/appraiser can view scoped clients without client Edit/Delete actions.
+- Abby/admin can edit clients and sees admin edit capability.
+- Routes, Supabase/RLS, backend, migrations, dashboard behavior, and order workflow/actions remain untouched by client create/edit and panel/card gating.
+- User edit form and role management remain otherwise untouched.
+- Legacy role arrays remain fallback only when the permission resolver errors on migrated routes.
 - Later backfill legacy text roles into normalized assignments.
 
 Drop/archive condition:
@@ -256,7 +312,14 @@ Maps role bundles to permission keys.
 
 Current risk:
 
-Seeded permissions are not yet consumed by app, RLS, or RPC logic.
+Seeded permissions are not yet consumed by RLS or RPC logic.
+Frontend helper plumbing exists, `TopNav` clients route selection now consumes `CLIENTS_READ_ALL` with legacy fallback, TopNav Users visibility consumes `USERS_READ`, `/users` consumes `USERS_READ`, `/settings` consumes `SETTINGS_VIEW`, `/settings/notifications` consumes `NOTIFICATIONS_PREFERENCES_MANAGE_OWN`, CommandPalette consumes navigation/settings/notification permissions, NewOrderButton consumes `ORDERS_CREATE`, UserDetail/UserCard/UsersIndex edit behavior consumes `USERS_UPDATE`, UsersIndex creation consumes `USERS_CREATE`, and client create/edit UI/routes consume `CLIENTS_CREATE`/`CLIENTS_UPDATE_ALL`. Most route config and workflow/action behavior have not been switched over.
+
+Progress:
+
+- Phase 2 Step 2 resolver reads this table to expose effective permission keys for the current app user.
+- Owner role effectively receives all seeded permissions.
+- Phase 2 Step 4 consumes these permissions in `TopNav`, CommandPalette, selected route guards, NewOrderButton, UserDetail edit action, UserCard edit/view behavior, UsersIndex edit/create UI, and client create/edit UI/routes, and adds optional permission gates to `ProtectedRoute`.
 
 Canonical replacement:
 
@@ -267,7 +330,31 @@ Migration action:
 - Phase 2 Step 1 created and seeded this table.
 - Owner template role has all seeded permissions.
 - Admin/Appraiser/Reviewer/Billing template roles have scoped default permissions.
-- Phase 2 Step 2 should add read-only compatibility resolution.
+- Phase 2 Step 2 added read-only compatibility resolution.
+- Phase 2 Step 3 added frontend helper plumbing.
+- Phase 2 Step 4 partially migrated selected navigation and route guard plumbing from legacy role paths to permission helpers.
+- `/users` now uses `USERS_READ`; `/settings` now uses `SETTINGS_VIEW`.
+- `/settings/notifications` now uses `NOTIFICATIONS_PREFERENCES_MANAGE_OWN`.
+- CommandPalette gates Orders, Clients, Users, Settings, and Notification Settings commands by permission and preserves legacy behavior during permission loading/errors.
+- NewOrderButton uses `ORDERS_CREATE`; Chris/appraiser validated no button, and Abby/admin validated button visible.
+- UserDetail edit action uses `USERS_UPDATE`; existing self-profile/view behavior remains unchanged.
+- UserCard edit/view behavior uses `USERS_UPDATE`.
+- `USERS_READ` is granted to Appraiser, Reviewer, and Billing template roles.
+- `USERS_CREATE` is granted to Admin.
+- Users nav visibility uses `USERS_READ`.
+- UsersIndex edit/create UI is fully permission-driven.
+- Chris/appraiser validated read-only Users access; Abby/admin validated full Users access.
+- Client create/edit UI and routes use `CLIENTS_CREATE` and `CLIENTS_UPDATE_ALL`.
+- Remaining client panel Edit/Delete actions are gated by `CLIENTS_UPDATE_ALL` / `CLIENTS_DELETE`.
+- Client drawer direct save/update path is gated by `CLIENTS_UPDATE_ALL`.
+- ClientCard text reflects `CLIENTS_UPDATE_ALL`.
+- Client query/KPI/scoped visibility logic remains legacy and responsibility-dependent.
+- `/clients` and `/clients/cards` visibility behavior was not changed.
+- Chris/appraiser validated scoped read-only client access, no client Edit/Delete actions, and read-only card text.
+- Abby/admin validated client edit access and admin edit capability.
+- Legacy admin fallback remains only during permission loading/errors.
+- Existing routes, order creation route/form, dashboard behavior, order workflow/action buttons, Supabase, RLS, backend, and migrations remain untouched.
+- User edit form and role management remain otherwise untouched.
 
 Drop/archive condition:
 
@@ -296,8 +383,24 @@ Normalized `roles`, `permissions`, `role_permissions`, and `user_roles(user_id, 
 Migration action:
 
 - Keep current table temporarily.
-- Add compatibility permission resolver.
+- Compatibility permission resolver now maps text roles to seeded template roles.
 - Normalized permission foundation tables now exist: `public.permissions`, `public.roles`, and `public.role_permissions`.
+- Frontend permission hooks now exist.
+- `TopNav` clients route selection now uses `CLIENTS_READ_ALL` with legacy admin fallback.
+- `ProtectedRoute` supports permission props.
+- `/users` now uses `USERS_READ`; `/settings` now uses `SETTINGS_VIEW`.
+- `/settings/notifications` now uses `NOTIFICATIONS_PREFERENCES_MANAGE_OWN`.
+- CommandPalette gates Orders, Clients, Users, Settings, and Notification Settings by permission.
+- NewOrderButton gates visibility through `ORDERS_CREATE`.
+- UserDetail edit action gates visibility through `USERS_UPDATE`.
+- UserCard edit/view behavior gates through `USERS_UPDATE`.
+- Users nav visibility gates through `USERS_READ`.
+- UsersIndex edit/create UI gates through `USERS_UPDATE` and `USERS_CREATE`.
+- Client create/edit UI and routes gate through `CLIENTS_CREATE` and `CLIENTS_UPDATE_ALL`.
+- Remaining client panel Edit/Delete actions gate through `CLIENTS_UPDATE_ALL` / `CLIENTS_DELETE`.
+- Client drawer direct save/update path gates through `CLIENTS_UPDATE_ALL`.
+- ClientCard text reflects `CLIENTS_UPDATE_ALL`.
+- Migrated route declarations keep legacy role arrays only as permission resolver error fallback.
 - Backfill text roles into company-scoped role assignments.
 - Decide whether to evolve current table or create new normalized join.
 
@@ -363,6 +466,7 @@ Migration action:
 
 - Keep until permission tables are active.
 - Add compatibility wrapper that maps current app user to effective permissions.
+- Preserve as fallback while navigation and route guards are migrated incrementally.
 - Do not broaden reviewer/admin role behavior into order lifecycle visibility.
 
 Drop/archive condition:
