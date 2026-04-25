@@ -2,11 +2,20 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { useRole } from "@/lib/hooks/useRole";
+import { useCan } from "@/lib/hooks/usePermissions";
+import { PERMISSIONS } from "@/lib/permissions/constants";
 
-/** Renders nothing unless admin (or `show` prop = true). */
+/** Renders when the user can create orders. `show={false}` can still hide it. */
 export default function NewOrderButton({ className = "", show }) {
   const { isAdmin } = useRole() || {};
-  const visible = show ?? isAdmin;
+  const canCreateOrder = useCan(PERMISSIONS.ORDERS_CREATE);
+  const useLegacyVisibility = canCreateOrder.loading || canCreateOrder.error;
+  const visible = show === false
+    ? false
+    : useLegacyVisibility
+    ? isAdmin
+    : canCreateOrder.allowed;
+
   if (!visible) return null;
 
   return (
@@ -24,5 +33,4 @@ export default function NewOrderButton({ className = "", show }) {
     </Link>
   );
 }
-
 
