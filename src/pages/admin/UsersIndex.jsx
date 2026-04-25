@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { listUsers, setUserRole, setUserActive, updateUserProfile, createUserRecord } from "@/lib/services/usersService";
 import { getCurrentUserProfile } from "@/lib/services/api";
+import { useCan } from "@/lib/hooks/usePermissions";
+import { PERMISSIONS } from "@/lib/permissions/constants";
 import toast from "react-hot-toast";
 
 const DEFAULT_COLOR = "#6B82A7";
@@ -177,7 +179,7 @@ function NewUserModal({ open, onClose, onCreate, currentUser }) {
   );
 }
 
-function UserCard({ user, currentUser, savingId, onSavePatch, onDelete }) {
+function UserCard({ user, currentUser, savingId, onSavePatch, onDelete, canUpdateUsers }) {
   const [isEditing, setIsEditing] = useState(false);
   const [form, setForm] = useState({
     display_name: user.display_name || user.full_name || user.name || "",
@@ -210,10 +212,12 @@ function UserCard({ user, currentUser, savingId, onSavePatch, onDelete }) {
   const isOwner = currentRole === "owner";
   const isAdmin = currentRole === "admin";
   const isOwnerOrAdmin = isOwner || isAdmin;
-  const canManage = isOwnerOrAdmin && !(targetRole === "owner" && !isOwner);
+  const canManage = canUpdateUsers && isOwnerOrAdmin && !(targetRole === "owner" && !isOwner);
   const isActive = user.is_active ?? (user.status ? user.status.toLowerCase() !== "inactive" : true);
 
   const handleSave = async () => {
+    if (!canUpdateUsers) return;
+
     const payload = {
       display_name: form.display_name || name,
       color: form.color,
@@ -241,6 +245,7 @@ function UserCard({ user, currentUser, savingId, onSavePatch, onDelete }) {
   };
 
   const handleSelfColorSave = async () => {
+    if (!canUpdateUsers) return;
     await onSavePatch(user.id, { color: selfColor, display_color: selfColor });
   };
 
@@ -296,7 +301,7 @@ function UserCard({ user, currentUser, savingId, onSavePatch, onDelete }) {
                 Edit
               </button>
             )}
-            {isSelf && !canManage && (
+            {isSelf && canUpdateUsers && !canManage && (
               <div className="flex items-center gap-2">
                 <button
                   className="text-sm px-3 py-1.5 rounded-lg border"
@@ -323,7 +328,7 @@ function UserCard({ user, currentUser, savingId, onSavePatch, onDelete }) {
             )}
           </div>
         </div>
-      ) : (
+      ) : canUpdateUsers ? (
         <div className="flex h-full flex-col transition-opacity duration-200">
           <div className="flex items-center gap-3 mb-3">
             <div
@@ -454,12 +459,14 @@ function UserCard({ user, currentUser, savingId, onSavePatch, onDelete }) {
             )}
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
 
 export default function UsersIndex() {
+  const canUpdateUsersPermission = useCan(PERMISSIONS.USERS_UPDATE);
+  const canCreateUsersPermission = useCan(PERMISSIONS.USERS_CREATE);
   const [me, setMe] = useState(null);
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -468,6 +475,10 @@ export default function UsersIndex() {
   const [showInactive, setShowInactive] = useState(false);
 
   const isOwnerOrAdmin = ["owner", "admin"].includes(String(me?.role || "").toLowerCase());
+  const useLegacyUpdateFallback = canUpdateUsersPermission.loading || canUpdateUsersPermission.error;
+  const useLegacyCreateFallback = canCreateUsersPermission.loading || canCreateUsersPermission.error;
+  const canUpdateUsers = canUpdateUsersPermission.allowed || (useLegacyUpdateFallback && isOwnerOrAdmin);
+  const canCreateUsers = canCreateUsersPermission.allowed || (useLegacyCreateFallback && isOwnerOrAdmin);
 
 
   async function load(includeInactiveParam) {
@@ -489,6 +500,11 @@ export default function UsersIndex() {
   }, [showInactive, isOwnerOrAdmin]);
 
   async function saveUserPatch(id, patch) {
+    if (!canUpdateUsers) {
+      toast.error("You do not have permission to edit users");
+      return;
+    }
+
     setSavingId(id);
     try {
       const isOwner = String(me?.role || "").toLowerCase() === "owner";
@@ -526,6 +542,11 @@ export default function UsersIndex() {
   }
 
   async function deleteUser(id) {
+    if (!canUpdateUsers) {
+      toast.error("You do not have permission to edit users");
+      return;
+    }
+
     setSavingId(id);
     try {
       await setUserActive(id, false);
@@ -536,6 +557,11 @@ export default function UsersIndex() {
   }
 
   async function createUser(patch) {
+    if (!canCreateUsers) {
+      toast.error("You do not have permission to create users");
+      return;
+    }
+
     try {
       const row = await createUserRecord(patch);
       toast.success("User created");
@@ -566,7 +592,7 @@ export default function UsersIndex() {
               Show inactive
             </label>
           )}
-          {isOwnerOrAdmin && (
+          {canCreateUsers && (
             <button className="px-3 py-1.5 rounded-lg border text-sm" onClick={() => setNewOpen(true)}>
               + New user
             </button>
@@ -591,12 +617,13 @@ export default function UsersIndex() {
               savingId={savingId}
               onSavePatch={saveUserPatch}
               onDelete={deleteUser}
+              canUpdateUsers={canUpdateUsers}
             />
           ))}
         </div>
       )}
 
-      <NewUserModal open={newOpen} onClose={() => setNewOpen(false)} onCreate={createUser} currentUser={me} />
+      <NewUserModal open={canCreateUsers && newOpen} onClose={() => setNewOpen(false)} onCreate={createUser} currentUser={me} />
     </div>
   );
 }
