@@ -135,15 +135,36 @@ export default function AppRoutes() {
         />
         <Route
           path="/users/:userId"
-          element={<ProtectedRoute roles={["owner", "admin"]}><UserDetail /></ProtectedRoute>}
+          element={
+            <ProtectedRoute
+              requiredPermission={PERMISSIONS.USERS_UPDATE}
+              roles={["owner", "admin"]}
+            >
+              <UserDetail />
+            </ProtectedRoute>
+          }
         />
         <Route
           path="/users/new"
-          element={<ProtectedRoute roles={["owner", "admin"]}><UserDetail /></ProtectedRoute>}
+          element={
+            <ProtectedRoute
+              requiredPermission={PERMISSIONS.USERS_CREATE}
+              roles={["owner", "admin"]}
+            >
+              <UserDetail />
+            </ProtectedRoute>
+          }
         />
         <Route
           path="/users/view/:userId"
-          element={<ProtectedRoute roles={["owner", "admin", "manager", "reviewer", "appraiser"]}><UserHub /></ProtectedRoute>}
+          element={
+            <ProtectedRoute
+              requiredPermission={PERMISSIONS.USERS_READ}
+              roles={["owner", "admin", "manager", "reviewer", "appraiser"]}
+            >
+              <UserHub />
+            </ProtectedRoute>
+          }
         />
 
         {/* Settings */}
@@ -179,7 +200,6 @@ export default function AppRoutes() {
     </Routes>
   );
 }
-
 
 
 
