@@ -195,13 +195,14 @@ System permission catalog for capability checks.
 
 Current risk:
 
-No behavior is wired to permissions yet, so existing role/helper paths still control access.
+Selected frontend behavior is now wired to permissions through the compatibility layer. Backend/RLS and responsibility-sensitive paths still use legacy role/helper paths until later phases.
 
 Progress:
 
 - Phase 2 Step 2 added read-only compatibility resolver functions that can return current app user permission keys.
 - Phase 2 Step 3 added frontend permission constants and hooks that can consume resolver output.
 - Phase 2 Step 4 wired initial navigation, route guard, New Order button, and user edit/view permission plumbing: `TopNav` now uses `CLIENTS_READ_ALL` for clients route selection and `USERS_READ` for Users nav visibility with legacy fallback, `ProtectedRoute` accepts optional permission gate props, `/users` uses `USERS_READ`, `/settings` uses `SETTINGS_VIEW`, `/settings/notifications` uses `NOTIFICATIONS_PREFERENCES_MANAGE_OWN`, CommandPalette filters commands by permission, NewOrderButton uses `ORDERS_CREATE`, and UserDetail/UserCard edit behavior uses `USERS_UPDATE`.
+- Phase 2 Step 4 frontend permission plumbing is MVP-complete enough to move to Phase 3; Phase 3 work has not started.
 - TopNav avatar Settings link and mobile Settings nav item now use `SETTINGS_VIEW`, with existing visibility preserved during permission loading/errors.
 - Chris, Pam, and Abby validated access successfully.
 - Chris/appraiser validated no New Order button; Abby/admin validated New Order button visible.
@@ -221,6 +222,7 @@ Progress:
 - `/clients` and `/clients/cards` visibility behavior was not changed.
 - Chris/appraiser validated scoped read-only client access, no client Edit/Delete actions, and `Click to see orders` card text.
 - Abby/admin validated client edit access and admin edit capability.
+- Order routes/nav/workflow/action buttons, client scoped route/nav behavior, calendar route/nav gating, dashboard route/query behavior, backend/RLS enforcement, and permission service contracts are explicitly deferred to later responsibility, scoped visibility, calendar permission, dashboard semantics, normalization, or Phase 2/Phase 6 support work.
 - SQL editor has no app auth context, so validation must run through an authenticated app context or manual user-id joins.
 
 Canonical replacement:
@@ -232,7 +234,7 @@ Migration action:
 - Phase 2 Step 1 created and seeded this table with system permissions.
 - Phase 2 Step 2 added a compatibility permission resolver.
 - Phase 2 Step 3 added `PERMISSIONS`, `ALL_PERMISSION_KEYS`, `useEffectivePermissions()`, `useCan()`, and `useCanAny()`.
-- Phase 2 Step 4 wired permission helpers into initial navigation, CommandPalette, selected route guard, New Order button, and user edit/view plumbing.
+- Phase 2 Step 4 wired permission helpers into initial navigation, CommandPalette, selected route guard, New Order button, user edit/view plumbing, Settings navigation, and client create/edit surfaces; this is MVP-complete for moving to Phase 3.
 - Later wire RLS, RPCs, navigation, and order action gates to permission checks.
 
 Drop/archive condition:
@@ -254,7 +256,7 @@ Template and future company-scoped role bundles.
 Current risk:
 
 Template roles exist, but users are not assigned through normalized roles yet. Existing `public.user_roles` text roles still drive fallback behavior.
-Some remaining top-level navigation visibility and all workflow/action visibility still use legacy frontend paths. Phase 2 Step 4 completed low-risk CommandPalette filtering, started route guard migration, finalized Users directory access, gated the New Order button by `ORDERS_CREATE`, gated UserDetail/UserCard/UsersIndex edit behavior by `USERS_UPDATE`, gated UsersIndex creation by `USERS_CREATE`, gated Users nav visibility by `USERS_READ`, and gated client create/edit UI and routes by `CLIENTS_CREATE`/`CLIENTS_UPDATE_ALL`.
+Some remaining top-level navigation visibility and workflow/action visibility still use legacy frontend paths by design where permissions alone would blur lifecycle, responsibility, scoped visibility, calendar, or dashboard behavior. Phase 2 Step 4 completed low-risk CommandPalette filtering, safe route guard migration, Users directory access, Settings navigation, the New Order button, UserDetail/UserCard/UsersIndex behavior, and client create/edit UI/routes.
 
 Progress:
 
@@ -270,7 +272,7 @@ Migration action:
 - Template roles seeded: Owner, Admin, Appraiser, Reviewer, Billing.
 - Phase 2 Step 2 reads these roles through a compatibility resolver without changing behavior.
 - Phase 2 Step 3 exposes frontend hooks but does not change UI behavior.
-- Phase 2 Step 4 partially wires frontend navigation and selected route guard plumbing without changing order action behavior.
+- Phase 2 Step 4 wires MVP frontend navigation and selected route guard plumbing without changing order action behavior.
 - `/users` now uses `USERS_READ`; `/settings` now uses `SETTINGS_VIEW`.
 - `/users/:userId` now uses `USERS_UPDATE`; `/users/new` now uses `USERS_CREATE`; `/users/view/:userId` now uses `USERS_READ`.
 - `/settings/notifications` now uses `NOTIFICATIONS_PREFERENCES_MANAGE_OWN`.
@@ -298,7 +300,12 @@ Migration action:
 - `/clients` and `/clients/cards` visibility behavior was not changed.
 - Chris/appraiser can view scoped clients without client Edit/Delete actions.
 - Abby/admin can edit clients and sees admin edit capability.
-- Orders, Clients, Calendar, CommandPalette, routes, layout, styling, Supabase/RLS, backend, migrations, dashboard behavior, and workflow/actions remain untouched by the latest TopNav Settings permission slice.
+- Order routes/nav/workflow/action buttons are deferred to responsibility/lifecycle work.
+- Client scoped route/nav behavior is deferred to responsibility/scoped visibility work.
+- Calendar route/nav gating is deferred until a calendar permission model exists.
+- Dashboard route/query behavior is deferred because it is role/responsibility scoped.
+- Backend/RLS permission enforcement is deferred to later permission/normalization phases.
+- `getEffectivePermissions(userId, companyId)` and `canUserPerform(userId, permissionKey, context)` service contracts are deferred to later Phase 2/Phase 6 support work.
 - User edit form and role management remain otherwise untouched.
 - Mobile login currently shows a blank screen; mobile-specific investigation is deferred unless it affects desktop or core live app flows.
 - Legacy role arrays remain fallback only when the permission resolver errors on migrated routes.
@@ -323,13 +330,13 @@ Maps role bundles to permission keys.
 Current risk:
 
 Seeded permissions are not yet consumed by RLS or RPC logic.
-Frontend helper plumbing exists, `TopNav` clients route selection now consumes `CLIENTS_READ_ALL` with legacy fallback, TopNav Users visibility consumes `USERS_READ`, TopNav avatar/mobile Settings visibility consumes `SETTINGS_VIEW`, `/users` and `/users/view/:userId` consume `USERS_READ`, `/users/:userId` consumes `USERS_UPDATE`, `/users/new` consumes `USERS_CREATE`, `/settings` consumes `SETTINGS_VIEW`, `/settings/notifications` consumes `NOTIFICATIONS_PREFERENCES_MANAGE_OWN`, CommandPalette consumes navigation/settings/notification permissions, NewOrderButton consumes `ORDERS_CREATE`, UserDetail/UserCard/UsersIndex edit behavior consumes `USERS_UPDATE`, UsersIndex creation consumes `USERS_CREATE`, and client create/edit UI/routes consume `CLIENTS_CREATE`/`CLIENTS_UPDATE_ALL`. Most route config and workflow/action behavior have not been switched over.
+Frontend helper plumbing exists, `TopNav` clients route selection now consumes `CLIENTS_READ_ALL` with legacy fallback, TopNav Users visibility consumes `USERS_READ`, TopNav avatar/mobile Settings visibility consumes `SETTINGS_VIEW`, `/users` and `/users/view/:userId` consume `USERS_READ`, `/users/:userId` consumes `USERS_UPDATE`, `/users/new` consumes `USERS_CREATE`, `/settings` consumes `SETTINGS_VIEW`, `/settings/notifications` consumes `NOTIFICATIONS_PREFERENCES_MANAGE_OWN`, CommandPalette consumes navigation/settings/notification permissions, NewOrderButton consumes `ORDERS_CREATE`, UserDetail/UserCard/UsersIndex edit behavior consumes `USERS_UPDATE`, UsersIndex creation consumes `USERS_CREATE`, and client create/edit UI/routes consume `CLIENTS_CREATE`/`CLIENTS_UPDATE_ALL`. Remaining risky route config and workflow/action behavior are deferred to later responsibility, scoped visibility, calendar permission, dashboard, backend/RLS, or normalization work.
 
 Progress:
 
 - Phase 2 Step 2 resolver reads this table to expose effective permission keys for the current app user.
 - Owner role effectively receives all seeded permissions.
-- Phase 2 Step 4 consumes these permissions in `TopNav`, CommandPalette, selected route guards, NewOrderButton, UserDetail edit action, UserCard edit/view behavior, UsersIndex edit/create UI, and client create/edit UI/routes, and adds optional permission gates to `ProtectedRoute`.
+- Phase 2 Step 4 consumes these permissions in `TopNav`, CommandPalette, selected route guards, NewOrderButton, UserDetail edit action, UserCard edit/view behavior, UsersIndex edit/create UI, Settings navigation, and client create/edit UI/routes, and adds optional permission gates to `ProtectedRoute`. This is MVP-complete enough to move to Phase 3.
 
 Canonical replacement:
 
@@ -342,7 +349,7 @@ Migration action:
 - Admin/Appraiser/Reviewer/Billing template roles have scoped default permissions.
 - Phase 2 Step 2 added read-only compatibility resolution.
 - Phase 2 Step 3 added frontend helper plumbing.
-- Phase 2 Step 4 partially migrated selected navigation and route guard plumbing from legacy role paths to permission helpers.
+- Phase 2 Step 4 migrated the safe MVP navigation and route guard plumbing from legacy role paths to permission helpers.
 - `/users` now uses `USERS_READ`; `/settings` now uses `SETTINGS_VIEW`.
 - `/users/:userId` now uses `USERS_UPDATE`; `/users/new` now uses `USERS_CREATE`; `/users/view/:userId` now uses `USERS_READ`.
 - `/settings/notifications` now uses `NOTIFICATIONS_PREFERENCES_MANAGE_OWN`.
@@ -367,7 +374,7 @@ Migration action:
 - Chris/appraiser validated scoped read-only client access, no client Edit/Delete actions, and read-only card text.
 - Abby/admin validated client edit access and admin edit capability.
 - Legacy admin fallback remains only during permission loading/errors.
-- Existing order creation route/form, client routes, calendar routes, CommandPalette, routes, layout, styling, dashboard behavior, order workflow/action buttons, Supabase, RLS, backend, and migrations remain untouched by the latest TopNav Settings permission slice.
+- Order routes/nav/workflow/action buttons, client scoped route/nav behavior, calendar route/nav gating, dashboard route/query behavior, backend/RLS permission enforcement, and permission service contracts are deferred to later phases.
 - User edit form and role management remain otherwise untouched.
 
 Drop/archive condition:

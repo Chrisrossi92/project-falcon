@@ -161,8 +161,8 @@ Reference docs:
 - [x] Create permission constants.
 - [x] Create database legacy role-to-template-role permission mapping.
 - [x] Create frontend permission constants.
-- [ ] Implement `getEffectivePermissions(userId, companyId)`.
-- [ ] Implement `canUserPerform(userId, permissionKey, context)`.
+- [ ] Defer `getEffectivePermissions(userId, companyId)` service contract to later Phase 2/Phase 6 support work.
+- [ ] Defer `canUserPerform(userId, permissionKey, context)` service contract to later Phase 2/Phase 6 support work.
 - [x] Implement Phase 2 Step 2 compatibility permission resolver.
 - [x] Add `useEffectivePermissions()`.
 - [x] Add `useCan(permissionKey)`.
@@ -225,9 +225,13 @@ Reference docs:
 - [x] Gate ClientDetailPanel Delete button and handler through `CLIENTS_DELETE`.
 - [x] Gate ClientDrawerContent save/update path through `CLIENTS_UPDATE_ALL`.
 - [x] Update ClientCard text to show `Click to see orders & edit` only when `CLIENTS_UPDATE_ALL` is granted.
-- [ ] Migrate remaining route config from legacy role arrays to permission props.
-- [ ] Gate remaining top-level navigation items outside Users/Settings through permission helpers after seeded permissions match current access.
-- [ ] Gate new actions through permission helpers in a later step.
+- [x] Close Phase 2 Step 4 frontend permission plumbing as MVP-complete.
+- [ ] Defer order routes/nav/workflow/action buttons to responsibility/lifecycle work.
+- [ ] Defer client scoped route/nav behavior to responsibility/scoped visibility work.
+- [ ] Defer calendar route/nav gating until a calendar permission model exists.
+- [ ] Defer dashboard route/query behavior because it is role/responsibility scoped.
+- [ ] Defer backend/RLS permission enforcement to later permission/normalization phases.
+- [ ] Gate new actions through permission helpers in later phases where responsibility and scope are defined.
 - [ ] Avoid new direct role-string checks.
 - [x] Leave order workflow/action buttons untouched during navigation plumbing.
 - [x] Leave order creation route and form untouched during NewOrderButton migration.
@@ -241,7 +245,7 @@ Reference docs:
 - [x] Permission seed migration exists.
 - [x] Template roles are seeded.
 - [x] Template role permissions are seeded.
-- [x] No existing behavior is wired to permissions yet.
+- [x] Permission wiring remains additive and preserves existing behavior through compatibility fallbacks.
 - [x] Compatibility resolver maps legacy `public.user_roles.role` to seeded template roles.
 - [x] Owner role effectively receives all seeded permissions.
 - [ ] Validate resolver through authenticated app context.
@@ -294,8 +298,8 @@ Reference docs:
 - [x] Abby/admin sees admin edit capability.
 - [x] CommandPalette filters Orders, Clients, Users, Settings, and Notification Settings by permission.
 - [x] CommandPalette permission loading/error preserves legacy behavior.
-- [ ] Most route config still uses legacy role guards.
-- [ ] Some top-level navigation visibility outside Users/Settings still uses legacy paths.
+- [x] Remaining unsafe route/nav migration is explicitly deferred rather than treated as a Phase 2 Step 4 blocker.
+- [x] Phase 2 Step 4 is complete enough for MVP and ready to move to Phase 3.
 - [x] Order actions still use legacy visibility paths.
 - [x] Dashboard behavior is untouched.
 - [x] Supabase/RLS is untouched.
@@ -308,13 +312,13 @@ Reference docs:
 
 ### Stop Conditions
 
-- [ ] New feature code can use permission helpers.
-- [ ] No new code path requires hardcoded role names.
+- [x] New feature code can use permission helpers.
+- [x] No new code path should require hardcoded role names when a permission helper can answer the question.
 - [x] Compatibility resolver can read seeded permissions without changing existing behavior.
-- [ ] Route config migration is planned and validated before replacing broad route guards.
+- [x] Risky route config migration is deferred until responsibility, scoped visibility, calendar permissions, or dashboard semantics are defined.
 - [ ] Order workflow/action button migration remains separate from navigation work.
-- [x] Phase 2 Step 4 partially replaces selected navigation plumbing with permission helpers.
-- [x] Phase 2 Step 4 partially migrates selected route guards to permission props.
+- [x] Phase 2 Step 4 replaces the safe MVP navigation plumbing with permission helpers.
+- [x] Phase 2 Step 4 migrates the safe MVP route guards to permission props.
 - [x] Phase 2 Step 4 filters CommandPalette commands with permission helpers.
 
 ## Phase 3: Responsibility Resolver

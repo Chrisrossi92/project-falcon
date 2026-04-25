@@ -196,7 +196,7 @@ Completed Batch 2 Step 1:
 
 ## Phase 2: Permission Compatibility Layer
 
-Status: In progress.
+Status: MVP complete enough to move to Phase 3. Phase 3 work has not started.
 
 Completed:
 
@@ -214,12 +214,12 @@ Completed:
 - Step 3 frontend permission helper plumbing.
 - Added `PERMISSIONS` / `ALL_PERMISSION_KEYS`.
 - Added `useEffectivePermissions()`, `useCan()`, and `useCanAny()`.
-- Step 4 navigation permission plumbing is partially complete.
+- Step 4 frontend permission plumbing is MVP-complete.
 - `TopNav` now uses `CLIENTS_READ_ALL` to choose the full clients route, with the legacy admin fallback during permission loading/errors.
 - TopNav avatar Settings link and mobile Settings nav item now use `SETTINGS_VIEW`.
 - TopNav Settings visibility preserves existing behavior while permission loading/errors occur.
 - `ProtectedRoute` now supports optional `requiredPermission`, `requiredAnyPermissions`, and `requiredAllPermissions` props.
-- Step 4 route guard migration is partially complete.
+- Step 4 safe route guard migration is MVP-complete.
 - `/users` now uses `USERS_READ`.
 - `/users/:userId` now uses `USERS_UPDATE`.
 - `/users/new` now uses `USERS_CREATE`.
@@ -253,17 +253,16 @@ Completed:
 - Chris/appraiser client cards now say `Click to see orders`.
 - Abby/admin validated client edit access and admin edit capability.
 
-Still pending:
+Deferred / later-phase work:
 
-- Most route config and legacy role guards are not migrated yet.
-- Remaining top-level navigation visibility outside Users/Settings still uses legacy paths where not yet migrated.
-- Order creation route/form and workflow/action buttons are untouched and still use legacy route/form/action paths.
+- Order routes, order navigation, order workflow buttons, and order action buttons are deferred to responsibility/lifecycle work.
+- Client scoped route and navigation behavior is deferred to responsibility/scoped visibility work.
+- Calendar route and navigation gating is deferred until a calendar permission model exists.
+- Dashboard route/query behavior is deferred because it is role/responsibility scoped.
+- Backend/RLS permission enforcement is deferred to later permission/normalization phases.
+- `getEffectivePermissions(userId, companyId)` and `canUserPerform(userId, permissionKey, context)` service contracts are deferred to later Phase 2/Phase 6 support work.
 - Mobile login currently shows a blank screen; defer mobile-specific investigation unless it affects desktop or core live app flows.
 - User edit form and role management are still legacy where not explicitly permission-gated.
-- Client query/KPI/scoped visibility logic remains legacy and responsibility-dependent.
-- `/clients` and `/clients/cards` visibility behavior was not changed.
-- Orders, Clients, Calendar, CommandPalette, routes, layout, styling, dashboard behavior, Supabase, RLS, backend, migrations, and workflow/action logic were untouched by the latest TopNav Settings permission slice.
-- RLS/helper migration to permission checks.
 
 ### Goal
 
@@ -328,9 +327,9 @@ useCan(permissionKey)
 useCanAny(permissionKeys)
 ```
 
-The new hooks fetch permission keys from `current_app_user_permission_keys()`. Existing navigation, order actions, and role checks are intentionally unchanged until Phase 2 Step 4.
+The new hooks fetch permission keys from `current_app_user_permission_keys()`. Phase 2 Step 4 now uses them for the safe MVP frontend permission plumbing listed below.
 
-Completed Step 4 partial navigation plumbing:
+Completed Step 4 MVP frontend permission plumbing:
 
 - `TopNav` uses `useCan(PERMISSIONS.CLIENTS_READ_ALL)` to choose `/clients` versus `/clients/cards`.
 - `TopNav` preserves the legacy `isAdmin` fallback while permission loading is pending or the resolver errors.
@@ -344,7 +343,7 @@ Completed Step 4 partial navigation plumbing:
 - `/settings` uses `requiredPermission={PERMISSIONS.SETTINGS_VIEW}`.
 - `/settings/notifications` uses `requiredPermission={PERMISSIONS.NOTIFICATIONS_PREFERENCES_MANAGE_OWN}`.
 - Migrated routes retain legacy role arrays as resolver-error fallback only.
-- Other route config still uses legacy `roles`, `requireAdmin`, and `requireReviewer` guards.
+- Remaining route config that depends on order lifecycle, client scope, calendar behavior, or dashboard responsibility remains deferred rather than migrated in Step 4.
 - CommandPalette filters commands by permission:
   - Orders: `NAVIGATION_ORDERS_VIEW`
   - Clients: `NAVIGATION_CLIENTS_VIEW`
@@ -385,12 +384,14 @@ Completed Step 4 partial navigation plumbing:
 - Order workflow/action buttons were not changed.
 - Orders, Clients, Calendar, CommandPalette, routes, layout, styling, dashboard behavior, Supabase, RLS, backend, migrations, and workflow/action logic were not changed by the latest TopNav Settings permission slice.
 
-Still needed:
+Deferred service contracts:
 
 ```ts
-getEffectivePermissions(user)
+getEffectivePermissions(userId, companyId)
 canUserPerform(userId, permissionKey, context)
 ```
+
+These are later Phase 2/Phase 6 support work and are not blockers for moving to Phase 3.
 
 ### Validation Checklist
 
@@ -444,7 +445,7 @@ canUserPerform(userId, permissionKey, context)
 
 - No new feature code uses role strings directly when a permission helper could answer the question.
 - Current role behavior is preserved through compatibility mapping.
-- Route config migration to permission props is planned before broader UI gate replacement.
+- Safe frontend permission plumbing is complete enough for MVP; broader route/nav migration is deferred where it depends on responsibility, scoped visibility, calendar permissions, dashboard semantics, or backend/RLS enforcement.
 
 ## Phase 3: Responsibility Resolver
 
