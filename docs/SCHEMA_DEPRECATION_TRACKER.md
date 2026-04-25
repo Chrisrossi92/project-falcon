@@ -31,6 +31,12 @@ Current risk:
 
 Some current code, migrations, and policies still use `auth.uid()` or `user_profiles.user_id` as if it were the app user ID.
 
+Progress:
+
+- Phase 1 Batch 1 added `public.current_app_user_id()` and aligned notification/preference identity.
+- Phase 1 Batch 2 Step 1 aligned key RLS read/check paths and lifecycle order visibility.
+- Activity actor write paths still need cleanup.
+
 Canonical replacement:
 
 None. This is the canonical user table.
@@ -40,6 +46,7 @@ Migration action:
 - Confirm all required profile fields exist or can be added.
 - Add `company_id`, `status`, and `settings` when company foundation begins.
 - Ensure app-domain records reference `public.users.id`.
+- Continue removing direct `auth.uid()` comparisons from app-domain logic by routing through `public.current_app_user_id()`.
 
 Drop/archive condition:
 
@@ -61,14 +68,22 @@ Current risk:
 
 Logic can accidentally compare `auth.uid()` directly to app-domain foreign keys instead of mapping through this column.
 
+Progress:
+
+- `public.current_app_user_id()` is now the required helper for auth-to-app-user mapping.
+- Notification identity paths are resolved.
+- RLS/read-check identity paths are partially resolved.
+- Remaining `auth.uid()` activity actor writes are the next Phase 1 target.
+
 Canonical replacement:
 
 None.
 
 Migration action:
 
-- Add/use `public.current_app_user_id()`.
-- Audit RPCs, triggers, and RLS policies.
+- Use `public.current_app_user_id()` for all app-domain comparisons.
+- Continue audit of RPCs, triggers, and RLS policies.
+- Patch remaining activity logging actor writes so actors are stored as `public.users.id`.
 
 Drop/archive condition:
 
@@ -170,6 +185,98 @@ Phase 1, Phase 2, Phase 6.
 
 ## 2. Roles / `user_roles`
 
+### `public.permissions`
+
+Disposition: Keep canonical.
+
+Current purpose:
+
+System permission catalog for capability checks.
+
+Current risk:
+
+No behavior is wired to permissions yet, so existing role/helper paths still control access.
+
+Canonical replacement:
+
+None. This is the canonical permission catalog.
+
+Migration action:
+
+- Phase 2 Step 1 created and seeded this table with system permissions.
+- Phase 2 Step 2 should add a compatibility permission resolver.
+- Later wire RLS, RPCs, and frontend gates to permission checks.
+
+Drop/archive condition:
+
+Never drop as part of the current plan.
+
+Roadmap phase:
+
+Phase 2, Phase 6.
+
+### `public.roles`
+
+Disposition: Keep canonical.
+
+Current purpose:
+
+Template and future company-scoped role bundles.
+
+Current risk:
+
+Template roles exist, but users are not assigned through normalized roles yet. Existing `public.user_roles` text roles still drive behavior.
+
+Canonical replacement:
+
+None. This is the canonical role table.
+
+Migration action:
+
+- Phase 2 Step 1 created this table.
+- Template roles seeded: Owner, Admin, Appraiser, Reviewer, Billing.
+- Phase 2 Step 2 should read these roles through a compatibility resolver without changing behavior.
+- Later backfill legacy text roles into normalized assignments.
+
+Drop/archive condition:
+
+Never drop as part of the current plan.
+
+Roadmap phase:
+
+Phase 2, Phase 6.
+
+### `public.role_permissions`
+
+Disposition: Keep canonical.
+
+Current purpose:
+
+Maps role bundles to permission keys.
+
+Current risk:
+
+Seeded permissions are not yet consumed by app, RLS, or RPC logic.
+
+Canonical replacement:
+
+None. This is the canonical role-permission join table.
+
+Migration action:
+
+- Phase 2 Step 1 created and seeded this table.
+- Owner template role has all seeded permissions.
+- Admin/Appraiser/Reviewer/Billing template roles have scoped default permissions.
+- Phase 2 Step 2 should add read-only compatibility resolution.
+
+Drop/archive condition:
+
+Never drop as part of the current plan.
+
+Roadmap phase:
+
+Phase 2, Phase 6.
+
 ### `public.user_roles` with text `role`
 
 Disposition: Migrate/rebuild.
@@ -189,8 +296,8 @@ Normalized `roles`, `permissions`, `role_permissions`, and `user_roles(user_id, 
 Migration action:
 
 - Keep current table temporarily.
-- Add compatibility permission mapping.
-- Create normalized role tables.
+- Add compatibility permission resolver.
+- Normalized permission foundation tables now exist: `public.permissions`, `public.roles`, and `public.role_permissions`.
 - Backfill text roles into company-scoped role assignments.
 - Decide whether to evolve current table or create new normalized join.
 
@@ -242,7 +349,11 @@ Checks whether current auth user has owner/admin text role.
 
 Current risk:
 
-Uses auth IDs and text roles.
+Uses text roles and is a temporary compatibility helper.
+
+Progress:
+
+- Phase 1 Batch 2 Step 1 updated this helper to resolve the signed-in user through `public.current_app_user_id()`.
 
 Canonical replacement:
 
@@ -252,6 +363,7 @@ Migration action:
 
 - Keep until permission tables are active.
 - Add compatibility wrapper that maps current app user to effective permissions.
+- Do not broaden reviewer/admin role behavior into order lifecycle visibility.
 
 Drop/archive condition:
 
@@ -260,6 +372,40 @@ Safe after admin checks use permission helpers.
 Roadmap phase:
 
 Phase 1, Phase 2, Phase 6.
+
+### `current_is_appraiser()`
+
+Disposition: Keep temporarily.
+
+Current purpose:
+
+Checks whether the current app user has explicit appraiser capability for legacy appraiser-scoped policies.
+
+Current risk:
+
+If this helper treats reviewer/admin overlap as appraiser access, assigned reviewer users can pass appraiser policies and see orders outside the review lifecycle.
+
+Progress:
+
+- Phase 1 lifecycle visibility patch changed the helper to require an explicit `public.user_roles.role = 'appraiser'` row for `public.current_app_user_id()`.
+
+Canonical replacement:
+
+Permission check helper, such as `current_app_user_has_permission(permission_key)`, combined with order participant responsibility.
+
+Migration action:
+
+- Keep as compatibility wrapper.
+- Do not let global reviewer/admin role imply appraiser capability.
+- Replace with permission/responsibility helper after normalized permissions and order participants exist.
+
+Drop/archive condition:
+
+Safe after appraiser-scoped policies use permission and responsibility helpers.
+
+Roadmap phase:
+
+Phase 1, Phase 2, Phase 7.
 
 ## 3. Orders And Duplicate / Legacy Order Fields
 
@@ -485,6 +631,11 @@ Current risk:
 
 May write legacy activity shape and compare assignments to auth IDs.
 
+Progress:
+
+- Phase 1 Batch 2 Step 1 patched authorization comparison logic where scoped.
+- Activity actor values and payload shape were intentionally not changed yet.
+
 Canonical replacement:
 
 Workflow transition service/RPC using `current_app_user_id()`, permissions, and resolver.
@@ -493,6 +644,7 @@ Migration action:
 
 - Patch identity first.
 - Later centralize transition authorization and activity payload creation.
+- Next target: update activity actor writes to store `public.users.id` consistently.
 
 Drop/archive condition:
 
@@ -516,6 +668,11 @@ Current risk:
 
 Mixed schema contract: `detail`, `message`, `actor_id`, `created_by`, `created_by_name`, `created_by_email`; actor identity may be auth/profile based.
 
+Progress:
+
+- Phase 1 Batch 2 Step 1 patched activity access checks/RLS where safe.
+- Activity actor write paths are still pending and should be the next identity cleanup target.
+
 Canonical replacement:
 
 Same table with canonical fields:
@@ -535,6 +692,7 @@ Migration action:
 - Add canonical nullable fields.
 - Backfill from existing fields.
 - Update RPCs to write canonical payload while keeping legacy fields populated.
+- Before payload enrichment, ensure actor IDs are written as `public.users.id`, not auth IDs.
 
 Drop/archive condition:
 
@@ -585,6 +743,10 @@ Current risk:
 
 Identity mismatch with canonical `public.users.id`.
 
+Progress:
+
+- Not fully resolved. Activity read/check paths were patched, but actor writes may still use auth/profile identity.
+
 Canonical replacement:
 
 `activity_log.actor_user_id references public.users(id)`.
@@ -594,6 +756,7 @@ Migration action:
 - Add `actor_user_id`.
 - Backfill through `users.auth_id`.
 - Update `rpc_log_event`.
+- Audit `rpc_log_note`, `rpc_update_order_status`, `rpc_assign_order`, and triggers that write `actor_id` or `created_by`.
 
 Drop/archive condition:
 
@@ -615,6 +778,11 @@ Current risk:
 
 Authorization compares against auth IDs/legacy roles and writes legacy event shape.
 
+Progress:
+
+- Phase 1 Batch 2 Step 1 patched authorization comparison logic to use app identity where scoped.
+- Inserted actor values were intentionally left unchanged.
+
 Canonical replacement:
 
 Canonical logging RPC that uses `current_app_user_id()`, permissions/responsibility, and writes canonical fields/payload.
@@ -623,6 +791,7 @@ Migration action:
 
 - Patch identity and authorization.
 - Then enrich payload contract.
+- Next identity step: patch actor writes to use `public.current_app_user_id()` / `public.users.id`.
 
 Drop/archive condition:
 
@@ -646,6 +815,12 @@ Current risk:
 
 `user_id` semantics drifted between auth ID and `public.users.id`; read-state fields overlap; payload may be incomplete.
 
+Progress:
+
+- Notification identity issue resolved in Phase 1 Batch 1.
+- `notifications.user_id` is treated as `public.users.id`.
+- Notification read/mark-read RPCs and creation fallback now use `public.current_app_user_id()`.
+
 Canonical replacement:
 
 Same table with canonical semantics:
@@ -658,7 +833,7 @@ Same table with canonical semantics:
 
 Migration action:
 
-- Confirm/repair `user_id` to public user IDs.
+- Confirm/repair any legacy stored `user_id` rows to public user IDs if production data requires it.
 - Add nullable `company_id` and `activity_event_id`.
 - Keep `type` and `category`.
 - Prefer `read_at`.
@@ -739,7 +914,11 @@ Creates notification from JSON patch.
 
 Current risk:
 
-Fallback to `auth.uid()` can write wrong `user_id` if public user ID differs; no strict payload validation.
+No strict payload validation yet.
+
+Progress:
+
+- Phase 1 Batch 1 changed fallback identity to `public.current_app_user_id()`.
 
 Canonical replacement:
 
@@ -747,7 +926,7 @@ RPC that expects public user ID and validates required order-related payload fie
 
 Migration action:
 
-- Change fallback to `current_app_user_id()`.
+- Keep fallback on `current_app_user_id()`.
 - Keep patch API for compatibility.
 - Add validation later for `payload.order_number`.
 
@@ -769,7 +948,11 @@ Read and update current user's notifications.
 
 Current risk:
 
-Local migration filters `n.user_id = auth.uid()`, incompatible with canonical public user ID.
+Resolved for Phase 1 Batch 1.
+
+Progress:
+
+- These RPCs now filter/update by `n.user_id = public.current_app_user_id()`.
 
 Canonical replacement:
 
@@ -777,7 +960,8 @@ Filter by `n.user_id = current_app_user_id()`.
 
 Migration action:
 
-- Patch in Phase 1.
+- Keep patched Phase 1 behavior.
+- Later align payload/read-state cleanup in Phase 4.
 
 Drop/archive condition:
 
@@ -799,7 +983,11 @@ Per-user email notification preferences.
 
 Current risk:
 
-FK references `public.users(id)`, but RLS/RPCs compare `user_id = auth.uid()`.
+Resolved for Phase 1 Batch 1.
+
+Progress:
+
+- RLS and preference RPC now compare `user_id` to `public.current_app_user_id()`.
 
 Canonical replacement:
 
@@ -807,7 +995,7 @@ Same table with `user_id = public.users.id` and RLS via `current_app_user_id()`.
 
 Migration action:
 
-- Patch RLS/RPCs.
+- Keep RLS/RPCs on `public.current_app_user_id()`.
 - Add `company_id` later if needed.
 - Later expand per-event/channel preferences.
 
@@ -829,7 +1017,12 @@ Queued email delivery records.
 
 Current risk:
 
-Email trigger may interpret `notifications.user_id` as auth ID in some versions.
+Email queue contract is still settling, so queue insertion is intentionally non-blocking.
+
+Progress:
+
+- Phase 1 Batch 1 wired notification email lookup to treat `notifications.user_id` as `public.users.id`.
+- Trigger catches queue failures so notification creation is not blocked while the live email queue contract stabilizes.
 
 Canonical replacement:
 
@@ -837,7 +1030,8 @@ Same table, with `to_user_id references public.users(id)`.
 
 Migration action:
 
-- Patch email trigger to treat notification recipient as public user ID.
+- Keep email trigger treating notification recipient as public user ID.
+- Revisit strict failure behavior once the live `public.email_queue` contract is finalized.
 - Add company scope later if useful.
 
 Drop/archive condition:
@@ -1073,13 +1267,17 @@ Current risk:
 
 Some versions convert public user ID to auth ID before inserting `notifications.user_id`, conflicting with canonical model.
 
+Progress:
+
+- Phase 1 Batch 1 aligned assignment notification recipients to `public.users.id`.
+
 Canonical replacement:
 
 Trigger/service that writes recipient `public.users.id` and canonical payload.
 
 Migration action:
 
-- Patch identity behavior in Phase 1.
+- Keep identity behavior patched to `public.users.id`.
 - Enrich payload in Phase 4.
 - Later route through responsibility resolver.
 
@@ -1101,7 +1299,11 @@ Queue email from inserted notification.
 
 Current risk:
 
-Recipient identity handling has changed over time; may assume notification user ID is auth ID.
+Queue contract is temporarily non-blocking while live email queue fields stabilize.
+
+Progress:
+
+- Phase 1 Batch 1 treats notification user ID as `public.users.id` and resolves email target from canonical app user identity.
 
 Canonical replacement:
 
@@ -1109,8 +1311,9 @@ Trigger that treats `notifications.user_id` as `public.users.id`.
 
 Migration action:
 
-- Patch identity lookup.
+- Keep identity lookup patched.
 - Use user preferences keyed by public user ID.
+- Revisit non-blocking exception handling after the live queue contract is stable.
 
 Drop/archive condition:
 
@@ -1130,7 +1333,12 @@ Allow admins/reviewers or assigned appraisers to view/write activity.
 
 Current risk:
 
-Use JWT role claims and compare order assignment to `auth.uid()`.
+Partially resolved. Earlier policies used JWT role claims and compared order assignment to `auth.uid()`.
+
+Progress:
+
+- Phase 1 Batch 2 Step 1 patched read/check paths to use `public.current_app_user_id()` where safe.
+- Activity actor write paths remain pending.
 
 Canonical replacement:
 
@@ -1138,7 +1346,8 @@ Policies using `current_app_user_id()`, permissions, and eventually `order_parti
 
 Migration action:
 
-- Patch identity first.
+- Keep patched read/check paths.
+- Patch remaining write/actor paths next.
 - Later use permission/responsibility helpers.
 
 Drop/archive condition:
@@ -1159,7 +1368,18 @@ Gate order read/write by role and assignment.
 
 Current risk:
 
-Role claims and auth IDs do not match canonical model.
+Partially resolved. Older role-based policies let reviewer role or helper leakage grant too much order visibility.
+
+Progress:
+
+- Phase 1 Batch 2 Step 1 replaced app-user comparisons with `public.current_app_user_id()`.
+- Lifecycle visibility migration dropped broad reviewer/all-order policies.
+- Assigned reviewers now see only `in_review`, `needs_revisions`, and `completed` orders.
+- `current_is_appraiser()` now requires explicit appraiser role assignment so reviewer/admin overlap does not pass appraiser policies.
+
+Why lifecycle overrides role:
+
+Global role says what a user can do in the system; order lifecycle says whether they are currently responsible for a specific order. Reviewer role alone must not expose `new` or `in_progress` orders, even when `reviewer_id` is pre-assigned.
 
 Canonical replacement:
 
@@ -1167,7 +1387,7 @@ Policies using app user ID, permissions, company scope, and order participants.
 
 Migration action:
 
-- Patch identity.
+- Keep lifecycle-aware policies as authoritative for order visibility.
 - Add company scope after company foundation.
 - Add participant checks after `order_participants`.
 
@@ -1189,7 +1409,11 @@ Allow users to read their own notifications.
 
 Current risk:
 
-`user_id = auth.uid()` conflicts with canonical `public.users.id`.
+Resolved for Phase 1 Batch 1.
+
+Progress:
+
+- Notification RLS now compares `user_id` to `public.current_app_user_id()`.
 
 Canonical replacement:
 
@@ -1197,7 +1421,7 @@ Canonical replacement:
 
 Migration action:
 
-- Patch in Phase 1.
+- Keep patched Phase 1 behavior.
 
 Drop/archive condition:
 

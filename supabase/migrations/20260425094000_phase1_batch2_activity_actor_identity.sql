@@ -38,6 +38,9 @@ $$;
 
 grant execute on function public._activity_actor() to authenticated;
 
+drop function if exists public.rpc_log_event(uuid, text, jsonb);
+drop function if exists public.rpc_log_event(uuid, text, text, jsonb);
+
 create or replace function public.rpc_log_event(
   p_order_id uuid,
   p_event_type text,
@@ -142,7 +145,7 @@ grant execute on function public.rpc_log_event(uuid, text, text, jsonb) to authe
 create or replace function public.rpc_log_event(
   p_order_id uuid,
   p_event_type text,
-  p_detail jsonb default '{}'::jsonb
+  p_details jsonb default '{}'::jsonb
 ) returns uuid
 language plpgsql
 security definer
@@ -151,7 +154,6 @@ as $$
 declare
   v_id uuid;
   v_actor record;
-  v_actor_role text;
 begin
   select * into v_actor from public._activity_actor();
 
@@ -159,21 +161,8 @@ begin
     raise exception 'current app user not found';
   end if;
 
-  select ur.role
-    into v_actor_role
-    from public.user_roles ur
-   where ur.user_id = v_actor.user_id
-   order by case ur.role
-     when 'owner' then 1
-     when 'admin' then 2
-     when 'reviewer' then 3
-     when 'appraiser' then 4
-     else 5
-   end
-   limit 1;
-
-  insert into public.activity_log (order_id, event_type, detail, actor_id, created_by, created_by_role, created_at)
-  values (p_order_id, p_event_type, coalesce(p_detail, '{}'::jsonb), v_actor.user_id, v_actor.user_id, v_actor_role, now())
+  insert into public.activity_log (order_id, event_type, detail, actor_id, created_by, created_at)
+  values (p_order_id, p_event_type, coalesce(p_details, '{}'::jsonb), v_actor.user_id, v_actor.user_id, now())
   returning id into v_id;
 
   return v_id;
@@ -183,6 +172,7 @@ $$;
 grant execute on function public.rpc_log_event(uuid, text, jsonb) to authenticated;
 
 drop function if exists public.rpc_log_note(uuid, text);
+drop function if exists public.rpc_log_note(uuid, text, jsonb);
 
 create or replace function public.rpc_log_note(
   p_order_id uuid,
@@ -210,6 +200,8 @@ $$;
 revoke all on function public.rpc_log_note(uuid, text, jsonb) from public;
 grant execute on function public.rpc_log_note(uuid, text, jsonb) to authenticated;
 
+drop function if exists public.rpc_log_status_change(uuid, text, text, text);
+
 create or replace function public.rpc_log_status_change(
   p_order_id uuid,
   p_prev_status text,
@@ -236,6 +228,8 @@ end;
 $$;
 
 grant execute on function public.rpc_log_status_change(uuid, text, text, text) to authenticated;
+
+drop function if exists public.rpc_assign_order(uuid, uuid, text);
 
 create or replace function public.rpc_assign_order(
   p_order_id uuid,

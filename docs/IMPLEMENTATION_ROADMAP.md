@@ -68,11 +68,32 @@ None.
 
 ## Phase 1: Identity Alignment Helpers And RPC Cleanup
 
+Status: In progress.
+
+Completed:
+
+- Batch 1 notification identity alignment.
+- Batch 2 Step 1 access/RLS identity fixes.
+- Lifecycle-based reviewer order visibility.
+
+Still pending:
+
+- Activity actor write-path cleanup.
+- Canonical activity payload enrichment.
+
 ### Goal
 
 Make current auth-to-app-user behavior explicit and consistent.
 
 Add helper functions and update RPCs/triggers so database logic maps `auth.uid()` to `public.users.id` before comparing or writing app-domain user references.
+
+Implementation decisions now locked in:
+
+- `public.users.id` is the canonical app identity.
+- `public.current_app_user_id()` is the required bridge from Supabase auth identity to app identity.
+- RLS and RPC authorization must compare app-domain user columns to `public.current_app_user_id()`.
+- Reviewer visibility is lifecycle-based, not global-role-based.
+- Global reviewer role must not grant all-order visibility.
 
 ### Why It Matters
 
@@ -84,6 +105,8 @@ Current schema paths mix:
 - `public.user_profiles.user_id`
 
 This has already caused notification delivery bugs. It is the highest-risk foundation issue.
+
+Role leakage also caused order visibility bugs: users with broad or overlapping roles could satisfy helper checks that were intended for appraiser assignment visibility. Lifecycle visibility must override global role visibility because order responsibility changes by status. A reviewer assigned to an order is not active for every lifecycle state, so reviewer access is limited to review-active or historical review statuses.
 
 ### Files / Areas Likely Affected
 
@@ -123,6 +146,26 @@ Update:
 - notification email trigger
 - activity logging RPC authorization
 - assignment notification trigger
+- orders, clients, and activity RLS read/check paths where safe
+- order lifecycle visibility policies for assigned reviewers
+
+Completed Batch 1:
+
+- Added `public.current_app_user_id()`.
+- Updated notification read and mark-read RPCs.
+- Updated notification creation fallback.
+- Updated notification preference RLS and RPC.
+- Updated assignment notification recipient semantics to `public.users.id`.
+- Wired notification email queue lookup to app user identity.
+
+Completed Batch 2 Step 1:
+
+- Updated `current_is_admin()` to use `public.current_app_user_id()`.
+- Updated `current_is_appraiser()` to require explicit appraiser role assignment.
+- Patched orders, clients, and activity RLS read/check paths to use app identity.
+- Dropped broad reviewer/all-order order policies.
+- Added lifecycle-aware order select/update policy for assigned reviewers.
+- Set frontend order views to `security_invoker = true` where supported.
 
 ### App Changes
 
@@ -138,14 +181,35 @@ Update:
 - Assignment notifications still work.
 - Activity notes still log correctly.
 - No FK conflict when creating notifications.
+- Reviewer assigned to a `new` or `in_progress` order cannot see it solely because `reviewer_id` matches.
+- Reviewer assigned to `in_review`, `needs_revisions`, or `completed` orders can see review-active/historical work.
+- Admin/owner still sees all orders.
+- Assigned appraiser still sees assigned orders.
+- Order views used by the frontend apply base-table RLS through `security_invoker` when supported.
 
 ### Stop Conditions Before Moving On
 
 - All notification paths work with mismatched public user id/auth id.
 - Local migrations and live DB behavior agree on notification user ID semantics.
-- No known RPC compares domain `user_id` directly to `auth.uid()` without mapping.
+- No known read/check RPC or RLS path compares domain `user_id` directly to `auth.uid()` without mapping.
+- Remaining `auth.uid()` activity actor writes are isolated for the next Phase 1 batch.
 
 ## Phase 2: Permission Compatibility Layer
+
+Status: In progress.
+
+Completed:
+
+- Step 1 permission foundation.
+- `public.permissions`, `public.roles`, and `public.role_permissions` now exist.
+- System permissions are seeded.
+- Template roles `Owner`, `Admin`, `Appraiser`, `Reviewer`, and `Billing` are seeded.
+- Template `role_permissions` are seeded.
+
+Still pending:
+
+- Step 2 compatibility permission resolver.
+- No app/RLS/helper behavior is wired to permissions yet.
 
 ### Goal
 
@@ -172,7 +236,25 @@ Docs:
 
 ### Database Changes
 
-None required in this phase.
+Completed Step 1:
+
+```txt
+permissions
+roles
+role_permissions
+```
+
+Seeded:
+
+- System permission catalog.
+- Template roles: Owner, Admin, Appraiser, Reviewer, Billing.
+- Template role permissions.
+
+Next Step 2:
+
+- Add compatibility resolver that can read normalized role permissions where available.
+- Preserve legacy role behavior while permission consumers are introduced.
+- Do not replace RLS/helper behavior until the resolver is validated.
 
 ### App Changes
 
@@ -403,6 +485,24 @@ Minimal in this phase:
 
 ## Phase 6: Normalized Roles / Permissions
 
+Status: Not started as a full phase.
+
+Foundation already completed in Phase 2 Step 1:
+
+- `public.permissions`
+- `public.roles`
+- `public.role_permissions`
+- Template roles Owner/Admin/Appraiser/Reviewer/Billing
+- Template role-permission seeds
+
+Still pending for Phase 6:
+
+- Normalized user role assignment model.
+- Backfill from legacy text `public.user_roles`.
+- Owner guardrails.
+- Role editor/admin UI.
+- Wiring app/RLS/RPC behavior to permission checks.
+
 ### Goal
 
 Introduce database-backed configurable roles and permissions.
@@ -429,7 +529,7 @@ App:
 
 ### Database Changes
 
-Add:
+Already added in Phase 2 Step 1:
 
 ```txt
 roles
@@ -437,7 +537,7 @@ permissions
 role_permissions
 ```
 
-Either create a new normalized join table or extend `user_roles` with:
+Still needed: either create a new normalized join table or extend `user_roles` with:
 
 - `role_id`
 - `company_id`

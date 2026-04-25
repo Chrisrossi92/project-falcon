@@ -68,23 +68,30 @@ Reference docs:
 
 ### Planning / Docs
 
-- [ ] Review `FUNCTION_CONTRACTS.md` contract `current_app_user_id()`.
-- [ ] Review tracker entries for notifications, preferences, activity, orders RLS, and assignment triggers.
-- [ ] Identify every RPC/RLS/trigger using `auth.uid()`.
+- [x] Review `FUNCTION_CONTRACTS.md` contract `current_app_user_id()`.
+- [x] Review tracker entries for notifications, preferences, activity, orders RLS, and assignment triggers.
+- [x] Identify every RPC/RLS/trigger using `auth.uid()` for Batch 1 and Batch 2 Step 1 scope.
+- [ ] Identify and patch remaining activity actor write-path `auth.uid()` usage.
 
 ### Database Migration
 
-- [ ] Add `public.current_app_user_id()`.
+- [x] Add `public.current_app_user_id()`.
 - [ ] Add temporary `public.current_app_user_role_names()` if needed.
-- [ ] Update notification read RPCs to use current app user ID.
-- [ ] Update notification mark-read RPCs.
-- [ ] Update `rpc_notification_create` fallback.
-- [ ] Update notification preferences RLS.
-- [ ] Update notification preferences RPC.
-- [ ] Update email outbox trigger to treat notification recipient as public user ID.
-- [ ] Update assignment notification trigger to insert public user ID.
-- [ ] Update activity logging authorization to map auth user to app user.
-- [ ] Update order/activity RLS policies where safe.
+- [x] Update notification read RPCs to use current app user ID.
+- [x] Update notification mark-read RPCs.
+- [x] Update `rpc_notification_create` fallback.
+- [x] Update notification preferences RLS.
+- [x] Update notification preferences RPC.
+- [x] Update email outbox trigger to treat notification recipient as public user ID.
+- [x] Keep email queue insertion non-blocking while the live queue contract is still settling.
+- [x] Update assignment notification trigger to insert public user ID.
+- [x] Update activity logging authorization to map auth user to app user.
+- [x] Update order/activity RLS policies where safe.
+- [x] Drop broad reviewer/all-order order visibility policies.
+- [x] Add lifecycle-aware reviewer order select/update policies.
+- [x] Update `current_is_admin()` to map through `current_app_user_id()`.
+- [x] Update `current_is_appraiser()` to require explicit appraiser role assignment.
+- [x] Set frontend order views to `security_invoker = true` where supported.
 
 ### App / Service Implementation
 
@@ -100,33 +107,50 @@ Reference docs:
 
 ### Validation
 
-- [ ] User with `public.users.id != auth_id` receives notification.
-- [ ] Same user can read notifications.
-- [ ] Same user can mark notification read.
-- [ ] Notification preferences save.
-- [ ] Email outbox queues to public user ID.
-- [ ] Assignment notification still works.
+- [x] User with `public.users.id != auth_id` receives notification.
+- [x] Same user can read notifications.
+- [x] Same user can mark notification read.
+- [x] Notification preferences save.
+- [x] Email outbox queues to public user ID.
+- [x] Email queue failure does not block notification insert.
+- [x] Assignment notification still works.
 - [ ] Activity notes still log.
-- [ ] No FK conflict on notification insert.
+- [x] No FK conflict on notification insert.
+- [x] Reviewer assigned to `new` or `in_progress` order is not granted visibility solely by reviewer assignment.
+- [x] Reviewer assigned to `in_review`, `needs_revisions`, or `completed` order keeps review-active/historical visibility.
+- [x] Admin/owner keeps all-order visibility.
+- [x] Assigned appraiser keeps assigned-order visibility.
+- [x] Legacy broad policies `orders_read_all`, `orders_select_policy`, `orders_update_policy`, and `allow_reviewer_update_status` are dropped/replaced.
+- [x] `current_is_appraiser()` returns false for reviewer/admin users unless they have an explicit appraiser role row.
+- [ ] Confirm live `/orders` view/RPC uses RLS via `security_invoker`; replace with scoped RPC if unsupported.
+- [ ] Validate remaining activity write paths store actors as `public.users.id`.
 
 ### Stop Conditions
 
 - [ ] All known RPCs avoid direct app-domain comparison to `auth.uid()`.
-- [ ] Local and live notification user ID semantics match.
-- [ ] Identity mismatch regression is resolved.
+- [x] Local and live notification user ID semantics match.
+- [x] Notification identity mismatch regression is resolved.
+- [x] Reviewer role leakage into all-order visibility is resolved.
+- [ ] Activity actor identity mismatch is resolved.
 
 ## Phase 2: Permission Compatibility Layer
 
 ### Planning / Docs
 
-- [ ] Review `ROLE_PERMISSION_MODEL.md`.
-- [ ] Review `getEffectivePermissions` and `canUserPerform` contracts.
-- [ ] Define initial permission key catalog.
-- [ ] Define legacy role-to-permission map.
+- [x] Review `ROLE_PERMISSION_MODEL.md`.
+- [x] Review `getEffectivePermissions` and `canUserPerform` contracts.
+- [x] Define initial permission key catalog.
+- [ ] Define legacy role-to-permission map for compatibility resolver.
 
 ### Database Migration
 
-- [ ] No required DB migration.
+- [x] Create `public.permissions`.
+- [x] Create `public.roles`.
+- [x] Create `public.role_permissions`.
+- [x] Seed system permissions.
+- [x] Seed template roles: Owner, Admin, Appraiser, Reviewer, Billing.
+- [x] Seed template role permissions.
+- [x] Do not wire permission tables to RLS/helpers/app behavior yet.
 
 ### App / Service Implementation
 
@@ -134,6 +158,7 @@ Reference docs:
 - [ ] Create legacy role-to-permission mapping.
 - [ ] Implement `getEffectivePermissions(userId, companyId)`.
 - [ ] Implement `canUserPerform(userId, permissionKey, context)`.
+- [ ] Implement Phase 2 Step 2 compatibility permission resolver.
 - [ ] Add `useEffectivePermissions()`.
 - [ ] Add `useCan(permissionKey)`.
 - [ ] Preserve current role behavior through compatibility.
@@ -146,6 +171,10 @@ Reference docs:
 
 ### Validation
 
+- [x] Permission seed migration exists.
+- [x] Template roles are seeded.
+- [x] Template role permissions are seeded.
+- [x] No existing behavior is wired to permissions yet.
 - [ ] Existing owner/admin/appraiser/reviewer behavior is preserved.
 - [ ] Navigation still appears for expected users.
 - [ ] Order actions still appear for expected users.
@@ -155,6 +184,7 @@ Reference docs:
 
 - [ ] New feature code can use permission helpers.
 - [ ] No new code path requires hardcoded role names.
+- [ ] Compatibility resolver can read seeded permissions without changing existing behavior.
 
 ## Phase 3: Responsibility Resolver
 
@@ -311,12 +341,12 @@ Reference docs:
 
 ### Database Migration
 
-- [ ] Create `roles`.
-- [ ] Create `permissions`.
-- [ ] Create `role_permissions`.
+- [x] Create `roles`.
+- [x] Create `permissions`.
+- [x] Create `role_permissions`.
 - [ ] Extend or replace `user_roles` with normalized shape.
-- [ ] Seed permissions.
-- [ ] Seed template roles.
+- [x] Seed permissions.
+- [x] Seed template roles.
 - [ ] Backfill legacy role strings.
 - [ ] Add owner guardrail checks.
 - [ ] Add indexes.
@@ -339,7 +369,7 @@ Reference docs:
 - [ ] Owner/admin access remains intact.
 - [ ] Multi-role merge works.
 - [ ] At least one owner remains.
-- [ ] Permission seed is deterministic.
+- [x] Permission seed is deterministic.
 
 ### Stop Conditions
 
