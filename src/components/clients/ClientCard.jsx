@@ -1,6 +1,8 @@
 // src/components/clients/ClientCard.jsx
 import React from "react";
 import { Link } from "react-router-dom";
+import { useCan } from "@/lib/hooks/usePermissions";
+import { PERMISSIONS } from "@/lib/permissions/constants";
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString() : "—");
 
@@ -33,6 +35,7 @@ const statusBadgeClasses = (status) => {
 };
 
 export default function ClientCard({ client, metrics }) {
+  const { allowed: canUpdateAllClients } = useCan(PERMISSIONS.CLIENTS_UPDATE_ALL);
   const { id, name, category, status, primary_contact, phone } = client || {};
   const { total_orders, avg_fee, last_activity } = metrics || {};
 
@@ -127,13 +130,12 @@ export default function ClientCard({ client, metrics }) {
           View client detail
         </Link>
         <span className="text-[11px] text-gray-400 group-hover:text-gray-500">
-          Click to see orders &amp; edit
+          {canUpdateAllClients ? "Click to see orders & edit" : "Click to see orders"}
         </span>
       </div>
     </div>
   );
 }
-
 
 
 
