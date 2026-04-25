@@ -2,6 +2,7 @@ import React from "react";
 import { Navigate } from "react-router-dom";
 import  useSession  from "@/lib/hooks/useSession";
 import { useRole } from "@/lib/hooks/useRole";
+import { useEffectivePermissions } from "@/lib/hooks/usePermissions";
 
 export default function ProtectedRoute({
   children,
@@ -9,11 +10,21 @@ export default function ProtectedRoute({
   roles, // legacy alias
   requireAdmin = false,
   requireReviewer = false,
+  requiredPermission,
+  requiredAnyPermissions,
+  requiredAllPermissions,
   fallbackPath,
 }) {
   const { user, isLoading: sessionLoading } = useSession();
   const { role, isAdmin, isReviewer, loading: roleLoading } = (useRole?.() || {});
-  const loading = sessionLoading || !!roleLoading;
+  const permissions = useEffectivePermissions();
+  const permissionKeysRequested = [
+    requiredPermission,
+    ...(Array.isArray(requiredAnyPermissions) ? requiredAnyPermissions : []),
+    ...(Array.isArray(requiredAllPermissions) ? requiredAllPermissions : []),
+  ].filter(Boolean);
+  const hasPermissionGate = permissionKeysRequested.length > 0;
+  const loading = sessionLoading || !!roleLoading || (hasPermissionGate && permissions.loading);
   const renderLoading = () => (
     <div className="min-h-[60vh] flex items-center justify-center">
       <div className="flex items-center gap-3 text-gray-600">
@@ -45,10 +56,25 @@ export default function ProtectedRoute({
     const ok = wantRoles.map((r) => String(r).toLowerCase()).includes(current);
     if (!ok) return <Navigate to={fallbackPath || "/dashboard"} replace />;
   }
+  if (hasPermissionGate && permissions.error) {
+    return <Navigate to={fallbackPath || "/dashboard"} replace />;
+  }
+  if (requiredPermission && !permissions.hasPermission(requiredPermission)) {
+    return <Navigate to={fallbackPath || "/dashboard"} replace />;
+  }
+  if (Array.isArray(requiredAnyPermissions) && requiredAnyPermissions.length > 0) {
+    if (!permissions.hasAnyPermission(requiredAnyPermissions)) {
+      return <Navigate to={fallbackPath || "/dashboard"} replace />;
+    }
+  }
+  if (Array.isArray(requiredAllPermissions) && requiredAllPermissions.length > 0) {
+    if (!permissions.hasAllPermissions(requiredAllPermissions)) {
+      return <Navigate to={fallbackPath || "/dashboard"} replace />;
+    }
+  }
 
   return <>{children}</>;
 }
-
 
 
 

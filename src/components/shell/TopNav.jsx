@@ -6,6 +6,8 @@ import CommandPalette from "@/components/nav/CommandPalette";
 import { getCurrentUserProfile } from "@/lib/services/api";
 import AvatarBadge from "@/components/ui/AvatarBadge";
 import { useRole } from "@/lib/hooks/useRole";
+import { useCan } from "@/lib/hooks/usePermissions";
+import { PERMISSIONS } from "@/lib/permissions/constants";
 
 function Brand() {
   return (
@@ -102,7 +104,11 @@ export default function TopNav() {
   const [open, setOpen]  = useState(false); // mobile sheet
   const [pal, setPal]    = useState(false); // command palette
   const { isAdmin }      = useRole() || {};
-  const clientsPath      = isAdmin ? "/clients" : "/clients/cards";
+  const canReadAllClients = useCan(PERMISSIONS.CLIENTS_READ_ALL);
+  const useLegacyClientsPath = canReadAllClients.loading || canReadAllClients.error;
+  const clientsPath = useLegacyClientsPath
+    ? (isAdmin ? "/clients" : "/clients/cards")
+    : (canReadAllClients.allowed ? "/clients" : "/clients/cards");
 
   useEffect(() => {
     (async () => {
@@ -185,7 +191,6 @@ export default function TopNav() {
     </>
   );
 }
-
 
 
 
