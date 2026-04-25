@@ -34,7 +34,7 @@ function NavItem({ to, children, onClick }) {
   );
 }
 
-function AvatarMenu({ me }) {
+function AvatarMenu({ me, showSettings = true }) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const display = me?.display_name || me?.full_name || me?.name || me?.email || "User";
@@ -85,9 +85,11 @@ function AvatarMenu({ me }) {
           <Link to={`/users/view/${me?.id ?? ""}`} className="block px-3 py-2 text-sm hover:bg-gray-50" onClick={() => setOpen(false)}>
             Profile
           </Link>
-          <Link to="/settings" className="block px-3 py-2 text-sm hover:bg-gray-50" onClick={() => setOpen(false)}>
-            Settings
-          </Link>
+          {showSettings && (
+            <Link to="/settings" className="block px-3 py-2 text-sm hover:bg-gray-50" onClick={() => setOpen(false)}>
+              Settings
+            </Link>
+          )}
           <button className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50" onClick={logout}>
             Logout
           </button>
@@ -106,11 +108,13 @@ export default function TopNav() {
   const { isAdmin }      = useRole() || {};
   const canReadAllClients = useCan(PERMISSIONS.CLIENTS_READ_ALL);
   const canReadUsers = useCan(PERMISSIONS.USERS_READ);
+  const canViewSettings = useCan(PERMISSIONS.SETTINGS_VIEW);
   const useLegacyClientsPath = canReadAllClients.loading || canReadAllClients.error;
   const clientsPath = useLegacyClientsPath
     ? (isAdmin ? "/clients" : "/clients/cards")
     : (canReadAllClients.allowed ? "/clients" : "/clients/cards");
   const showUsersNav = canReadUsers.allowed || ((canReadUsers.loading || canReadUsers.error) && isAdmin);
+  const showSettingsNav = canViewSettings.allowed || canViewSettings.loading || canViewSettings.error;
 
   useEffect(() => {
     (async () => {
@@ -162,7 +166,7 @@ export default function TopNav() {
               ⌘K
             </button>
             <NotificationBell />
-            <AvatarMenu me={me} />
+            <AvatarMenu me={me} showSettings={showSettingsNav} />
             <button className="md:hidden rounded-md border px-2 py-1 text-sm" onClick={() => setOpen((v) => !v)} aria-label="Open menu">
               Menu
             </button>
@@ -178,7 +182,7 @@ export default function TopNav() {
               <NavItem to={clientsPath} onClick={() => setOpen(false)}>Clients</NavItem>
               {showUsersNav && <NavItem to="/users" onClick={() => setOpen(false)}>Users</NavItem>}
               <div className="h-px bg-gray-200 my-1" />
-              <NavItem to="/settings" onClick={() => setOpen(false)}>Settings</NavItem>
+              {showSettingsNav && <NavItem to="/settings" onClick={() => setOpen(false)}>Settings</NavItem>}
             </nav>
           </div>
         )}
@@ -193,7 +197,6 @@ export default function TopNav() {
     </>
   );
 }
-
 
 
 
