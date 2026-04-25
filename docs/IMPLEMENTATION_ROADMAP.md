@@ -216,6 +216,8 @@ Completed:
 - Added `useEffectivePermissions()`, `useCan()`, and `useCanAny()`.
 - Step 4 navigation permission plumbing is partially complete.
 - `TopNav` now uses `CLIENTS_READ_ALL` to choose the full clients route, with the legacy admin fallback during permission loading/errors.
+- TopNav avatar Settings link and mobile Settings nav item now use `SETTINGS_VIEW`.
+- TopNav Settings visibility preserves existing behavior while permission loading/errors occur.
 - `ProtectedRoute` now supports optional `requiredPermission`, `requiredAnyPermissions`, and `requiredAllPermissions` props.
 - Step 4 route guard migration is partially complete.
 - `/users` now uses `USERS_READ`.
@@ -242,6 +244,7 @@ Completed:
 - Chris/appraiser validated user view access works and edit/new user routes are blocked.
 - Abby/admin validated full Users access.
 - Abby/admin validated user view, edit, and new user routes work.
+- Desktop validation passed for the TopNav Settings permission patch where applicable.
 - Client create/edit UI and routes now use `CLIENTS_CREATE` and `CLIENTS_UPDATE_ALL`.
 - Remaining client panel Edit/Delete actions are gated by `CLIENTS_UPDATE_ALL` and `CLIENTS_DELETE`.
 - Client drawer direct save/update path is gated by `CLIENTS_UPDATE_ALL`.
@@ -253,12 +256,13 @@ Completed:
 Still pending:
 
 - Most route config and legacy role guards are not migrated yet.
-- Remaining top-level navigation visibility outside Users still uses legacy paths where not yet migrated.
+- Remaining top-level navigation visibility outside Users/Settings still uses legacy paths where not yet migrated.
 - Order creation route/form and workflow/action buttons are untouched and still use legacy route/form/action paths.
+- Mobile login currently shows a blank screen; defer mobile-specific investigation unless it affects desktop or core live app flows.
 - User edit form and role management are still legacy where not explicitly permission-gated.
 - Client query/KPI/scoped visibility logic remains legacy and responsibility-dependent.
 - `/clients` and `/clients/cards` visibility behavior was not changed.
-- Order, client, calendar, navigation, dashboard behavior, Supabase, RLS, backend, migrations, and order workflow/actions were untouched by the latest Users route permission slice.
+- Orders, Clients, Calendar, CommandPalette, routes, layout, styling, dashboard behavior, Supabase, RLS, backend, migrations, and workflow/action logic were untouched by the latest TopNav Settings permission slice.
 - RLS/helper migration to permission checks.
 
 ### Goal
@@ -330,6 +334,8 @@ Completed Step 4 partial navigation plumbing:
 
 - `TopNav` uses `useCan(PERMISSIONS.CLIENTS_READ_ALL)` to choose `/clients` versus `/clients/cards`.
 - `TopNav` preserves the legacy `isAdmin` fallback while permission loading is pending or the resolver errors.
+- TopNav avatar Settings link and mobile Settings nav item use `useCan(PERMISSIONS.SETTINGS_VIEW)`.
+- TopNav Settings visibility remains unchanged while the permission check is loading or errors.
 - `ProtectedRoute` accepts optional permission gate props without changing existing route declarations.
 - `/users` uses `requiredPermission={PERMISSIONS.USERS_READ}`.
 - `/users/:userId` uses `requiredPermission={PERMISSIONS.USERS_UPDATE}`.
@@ -362,6 +368,7 @@ Completed Step 4 partial navigation plumbing:
 - Chris/appraiser can access user view routes and is blocked from edit/new user routes.
 - Abby/admin has full Users access.
 - Abby/admin can access user view, edit, and new user routes.
+- Desktop validation passed for the TopNav Settings permission patch where applicable.
 - ClientsIndex gates New Client with `CLIENTS_CREATE`.
 - ClientDetail gates Edit Client and inline edit form with `CLIENTS_UPDATE_ALL`.
 - `/clients/new` uses `requiredPermission={PERMISSIONS.CLIENTS_CREATE}`.
@@ -376,7 +383,7 @@ Completed Step 4 partial navigation plumbing:
 - User edit form and role management were not otherwise changed.
 - Order creation route, order form, and workflow/action buttons were not changed.
 - Order workflow/action buttons were not changed.
-- Order, client, calendar, navigation, dashboard behavior, Supabase, RLS, backend, migrations, and workflow/action logic were not changed by the latest Users route permission slice.
+- Orders, Clients, Calendar, CommandPalette, routes, layout, styling, dashboard behavior, Supabase, RLS, backend, migrations, and workflow/action logic were not changed by the latest TopNav Settings permission slice.
 
 Still needed:
 
@@ -391,6 +398,8 @@ canUserPerform(userId, permissionKey, context)
 - New checks use permission helpers.
 - Navigation can be gated by permission helpers.
 - `TopNav` clients path respects `CLIENTS_READ_ALL` and falls back to legacy admin behavior while permissions load.
+- TopNav avatar Settings link and mobile Settings nav item use `SETTINGS_VIEW`.
+- TopNav Settings visibility remains unchanged during permission loading/errors.
 - `/users` route guard uses `USERS_READ`.
 - `/users/:userId` route guard uses `USERS_UPDATE`.
 - `/users/new` route guard uses `USERS_CREATE`.
@@ -412,6 +421,7 @@ canUserPerform(userId, permissionKey, context)
 - Chris/appraiser validated user view access works and edit/new user routes are blocked.
 - Abby/admin validated full Users access.
 - Abby/admin validated user view, edit, and new user routes work.
+- Desktop validation passed for the TopNav Settings permission patch where applicable.
 - Client create/edit UI and routes use `CLIENTS_CREATE` and `CLIENTS_UPDATE_ALL`.
 - Remaining client panel Edit/Delete actions use `CLIENTS_UPDATE_ALL` and `CLIENTS_DELETE`.
 - Client drawer direct save/update path uses `CLIENTS_UPDATE_ALL`.
@@ -424,9 +434,10 @@ canUserPerform(userId, permissionKey, context)
 - CommandPalette preserves legacy behavior during permission loading/errors.
 - Order workflow/action buttons remain untouched.
 - Order creation route and order form remain untouched.
-- Order, client, calendar, navigation, Supabase/RLS, backend, migrations, dashboard behavior, and workflow/action logic remain untouched by the latest Users route permission slice.
+- Orders, Clients, Calendar, CommandPalette, routes, layout, styling, Supabase/RLS, backend, migrations, dashboard behavior, and workflow/action logic remain untouched by the latest TopNav Settings permission slice.
 - User edit form and role management remain otherwise untouched.
 - Dashboard behavior, Supabase, and RLS remain untouched.
+- Mobile login currently shows a blank screen; mobile-specific investigation is deferred unless it affects desktop or core live app flows.
 - Existing tests/build pass.
 
 ### Stop Conditions Before Moving On
