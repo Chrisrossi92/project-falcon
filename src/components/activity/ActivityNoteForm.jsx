@@ -29,49 +29,21 @@ export default function ActivityNoteForm({ orderId, order = null, onSaved }) {
       recipient = order?.reviewer_id ? { userId: order.reviewer_id, role: "reviewer" } : null;
     }
 
-    const diagnostic = {
-      userId,
-      role,
-      orderId: order?.id || orderId || null,
-      appraiserId: order?.appraiser_id || null,
-      reviewerId: order?.reviewer_id || null,
-      selectedEventKey: eventKey,
-      selectedRecipientIds: recipient?.userId ? [recipient.userId] : [],
-    };
-
-    console.log("[ActivityNoteForm note notify] decision", diagnostic);
-
     if (!eventKey || !recipient?.userId) {
-      console.log("[ActivityNoteForm note notify] skipped missing recipient", {
-        ...diagnostic,
-        skippedMissingRecipient: true,
-      });
       return;
     }
 
     if (recipient.userId === userId) {
-      console.log("[ActivityNoteForm note notify] skipped self notification", {
-        ...diagnostic,
-        skippedSelfNotification: true,
-      });
       return;
     }
 
     try {
-      const result = await emitNotification(eventKey, {
+      await emitNotification(eventKey, {
         recipients: [recipient],
         order: order || { id: orderId },
         payload: { message },
       });
-      console.log("[ActivityNoteForm note notify] emitNotification result", {
-        ...diagnostic,
-        result: result ?? null,
-      });
     } catch (error) {
-      console.error("[ActivityNoteForm note notify] emitNotification error", {
-        ...diagnostic,
-        error,
-      });
       throw error;
     }
   }
