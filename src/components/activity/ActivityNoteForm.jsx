@@ -1,5 +1,6 @@
 // src/components/activity/ActivityNoteForm.jsx
 import React, { useState } from "react";
+import supabase from "@/lib/supabaseClient";
 import { logNote } from "@/lib/services/activityService";
 import { emitNotification } from "@/lib/services/notificationsService";
 import { getCurrentUserProfile } from "@/lib/services/api";
@@ -8,6 +9,7 @@ import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
 import { resolveOrderParticipants } from "@/lib/orders/resolveOrderParticipants";
 
 const GENERIC_USER_NAMES = new Set(["user", "demo user"]);
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default function ActivityNoteForm({ orderId, order = null, onSaved }) {
   const [msg, setMsg] = useState("");
@@ -23,6 +25,32 @@ export default function ActivityNoteForm({ orderId, order = null, onSaved }) {
       .find((value) => value && !GENERIC_USER_NAMES.has(value.toLowerCase()));
   }
 
+  function displayNameFromAuthUser(authUser) {
+    const meta = authUser?.user_metadata || {};
+    return displayNameFromUser({
+      display_name: meta.display_name,
+      full_name: meta.full_name,
+      name: meta.name,
+      email: authUser?.email,
+    });
+  }
+
+  function isUuidLike(value) {
+    return UUID_RE.test(String(value || ""));
+  }
+
+  function isShortIdLike(value) {
+    const raw = String(value || "").trim();
+    const id = String(order?.id || orderId || "").trim();
+    return !!raw && !!id && raw === id.slice(0, 8);
+  }
+
+  function usableOrderNumber(value) {
+    const raw = String(value || "").trim();
+    if (!raw || isUuidLike(raw) || isShortIdLike(raw)) return null;
+    return raw;
+  }
+
   async function currentUserDisplayName() {
     const loadedName = displayNameFromUser(currentUser);
     if (loadedName) return loadedName;
@@ -35,7 +63,35 @@ export default function ActivityNoteForm({ orderId, order = null, onSaved }) {
       // Best-effort display fallback only; note logging/routing should continue.
     }
 
+    try {
+      const { data } = await supabase.auth.getUser();
+      const authName = displayNameFromAuthUser(data?.user);
+      if (authName) return authName;
+    } catch {
+      // Best-effort display fallback only; note logging/routing should continue.
+    }
+
     return "User";
+  }
+
+  async function resolveOrderNumber() {
+    const localOrderNumber = usableOrderNumber(order?.order_number || order?.order_no || order?.orderNumber);
+    if (localOrderNumber) return localOrderNumber;
+
+    const id = order?.id || orderId;
+    if (!id) return null;
+
+    try {
+      const { data, error } = await supabase
+        .from("orders")
+        .select("order_number")
+        .eq("id", id)
+        .maybeSingle();
+      if (error) throw error;
+      return usableOrderNumber(data?.order_number);
+    } catch {
+      return null;
+    }
   }
 
   async function actorParticipantName(roleName) {
@@ -73,7 +129,7 @@ export default function ActivityNoteForm({ orderId, order = null, onSaved }) {
       return;
     }
 
-    const orderNumber = order?.order_number || order?.order_no || null;
+    const orderNumber = await resolveOrderNumber();
     const actorName = await actorParticipantName(actorRoleOnOrder);
     const recipientName = participantName(recipientRoleOnOrder);
     const kindLabel =
