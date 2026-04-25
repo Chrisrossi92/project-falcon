@@ -15,12 +15,18 @@ export default function ActivityNoteForm({ orderId, order = null, onSaved }) {
     let eventKey = null;
     let recipient = null;
 
-    if (normalizedRole === "appraiser") {
+    if (userId && userId === order?.appraiser_id) {
       eventKey = "note.appraiser_added";
       recipient = order?.reviewer_id ? { userId: order.reviewer_id, role: "reviewer" } : null;
+    } else if (userId && userId === order?.reviewer_id) {
+      eventKey = "note.reviewer_added";
+      recipient = order?.appraiser_id ? { userId: order.appraiser_id, role: "appraiser" } : null;
     } else if (normalizedRole === "reviewer" || normalizedRole === "admin" || normalizedRole === "owner") {
       eventKey = "note.reviewer_added";
       recipient = order?.appraiser_id ? { userId: order.appraiser_id, role: "appraiser" } : null;
+    } else if (normalizedRole === "appraiser") {
+      eventKey = "note.appraiser_added";
+      recipient = order?.reviewer_id ? { userId: order.reviewer_id, role: "reviewer" } : null;
     }
 
     if (!eventKey || !recipient?.userId || recipient.userId === userId) return;
