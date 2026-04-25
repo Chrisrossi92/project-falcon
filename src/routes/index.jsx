@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 
 import Layout from "@/layout/Layout";
 import ProtectedRoute from "@/lib/hooks/ProtectedRoute";
+import { PERMISSIONS } from "@/lib/permissions/constants";
 
 // Pages
 import Login from "@/pages/auth/Login";
@@ -109,7 +110,14 @@ export default function AppRoutes() {
         {/* ✅ Users — single page with admin role/split controls */}
         <Route
           path="/users"
-          element={<ProtectedRoute roles={["owner", "admin", "manager", "reviewer", "appraiser"]}><UsersIndex /></ProtectedRoute>}
+          element={
+            <ProtectedRoute
+              requiredPermission={PERMISSIONS.USERS_READ}
+              roles={["owner", "admin", "manager", "reviewer", "appraiser"]}
+            >
+              <UsersIndex />
+            </ProtectedRoute>
+          }
         />
         <Route
           path="/users/:userId"
@@ -127,7 +135,14 @@ export default function AppRoutes() {
         {/* Settings */}
         <Route
           path="/settings"
-          element={<ProtectedRoute roles={["owner", "admin", "manager", "reviewer", "appraiser"]}><Settings /></ProtectedRoute>}
+          element={
+            <ProtectedRoute
+              requiredPermission={PERMISSIONS.SETTINGS_VIEW}
+              roles={["owner", "admin", "manager", "reviewer", "appraiser"]}
+            >
+              <Settings />
+            </ProtectedRoute>
+          }
         />
         <Route
           path="/settings/notifications"
@@ -143,7 +158,6 @@ export default function AppRoutes() {
     </Routes>
   );
 }
-
 
 
 

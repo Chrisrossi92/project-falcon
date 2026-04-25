@@ -25,6 +25,7 @@ export default function ProtectedRoute({
   ].filter(Boolean);
   const hasPermissionGate = permissionKeysRequested.length > 0;
   const loading = sessionLoading || !!roleLoading || (hasPermissionGate && permissions.loading);
+  const redirectPath = fallbackPath || "/dashboard";
   const renderLoading = () => (
     <div className="min-h-[60vh] flex items-center justify-center">
       <div className="flex items-center gap-3 text-gray-600">
@@ -47,34 +48,47 @@ export default function ProtectedRoute({
   const hasRoleGate = !!requireAdmin || !!requireReviewer || !!wantRoles;
   const current = String(role || "").toLowerCase().trim();
   const unresolvedAccess = hasRoleGate && !current;
+  const hasPermissionFallback = hasPermissionGate && hasRoleGate;
 
   if (unresolvedAccess) return renderLoading();
 
-  if (requireAdmin && !isAdmin) return <Navigate to={fallbackPath || "/dashboard"} replace />;
-  if (requireReviewer && !isReviewer) return <Navigate to={fallbackPath || "/dashboard"} replace />;
-  if (wantRoles) {
-    const ok = wantRoles.map((r) => String(r).toLowerCase()).includes(current);
-    if (!ok) return <Navigate to={fallbackPath || "/dashboard"} replace />;
-  }
+  const hasLegacyRoleAccess = () => {
+    if (requireAdmin && !isAdmin) return false;
+    if (requireReviewer && !isReviewer) return false;
+    if (wantRoles) {
+      return wantRoles.map((r) => String(r).toLowerCase()).includes(current);
+    }
+    return true;
+  };
+
   if (hasPermissionGate && permissions.error) {
-    return <Navigate to={fallbackPath || "/dashboard"} replace />;
+    if (hasPermissionFallback && hasLegacyRoleAccess()) return <>{children}</>;
+    return <Navigate to={redirectPath} replace />;
   }
-  if (requiredPermission && !permissions.hasPermission(requiredPermission)) {
-    return <Navigate to={fallbackPath || "/dashboard"} replace />;
-  }
-  if (Array.isArray(requiredAnyPermissions) && requiredAnyPermissions.length > 0) {
-    if (!permissions.hasAnyPermission(requiredAnyPermissions)) {
-      return <Navigate to={fallbackPath || "/dashboard"} replace />;
+
+  if (hasPermissionGate) {
+    if (requiredPermission && !permissions.hasPermission(requiredPermission)) {
+      return <Navigate to={redirectPath} replace />;
     }
-  }
-  if (Array.isArray(requiredAllPermissions) && requiredAllPermissions.length > 0) {
-    if (!permissions.hasAllPermissions(requiredAllPermissions)) {
-      return <Navigate to={fallbackPath || "/dashboard"} replace />;
+    if (Array.isArray(requiredAnyPermissions) && requiredAnyPermissions.length > 0) {
+      if (!permissions.hasAnyPermission(requiredAnyPermissions)) {
+        return <Navigate to={redirectPath} replace />;
+      }
     }
+    if (Array.isArray(requiredAllPermissions) && requiredAllPermissions.length > 0) {
+      if (!permissions.hasAllPermissions(requiredAllPermissions)) {
+        return <Navigate to={redirectPath} replace />;
+      }
+    }
+
+    return <>{children}</>;
+  }
+
+  if (!hasLegacyRoleAccess()) {
+    return <Navigate to={redirectPath} replace />;
   }
 
   return <>{children}</>;
 }
-
 
 
