@@ -3,6 +3,8 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import supabase from "@/lib/supabaseClient";
 import AvatarBadge from "@/components/ui/AvatarBadge";
 import { useRole } from "@/lib/hooks/useRole";
+import { useCan } from "@/lib/hooks/usePermissions";
+import { PERMISSIONS } from "@/lib/permissions/constants";
 
 function isUuid(v) {
   return typeof v === "string" && /^[0-9a-fA-F-]{8}-[0-9a-fA-F-]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(v);
@@ -13,6 +15,10 @@ export default function UserDetail() {
   const { id: routeId } = useParams();
   const { isAdmin, role } = useRole() || {};
   const isAdminish = !!(isAdmin || String(role || "").toLowerCase() === "admin");
+  const canUpdateUsers = useCan(PERMISSIONS.USERS_UPDATE);
+  const showEditAction = canUpdateUsers.loading || canUpdateUsers.error
+    ? isAdminish
+    : canUpdateUsers.allowed;
 
   const [effectiveId, setEffectiveId] = useState(null);
   const [u, setU] = useState(null);
@@ -140,7 +146,7 @@ export default function UserDetail() {
           <Link to="/users" className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50">
             ← Back
           </Link>
-          {isAdminish && (
+          {showEditAction && (
             <Link
               to={`/users/${u.id}`}
               className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50"
@@ -207,7 +213,6 @@ export default function UserDetail() {
     </div>
   );
 }
-
 
 
 
