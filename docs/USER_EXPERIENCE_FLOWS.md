@@ -15,6 +15,7 @@ Core UX principles:
 - Every order should be identified by company order number, never by internal UUID.
 - Activity log is the durable story of the order.
 - Notifications are delivery prompts, not the source of truth.
+- The notification center behaves like a lightweight action inbox, not just a passive feed.
 - Workflow actions should feel obvious from the current order state.
 
 ## Major User Types
@@ -26,6 +27,41 @@ Core UX principles:
 - Inspector / Field Rep
 - Billing
 - Client Portal User
+
+## Notification Center UX
+
+The personal bell notification center is an action inbox for the signed-in user.
+
+Notifications render as separate card/list items. Each item should show:
+
+- Visual type/category/priority treatment.
+- Title.
+- Body.
+- Bold clickable order number when order-related.
+- Timestamp.
+- Individual mark-as-read action.
+- Optional priority indicator.
+
+Notification visual distinction:
+
+- Communication/note: blue or neutral.
+- Revision/request/action-needed: orange.
+- Overdue/critical: red.
+- Assignment/new order: green.
+- System/admin: gray or purple.
+
+Unread notifications remain visible until the user intentionally marks them read. Users can leave a notification unread as a reminder or action item.
+
+Users can:
+
+- Mark one notification as read.
+- Mark all notifications as read.
+- Leave a notification unread.
+- Click only the order number to navigate to the order.
+
+Clicking the notification card itself should not navigate or mark the notification read. The order number is the only navigation target inside an order-related notification.
+
+Admin communication feed remains separate from personal bell notifications. The feed provides operational visibility and audit context; the bell is reserved for direct personal prompts and configured alerts.
 
 ## 1. Owner First Login And Company Setup
 

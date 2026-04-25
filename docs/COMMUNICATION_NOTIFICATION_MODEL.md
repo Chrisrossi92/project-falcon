@@ -9,6 +9,7 @@ Activity and notifications are related but separate:
 - Activity log is the durable history.
 - Notifications are delivery records to specific users.
 - Admin communication feed is a visibility surface, not necessarily a bell stream.
+- Personal bell notifications behave like a lightweight action inbox, not just a passive feed.
 
 ## Core Concepts
 
@@ -129,6 +130,43 @@ ORD-24008
 
 The order number should be the clickable line.
 
+## Notification Center UX Contract
+
+The personal notification center should render notifications as separate card/list items.
+
+Each notification item should include:
+
+- Visual distinction by notification type, category, or priority.
+- Title.
+- Body.
+- Bold clickable order number when an order is present.
+- Timestamp.
+- Individual mark-as-read action.
+- Optional priority indicator.
+
+Visual distinction should follow these defaults:
+
+- `communication` / note: blue or neutral.
+- Revision, request, or action-needed: orange.
+- Overdue or critical: red.
+- Assignment or new order: green.
+- System or admin: gray or purple.
+
+Read behavior:
+
+- Users can mark one notification as read.
+- Users can mark all notifications as read.
+- Unread notifications remain visible until intentionally cleared.
+- Users can intentionally leave notifications unread as reminders or action items.
+
+Navigation behavior:
+
+- Only the order number is clickable for order navigation.
+- Clicking the card body should not navigate.
+- Clicking the order number should not implicitly mark the notification read.
+
+The notification center is an action inbox for the signed-in user. It should prioritize personal prompts, direct responsibility, mentions, configured alerts, and workflow actions.
+
 ## Admin Communication Feed Format
 
 For admins/owners:
@@ -164,6 +202,8 @@ Admins/owners receive bell notifications when:
 - Event importance is high and admin policy enables high-priority alerts.
 
 Admins/owners should always have visibility into communication feed, regardless of bell preferences.
+
+The admin communication feed remains separate from personal bell notifications. Admin feed items are for operational visibility, filtering, and audit context; bell notifications are for direct interruption and action.
 
 ## Current MVP Flow
 
@@ -236,4 +276,3 @@ Recommended importance:
 - Do not send all admin-visible communication as bells.
 - Do not build notification text from UUIDs.
 - Do not duplicate routing logic in multiple UI components.
-

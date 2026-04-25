@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Bell, Check, CheckCheck, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import useSession from "@/lib/hooks/useSession";
@@ -16,6 +17,27 @@ export default function NotificationBell() {
 
   const channelName = useMemo(() => (userId ? `notif:${userId}` : null), [userId]);
   const unreadItems = useMemo(() => items.filter((n) => !n.read_at), [items]);
+
+  const typeStyleFor = (n) => {
+    const type = String(n?.type || n?.category || "").toLowerCase();
+    const title = String(n?.title || "").toLowerCase();
+    const priority = String(n?.priority || n?.payload?.priority || "").toLowerCase();
+    const value = `${type} ${title} ${priority}`;
+
+    if (/(overdue|critical|urgent|past_due)/.test(value)) {
+      return { label: "Critical", badge: "bg-red-50 text-red-700 border-red-200", accent: "border-l-red-500" };
+    }
+    if (/(revision|request|action|needed|sent_back|review)/.test(value)) {
+      return { label: "Action needed", badge: "bg-orange-50 text-orange-700 border-orange-200", accent: "border-l-orange-500" };
+    }
+    if (/(assign|assigned|new_assigned|new order|new_order)/.test(value)) {
+      return { label: "Assignment", badge: "bg-emerald-50 text-emerald-700 border-emerald-200", accent: "border-l-emerald-500" };
+    }
+    if (/(system|admin|lock|policy)/.test(value)) {
+      return { label: "System", badge: "bg-violet-50 text-violet-700 border-violet-200", accent: "border-l-violet-500" };
+    }
+    return { label: "Communication", badge: "bg-blue-50 text-blue-700 border-blue-200", accent: "border-l-blue-500" };
+  };
 
   const formatTimestamp = (value) => {
     if (!value) return "";
@@ -46,18 +68,26 @@ export default function NotificationBell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
-  const handleNotificationClick = async (n) => {
+  const openOrder = (n) => {
     if (!n) return;
-    if (!n.read_at) {
-      await supabase.rpc("rpc_mark_notification_read", { p_notification_id: n.id });
-    }
     if (n.link_path) {
       navigate(n.link_path);
     } else if (n.order_id) {
       navigate(`/orders/${n.order_id}`);
     }
-    loadNotifications();
     setOpen(false);
+  };
+
+  const markOneRead = async (n) => {
+    if (!n?.id || n.read_at) return;
+    setError(null);
+    const { error } = await supabase.rpc("rpc_mark_notification_read", { p_notification_id: n.id });
+    if (error) {
+      console.error("markOneRead error", error);
+      setError(error);
+      return;
+    }
+    await loadNotifications();
   };
 
   const isUuid = (value) =>
@@ -80,6 +110,10 @@ export default function NotificationBell() {
     }
     return n?.title || n?.type || "Notification";
   };
+
+  const bodyFor = (n) => n?.body || n?.message || n?.payload?.message || "";
+
+  const priorityFor = (n) => n?.priority || n?.payload?.priority || null;
 
   const markAllRead = async () => {
     if (!userId || markingAllRead) return;
@@ -123,12 +157,12 @@ export default function NotificationBell() {
   return (
     <div className="relative">
       <button
-        className="relative p-2 rounded-xl border"
+        className="relative inline-flex h-10 w-10 items-center justify-center rounded-lg border bg-white text-slate-700 hover:bg-slate-50"
         onClick={() => handleOpenChange(!open)}
         aria-label="Notifications"
         title="Notifications"
       >
-        🔔
+        <Bell className="h-5 w-5" aria-hidden="true" />
         {unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 text-xs px-1.5 py-0.5 rounded-full bg-red-600 text-white">
             {unreadCount}
@@ -137,23 +171,33 @@ export default function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-[360px] max-h-[60vh] overflow-auto bg-white border rounded-xl shadow-lg p-2">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="font-semibold">Notification Center</h3>
-            <div className="flex items-center gap-3">
+        <div className="absolute right-0 z-50 mt-2 w-[420px] max-w-[calc(100vw-1rem)] max-h-[70vh] overflow-hidden bg-white border rounded-lg shadow-lg">
+          <div className="flex items-center justify-between gap-3 border-b px-3 py-2">
+            <div>
+              <h3 className="font-semibold text-sm text-slate-950">Notification Center</h3>
+              <p className="text-xs text-slate-500">{unreadCount} unread</p>
+            </div>
+            <div className="flex items-center gap-2">
               <button
-                className="text-sm underline disabled:opacity-60"
+                className="inline-flex h-8 items-center gap-1.5 rounded-md border px-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
                 onClick={markAllRead}
                 disabled={markingAllRead}
+                title="Mark all as read"
               >
+                <CheckCheck className="h-3.5 w-3.5" aria-hidden="true" />
                 {markingAllRead ? "Marking..." : "Mark all as read"}
               </button>
-              <button className="text-sm underline" onClick={loadNotifications}>
-                Refresh
+              <button
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md border text-slate-700 hover:bg-slate-50"
+                onClick={loadNotifications}
+                title="Refresh"
+                aria-label="Refresh notifications"
+              >
+                <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
               </button>
             </div>
           </div>
-          <div className="max-h-80 overflow-y-auto">
+          <div className="max-h-[calc(70vh-58px)] overflow-y-auto p-2">
             {loading && (
               <div className="p-3 text-sm text-muted-foreground">Loading…</div>
             )}
@@ -166,40 +210,75 @@ export default function NotificationBell() {
             {!loading &&
               !error &&
               unreadItems.length > 0 &&
-              unreadItems.map((n) => (
-                <div
-                  key={n.id}
-                  className={`w-full px-3 py-2 text-left text-sm ${
-                    n.read_at ? "opacity-60" : ""
-                  }`}
-                >
-                  <div className="font-medium">{titleFor(n)}</div>
-                  {n.body && (
-                    <div className="text-xs text-muted-foreground mt-0.5">
-                      {n.body}
+              unreadItems.map((n) => {
+                const style = typeStyleFor(n);
+                const orderLabel = orderLabelFor(n);
+                const priority = priorityFor(n);
+                const body = bodyFor(n);
+
+                return (
+                  <article
+                    key={n.id}
+                    className={`mb-2 rounded-md border border-l-4 bg-white p-3 text-sm shadow-sm ${style.accent}`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${style.badge}`}>
+                            {style.label}
+                          </span>
+                          {priority && (
+                            <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                              {priority}
+                            </span>
+                          )}
+                        </div>
+                        <h4 className="mt-2 text-sm font-semibold leading-5 text-slate-950">
+                          {titleFor(n)}
+                        </h4>
+                      </div>
+                      <button
+                        type="button"
+                        className="inline-flex h-8 shrink-0 items-center gap-1 rounded-md border px-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                        onClick={() => markOneRead(n)}
+                        title="Mark as read"
+                      >
+                        <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                        Read
+                      </button>
                     </div>
-                  )}
-                  {orderLabelFor(n) && (
-                    <button
-                      type="button"
-                      className="mt-1 text-xs font-semibold text-slate-900 underline underline-offset-2 hover:text-slate-700"
-                      onClick={() => handleNotificationClick(n)}
-                    >
-                      {orderLabelFor(n)}
-                    </button>
-                  )}
-                  {n.created_at && (
-                    <div className="text-[11px] text-muted-foreground mt-1">
-                      {formatTimestamp(n.created_at)}
+
+                    {body && (
+                      <p className="mt-1 text-xs leading-5 text-slate-600">
+                        {body}
+                      </p>
+                    )}
+
+                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                      {orderLabel ? (
+                        <button
+                          type="button"
+                          className="text-xs font-bold text-slate-950 underline underline-offset-2 hover:text-slate-700"
+                          onClick={() => openOrder(n)}
+                        >
+                          {orderLabel}
+                        </button>
+                      ) : (
+                        <span />
+                      )}
+                      {n.created_at && (
+                        <time className="text-[11px] text-slate-500" dateTime={n.created_at}>
+                          {formatTimestamp(n.created_at)}
+                        </time>
+                      )}
                     </div>
-                  )}
-                </div>
-              ))}
+                  </article>
+                );
+              })}
           </div>
         </div>
       )}
     </div>
   );
 }
-
 
