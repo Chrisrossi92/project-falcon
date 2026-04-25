@@ -170,6 +170,9 @@ Reference docs:
 - [x] Add first low-risk navigation permission integration in `TopNav`.
 - [x] Add optional permission props to `ProtectedRoute`.
 - [x] Migrate `/users` route guard to `USERS_READ`.
+- [x] Migrate `/users/:userId` route guard to `USERS_UPDATE`.
+- [x] Migrate `/users/new` route guard to `USERS_CREATE`.
+- [x] Migrate `/users/view/:userId` route guard to `USERS_READ`.
 - [x] Migrate `/settings` route guard to `SETTINGS_VIEW`.
 - [x] Migrate `/settings/notifications` route guard to `NOTIFICATIONS_PREFERENCES_MANAGE_OWN`.
 - [x] Filter `CommandPalette` items by permission.
@@ -193,6 +196,9 @@ Reference docs:
 - [x] Add `ProtectedRoute` support for `requiredPermission`, `requiredAnyPermissions`, and `requiredAllPermissions`.
 - [x] Migrate first route guards from legacy role arrays to permission props.
 - [x] Keep legacy role arrays on migrated routes as resolver-error fallback only.
+- [x] Gate `/users/:userId` through `USERS_UPDATE`.
+- [x] Gate `/users/new` through `USERS_CREATE`.
+- [x] Gate `/users/view/:userId` through `USERS_READ`.
 - [x] Gate `/settings/notifications` through `NOTIFICATIONS_PREFERENCES_MANAGE_OWN`.
 - [x] Gate CommandPalette Orders through `NAVIGATION_ORDERS_VIEW`.
 - [x] Gate CommandPalette Clients through `NAVIGATION_CLIENTS_VIEW`.
@@ -240,6 +246,9 @@ Reference docs:
 - [ ] Existing owner/admin/appraiser/reviewer behavior is preserved.
 - [x] `TopNav` clients route selection uses `CLIENTS_READ_ALL` with legacy fallback.
 - [x] `/users` route guard uses `USERS_READ`.
+- [x] `/users/:userId` route guard uses `USERS_UPDATE`.
+- [x] `/users/new` route guard uses `USERS_CREATE`.
+- [x] `/users/view/:userId` route guard uses `USERS_READ`.
 - [x] `/settings` route guard uses `SETTINGS_VIEW`.
 - [x] `/settings/notifications` route guard uses `NOTIFICATIONS_PREFERENCES_MANAGE_OWN`.
 - [x] Migrated route guards keep legacy role arrays as resolver-error fallback only.
@@ -257,7 +266,10 @@ Reference docs:
 - [x] User edit actions are gated by `USERS_UPDATE`.
 - [x] User creation is gated by `USERS_CREATE`.
 - [x] Chris/appraiser validated read-only Users access.
+- [x] Chris/appraiser user view access works.
+- [x] Chris/appraiser edit/new user routes are blocked.
 - [x] Abby/admin validated full Users access.
+- [x] Abby/admin user view/edit/new user routes work.
 - [x] Legacy admin fallback remains only during permission loading/error.
 - [x] Client create UI and route use `CLIENTS_CREATE`.
 - [x] Client edit UI and route use `CLIENTS_UPDATE_ALL`.
@@ -279,6 +291,7 @@ Reference docs:
 - [x] Dashboard behavior is untouched.
 - [x] Supabase/RLS is untouched.
 - [x] Routes, backend, migrations, and dashboard behavior are untouched by the latest client panel/card permission slice.
+- [x] Order, client, calendar, navigation, backend, migrations, dashboard, and workflow/action logic are untouched by the latest Users route permission slice.
 - [x] Order workflow/actions are untouched.
 - [x] Build passes.
 

@@ -219,6 +219,9 @@ Completed:
 - `ProtectedRoute` now supports optional `requiredPermission`, `requiredAnyPermissions`, and `requiredAllPermissions` props.
 - Step 4 route guard migration is partially complete.
 - `/users` now uses `USERS_READ`.
+- `/users/:userId` now uses `USERS_UPDATE`.
+- `/users/new` now uses `USERS_CREATE`.
+- `/users/view/:userId` now uses `USERS_READ`.
 - `/settings` now uses `SETTINGS_VIEW`.
 - `/settings/notifications` now uses `NOTIFICATIONS_PREFERENCES_MANAGE_OWN`.
 - Migrated routes keep legacy role arrays as fallback only when the permission resolver errors.
@@ -236,7 +239,9 @@ Completed:
 - `USERS_CREATE` is granted to the Admin template role.
 - UsersIndex edit/create UI is fully permission-driven.
 - Chris/appraiser validated read-only Users access.
+- Chris/appraiser validated user view access works and edit/new user routes are blocked.
 - Abby/admin validated full Users access.
+- Abby/admin validated user view, edit, and new user routes work.
 - Client create/edit UI and routes now use `CLIENTS_CREATE` and `CLIENTS_UPDATE_ALL`.
 - Remaining client panel Edit/Delete actions are gated by `CLIENTS_UPDATE_ALL` and `CLIENTS_DELETE`.
 - Client drawer direct save/update path is gated by `CLIENTS_UPDATE_ALL`.
@@ -253,7 +258,7 @@ Still pending:
 - User edit form and role management are still legacy where not explicitly permission-gated.
 - Client query/KPI/scoped visibility logic remains legacy and responsibility-dependent.
 - `/clients` and `/clients/cards` visibility behavior was not changed.
-- Routes, dashboard behavior, Supabase, RLS, backend, migrations, and order workflow/actions are untouched by the latest client panel/card permission slice.
+- Order, client, calendar, navigation, dashboard behavior, Supabase, RLS, backend, migrations, and order workflow/actions were untouched by the latest Users route permission slice.
 - RLS/helper migration to permission checks.
 
 ### Goal
@@ -327,6 +332,9 @@ Completed Step 4 partial navigation plumbing:
 - `TopNav` preserves the legacy `isAdmin` fallback while permission loading is pending or the resolver errors.
 - `ProtectedRoute` accepts optional permission gate props without changing existing route declarations.
 - `/users` uses `requiredPermission={PERMISSIONS.USERS_READ}`.
+- `/users/:userId` uses `requiredPermission={PERMISSIONS.USERS_UPDATE}`.
+- `/users/new` uses `requiredPermission={PERMISSIONS.USERS_CREATE}`.
+- `/users/view/:userId` uses `requiredPermission={PERMISSIONS.USERS_READ}`.
 - `/settings` uses `requiredPermission={PERMISSIONS.SETTINGS_VIEW}`.
 - `/settings/notifications` uses `requiredPermission={PERMISSIONS.NOTIFICATIONS_PREFERENCES_MANAGE_OWN}`.
 - Migrated routes retain legacy role arrays as resolver-error fallback only.
@@ -351,7 +359,9 @@ Completed Step 4 partial navigation plumbing:
 - UsersIndex gates edit behavior with `USERS_UPDATE`.
 - UsersIndex gates New user behavior with `USERS_CREATE`.
 - Chris/appraiser has read-only directory access.
+- Chris/appraiser can access user view routes and is blocked from edit/new user routes.
 - Abby/admin has full Users access.
+- Abby/admin can access user view, edit, and new user routes.
 - ClientsIndex gates New Client with `CLIENTS_CREATE`.
 - ClientDetail gates Edit Client and inline edit form with `CLIENTS_UPDATE_ALL`.
 - `/clients/new` uses `requiredPermission={PERMISSIONS.CLIENTS_CREATE}`.
@@ -366,7 +376,7 @@ Completed Step 4 partial navigation plumbing:
 - User edit form and role management were not otherwise changed.
 - Order creation route, order form, and workflow/action buttons were not changed.
 - Order workflow/action buttons were not changed.
-- Routes, dashboard behavior, Supabase, RLS, backend, migrations, and order workflow/actions were not changed by the latest client panel/card permission slice.
+- Order, client, calendar, navigation, dashboard behavior, Supabase, RLS, backend, migrations, and workflow/action logic were not changed by the latest Users route permission slice.
 
 Still needed:
 
@@ -382,6 +392,9 @@ canUserPerform(userId, permissionKey, context)
 - Navigation can be gated by permission helpers.
 - `TopNav` clients path respects `CLIENTS_READ_ALL` and falls back to legacy admin behavior while permissions load.
 - `/users` route guard uses `USERS_READ`.
+- `/users/:userId` route guard uses `USERS_UPDATE`.
+- `/users/new` route guard uses `USERS_CREATE`.
+- `/users/view/:userId` route guard uses `USERS_READ`.
 - `/settings` route guard uses `SETTINGS_VIEW`.
 - `/settings/notifications` route guard uses `NOTIFICATIONS_PREFERENCES_MANAGE_OWN`.
 - Legacy role arrays on migrated routes are fallback only when the permission resolver errors.
@@ -396,7 +409,9 @@ canUserPerform(userId, permissionKey, context)
 - Admin template role includes `USERS_CREATE`.
 - UsersIndex edit/create UI is permission-driven.
 - Chris/appraiser validated read-only Users access.
+- Chris/appraiser validated user view access works and edit/new user routes are blocked.
 - Abby/admin validated full Users access.
+- Abby/admin validated user view, edit, and new user routes work.
 - Client create/edit UI and routes use `CLIENTS_CREATE` and `CLIENTS_UPDATE_ALL`.
 - Remaining client panel Edit/Delete actions use `CLIENTS_UPDATE_ALL` and `CLIENTS_DELETE`.
 - Client drawer direct save/update path uses `CLIENTS_UPDATE_ALL`.
@@ -409,7 +424,7 @@ canUserPerform(userId, permissionKey, context)
 - CommandPalette preserves legacy behavior during permission loading/errors.
 - Order workflow/action buttons remain untouched.
 - Order creation route and order form remain untouched.
-- Routes, Supabase/RLS, backend, migrations, dashboard behavior, and order workflow/action behavior remain untouched by client create/edit and panel/card gating.
+- Order, client, calendar, navigation, Supabase/RLS, backend, migrations, dashboard behavior, and workflow/action logic remain untouched by the latest Users route permission slice.
 - User edit form and role management remain otherwise untouched.
 - Dashboard behavior, Supabase, and RLS remain untouched.
 - Existing tests/build pass.

@@ -205,10 +205,12 @@ Progress:
 - Chris, Pam, and Abby validated access successfully.
 - Chris/appraiser validated no New Order button; Abby/admin validated New Order button visible.
 - Users directory access model is finalized: `USERS_READ` grants read-only directory access, `USERS_UPDATE` grants edit actions, and `USERS_CREATE` grants user creation.
+- Users route guard migration now includes `/users/:userId` with `USERS_UPDATE`, `/users/new` with `USERS_CREATE`, and `/users/view/:userId` with `USERS_READ`.
 - `USERS_READ` is granted to Appraiser, Reviewer, and Billing template roles.
 - `USERS_CREATE` is granted to the Admin template role.
 - UsersIndex edit/create UI is fully permission-driven.
 - Chris/appraiser validated read-only Users access; Abby/admin validated full Users access.
+- Chris/appraiser validated user view access and blocked edit/new user routes; Abby/admin validated user view/edit/new user routes.
 - Client create/edit UI and routes now use `CLIENTS_CREATE` and `CLIENTS_UPDATE_ALL`.
 - Remaining client panel Edit/Delete actions are gated by `CLIENTS_UPDATE_ALL` / `CLIENTS_DELETE`.
 - Client drawer direct save/update path is gated by `CLIENTS_UPDATE_ALL`.
@@ -268,6 +270,7 @@ Migration action:
 - Phase 2 Step 3 exposes frontend hooks but does not change UI behavior.
 - Phase 2 Step 4 partially wires frontend navigation and selected route guard plumbing without changing order action behavior.
 - `/users` now uses `USERS_READ`; `/settings` now uses `SETTINGS_VIEW`.
+- `/users/:userId` now uses `USERS_UPDATE`; `/users/new` now uses `USERS_CREATE`; `/users/view/:userId` now uses `USERS_READ`.
 - `/settings/notifications` now uses `NOTIFICATIONS_PREFERENCES_MANAGE_OWN`.
 - CommandPalette gates Orders, Clients, Users, Settings, and Notification Settings commands by permission.
 - CommandPalette preserves legacy command visibility during permission loading/errors.
@@ -281,6 +284,8 @@ Migration action:
 - UsersIndex edit/create UI is fully permission-driven.
 - Chris/appraiser has read-only Users access.
 - Abby/admin has full Users access.
+- Chris/appraiser can access user view routes and is blocked from edit/new user routes.
+- Abby/admin can access user view, edit, and new user routes.
 - Client create/edit UI and routes use `CLIENTS_CREATE` and `CLIENTS_UPDATE_ALL`.
 - Remaining client panel Edit/Delete actions use `CLIENTS_UPDATE_ALL` / `CLIENTS_DELETE`.
 - Client drawer direct save/update path uses `CLIENTS_UPDATE_ALL`.
@@ -289,7 +294,7 @@ Migration action:
 - `/clients` and `/clients/cards` visibility behavior was not changed.
 - Chris/appraiser can view scoped clients without client Edit/Delete actions.
 - Abby/admin can edit clients and sees admin edit capability.
-- Routes, Supabase/RLS, backend, migrations, dashboard behavior, and order workflow/actions remain untouched by client create/edit and panel/card gating.
+- Order, client, calendar, navigation, Supabase/RLS, backend, migrations, dashboard behavior, and workflow/actions remain untouched by the latest Users route permission slice.
 - User edit form and role management remain otherwise untouched.
 - Legacy role arrays remain fallback only when the permission resolver errors on migrated routes.
 - Later backfill legacy text roles into normalized assignments.
@@ -313,7 +318,7 @@ Maps role bundles to permission keys.
 Current risk:
 
 Seeded permissions are not yet consumed by RLS or RPC logic.
-Frontend helper plumbing exists, `TopNav` clients route selection now consumes `CLIENTS_READ_ALL` with legacy fallback, TopNav Users visibility consumes `USERS_READ`, `/users` consumes `USERS_READ`, `/settings` consumes `SETTINGS_VIEW`, `/settings/notifications` consumes `NOTIFICATIONS_PREFERENCES_MANAGE_OWN`, CommandPalette consumes navigation/settings/notification permissions, NewOrderButton consumes `ORDERS_CREATE`, UserDetail/UserCard/UsersIndex edit behavior consumes `USERS_UPDATE`, UsersIndex creation consumes `USERS_CREATE`, and client create/edit UI/routes consume `CLIENTS_CREATE`/`CLIENTS_UPDATE_ALL`. Most route config and workflow/action behavior have not been switched over.
+Frontend helper plumbing exists, `TopNav` clients route selection now consumes `CLIENTS_READ_ALL` with legacy fallback, TopNav Users visibility consumes `USERS_READ`, `/users` and `/users/view/:userId` consume `USERS_READ`, `/users/:userId` consumes `USERS_UPDATE`, `/users/new` consumes `USERS_CREATE`, `/settings` consumes `SETTINGS_VIEW`, `/settings/notifications` consumes `NOTIFICATIONS_PREFERENCES_MANAGE_OWN`, CommandPalette consumes navigation/settings/notification permissions, NewOrderButton consumes `ORDERS_CREATE`, UserDetail/UserCard/UsersIndex edit behavior consumes `USERS_UPDATE`, UsersIndex creation consumes `USERS_CREATE`, and client create/edit UI/routes consume `CLIENTS_CREATE`/`CLIENTS_UPDATE_ALL`. Most route config and workflow/action behavior have not been switched over.
 
 Progress:
 
@@ -334,6 +339,7 @@ Migration action:
 - Phase 2 Step 3 added frontend helper plumbing.
 - Phase 2 Step 4 partially migrated selected navigation and route guard plumbing from legacy role paths to permission helpers.
 - `/users` now uses `USERS_READ`; `/settings` now uses `SETTINGS_VIEW`.
+- `/users/:userId` now uses `USERS_UPDATE`; `/users/new` now uses `USERS_CREATE`; `/users/view/:userId` now uses `USERS_READ`.
 - `/settings/notifications` now uses `NOTIFICATIONS_PREFERENCES_MANAGE_OWN`.
 - CommandPalette gates Orders, Clients, Users, Settings, and Notification Settings commands by permission and preserves legacy behavior during permission loading/errors.
 - NewOrderButton uses `ORDERS_CREATE`; Chris/appraiser validated no button, and Abby/admin validated button visible.
@@ -344,6 +350,7 @@ Migration action:
 - Users nav visibility uses `USERS_READ`.
 - UsersIndex edit/create UI is fully permission-driven.
 - Chris/appraiser validated read-only Users access; Abby/admin validated full Users access.
+- Chris/appraiser validated user view access and blocked edit/new user routes; Abby/admin validated user view/edit/new user routes.
 - Client create/edit UI and routes use `CLIENTS_CREATE` and `CLIENTS_UPDATE_ALL`.
 - Remaining client panel Edit/Delete actions are gated by `CLIENTS_UPDATE_ALL` / `CLIENTS_DELETE`.
 - Client drawer direct save/update path is gated by `CLIENTS_UPDATE_ALL`.
@@ -353,7 +360,7 @@ Migration action:
 - Chris/appraiser validated scoped read-only client access, no client Edit/Delete actions, and read-only card text.
 - Abby/admin validated client edit access and admin edit capability.
 - Legacy admin fallback remains only during permission loading/errors.
-- Existing routes, order creation route/form, dashboard behavior, order workflow/action buttons, Supabase, RLS, backend, and migrations remain untouched.
+- Existing order creation route/form, client routes, calendar routes, navigation, dashboard behavior, order workflow/action buttons, Supabase, RLS, backend, and migrations remain untouched by the latest Users route permission slice.
 - User edit form and role management remain otherwise untouched.
 
 Drop/archive condition:
@@ -389,6 +396,7 @@ Migration action:
 - `TopNav` clients route selection now uses `CLIENTS_READ_ALL` with legacy admin fallback.
 - `ProtectedRoute` supports permission props.
 - `/users` now uses `USERS_READ`; `/settings` now uses `SETTINGS_VIEW`.
+- `/users/:userId` now uses `USERS_UPDATE`; `/users/new` now uses `USERS_CREATE`; `/users/view/:userId` now uses `USERS_READ`.
 - `/settings/notifications` now uses `NOTIFICATIONS_PREFERENCES_MANAGE_OWN`.
 - CommandPalette gates Orders, Clients, Users, Settings, and Notification Settings by permission.
 - NewOrderButton gates visibility through `ORDERS_CREATE`.
