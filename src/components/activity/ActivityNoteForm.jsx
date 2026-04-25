@@ -2,9 +2,12 @@
 import React, { useState } from "react";
 import { logNote } from "@/lib/services/activityService";
 import { emitNotification } from "@/lib/services/notificationsService";
+import { getCurrentUserProfile } from "@/lib/services/api";
 import useRole from "@/lib/hooks/useRole";
 import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
 import { resolveOrderParticipants } from "@/lib/orders/resolveOrderParticipants";
+
+const GENERIC_USER_NAMES = new Set(["user", "demo user"]);
 
 export default function ActivityNoteForm({ orderId, order = null, onSaved }) {
   const [msg, setMsg] = useState("");
@@ -13,25 +16,37 @@ export default function ActivityNoteForm({ orderId, order = null, onSaved }) {
   const { role, userId } = useRole() || {};
   const { user: currentUser } = useCurrentUser();
 
-  function currentUserDisplayName() {
-    const fields = [
-      currentUser?.display_name,
-      currentUser?.full_name,
-      currentUser?.name,
-      currentUser?.email,
-    ];
-    const normalizedGeneric = new Set(["user", "demo user"]);
-    const firstReal = fields
+  function displayNameFromUser(user) {
+    const fields = [user?.display_name, user?.full_name, user?.name, user?.email];
+    return fields
       .map((value) => String(value || "").trim())
-      .find((value) => value && !normalizedGeneric.has(value.toLowerCase()));
-
-    return firstReal || "User";
+      .find((value) => value && !GENERIC_USER_NAMES.has(value.toLowerCase()));
   }
 
-  function participantName(roleName, { preferCurrentUser = false } = {}) {
+  async function currentUserDisplayName() {
+    const loadedName = displayNameFromUser(currentUser);
+    if (loadedName) return loadedName;
+
+    try {
+      const profile = await getCurrentUserProfile();
+      const profileName = displayNameFromUser(profile);
+      if (profileName) return profileName;
+    } catch {
+      // Best-effort display fallback only; note logging/routing should continue.
+    }
+
+    return "User";
+  }
+
+  async function actorParticipantName(roleName) {
     if (roleName === "appraiser") return order?.appraiser_name || "Appraiser";
     if (roleName === "reviewer") return order?.reviewer_name || "Reviewer";
-    if (preferCurrentUser) return currentUserDisplayName();
+    return currentUserDisplayName();
+  }
+
+  function participantName(roleName) {
+    if (roleName === "appraiser") return order?.appraiser_name || "Appraiser";
+    if (roleName === "reviewer") return order?.reviewer_name || "Reviewer";
     if (roleName === "owner") return "Owner";
     if (roleName === "admin") return "Admin";
     return "User";
@@ -59,7 +74,7 @@ export default function ActivityNoteForm({ orderId, order = null, onSaved }) {
     }
 
     const orderNumber = order?.order_number || order?.order_no || null;
-    const actorName = participantName(actorRoleOnOrder, { preferCurrentUser: true });
+    const actorName = await actorParticipantName(actorRoleOnOrder);
     const recipientName = participantName(recipientRoleOnOrder);
     const kindLabel =
       actorRoleOnOrder === "appraiser"
