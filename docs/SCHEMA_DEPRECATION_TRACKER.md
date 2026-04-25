@@ -608,6 +608,16 @@ Current risk:
 
 May be auth/profile IDs in some legacy data or constraints; can conflict with future participant history.
 
+Progress:
+
+- Phase 3 first resolver slice added `src/lib/orders/resolveOrderParticipants.js`.
+- `ActivityNoteForm` now uses the resolver for note notification routing only.
+- Appraiser notes route to the reviewer; reviewer notes route to the appraiser; admin/other notes route to the appraiser.
+- Notification payload/UI behavior is otherwise unchanged.
+- No DB/RLS, order visibility, status lifecycle, or workflow button behavior changed.
+- `npm run build` passed.
+- Admin/Abby note notifications can still show a generic actor label such as "User added a note" because logged-in admin profile/identity hydrates as Demo User instead of Abby Rossi; defer this to actor display-name/profile hydration cleanup.
+
 Canonical replacement:
 
 `order_participants` as source of responsibility, with these fields kept as convenience projections.
@@ -798,7 +808,10 @@ Mixed schema contract: `detail`, `message`, `actor_id`, `created_by`, `created_b
 Progress:
 
 - Phase 1 Batch 2 Step 1 patched activity access checks/RLS where safe.
-- Activity actor write paths are still pending and should be the next identity cleanup target.
+- Phase 1 cleanup added `activity_log.actor_user_id` as the canonical `public.users.id` actor field.
+- Legacy `created_by` and `actor_id` remain auth/profile compatible for existing activity display.
+- Both `rpc_log_event` overloads now write `actor_user_id = public.current_app_user_id()` while `created_by` and `actor_id` remain `auth.uid()`.
+- Reviewer/Pam can post activity notes without `activity_log_created_by_fkey` errors.
 
 Canonical replacement:
 
@@ -816,10 +829,10 @@ Same table with canonical fields:
 
 Migration action:
 
-- Add canonical nullable fields.
+- Add remaining canonical nullable fields.
 - Backfill from existing fields.
 - Update RPCs to write canonical payload while keeping legacy fields populated.
-- Before payload enrichment, ensure actor IDs are written as `public.users.id`, not auth IDs.
+- Keep writing canonical actors to `actor_user_id`; keep legacy `created_by`/`actor_id` populated for compatibility until activity display no longer depends on them.
 
 Drop/archive condition:
 
@@ -872,7 +885,10 @@ Identity mismatch with canonical `public.users.id`.
 
 Progress:
 
-- Not fully resolved. Activity read/check paths were patched, but actor writes may still use auth/profile identity.
+- Activity read/check paths were patched.
+- `activity_log.actor_user_id` now captures the canonical `public.users.id` actor for note logging.
+- Legacy `created_by` and `actor_id` remain auth/profile identity for compatibility with the existing FK and activity display.
+- Reviewer/Pam note logging has been validated without `activity_log_created_by_fkey` errors.
 
 Canonical replacement:
 
@@ -880,9 +896,9 @@ Canonical replacement:
 
 Migration action:
 
-- Add `actor_user_id`.
+- Keep `actor_user_id`.
 - Backfill through `users.auth_id`.
-- Update `rpc_log_event`.
+- Keep `rpc_log_event` writing `actor_user_id = public.current_app_user_id()` and legacy `created_by`/`actor_id = auth.uid()`.
 - Audit `rpc_log_note`, `rpc_update_order_status`, `rpc_assign_order`, and triggers that write `actor_id` or `created_by`.
 
 Drop/archive condition:
@@ -908,7 +924,9 @@ Authorization compares against auth IDs/legacy roles and writes legacy event sha
 Progress:
 
 - Phase 1 Batch 2 Step 1 patched authorization comparison logic to use app identity where scoped.
-- Inserted actor values were intentionally left unchanged.
+- Phase 1 cleanup updated both `rpc_log_event` overloads so canonical actor identity is written to `actor_user_id`.
+- `created_by` and `actor_id` remain `auth.uid()` to preserve legacy activity display and the existing `activity_log_created_by_fkey`.
+- Reviewer/Pam can post activity notes successfully.
 
 Canonical replacement:
 
@@ -918,7 +936,7 @@ Migration action:
 
 - Patch identity and authorization.
 - Then enrich payload contract.
-- Next identity step: patch actor writes to use `public.current_app_user_id()` / `public.users.id`.
+- Keep actor writes split between canonical `actor_user_id` and legacy `created_by`/`actor_id` until activity display is migrated.
 
 Drop/archive condition:
 

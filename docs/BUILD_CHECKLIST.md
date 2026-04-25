@@ -92,6 +92,10 @@ Reference docs:
 - [x] Update `current_is_admin()` to map through `current_app_user_id()`.
 - [x] Update `current_is_appraiser()` to require explicit appraiser role assignment.
 - [x] Set frontend order views to `security_invoker = true` where supported.
+- [x] Add nullable `activity_log.actor_user_id` as canonical `public.users.id` actor field.
+- [x] Add `activity_log.actor_user_id` FK to `public.users(id)` with `ON DELETE SET NULL` and `NOT VALID`.
+- [x] Keep legacy `created_by` and `actor_id` compatible with auth/profile identity.
+- [x] Update both `rpc_log_event` overloads so `actor_user_id = public.current_app_user_id()` while `created_by` and `actor_id` remain `auth.uid()`.
 
 ### App / Service Implementation
 
@@ -114,7 +118,8 @@ Reference docs:
 - [x] Email outbox queues to public user ID.
 - [x] Email queue failure does not block notification insert.
 - [x] Assignment notification still works.
-- [ ] Activity notes still log.
+- [x] Activity notes still log.
+- [x] Reviewer/Pam can post activity notes without `activity_log_created_by_fkey` errors.
 - [x] No FK conflict on notification insert.
 - [x] Reviewer assigned to `new` or `in_progress` order is not granted visibility solely by reviewer assignment.
 - [x] Reviewer assigned to `in_review`, `needs_revisions`, or `completed` order keeps review-active/historical visibility.
@@ -123,7 +128,7 @@ Reference docs:
 - [x] Legacy broad policies `orders_read_all`, `orders_select_policy`, `orders_update_policy`, and `allow_reviewer_update_status` are dropped/replaced.
 - [x] `current_is_appraiser()` returns false for reviewer/admin users unless they have an explicit appraiser role row.
 - [ ] Confirm live `/orders` view/RPC uses RLS via `security_invoker`; replace with scoped RPC if unsupported.
-- [ ] Validate remaining activity write paths store actors as `public.users.id`.
+- [x] Validate activity note write path stores canonical actor in `activity_log.actor_user_id`.
 
 ### Stop Conditions
 
@@ -131,7 +136,7 @@ Reference docs:
 - [x] Local and live notification user ID semantics match.
 - [x] Notification identity mismatch regression is resolved.
 - [x] Reviewer role leakage into all-order visibility is resolved.
-- [ ] Activity actor identity mismatch is resolved.
+- [x] Activity note actor identity mismatch is resolved.
 
 ## Phase 2: Permission Compatibility Layer
 
@@ -336,35 +341,43 @@ Reference docs:
 ### App / Service Implementation
 
 - [ ] Implement `getOrderResponsibility(order, userId)`.
-- [ ] Implement `resolveOrderParticipants(order, eventContext)`.
-- [ ] Use current `orders.appraiser_id`.
-- [ ] Use current `orders.reviewer_id`.
+- [x] Implement first `resolveOrderParticipants(order, eventContext)` slice for activity note notifications.
+- [x] Use current `orders.appraiser_id` in first resolver slice.
+- [x] Use current `orders.reviewer_id` in first resolver slice.
 - [ ] Include status/lifecycle awareness.
-- [ ] Include self-notification suppression.
-- [ ] Return actor role on order.
-- [ ] Return bell recipients.
+- [x] Include self-notification suppression in first resolver slice.
+- [x] Return actor role on order in first resolver slice.
+- [x] Return bell recipients in first resolver slice.
 - [ ] Return visibility candidates.
 
 ### UI Implementation
 
-- [ ] Replace duplicated note recipient logic in activity note flow.
+- [x] Replace duplicated note recipient logic in activity note flow.
 - [ ] Replace duplicated workflow note recipient logic where touched.
-- [ ] Preserve current UI behavior.
+- [x] Preserve current activity note UI behavior.
 
 ### Validation
 
-- [ ] Appraiser note routes to reviewer.
-- [ ] Reviewer note routes to appraiser.
+- [x] Appraiser note routes to reviewer.
+- [x] Reviewer note routes to appraiser.
+- [x] Admin/other note routes to appraiser.
 - [ ] Admin assigned as appraiser routes as appraiser.
 - [ ] Missing recipient skips cleanly.
 - [ ] Self notification skips cleanly.
 - [ ] Reviewer lifecycle cases match docs.
+- [x] Notification payload/UI behavior is otherwise unchanged.
+- [x] No DB/RLS, order visibility, status lifecycle, or workflow button behavior changed.
+- [x] `npm run build` passed.
 
 ### Stop Conditions
 
-- [ ] Activity note notifications use resolver.
+- [x] Activity note notifications use resolver.
 - [ ] Workflow note notifications use resolver or have migration ticket.
 - [ ] No new appraiser/reviewer routing logic is added outside resolver.
+
+### Deferred Follow-Up
+
+- [ ] Admin/Abby note notifications can display a generic actor label such as "User added a note" because the logged-in admin profile/identity hydrates as Demo User instead of Abby Rossi. Treat this as actor display-name/profile hydration cleanup, separate from responsibility resolver routing.
 
 ## Phase 4: Activity / Notification Payload Contract
 

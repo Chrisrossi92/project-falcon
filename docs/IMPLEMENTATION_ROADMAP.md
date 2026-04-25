@@ -167,6 +167,13 @@ Completed Batch 2 Step 1:
 - Added lifecycle-aware order select/update policy for assigned reviewers.
 - Set frontend order views to `security_invoker = true` where supported.
 
+Completed Phase 1 cleanup:
+
+- Added `activity_log.actor_user_id` as the canonical `public.users.id` actor field.
+- Kept legacy `created_by` and `actor_id` compatible with auth/profile identity for existing activity display.
+- Updated both `rpc_log_event` overloads to write `actor_user_id = public.current_app_user_id()` while `created_by` and `actor_id` remain `auth.uid()`.
+- Reviewer/Pam can post activity notes without `activity_log_created_by_fkey` errors.
+
 ### App Changes
 
 - Ensure app code sends `public.users.id` for notification recipients.
@@ -500,6 +507,22 @@ It should return:
 - passive participant ids
 - actor role on order
 - recipient contexts
+
+Completed first resolver slice:
+
+- Added `src/lib/orders/resolveOrderParticipants.js`.
+- `ActivityNoteForm` uses the resolver for note notification routing only.
+- Appraiser notes route to the reviewer.
+- Reviewer notes route to the appraiser.
+- Admin/other notes route to the appraiser.
+- Notification payload/UI behavior is otherwise unchanged.
+- No DB/RLS, order visibility, status lifecycle, or workflow button behavior changed.
+- `npm run build` passed.
+
+Deferred follow-up:
+
+- Admin/Abby note notifications can still display a generic actor label such as "User added a note" because the logged-in admin profile/identity hydrates as Demo User instead of Abby Rossi.
+- Treat this as actor display-name/profile hydration cleanup, separate from responsibility resolver routing.
 
 ### Validation Checklist
 
