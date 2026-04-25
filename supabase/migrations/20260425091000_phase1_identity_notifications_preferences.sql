@@ -227,64 +227,88 @@ declare
   v_email text;
   v_subject text;
   v_body text;
+  v_template text;
+  v_payload jsonb;
   v_policy_rules jsonb;
   v_email_mode text := 'optional_on';
 begin
-  select rules
-    into v_policy_rules
-    from public.notification_policies
-   where key = NEW.type
-   limit 1;
+  begin
+    select rules
+      into v_policy_rules
+      from public.notification_policies
+     where key = NEW.type
+     limit 1;
 
-  if v_policy_rules is not null then
-    v_email_mode := coalesce(v_policy_rules->'email'->>'mode', 'off');
-  end if;
+    if v_policy_rules is not null then
+      v_email_mode := coalesce(v_policy_rules->'email'->>'mode', 'off');
+    end if;
 
-  if v_email_mode = 'off' then
-    return NEW;
-  end if;
+    if v_email_mode = 'off' then
+      return NEW;
+    end if;
 
-  select to_user_id, email_enabled, email_address
-    into v_to_user_id, v_enabled, v_email
-    from public._notification_email_target(NEW.user_id);
+    select to_user_id, email_enabled, email_address
+      into v_to_user_id, v_enabled, v_email
+      from public._notification_email_target(NEW.user_id);
 
-  if v_to_user_id is null then
-    return NEW;
-  end if;
+    if v_to_user_id is null or v_email is null then
+      return NEW;
+    end if;
 
-  if v_email is null then
-    return NEW;
-  end if;
+    if v_email_mode = 'optional_off' then
+      return NEW;
+    end if;
 
-  if v_email_mode = 'optional_off' then
-    return NEW;
-  end if;
+    if v_email_mode = 'optional_on' and coalesce(v_enabled, true) = false then
+      return NEW;
+    end if;
 
-  if v_email_mode = 'optional_on' and coalesce(v_enabled, true) = false then
-    return NEW;
-  end if;
+    if NEW.order_id is not null then
+      v_subject := coalesce(NEW.title, 'New update on your order');
+    else
+      v_subject := coalesce(NEW.title, 'New notification');
+    end if;
 
-  if NEW.order_id is not null then
-    v_subject := coalesce(NEW.title, 'New update on your order');
-  else
-    v_subject := coalesce(NEW.title, 'New notification');
-  end if;
+    v_body := coalesce(NEW.message, NEW.body, NEW.title, 'You have a new notification.');
+    v_template := coalesce(
+      NEW.payload->>'email_template_key',
+      NEW.payload->>'template_key',
+      NEW.payload->>'templateKey',
+      case NEW.type
+        when 'order.new_assigned' then 'order_assigned'
+        else null
+      end,
+      NEW.type,
+      'notification'
+    );
+    v_payload := coalesce(NEW.payload, '{}'::jsonb) || jsonb_build_object(
+      'notification_id', NEW.id,
+      'notification_type', NEW.type,
+      'category', NEW.category,
+      'title', v_subject,
+      'body', v_body,
+      'message', v_body,
+      'order_id', NEW.order_id,
+      'link_path', NEW.link_path
+    );
 
-  v_body := coalesce(NEW.message, NEW.body, NEW.title, 'You have a new notification.');
-
-  insert into public.email_outbox(
-    notification_id,
-    to_user_id,
-    to_email,
-    subject,
-    body_text
-  ) values (
-    NEW.id,
-    v_to_user_id,
-    v_email,
-    v_subject,
-    v_body
-  );
+    insert into public.email_queue(
+      user_id,
+      to_email,
+      subject,
+      template,
+      payload
+    ) values (
+      v_to_user_id,
+      v_email,
+      v_subject,
+      v_template,
+      v_payload
+    );
+  exception
+    when others then
+      null;
+  end;
 
   return NEW;
 end;
