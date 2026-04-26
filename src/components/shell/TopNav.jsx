@@ -30,7 +30,7 @@ function NavItem({ to, children, onClick }) {
       to={to}
       onClick={onClick}
       className={({ isActive }) =>
-        "px-3 py-1.5 rounded-lg text-sm font-medium transition " +
+        "px-4 py-2 rounded-lg text-base font-semibold transition " +
         (isActive ? "bg-slate-950 text-white shadow-sm" : "text-slate-600 hover:bg-white hover:text-slate-950")
       }
       end
@@ -155,18 +155,16 @@ export default function TopNav() {
             {showUsersNav && <NavItem to="/users">Users</NavItem>}
           </nav>
 
-          {/* global search launcher */}
-          <button
-            className="mx-auto hidden min-w-[300px] max-w-md flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-500 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 lg:flex"
-            onClick={() => setPal(true)}
-            title="Search (⌘K)"
-          >
-            <Search className="h-4 w-4 text-slate-400" aria-hidden="true" />
-            <span className="truncate">Search orders, clients, users...</span>
-            <span className="ml-auto rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-medium text-slate-400">⌘K</span>
-          </button>
-
           <div className="ml-auto flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-1 shadow-sm">
+            <button
+              className="hidden min-w-[260px] items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-500 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 xl:flex"
+              onClick={() => setPal(true)}
+              title="Search (⌘K)"
+            >
+              <Search className="h-4 w-4 text-slate-400" aria-hidden="true" />
+              <span className="truncate">Search...</span>
+              <span className="ml-auto rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-medium text-slate-400">⌘K</span>
+            </button>
             <button className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50 md:hidden" onClick={() => setPal(true)} title="Search">
               ⌘K
             </button>
@@ -202,7 +200,6 @@ export default function TopNav() {
     </>
   );
 }
-
 
 
 
