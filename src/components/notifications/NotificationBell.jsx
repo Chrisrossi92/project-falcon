@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Check, CheckCheck, RefreshCw, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
@@ -14,10 +14,12 @@ export default function NotificationBell() {
   const [markingAllRead, setMarkingAllRead] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const rootRef = useRef(null);
 
   const channelName = useMemo(() => (userId ? `notif:${userId}` : null), [userId]);
   const quickItems = useMemo(() => items.filter((n) => !n.dismissed_at), [items]);
   const unreadItems = useMemo(() => quickItems.filter((n) => !n.read_at), [quickItems]);
+  const seenQuickItems = useMemo(() => quickItems.filter((n) => n.read_at), [quickItems]);
 
   const typeStyleFor = (n) => {
     const type = String(n?.type || n?.category || "").toLowerCase();
@@ -115,6 +117,18 @@ export default function NotificationBell() {
     setUnreadCount((current) => (!n.read_at ? Math.max(0, current - 1) : current));
   };
 
+  const dismissSeen = async () => {
+    if (!userId || !seenQuickItems.length) return;
+    setError(null);
+    const { error } = await supabase.rpc("rpc_dismiss_seen_notifications");
+    if (error) {
+      console.error("dismissSeen error", error);
+      setError(error);
+      return;
+    }
+    setItems((current) => current.filter((item) => !item.read_at || item.dismissed_at));
+  };
+
   const isUuid = (value) =>
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(value || ""));
 
@@ -179,8 +193,19 @@ export default function NotificationBell() {
     };
   }, [channelName, userId]);
 
+  useEffect(() => {
+    if (!open) return undefined;
+    const handlePointerDown = (event) => {
+      if (!rootRef.current?.contains(event.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [open]);
+
   return (
-    <div className="relative">
+    <div ref={rootRef} className="relative">
       <button
         className="relative inline-flex h-10 w-10 items-center justify-center rounded-lg border bg-white text-slate-700 hover:bg-slate-50"
         onClick={() => handleOpenChange(!open)}
@@ -212,6 +237,15 @@ export default function NotificationBell() {
                 <CheckCheck className="h-3.5 w-3.5" aria-hidden="true" />
                 {markingAllRead ? "Marking..." : "Mark all seen"}
               </button>
+              {seenQuickItems.length > 0 && (
+                <button
+                  className="inline-flex h-8 items-center rounded-md border border-transparent px-2 text-xs font-medium text-slate-500 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-800"
+                  onClick={dismissSeen}
+                  title="Dismiss seen notifications"
+                >
+                  Dismiss seen
+                </button>
+              )}
               <button
                 className="inline-flex h-8 w-8 items-center justify-center rounded-md border text-slate-700 hover:bg-slate-50"
                 onClick={loadNotifications}
