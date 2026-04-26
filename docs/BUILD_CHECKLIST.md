@@ -488,6 +488,10 @@ Status: Notification payload contract MVP complete.
 - [x] Main table workflow actions are permission-gated with legacy fallback during permission loading/errors.
 - [x] Reviewer template role no longer receives `workflow.status.ready_for_client`.
 - [ ] Redesign row action dropdown/popover as a unified Smart Actions button/panel.
+- [ ] Create Smart Actions action model/builder for valid actions by status, role, permissions, and responsibility.
+- [ ] Create `SmartActionsButton.jsx` and `SmartActionsPanel.jsx`.
+- [ ] First Smart Actions slice should replace main table workflow actions only while keeping existing handlers and `WorkflowNoteModal`.
+- [ ] Defer drawer/detail replacement, appointment/date editing, final approval policy settings, backend/RLS enforcement, and bulk actions.
 - [ ] Activity event retains context after reassignment.
 - [ ] Admin feed prototype can render from payload.
 

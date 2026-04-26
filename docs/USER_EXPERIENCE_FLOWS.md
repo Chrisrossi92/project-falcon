@@ -484,7 +484,9 @@ When an order is marked Ready for Client, the appraiser should generally receive
 
 Potential future statuses include `review_cleared`, `pending_final_approval`, `ready_for_client`, and `completed`.
 
-The row action dropdown/popover remains a deferred UX redesign item. Future work should replace it with a unified Smart Actions button/panel for all roles.
+The row action dropdown/popover remains a deferred UX redesign item. Current issues include row overlap, bottom-row menus rendering under the table, and duplicated action logic across table, drawer, detail, reviewer shortcuts, and shared `OrderActions`.
+
+Future Smart Actions should use one action model/builder that determines valid actions by order status, role, permissions, and responsibility. Table, drawer, and detail should eventually render from the same action descriptors through a `SmartActionsButton` / `SmartActionsPanel` system. The first future slice should cover main table workflow actions only, keep existing handlers and `WorkflowNoteModal`, and avoid workflow/service changes. Drawer/detail replacement, appointment/date editing inside Smart Actions, final approval policy settings, backend/RLS enforcement, and bulk actions are deferred.
 
 ### What The Reviewer Sees
 

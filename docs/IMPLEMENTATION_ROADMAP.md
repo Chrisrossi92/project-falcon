@@ -552,7 +552,11 @@ Deferred follow-up:
 - Appraiser dashboard active queue now includes only `new`, `in_progress`, and `needs_revisions`; `in_review`, `review_cleared`, `pending_final_approval`, `ready_for_client`, and `completed` are excluded from the active queue while remaining available in Orders/history.
 - Main table workflow actions are permission-gated while preserving legacy fallback during permission loading/errors.
 - Reviewer template role no longer receives `workflow.status.ready_for_client`; reviewers keep `workflow.status.approve_review` for clear-review behavior.
-- Row action dropdown/popover UX remains a deferred redesign item; future work should replace the row dropdown with a unified Smart Actions button/panel for all roles.
+- Row action dropdown/popover UX remains a deferred redesign item: current menus can overlap rows, render under the table near the bottom, and duplicate action logic across table, drawer, detail, reviewer shortcuts, and shared `OrderActions`.
+- Future Smart Actions should use one action model/builder that determines valid actions by order status, role, permissions, and responsibility, then lets table, drawer, and detail render from the same action descriptors.
+- Planned future components include `buildOrderActions.js`, `SmartActionsButton.jsx`, `SmartActionsPanel.jsx`, and later action-specific note/date forms.
+- First future implementation slice should cover main table workflow actions only, keep existing handlers and `WorkflowNoteModal`, and avoid workflow/service changes.
+- Deferred Smart Actions scope includes drawer/detail replacement, appointment/date editing inside Smart Actions, final approval policy settings, backend/RLS enforcement, and bulk actions.
 - Admin/Abby note notifications can still display a generic actor label such as "User added a note" because the logged-in admin profile/identity hydrates as Demo User instead of Abby Rossi.
 - Treat this as actor display-name/profile hydration cleanup, separate from responsibility resolver routing.
 - Activity / Communication History presentation needs future polish, but is functional and visible.
