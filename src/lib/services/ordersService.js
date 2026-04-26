@@ -370,6 +370,7 @@ export async function updateOrderStatus(orderId, status, extra = {}) {
 }
 
 export async function sendOrderToReview(orderId, actorId, options = {}) {
+  const actorUserId = actorId || null;
   const { data: existingOrder, error: existingOrderError } = await supabase
     .from(ORDERS_TABLE)
     .select("id, status")
@@ -380,6 +381,7 @@ export async function sendOrderToReview(orderId, actorId, options = {}) {
   if (!existingOrder) throw new Error("Order not found.");
 
   const currentStatus = String(existingOrder.status || "").toLowerCase().trim();
+  const isResubmission = currentStatus === OrderStatus.NEEDS_REVISIONS;
   if (!APPRAISER_SEND_TO_REVIEW_STATUSES.has(currentStatus)) {
     throw new Error("Order cannot be sent to review from its current status.");
   }
@@ -395,13 +397,13 @@ export async function sendOrderToReview(orderId, actorId, options = {}) {
   if (!order) throw new Error("No order updated (permission or id mismatch).");
 
   const resolvedParticipants = resolveOrderParticipants(order, {
-    actorUserId: null,
+    actorUserId,
     actorRole: null,
     event: "workflow.sent_to_review",
     status: order.status,
   });
 
-  const recipients = resolvedParticipants.recipients
+  let recipients = resolvedParticipants.recipients
     .filter((userId) => userId && userId === order.reviewer_id)
     .map((userId) => ({ userId, role: "reviewer" }));
 
@@ -411,9 +413,16 @@ export async function sendOrderToReview(orderId, actorId, options = {}) {
 
   const adminRecipients = await fetchAdminRecipients();
   recipients.push(...adminRecipients);
+  const suppressUserIds = new Set(resolvedParticipants.suppressUserIds.filter(Boolean));
+  recipients = recipients.filter((recipient) => !suppressUserIds.has(recipient.userId));
 
   if (recipients.length > 0) {
-    const payload = options?.noteText ? { note_text: options.noteText } : {};
+    const payload = {
+      ...(options?.noteText ? { note_text: options.noteText } : {}),
+      ...(isResubmission
+        ? { is_resubmission: true, previous_status: OrderStatus.NEEDS_REVISIONS }
+        : {}),
+    };
     emitNotification("order.sent_to_review", { recipients, order, payload }).catch(
       (err) => console.error("order.sent_to_review notification failed", err)
     );
@@ -543,7 +552,6 @@ export async function isOrderNumberAvailable(orderNo, { excludeId = null } = {})
   if (res2.error) throw res2.error;
   return (res2.count || 0) === 0;
 }
-
 
 
 

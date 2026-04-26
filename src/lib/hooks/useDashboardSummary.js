@@ -27,6 +27,7 @@ export function useDashboardSummary() {
     if (isAppraiser && publicUserId) {
       f.appraiserId = publicUserId;
       f.assignedAppraiserId = publicUserId;
+      f.statusIn = [ORDER_STATUS.NEW, ORDER_STATUS.IN_PROGRESS, ORDER_STATUS.NEEDS_REVISIONS];
     } else if (isReviewer && publicUserId) {
       f.reviewerId = publicUserId;
       f.statusIn = [ORDER_STATUS.IN_REVIEW, ORDER_STATUS.NEEDS_REVISIONS];

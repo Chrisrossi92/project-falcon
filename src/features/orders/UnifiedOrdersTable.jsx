@@ -43,6 +43,12 @@ function orderPkOf(o) {
   return o?.id || o?.order_id || null;
 }
 
+const APPRAISER_DASHBOARD_STATUSES = [
+  ORDER_STATUS.NEW,
+  ORDER_STATUS.IN_PROGRESS,
+  ORDER_STATUS.NEEDS_REVISIONS,
+];
+
 export default function UnifiedOrdersTable({
   role: roleProp,
   filters: appliedFilters = {},
@@ -91,12 +97,15 @@ export default function UnifiedOrdersTable({
     if (isAppraiser) {
       enforced.appraiserId = internalUserId || null;
       enforced.assignedAppraiserId = null;
+      if (scope === "dashboard") {
+        enforced.statusIn = APPRAISER_DASHBOARD_STATUSES;
+      }
     }
     if (process.env.NODE_ENV === "development" && isAppraiser) {
       console.debug("[UnifiedOrdersTable] seedFinal (appraiser)", enforced);
     }
     return enforced;
-  }, [seed, isAppraiser, internalUserId]);
+  }, [seed, isAppraiser, internalUserId, scope]);
 
   const [refreshTick, setRefreshTick] = useState(0);
   const [workflowModal, setWorkflowModal] = useState(null);
@@ -158,7 +167,7 @@ export default function UnifiedOrdersTable({
           action: "send_to_review",
           orderId: order?.id ?? null,
         });
-        await sendOrderToReview(orderPk, sessionUser?.id, {
+        await sendOrderToReview(orderPk, internalUserId || sessionUser?.id, {
           noteText: formattedNote || null,
         });
         refresh();
@@ -176,7 +185,7 @@ export default function UnifiedOrdersTable({
         });
       }
     },
-    [sessionUser?.id, refresh, toast]
+    [internalUserId, sessionUser?.id, refresh, toast]
   );
 
   const handleSendBackToAppraiser = useCallback(

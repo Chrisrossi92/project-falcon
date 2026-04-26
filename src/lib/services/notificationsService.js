@@ -359,6 +359,7 @@ function buildNotificationTitle(eventKey, orderNumber, payload = {}) {
     case "order.new_assigned":
       return `Order ${num} assigned`;
     case "order.sent_to_review":
+      if (payload?.is_resubmission) return `Resubmitted for review: ${num}`;
       return `Order ${num} sent to review`;
     case "order.sent_back_to_appraiser":
       return `Revisions requested: ${num}`;
@@ -382,6 +383,7 @@ function buildNotificationBody(eventKey, order, payload) {
       return `A new order was assigned for ${client}.`;
     case "order.sent_to_review":
       if (payload?.note_text) return payload.note_text;
+      if (payload?.is_resubmission) return `Appraiser resubmitted this report for back-check.`;
       return `Appraiser sent this report for review.`;
     case "order.sent_back_to_appraiser":
       if (payload?.note_text) return payload.note_text;
