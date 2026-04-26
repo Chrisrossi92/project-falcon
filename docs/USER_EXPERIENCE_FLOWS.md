@@ -540,6 +540,16 @@ Order activity events:
 
 The admin dashboard feels like an operations control room.
 
+Dashboard KPI cards should be actionable queues, not vanity stats. Proposed admin default cards are:
+
+1. Total Active Orders
+2. Inspected / Awaiting Report
+3. Due to Client in 2 Days
+
+Clicking a KPI should filter the dashboard order list to that subset. MVP can infer Inspected / Awaiting Report from `site_visit_at` / `site_visit_date <= now()` plus active/report-writing statuses. Due to Client should use `final_due_date`, `final_due_at`, or `due_date` where available.
+
+Future company settings should allow configurable KPI cards without clutter: card type, statuses, due window, label/header, and date field. Settings UI and DB-backed KPI configuration are deferred; the first MVP implementation should be frontend/service scoped using existing data fields.
+
 It should show:
 
 - Orders needing assignment.

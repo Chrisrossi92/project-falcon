@@ -487,6 +487,12 @@ Status: Notification payload contract MVP complete.
 - [x] Appraiser dashboard excludes `in_review`, `review_cleared`, `pending_final_approval`, `ready_for_client`, and `completed` from active queue while preserving Orders/history visibility.
 - [x] Main table workflow actions are permission-gated with legacy fallback during permission loading/errors.
 - [x] Reviewer template role no longer receives `workflow.status.ready_for_client`.
+- [ ] Redesign admin dashboard KPI cards as actionable queues rather than vanity stats.
+- [ ] Use proposed admin default KPI cards: Total Active Orders, Inspected / Awaiting Report, and Due to Client in 2 Days.
+- [ ] Make KPI clicks filter the dashboard order list to the matching subset.
+- [ ] Infer Inspected / Awaiting Report from `site_visit_at` / `site_visit_date <= now()` plus active/report-writing statuses for MVP.
+- [ ] Use `final_due_date`, `final_due_at`, or `due_date` for Due to Client KPI windows.
+- [ ] Defer configurable KPI card settings UI and DB-backed KPI configuration.
 - [ ] Redesign row action dropdown/popover as a unified Smart Actions button/panel.
 - [ ] Create Smart Actions action model/builder for valid actions by status, role, permissions, and responsibility.
 - [ ] Create `SmartActionsButton.jsx` and `SmartActionsPanel.jsx`.
