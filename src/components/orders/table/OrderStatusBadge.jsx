@@ -8,6 +8,7 @@ const TONE = {
   in_review: "bg-indigo-50 text-indigo-700 border-indigo-200",
   needs_revisions: "bg-rose-50 text-rose-700 border-rose-200",
   review_cleared: "bg-violet-50 text-violet-700 border-violet-200",
+  pending_final_approval: "bg-cyan-50 text-cyan-700 border-cyan-200",
   ready_for_client: "bg-emerald-50 text-emerald-700 border-emerald-200",
   completed: "bg-gray-100 text-gray-700 border-gray-200",
   default: "bg-slate-100 text-slate-700 border-slate-200",

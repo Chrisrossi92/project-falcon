@@ -11,6 +11,7 @@ export const ORDER_STATUS = {
   IN_REVIEW: "in_review",
   NEEDS_REVISIONS: "needs_revisions",
   REVIEW_CLEARED: "review_cleared",
+  PENDING_FINAL_APPROVAL: "pending_final_approval",
   READY_FOR_CLIENT: "ready_for_client",
   COMPLETED: "completed",
 };
@@ -47,6 +48,10 @@ const STATUS_MAP = {
   // review cleared
   review_cleared: ORDER_STATUS.REVIEW_CLEARED,
   "review cleared": ORDER_STATUS.REVIEW_CLEARED,
+
+  // pending final approval
+  pending_final_approval: ORDER_STATUS.PENDING_FINAL_APPROVAL,
+  "pending final approval": ORDER_STATUS.PENDING_FINAL_APPROVAL,
 
   // ready for client / ready to send
   ready_for_client: ORDER_STATUS.READY_FOR_CLIENT,
@@ -85,6 +90,7 @@ export function formatOrderStatusLabel(normalized) {
     [ORDER_STATUS.IN_REVIEW]: "In Review",
     [ORDER_STATUS.NEEDS_REVISIONS]: "Needs Revisions",
     [ORDER_STATUS.REVIEW_CLEARED]: "Review Cleared",
+    [ORDER_STATUS.PENDING_FINAL_APPROVAL]: "Pending Final Approval",
     [ORDER_STATUS.READY_FOR_CLIENT]: "Ready for Client",
     [ORDER_STATUS.COMPLETED]: "Completed",
   };
@@ -100,7 +106,7 @@ export function statusGroup(s) {
   if ([ORDER_STATUS.IN_REVIEW, ORDER_STATUS.NEEDS_REVISIONS, ORDER_STATUS.REVIEW_CLEARED].includes(x)) {
     return "review";
   }
-  if ([ORDER_STATUS.READY_FOR_CLIENT].includes(x)) {
+  if ([ORDER_STATUS.PENDING_FINAL_APPROVAL, ORDER_STATUS.READY_FOR_CLIENT].includes(x)) {
     return "ready";
   }
   if ([ORDER_STATUS.COMPLETED].includes(x)) {
@@ -131,6 +137,7 @@ export const STATUS_LABEL = {
   [ORDER_STATUS.IN_REVIEW]: "In Review",
   [ORDER_STATUS.NEEDS_REVISIONS]: "Needs Revisions",
   [ORDER_STATUS.REVIEW_CLEARED]: "Review Cleared",
+  [ORDER_STATUS.PENDING_FINAL_APPROVAL]: "Pending Final Approval",
   [ORDER_STATUS.READY_FOR_CLIENT]: "Ready for Client",
   [ORDER_STATUS.COMPLETED]: "Completed",
 };

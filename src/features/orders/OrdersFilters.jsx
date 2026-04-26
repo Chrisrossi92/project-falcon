@@ -10,6 +10,7 @@ const STATUS = [
   ["in_review", "In review"],
   ["needs_revisions", "Needs revisions"],
   ["review_cleared", "Review cleared"],
+  ["pending_final_approval", "Pending final approval"],
   ["ready_for_client", "Ready for client"],
   ["completed", "Completed"],
 ];

@@ -10,7 +10,14 @@ import OrderDrawerContent from "@/components/orders/drawer/OrderDrawerContent";
 import OrderOpenFullLink from "@/components/orders/drawer/OrderOpenFullLink";
 import ReviewerActionCell from "@/components/orders/table/ReviewerActionCell";
 import { updateOrderStatus } from "@/lib/api/orders";
-import { sendOrderToReview, sendOrderBackToAppraiser, completeOrder, clearReview } from "@/lib/services/ordersService";
+import {
+  sendOrderToReview,
+  sendOrderBackToAppraiser,
+  completeOrder,
+  clearReview,
+  requestFinalApproval,
+  markReadyForClient,
+} from "@/lib/services/ordersService";
 import { logNote } from "@/lib/services/activityService";
 import { emitNotification } from "@/lib/services/notificationsService";
 import WorkflowNoteModal from "@/components/orders/WorkflowNoteModal";
@@ -329,14 +336,72 @@ export default function UnifiedOrdersTable({
     [sessionUser?.id, refresh, toast]
   );
 
+  const handleRequestFinalApproval = useCallback(
+    async (order) => {
+      const orderPk = orderPkOf(order);
+      if (!orderPk) {
+        toast({ title: "Error", description: "Missing order id.", tone: "error" });
+        return;
+      }
+
+      try {
+        await requestFinalApproval(orderPk, sessionUser?.id);
+        refresh();
+        toast({
+          title: "Final approval requested",
+          description: `Order ${order.order_number || orderPk} is pending final approval.`,
+          tone: "success",
+        });
+      } catch (err) {
+        console.error("Failed to request final approval", err);
+        toast({
+          title: "Error",
+          description: err?.message ? `Could not request final approval: ${err.message}` : "Could not request final approval.",
+          tone: "error",
+        });
+      }
+    },
+    [sessionUser?.id, refresh, toast]
+  );
+
+  const handleReadyForClient = useCallback(
+    async (order) => {
+      const orderPk = orderPkOf(order);
+      if (!orderPk) {
+        toast({ title: "Error", description: "Missing order id.", tone: "error" });
+        return;
+      }
+
+      try {
+        await markReadyForClient(orderPk, sessionUser?.id);
+        refresh();
+        toast({
+          title: "Marked ready for client",
+          description: `Order ${order.order_number || orderPk} moved to client release.`,
+          tone: "success",
+        });
+      } catch (err) {
+        console.error("Failed to mark ready for client", err);
+        toast({
+          title: "Error",
+          description: err?.message ? `Could not mark ready for client: ${err.message}` : "Could not mark ready for client.",
+          tone: "error",
+        });
+      }
+    },
+    [sessionUser?.id, refresh, toast]
+  );
+
   const columnActions = useMemo(
     () => ({
       onSendToReview: (order) => openWorkflowModal("send_to_review", order),
       onSendBackToAppraiser: (order) => openWorkflowModal("send_back_to_appraiser", order),
       onComplete: handleCompleteOrder,
       onClearReview: handleClearReview,
+      onRequestFinalApproval: handleRequestFinalApproval,
+      onReadyForClient: handleReadyForClient,
     }),
-    [openWorkflowModal, handleCompleteOrder, handleClearReview]
+    [openWorkflowModal, handleCompleteOrder, handleClearReview, handleRequestFinalApproval, handleReadyForClient]
   );
 
   const columns = useColumnsConfig(normalizedRole, columnActions);

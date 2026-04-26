@@ -1,4 +1,5 @@
 import OrderStatusBadge from "@/components/orders/table/OrderStatusBadge";
+import { ORDER_STATUS } from "@/lib/constants/orderStatus";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -107,7 +108,7 @@ export function getColumnsForRole(role, actions = {}) {
   const normalizedRole = (role || "appraiser").toString().toLowerCase();
   const isAppraiser = normalizedRole === "appraiser";
   const isReviewer = normalizedRole === "reviewer";
-  const { onSendToReview, onSendBackToAppraiser, onComplete, onClearReview } = actions || {};
+  const { onSendToReview, onSendBackToAppraiser, onComplete, onClearReview, onRequestFinalApproval, onReadyForClient } = actions || {};
   const orderStatusColumn = col("order",      "180px",              () => "Order / Stat.",       (order) => orderCell(order), { locked: true });
   const clientColumn = col("client",    "200px",              () => "Client / Appraiser",                clientCell);
   const addressColumn = col("address",  "minmax(200px,1fr)",  () => "Address",               addressCell);
@@ -134,6 +135,12 @@ export function getColumnsForRole(role, actions = {}) {
         isAppraiser &&
         APPRAISER_SEND_TO_REVIEW_STATUSES.has(normalizedStatus) &&
         Boolean(onSendToReview);
+      const canRequestFinalApproval =
+        normalizedStatus === ORDER_STATUS.REVIEW_CLEARED &&
+        Boolean(onRequestFinalApproval);
+      const canMarkReadyForClient =
+        [ORDER_STATUS.REVIEW_CLEARED, ORDER_STATUS.PENDING_FINAL_APPROVAL].includes(normalizedStatus) &&
+        Boolean(onReadyForClient);
 
       const button = isAppraiser ? (
         canSendToReview ? (
@@ -195,6 +202,16 @@ export function getColumnsForRole(role, actions = {}) {
               >
                 Send back to appraiser
               </DropdownMenuItem>
+              {canRequestFinalApproval && (
+                <DropdownMenuItem onClick={() => onRequestFinalApproval?.(order)}>
+                  Request Final Approval
+                </DropdownMenuItem>
+              )}
+              {canMarkReadyForClient && (
+                <DropdownMenuItem onClick={() => onReadyForClient?.(order)}>
+                  Mark ready for client
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={() => onComplete?.(order)}>
                 Mark complete
               </DropdownMenuItem>

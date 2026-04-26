@@ -13,6 +13,7 @@ export const OrderStatus = {
   IN_REVIEW: "in_review",
   NEEDS_REVISIONS: "needs_revisions",
   REVIEW_CLEARED: "review_cleared",
+  PENDING_FINAL_APPROVAL: "pending_final_approval",
   READY_FOR_CLIENT: "ready_for_client",
   COMPLETED: "completed",
 };
@@ -294,6 +295,7 @@ export async function assignReviewer(orderId, reviewer_id) {
 export async function startReview(orderId, note = null)        { return setOrderStatus(orderId, OrderStatus.IN_REVIEW); }
 export async function requestRevisions(orderId, note = null)   { return setOrderStatus(orderId, OrderStatus.NEEDS_REVISIONS); }
 export async function clearReview(orderId, note = null)        { return setOrderStatus(orderId, OrderStatus.REVIEW_CLEARED); }
+export async function requestFinalApproval(orderId, note = null) { return setOrderStatus(orderId, OrderStatus.PENDING_FINAL_APPROVAL); }
 export async function markReadyForClient(orderId, note = null) {
   const { data: order, error } = await supabase
     .from(ORDERS_TABLE)
@@ -520,7 +522,6 @@ export async function isOrderNumberAvailable(orderNo, { excludeId = null } = {})
   if (res2.error) throw res2.error;
   return (res2.count || 0) === 0;
 }
-
 
 
 
