@@ -83,6 +83,8 @@ export default function UnifiedOrdersTable({
       clientId: appliedFilters.clientId || null,
       appraiserId: appliedFilters.appraiserId || null,
       assignedAppraiserId: appliedFilters.assignedAppraiserId || null,
+      inspectedAwaitingReport: appliedFilters.inspectedAwaitingReport || false,
+      finalDueWithinDays: appliedFilters.finalDueWithinDays ?? null,
       priority: appliedFilters.priority || "",
       dueWindow: appliedFilters.dueWindow || "",
       from: appliedFilters.from || "",
