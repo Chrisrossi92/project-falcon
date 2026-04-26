@@ -524,8 +524,10 @@ Completed first resolver slice:
 - Admin recipients remain appended through `fetchAdminRecipients()`.
 - Chris/appraiser send-to-review was validated: Pam/reviewer received notification, Abby/admin received notification, and status behavior remained normal.
 - Complete order workflow still works and sends notifications.
-- Duplicate workflow note bell notification is suppressed for send-back-to-appraiser while the revision note remains in activity history through `logNote`.
-- Send-to-review workflow notes still emit a separate note notification when applicable; duplicate-note suppression has only been applied to send-back-to-appraiser so far.
+- Send-to-review workflow emits a single notification with optional note snippet while preserving the full note in activity history through `logNote`.
+- Send-back-to-appraiser workflow emits a single notification with revision note snippet while preserving the full note in activity history through `logNote`.
+- `clearReview` emits `order.review_cleared` to admin/owner recipients, with notification policy seeded for the event.
+- Workflow notifications are now consistent for MVP: one actionable notification per action, with Activity / Communication History as the full communication source.
 - `/orders/:id` shows Activity / Communication History with `ActivityLog`, so notification clicks land on a detail page with visible communication history.
 - Notification payload/UI behavior is otherwise unchanged.
 - No DB/RLS, order visibility, status lifecycle, or workflow button behavior changed.
@@ -535,7 +537,6 @@ Completed first resolver slice:
 Deferred follow-up:
 
 - Do not migrate `markReadyForClient` to `resolveOrderParticipants` yet. Default Falcon workflow should separate reviewer clearance from client release.
-- Send-to-review workflow notes still emit a separate note notification when applicable; this is accepted/deferred and is not a blocker for moving to the next phase.
 - Reviewer remains responsible for technical review actions such as send back to appraiser and clear review/review cleared.
 - Admin/owner controls client release actions such as mark ready for client and mark completed by default.
 - A future company setting may allow reviewer release for firms that permit reviewers to mark orders ready for client.
@@ -543,6 +544,8 @@ Deferred follow-up:
 - These ready-for-client recipients should be controlled later by company workflow/notification settings.
 - Final owner approval should be configurable: no final approval required, final approval always required, or final approval required by client/report type/threshold/manual decision later.
 - Potential lifecycle statuses for this model include `in_review`, `needs_revisions`, `review_cleared`, `pending_final_approval`, `ready_for_client`, and `completed`.
+- `review_cleared` is now introduced and validated for the default reviewer-to-admin handoff: reviewer actions move `in_review` to `review_cleared`, admin/owner can see those orders and continue client release, and `ready_for_client` remains the admin/owner release state.
+- `clearReview()` works, reviewer-facing UI says "Clear Review", direct reviewer status shortcuts use `REVIEW_CLEARED`, activity records "In Review -> Review Cleared", notification copy indicates review cleared/admin release handoff, and `npm run build` passed.
 - Admin/Abby note notifications can still display a generic actor label such as "User added a note" because the logged-in admin profile/identity hydrates as Demo User instead of Abby Rossi.
 - Treat this as actor display-name/profile hydration cleanup, separate from responsibility resolver routing.
 - Activity / Communication History presentation needs future polish, but is functional and visible.
@@ -564,6 +567,8 @@ Deferred follow-up:
 - No duplicated appraiser/reviewer recipient logic remains in newly touched code.
 
 ## Phase 4: Activity / Notification Payload Contract Enforcement
+
+Status: Notification payload contract MVP complete.
 
 ### Goal
 
@@ -628,6 +633,16 @@ Completed first payload slice:
 - `buildNotificationBody("order.sent_back_to_appraiser")` now prefers `payload.note_text`.
 - Duplicate note notification remains suppressed, so the appraiser receives a single informative notification instead of two separate ones.
 - Routing, resolver behavior, recipients, DB/RLS, and status logic are unchanged.
+- Send-to-review workflow notification now includes optional note text and suppresses the duplicate note notification.
+- `order.review_cleared` notification policy is seeded for admin/owner handoff delivery.
+- Notifications are consistent across current workflow actions: one actionable notification per action.
+- Activity log remains the source of full communication history; notifications are summaries.
+- ActivityLog UX polish slice is complete: posted notes silently refresh through `listOrderActivity` without a full loading flash, the composer uses the `onSaved` callback, and the viewport remains fixed-height/scrollable even with `fill` layout.
+- Activity logging, notifications, realtime subscription, and workflow logic were unchanged.
+- Notification Center quick-view polish is MVP-complete: unread, seen, and dismissed states are distinct; unread items count toward the badge; seen items remain as reminders; dismissed items leave quick view but remain in history.
+- Added `dismissed_at`, individual dismiss, `Dismiss seen`, click-outside close, and restored notification type color hints. `Mark all seen` clears the badge without removing reminders, and no notification history is deleted.
+- `/activity` page MVP is implemented with existing user-scoped `rpc_get_notifications`: it shows unread, seen, and dismissed notification history, supports search across title/body/order number/payload, includes state and type/category filters, shows badges/order number/date/open action, and does not auto-mark seen or dismiss items.
+- Raw `activity_log` aggregation, pagination, restore-dismissed behavior, and team-wide activity remain deferred.
 - `npm run build` passed.
 
 ### Validation Checklist
@@ -644,6 +659,8 @@ Completed first payload slice:
 - Existing activity log remains readable.
 
 ## Phase 5: Company Foundation
+
+Status: Reviewer/admin workflow separation MVP complete for current single-company workflow.
 
 ### Goal
 

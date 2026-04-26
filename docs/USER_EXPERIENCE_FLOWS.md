@@ -32,6 +32,8 @@ Core UX principles:
 
 The personal bell notification center is an action inbox for the signed-in user.
 
+MVP quick-view behavior is implemented: unread/new notifications count toward the badge, seen/read notifications remain visible as softer reminders, and dismissed notifications are removed from quick view while staying available for future history/activity views.
+
 Notifications render as separate card/list items. Each item should show:
 
 - Visual type/category/priority treatment.
@@ -40,6 +42,7 @@ Notifications render as separate card/list items. Each item should show:
 - Bold clickable order number when order-related.
 - Timestamp.
 - Individual mark-as-read action.
+- Individual dismiss action.
 - Optional priority indicator.
 
 Notification visual distinction:
@@ -50,16 +53,24 @@ Notification visual distinction:
 - Assignment/new order: green.
 - System/admin: gray or purple.
 
-Unread notifications remain visible until the user intentionally marks them read. Users can leave a notification unread as a reminder or action item.
+Unread notifications remain visible until the user intentionally marks them seen. Users can leave a notification unread as a reminder or action item.
 
 Users can:
 
-- Mark one notification as read.
-- Mark all notifications as read.
+- Mark one notification as seen.
+- Mark all notifications as seen.
 - Leave a notification unread.
+- Dismiss one notification from quick view.
+- Dismiss all seen notifications from quick view.
 - Click only the order number to navigate to the order.
 
-Clicking the notification card itself should not navigate or mark the notification read. The order number is the only navigation target inside an order-related notification.
+Clicking the notification card itself should not navigate or mark the notification seen. Opening the bell does not automatically mark notifications seen. The order number is the only navigation target inside an order-related notification.
+
+Notification type colors remain visible in both unread and seen states. `Mark all seen` clears the badge without removing reminders; `Dismiss seen` clears seen reminders from quick view without deleting notification history.
+
+The `/activity` page MVP is implemented as the signed-in user's full notification history. It uses existing user-scoped notification history, shows unread, seen, and dismissed items, keeps dismissed quick-view notifications visible in history, provides search across title/body/order number/payload, includes state and type/category filters, and opens items through `link_path` or `/orders/:order_id`. The page does not auto-mark seen or dismiss items.
+
+Raw `activity_log` aggregation, pagination, restore dismissed, and team-wide activity are deferred.
 
 Admin communication feed remains separate from personal bell notifications. The feed provides operational visibility and audit context; the bell is reserved for direct personal prompts and configured alerts.
 
@@ -456,6 +467,12 @@ Status changes to `needs_revisions`.
 The reviewer clears review or requests revisions.
 
 Default Falcon workflow should not treat this as client release. Client release is admin/owner-controlled unless a company setting permits reviewer release.
+
+Validated behavior: reviewer "Clear Review" moves the order from `in_review` to `review_cleared`, reviewer/admin/owner visibility is retained, activity logs "In Review -> Review Cleared", and notification copy indicates the review cleared/admin release handoff.
+
+Clear Review emits an admin/owner handoff notification. Send-to-review and send-back-to-appraiser workflow notifications include note snippets when present and suppress duplicate note bell notifications. Activity log remains the full communication history; notifications are summaries.
+
+Activity / Communication History UX polish slice is complete: posted notes refresh silently without a full loading flash, and the activity viewport remains fixed-height and scrollable after updates. Activity logging, notifications, realtime, and workflow behavior are unchanged.
 
 When an order is marked Ready for Client, the appraiser should generally receive a cleared/released notification, admins/owners should remain action-aware, and reviewer notification should be optional/configurable through future company workflow/notification settings.
 

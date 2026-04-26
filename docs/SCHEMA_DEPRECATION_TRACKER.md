@@ -621,14 +621,18 @@ Progress:
 - `sendOrderBackToAppraiser` now uses the resolver for appraiser recipient assembly with the existing appraiser fallback.
 - `completeOrder` now uses the resolver for appraiser recipient assembly with the existing appraiser fallback.
 - `markReadyForClient` is intentionally not migrated to the resolver yet because default Falcon workflow should separate reviewer clearance from admin/owner client release.
+- `review_cleared` is introduced and validated: reviewer actions transition `in_review` to `review_cleared`, `clearReview()` updates status correctly, reviewer UI says "Clear Review", direct reviewer status paths use `REVIEW_CLEARED`, DB constraints accept the status, reviewers retain visibility, admins/owners can proceed with client release, activity logs "In Review -> Review Cleared", notification copy indicates review cleared/admin release handoff, and build passed.
 - Admin recipients remain appended through `fetchAdminRecipients()`.
 - Chris/appraiser send-to-review was validated: Pam/reviewer received notification, Abby/admin received notification, and status behavior remained normal.
 - Complete order workflow still works and sends notifications.
-- Notification payload/UI behavior is otherwise unchanged.
+- Send-to-review workflow now emits a single notification with optional note snippet, and duplicate note notification is suppressed.
+- Send-back-to-appraiser workflow emits a single notification with revision note snippet.
+- `clearReview` emits `order.review_cleared` to admin/owner recipients.
+- Notification policy is seeded for `order.review_cleared`.
+- Workflow notifications are MVP-consistent: one actionable notification per action.
+- Activity log remains the source of full communication history; notifications are summaries.
+- Notification payload/UI behavior is otherwise unchanged outside these workflow summary updates.
 - No DB/RLS, order visibility, status lifecycle, routing, notification service, or workflow button behavior changed.
-- Duplicate workflow note bell notification is suppressed for send-back-to-appraiser.
-- Send-to-review workflow notes still emit a separate note notification when applicable; duplicate-note suppression has only been applied to send-back-to-appraiser so far.
-- The separate send-to-review workflow-note notification is accepted/deferred and is not a blocker for the next phase.
 - Revision notes are still preserved in activity history through `logNote`.
 - `/orders/:id` now shows Activity / Communication History with `ActivityLog`, so notification clicks land where communication history is visible.
 - `npm run build` passed.
@@ -794,13 +798,17 @@ Progress:
 - Phase 3 send-back-to-appraiser notification recipient assembly now uses `resolveOrderParticipants` for the appraiser recipient, keeps the existing fallback, and appends admins through `fetchAdminRecipients()`.
 - Phase 3 complete-order notification recipient assembly now uses `resolveOrderParticipants` for the appraiser recipient, keeps the existing fallback, and appends admins through `fetchAdminRecipients()`.
 - `markReadyForClient` resolver migration is deferred until reviewer clearance and client release are modeled separately. Reviewer actions are technical review actions, while admin/owner controls client release by default.
+- Phase 5 reviewer-clearance handoff is validated: `clearReview()` and reviewer-facing actions now persist `review_cleared`, reviewers retain visibility, admins/owners see the handoff state, activity logs the `In Review -> Review Cleared` transition, notification copy indicates the admin release handoff, and build passed.
 - This `markReadyForClient` deferral does not block moving to the next phase.
 - Future workflow model may include `review_cleared`, `pending_final_approval`, and configurable owner/final approval rules before `ready_for_client`.
-- Duplicate workflow note bell notification is suppressed for send-back-to-appraiser while revision note activity logging remains through `logNote`.
+- Phase 4 send-to-review workflow notification now includes note text in the notification body when present, and duplicate note notification is suppressed.
 - Phase 4 send-back-to-appraiser workflow notification now includes revision note text in the notification body when present.
-- Revision note text is passed from `UnifiedOrdersTable` to `sendOrderBackToAppraiser` and included in the `emitNotification` payload as `note_text`.
+- Note text is passed through workflow service calls and included in the `emitNotification` payload as `note_text`.
+- Phase 4 `clearReview` emits `order.review_cleared` to admin/owner recipients, with notification policy seeded for that event.
+- Workflow notifications now produce one actionable notification per action for the MVP scope.
 - `buildNotificationBody("order.sent_back_to_appraiser")` now prefers `payload.note_text`.
-- Appraisers receive one informative send-back notification instead of separate workflow and note notifications.
+- `buildNotificationBody("order.sent_to_review")` now prefers `payload.note_text`.
+- Activity log remains the source of full communication history; notifications are summaries.
 - Routing, resolver behavior, recipients, DB/RLS, and status logic are unchanged.
 
 Canonical replacement:
@@ -1002,7 +1010,22 @@ Progress:
 - Missing `order_number` is fetched from `public.orders` when possible.
 - Routing fields `order_id` and `link_path` are unchanged.
 - Notifications now consistently display user-facing order numbers when available.
+- Phase 4 notification payload contract is MVP-complete for current workflow notifications.
+- Send-to-review and send-back-to-appraiser workflow notifications include note snippets when present and suppress duplicate note notifications.
+- `clearReview` emits `order.review_cleared` to admin/owner recipients.
+- Notification policy is seeded for `order.review_cleared`.
+- Workflow notifications now produce one actionable summary notification per action.
+- Activity log remains the source of full communication history.
 - Send-back-to-appraiser workflow notification body now uses `payload.note_text` when present, while duplicate note notification remains suppressed.
+- Notification Center quick-view polish is MVP-complete: unread/new, seen/read, and dismissed states are distinct.
+- Unread, non-dismissed notifications count toward the badge.
+- Seen notifications remain visible as reminders until dismissed.
+- `notifications.dismissed_at` removes notifications from quick view while preserving history.
+- `rpc_dismiss_notification` and `rpc_dismiss_seen_notifications` support individual dismiss and bulk `Dismiss seen`.
+- Click-outside close behavior and notification type color hints are in place.
+- `/activity` page MVP uses existing user-scoped `rpc_get_notifications` to show unread, seen, and dismissed notification history, including dismissed quick-view items.
+- Activity page search covers title/body/order number/payload, includes state and type/category filters, shows badges/order number/date/open action, opens through `link_path` or `/orders/:order_id`, and does not auto-mark seen or dismiss items.
+- Raw `activity_log` aggregation, pagination, restore dismissed, and team-wide activity are deferred.
 - `npm run build` passed.
 
 Canonical replacement:
@@ -1013,6 +1036,7 @@ Same table with canonical semantics:
 - `company_id`
 - `activity_event_id`
 - `read_at`
+- `dismissed_at`
 - strict `payload`
 
 Migration action:
@@ -1021,6 +1045,7 @@ Migration action:
 - Add nullable `company_id` and `activity_event_id`.
 - Keep `type` and `category`.
 - Prefer `read_at`.
+- Use `dismissed_at` for quick-view removal only; do not delete notification history.
 
 Drop/archive condition:
 

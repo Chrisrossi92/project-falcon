@@ -336,7 +336,8 @@ Status: Resolver MVP complete for current scope. No app-code requirement remains
 - [ ] Review `getOrderResponsibility` contract.
 - [ ] Review lifecycle participant rules.
 - [x] Decide not to migrate `markReadyForClient` until reviewer clearance and client release are modeled separately.
-- [ ] Plan `review_cleared` / `pending_final_approval` / `ready_for_client` lifecycle split.
+- [x] Introduce and validate `review_cleared` for reviewer-to-admin handoff.
+- [ ] Plan `pending_final_approval` / `ready_for_client` lifecycle split.
 - [ ] Plan configurable final approval policy.
 - [ ] Plan ready-for-client notification settings: appraiser generally notified, admins/owners action-aware, reviewer optional/configurable.
 
@@ -351,6 +352,7 @@ Status: Resolver MVP complete for current scope. No app-code requirement remains
 - [x] Use current `orders.appraiser_id` in first resolver slice.
 - [x] Use current `orders.reviewer_id` in first resolver slice.
 - [ ] Include status/lifecycle awareness.
+- [x] Reviewer clear-review action moves `in_review` to `review_cleared`; reviewer visibility, admin/owner visibility, activity log, notification copy, and build were validated.
 - [x] Include self-notification suppression in first resolver slice.
 - [x] Return actor role on order in first resolver slice.
 - [x] Return bell recipients in first resolver slice.
@@ -367,7 +369,8 @@ Status: Resolver MVP complete for current scope. No app-code requirement remains
 
 - [x] Replace duplicated note recipient logic in activity note flow.
 - [x] Suppress duplicate send-back-to-appraiser workflow note bell notification.
-- [x] Keep send-to-review workflow note notification separate when applicable.
+- [x] Suppress duplicate send-to-review workflow note bell notification.
+- [x] Send-to-review workflow notification includes optional note snippet.
 - [x] Preserve send-back-to-appraiser revision note in activity log via `logNote`.
 - [x] Add Activity / Communication History to `/orders/:id` with `ActivityLog`.
 - [ ] Replace duplicated workflow note recipient logic where touched.
@@ -394,7 +397,7 @@ Status: Resolver MVP complete for current scope. No app-code requirement remains
 ### Stop Conditions
 
 - [x] Activity note notifications use resolver.
-- [x] Workflow note notifications use resolver where in current scope; send-to-review separate note notification is accepted/deferred and not a blocker.
+- [x] Workflow notifications use resolver where in current scope and emit one actionable notification per workflow action.
 - [ ] No new appraiser/reviewer routing logic is added outside resolver.
 
 ### Deferred Follow-Up
@@ -404,6 +407,8 @@ Status: Resolver MVP complete for current scope. No app-code requirement remains
 - [ ] Backfill demo/test orders with null `order_number`, including `ea359d71-4f6f-4a4a-9b26-4035ea3a7947`, so order-facing notifications do not fall back to UUID/short ID labels. This is data cleanup, not a resolver failure.
 
 ## Phase 4: Activity / Notification Payload Contract
+
+Status: Notification payload contract MVP complete.
 
 ### Planning / Docs
 
@@ -417,6 +422,7 @@ Status: Resolver MVP complete for current scope. No app-code requirement remains
 - [ ] Add activity canonical nullable fields if needed.
 - [ ] Add notification `company_id` if Phase 5 has started.
 - [ ] Add notification `activity_event_id` if needed.
+- [x] Add notification `dismissed_at` for quick-view dismissal without deleting history.
 - [ ] Keep legacy fields during transition.
 - [ ] Do not drop `detail`, `message`, `is_read`, or `read` yet.
 
@@ -433,6 +439,10 @@ Status: Resolver MVP complete for current scope. No app-code requirement remains
 - [x] Include send-back-to-appraiser revision note text in existing workflow notification body when present.
 - [x] Pass send-back-to-appraiser note text through `emitNotification` payload as `note_text`.
 - [x] Keep duplicate send-back-to-appraiser note notification suppressed.
+- [x] Include send-to-review note text in existing workflow notification body when present.
+- [x] Keep duplicate send-to-review note notification suppressed.
+- [x] Seed `order.review_cleared` notification policy.
+- [x] Emit `order.review_cleared` to admin/owner recipients from `clearReview`.
 - [ ] Make remaining notification title/body display-ready.
 - [ ] Ensure RPC errors are checked and surfaced.
 - [ ] Implement or align `emitOrderEvent`.
@@ -441,8 +451,21 @@ Status: Resolver MVP complete for current scope. No app-code requirement remains
 
 - [ ] Bell shows title normally.
 - [x] Bell shows send-back-to-appraiser revision note text in the existing workflow notification body when present.
+- [x] Bell shows send-to-review note text in the existing workflow notification body when present.
 - [x] Bell uses user-facing order numbers when available.
 - [x] Bell no longer receives UUID/short-id fallback as `payload.order_number` from new notifications.
+- [x] ActivityLog UX polish slice complete: note submission silently refreshes without full loading flash.
+- [x] ActivityLog viewport remains fixed-height and scrollable after updates, including `fill` layout.
+- [x] Notification Center quick-view polish complete for MVP: unread, seen, and dismissed states are visually distinct.
+- [x] Bell badge counts only unread, non-dismissed notifications.
+- [x] Seen notifications remain visible as reminders until dismissed.
+- [x] Individual dismiss and `Dismiss seen` remove items from quick view without deleting notification history.
+- [x] Click-outside close behavior added.
+- [x] Notification type color hints restored.
+- [x] `/activity` route and Activity page MVP added using existing user-scoped `rpc_get_notifications`.
+- [x] Activity page shows unread, seen, and dismissed notifications, including dismissed quick-view items.
+- [x] Activity page includes search across title/body/order number/payload, state filters, type/category filtering, badges, order number, date/time, and open action.
+- [x] Activity page does not auto-mark seen or dismiss items.
 - [ ] Activity log displays enriched actor/context where available.
 
 ### Validation
@@ -451,6 +474,12 @@ Status: Resolver MVP complete for current scope. No app-code requirement remains
 - [ ] Note body is note text.
 - [x] New notification payload normalization keeps `payload.order_number` user-facing or null.
 - [x] `npm run build` passed.
+- [x] Current workflow actions produce one actionable notification per action.
+- [x] ActivityLog polish did not change activity logging, notifications, realtime subscription, or workflow logic.
+- [x] `Mark all seen` clears the badge without removing reminders; `Dismiss seen` clears seen reminders from quick view.
+- [x] Notification Center dismissal preserves notification history.
+- [x] Activity page opens items through `link_path` or `/orders/:order_id`.
+- [x] Raw `activity_log` aggregation, pagination, restore dismissed, and team-wide activity are deferred.
 - [ ] Activity event retains context after reassignment.
 - [ ] Admin feed prototype can render from payload.
 
@@ -459,8 +488,11 @@ Status: Resolver MVP complete for current scope. No app-code requirement remains
 - [ ] All order notifications include `payload.order_number`.
 - [ ] All new activity events follow canonical payload shape.
 - [ ] Existing activity feed remains readable.
+- [x] Phase 4 notification payload contract is MVP-complete.
 
 ## Phase 5: Company Foundation
+
+Status: Reviewer/admin workflow separation MVP complete for current single-company workflow.
 
 ### Planning / Docs
 
