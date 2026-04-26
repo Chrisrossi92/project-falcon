@@ -430,14 +430,17 @@ Status: Resolver MVP complete for current scope. No app-code requirement remains
 - [ ] Enforce actor object.
 - [ ] Enforce recipient object when direct recipient exists.
 - [ ] Enforce communication context.
-- [ ] Make notification title/body display-ready.
+- [x] Include send-back-to-appraiser revision note text in existing workflow notification body when present.
+- [x] Pass send-back-to-appraiser note text through `emitNotification` payload as `note_text`.
+- [x] Keep duplicate send-back-to-appraiser note notification suppressed.
+- [ ] Make remaining notification title/body display-ready.
 - [ ] Ensure RPC errors are checked and surfaced.
 - [ ] Implement or align `emitOrderEvent`.
 
 ### UI Implementation
 
 - [ ] Bell shows title normally.
-- [ ] Bell shows body normally.
+- [x] Bell shows send-back-to-appraiser revision note text in the existing workflow notification body when present.
 - [x] Bell uses user-facing order numbers when available.
 - [x] Bell no longer receives UUID/short-id fallback as `payload.order_number` from new notifications.
 - [ ] Activity log displays enriched actor/context where available.

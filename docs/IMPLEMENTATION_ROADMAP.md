@@ -623,6 +623,11 @@ Completed first payload slice:
 - Payload order number normalization is centralized instead of caller-dependent.
 - Routing fields `order_id` and `link_path` are unchanged.
 - Notifications now consistently display user-facing order numbers when available.
+- Send-back-to-appraiser workflow notification now includes revision note text in the notification body when present.
+- Revision note text is passed from `UnifiedOrdersTable` to `sendOrderBackToAppraiser` and included in the `emitNotification` payload.
+- `buildNotificationBody("order.sent_back_to_appraiser")` now prefers `payload.note_text`.
+- Duplicate note notification remains suppressed, so the appraiser receives a single informative notification instead of two separate ones.
+- Routing, resolver behavior, recipients, DB/RLS, and status logic are unchanged.
 - `npm run build` passed.
 
 ### Validation Checklist

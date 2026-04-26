@@ -797,6 +797,11 @@ Progress:
 - This `markReadyForClient` deferral does not block moving to the next phase.
 - Future workflow model may include `review_cleared`, `pending_final_approval`, and configurable owner/final approval rules before `ready_for_client`.
 - Duplicate workflow note bell notification is suppressed for send-back-to-appraiser while revision note activity logging remains through `logNote`.
+- Phase 4 send-back-to-appraiser workflow notification now includes revision note text in the notification body when present.
+- Revision note text is passed from `UnifiedOrdersTable` to `sendOrderBackToAppraiser` and included in the `emitNotification` payload as `note_text`.
+- `buildNotificationBody("order.sent_back_to_appraiser")` now prefers `payload.note_text`.
+- Appraisers receive one informative send-back notification instead of separate workflow and note notifications.
+- Routing, resolver behavior, recipients, DB/RLS, and status logic are unchanged.
 
 Canonical replacement:
 
@@ -997,6 +1002,7 @@ Progress:
 - Missing `order_number` is fetched from `public.orders` when possible.
 - Routing fields `order_id` and `link_path` are unchanged.
 - Notifications now consistently display user-facing order numbers when available.
+- Send-back-to-appraiser workflow notification body now uses `payload.note_text` when present, while duplicate note notification remains suppressed.
 - `npm run build` passed.
 
 Canonical replacement:
