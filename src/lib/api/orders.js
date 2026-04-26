@@ -35,6 +35,7 @@ const BASE_SELECT = `
   postal_code,
   property_type,
   report_type,
+  site_visit_at,
   site_visit_date,
   review_due_date,
   final_due_date,
