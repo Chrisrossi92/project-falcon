@@ -13,6 +13,18 @@ function normalizeType(t) {
   return "other";
 }
 
+function compactAddress(order = {}) {
+  const street = order.address_line1 || order.address || "";
+  const cityState = [order.city, order.state].filter(Boolean).join(", ");
+  return [street, cityState].filter(Boolean).join(", ");
+}
+
+function formatEventTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
 export default function DashboardCalendarPanel({ orders = [], onOpenOrder, fixedHeader = true, mode = null, reviewerId = null }) {
   const hasOrders = Array.isArray(orders) && orders.length > 0;
   const baseLoader = useCalendarEventLoader({ mode, reviewerId }); // fallback when no orders provided
@@ -27,7 +39,7 @@ export default function DashboardCalendarPanel({ orders = [], onOpenOrder, fixed
 
         orders.forEach((o) => {
           const orderId = o.id || o.order_id || null;
-          const addr = o.address || o.address_line1 || "";
+          const addr = compactAddress(o);
           const pushEvent = (type, ts) => {
             if (!ts) return;
             const when = new Date(ts);
@@ -37,7 +49,9 @@ export default function DashboardCalendarPanel({ orders = [], onOpenOrder, fixed
             events.push({
               id: `${orderId || "order"}-${type}-${ms}`,
               type,
-              title: formatCalendarEventTitle(type, { address: addr, orderId }),
+              title: type === "site" && addr
+                ? `${addr} · ${formatEventTime(ts)}`
+                : formatCalendarEventTitle(type, { address: addr, orderId }),
               start: when.toISOString(),
               end: when.toISOString(),
               orderId,

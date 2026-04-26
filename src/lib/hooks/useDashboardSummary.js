@@ -13,7 +13,7 @@ import { useRole } from "@/lib/hooks/useRole";
  * - high-level order stats (count, in-progress, due-in-7) from the view
  * - review stats (stubbed for now)
  */
-export function useDashboardSummary() {
+export function useDashboardSummary({ refreshKey = 0 } = {}) {
   const { user, loading: userLoading } = useCurrentUser();
   const roleInfo = useRole() || {};
   const { userId: publicUserId, authUserId, role, isAdmin, isReviewer, appraiserView, loading: roleLoading } = roleInfo;
@@ -44,7 +44,7 @@ export function useDashboardSummary() {
   const hasIdForRole =
     (!isAppraiser || Boolean(tableFilters.appraiserId || tableFilters.assignedAppraiserId)) &&
     (!isReviewer || Boolean(tableFilters.reviewerId));
-  const summary = useOrdersSummary(tableFilters, { enabled: hasIdForRole && !userLoading && !roleLoading, scope: "dashboard" });
+  const summary = useOrdersSummary(tableFilters, { enabled: hasIdForRole && !userLoading && !roleLoading, scope: "dashboard", refreshKey });
   const kpis = useDashboardKpis(
     {
       reviewerId: isReviewer ? publicUserId || null : null,

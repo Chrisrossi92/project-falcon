@@ -22,7 +22,8 @@ const DASHBOARD_CONFIG = {
 export default function DashboardPage() {
   const nav = useNavigate();
   const roleHook = useRole() || {};
-  const summary = useDashboardSummary();
+  const [dashboardRefreshKey, setDashboardRefreshKey] = useState(0);
+  const summary = useDashboardSummary({ refreshKey: dashboardRefreshKey });
   const { session } = useSession() || {};
   const {
     role: summaryRole,
@@ -232,6 +233,7 @@ export default function DashboardPage() {
             filters={appliedFilters}
             pageSize={10}
             scope="dashboard"
+            onOrderDatesChanged={() => setDashboardRefreshKey((key) => key + 1)}
           />
         </section>
       )}

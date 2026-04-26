@@ -59,6 +59,7 @@ export default function UnifiedOrdersTable({
   mode = null,
   reviewerId = null,
   scope = null,
+  onOrderDatesChanged,
 }) {
   const { user: sessionUser } = useSession() || {};
   const { toast } = useToast();
@@ -393,6 +394,7 @@ export default function UnifiedOrdersTable({
         });
         if (!updated) throw new Error("Site visit was not updated.");
         refresh();
+        onOrderDatesChanged?.(updated);
         toast({
           title: "Site visit set",
           description: `Order ${order.order_number || orderPk} site visit was updated.`,
@@ -407,7 +409,7 @@ export default function UnifiedOrdersTable({
         });
       }
     },
-    [refresh, toast]
+    [onOrderDatesChanged, refresh, toast]
   );
 
   const columnActions = useMemo(

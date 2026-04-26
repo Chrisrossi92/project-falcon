@@ -132,7 +132,7 @@ export function useOrders(initialSeed = {}, options = {}) {
  * - inProgress: status === in_progress
  * - dueIn7: final_due_at/due_date within next 7 days (>= today)
  */
-export function useOrdersSummary(filters = {}, { enabled = true, scope = null } = {}) {
+export function useOrdersSummary(filters = {}, { enabled = true, scope = null, refreshKey = 0 } = {}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [rows, setRows] = useState([]);
@@ -181,7 +181,7 @@ export function useOrdersSummary(filters = {}, { enabled = true, scope = null } 
     return () => {
       cancelled = true;
     };
-  }, [enabled, JSON.stringify(filters)]);
+  }, [enabled, JSON.stringify(filters), refreshKey]);
 
   const inProgress = rows.filter((o) => o.status_normalized === ORDER_STATUS.IN_PROGRESS).length;
 
