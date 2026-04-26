@@ -349,6 +349,7 @@ Reference docs:
 - [x] Return actor role on order in first resolver slice.
 - [x] Return bell recipients in first resolver slice.
 - [x] Use resolver in `sendOrderBackToAppraiser` appraiser recipient assembly with existing fallback.
+- [x] Use resolver in `completeOrder` appraiser recipient assembly with existing fallback.
 - [x] Keep admin recipients appended through `fetchAdminRecipients()`.
 - [ ] Return visibility candidates.
 
@@ -373,6 +374,7 @@ Reference docs:
 - [x] Notification payload/UI behavior is otherwise unchanged.
 - [x] No DB/RLS, order visibility, status lifecycle, or workflow button behavior changed.
 - [x] No routing or notification service changes for validated Phase 3 slices.
+- [x] Complete order workflow still works and sends notifications.
 - [x] Notification click flow lands on order detail where communication history is visible.
 - [x] `npm run build` passed.
 
@@ -386,6 +388,7 @@ Reference docs:
 
 - [ ] Admin/Abby note notifications can display a generic actor label such as "User added a note" because the logged-in admin profile/identity hydrates as Demo User instead of Abby Rossi. Treat this as actor display-name/profile hydration cleanup, separate from responsibility resolver routing.
 - [ ] Activity / Communication History presentation needs future polish, but is functional and visible.
+- [ ] Backfill demo/test orders with null `order_number`, including `ea359d71-4f6f-4a4a-9b26-4035ea3a7947`, so order-facing notifications do not fall back to UUID/short ID labels. This is data cleanup, not a resolver failure.
 
 ## Phase 4: Activity / Notification Payload Contract
 

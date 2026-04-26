@@ -587,6 +587,7 @@ Migration action:
 
 - Ensure all order-related notifications include it.
 - Keep current unique index until company scoping is ready.
+- Backfill demo/test orders with null `order_number`, including `ea359d71-4f6f-4a4a-9b26-4035ea3a7947`, so order-facing notifications have visible labels instead of UUID/short ID fallback.
 
 Drop/archive condition:
 
@@ -614,7 +615,9 @@ Progress:
 - `ActivityNoteForm` now uses the resolver for note notification routing only.
 - Appraiser notes route to the reviewer; reviewer notes route to the appraiser; admin/other notes route to the appraiser.
 - `sendOrderBackToAppraiser` now uses the resolver for appraiser recipient assembly with the existing appraiser fallback.
+- `completeOrder` now uses the resolver for appraiser recipient assembly with the existing appraiser fallback.
 - Admin recipients remain appended through `fetchAdminRecipients()`.
+- Complete order workflow still works and sends notifications.
 - Notification payload/UI behavior is otherwise unchanged.
 - No DB/RLS, order visibility, status lifecycle, routing, notification service, or workflow button behavior changed.
 - Duplicate workflow note bell notification is suppressed for send-back-to-appraiser.
@@ -623,6 +626,7 @@ Progress:
 - `npm run build` passed.
 - Admin/Abby note notifications can still show a generic actor label such as "User added a note" because logged-in admin profile/identity hydrates as Demo User instead of Abby Rossi; defer this to actor display-name/profile hydration cleanup.
 - Activity / Communication History presentation needs future polish, but is functional and visible.
+- Some test/demo orders have null `order_number`, causing notifications to fall back to UUID/short ID labels. Example: order `ea359d71-4f6f-4a4a-9b26-4035ea3a7947` has `order_number` null. This is demo/test data cleanup, not a resolver failure.
 
 Canonical replacement:
 
@@ -779,6 +783,7 @@ Progress:
 - Phase 1 Batch 2 Step 1 patched authorization comparison logic where scoped.
 - Activity actor values and payload shape were intentionally not changed yet.
 - Phase 3 send-back-to-appraiser notification recipient assembly now uses `resolveOrderParticipants` for the appraiser recipient, keeps the existing fallback, and appends admins through `fetchAdminRecipients()`.
+- Phase 3 complete-order notification recipient assembly now uses `resolveOrderParticipants` for the appraiser recipient, keeps the existing fallback, and appends admins through `fetchAdminRecipients()`.
 - Duplicate workflow note bell notification is suppressed for send-back-to-appraiser while revision note activity logging remains through `logNote`.
 
 Canonical replacement:
