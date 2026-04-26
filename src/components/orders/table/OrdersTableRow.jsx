@@ -141,8 +141,8 @@ export default function OrdersTableRow({
         role="row"
         aria-expanded={isOpen ? "true" : "false"}
         className={[
-          "group border-b cursor-pointer select-none transition-colors duration-150 ease-out",
-          "hover:bg-gray-50/70 active:scale-[0.997]",
+          "group border-b border-slate-100 cursor-pointer select-none transition-all duration-150 ease-out",
+          "hover:bg-slate-50 hover:shadow-[inset_3px_0_0_rgba(15,23,42,0.24)] active:scale-[0.997]",
           "px-4",
           className,
         ].join(" ")}
@@ -160,7 +160,6 @@ export default function OrdersTableRow({
     </>
   );
 }
-
 
 
 

@@ -414,12 +414,12 @@ export default function UnifiedOrdersTable({
   const columns = useColumnsConfig(normalizedRole, columnActions);
   const template = columns.map((c) => c.width).join(" ");
 
-  const stickyHeader = "bg-white sticky left-0 z-20 pr-4 border-r border-slate-200";
-  const stickyCell = "bg-white sticky left-0 z-10 pr-4 border-slate-200";
+  const stickyHeader = "bg-slate-50 sticky left-0 z-20 pr-4 border-r border-slate-200";
+  const stickyCell = "bg-white sticky left-0 z-10 pr-4 border-slate-200 group-hover:bg-slate-50";
 
   return (
     <>
-      <div className={`bg-white border rounded-xl overflow-x-auto ${className}`} style={style}>
+      <div className={`overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm ring-1 ring-slate-100 ${className}`} style={style}>
       {error && (
         <div className="px-3 py-2 text-sm text-rose-700 bg-rose-50 border-b">
           Failed to load orders: {error.message}
@@ -429,7 +429,7 @@ export default function UnifiedOrdersTable({
       {/* header */}
       <div className="overflow-x-auto">
         <div
-          className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b px-2 py-2 text-[11px] uppercase tracking-wide text-slate-500"
+          className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 px-2 py-2.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600 shadow-[0_1px_0_rgba(15,23,42,0.04)] backdrop-blur"
           style={{ display: "grid", gridTemplateColumns: template, columnGap: ".25rem", minWidth: "900px" }}
         >
           {columns.map((c, idx) => (
@@ -440,7 +440,7 @@ export default function UnifiedOrdersTable({
         </div>
 
         {/* rows */}
-        <div className="divide-y" style={{ minWidth: "900px" }}>
+        <div className="divide-y divide-slate-100" style={{ minWidth: "900px" }}>
           {loading ? (
             [...Array(tableFilters.pageSize || pageSize)].map((_, i) => (
               <div key={i} className="px-4 py-3 text-sm text-slate-500">
@@ -470,7 +470,7 @@ export default function UnifiedOrdersTable({
                   order={o}
                   isOpen={expandedId === rowKey}
                   onToggle={() => setExpandedId((x) => (x === rowKey ? null : rowKey))}
-                  className="py-2.5"
+                  className="py-3"
                   renderCells={() => (
                     <div
                       className="items-start text-sm text-slate-800"

@@ -9,6 +9,7 @@ import useSession from "@/lib/hooks/useSession";
 import useOrderEvents from "@/lib/hooks/useOrderEvents";
 import useRole from "@/lib/hooks/useRole";
 import { useMemo, useState } from "react";
+import { ClockAlert, ClipboardCheck, Layers3 } from "lucide-react";
 
 const DASHBOARD_CONFIG = {
   owner:     { showOrdersTable: true, showReviewQueue: false },
@@ -87,6 +88,11 @@ export default function DashboardPage() {
     : isAdmin
     ? "Admin Dashboard"
     : "My Dashboard";
+  const subtitle = isAdmin
+    ? "Monitor active queues, delivery pressure, and workflow handoffs."
+    : isReviewer
+    ? "Review assigned orders and keep technical clearance moving."
+    : "Track assigned work, due dates, and revision requests.";
 
   const ordersCount = summary.orders.count ?? 0;
   const summaryCards = isAdmin
@@ -94,20 +100,29 @@ export default function DashboardPage() {
         {
           id: "total_active",
           label: "Total Active Orders",
+          subtext: "All active workflow orders",
           value: summary.orders.count,
           filter: null,
+          icon: Layers3,
+          accent: "from-slate-700 to-slate-500",
         },
         {
           id: "inspected_awaiting_report",
           label: "Inspected / Awaiting Report",
+          subtext: "Site visit complete, awaiting submission",
           value: summary.orders.inspectedAwaitingReport,
           filter: { inspectedAwaitingReport: true },
+          icon: ClipboardCheck,
+          accent: "from-amber-600 to-orange-500",
         },
         {
           id: "due_to_client_2",
           label: "Due to Client in 2 Days",
+          subtext: "Urgent delivery window",
           value: summary.orders.dueToClient2,
           filter: { finalDueWithinDays: 2 },
+          icon: ClockAlert,
+          accent: "from-rose-600 to-red-500",
         },
       ]
     : [
@@ -135,7 +150,21 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold">{title}</h1>
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white/90 shadow-sm">
+        <div className="border-b border-slate-100 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-800 px-5 py-5 text-white">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-300">Falcon Operations</div>
+              <h1 className="mt-2 text-2xl font-semibold tracking-tight">{title}</h1>
+              <p className="mt-1 max-w-2xl text-sm text-slate-300">{subtitle}</p>
+            </div>
+            <div className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-right shadow-sm">
+              <div className="text-[11px] font-medium uppercase tracking-wide text-slate-300">Active queue</div>
+              <div className="text-lg font-semibold tabular-nums">{ordersCount}</div>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -143,8 +172,11 @@ export default function DashboardPage() {
           <SummaryCard
             key={card.id}
             label={card.label}
+            subtext={card.subtext}
             value={card.value}
             loading={loading}
+            icon={card.icon}
+            accent={card.accent}
             active={isAdmin && (adminKpiFilter?.id || "total_active") === card.id && !statusFilter}
             onClick={isAdmin ? () => applyAdminKpiFilter(card.id, card.filter) : undefined}
           />
@@ -224,13 +256,13 @@ export default function DashboardPage() {
   );
 }
 
-function SummaryCard({ label, value, loading, active = false, onClick }) {
+function SummaryCard({ label, subtext, value, loading, icon: Icon, accent = "from-slate-600 to-slate-400", active = false, onClick }) {
   const interactive = typeof onClick === "function";
   return (
     <Card
-      className={`h-full transition ${
-        interactive ? "cursor-pointer hover:border-slate-300 hover:shadow-sm" : ""
-      } ${active ? "border-slate-800 ring-1 ring-slate-800" : ""}`}
+      className={`relative h-full overflow-hidden border-slate-200 bg-white/95 shadow-sm transition ${
+        interactive ? "cursor-pointer hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg" : ""
+      } ${active ? "border-slate-700 bg-slate-50 ring-1 ring-slate-700" : ""}`}
       onClick={onClick}
       role={interactive ? "button" : undefined}
       tabIndex={interactive ? 0 : undefined}
@@ -245,8 +277,19 @@ function SummaryCard({ label, value, loading, active = false, onClick }) {
           : undefined
       }
     >
-      <div className="text-xs uppercase tracking-wide text-slate-500">{label}</div>
-      <div className="mt-2 text-2xl font-semibold">{loading ? "—" : value ?? 0}</div>
+      <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${accent}`} />
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{label}</div>
+          {subtext && <div className="mt-1.5 text-xs leading-snug text-slate-500">{subtext}</div>}
+        </div>
+        {Icon && (
+          <div className={`rounded-lg border p-2.5 shadow-sm ${active ? "border-slate-300 bg-white text-slate-900" : "border-slate-200 bg-slate-50 text-slate-500"}`}>
+            <Icon className="h-4 w-4" aria-hidden="true" />
+          </div>
+        )}
+      </div>
+      <div className="mt-4 text-3xl font-semibold tracking-tight text-slate-950">{loading ? "—" : value ?? 0}</div>
     </Card>
   );
 }
