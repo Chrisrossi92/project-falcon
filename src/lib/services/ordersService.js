@@ -464,12 +464,23 @@ export async function completeOrder(orderId, actorId) {
     throw new Error("No order updated (permission or id mismatch).");
   }
 
-  const recipients = [];
-
   const adminRecipients = await fetchAdminRecipients();
+  const resolvedParticipants = resolveOrderParticipants(order, {
+    actorUserId: null,
+    actorRole: null,
+    event: "workflow.completed",
+    status: order.status,
+  });
+  const recipients = [];
   recipients.push(...adminRecipients);
 
-  if (order.appraiser_id) {
+  const appraiserRecipients = resolvedParticipants.recipients
+    .filter((userId) => userId && userId === order.appraiser_id)
+    .map((userId) => ({ userId, role: "appraiser" }));
+
+  recipients.push(...appraiserRecipients);
+
+  if (!appraiserRecipients.length && order.appraiser_id) {
     recipients.push({ userId: order.appraiser_id, role: "appraiser" });
   }
 
@@ -497,7 +508,6 @@ export async function isOrderNumberAvailable(orderNo, { excludeId = null } = {})
   if (res2.error) throw res2.error;
   return (res2.count || 0) === 0;
 }
-
 
 
 
