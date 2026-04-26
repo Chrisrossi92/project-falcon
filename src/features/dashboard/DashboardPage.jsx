@@ -41,24 +41,18 @@ export default function DashboardPage() {
   const cfg = DASHBOARD_CONFIG[normalizedRole] || DASHBOARD_CONFIG.appraiser;
   const [statusFilter, setStatusFilter] = useState("");
 
-  const statusFilters = useMemo(
-    () => (tableFilters?.statusIn && tableFilters.statusIn.length ? tableFilters.statusIn[0] : ""),
-    [tableFilters?.statusIn]
-  );
-
-  const chipValue = statusFilter || statusFilters || "";
+  const chipValue = isAdmin ? statusFilter : "";
 
   const appliedFilters = useMemo(() => {
     const next = { ...(tableFilters || {}) };
-    if (chipValue) {
-      next.statusIn = [chipValue];
+    if (isAdmin) {
+      next.statusIn = statusFilter ? [statusFilter] : [];
       next.page = 0;
     } else {
-      next.statusIn = [];
       next.page = next.page || 0;
     }
     return next;
-  }, [tableFilters, chipValue]);
+  }, [tableFilters, isAdmin, statusFilter]);
 
   const toggleStatus = (val) => {
     setStatusFilter((curr) => (curr === val ? "" : val));

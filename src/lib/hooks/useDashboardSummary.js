@@ -30,7 +30,7 @@ export function useDashboardSummary() {
       f.statusIn = [ORDER_STATUS.NEW, ORDER_STATUS.IN_PROGRESS, ORDER_STATUS.NEEDS_REVISIONS];
     } else if (isReviewer && publicUserId) {
       f.reviewerId = publicUserId;
-      f.statusIn = [ORDER_STATUS.IN_REVIEW, ORDER_STATUS.NEEDS_REVISIONS];
+      f.statusIn = [ORDER_STATUS.IN_REVIEW];
     }
 
     if (role === "client") {
@@ -52,6 +52,7 @@ export function useDashboardSummary() {
       appraiserId: isAppraiser ? tableFilters.appraiserId || null : null,
       clientId: role === "client" ? (user?.client_id || user?.managing_amc_id || null) : null,
       managingAmcId: role === "client" ? user?.managing_amc_id || null : null,
+      statusIn: tableFilters.statusIn || [],
     },
     { enabled: hasIdForRole && !userLoading && !roleLoading }
   );

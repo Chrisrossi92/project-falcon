@@ -3,10 +3,11 @@ import supabase from "@/lib/supabaseClient";
 
 const ACTIVE_VIEW = "v_orders_active_frontend_v4";
 
-function applyScope(q, { reviewerId = null, appraiserId = null, clientId = null } = {}) {
+function applyScope(q, { reviewerId = null, appraiserId = null, clientId = null, statusIn = [] } = {}) {
   if (reviewerId) q = q.eq("reviewer_id", reviewerId);
   else if (appraiserId) q = q.eq("appraiser_id", appraiserId);
   if (clientId) q = q.eq("client_id", clientId);
+  if (statusIn?.length) q = q.in("status", statusIn);
   return q;
 }
 
@@ -24,6 +25,7 @@ export async function fetchDashboardKpis(scope = {}) {
     reviewerId: scope.reviewerId || null,
     appraiserId: scope.appraiserId || null,
     clientId: scope.clientId || scope.managingAmcId || null,
+    statusIn: scope.statusIn || [],
   };
 
   const dueLimit = new Date();

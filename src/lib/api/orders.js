@@ -126,6 +126,11 @@ export async function fetchOrdersWithFilters(filters = {}) {
     search,
   });
 
+  if (mode === "reviewerQueue") {
+    const REVIEW_QUEUE_STATUSES = [OrderStatus.IN_REVIEW];
+    countQuery = countQuery.in("status", REVIEW_QUEUE_STATUSES);
+  }
+
   const { count, error: countErr } = await countQuery;
   if (countErr) console.warn("fetchOrdersWithFilters count error:", countErr?.message || countErr);
 
