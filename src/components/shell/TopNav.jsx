@@ -8,12 +8,18 @@ import AvatarBadge from "@/components/ui/AvatarBadge";
 import { useRole } from "@/lib/hooks/useRole";
 import { useCan } from "@/lib/hooks/usePermissions";
 import { PERMISSIONS } from "@/lib/permissions/constants";
+import { Menu, Search } from "lucide-react";
 
 function Brand() {
   return (
-    <Link to="/dashboard" className="flex items-center gap-2 font-semibold">
-      <span className="inline-flex h-5 w-5 rounded-full bg-black text-white items-center justify-center text-[11px]">F</span>
-      <span>Falcon</span>
+    <Link to="/dashboard" className="group flex items-center gap-3 rounded-xl px-1.5 py-1 transition hover:bg-slate-100">
+      <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-slate-950 to-slate-700 text-sm font-semibold text-white shadow-sm ring-1 ring-slate-900/10">
+        F
+      </span>
+      <span className="hidden leading-tight sm:block">
+        <span className="block text-sm font-semibold tracking-tight text-slate-950">Falcon Operations</span>
+        <span className="block text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">Operations Console</span>
+      </span>
     </Link>
   );
 }
@@ -24,8 +30,8 @@ function NavItem({ to, children, onClick }) {
       to={to}
       onClick={onClick}
       className={({ isActive }) =>
-        "px-2.5 py-1.5 rounded-full text-sm transition " +
-        (isActive ? "bg-gray-900 text-white shadow-sm" : "text-gray-700 hover:bg-gray-100")
+        "px-3 py-1.5 rounded-lg text-sm font-medium transition " +
+        (isActive ? "bg-slate-950 text-white shadow-sm" : "text-slate-600 hover:bg-white hover:text-slate-950")
       }
       end
     >
@@ -58,7 +64,7 @@ function AvatarMenu({ me, showSettings = true }) {
   return (
     <div className="relative">
       <button
-        className="flex items-center gap-2 rounded-full border px-2 py-1 hover:bg-white"
+        className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-2 py-1 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open ? "true" : "false"}
@@ -72,11 +78,11 @@ function AvatarMenu({ me, showSettings = true }) {
           size={28}
           ring
         />
-        <span className="hidden sm:block text-sm font-medium">{display}</span>
+        <span className="hidden sm:block text-sm font-medium text-slate-800">{display}</span>
       </button>
 
       {open && (
-        <div id="avatar-menu" className="absolute right-0 mt-2 w-56 rounded-xl border bg-white shadow-xl z-50">
+        <div id="avatar-menu" className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-200 bg-white shadow-xl z-50">
           <div className="px-3 py-2">
             <div className="text-sm font-medium truncate">{display}</div>
             <div className="text-xs text-gray-500">Role: {role}</div>
@@ -137,11 +143,12 @@ export default function TopNav() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b bg-white/70 backdrop-blur">
-        <div className="mx-auto max-w-7xl h-14 px-3 sm:px-4 flex items-center gap-3">
+      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/90 shadow-sm backdrop-blur-xl">
+        <div aria-hidden className="h-1 bg-gradient-to-r from-slate-950 via-slate-700 to-slate-950" />
+        <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-3 sm:px-4">
           <Brand />
 
-          <nav className="hidden md:flex items-center gap-1 ml-2">
+          <nav className="hidden items-center gap-1 rounded-xl border border-slate-200 bg-slate-100/80 p-1 md:flex">
             <NavItem to="/orders">Orders</NavItem>
             <NavItem to="/calendar">Calendar</NavItem>
             <NavItem to={clientsPath}>Clients</NavItem>
@@ -150,32 +157,30 @@ export default function TopNav() {
 
           {/* global search launcher */}
           <button
-            className="hidden lg:flex mx-auto min-w-[260px] items-center gap-2 rounded-full border px-3 py-1.5 text-sm text-gray-500 hover:bg-white"
+            className="mx-auto hidden min-w-[300px] max-w-md flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-500 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 lg:flex"
             onClick={() => setPal(true)}
             title="Search (⌘K)"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" className="text-gray-400">
-              <path fill="currentColor" d="M21 20l-4.35-4.35a7.5 7.5 0 10-1.41 1.41L20 21zM4 10.5a6.5 6.5 0 1113 0a6.5 6.5 0 01-13 0z"/>
-            </svg>
-            <span className="truncate">Search…</span>
-            <span className="ml-auto text-[10px] rounded border px-1 py-0.5 text-gray-400">⌘K</span>
+            <Search className="h-4 w-4 text-slate-400" aria-hidden="true" />
+            <span className="truncate">Search orders, clients, users...</span>
+            <span className="ml-auto rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-medium text-slate-400">⌘K</span>
           </button>
 
-          <div className="ml-auto flex items-center gap-2">
-            <button className="md:hidden rounded-md border px-2 py-1 text-sm" onClick={() => setPal(true)} title="Search">
+          <div className="ml-auto flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-1 shadow-sm">
+            <button className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50 md:hidden" onClick={() => setPal(true)} title="Search">
               ⌘K
             </button>
             <NotificationBell />
             <AvatarMenu me={me} showSettings={showSettingsNav} />
-            <button className="md:hidden rounded-md border px-2 py-1 text-sm" onClick={() => setOpen((v) => !v)} aria-label="Open menu">
-              Menu
+            <button className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50 md:hidden" onClick={() => setOpen((v) => !v)} aria-label="Open menu">
+              <Menu className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
         </div>
 
         {/* mobile nav */}
         {open && (
-          <div className="md:hidden border-t bg-white">
+          <div className="md:hidden border-t border-slate-200 bg-white/95 shadow-lg backdrop-blur-xl">
             <nav className="px-3 py-3 flex flex-col gap-1">
               <NavItem to="/orders"   onClick={() => setOpen(false)}>Orders</NavItem>
               <NavItem to="/calendar" onClick={() => setOpen(false)}>Calendar</NavItem>
@@ -197,7 +202,6 @@ export default function TopNav() {
     </>
   );
 }
-
 
 
 
