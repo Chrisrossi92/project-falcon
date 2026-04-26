@@ -457,6 +457,8 @@ The reviewer clears review or requests revisions.
 
 Default Falcon workflow should not treat this as client release. Client release is admin/owner-controlled unless a company setting permits reviewer release.
 
+When an order is marked Ready for Client, the appraiser should generally receive a cleared/released notification, admins/owners should remain action-aware, and reviewer notification should be optional/configurable through future company workflow/notification settings.
+
 Potential future statuses include `review_cleared`, `pending_final_approval`, `ready_for_client`, and `completed`.
 
 ### What The Reviewer Sees

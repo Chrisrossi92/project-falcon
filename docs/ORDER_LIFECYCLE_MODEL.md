@@ -247,6 +247,9 @@ Design decision:
 - Reviewer role remains technical review: send back to appraiser and clear review/review cleared.
 - Admin/owner controls client release by default: mark ready for client and mark completed.
 - Company settings may optionally allow reviewer release for firms whose workflow permits it.
+- When marked ready for client, the appraiser should generally be notified that the report has been cleared/released.
+- Admins/owners should remain notified or action-aware, while reviewer notification should be optional/configurable.
+- These notification choices should be controlled by company workflow/notification settings later.
 - Final owner approval should be configurable: none, always required, or required by client/report type/threshold/manual decision later.
 - Potential future statuses include `review_cleared` and `pending_final_approval` before `ready_for_client`.
 

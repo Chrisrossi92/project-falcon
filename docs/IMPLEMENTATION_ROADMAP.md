@@ -536,6 +536,8 @@ Deferred follow-up:
 - Reviewer remains responsible for technical review actions such as send back to appraiser and clear review/review cleared.
 - Admin/owner controls client release actions such as mark ready for client and mark completed by default.
 - A future company setting may allow reviewer release for firms that permit reviewers to mark orders ready for client.
+- When an order is marked ready for client, the appraiser should generally be notified that the report has been cleared/released, admins/owners should remain action-aware, and reviewer notification should be optional/configurable.
+- These ready-for-client recipients should be controlled later by company workflow/notification settings.
 - Final owner approval should be configurable: no final approval required, final approval always required, or final approval required by client/report type/threshold/manual decision later.
 - Potential lifecycle statuses for this model include `in_review`, `needs_revisions`, `review_cleared`, `pending_final_approval`, `ready_for_client`, and `completed`.
 - Admin/Abby note notifications can still display a generic actor label such as "User added a note" because the logged-in admin profile/identity hydrates as Demo User instead of Abby Rossi.
