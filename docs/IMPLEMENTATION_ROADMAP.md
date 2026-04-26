@@ -615,6 +615,16 @@ Enforce notification payload:
 - `communication.kind_label`
 - `communication.direction_label`
 
+Completed first payload slice:
+
+- `emitNotification` now centrally resolves a valid user-facing `order_number`.
+- UUID and short-id fallbacks are no longer persisted in `payload.order_number`.
+- Missing `order_number` is fetched from `public.orders` when possible.
+- Payload order number normalization is centralized instead of caller-dependent.
+- Routing fields `order_id` and `link_path` are unchanged.
+- Notifications now consistently display user-facing order numbers when available.
+- `npm run build` passed.
+
 ### Validation Checklist
 
 - Bell displays human title, body, and visible order number.

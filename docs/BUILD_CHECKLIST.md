@@ -423,7 +423,10 @@ Status: Resolver MVP complete for current scope. No app-code requirement remains
 ### App / Service Implementation
 
 - [ ] Enforce order notification payload includes `order_id`.
-- [ ] Enforce order notification payload includes `order_number`.
+- [x] Enforce order notification payload includes valid user-facing `order_number` when available.
+- [x] Prevent UUID and short-id fallbacks from being persisted in `payload.order_number`.
+- [x] Fetch `order_number` from `public.orders` when missing from notification caller data.
+- [x] Centralize `payload.order_number` normalization in `emitNotification`.
 - [ ] Enforce actor object.
 - [ ] Enforce recipient object when direct recipient exists.
 - [ ] Enforce communication context.
@@ -435,16 +438,16 @@ Status: Resolver MVP complete for current scope. No app-code requirement remains
 
 - [ ] Bell shows title normally.
 - [ ] Bell shows body normally.
-- [ ] Bell shows separate clickable order number.
-- [ ] Bell never shows full UUID as normal visible label.
+- [x] Bell uses user-facing order numbers when available.
+- [x] Bell no longer receives UUID/short-id fallback as `payload.order_number` from new notifications.
 - [ ] Activity log displays enriched actor/context where available.
 
 ### Validation
 
 - [ ] Note notification title is `{Actor Name} added a note`.
 - [ ] Note body is note text.
-- [ ] Order line shows `order_number`.
-- [ ] No UUID leaks in normal notification UI.
+- [x] New notification payload normalization keeps `payload.order_number` user-facing or null.
+- [x] `npm run build` passed.
 - [ ] Activity event retains context after reassignment.
 - [ ] Admin feed prototype can render from payload.
 

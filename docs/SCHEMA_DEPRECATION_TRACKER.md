@@ -586,6 +586,7 @@ Same field, eventually unique by `(company_id, order_number)`.
 Migration action:
 
 - Ensure all order-related notifications include it.
+- `emitNotification` now centrally resolves a valid user-facing `order_number`, fetches from `public.orders` when missing, and does not persist UUID/short-id fallbacks in `payload.order_number`.
 - Keep current unique index until company scoping is ready.
 - Backfill demo/test orders with null `order_number`, including `ea359d71-4f6f-4a4a-9b26-4035ea3a7947`, so order-facing notifications have visible labels instead of UUID/short ID fallback.
 
@@ -991,6 +992,12 @@ Progress:
 - Notification identity issue resolved in Phase 1 Batch 1.
 - `notifications.user_id` is treated as `public.users.id`.
 - Notification read/mark-read RPCs and creation fallback now use `public.current_app_user_id()`.
+- Phase 4 first payload slice centralized `payload.order_number` normalization in `emitNotification`.
+- UUID and short-id fallbacks are no longer persisted in `payload.order_number`.
+- Missing `order_number` is fetched from `public.orders` when possible.
+- Routing fields `order_id` and `link_path` are unchanged.
+- Notifications now consistently display user-facing order numbers when available.
+- `npm run build` passed.
 
 Canonical replacement:
 
@@ -1090,6 +1097,7 @@ No strict payload validation yet.
 Progress:
 
 - Phase 1 Batch 1 changed fallback identity to `public.current_app_user_id()`.
+- Phase 4 first payload slice ensures `emitNotification` sends `payload.order_number` as a valid user-facing value or `null`, not a UUID/short-id fallback.
 
 Canonical replacement:
 
