@@ -612,6 +612,7 @@ May be auth/profile IDs in some legacy data or constraints; can conflict with fu
 Progress:
 
 - Phase 3 first resolver slice added `src/lib/orders/resolveOrderParticipants.js`.
+- Phase 3 resolver MVP is complete for current scope; no app-code requirement remains before moving to the next phase.
 - `ActivityNoteForm` now uses the resolver for note notification routing only.
 - Appraiser notes route to the reviewer; reviewer notes route to the appraiser; admin/other notes route to the appraiser.
 - `resolveOrderParticipants` now has explicit `workflow.sent_to_review` behavior returning `reviewer_id`.
@@ -626,6 +627,7 @@ Progress:
 - No DB/RLS, order visibility, status lifecycle, routing, notification service, or workflow button behavior changed.
 - Duplicate workflow note bell notification is suppressed for send-back-to-appraiser.
 - Send-to-review workflow notes still emit a separate note notification when applicable; duplicate-note suppression has only been applied to send-back-to-appraiser so far.
+- The separate send-to-review workflow-note notification is accepted/deferred and is not a blocker for the next phase.
 - Revision notes are still preserved in activity history through `logNote`.
 - `/orders/:id` now shows Activity / Communication History with `ActivityLog`, so notification clicks land where communication history is visible.
 - `npm run build` passed.
@@ -791,6 +793,7 @@ Progress:
 - Phase 3 send-back-to-appraiser notification recipient assembly now uses `resolveOrderParticipants` for the appraiser recipient, keeps the existing fallback, and appends admins through `fetchAdminRecipients()`.
 - Phase 3 complete-order notification recipient assembly now uses `resolveOrderParticipants` for the appraiser recipient, keeps the existing fallback, and appends admins through `fetchAdminRecipients()`.
 - `markReadyForClient` resolver migration is deferred until reviewer clearance and client release are modeled separately. Reviewer actions are technical review actions, while admin/owner controls client release by default.
+- This `markReadyForClient` deferral does not block moving to the next phase.
 - Future workflow model may include `review_cleared`, `pending_final_approval`, and configurable owner/final approval rules before `ready_for_client`.
 - Duplicate workflow note bell notification is suppressed for send-back-to-appraiser while revision note activity logging remains through `logNote`.
 

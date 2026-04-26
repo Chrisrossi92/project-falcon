@@ -328,6 +328,8 @@ Reference docs:
 
 ## Phase 3: Responsibility Resolver
 
+Status: Resolver MVP complete for current scope. No app-code requirement remains before moving to the next phase.
+
 ### Planning / Docs
 
 - [ ] Review `resolveOrderParticipants` contract.
@@ -357,8 +359,8 @@ Reference docs:
 - [x] Use resolver in `sendOrderBackToAppraiser` appraiser recipient assembly with existing fallback.
 - [x] Use resolver in `completeOrder` appraiser recipient assembly with existing fallback.
 - [x] Keep admin recipients appended through `fetchAdminRecipients()`.
-- [ ] Defer `markReadyForClient` resolver migration until default admin/owner client release semantics are implemented or configured.
-- [ ] Keep `markReadyForClient` resolver migration deferred until workflow statuses and notification settings are modeled.
+- [x] Defer `markReadyForClient` resolver migration until default admin/owner client release semantics are implemented or configured.
+- [x] Keep `markReadyForClient` resolver migration deferred until workflow statuses and notification settings are modeled.
 - [ ] Return visibility candidates.
 
 ### UI Implementation
@@ -392,7 +394,7 @@ Reference docs:
 ### Stop Conditions
 
 - [x] Activity note notifications use resolver.
-- [ ] Workflow note notifications use resolver or have migration ticket.
+- [x] Workflow note notifications use resolver where in current scope; send-to-review separate note notification is accepted/deferred and not a blocker.
 - [ ] No new appraiser/reviewer routing logic is added outside resolver.
 
 ### Deferred Follow-Up

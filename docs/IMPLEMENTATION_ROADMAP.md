@@ -508,6 +508,8 @@ It should return:
 - actor role on order
 - recipient contexts
 
+Status: Resolver MVP complete for current scope. No app-code requirement remains before moving to the next phase.
+
 Completed first resolver slice:
 
 - Added `src/lib/orders/resolveOrderParticipants.js`.
@@ -533,6 +535,7 @@ Completed first resolver slice:
 Deferred follow-up:
 
 - Do not migrate `markReadyForClient` to `resolveOrderParticipants` yet. Default Falcon workflow should separate reviewer clearance from client release.
+- Send-to-review workflow notes still emit a separate note notification when applicable; this is accepted/deferred and is not a blocker for moving to the next phase.
 - Reviewer remains responsible for technical review actions such as send back to appraiser and clear review/review cleared.
 - Admin/owner controls client release actions such as mark ready for client and mark completed by default.
 - A future company setting may allow reviewer release for firms that permit reviewers to mark orders ready for client.
