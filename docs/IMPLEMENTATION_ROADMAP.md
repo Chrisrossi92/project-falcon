@@ -525,6 +525,9 @@ Completed first resolver slice:
 - Chris/appraiser send-to-review was validated: Pam/reviewer received notification, Abby/admin received notification, and status behavior remained normal.
 - Complete order workflow still works and sends notifications.
 - Send-to-review workflow emits a single notification with optional note snippet while preserving the full note in activity history through `logNote`.
+- Send-to-review/resubmission workflow now suppresses self-notifications.
+- Resubmission uses the existing `order.sent_to_review` event key with an `is_resubmission` payload flag, not a new notification policy.
+- Resubmission notifications are visually/textually distinct from first send-to-review.
 - Send-back-to-appraiser workflow emits a single notification with revision note snippet while preserving the full note in activity history through `logNote`.
 - `clearReview` emits `order.review_cleared` to admin/owner recipients, with notification policy seeded for the event.
 - Workflow notifications are now consistent for MVP: one actionable notification per action, with Activity / Communication History as the full communication source.
@@ -546,6 +549,10 @@ Deferred follow-up:
 - Potential lifecycle statuses for this model include `in_review`, `needs_revisions`, `review_cleared`, `pending_final_approval`, `ready_for_client`, and `completed`.
 - `review_cleared` is now introduced and validated for the default reviewer-to-admin handoff: reviewer actions move `in_review` to `review_cleared`, admin/owner can see those orders and continue client release, and `ready_for_client` remains the admin/owner release state.
 - `clearReview()` works, reviewer-facing UI says "Clear Review", direct reviewer status shortcuts use `REVIEW_CLEARED`, activity records "In Review -> Review Cleared", notification copy indicates review cleared/admin release handoff, and `npm run build` passed.
+- Appraiser dashboard active queue now includes only `new`, `in_progress`, and `needs_revisions`; `in_review`, `review_cleared`, `pending_final_approval`, `ready_for_client`, and `completed` are excluded from the active queue while remaining available in Orders/history.
+- Main table workflow actions are permission-gated while preserving legacy fallback during permission loading/errors.
+- Reviewer template role no longer receives `workflow.status.ready_for_client`; reviewers keep `workflow.status.approve_review` for clear-review behavior.
+- Row action dropdown/popover UX remains a deferred redesign item; future work should replace the row dropdown with a unified Smart Actions button/panel for all roles.
 - Admin/Abby note notifications can still display a generic actor label such as "User added a note" because the logged-in admin profile/identity hydrates as Demo User instead of Abby Rossi.
 - Treat this as actor display-name/profile hydration cleanup, separate from responsibility resolver routing.
 - Activity / Communication History presentation needs future polish, but is functional and visible.

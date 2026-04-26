@@ -68,6 +68,8 @@ Clicking the notification card itself should not navigate or mark the notificati
 
 Notification type colors remain visible in both unread and seen states. `Mark all seen` clears the badge without removing reminders; `Dismiss seen` clears seen reminders from quick view without deleting notification history.
 
+Send-to-review and resubmission workflow notifications suppress self-notifications. Resubmissions use the same event key with a payload flag, but should read visually/textually as a resubmission/back-check rather than a first send-to-review.
+
 The `/activity` page MVP is implemented as the signed-in user's full notification history. It uses existing user-scoped notification history, shows unread, seen, and dismissed items, keeps dismissed quick-view notifications visible in history, provides search across title/body/order number/payload, includes state and type/category filters, and opens items through `link_path` or `/orders/:order_id`. The page does not auto-mark seen or dismiss items.
 
 Raw `activity_log` aggregation, pagination, restore dismissed, and team-wide activity are deferred.
@@ -470,13 +472,19 @@ Default Falcon workflow should not treat this as client release. Client release 
 
 Validated behavior: reviewer "Clear Review" moves the order from `in_review` to `review_cleared`, reviewer/admin/owner visibility is retained, activity logs "In Review -> Review Cleared", and notification copy indicates the review cleared/admin release handoff.
 
+Appraiser dashboard active queue includes only `new`, `in_progress`, and `needs_revisions`. `in_review`, `review_cleared`, `pending_final_approval`, `ready_for_client`, and `completed` remain available through Orders/history but do not stay in the appraiser active dashboard queue.
+
 Clear Review emits an admin/owner handoff notification. Send-to-review and send-back-to-appraiser workflow notifications include note snippets when present and suppress duplicate note bell notifications. Activity log remains the full communication history; notifications are summaries.
+
+Main table workflow actions are now permission-gated with legacy fallback during permission loading/errors. Reviewer no longer has the default ready-for-client template permission; admin/owner owns client release.
 
 Activity / Communication History UX polish slice is complete: posted notes refresh silently without a full loading flash, and the activity viewport remains fixed-height and scrollable after updates. Activity logging, notifications, realtime, and workflow behavior are unchanged.
 
 When an order is marked Ready for Client, the appraiser should generally receive a cleared/released notification, admins/owners should remain action-aware, and reviewer notification should be optional/configurable through future company workflow/notification settings.
 
 Potential future statuses include `review_cleared`, `pending_final_approval`, `ready_for_client`, and `completed`.
+
+The row action dropdown/popover remains a deferred UX redesign item. Future work should replace it with a unified Smart Actions button/panel for all roles.
 
 ### What The Reviewer Sees
 

@@ -222,7 +222,9 @@ Progress:
 - `/clients` and `/clients/cards` visibility behavior was not changed.
 - Chris/appraiser validated scoped read-only client access, no client Edit/Delete actions, and `Click to see orders` card text.
 - Abby/admin validated client edit access and admin edit capability.
-- Order routes/nav/workflow/action buttons, client scoped route/nav behavior, calendar route/nav gating, dashboard route/query behavior, backend/RLS enforcement, and permission service contracts are explicitly deferred to later responsibility, scoped visibility, calendar permission, dashboard semantics, normalization, or Phase 2/Phase 6 support work.
+- Main table workflow actions are now permission-gated with legacy fallback during permission loading/errors.
+- Reviewer template role no longer receives `workflow.status.ready_for_client`; reviewers keep `workflow.status.approve_review` for clear-review behavior.
+- Remaining order routes/nav/sidebar/direct workflow shortcuts, client scoped route/nav behavior, calendar route/nav gating, backend/RLS enforcement, and permission service contracts are explicitly deferred to later responsibility, scoped visibility, calendar permission, normalization, or Phase 2/Phase 6 support work.
 - SQL editor has no app auth context, so validation must run through an authenticated app context or manual user-id joins.
 
 Canonical replacement:
@@ -337,6 +339,8 @@ Progress:
 - Phase 2 Step 2 resolver reads this table to expose effective permission keys for the current app user.
 - Owner role effectively receives all seeded permissions.
 - Phase 2 Step 4 consumes these permissions in `TopNav`, CommandPalette, selected route guards, NewOrderButton, UserDetail edit action, UserCard edit/view behavior, UsersIndex edit/create UI, Settings navigation, and client create/edit UI/routes, and adds optional permission gates to `ProtectedRoute`. This is MVP-complete enough to move to Phase 3.
+- Main table workflow actions now consume workflow permissions while preserving legacy fallback during permission loading/errors.
+- Reviewer template role no longer receives `workflow.status.ready_for_client`; Admin/Owner retain client-release permissions.
 
 Canonical replacement:
 
@@ -626,6 +630,8 @@ Progress:
 - Chris/appraiser send-to-review was validated: Pam/reviewer received notification, Abby/admin received notification, and status behavior remained normal.
 - Complete order workflow still works and sends notifications.
 - Send-to-review workflow now emits a single notification with optional note snippet, and duplicate note notification is suppressed.
+- Send-to-review/resubmission workflow now suppresses self-notifications.
+- Resubmission stays on `order.sent_to_review` with an `is_resubmission` payload flag and distinct title/body copy.
 - Send-back-to-appraiser workflow emits a single notification with revision note snippet.
 - `clearReview` emits `order.review_cleared` to admin/owner recipients.
 - Notification policy is seeded for `order.review_cleared`.
@@ -635,6 +641,8 @@ Progress:
 - No DB/RLS, order visibility, status lifecycle, routing, notification service, or workflow button behavior changed.
 - Revision notes are still preserved in activity history through `logNote`.
 - `/orders/:id` now shows Activity / Communication History with `ActivityLog`, so notification clicks land where communication history is visible.
+- Appraiser dashboard active queue includes only `new`, `in_progress`, and `needs_revisions`; `in_review`, `review_cleared`, `pending_final_approval`, `ready_for_client`, and `completed` remain available in Orders/history but not the active dashboard queue.
+- Row action dropdown/popover UX remains deferred; future work should replace it with a unified Smart Actions button/panel.
 - `npm run build` passed.
 - Admin/Abby note notifications can still show a generic actor label such as "User added a note" because logged-in admin profile/identity hydrates as Demo User instead of Abby Rossi; defer this to actor display-name/profile hydration cleanup.
 - Activity / Communication History presentation needs future polish, but is functional and visible.
@@ -1012,6 +1020,8 @@ Progress:
 - Notifications now consistently display user-facing order numbers when available.
 - Phase 4 notification payload contract is MVP-complete for current workflow notifications.
 - Send-to-review and send-back-to-appraiser workflow notifications include note snippets when present and suppress duplicate note notifications.
+- Send-to-review/resubmission self-notifications are suppressed.
+- Resubmission notifications use `order.sent_to_review` plus an `is_resubmission` payload flag and distinct title/body copy.
 - `clearReview` emits `order.review_cleared` to admin/owner recipients.
 - Notification policy is seeded for `order.review_cleared`.
 - Workflow notifications now produce one actionable summary notification per action.

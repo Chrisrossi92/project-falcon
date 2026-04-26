@@ -441,6 +441,9 @@ Status: Notification payload contract MVP complete.
 - [x] Keep duplicate send-back-to-appraiser note notification suppressed.
 - [x] Include send-to-review note text in existing workflow notification body when present.
 - [x] Keep duplicate send-to-review note notification suppressed.
+- [x] Suppress send-to-review/resubmission self-notifications.
+- [x] Make resubmission notifications visually/textually distinct from first send-to-review.
+- [x] Keep resubmission on `order.sent_to_review` with payload flag instead of new notification policy.
 - [x] Seed `order.review_cleared` notification policy.
 - [x] Emit `order.review_cleared` to admin/owner recipients from `clearReview`.
 - [ ] Make remaining notification title/body display-ready.
@@ -480,6 +483,11 @@ Status: Notification payload contract MVP complete.
 - [x] Notification Center dismissal preserves notification history.
 - [x] Activity page opens items through `link_path` or `/orders/:order_id`.
 - [x] Raw `activity_log` aggregation, pagination, restore dismissed, and team-wide activity are deferred.
+- [x] Appraiser dashboard active queue includes only `new`, `in_progress`, and `needs_revisions`.
+- [x] Appraiser dashboard excludes `in_review`, `review_cleared`, `pending_final_approval`, `ready_for_client`, and `completed` from active queue while preserving Orders/history visibility.
+- [x] Main table workflow actions are permission-gated with legacy fallback during permission loading/errors.
+- [x] Reviewer template role no longer receives `workflow.status.ready_for_client`.
+- [ ] Redesign row action dropdown/popover as a unified Smart Actions button/panel.
 - [ ] Activity event retains context after reassignment.
 - [ ] Admin feed prototype can render from payload.
 
