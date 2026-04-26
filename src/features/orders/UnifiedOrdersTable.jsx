@@ -217,35 +217,6 @@ export default function UnifiedOrdersTable({
             noteTextPresent: true,
           });
           await logNote(orderPk, formattedNote);
-          if (order?.appraiser_id) {
-            const recipient = { userId: order.appraiser_id, role: "appraiser" };
-            try {
-              console.log("WORKFLOW NOTE EMIT START", {
-                eventKey: "note.reviewer_added",
-                orderId: order?.id ?? null,
-                noteTextPresent: Boolean(noteText.trim()),
-                recipient,
-              });
-              await emitNotification("note.reviewer_added", {
-                recipients: [recipient],
-                order,
-                payload: { message: formattedNote },
-              });
-              console.log("WORKFLOW NOTE EMIT SUCCESS", {
-                eventKey: "note.reviewer_added",
-                orderId: order?.id ?? null,
-                recipient,
-              });
-            } catch (emitErr) {
-              console.error("WORKFLOW NOTE EMIT ERROR", {
-                eventKey: "note.reviewer_added",
-                orderId: order?.id ?? null,
-                noteTextPresent: Boolean(noteText.trim()),
-                recipient,
-                error: emitErr,
-              });
-            }
-          }
         }
         console.log("WORKFLOW NOTE BEFORE STATUS TRANSITION", {
           action: "send_back_to_appraiser",
