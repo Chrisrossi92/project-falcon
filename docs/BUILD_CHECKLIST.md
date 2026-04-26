@@ -333,6 +333,9 @@ Reference docs:
 - [ ] Review `resolveOrderParticipants` contract.
 - [ ] Review `getOrderResponsibility` contract.
 - [ ] Review lifecycle participant rules.
+- [x] Decide not to migrate `markReadyForClient` until reviewer clearance and client release are modeled separately.
+- [ ] Plan `review_cleared` / `pending_final_approval` / `ready_for_client` lifecycle split.
+- [ ] Plan configurable final approval policy.
 
 ### Database Migration
 
@@ -353,6 +356,7 @@ Reference docs:
 - [x] Use resolver in `sendOrderBackToAppraiser` appraiser recipient assembly with existing fallback.
 - [x] Use resolver in `completeOrder` appraiser recipient assembly with existing fallback.
 - [x] Keep admin recipients appended through `fetchAdminRecipients()`.
+- [ ] Defer `markReadyForClient` resolver migration until default admin/owner client release semantics are implemented or configured.
 - [ ] Return visibility candidates.
 
 ### UI Implementation

@@ -241,6 +241,15 @@ Typical notifications:
 
 Internal review is approved and the order is ready for delivery.
 
+Design decision:
+
+- Default Falcon workflow should separate reviewer clearance from client release.
+- Reviewer role remains technical review: send back to appraiser and clear review/review cleared.
+- Admin/owner controls client release by default: mark ready for client and mark completed.
+- Company settings may optionally allow reviewer release for firms whose workflow permits it.
+- Final owner approval should be configurable: none, always required, or required by client/report type/threshold/manual decision later.
+- Potential future statuses include `review_cleared` and `pending_final_approval` before `ready_for_client`.
+
 Meaning:
 
 - Internal work is complete.

@@ -618,6 +618,7 @@ Progress:
 - `sendOrderToReview` now uses the resolver for reviewer recipient assembly with the existing reviewer fallback.
 - `sendOrderBackToAppraiser` now uses the resolver for appraiser recipient assembly with the existing appraiser fallback.
 - `completeOrder` now uses the resolver for appraiser recipient assembly with the existing appraiser fallback.
+- `markReadyForClient` is intentionally not migrated to the resolver yet because default Falcon workflow should separate reviewer clearance from admin/owner client release.
 - Admin recipients remain appended through `fetchAdminRecipients()`.
 - Chris/appraiser send-to-review was validated: Pam/reviewer received notification, Abby/admin received notification, and status behavior remained normal.
 - Complete order workflow still works and sends notifications.
@@ -789,6 +790,8 @@ Progress:
 - Phase 3 send-to-review notification recipient assembly now uses `resolveOrderParticipants` for the reviewer recipient, keeps the existing fallback, and appends admins through `fetchAdminRecipients()`.
 - Phase 3 send-back-to-appraiser notification recipient assembly now uses `resolveOrderParticipants` for the appraiser recipient, keeps the existing fallback, and appends admins through `fetchAdminRecipients()`.
 - Phase 3 complete-order notification recipient assembly now uses `resolveOrderParticipants` for the appraiser recipient, keeps the existing fallback, and appends admins through `fetchAdminRecipients()`.
+- `markReadyForClient` resolver migration is deferred until reviewer clearance and client release are modeled separately. Reviewer actions are technical review actions, while admin/owner controls client release by default.
+- Future workflow model may include `review_cleared`, `pending_final_approval`, and configurable owner/final approval rules before `ready_for_client`.
 - Duplicate workflow note bell notification is suppressed for send-back-to-appraiser while revision note activity logging remains through `logNote`.
 
 Canonical replacement:

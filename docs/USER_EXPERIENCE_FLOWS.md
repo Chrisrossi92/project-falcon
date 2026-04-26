@@ -451,11 +451,13 @@ ORD-26001
 
 Status changes to `needs_revisions`.
 
-### Approving
+### Review Clearance
 
-The reviewer clicks "Approve" or "Ready for Client."
+The reviewer clears review or requests revisions.
 
-Status changes to `ready_for_client`.
+Default Falcon workflow should not treat this as client release. Client release is admin/owner-controlled unless a company setting permits reviewer release.
+
+Potential future statuses include `review_cleared`, `pending_final_approval`, `ready_for_client`, and `completed`.
 
 ### What The Reviewer Sees
 

@@ -532,6 +532,12 @@ Completed first resolver slice:
 
 Deferred follow-up:
 
+- Do not migrate `markReadyForClient` to `resolveOrderParticipants` yet. Default Falcon workflow should separate reviewer clearance from client release.
+- Reviewer remains responsible for technical review actions such as send back to appraiser and clear review/review cleared.
+- Admin/owner controls client release actions such as mark ready for client and mark completed by default.
+- A future company setting may allow reviewer release for firms that permit reviewers to mark orders ready for client.
+- Final owner approval should be configurable: no final approval required, final approval always required, or final approval required by client/report type/threshold/manual decision later.
+- Potential lifecycle statuses for this model include `in_review`, `needs_revisions`, `review_cleared`, `pending_final_approval`, `ready_for_client`, and `completed`.
 - Admin/Abby note notifications can still display a generic actor label such as "User added a note" because the logged-in admin profile/identity hydrates as Demo User instead of Abby Rossi.
 - Treat this as actor display-name/profile hydration cleanup, separate from responsibility resolver routing.
 - Activity / Communication History presentation needs future polish, but is functional and visible.
