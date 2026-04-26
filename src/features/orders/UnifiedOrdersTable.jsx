@@ -2,12 +2,13 @@ import React, { useCallback, useMemo, useState } from "react";
 import useRole from "@/lib/hooks/useRole";
 import useSession from "@/lib/hooks/useSession";
 import { useOrders } from "@/lib/hooks/useOrders";
-import { formatOrderStatusLabel, normalizeOrderStatus, ORDER_STATUS } from "@/lib/constants/orderStatus";
+import { normalizeOrderStatus, ORDER_STATUS } from "@/lib/constants/orderStatus";
 import { useEffectivePermissions } from "@/lib/hooks/usePermissions";
 import { PERMISSIONS } from "@/lib/permissions/constants";
 
 import OrdersTableRow from "@/components/orders/table/OrdersTableRow";
 import OrdersTablePagination from "@/components/orders/table/OrdersTablePagination";
+import OrderStatusBadge from "@/components/orders/table/OrderStatusBadge";
 import OrderDrawerContent from "@/components/orders/drawer/OrderDrawerContent";
 import OrderOpenFullLink from "@/components/orders/drawer/OrderOpenFullLink";
 import ReviewerActionCell from "@/components/orders/table/ReviewerActionCell";
@@ -480,14 +481,18 @@ export default function UnifiedOrdersTable({
                         // Status column special rendering
                         if (c.key === "status") {
                           const rawStatus = normalizeOrderStatus(o.status_normalized || o.status);
-                          const statusLabel = formatOrderStatusLabel(rawStatus) || rawStatus || "-";
+                          const dueDates = [
+                            o.review_due_at ? `Review: ${fmtDate(o.review_due_at)}` : "",
+                            o.final_due_at ? `Final: ${fmtDate(o.final_due_at)}` : "",
+                          ].filter(Boolean);
                           return (
                             <div key={c.key} className="flex flex-col gap-1">
-                              <div className="text-xs font-semibold uppercase tracking-wide">{statusLabel}</div>
-                              <div className="text-[11px] text-slate-500">
-                                {o.review_due_at ? `Review: ${fmtDate(o.review_due_at)}` : ""}
-                                {o.final_due_at ? ` Final: ${fmtDate(o.final_due_at)}` : ""}
-                              </div>
+                              <OrderStatusBadge status={rawStatus} />
+                              {dueDates.length > 0 && (
+                                <div className="text-[11px] leading-4 text-slate-500">
+                                  {dueDates.join(" · ")}
+                                </div>
+                              )}
                             </div>
                           );
                         }
@@ -510,7 +515,7 @@ export default function UnifiedOrdersTable({
       </div>
 
       {/* footer */}
-      <div className="border-t bg-slate-50/80 px-2 py-1.5 flex items-center justify-between text-xs text-slate-600">
+      <div className="border-t bg-slate-50/80 px-4 py-2 flex items-center justify-between text-xs text-slate-600">
         <div>
           Page {tableFilters.page + 1} / {totalPages} — {count || 0} total
         </div>

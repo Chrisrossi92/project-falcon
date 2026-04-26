@@ -181,9 +181,9 @@ export default function DashboardPage() {
       {/* Calendar section */}
       <section className="space-y-2">
         <div className="flex items-baseline justify-between gap-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wide">Calendar</h2>
+          <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Calendar</h2>
         </div>
-        <div className="bg-white border rounded-xl p-3">
+        <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm ring-1 ring-slate-100">
           <DashboardCalendarPanel
             orders={ordersRows || []}
             onOpenOrder={handleOpenOrder}
@@ -198,7 +198,7 @@ export default function DashboardPage() {
       {cfg.showOrdersTable && (
         <section className="space-y-2">
           <div className="flex items-baseline justify-between gap-2">
-            <h2 className="text-sm font-semibold uppercase tracking-wide">
+            <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
               {isAdmin || isReviewer ? "Orders" : "My Orders"}
             </h2>
             <div className="text-sm text-slate-500">
@@ -213,10 +213,10 @@ export default function DashboardPage() {
                   <button
                     key={chip.value || "all"}
                     onClick={() => toggleStatus(chip.value)}
-                    className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold shadow-sm transition ${
                       active
-                        ? "border-slate-800 bg-slate-800 text-white"
-                        : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                        ? "border-slate-800 bg-slate-900 text-white ring-1 ring-slate-800"
+                        : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
                     }`}
                   >
                     {chip.label}
@@ -279,8 +279,8 @@ function SummaryCard({ label, subtext, value, loading, icon: Icon, accent = "fro
           {subtext && <div className="mt-1.5 text-xs leading-snug text-slate-500">{subtext}</div>}
         </div>
         {Icon && (
-          <div className={`rounded-lg border p-2.5 shadow-sm ${active ? "border-slate-300 bg-white text-slate-900" : "border-slate-200 bg-slate-50 text-slate-500"}`}>
-            <Icon className="h-4 w-4" aria-hidden="true" />
+          <div className={`rounded-xl border p-3 shadow-sm ${active ? "border-slate-300 bg-white text-slate-900" : "border-slate-200 bg-slate-50 text-slate-500"}`}>
+            <Icon className="h-5 w-5" aria-hidden="true" />
           </div>
         )}
       </div>
