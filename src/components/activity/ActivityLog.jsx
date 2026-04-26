@@ -52,6 +52,19 @@ export default function ActivityLog({
     }
   }, [orderId, scrollToBottom]);
 
+  const refresh = useCallback(async () => {
+    if (!orderId) return;
+    setErr("");
+    try {
+      const list = await listOrderActivity(orderId);
+      setRows(Array.isArray(list) ? list : []);
+    } catch (e) {
+      setErr(e?.message || "Failed to load activity");
+    } finally {
+      setTimeout(scrollToBottom, 0);
+    }
+  }, [orderId, scrollToBottom]);
+
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
@@ -161,7 +174,7 @@ const grouped = useMemo(() => {
     setActiveUserKey(null);
     setShowSystem(true);
   };
-  const viewportStyle = fill ? undefined : { height };
+  const viewportStyle = { height, maxHeight: height };
 
   return (
     <div className={`${fill ? "flex min-h-0 flex-col" : ""} ${className}`}>
@@ -186,13 +199,12 @@ const grouped = useMemo(() => {
 
       {showComposer && (
         <div className="mt-3">
-          <ActivityNoteForm orderId={orderId} order={order} onSaved={load} />
+          <ActivityNoteForm orderId={orderId} order={order} onSaved={refresh} />
         </div>
       )}
     </div>
   );
 }
-
 
 
 
