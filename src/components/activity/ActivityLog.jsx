@@ -186,13 +186,12 @@ const grouped = useMemo(() => {
 
       {showComposer && (
         <div className="mt-3">
-          <ActivityNoteForm orderId={orderId} order={order} />
+          <ActivityNoteForm orderId={orderId} order={order} onSaved={load} />
         </div>
       )}
     </div>
   );
 }
-
 
 
 
