@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Bell, Check, CheckCheck, RefreshCw } from "lucide-react";
+import { Bell, Check, CheckCheck, RefreshCw, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import useSession from "@/lib/hooks/useSession";
@@ -16,7 +16,8 @@ export default function NotificationBell() {
   const navigate = useNavigate();
 
   const channelName = useMemo(() => (userId ? `notif:${userId}` : null), [userId]);
-  const unreadItems = useMemo(() => items.filter((n) => !n.read_at), [items]);
+  const quickItems = useMemo(() => items.filter((n) => !n.dismissed_at), [items]);
+  const unreadItems = useMemo(() => quickItems.filter((n) => !n.read_at), [quickItems]);
 
   const typeStyleFor = (n) => {
     const type = String(n?.type || n?.category || "").toLowerCase();
@@ -27,16 +28,22 @@ export default function NotificationBell() {
     if (/(overdue|critical|urgent|past_due)/.test(value)) {
       return { label: "Critical", badge: "bg-red-50 text-red-700 border-red-200", accent: "border-l-red-500" };
     }
+    if (/(completed|complete|cleared|review_cleared)/.test(value)) {
+      return { label: "Cleared", badge: "bg-emerald-50 text-emerald-700 border-emerald-200", accent: "border-l-emerald-500" };
+    }
     if (/(revision|request|action|needed|sent_back|review)/.test(value)) {
       return { label: "Action needed", badge: "bg-orange-50 text-orange-700 border-orange-200", accent: "border-l-orange-500" };
     }
     if (/(assign|assigned|new_assigned|new order|new_order)/.test(value)) {
       return { label: "Assignment", badge: "bg-emerald-50 text-emerald-700 border-emerald-200", accent: "border-l-emerald-500" };
     }
-    if (/(system|admin|lock|policy)/.test(value)) {
-      return { label: "System", badge: "bg-violet-50 text-violet-700 border-violet-200", accent: "border-l-violet-500" };
+    if (/(note|communication|message)/.test(value)) {
+      return { label: "Communication", badge: "bg-blue-50 text-blue-700 border-blue-200", accent: "border-l-blue-500" };
     }
-    return { label: "Communication", badge: "bg-blue-50 text-blue-700 border-blue-200", accent: "border-l-blue-500" };
+    if (/(system|admin|lock|policy)/.test(value)) {
+      return { label: "System", badge: "bg-slate-100 text-slate-600 border-slate-200", accent: "border-l-slate-400" };
+    }
+    return { label: "Update", badge: "bg-slate-100 text-slate-600 border-slate-200", accent: "border-l-slate-400" };
   };
 
   const formatTimestamp = (value) => {
@@ -58,7 +65,7 @@ export default function NotificationBell() {
       setUnreadCount(0);
     } else {
       setItems(data || []);
-      setUnreadCount((data || []).filter((n) => !n.read_at).length);
+      setUnreadCount((data || []).filter((n) => !n.read_at && !n.dismissed_at).length);
     }
     setLoading(false);
   };
@@ -93,6 +100,19 @@ export default function NotificationBell() {
       return;
     }
     await loadNotifications();
+  };
+
+  const dismissOne = async (n) => {
+    if (!n?.id) return;
+    setError(null);
+    const { error } = await supabase.rpc("rpc_dismiss_notification", { p_notification_id: n.id });
+    if (error) {
+      console.error("dismissOne error", error);
+      setError(error);
+      return;
+    }
+    setItems((current) => current.filter((item) => item.id !== n.id));
+    setUnreadCount((current) => (!n.read_at ? Math.max(0, current - 1) : current));
   };
 
   const isUuid = (value) =>
@@ -209,13 +229,13 @@ export default function NotificationBell() {
             {!loading && error && (
               <div className="p-3 text-sm text-rose-600">Failed to load notifications.</div>
             )}
-            {!loading && !error && items.length === 0 && (
+            {!loading && !error && quickItems.length === 0 && (
               <div className="p-3 text-sm text-muted-foreground">No notifications yet.</div>
             )}
             {!loading &&
               !error &&
-              items.length > 0 &&
-              items.map((n) => {
+              quickItems.length > 0 &&
+              quickItems.map((n) => {
                 const style = typeStyleFor(n);
                 const orderLabel = orderLabelFor(n);
                 const priority = priorityFor(n);
@@ -228,7 +248,7 @@ export default function NotificationBell() {
                     className={`mb-2 rounded-md border border-l-4 p-3 text-sm transition ${
                       isUnread
                         ? `bg-white shadow-sm ${style.accent}`
-                        : "border-l-slate-200 border-slate-200 bg-slate-50/70 text-slate-500"
+                        : `border-slate-200 bg-slate-50/70 text-slate-500 shadow-none ${style.accent}`
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
@@ -239,7 +259,7 @@ export default function NotificationBell() {
                           )}
                           <span
                             className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${
-                              isUnread ? style.badge : "border-slate-200 bg-slate-100 text-slate-500"
+                              isUnread ? style.badge : `${style.badge} opacity-75`
                             }`}
                           >
                             {style.label}
@@ -265,17 +285,28 @@ export default function NotificationBell() {
                           {titleFor(n)}
                         </h4>
                       </div>
-                      {isUnread && (
+                      <div className="flex shrink-0 items-center gap-1">
+                        {isUnread && (
+                          <button
+                            type="button"
+                            className="inline-flex h-8 items-center gap-1 rounded-md border border-slate-200 px-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                            onClick={() => markOneRead(n)}
+                            title="Mark seen"
+                          >
+                            <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                            Mark seen
+                          </button>
+                        )}
                         <button
                           type="button"
-                          className="inline-flex h-8 shrink-0 items-center gap-1 rounded-md border border-slate-200 px-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                          onClick={() => markOneRead(n)}
-                          title="Mark seen"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-slate-400 hover:border-slate-200 hover:bg-white hover:text-slate-700"
+                          onClick={() => dismissOne(n)}
+                          title="Dismiss from quick view"
+                          aria-label="Dismiss notification"
                         >
-                          <Check className="h-3.5 w-3.5" aria-hidden="true" />
-                          Mark seen
+                          <X className="h-3.5 w-3.5" aria-hidden="true" />
                         </button>
-                      )}
+                      </div>
                     </div>
 
                     {body && (
