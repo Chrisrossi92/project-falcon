@@ -14,6 +14,7 @@ import NewOrder from "@/pages/NewOrder";
 import OrderDetail from "@/pages/orders/OrderDetail";
 import EditOrder from "@/pages/orders/EditOrder";
 import Calendar from "@/pages/Calendar";
+import Activity from "@/pages/Activity";
 
 // Clients (legacy admin pages kept)
 import ClientsDashboard from "@/pages/clients/ClientsDashboard";
@@ -77,6 +78,12 @@ export default function AppRoutes() {
         <Route
           path="/calendar"
           element={<ProtectedRoute roles={["owner", "admin", "reviewer", "appraiser"]}><Calendar /></ProtectedRoute>}
+        />
+
+        {/* Activity */}
+        <Route
+          path="/activity"
+          element={<ProtectedRoute roles={["owner", "admin", "manager", "reviewer", "appraiser"]}><Activity /></ProtectedRoute>}
         />
 
         {/* Clients (legacy admin pages) */}
@@ -200,7 +207,6 @@ export default function AppRoutes() {
     </Routes>
   );
 }
-
 
 
 
