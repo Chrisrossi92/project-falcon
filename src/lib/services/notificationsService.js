@@ -381,6 +381,7 @@ function buildNotificationBody(eventKey, order, payload) {
     case "order.sent_to_review":
       return `Appraiser sent this report for review.`;
     case "order.sent_back_to_appraiser":
+      if (payload?.note_text) return payload.note_text;
       return `Reviewer requested changes to this report.`;
     case "order.completed":
       return `Report for ${client} was marked complete.`;

@@ -397,7 +397,7 @@ export async function sendOrderToReview(orderId, actorId) {
   return order;
 }
 
-export async function sendOrderBackToAppraiser(orderId, actorId) {
+export async function sendOrderBackToAppraiser(orderId, actorId, options = {}) {
   console.log("[sendOrderBackToAppraiser] called", { orderId, actorId });
 
   // 1. Only update the status column
@@ -440,7 +440,8 @@ export async function sendOrderBackToAppraiser(orderId, actorId) {
   recipients.push(...adminRecipients);
 
   if (recipients.length > 0) {
-    emitNotification("order.sent_back_to_appraiser", { recipients, order }).catch(
+    const payload = options?.noteText ? { note_text: options.noteText } : {};
+    emitNotification("order.sent_back_to_appraiser", { recipients, order, payload }).catch(
       (err) =>
         console.error("order.sent_back_to_appraiser notification failed", err)
     );
@@ -517,7 +518,6 @@ export async function isOrderNumberAvailable(orderNo, { excludeId = null } = {})
   if (res2.error) throw res2.error;
   return (res2.count || 0) === 0;
 }
-
 
 
 

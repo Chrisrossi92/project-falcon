@@ -209,8 +209,9 @@ export default function UnifiedOrdersTable({
       }
 
       try {
+        let formattedNote = "";
         if (noteText.trim()) {
-          const formattedNote = `Revision note:\n${noteText.trim()}`;
+          formattedNote = `Revision note:\n${noteText.trim()}`;
           console.log("WORKFLOW NOTE BEFORE LOG NOTE", {
             action: "send_back_to_appraiser",
             orderId: order?.id ?? null,
@@ -222,7 +223,9 @@ export default function UnifiedOrdersTable({
           action: "send_back_to_appraiser",
           orderId: order?.id ?? null,
         });
-        await sendOrderBackToAppraiser(orderPk, sessionUser?.id);
+        await sendOrderBackToAppraiser(orderPk, sessionUser?.id, {
+          noteText: formattedNote || null,
+        });
         refresh();
         toast({
           title: "Sent back to appraiser",
