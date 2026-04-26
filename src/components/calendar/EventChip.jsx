@@ -33,15 +33,14 @@ export default function EventChip({ event, onClick }) {
 
   return (
     <div
-      className="inline-flex items-center gap-1 text-xs px-2 py-[2px] rounded border bg-white cursor-pointer hover:bg-gray-50"
+      className="flex max-w-full min-w-0 items-center gap-1 overflow-hidden rounded border bg-white px-2 py-[2px] text-xs cursor-pointer hover:bg-gray-50"
       onClick={() => onClick?.(event)}
-      title={text}
+      title={event?.address && event.address !== text ? `${text} (${event.address})` : text}
     >
-      <span aria-hidden="true">{icon}</span>
-      <span className="truncate">{text}</span>
+      <span className="shrink-0" aria-hidden="true">{icon}</span>
+      <span className="min-w-0 truncate">{text}</span>
     </div>
   );
 }
-
 
 

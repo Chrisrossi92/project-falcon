@@ -13,8 +13,12 @@ function normalizeType(t) {
   return "other";
 }
 
-function compactAddress(order = {}) {
-  const street = order.address_line1 || order.address || "";
+function streetAddress(order = {}) {
+  return order.address_line1 || order.address || "";
+}
+
+function fullAddress(order = {}) {
+  const street = streetAddress(order);
   const cityState = [order.city, order.state].filter(Boolean).join(", ");
   return [street, cityState].filter(Boolean).join(", ");
 }
@@ -39,7 +43,8 @@ export default function DashboardCalendarPanel({ orders = [], onOpenOrder, fixed
 
         orders.forEach((o) => {
           const orderId = o.id || o.order_id || null;
-          const addr = compactAddress(o);
+          const street = streetAddress(o);
+          const fullAddr = fullAddress(o);
           const pushEvent = (type, ts) => {
             if (!ts) return;
             const when = new Date(ts);
@@ -49,13 +54,13 @@ export default function DashboardCalendarPanel({ orders = [], onOpenOrder, fixed
             events.push({
               id: `${orderId || "order"}-${type}-${ms}`,
               type,
-              title: type === "site" && addr
-                ? `${addr} · ${formatEventTime(ts)}`
-                : formatCalendarEventTitle(type, { address: addr, orderId }),
+              title: type === "site" && street
+                ? `${street} · ${formatEventTime(ts)}`
+                : formatCalendarEventTitle(type, { address: street, orderId }),
               start: when.toISOString(),
               end: when.toISOString(),
               orderId,
-              address: addr,
+              address: fullAddr || street,
             });
           };
 
