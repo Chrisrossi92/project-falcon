@@ -1,6 +1,7 @@
 // src/lib/services/ordersService.js
 import supabase from "@/lib/supabaseClient";
 import { emitNotification, fetchAdminRecipients } from "@/lib/services/notificationsService";
+import { resolveOrderParticipants } from "@/lib/orders/resolveOrderParticipants";
 
 /** Source of truth */
 const ORDERS_TABLE = "orders";
@@ -411,9 +412,18 @@ export async function sendOrderBackToAppraiser(orderId, actorId) {
     throw new Error("No order updated (permission or id mismatch).");
   }
 
-  const recipients = [];
+  const resolvedParticipants = resolveOrderParticipants(order, {
+    actorUserId: null,
+    actorRole: null,
+    event: "workflow.sent_back_to_appraiser",
+    status: order.status,
+  });
 
-  if (order.appraiser_id) {
+  const recipients = resolvedParticipants.recipients
+    .filter((userId) => userId && userId === order.appraiser_id)
+    .map((userId) => ({ userId, role: "appraiser" }));
+
+  if (!recipients.length && order.appraiser_id) {
     recipients.push({ userId: order.appraiser_id, role: "appraiser" });
   }
 
@@ -487,7 +497,6 @@ export async function isOrderNumberAvailable(orderNo, { excludeId = null } = {})
   if (res2.error) throw res2.error;
   return (res2.count || 0) === 0;
 }
-
 
 
 
