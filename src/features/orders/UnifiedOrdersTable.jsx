@@ -141,49 +141,23 @@ export default function UnifiedOrdersTable({
       }
 
       try {
+        let formattedNote = "";
         if (noteText.trim()) {
-          const formattedNote = `Resubmission note:\n${noteText.trim()}`;
+          formattedNote = `Resubmission note:\n${noteText.trim()}`;
           console.log("WORKFLOW NOTE BEFORE LOG NOTE", {
             action: "send_to_review",
             orderId: order?.id ?? null,
             noteTextPresent: true,
           });
           await logNote(orderPk, formattedNote);
-          if (order?.reviewer_id) {
-            const recipient = { userId: order.reviewer_id, role: "reviewer" };
-            try {
-              console.log("WORKFLOW NOTE EMIT START", {
-                eventKey: "note.appraiser_added",
-                orderId: order?.id ?? null,
-                noteTextPresent: Boolean(noteText.trim()),
-                recipient,
-              });
-              await emitNotification("note.appraiser_added", {
-                recipients: [recipient],
-                order,
-                payload: { message: formattedNote },
-              });
-              console.log("WORKFLOW NOTE EMIT SUCCESS", {
-                eventKey: "note.appraiser_added",
-                orderId: order?.id ?? null,
-                recipient,
-              });
-            } catch (emitErr) {
-              console.error("WORKFLOW NOTE EMIT ERROR", {
-                eventKey: "note.appraiser_added",
-                orderId: order?.id ?? null,
-                noteTextPresent: Boolean(noteText.trim()),
-                recipient,
-                error: emitErr,
-              });
-            }
-          }
         }
         console.log("WORKFLOW NOTE BEFORE STATUS TRANSITION", {
           action: "send_to_review",
           orderId: order?.id ?? null,
         });
-        await sendOrderToReview(orderPk, sessionUser?.id); // ✅ correct signature
+        await sendOrderToReview(orderPk, sessionUser?.id, {
+          noteText: formattedNote || null,
+        });
         refresh();
         toast({
           title: "Sent to review",

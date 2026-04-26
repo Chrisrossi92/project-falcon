@@ -294,7 +294,27 @@ export async function assignReviewer(orderId, reviewer_id) {
 
 export async function startReview(orderId, note = null)        { return setOrderStatus(orderId, OrderStatus.IN_REVIEW); }
 export async function requestRevisions(orderId, note = null)   { return setOrderStatus(orderId, OrderStatus.NEEDS_REVISIONS); }
-export async function clearReview(orderId, note = null)        { return setOrderStatus(orderId, OrderStatus.REVIEW_CLEARED); }
+export async function clearReview(orderId, note = null) {
+  const { data: order, error } = await supabase
+    .from(ORDERS_TABLE)
+    .update({ status: OrderStatus.REVIEW_CLEARED })
+    .eq("id", orderId)
+    .select("id, appraiser_id, reviewer_id, order_number, status")
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!order) throw new Error("No order updated (permission or id mismatch).");
+
+  const recipients = await fetchAdminRecipients();
+
+  if (recipients.length > 0) {
+    emitNotification("order.review_cleared", { recipients, order }).catch(
+      (err) => console.error("order.review_cleared notification failed", err)
+    );
+  }
+
+  return order;
+}
 export async function requestFinalApproval(orderId, note = null) { return setOrderStatus(orderId, OrderStatus.PENDING_FINAL_APPROVAL); }
 export async function markReadyForClient(orderId, note = null) {
   const { data: order, error } = await supabase
@@ -349,7 +369,7 @@ export async function updateOrderStatus(orderId, status, extra = {}) {
   return updateOrder(orderId, patch);
 }
 
-export async function sendOrderToReview(orderId, actorId) {
+export async function sendOrderToReview(orderId, actorId, options = {}) {
   const { data: existingOrder, error: existingOrderError } = await supabase
     .from(ORDERS_TABLE)
     .select("id, status")
@@ -393,7 +413,8 @@ export async function sendOrderToReview(orderId, actorId) {
   recipients.push(...adminRecipients);
 
   if (recipients.length > 0) {
-    emitNotification("order.sent_to_review", { recipients, order }).catch(
+    const payload = options?.noteText ? { note_text: options.noteText } : {};
+    emitNotification("order.sent_to_review", { recipients, order, payload }).catch(
       (err) => console.error("order.sent_to_review notification failed", err)
     );
   }
@@ -522,7 +543,6 @@ export async function isOrderNumberAvailable(orderNo, { excludeId = null } = {})
   if (res2.error) throw res2.error;
   return (res2.count || 0) === 0;
 }
-
 
 
 

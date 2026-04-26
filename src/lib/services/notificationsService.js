@@ -362,6 +362,8 @@ function buildNotificationTitle(eventKey, orderNumber, payload = {}) {
       return `Order ${num} sent to review`;
     case "order.sent_back_to_appraiser":
       return `Revisions requested: ${num}`;
+    case "order.review_cleared":
+      return `Review cleared: ${num}`;
     case "order.completed":
       return `Order ${num} completed`;
     case "note.appraiser_added":
@@ -379,10 +381,13 @@ function buildNotificationBody(eventKey, order, payload) {
       // keep admin anonymous
       return `A new order was assigned for ${client}.`;
     case "order.sent_to_review":
+      if (payload?.note_text) return payload.note_text;
       return `Appraiser sent this report for review.`;
     case "order.sent_back_to_appraiser":
       if (payload?.note_text) return payload.note_text;
       return `Reviewer requested changes to this report.`;
+    case "order.review_cleared":
+      return `Reviewer cleared this order for admin release.`;
     case "order.completed":
       return `Report for ${client} was marked complete.`;
     case "note.appraiser_added":
