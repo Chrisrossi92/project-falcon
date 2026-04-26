@@ -77,9 +77,9 @@ export default function OrderActions({ order, onAfterAction }) {
         {canApprove && (
           <button
             className="px-3 py-1.5 text-sm rounded border hover:bg-gray-50"
-            onClick={() => doAction(approveReview, "Approve review", [id, note || null])}
+            onClick={() => doAction(approveReview, "Clear review", [id, note || null])}
           >
-            Approve
+            Clear Review
           </button>
         )}
 
@@ -95,9 +95,9 @@ export default function OrderActions({ order, onAfterAction }) {
         {canReady && (
           <button
             className="px-3 py-1.5 text-sm rounded border hover:bg-gray-50"
-            onClick={() => doAction(markReadyToSend, "Mark ready to send", [id])}
+            onClick={() => doAction(markReadyToSend, "Mark review cleared", [id])}
           >
-            Ready to Send
+            Review Cleared
           </button>
         )}
 
@@ -139,5 +139,4 @@ export default function OrderActions({ order, onAfterAction }) {
     </div>
   );
 }
-
 

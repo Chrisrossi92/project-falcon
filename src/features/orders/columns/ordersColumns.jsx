@@ -107,7 +107,7 @@ export function getColumnsForRole(role, actions = {}) {
   const normalizedRole = (role || "appraiser").toString().toLowerCase();
   const isAppraiser = normalizedRole === "appraiser";
   const isReviewer = normalizedRole === "reviewer";
-  const { onSendToReview, onSendBackToAppraiser, onComplete, onReadyForClient } = actions || {};
+  const { onSendToReview, onSendBackToAppraiser, onComplete, onClearReview } = actions || {};
   const orderStatusColumn = col("order",      "180px",              () => "Order / Stat.",       (order) => orderCell(order), { locked: true });
   const clientColumn = col("client",    "200px",              () => "Client / Appraiser",                clientCell);
   const addressColumn = col("address",  "minmax(200px,1fr)",  () => "Address",               addressCell);
@@ -165,10 +165,10 @@ export function getColumnsForRole(role, actions = {}) {
                 Send back to appraiser
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => onReadyForClient?.(order)}
-                disabled={!onReadyForClient}
+                onClick={() => onClearReview?.(order)}
+                disabled={!onClearReview}
               >
-                Mark ready for client
+                Clear Review
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenuPortal>

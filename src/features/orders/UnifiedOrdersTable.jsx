@@ -10,7 +10,7 @@ import OrderDrawerContent from "@/components/orders/drawer/OrderDrawerContent";
 import OrderOpenFullLink from "@/components/orders/drawer/OrderOpenFullLink";
 import ReviewerActionCell from "@/components/orders/table/ReviewerActionCell";
 import { updateOrderStatus } from "@/lib/api/orders";
-import { sendOrderToReview, sendOrderBackToAppraiser, completeOrder, markReadyForClient } from "@/lib/services/ordersService";
+import { sendOrderToReview, sendOrderBackToAppraiser, completeOrder, clearReview } from "@/lib/services/ordersService";
 import { logNote } from "@/lib/services/activityService";
 import { emitNotification } from "@/lib/services/notificationsService";
 import WorkflowNoteModal from "@/components/orders/WorkflowNoteModal";
@@ -301,7 +301,7 @@ export default function UnifiedOrdersTable({
     [sessionUser?.id, refresh, toast]
   );
 
-  const handleReadyForClient = useCallback(
+  const handleClearReview = useCallback(
     async (order) => {
       const orderPk = orderPkOf(order);
       if (!orderPk) {
@@ -310,18 +310,18 @@ export default function UnifiedOrdersTable({
       }
 
       try {
-        await markReadyForClient(orderPk, sessionUser?.id);
+        await clearReview(orderPk, sessionUser?.id);
         refresh();
         toast({
-          title: "Marked ready for client",
-          description: `Order ${order.order_number || orderPk} moved to client queue.`,
+          title: "Review cleared",
+          description: `Order ${order.order_number || orderPk} was cleared for admin release.`,
           tone: "success",
         });
       } catch (err) {
-        console.error("Failed to mark ready for client", err);
+        console.error("Failed to clear review", err);
         toast({
           title: "Error",
-          description: err?.message ? `Could not mark ready: ${err.message}` : "Could not mark ready for client.",
+          description: err?.message ? `Could not clear review: ${err.message}` : "Could not clear review.",
           tone: "error",
         });
       }
@@ -334,9 +334,9 @@ export default function UnifiedOrdersTable({
       onSendToReview: (order) => openWorkflowModal("send_to_review", order),
       onSendBackToAppraiser: (order) => openWorkflowModal("send_back_to_appraiser", order),
       onComplete: handleCompleteOrder,
-      onReadyForClient: handleReadyForClient,
+      onClearReview: handleClearReview,
     }),
-    [openWorkflowModal, handleCompleteOrder, handleReadyForClient]
+    [openWorkflowModal, handleCompleteOrder, handleClearReview]
   );
 
   const columns = useColumnsConfig(normalizedRole, columnActions);

@@ -9,6 +9,7 @@ const STATUS = [
   ["in_progress", "In progress"],
   ["in_review", "In review"],
   ["needs_revisions", "Needs revisions"],
+  ["review_cleared", "Review cleared"],
   ["ready_for_client", "Ready for client"],
   ["completed", "Completed"],
 ];

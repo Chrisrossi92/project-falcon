@@ -54,11 +54,11 @@ export default function QuickActionsDrawerPanel({ orderId, onAfterChange, layout
             type="button"
             data-no-drawer
             className={btn}
-            onClick={() => setStatus(ORDER_STATUS.READY_FOR_CLIENT, "Ready for Client")}
+            onClick={() => setStatus(ORDER_STATUS.REVIEW_CLEARED, "Review Cleared")}
             disabled={busy}
-            title="Approve review → Ready to Send"
+            title="Clear review for admin release"
           >
-            Approve
+            Clear Review
           </button>
           <button
             type="button"
@@ -75,7 +75,6 @@ export default function QuickActionsDrawerPanel({ orderId, onAfterChange, layout
     </Wrap>
   );
 }
-
 
 
 

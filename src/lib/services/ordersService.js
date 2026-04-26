@@ -12,6 +12,7 @@ export const OrderStatus = {
   IN_PROGRESS: "in_progress",
   IN_REVIEW: "in_review",
   NEEDS_REVISIONS: "needs_revisions",
+  REVIEW_CLEARED: "review_cleared",
   READY_FOR_CLIENT: "ready_for_client",
   COMPLETED: "completed",
 };
@@ -292,6 +293,7 @@ export async function assignReviewer(orderId, reviewer_id) {
 
 export async function startReview(orderId, note = null)        { return setOrderStatus(orderId, OrderStatus.IN_REVIEW); }
 export async function requestRevisions(orderId, note = null)   { return setOrderStatus(orderId, OrderStatus.NEEDS_REVISIONS); }
+export async function clearReview(orderId, note = null)        { return setOrderStatus(orderId, OrderStatus.REVIEW_CLEARED); }
 export async function markReadyForClient(orderId, note = null) {
   const { data: order, error } = await supabase
     .from(ORDERS_TABLE)
@@ -320,8 +322,8 @@ export async function markReadyForClient(orderId, note = null) {
 
   return order;
 }
-export async function approveReview(orderId, note = null)      { return markReadyForClient(orderId, note); }
-export async function markReadyToSend(orderId, note = null)    { return markReadyForClient(orderId, note); }
+export async function approveReview(orderId, note = null)      { return clearReview(orderId, note); }
+export async function markReadyToSend(orderId, note = null)    { return clearReview(orderId, note); }
 export async function markComplete(orderId, note = null)       { return setOrderStatus(orderId, OrderStatus.COMPLETED); }
 export async function putOnHold(orderId, note = null)          { return setOrderStatus(orderId, OrderStatus.IN_PROGRESS); }
 export async function resumeInProgress(orderId, note = null)   { return setOrderStatus(orderId, OrderStatus.IN_PROGRESS); }
@@ -518,7 +520,6 @@ export async function isOrderNumberAvailable(orderNo, { excludeId = null } = {})
   if (res2.error) throw res2.error;
   return (res2.count || 0) === 0;
 }
-
 
 
 
