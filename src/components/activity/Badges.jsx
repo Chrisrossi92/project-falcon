@@ -11,7 +11,7 @@ export function TypeBadge({ type = "system" }) {
   const t = map[type] || map.user;
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium"
+      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold"
       style={{ backgroundColor: t.bg, color: t.text, border: `1px solid ${t.border}` }}
     >
       {t.label}
@@ -26,12 +26,12 @@ export function UserBadge({ nameOrId, email }) {
   const br = hsl({ h: c.h, s: c.s, l: c.borderL });
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium"
+      className="inline-flex max-w-[180px] items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold"
       title={nameOrId}
       style={{ backgroundColor: bg, color: c.text, border: `1px solid ${br}` }}
     >
       <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: br }} />
-      {nameOrId}
+      <span className="truncate">{nameOrId}</span>
     </span>
   );
 }

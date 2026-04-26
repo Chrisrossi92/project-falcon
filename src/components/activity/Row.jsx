@@ -32,16 +32,16 @@ export default function Row({ item }) {
   const isSystem = SYSTEM_TYPES.has(et);
 
   return (
-    <div className="rounded-md border p-3">
+    <div className="rounded-md border border-slate-200 bg-white p-3 shadow-sm">
       <div className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-2">
-          <div className="mt-0.5 opacity-70">
+        <div className="flex min-w-0 items-start gap-3">
+          <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-500">
             <Icon size={16} />
           </div>
 
-          <div className="text-sm">
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="font-medium">{label}</div>
+          <div className="min-w-0 text-sm">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <div className="font-semibold text-slate-900">{label}</div>
 
               {/* Exactly one badge: System OR User */}
               {isSystem ? (
@@ -52,12 +52,14 @@ export default function Row({ item }) {
             </div>
 
             {body ? (
-              <div className="mt-1 whitespace-pre-wrap text-sm leading-5 text-slate-600">
+              <div className="mt-1.5 whitespace-pre-wrap text-sm leading-5 text-slate-700">
                 {body}
               </div>
             ) : null}
 
-            <div className="mt-1 text-[11px] text-gray-500">At: {when}</div>
+            <time className="mt-2 block text-[11px] text-slate-500" dateTime={item?.created_at || undefined}>
+              {when}
+            </time>
           </div>
         </div>
       </div>

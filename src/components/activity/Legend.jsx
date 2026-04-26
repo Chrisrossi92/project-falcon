@@ -1,6 +1,6 @@
 // Legend.jsx
 import React from "react";
-import { TypeBadge, UserBadge } from "./Badges";   // ✅ this line fixes it
+import { TypeBadge, UserBadge } from "./Badges";
 
 export default function Legend({
   className = "",
@@ -13,18 +13,17 @@ export default function Legend({
   userActive = false,
 }) {
   return (
-    <div className={`mb-2 flex flex-wrap items-center gap-2 ${className}`}>
-      {/* System toggle (disabled if a user is selected) */}
+    <div className={`mb-2 flex flex-wrap items-center gap-2 rounded-md border border-slate-200 bg-white px-2.5 py-2 ${className}`}>
       <button
         type="button"
         onClick={!userActive ? onToggleSystem : undefined}
         disabled={userActive}
-        className={`rounded-full border px-2.5 py-1 text-xs flex items-center gap-2 ${
+        className={`flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs transition ${
           userActive
-            ? "opacity-50 cursor-not-allowed border-gray-300 text-gray-400"
+            ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400 opacity-60"
             : showSystem
-            ? "bg-gray-50 border-gray-300 text-gray-700"
-            : "border-gray-300 text-gray-500"
+            ? "border-slate-300 bg-slate-50 text-slate-700"
+            : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
         }`}
         title={userActive ? "Disabled while filtering by user" : "Toggle System events"}
         aria-disabled={userActive}
@@ -32,7 +31,6 @@ export default function Legend({
         <TypeBadge type="system" />
       </button>
 
-      {/* Dynamic users (unchanged) */}
       {participants.map((p) => {
         const selected = activeUserKey === p.key;
         return (
@@ -40,8 +38,8 @@ export default function Legend({
             key={p.key}
             type="button"
             onClick={() => onToggleUser?.(p.key)}
-            className={`rounded-full border px-0.5 py-0.5 text-xs transition ${
-              selected ? "ring-2 ring-offset-1 ring-indigo-400" : "ring-0"
+            className={`rounded-full border px-0.5 py-0.5 text-xs transition hover:bg-slate-50 ${
+              selected ? "border-indigo-300 ring-2 ring-indigo-300 ring-offset-1" : "border-slate-200"
             }`}
             title={`Show only ${p.name}`}
           >
@@ -54,7 +52,7 @@ export default function Legend({
         <button
           type="button"
           onClick={onClear}
-          className="ml-1 rounded-full border px-2.5 py-1 text-xs text-gray-600 hover:bg-gray-50"
+          className="ml-1 rounded-full border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
           title="Show all"
         >
           All
@@ -63,5 +61,4 @@ export default function Legend({
     </div>
   );
 }
-
 

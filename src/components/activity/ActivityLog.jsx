@@ -21,6 +21,7 @@ export default function ActivityLog({
   className = "",
   showComposer = true,
   height = 520, // fixed-height viewport
+  fill = false,
 }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -112,10 +113,34 @@ const grouped = useMemo(() => {
 
 
   const content = useMemo(() => {
-    if (loading) return <div className="text-sm text-gray-600">Loading…</div>;
-    if (err) return <div className="text-sm text-red-600">Failed: {err}</div>;
-    if (!rows.length) return <div className="text-sm text-gray-600">No activity yet.</div>;
-    if (!grouped.length) return <div className="text-sm text-gray-600">No events match the current filters.</div>;
+    if (loading) {
+      return (
+        <div className="flex h-full min-h-40 items-center justify-center rounded-md border border-dashed border-slate-200 bg-slate-50/70 px-4 text-sm text-slate-500">
+          Loading activity...
+        </div>
+      );
+    }
+    if (err) {
+      return (
+        <div className="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          Failed to load activity: {err}
+        </div>
+      );
+    }
+    if (!rows.length) {
+      return (
+        <div className="flex h-full min-h-40 items-center justify-center rounded-md border border-dashed border-slate-200 bg-slate-50/70 px-4 text-sm text-slate-500">
+          No activity yet.
+        </div>
+      );
+    }
+    if (!grouped.length) {
+      return (
+        <div className="flex h-full min-h-40 items-center justify-center rounded-md border border-dashed border-slate-200 bg-slate-50/70 px-4 text-sm text-slate-500">
+          No events match the current filters.
+        </div>
+      );
+    }
 
     return (
       <div className="space-y-4">
@@ -136,25 +161,25 @@ const grouped = useMemo(() => {
     setActiveUserKey(null);
     setShowSystem(true);
   };
+  const viewportStyle = fill ? undefined : { height };
 
   return (
-    <div className={className}>
+    <div className={`${fill ? "flex min-h-0 flex-col" : ""} ${className}`}>
       <Legend
-  participants={participants}
-  activeUserKey={activeUserKey}
-  onToggleUser={handleToggleUser}
-  showSystem={showSystem}
-  onToggleSystem={handleToggleSystem}
-  onClear={handleClear}
-  userActive={!!activeUserKey}   // <-- new
-/>
-
+        participants={participants}
+        activeUserKey={activeUserKey}
+        onToggleUser={handleToggleUser}
+        showSystem={showSystem}
+        onToggleSystem={handleToggleSystem}
+        onClear={handleClear}
+        userActive={!!activeUserKey}
+      />
 
       {/* Fixed-height, scrollable viewport */}
       <div
         ref={viewportRef}
-        style={{ height }}
-        className="overflow-y-auto rounded border bg-white p-3"
+        style={viewportStyle}
+        className={`${fill ? "min-h-0 flex-1" : ""} overflow-y-auto rounded-md border border-slate-200 bg-slate-50/40 p-3`}
       >
         {content}
       </div>
@@ -167,7 +192,6 @@ const grouped = useMemo(() => {
     </div>
   );
 }
-
 
 
 
