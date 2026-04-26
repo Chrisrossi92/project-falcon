@@ -348,11 +348,16 @@ Reference docs:
 - [x] Include self-notification suppression in first resolver slice.
 - [x] Return actor role on order in first resolver slice.
 - [x] Return bell recipients in first resolver slice.
+- [x] Use resolver in `sendOrderBackToAppraiser` appraiser recipient assembly with existing fallback.
+- [x] Keep admin recipients appended through `fetchAdminRecipients()`.
 - [ ] Return visibility candidates.
 
 ### UI Implementation
 
 - [x] Replace duplicated note recipient logic in activity note flow.
+- [x] Suppress duplicate send-back-to-appraiser workflow note bell notification.
+- [x] Preserve send-back-to-appraiser revision note in activity log via `logNote`.
+- [x] Add Activity / Communication History to `/orders/:id` with `ActivityLog`.
 - [ ] Replace duplicated workflow note recipient logic where touched.
 - [x] Preserve current activity note UI behavior.
 
@@ -367,6 +372,8 @@ Reference docs:
 - [ ] Reviewer lifecycle cases match docs.
 - [x] Notification payload/UI behavior is otherwise unchanged.
 - [x] No DB/RLS, order visibility, status lifecycle, or workflow button behavior changed.
+- [x] No routing or notification service changes for validated Phase 3 slices.
+- [x] Notification click flow lands on order detail where communication history is visible.
 - [x] `npm run build` passed.
 
 ### Stop Conditions
@@ -378,6 +385,7 @@ Reference docs:
 ### Deferred Follow-Up
 
 - [ ] Admin/Abby note notifications can display a generic actor label such as "User added a note" because the logged-in admin profile/identity hydrates as Demo User instead of Abby Rossi. Treat this as actor display-name/profile hydration cleanup, separate from responsibility resolver routing.
+- [ ] Activity / Communication History presentation needs future polish, but is functional and visible.
 
 ## Phase 4: Activity / Notification Payload Contract
 

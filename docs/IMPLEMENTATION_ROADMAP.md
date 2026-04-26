@@ -515,14 +515,20 @@ Completed first resolver slice:
 - Appraiser notes route to the reviewer.
 - Reviewer notes route to the appraiser.
 - Admin/other notes route to the appraiser.
+- `sendOrderBackToAppraiser` uses the resolver for appraiser recipient assembly with existing appraiser fallback.
+- Admin recipients remain appended through `fetchAdminRecipients()`.
+- Duplicate workflow note bell notification is suppressed for send-back-to-appraiser while the revision note remains in activity history through `logNote`.
+- `/orders/:id` shows Activity / Communication History with `ActivityLog`, so notification clicks land on a detail page with visible communication history.
 - Notification payload/UI behavior is otherwise unchanged.
 - No DB/RLS, order visibility, status lifecycle, or workflow button behavior changed.
+- No routing or notification service changes were made for these slices.
 - `npm run build` passed.
 
 Deferred follow-up:
 
 - Admin/Abby note notifications can still display a generic actor label such as "User added a note" because the logged-in admin profile/identity hydrates as Demo User instead of Abby Rossi.
 - Treat this as actor display-name/profile hydration cleanup, separate from responsibility resolver routing.
+- Activity / Communication History presentation needs future polish, but is functional and visible.
 
 ### Validation Checklist
 

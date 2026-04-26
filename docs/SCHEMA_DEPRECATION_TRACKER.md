@@ -613,10 +613,16 @@ Progress:
 - Phase 3 first resolver slice added `src/lib/orders/resolveOrderParticipants.js`.
 - `ActivityNoteForm` now uses the resolver for note notification routing only.
 - Appraiser notes route to the reviewer; reviewer notes route to the appraiser; admin/other notes route to the appraiser.
+- `sendOrderBackToAppraiser` now uses the resolver for appraiser recipient assembly with the existing appraiser fallback.
+- Admin recipients remain appended through `fetchAdminRecipients()`.
 - Notification payload/UI behavior is otherwise unchanged.
-- No DB/RLS, order visibility, status lifecycle, or workflow button behavior changed.
+- No DB/RLS, order visibility, status lifecycle, routing, notification service, or workflow button behavior changed.
+- Duplicate workflow note bell notification is suppressed for send-back-to-appraiser.
+- Revision notes are still preserved in activity history through `logNote`.
+- `/orders/:id` now shows Activity / Communication History with `ActivityLog`, so notification clicks land where communication history is visible.
 - `npm run build` passed.
 - Admin/Abby note notifications can still show a generic actor label such as "User added a note" because logged-in admin profile/identity hydrates as Demo User instead of Abby Rossi; defer this to actor display-name/profile hydration cleanup.
+- Activity / Communication History presentation needs future polish, but is functional and visible.
 
 Canonical replacement:
 
@@ -772,6 +778,8 @@ Progress:
 
 - Phase 1 Batch 2 Step 1 patched authorization comparison logic where scoped.
 - Activity actor values and payload shape were intentionally not changed yet.
+- Phase 3 send-back-to-appraiser notification recipient assembly now uses `resolveOrderParticipants` for the appraiser recipient, keeps the existing fallback, and appends admins through `fetchAdminRecipients()`.
+- Duplicate workflow note bell notification is suppressed for send-back-to-appraiser while revision note activity logging remains through `logNote`.
 
 Canonical replacement:
 
@@ -812,6 +820,8 @@ Progress:
 - Legacy `created_by` and `actor_id` remain auth/profile compatible for existing activity display.
 - Both `rpc_log_event` overloads now write `actor_user_id = public.current_app_user_id()` while `created_by` and `actor_id` remain `auth.uid()`.
 - Reviewer/Pam can post activity notes without `activity_log_created_by_fkey` errors.
+- Send-back-to-appraiser revision notes remain in activity history through `logNote` while the duplicate workflow note bell notification is suppressed.
+- `/orders/:id` now renders Activity / Communication History using `ActivityLog`; presentation polish is deferred.
 
 Canonical replacement:
 
