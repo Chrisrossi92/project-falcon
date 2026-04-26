@@ -7,6 +7,7 @@ import SiteVisitPicker from "@/components/dates/SiteVisitPicker";
 import TwoWeekCalendar from "@/components/calendar/TwoWeekCalendar";
 import CalendarLegend from "@/components/calendar/CalendarLegend";
 import OrderStatusBadge from "@/components/orders/table/OrderStatusBadge";
+import ActivityLog from "@/components/activity/ActivityLog";
 import { useRole } from "@/lib/hooks/useRole";
 import { ORDER_STATUS } from "@/lib/constants/orderStatus";
 import useOrder from "@/lib/hooks/useOrder";
@@ -320,6 +321,14 @@ export default function OrderDetail() {
       <div className="rounded-md bg-white p-3 border">
         <div className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-2">Notes</div>
         <div className="text-sm text-gray-800 whitespace-pre-wrap">{order.access_notes || order.notes || "-"}</div>
+      </div>
+
+      {/* Activity */}
+      <div className="rounded-md bg-white p-3 border">
+        <div className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-2">
+          Activity / Communication History
+        </div>
+        <ActivityLog orderId={order.id} order={order} showComposer height={520} />
       </div>
 
     </div>
