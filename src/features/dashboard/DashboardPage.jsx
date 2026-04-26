@@ -93,6 +93,13 @@ export default function DashboardPage() {
     : isReviewer
     ? "Review assigned orders and keep technical clearance moving."
     : "Track assigned work, due dates, and revision requests.";
+  const workspaceLabel = isAdmin
+    ? "Admin Workspace"
+    : isReviewer
+    ? "Reviewer Queue"
+    : normalizedRole === "appraiser"
+    ? "Appraiser Workspace"
+    : "Workspace";
 
   const ordersCount = summary.orders.count ?? 0;
   const summaryCards = isAdmin
@@ -158,9 +165,18 @@ export default function DashboardPage() {
               <h1 className="mt-2 text-2xl font-semibold tracking-tight">{title}</h1>
               <p className="mt-1 max-w-2xl text-sm text-slate-300">{subtitle}</p>
             </div>
-            <div className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-right shadow-sm">
-              <div className="text-[11px] font-medium uppercase tracking-wide text-slate-300">Active queue</div>
-              <div className="text-lg font-semibold tabular-nums">{ordersCount}</div>
+            <div className="flex flex-col items-start gap-2 rounded-lg border border-white/10 bg-white/10 px-3 py-2 shadow-sm sm:items-end">
+              <div className="text-left sm:text-right">
+                <div className="text-[11px] font-medium uppercase tracking-wide text-slate-300">Workspace</div>
+                <div className="text-sm font-semibold text-white">{workspaceLabel}</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => nav("/activity")}
+                className="rounded-md border border-white/15 bg-white/10 px-2.5 py-1 text-xs font-medium text-slate-100 transition hover:border-white/30 hover:bg-white/15"
+              >
+                View activity
+              </button>
             </div>
           </div>
         </div>
