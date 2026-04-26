@@ -40,22 +40,38 @@ export default function DashboardPage() {
 
   const cfg = DASHBOARD_CONFIG[normalizedRole] || DASHBOARD_CONFIG.appraiser;
   const [statusFilter, setStatusFilter] = useState("");
+  const [adminKpiFilter, setAdminKpiFilter] = useState(null);
 
   const chipValue = isAdmin ? statusFilter : "";
 
   const appliedFilters = useMemo(() => {
     const next = { ...(tableFilters || {}) };
     if (isAdmin) {
-      next.statusIn = statusFilter ? [statusFilter] : [];
+      if (adminKpiFilter) {
+        next.statusIn = [];
+        next.inspectedAwaitingReport = false;
+        next.finalDueWithinDays = null;
+        Object.assign(next, adminKpiFilter.filter || {});
+      } else {
+        next.statusIn = statusFilter ? [statusFilter] : [];
+        next.inspectedAwaitingReport = false;
+        next.finalDueWithinDays = null;
+      }
       next.page = 0;
     } else {
       next.page = next.page || 0;
     }
     return next;
-  }, [tableFilters, isAdmin, statusFilter]);
+  }, [tableFilters, isAdmin, statusFilter, adminKpiFilter]);
 
   const toggleStatus = (val) => {
+    setAdminKpiFilter(null);
     setStatusFilter((curr) => (curr === val ? "" : val));
+  };
+
+  const applyAdminKpiFilter = (id, filter = null) => {
+    setStatusFilter("");
+    setAdminKpiFilter(filter ? { id, filter } : null);
   };
 
   const statusChips = [
@@ -73,6 +89,44 @@ export default function DashboardPage() {
     : "My Dashboard";
 
   const ordersCount = summary.orders.count ?? 0;
+  const summaryCards = isAdmin
+    ? [
+        {
+          id: "total_active",
+          label: "Total Active Orders",
+          value: summary.orders.count,
+          filter: null,
+        },
+        {
+          id: "inspected_awaiting_report",
+          label: "Inspected / Awaiting Report",
+          value: summary.orders.inspectedAwaitingReport,
+          filter: { inspectedAwaitingReport: true },
+        },
+        {
+          id: "due_to_client_2",
+          label: "Due to Client in 2 Days",
+          value: summary.orders.dueToClient2,
+          filter: { finalDueWithinDays: 2 },
+        },
+      ]
+    : [
+        {
+          id: "orders",
+          label: isReviewer ? "All Orders" : "My Orders",
+          value: summary.orders.count,
+        },
+        {
+          id: "in_progress",
+          label: "In Progress",
+          value: summary.orders.inProgress,
+        },
+        {
+          id: "due_in_7",
+          label: "Due in 7 Days",
+          value: summary.orders.dueIn7,
+        },
+      ];
 
   const handleOpenOrder = (orderId) => {
     if (!orderId) return;
@@ -85,13 +139,16 @@ export default function DashboardPage() {
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <SummaryCard
-          label={isAdmin || isReviewer ? "All Orders" : "My Orders"}
-          value={summary.orders.count}
-          loading={loading}
-        />
-        <SummaryCard label="In Progress" value={summary.orders.inProgress} loading={loading} />
-        <SummaryCard label="Due in 7 Days" value={summary.orders.dueIn7} loading={loading} />
+        {summaryCards.map((card) => (
+          <SummaryCard
+            key={card.id}
+            label={card.label}
+            value={card.value}
+            loading={loading}
+            active={isAdmin && (adminKpiFilter?.id || "total_active") === card.id && !statusFilter}
+            onClick={isAdmin ? () => applyAdminKpiFilter(card.id, card.filter) : undefined}
+          />
+        ))}
       </div>
 
       {/* Calendar section */}
@@ -167,9 +224,27 @@ export default function DashboardPage() {
   );
 }
 
-function SummaryCard({ label, value, loading }) {
+function SummaryCard({ label, value, loading, active = false, onClick }) {
+  const interactive = typeof onClick === "function";
   return (
-    <Card className="h-full">
+    <Card
+      className={`h-full transition ${
+        interactive ? "cursor-pointer hover:border-slate-300 hover:shadow-sm" : ""
+      } ${active ? "border-slate-800 ring-1 ring-slate-800" : ""}`}
+      onClick={onClick}
+      role={interactive ? "button" : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      onKeyDown={
+        interactive
+          ? (event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+    >
       <div className="text-xs uppercase tracking-wide text-slate-500">{label}</div>
       <div className="mt-2 text-2xl font-semibold">{loading ? "—" : value ?? 0}</div>
     </Card>

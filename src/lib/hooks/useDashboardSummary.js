@@ -77,6 +77,8 @@ export function useDashboardSummary() {
       count: kpis.total_active ?? summary.count,
       inProgress: kpis.in_progress ?? summary.inProgress,
       dueIn7: kpis.due_in_7 ?? summary.dueIn7,
+      inspectedAwaitingReport: kpis.inspected_awaiting_report ?? 0,
+      dueToClient2: kpis.due_to_client_2 ?? 0,
     },
     ordersRows: summary.rows,
     tableFilters,

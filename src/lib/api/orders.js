@@ -10,6 +10,7 @@ const VIEW_BY_SCOPE = {
 const DEFAULT_VIEW = VIEW_BY_SCOPE.orders;
 const ORDERABLE_COLUMNS = new Set([
   "created_at",
+  "updated_at",
   "order_number",
   "status",
   "client_name",
@@ -17,6 +18,7 @@ const ORDERABLE_COLUMNS = new Set([
   "review_due_date",
   "final_due_date",
 ]);
+const REPORT_WRITING_STATUSES = ["new", "in_progress", "needs_revisions"];
 
 const BASE_SELECT = `
   id,
@@ -56,6 +58,8 @@ function applyCommonFilters(
     appraiserId = null,
     reviewerId = null,
     assignedAppraiserId = null,
+    inspectedAwaitingReport = false,
+    finalDueWithinDays = null,
     from = null,
     to = null,
     search = "",
@@ -66,6 +70,24 @@ function applyCommonFilters(
   const targetAppraiserId = assignedAppraiserId || appraiserId;
   if (targetAppraiserId) q = q.eq("appraiser_id", targetAppraiserId);
   if (reviewerId) q = q.eq("reviewer_id", reviewerId);
+  if (inspectedAwaitingReport) {
+    q = q
+      .in("status", REPORT_WRITING_STATUSES)
+      .lte("site_visit_date", new Date().toISOString())
+      .not("site_visit_date", "is", null);
+  }
+  if (finalDueWithinDays != null && finalDueWithinDays !== "") {
+    const days = Number(finalDueWithinDays);
+    if (Number.isFinite(days)) {
+      const now = new Date();
+      const dueLimit = new Date(now);
+      dueLimit.setDate(dueLimit.getDate() + days);
+      q = q
+        .gte("final_due_date", now.toISOString())
+        .lte("final_due_date", dueLimit.toISOString())
+        .not("final_due_date", "is", null);
+    }
+  }
 
   if (from) q = q.gte("created_at", from);
   if (to) q = q.lte("created_at", to);
@@ -97,6 +119,8 @@ export async function fetchOrdersWithFilters(filters = {}) {
     appraiserId = null,
     reviewerId = null,
     assignedAppraiserId = null,
+    inspectedAwaitingReport = false,
+    finalDueWithinDays = null,
     from = null,
     to = null,
     activeOnly = false,
@@ -121,6 +145,8 @@ export async function fetchOrdersWithFilters(filters = {}) {
     appraiserId,
     assignedAppraiserId,
     reviewerId,
+    inspectedAwaitingReport,
+    finalDueWithinDays,
     from,
     to,
     search,
@@ -142,8 +168,15 @@ export async function fetchOrdersWithFilters(filters = {}) {
   let dataQuery = supabase
     .from(source)
     .select(BASE_SELECT, { count: "exact" })
-    .order(safeOrderBy, { ascending })
     .range(fromIdx, toIdx);
+
+  if (scope === "dashboard") {
+    dataQuery = dataQuery
+      .order("order_number", { ascending: false, nullsFirst: false })
+      .order("updated_at", { ascending: false, nullsFirst: false });
+  } else {
+    dataQuery = dataQuery.order(safeOrderBy, { ascending });
+  }
 
   dataQuery = applyCommonFilters(dataQuery, {
     activeOnly,
@@ -152,6 +185,8 @@ export async function fetchOrdersWithFilters(filters = {}) {
     appraiserId,
     reviewerId,
     assignedAppraiserId,
+    inspectedAwaitingReport,
+    finalDueWithinDays,
     from,
     to,
     search,
