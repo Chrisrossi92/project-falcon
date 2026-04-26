@@ -2,14 +2,14 @@ import React, { useMemo, useState, useEffect, useRef } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 
-const formatDisplay = (iso) => {
-  if (!iso) return "Set Appointment";
+const formatDisplay = (iso, emptyLabel = "Set Appointment") => {
+  if (!iso) return emptyLabel;
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "Set Appointment";
+  if (Number.isNaN(d.getTime())) return emptyLabel;
   return d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 };
 
-export default function SiteVisitPicker({ value, onChange, onSave, disabled }) {
+export default function SiteVisitPicker({ value, onChange, onSave, disabled, emptyLabel = "Set Appointment", buttonClassName = "" }) {
   const initialDate = useMemo(() => {
     const d = value ? new Date(value) : new Date();
     return Number.isNaN(d.getTime()) ? new Date() : d;
@@ -57,16 +57,19 @@ export default function SiteVisitPicker({ value, onChange, onSave, disabled }) {
   };
 
   return (
-    <div className="relative inline-block">
+    <div className="relative inline-block" onClick={(e) => e.stopPropagation()}>
       <Button
         type="button"
         size="sm"
         variant="outline"
-        className="text-sm"
-        onClick={() => !disabled && setOpen((o) => !o)}
+        className={`text-sm ${buttonClassName}`}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (!disabled) setOpen((o) => !o);
+        }}
         disabled={disabled}
       >
-        {formatDisplay(value)}
+        {formatDisplay(value, emptyLabel)}
       </Button>
 
       {open && (

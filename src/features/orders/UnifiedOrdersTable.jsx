@@ -12,7 +12,7 @@ import OrderStatusBadge from "@/components/orders/table/OrderStatusBadge";
 import OrderDrawerContent from "@/components/orders/drawer/OrderDrawerContent";
 import OrderOpenFullLink from "@/components/orders/drawer/OrderOpenFullLink";
 import ReviewerActionCell from "@/components/orders/table/ReviewerActionCell";
-import { updateOrderStatus } from "@/lib/api/orders";
+import { updateSiteVisitAt } from "@/lib/api/orders";
 import {
   sendOrderToReview,
   sendOrderBackToAppraiser,
@@ -381,6 +381,35 @@ export default function UnifiedOrdersTable({
     [sessionUser?.id, refresh, toast]
   );
 
+  const handleSetSiteVisit = useCallback(
+    async (order, iso) => {
+      const orderPk = orderPkOf(order);
+      if (!orderPk || !iso) return;
+
+      try {
+        const updated = await updateSiteVisitAt(orderPk, iso, {
+          address: order?.address || order?.address_line1 || "",
+          appraiserId: order?.appraiser_id || order?.assigned_to || null,
+        });
+        if (!updated) throw new Error("Site visit was not updated.");
+        refresh();
+        toast({
+          title: "Site visit set",
+          description: `Order ${order.order_number || orderPk} site visit was updated.`,
+          tone: "success",
+        });
+      } catch (err) {
+        console.error("Failed to set site visit", err);
+        toast({
+          title: "Error",
+          description: err?.message ? `Could not set site visit: ${err.message}` : "Could not set site visit.",
+          tone: "error",
+        });
+      }
+    },
+    [refresh, toast]
+  );
+
   const columnActions = useMemo(
     () => ({
       onSendToReview: (order) => openWorkflowModal("send_to_review", order),
@@ -389,6 +418,7 @@ export default function UnifiedOrdersTable({
       onClearReview: handleClearReview,
       onRequestFinalApproval: handleRequestFinalApproval,
       onReadyForClient: handleReadyForClient,
+      onSetSiteVisit: handleSetSiteVisit,
       permissions: {
         loading: workflowPermissions.loading,
         error: workflowPermissions.error,
@@ -406,6 +436,7 @@ export default function UnifiedOrdersTable({
       handleClearReview,
       handleRequestFinalApproval,
       handleReadyForClient,
+      handleSetSiteVisit,
       workflowPermissions.loading,
       workflowPermissions.error,
       workflowPermissions.hasPermission,

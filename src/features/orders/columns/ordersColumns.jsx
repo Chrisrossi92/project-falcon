@@ -2,6 +2,7 @@ import OrderStatusBadge from "@/components/orders/table/OrderStatusBadge";
 import { ORDER_STATUS } from "@/lib/constants/orderStatus";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import SiteVisitPicker from "@/components/dates/SiteVisitPicker";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -90,13 +91,28 @@ const datesColumnBase = {
   id: "dates",
   width: "200px",
   header: () => "Dates",
-  cell: (order) => {
+  cell: (order, { isAppraiser = false, onSetSiteVisit } = {}) => {
+    const site = order?.site_visit_at ?? order?.site_visit_date ?? null;
     const rev = order?.review_due_at ?? null;
     const fin = order?.final_due_at ?? null;
     return (
-      <div className="text-[12px] leading-tight whitespace-nowrap">
+      <div className="space-y-1 text-[12px] leading-tight">
+        <div className="whitespace-nowrap text-slate-700" title={site || ""}>
+          {site ? (
+            <>Site:&nbsp;{fmtDate(site)}</>
+          ) : isAppraiser && onSetSiteVisit ? (
+            <SiteVisitPicker
+              value={site}
+              emptyLabel="Site: Not set"
+              buttonClassName="h-6 px-2 text-[12px] font-medium"
+              onChange={(iso) => onSetSiteVisit(order, iso)}
+            />
+          ) : (
+            <>Site:&nbsp;Not set</>
+          )}
+        </div>
         <div className="text-rose-600" title={rev || ""}>Rev:&nbsp;{fmtDate(rev)}</div>
-        <div className="text-rose-600 mt-1" title={fin || ""}>Final:&nbsp;{fmtDate(fin)}</div>
+        <div className="text-rose-600" title={fin || ""}>Final:&nbsp;{fmtDate(fin)}</div>
       </div>
     );
   },
@@ -115,6 +131,7 @@ export function getColumnsForRole(role, actions = {}) {
     onClearReview,
     onRequestFinalApproval,
     onReadyForClient,
+    onSetSiteVisit,
     permissions = {},
   } = actions || {};
   const useLegacyWorkflowActions = permissions.loading || permissions.error;
@@ -124,7 +141,7 @@ export function getColumnsForRole(role, actions = {}) {
   const addressColumn = col("address",  "minmax(200px,1fr)",  () => "Address",               addressCell);
   const propertyReportColumn = col("propReport",  propertyReportColumnBase.width,  propertyReportColumnBase.header, (order) => propertyReportColumnBase.cell(order));
   const feeColumn = col("fee",          "140px",              () => "Fee",                   feeOnlyCell);
-  const datesColumn = col("dates",   datesColumnBase.width,   datesColumnBase.header, (order) => datesColumnBase.cell(order));
+  const datesColumn = col("dates",   datesColumnBase.width,   datesColumnBase.header, (order) => datesColumnBase.cell(order, { isAppraiser, onSetSiteVisit }));
 
   const ACTIONS_COL_WIDTH = "w-[140px]";
 
