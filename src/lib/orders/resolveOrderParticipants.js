@@ -15,7 +15,9 @@ export function resolveOrderParticipants(order, {
   }
 
   let recipients = [];
-  if (roleOnOrder === "appraiser") {
+  if (event === "workflow.sent_to_review") {
+    recipients = reviewerId ? [reviewerId] : [];
+  } else if (roleOnOrder === "appraiser") {
     recipients = reviewerId ? [reviewerId] : [];
   } else if (roleOnOrder === "reviewer") {
     recipients = appraiserId ? [appraiserId] : [];

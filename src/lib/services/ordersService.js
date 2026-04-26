@@ -370,9 +370,18 @@ export async function sendOrderToReview(orderId, actorId) {
   if (error) throw error;
   if (!order) throw new Error("No order updated (permission or id mismatch).");
 
-  const recipients = [];
+  const resolvedParticipants = resolveOrderParticipants(order, {
+    actorUserId: null,
+    actorRole: null,
+    event: "workflow.sent_to_review",
+    status: order.status,
+  });
 
-  if (order.reviewer_id) {
+  const recipients = resolvedParticipants.recipients
+    .filter((userId) => userId && userId === order.reviewer_id)
+    .map((userId) => ({ userId, role: "reviewer" }));
+
+  if (!recipients.length && order.reviewer_id) {
     recipients.push({ userId: order.reviewer_id, role: "reviewer" });
   }
 
@@ -508,7 +517,6 @@ export async function isOrderNumberAvailable(orderNo, { excludeId = null } = {})
   if (res2.error) throw res2.error;
   return (res2.count || 0) === 0;
 }
-
 
 
 
