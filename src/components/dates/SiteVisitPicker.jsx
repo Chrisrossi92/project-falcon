@@ -9,6 +9,11 @@ const formatDisplay = (iso, emptyLabel = "Set Appointment") => {
   return d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 };
 
+function toLocalTimestamp(value) {
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}T${pad(value.getHours())}:${pad(value.getMinutes())}:00`;
+}
+
 export default function SiteVisitPicker({ value, onChange, onSave, disabled, emptyLabel = "Set Appointment", buttonClassName = "" }) {
   const initialDate = useMemo(() => {
     const d = value ? new Date(value) : new Date();
@@ -50,7 +55,7 @@ export default function SiteVisitPicker({ value, onChange, onSave, disabled, emp
     merged.setMinutes(Number.isFinite(mm) ? mm : 0);
     merged.setSeconds(0);
     merged.setMilliseconds(0);
-    const iso = merged.toISOString();
+    const iso = toLocalTimestamp(merged);
     onChange?.(iso);
     onSave?.(iso);
     setOpen(false);
