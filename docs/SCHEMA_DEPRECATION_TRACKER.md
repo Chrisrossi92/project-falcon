@@ -614,13 +614,17 @@ Progress:
 - Phase 3 first resolver slice added `src/lib/orders/resolveOrderParticipants.js`.
 - `ActivityNoteForm` now uses the resolver for note notification routing only.
 - Appraiser notes route to the reviewer; reviewer notes route to the appraiser; admin/other notes route to the appraiser.
+- `resolveOrderParticipants` now has explicit `workflow.sent_to_review` behavior returning `reviewer_id`.
+- `sendOrderToReview` now uses the resolver for reviewer recipient assembly with the existing reviewer fallback.
 - `sendOrderBackToAppraiser` now uses the resolver for appraiser recipient assembly with the existing appraiser fallback.
 - `completeOrder` now uses the resolver for appraiser recipient assembly with the existing appraiser fallback.
 - Admin recipients remain appended through `fetchAdminRecipients()`.
+- Chris/appraiser send-to-review was validated: Pam/reviewer received notification, Abby/admin received notification, and status behavior remained normal.
 - Complete order workflow still works and sends notifications.
 - Notification payload/UI behavior is otherwise unchanged.
 - No DB/RLS, order visibility, status lifecycle, routing, notification service, or workflow button behavior changed.
 - Duplicate workflow note bell notification is suppressed for send-back-to-appraiser.
+- Send-to-review workflow notes still emit a separate note notification when applicable; duplicate-note suppression has only been applied to send-back-to-appraiser so far.
 - Revision notes are still preserved in activity history through `logNote`.
 - `/orders/:id` now shows Activity / Communication History with `ActivityLog`, so notification clicks land where communication history is visible.
 - `npm run build` passed.
@@ -782,6 +786,7 @@ Progress:
 
 - Phase 1 Batch 2 Step 1 patched authorization comparison logic where scoped.
 - Activity actor values and payload shape were intentionally not changed yet.
+- Phase 3 send-to-review notification recipient assembly now uses `resolveOrderParticipants` for the reviewer recipient, keeps the existing fallback, and appends admins through `fetchAdminRecipients()`.
 - Phase 3 send-back-to-appraiser notification recipient assembly now uses `resolveOrderParticipants` for the appraiser recipient, keeps the existing fallback, and appends admins through `fetchAdminRecipients()`.
 - Phase 3 complete-order notification recipient assembly now uses `resolveOrderParticipants` for the appraiser recipient, keeps the existing fallback, and appends admins through `fetchAdminRecipients()`.
 - Duplicate workflow note bell notification is suppressed for send-back-to-appraiser while revision note activity logging remains through `logNote`.

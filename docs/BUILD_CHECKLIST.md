@@ -348,6 +348,8 @@ Reference docs:
 - [x] Include self-notification suppression in first resolver slice.
 - [x] Return actor role on order in first resolver slice.
 - [x] Return bell recipients in first resolver slice.
+- [x] Add explicit `workflow.sent_to_review` behavior returning `reviewer_id`.
+- [x] Use resolver in `sendOrderToReview` reviewer recipient assembly with existing fallback.
 - [x] Use resolver in `sendOrderBackToAppraiser` appraiser recipient assembly with existing fallback.
 - [x] Use resolver in `completeOrder` appraiser recipient assembly with existing fallback.
 - [x] Keep admin recipients appended through `fetchAdminRecipients()`.
@@ -357,6 +359,7 @@ Reference docs:
 
 - [x] Replace duplicated note recipient logic in activity note flow.
 - [x] Suppress duplicate send-back-to-appraiser workflow note bell notification.
+- [x] Keep send-to-review workflow note notification separate when applicable.
 - [x] Preserve send-back-to-appraiser revision note in activity log via `logNote`.
 - [x] Add Activity / Communication History to `/orders/:id` with `ActivityLog`.
 - [ ] Replace duplicated workflow note recipient logic where touched.
@@ -374,6 +377,8 @@ Reference docs:
 - [x] Notification payload/UI behavior is otherwise unchanged.
 - [x] No DB/RLS, order visibility, status lifecycle, or workflow button behavior changed.
 - [x] No routing or notification service changes for validated Phase 3 slices.
+- [x] Chris/appraiser send-to-review notifies Pam/reviewer and Abby/admin.
+- [x] Send-to-review status behavior remains normal.
 - [x] Complete order workflow still works and sends notifications.
 - [x] Notification click flow lands on order detail where communication history is visible.
 - [x] `npm run build` passed.

@@ -515,11 +515,15 @@ Completed first resolver slice:
 - Appraiser notes route to the reviewer.
 - Reviewer notes route to the appraiser.
 - Admin/other notes route to the appraiser.
+- `resolveOrderParticipants` has explicit `workflow.sent_to_review` behavior returning `reviewer_id`.
+- `sendOrderToReview` uses the resolver for reviewer recipient assembly with existing reviewer fallback.
 - `sendOrderBackToAppraiser` uses the resolver for appraiser recipient assembly with existing appraiser fallback.
 - `completeOrder` uses the resolver for appraiser recipient assembly with existing appraiser fallback.
 - Admin recipients remain appended through `fetchAdminRecipients()`.
+- Chris/appraiser send-to-review was validated: Pam/reviewer received notification, Abby/admin received notification, and status behavior remained normal.
 - Complete order workflow still works and sends notifications.
 - Duplicate workflow note bell notification is suppressed for send-back-to-appraiser while the revision note remains in activity history through `logNote`.
+- Send-to-review workflow notes still emit a separate note notification when applicable; duplicate-note suppression has only been applied to send-back-to-appraiser so far.
 - `/orders/:id` shows Activity / Communication History with `ActivityLog`, so notification clicks land on a detail page with visible communication history.
 - Notification payload/UI behavior is otherwise unchanged.
 - No DB/RLS, order visibility, status lifecycle, or workflow button behavior changed.
