@@ -3,6 +3,8 @@ import useRole from "@/lib/hooks/useRole";
 import useSession from "@/lib/hooks/useSession";
 import { useOrders } from "@/lib/hooks/useOrders";
 import { formatOrderStatusLabel, normalizeOrderStatus, ORDER_STATUS } from "@/lib/constants/orderStatus";
+import { useEffectivePermissions } from "@/lib/hooks/usePermissions";
+import { PERMISSIONS } from "@/lib/permissions/constants";
 
 import OrdersTableRow from "@/components/orders/table/OrdersTableRow";
 import OrdersTablePagination from "@/components/orders/table/OrdersTablePagination";
@@ -53,6 +55,7 @@ export default function UnifiedOrdersTable({
 }) {
   const { user: sessionUser } = useSession() || {};
   const { toast } = useToast();
+  const workflowPermissions = useEffectivePermissions();
 
   const { role: hookRole, userId: internalUserId, loading: roleLoading } = useRole() || {};
   const normalizedRole = (roleProp || hookRole || "appraiser").toString().toLowerCase();
@@ -374,8 +377,27 @@ export default function UnifiedOrdersTable({
       onClearReview: handleClearReview,
       onRequestFinalApproval: handleRequestFinalApproval,
       onReadyForClient: handleReadyForClient,
+      permissions: {
+        loading: workflowPermissions.loading,
+        error: workflowPermissions.error,
+        canSubmitToReview: workflowPermissions.hasPermission(PERMISSIONS.WORKFLOW_STATUS_SUBMIT_TO_REVIEW),
+        canResubmit: workflowPermissions.hasPermission(PERMISSIONS.WORKFLOW_STATUS_RESUBMIT),
+        canRequestRevisions: workflowPermissions.hasPermission(PERMISSIONS.WORKFLOW_STATUS_REQUEST_REVISIONS),
+        canApproveReview: workflowPermissions.hasPermission(PERMISSIONS.WORKFLOW_STATUS_APPROVE_REVIEW),
+        canReadyForClient: workflowPermissions.hasPermission(PERMISSIONS.WORKFLOW_STATUS_READY_FOR_CLIENT),
+        canComplete: workflowPermissions.hasPermission(PERMISSIONS.WORKFLOW_STATUS_COMPLETE),
+      },
     }),
-    [openWorkflowModal, handleCompleteOrder, handleClearReview, handleRequestFinalApproval, handleReadyForClient]
+    [
+      openWorkflowModal,
+      handleCompleteOrder,
+      handleClearReview,
+      handleRequestFinalApproval,
+      handleReadyForClient,
+      workflowPermissions.loading,
+      workflowPermissions.error,
+      workflowPermissions.hasPermission,
+    ]
   );
 
   const columns = useColumnsConfig(normalizedRole, columnActions);

@@ -108,7 +108,17 @@ export function getColumnsForRole(role, actions = {}) {
   const normalizedRole = (role || "appraiser").toString().toLowerCase();
   const isAppraiser = normalizedRole === "appraiser";
   const isReviewer = normalizedRole === "reviewer";
-  const { onSendToReview, onSendBackToAppraiser, onComplete, onClearReview, onRequestFinalApproval, onReadyForClient } = actions || {};
+  const {
+    onSendToReview,
+    onSendBackToAppraiser,
+    onComplete,
+    onClearReview,
+    onRequestFinalApproval,
+    onReadyForClient,
+    permissions = {},
+  } = actions || {};
+  const useLegacyWorkflowActions = permissions.loading || permissions.error;
+  const hasWorkflowPermission = (allowed) => useLegacyWorkflowActions || Boolean(allowed);
   const orderStatusColumn = col("order",      "180px",              () => "Order / Stat.",       (order) => orderCell(order), { locked: true });
   const clientColumn = col("client",    "200px",              () => "Client / Appraiser",                clientCell);
   const addressColumn = col("address",  "minmax(200px,1fr)",  () => "Address",               addressCell);
@@ -131,16 +141,32 @@ export function getColumnsForRole(role, actions = {}) {
       if (!order) return null;
 
       const normalizedStatus = String(order?.status || "").toLowerCase().trim();
+      const canSubmitOrResubmit =
+        normalizedStatus === ORDER_STATUS.NEEDS_REVISIONS
+          ? hasWorkflowPermission(permissions.canResubmit)
+          : hasWorkflowPermission(permissions.canSubmitToReview);
       const canSendToReview =
         isAppraiser &&
         APPRAISER_SEND_TO_REVIEW_STATUSES.has(normalizedStatus) &&
-        Boolean(onSendToReview);
+        Boolean(onSendToReview) &&
+        canSubmitOrResubmit;
+      const canSendBackToAppraiser =
+        Boolean(onSendBackToAppraiser) &&
+        hasWorkflowPermission(permissions.canRequestRevisions);
+      const canClearReview =
+        Boolean(onClearReview) &&
+        hasWorkflowPermission(permissions.canApproveReview);
       const canRequestFinalApproval =
         normalizedStatus === ORDER_STATUS.REVIEW_CLEARED &&
-        Boolean(onRequestFinalApproval);
+        Boolean(onRequestFinalApproval) &&
+        hasWorkflowPermission(permissions.canReadyForClient);
       const canMarkReadyForClient =
         [ORDER_STATUS.REVIEW_CLEARED, ORDER_STATUS.PENDING_FINAL_APPROVAL].includes(normalizedStatus) &&
-        Boolean(onReadyForClient);
+        Boolean(onReadyForClient) &&
+        hasWorkflowPermission(permissions.canReadyForClient);
+      const canCompleteOrder =
+        Boolean(onComplete) &&
+        hasWorkflowPermission(permissions.canComplete);
 
       const button = isAppraiser ? (
         canSendToReview ? (
@@ -167,13 +193,13 @@ export function getColumnsForRole(role, actions = {}) {
             >
               <DropdownMenuItem
                 onClick={() => onSendBackToAppraiser?.(order)}
-                disabled={!onSendBackToAppraiser}
+                disabled={!canSendBackToAppraiser}
               >
                 Send back to appraiser
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => onClearReview?.(order)}
-                disabled={!onClearReview}
+                disabled={!canClearReview}
               >
                 Clear Review
               </DropdownMenuItem>
@@ -194,14 +220,18 @@ export function getColumnsForRole(role, actions = {}) {
               sideOffset={4}
               className="z-50"
             >
-              <DropdownMenuItem onClick={() => onSendToReview?.(order)}>
-                Send to review
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => onSendBackToAppraiser?.(order)}
-              >
-                Send back to appraiser
-              </DropdownMenuItem>
+              {canSubmitOrResubmit && (
+                <DropdownMenuItem onClick={() => onSendToReview?.(order)}>
+                  Send to review
+                </DropdownMenuItem>
+              )}
+              {canSendBackToAppraiser && (
+                <DropdownMenuItem
+                  onClick={() => onSendBackToAppraiser?.(order)}
+                >
+                  Send back to appraiser
+                </DropdownMenuItem>
+              )}
               {canRequestFinalApproval && (
                 <DropdownMenuItem onClick={() => onRequestFinalApproval?.(order)}>
                   Request Final Approval
@@ -212,9 +242,11 @@ export function getColumnsForRole(role, actions = {}) {
                   Mark ready for client
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem onClick={() => onComplete?.(order)}>
-                Mark complete
-              </DropdownMenuItem>
+              {canCompleteOrder && (
+                <DropdownMenuItem onClick={() => onComplete?.(order)}>
+                  Mark complete
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenuPortal>
         </DropdownMenu>
