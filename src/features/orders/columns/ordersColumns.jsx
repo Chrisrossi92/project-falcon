@@ -163,21 +163,15 @@ export function getColumnsForRole(role, actions = {}) {
         permissions,
         handlers,
       });
+      const visibleActions = smartActions.filter((action) => action.visible);
+      const primaryAction = visibleActions.find((action) => action.isPrimary && !action.disabled);
+      const secondaryActions = visibleActions.filter((action) => action.id !== primaryAction?.id);
 
-      const button = isAppraiser ? (
-        smartActions[0]?.visible ? (
-          <Button
-            size="sm"
-            onClick={smartActions[0].onClick}
-          >
-            {smartActions[0].label}
-          </Button>
-        ) : null
-      ) : isReviewer ? (
+      const renderDropdown = (dropdownActions, triggerLabel = "Send / Update") => (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button size="sm" variant="outline">
-              Send / Update
+              {triggerLabel}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuPortal>
@@ -187,7 +181,7 @@ export function getColumnsForRole(role, actions = {}) {
               sideOffset={4}
               className="z-50"
             >
-              {smartActions.map((action) => (
+              {dropdownActions.map((action) => (
                 <DropdownMenuItem
                   key={action.id}
                   onClick={action.onClick}
@@ -199,32 +193,62 @@ export function getColumnsForRole(role, actions = {}) {
             </DropdownMenuContent>
           </DropdownMenuPortal>
         </DropdownMenu>
-      ) : (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button size="sm" variant="outline">
-              Send / Update
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuPortal>
-            <DropdownMenuContent
-              side="top"
-              align="center"
-              sideOffset={4}
-              className="z-50"
-            >
-              {smartActions.map((action) => action.visible ? (
-                <DropdownMenuItem
-                  key={action.id}
-                  onClick={action.onClick}
-                  disabled={action.disabled}
+      );
+
+      const button = isAppraiser ? (
+        smartActions[0]?.visible ? (
+          <Button
+            size="sm"
+            onClick={smartActions[0].onClick}
+          >
+            {smartActions[0].label}
+          </Button>
+        ) : null
+      ) : primaryAction ? (
+        <div className="flex w-[140px] items-center justify-center gap-1">
+          <Button
+            size="sm"
+            className="min-w-0 flex-1 px-2 text-[11px]"
+            onClick={primaryAction.onClick}
+          >
+            <span className="truncate">{primaryAction.label}</span>
+          </Button>
+          {secondaryActions.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 w-8 shrink-0 px-0"
+                  aria-label="More order actions"
+                  title="More actions"
                 >
-                  {action.label}
-                </DropdownMenuItem>
-              ) : null)}
-            </DropdownMenuContent>
-          </DropdownMenuPortal>
-        </DropdownMenu>
+                  ...
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuPortal>
+                <DropdownMenuContent
+                  side="top"
+                  align="center"
+                  sideOffset={4}
+                  className="z-50"
+                >
+                  {secondaryActions.map((action) => (
+                    <DropdownMenuItem
+                      key={action.id}
+                      onClick={action.onClick}
+                      disabled={action.disabled}
+                    >
+                      {action.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenuPortal>
+            </DropdownMenu>
+          )}
+        </div>
+      ) : (
+        renderDropdown(isReviewer ? smartActions : visibleActions)
       );
 
       return (

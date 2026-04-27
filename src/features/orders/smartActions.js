@@ -51,6 +51,7 @@ export function getSmartOrderActions({ order, role, permissions = {}, handlers =
         label: "Send to Review",
         visible: canSendToReview,
         disabled: false,
+        isPrimary: canSendToReview,
         onClick: () => handlers.onSendToReview?.(order),
       },
     ];
@@ -63,6 +64,7 @@ export function getSmartOrderActions({ order, role, permissions = {}, handlers =
         label: "Send back to appraiser",
         visible: true,
         disabled: !canSendBackToAppraiser,
+        isPrimary: false,
         onClick: () => handlers.onSendBackToAppraiser?.(order),
       },
       {
@@ -70,6 +72,7 @@ export function getSmartOrderActions({ order, role, permissions = {}, handlers =
         label: "Clear Review",
         visible: true,
         disabled: !canClearReview,
+        isPrimary: normalizedStatus === ORDER_STATUS.IN_REVIEW && canClearReview,
         onClick: () => handlers.onClearReview?.(order),
       },
     ];
@@ -81,6 +84,7 @@ export function getSmartOrderActions({ order, role, permissions = {}, handlers =
       label: "Send to review",
       visible: canSubmitOrResubmit,
       disabled: false,
+      isPrimary: false,
       onClick: () => handlers.onSendToReview?.(order),
     },
     {
@@ -88,6 +92,7 @@ export function getSmartOrderActions({ order, role, permissions = {}, handlers =
       label: "Send back to appraiser",
       visible: canSendBackToAppraiser,
       disabled: false,
+      isPrimary: false,
       onClick: () => handlers.onSendBackToAppraiser?.(order),
     },
     {
@@ -95,6 +100,7 @@ export function getSmartOrderActions({ order, role, permissions = {}, handlers =
       label: "Request Final Approval",
       visible: canRequestFinalApproval,
       disabled: false,
+      isPrimary: false,
       onClick: () => handlers.onRequestFinalApproval?.(order),
     },
     {
@@ -102,6 +108,7 @@ export function getSmartOrderActions({ order, role, permissions = {}, handlers =
       label: "Mark ready for client",
       visible: canMarkReadyForClient,
       disabled: false,
+      isPrimary: canMarkReadyForClient,
       onClick: () => handlers.onReadyForClient?.(order),
     },
     {
@@ -109,6 +116,7 @@ export function getSmartOrderActions({ order, role, permissions = {}, handlers =
       label: "Mark complete",
       visible: canCompleteOrder,
       disabled: false,
+      isPrimary: false,
       onClick: () => handlers.onComplete?.(order),
     },
   ];
