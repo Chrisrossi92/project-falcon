@@ -1,8 +1,8 @@
 import OrderStatusBadge from "@/components/orders/table/OrderStatusBadge";
-import { ORDER_STATUS } from "@/lib/constants/orderStatus";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import SiteVisitPicker from "@/components/dates/SiteVisitPicker";
+import { getSmartOrderActions } from "@/features/orders/smartActions";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,12 +10,6 @@ import {
   DropdownMenuPortal,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
-const APPRAISER_SEND_TO_REVIEW_STATUSES = new Set([
-  "new",
-  "in_progress",
-  "needs_revisions",
-]);
 
 const fmtDate = (d) =>
   !d ? "-" : isNaN(new Date(d)) ? "-" : new Date(d).toLocaleDateString();
@@ -134,8 +128,14 @@ export function getColumnsForRole(role, actions = {}) {
     onSetSiteVisit,
     permissions = {},
   } = actions || {};
-  const useLegacyWorkflowActions = permissions.loading || permissions.error;
-  const hasWorkflowPermission = (allowed) => useLegacyWorkflowActions || Boolean(allowed);
+  const handlers = {
+    onSendToReview,
+    onSendBackToAppraiser,
+    onComplete,
+    onClearReview,
+    onRequestFinalApproval,
+    onReadyForClient,
+  };
   const orderStatusColumn = col("order",      "180px",              () => "Order / Stat.",       (order) => orderCell(order), { locked: true });
   const clientColumn = col("client",    "200px",              () => "Client / Appraiser",                clientCell);
   const addressColumn = col("address",  "minmax(200px,1fr)",  () => "Address",               addressCell);
@@ -157,41 +157,20 @@ export function getColumnsForRole(role, actions = {}) {
     cell: (order) => {
       if (!order) return null;
 
-      const normalizedStatus = String(order?.status || "").toLowerCase().trim();
-      const canSubmitOrResubmit =
-        normalizedStatus === ORDER_STATUS.NEEDS_REVISIONS
-          ? hasWorkflowPermission(permissions.canResubmit)
-          : hasWorkflowPermission(permissions.canSubmitToReview);
-      const canSendToReview =
-        isAppraiser &&
-        APPRAISER_SEND_TO_REVIEW_STATUSES.has(normalizedStatus) &&
-        Boolean(onSendToReview) &&
-        canSubmitOrResubmit;
-      const canSendBackToAppraiser =
-        Boolean(onSendBackToAppraiser) &&
-        hasWorkflowPermission(permissions.canRequestRevisions);
-      const canClearReview =
-        Boolean(onClearReview) &&
-        hasWorkflowPermission(permissions.canApproveReview);
-      const canRequestFinalApproval =
-        normalizedStatus === ORDER_STATUS.REVIEW_CLEARED &&
-        Boolean(onRequestFinalApproval) &&
-        hasWorkflowPermission(permissions.canReadyForClient);
-      const canMarkReadyForClient =
-        [ORDER_STATUS.REVIEW_CLEARED, ORDER_STATUS.PENDING_FINAL_APPROVAL].includes(normalizedStatus) &&
-        Boolean(onReadyForClient) &&
-        hasWorkflowPermission(permissions.canReadyForClient);
-      const canCompleteOrder =
-        Boolean(onComplete) &&
-        hasWorkflowPermission(permissions.canComplete);
+      const smartActions = getSmartOrderActions({
+        order,
+        role: normalizedRole,
+        permissions,
+        handlers,
+      });
 
       const button = isAppraiser ? (
-        canSendToReview ? (
+        smartActions[0]?.visible ? (
           <Button
             size="sm"
-            onClick={() => onSendToReview?.(order)}
+            onClick={smartActions[0].onClick}
           >
-            Send to Review
+            {smartActions[0].label}
           </Button>
         ) : null
       ) : isReviewer ? (
@@ -208,18 +187,15 @@ export function getColumnsForRole(role, actions = {}) {
               sideOffset={4}
               className="z-50"
             >
-              <DropdownMenuItem
-                onClick={() => onSendBackToAppraiser?.(order)}
-                disabled={!canSendBackToAppraiser}
-              >
-                Send back to appraiser
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => onClearReview?.(order)}
-                disabled={!canClearReview}
-              >
-                Clear Review
-              </DropdownMenuItem>
+              {smartActions.map((action) => (
+                <DropdownMenuItem
+                  key={action.id}
+                  onClick={action.onClick}
+                  disabled={action.disabled}
+                >
+                  {action.label}
+                </DropdownMenuItem>
+              ))}
             </DropdownMenuContent>
           </DropdownMenuPortal>
         </DropdownMenu>
@@ -237,33 +213,15 @@ export function getColumnsForRole(role, actions = {}) {
               sideOffset={4}
               className="z-50"
             >
-              {canSubmitOrResubmit && (
-                <DropdownMenuItem onClick={() => onSendToReview?.(order)}>
-                  Send to review
-                </DropdownMenuItem>
-              )}
-              {canSendBackToAppraiser && (
+              {smartActions.map((action) => action.visible ? (
                 <DropdownMenuItem
-                  onClick={() => onSendBackToAppraiser?.(order)}
+                  key={action.id}
+                  onClick={action.onClick}
+                  disabled={action.disabled}
                 >
-                  Send back to appraiser
+                  {action.label}
                 </DropdownMenuItem>
-              )}
-              {canRequestFinalApproval && (
-                <DropdownMenuItem onClick={() => onRequestFinalApproval?.(order)}>
-                  Request Final Approval
-                </DropdownMenuItem>
-              )}
-              {canMarkReadyForClient && (
-                <DropdownMenuItem onClick={() => onReadyForClient?.(order)}>
-                  Mark ready for client
-                </DropdownMenuItem>
-              )}
-              {canCompleteOrder && (
-                <DropdownMenuItem onClick={() => onComplete?.(order)}>
-                  Mark complete
-                </DropdownMenuItem>
-              )}
+              ) : null)}
             </DropdownMenuContent>
           </DropdownMenuPortal>
         </DropdownMenu>
