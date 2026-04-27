@@ -105,7 +105,7 @@ export function getSmartOrderActions({ order, role, permissions = {}, handlers =
     },
     {
       id: "ready_for_client",
-      label: "Mark ready for client",
+      label: "Ready for Client",
       visible: canMarkReadyForClient,
       disabled: false,
       isPrimary: canMarkReadyForClient,

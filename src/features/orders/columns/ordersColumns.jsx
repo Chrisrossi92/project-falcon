@@ -248,7 +248,7 @@ export function getColumnsForRole(role, actions = {}) {
           )}
         </div>
       ) : (
-        renderDropdown(isReviewer ? smartActions : visibleActions)
+        renderDropdown(isReviewer ? smartActions : visibleActions, "View Actions")
       );
 
       return (
