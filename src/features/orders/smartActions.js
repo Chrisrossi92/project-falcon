@@ -20,6 +20,7 @@ export function getSmartOrderActions({ order, role, permissions = {}, handlers =
     ORDER_STATUS.REVIEW_CLEARED,
     ORDER_STATUS.PENDING_FINAL_APPROVAL,
   ].includes(normalizedStatus);
+  const canShowCompleteStatus = normalizedStatus === ORDER_STATUS.READY_FOR_CLIENT;
 
   const useLegacyWorkflowActions = permissions.loading || permissions.error;
   const hasWorkflowPermission = (allowed) => useLegacyWorkflowActions || Boolean(allowed);
@@ -50,6 +51,7 @@ export function getSmartOrderActions({ order, role, permissions = {}, handlers =
     Boolean(handlers.onReadyForClient) &&
     hasWorkflowPermission(permissions.canReadyForClient);
   const canCompleteOrder =
+    canShowCompleteStatus &&
     Boolean(handlers.onComplete) &&
     hasWorkflowPermission(permissions.canComplete);
 
@@ -57,7 +59,7 @@ export function getSmartOrderActions({ order, role, permissions = {}, handlers =
     return [
       {
         id: "send_to_review",
-        label: "Send to Review",
+        label: normalizedStatus === ORDER_STATUS.NEEDS_REVISIONS ? "Resubmit to Review" : "Send to Review",
         visible: canSendToReview,
         disabled: false,
         isPrimary: canSendToReview,
@@ -70,7 +72,7 @@ export function getSmartOrderActions({ order, role, permissions = {}, handlers =
     return [
       {
         id: "send_back_to_appraiser",
-        label: "Send back to appraiser",
+        label: "Return to Appraiser",
         visible: canShowReviewActionStatus,
         disabled: !canSendBackToAppraiser,
         isPrimary: false,
@@ -78,7 +80,7 @@ export function getSmartOrderActions({ order, role, permissions = {}, handlers =
       },
       {
         id: "clear_review",
-        label: "Clear Review",
+        label: "Approve Review",
         visible: canShowReviewActionStatus,
         disabled: !canClearReview,
         isPrimary: canShowReviewActionStatus && canClearReview,
@@ -98,11 +100,19 @@ export function getSmartOrderActions({ order, role, permissions = {}, handlers =
     },
     {
       id: "send_back_to_appraiser",
-      label: "Send back to appraiser",
+      label: "Return to Appraiser",
       visible: canSendBackToAppraiser,
       disabled: false,
       isPrimary: false,
       onClick: () => handlers.onSendBackToAppraiser?.(order),
+    },
+    {
+      id: "clear_review",
+      label: "Approve Review",
+      visible: canClearReview,
+      disabled: false,
+      isPrimary: canClearReview,
+      onClick: () => handlers.onClearReview?.(order),
     },
     {
       id: "request_final_approval",
@@ -122,10 +132,10 @@ export function getSmartOrderActions({ order, role, permissions = {}, handlers =
     },
     {
       id: "complete",
-      label: "Mark complete",
+      label: "Mark Complete",
       visible: canCompleteOrder,
       disabled: false,
-      isPrimary: false,
+      isPrimary: canCompleteOrder,
       onClick: () => handlers.onComplete?.(order),
     },
   ];
