@@ -168,37 +168,41 @@ export function getColumnsForRole(role, actions = {}) {
       const primaryAction = visibleActions.find((action) => action.isPrimary && !action.disabled);
       const secondaryActions = visibleActions.filter((action) => action.id !== primaryAction?.id);
 
-      const renderDropdown = (dropdownActions, triggerLabel = "Send / Update") => (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 w-[120px] px-2 text-[11px]"
-            >
-              {triggerLabel}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuPortal>
-            <DropdownMenuContent
-              side="bottom"
-              align="end"
-              sideOffset={6}
-              className="z-50"
-            >
-              {dropdownActions.map((action) => (
-                <DropdownMenuItem
-                  key={action.id}
-                  onClick={action.onClick}
-                  disabled={action.disabled}
-                >
-                  {action.label}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenuPortal>
-        </DropdownMenu>
-      );
+      const renderDropdown = (dropdownActions, triggerLabel = "Send / Update") => {
+        if (!dropdownActions.length) return null;
+
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 w-[120px] px-2 text-[11px]"
+              >
+                {triggerLabel}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuPortal>
+              <DropdownMenuContent
+                side="bottom"
+                align="end"
+                sideOffset={6}
+                className="z-50"
+              >
+                {dropdownActions.map((action) => (
+                  <DropdownMenuItem
+                    key={action.id}
+                    onClick={action.onClick}
+                    disabled={action.disabled}
+                  >
+                    {action.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenuPortal>
+          </DropdownMenu>
+        );
+      };
 
       const button = isAppraiser ? (
         smartActions[0]?.visible ? (
@@ -253,7 +257,7 @@ export function getColumnsForRole(role, actions = {}) {
           )}
         </div>
       ) : (
-        renderDropdown(isReviewer ? smartActions : visibleActions, "View Actions")
+        renderDropdown(visibleActions, "View Actions")
       );
 
       return (
