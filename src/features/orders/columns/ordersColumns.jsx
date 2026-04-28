@@ -181,9 +181,9 @@ export function getColumnsForRole(role, actions = {}) {
           </DropdownMenuTrigger>
           <DropdownMenuPortal>
             <DropdownMenuContent
-              side="top"
-              align="center"
-              sideOffset={4}
+              side="bottom"
+              align="end"
+              sideOffset={6}
               className="z-50"
             >
               {dropdownActions.map((action) => (
@@ -233,9 +233,9 @@ export function getColumnsForRole(role, actions = {}) {
               </DropdownMenuTrigger>
               <DropdownMenuPortal>
                 <DropdownMenuContent
-                  side="top"
-                  align="center"
-                  sideOffset={4}
+                  side="bottom"
+                  align="end"
+                  sideOffset={6}
                   className="z-50"
                 >
                   {secondaryActions.map((action) => (
