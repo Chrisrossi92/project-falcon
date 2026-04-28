@@ -1,5 +1,6 @@
 import OrderStatusBadge from "@/components/orders/table/OrderStatusBadge";
 import { Link } from "react-router-dom";
+import { MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import SiteVisitPicker from "@/components/dates/SiteVisitPicker";
 import { getSmartOrderActions } from "@/features/orders/smartActions";
@@ -170,7 +171,11 @@ export function getColumnsForRole(role, actions = {}) {
       const renderDropdown = (dropdownActions, triggerLabel = "Send / Update") => (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button size="sm" variant="outline">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 w-[120px] px-2 text-[11px]"
+            >
               {triggerLabel}
             </Button>
           </DropdownMenuTrigger>
@@ -205,10 +210,10 @@ export function getColumnsForRole(role, actions = {}) {
           </Button>
         ) : null
       ) : primaryAction ? (
-        <div className="flex w-[140px] items-center justify-center gap-1">
+        <div className="flex w-[140px] items-center justify-center gap-1.5">
           <Button
             size="sm"
-            className="min-w-0 flex-1 px-2 text-[11px]"
+            className="h-8 min-w-0 flex-1 px-2 text-[11px] shadow-sm"
             onClick={primaryAction.onClick}
           >
             <span className="truncate">{primaryAction.label}</span>
@@ -219,11 +224,11 @@ export function getColumnsForRole(role, actions = {}) {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-8 w-8 shrink-0 px-0"
+                  className="h-8 w-7 shrink-0 px-0"
                   aria-label="More order actions"
                   title="More actions"
                 >
-                  ...
+                  <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuPortal>
