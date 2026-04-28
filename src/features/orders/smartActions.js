@@ -13,6 +13,13 @@ export function getSmartOrderActions({ order, role, permissions = {}, handlers =
   const isAppraiser = normalizedRole === "appraiser";
   const isReviewer = normalizedRole === "reviewer";
   const normalizedStatus = String(order?.status || "").toLowerCase().trim();
+  const canShowSendToReviewStatus = APPRAISER_SEND_TO_REVIEW_STATUSES.has(normalizedStatus);
+  const canShowReviewActionStatus = normalizedStatus === ORDER_STATUS.IN_REVIEW;
+  const canShowRequestFinalApprovalStatus = normalizedStatus === ORDER_STATUS.REVIEW_CLEARED;
+  const canShowReadyForClientStatus = [
+    ORDER_STATUS.REVIEW_CLEARED,
+    ORDER_STATUS.PENDING_FINAL_APPROVAL,
+  ].includes(normalizedStatus);
 
   const useLegacyWorkflowActions = permissions.loading || permissions.error;
   const hasWorkflowPermission = (allowed) => useLegacyWorkflowActions || Boolean(allowed);
@@ -23,21 +30,23 @@ export function getSmartOrderActions({ order, role, permissions = {}, handlers =
       : hasWorkflowPermission(permissions.canSubmitToReview);
   const canSendToReview =
     isAppraiser &&
-    APPRAISER_SEND_TO_REVIEW_STATUSES.has(normalizedStatus) &&
+    canShowSendToReviewStatus &&
     Boolean(handlers.onSendToReview) &&
     canSubmitOrResubmit;
   const canSendBackToAppraiser =
+    canShowReviewActionStatus &&
     Boolean(handlers.onSendBackToAppraiser) &&
     hasWorkflowPermission(permissions.canRequestRevisions);
   const canClearReview =
+    canShowReviewActionStatus &&
     Boolean(handlers.onClearReview) &&
     hasWorkflowPermission(permissions.canApproveReview);
   const canRequestFinalApproval =
-    normalizedStatus === ORDER_STATUS.REVIEW_CLEARED &&
+    canShowRequestFinalApprovalStatus &&
     Boolean(handlers.onRequestFinalApproval) &&
     hasWorkflowPermission(permissions.canReadyForClient);
   const canMarkReadyForClient =
-    [ORDER_STATUS.REVIEW_CLEARED, ORDER_STATUS.PENDING_FINAL_APPROVAL].includes(normalizedStatus) &&
+    canShowReadyForClientStatus &&
     Boolean(handlers.onReadyForClient) &&
     hasWorkflowPermission(permissions.canReadyForClient);
   const canCompleteOrder =
@@ -62,7 +71,7 @@ export function getSmartOrderActions({ order, role, permissions = {}, handlers =
       {
         id: "send_back_to_appraiser",
         label: "Send back to appraiser",
-        visible: true,
+        visible: canShowReviewActionStatus,
         disabled: !canSendBackToAppraiser,
         isPrimary: false,
         onClick: () => handlers.onSendBackToAppraiser?.(order),
@@ -70,9 +79,9 @@ export function getSmartOrderActions({ order, role, permissions = {}, handlers =
       {
         id: "clear_review",
         label: "Clear Review",
-        visible: true,
+        visible: canShowReviewActionStatus,
         disabled: !canClearReview,
-        isPrimary: normalizedStatus === ORDER_STATUS.IN_REVIEW && canClearReview,
+        isPrimary: canShowReviewActionStatus && canClearReview,
         onClick: () => handlers.onClearReview?.(order),
       },
     ];
@@ -82,7 +91,7 @@ export function getSmartOrderActions({ order, role, permissions = {}, handlers =
     {
       id: "send_to_review",
       label: "Send to review",
-      visible: canSubmitOrResubmit,
+      visible: canShowSendToReviewStatus && canSubmitOrResubmit,
       disabled: false,
       isPrimary: false,
       onClick: () => handlers.onSendToReview?.(order),
