@@ -1,6 +1,5 @@
 import OrderStatusBadge from "@/components/orders/table/OrderStatusBadge";
 import { Link } from "react-router-dom";
-import { MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import SiteVisitPicker from "@/components/dates/SiteVisitPicker";
 import { getSmartOrderActions } from "@/features/orders/smartActions";
@@ -166,9 +165,8 @@ export function getColumnsForRole(role, actions = {}) {
       });
       const visibleActions = smartActions.filter((action) => action.visible);
       const primaryAction = visibleActions.find((action) => action.isPrimary && !action.disabled);
-      const secondaryActions = visibleActions.filter((action) => action.id !== primaryAction?.id);
 
-      const renderDropdown = (dropdownActions, triggerLabel = "Send / Update") => {
+      const renderDropdown = (dropdownActions, triggerLabel = "View Actions") => {
         if (!dropdownActions.length) return null;
 
         return (
@@ -179,7 +177,7 @@ export function getColumnsForRole(role, actions = {}) {
                 variant="outline"
                 className="h-8 w-[120px] px-2 text-[11px]"
               >
-                {triggerLabel}
+                <span className="truncate">{triggerLabel}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuPortal>
@@ -204,61 +202,19 @@ export function getColumnsForRole(role, actions = {}) {
         );
       };
 
-      const button = isAppraiser ? (
-        smartActions[0]?.visible ? (
+      const button =
+        visibleActions.length === 0 ? null : visibleActions.length === 1 ? (
           <Button
             size="sm"
-            onClick={smartActions[0].onClick}
+            className="h-8 w-[120px] px-2 text-[11px]"
+            onClick={visibleActions[0].onClick}
+            disabled={visibleActions[0].disabled}
           >
-            {smartActions[0].label}
+            <span className="truncate">{visibleActions[0].label}</span>
           </Button>
-        ) : null
-      ) : primaryAction ? (
-        <div className="flex w-[140px] items-center justify-center gap-1.5">
-          <Button
-            size="sm"
-            className="h-8 min-w-0 flex-1 px-2 text-[11px] shadow-sm"
-            onClick={primaryAction.onClick}
-          >
-            <span className="truncate">{primaryAction.label}</span>
-          </Button>
-          {secondaryActions.length > 0 && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 w-7 shrink-0 px-0"
-                  aria-label="More order actions"
-                  title="More actions"
-                >
-                  <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuPortal>
-                <DropdownMenuContent
-                  side="bottom"
-                  align="end"
-                  sideOffset={6}
-                  className="z-50"
-                >
-                  {secondaryActions.map((action) => (
-                    <DropdownMenuItem
-                      key={action.id}
-                      onClick={action.onClick}
-                      disabled={action.disabled}
-                    >
-                      {action.label}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenuPortal>
-            </DropdownMenu>
-          )}
-        </div>
-      ) : (
-        renderDropdown(visibleActions, "View Actions")
-      );
+        ) : (
+          renderDropdown(visibleActions, primaryAction?.label || "View Actions")
+        );
 
       return (
         <div className={`${ACTIONS_COL_WIDTH} flex justify-center`}>
