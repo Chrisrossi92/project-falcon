@@ -4,17 +4,51 @@
 
 This audit documents every currently identified path that can change order workflow status. The goal is to harden Falcon's order lifecycle before further productization.
 
-This document is intentionally audit-only. It does not change runtime behavior.
+This document is intentionally audit-focused. It tracks current risk, completed hardening work, and remaining cleanup targets.
+
+## Current hardening status
+
+Status: **Primary workflow guard slice complete.**
+
+Completed:
+
+- Added canonical workflow transition map: `src/lib/workflow/orderWorkflow.js`.
+- Added workflow guard helpers: `src/lib/workflow/orderWorkflowGuards.js`.
+- Wrapped primary workflow helpers in `src/lib/services/ordersService.js`:
+  - `sendOrderToReview` → `submit_to_review`
+  - `sendOrderBackToAppraiser` → `request_revisions`
+  - `clearReview` → `approve_review`
+  - `requestFinalApproval` → `request_final_approval`
+  - `markReadyForClient` → `ready_for_client`
+  - `completeOrder` → `complete`
+- Routed live drawer quick actions through guarded workflow helpers:
+  - `src/components/orders/view/QuickActionsDrawerPanel.jsx`
+- Routed reviewer shortcut actions through guarded workflow helpers:
+  - `src/components/orders/table/ReviewerActionCell.jsx`
+- Quarantined the unsafe freeform `OrderActionsPanel` by removing its public barrel export from:
+  - `src/features/orders/index.js`
+- Added guardrail comments to legacy/generic status helpers:
+  - `src/lib/api/orders.js`
+  - `src/lib/utils/updateOrderStatus.js`
+  - `src/features/orders/actions.js`
 
 ## Canonical workflow reference
 
-The canonical transition map now lives at:
+The canonical transition map lives at:
 
 ```txt
 src/lib/workflow/orderWorkflow.js
 ```
 
 That file defines the intended workflow transitions, required permissions, actor roles, and notification event keys.
+
+The guard helpers live at:
+
+```txt
+src/lib/workflow/orderWorkflowGuards.js
+```
+
+Those helpers validate transition keys and current statuses before workflow helpers update order status.
 
 ## Current canonical UI path
 
@@ -29,41 +63,42 @@ Primary table workflow actions call named service helpers from `src/lib/services
 - `markReadyForClient`
 - `completeOrder`
 
-This is the preferred current UI path because it routes through Smart Actions and avoids freeform status changes.
+Risk level: **Low / improving**
 
-Risk level: **Medium**
+Reason: the main table path routes through Smart Actions and guarded service helpers. Permission fallback remains intentionally preserved for MVP compatibility.
 
-Reason: the table path is mostly clean, but the service helpers it calls still update status directly and are not yet backed by a single transition guard.
-
-Recommended action: **Keep, then wire to transition guard.**
+Recommended action: **Keep. Next hardening step is to pass real permission context into guarded helpers rather than `{ loading: true }`.**
 
 ## Status write surfaces
 
 ### `src/lib/services/ordersService.js`
 
-Identified status write helpers:
+Primary guarded workflow helpers:
+
+- `sendOrderToReview(orderId, actorId, options)`
+- `sendOrderBackToAppraiser(orderId, actorId, options)`
+- `clearReview(orderId, note)`
+- `requestFinalApproval(orderId, note)`
+- `markReadyForClient(orderId, note)`
+- `completeOrder(orderId, actorId)`
+
+Remaining generic or legacy status helpers:
 
 - `setOrderStatus(orderId, status)`
 - `updateOrderStatus(orderId, status, extra)`
 - `startReview(orderId, note)`
 - `requestRevisions(orderId, note)`
-- `clearReview(orderId, note)`
-- `requestFinalApproval(orderId, note)`
-- `markReadyForClient(orderId, note)`
 - `markComplete(orderId, note)`
 - `putOnHold(orderId, note)`
 - `resumeInProgress(orderId, note)`
 - `sendToClient(orderId, note)`
 - `markDelivered(orderId, note)`
-- `sendOrderToReview(orderId, actorId, options)`
-- `sendOrderBackToAppraiser(orderId, actorId, options)`
-- `completeOrder(orderId, actorId)`
 
-Risk level: **High**
+Risk level: **Medium**
 
-Reason: this file contains both explicit workflow helpers and generic status setters. Some transitions emit notifications, some do not. Some validate current status, while others directly update `orders.status`.
+Reason: the active workflow path is guarded, but generic helpers still exist for compatibility and can bypass transition semantics if reintroduced into UI.
 
-Recommended action: **Wrap all workflow status changes through a single transition helper. Retire generic status setters from UI usage.**
+Recommended action: **Do not use generic setters for normal workflow UI. Later, retire or restrict them behind explicit admin override/backfill semantics.**
 
 ## Legacy / alternate paths
 
@@ -75,11 +110,11 @@ Identified status write helpers:
 - `bulkUpdateStatus(orderIds, status)`
 - `createOrder(payload)` can set initial status from payload
 
-Risk level: **High**
+Risk level: **Medium / documented**
 
-Reason: these functions directly update the `orders` table. `bulkUpdateStatus` can change multiple statuses at once without using workflow transition rules, notification logic, or explicit activity context.
+Reason: these functions directly update the `orders` table. Guardrail comments now warn against using them for normal workflow lifecycle actions.
 
-Recommended action: **Restrict to admin/backfill use or route through explicit admin override workflow. Do not use for normal workflow actions.**
+Recommended action: **Keep only for compatibility/admin/backfill until usage is proven gone. Eventually route bulk/admin status changes through explicit override workflow.**
 
 ### `src/lib/utils/updateOrderStatus.js`
 
@@ -89,11 +124,11 @@ Identified behavior:
 - Falls back to direct `orders.status` update.
 - Falls back to legacy `logOrderEvent` after direct update.
 
-Risk level: **High**
+Risk level: **Medium / documented**
 
-Reason: RPC-first is directionally good, but fallback behavior keeps legacy audit paths alive and bypasses the new workflow transition map.
+Reason: RPC-first is directionally good, but fallback behavior keeps legacy audit paths alive and bypasses the frontend workflow transition map. Guardrail comments now warn against normal lifecycle usage.
 
-Recommended action: **Deprecate or rewrite after canonical transition RPC exists.**
+Recommended action: **Deprecate or rewrite after a canonical transition RPC exists.**
 
 ### `src/features/orders/actions.js`
 
@@ -103,61 +138,63 @@ Identified behavior:
 - `assignOrder` calls `rpc_assign_order`.
 - `updateDueDates` calls `rpc_update_due_dates`.
 
-Risk level: **Medium**
+Risk level: **Medium / documented**
 
-Reason: RPC usage is better than direct table updates, but this still accepts arbitrary new status and does not reference the canonical workflow transition map.
+Reason: RPC usage is better than direct table updates, but the status wrapper still accepts arbitrary new status and does not reference the canonical workflow transition map. Guardrail comments now warn against normal lifecycle usage.
 
-Recommended action: **Keep as legacy RPC wrapper only if no active UI imports remain. Otherwise replace with canonical workflow helper.**
+Recommended action: **Keep as legacy RPC wrapper only if no active UI imports remain. Otherwise replace usage with guarded workflow helpers.**
 
 ## UI drift points
 
 ### `src/components/orders/table/ReviewerActionCell.jsx`
 
-Identified behavior:
+Current behavior:
 
-- Direct buttons set status to `needs_revisions` or `review_cleared` via `src/lib/api/orders.updateOrderStatus`.
+- Reviewer shortcut buttons now call guarded workflow helpers:
+  - `sendOrderBackToAppraiser`
+  - `clearReview`
 
-Risk level: **High**
+Risk level: **Low**
 
-Reason: bypasses Smart Actions, workflow notes, transition validation, and notification behavior.
-
-Recommended action: **Remove from active table usage or refactor to use Smart Actions / canonical transition helper.**
+Recommended action: **Eventually replace with shared Smart Actions renderer to avoid duplicated action UI.**
 
 ### `src/components/orders/view/QuickActionsDrawerPanel.jsx`
 
-Identified behavior:
+Current behavior:
 
-- Appraiser button sets status to `in_review`.
-- Reviewer buttons set status to `review_cleared` or `needs_revisions`.
-- Uses `ordersService.updateOrderStatus`, not named workflow helpers.
+- Appraiser/reviewer quick actions now call guarded workflow helpers:
+  - `sendOrderToReview`
+  - `clearReview`
+  - `sendOrderBackToAppraiser`
 
-Risk level: **High**
+Risk level: **Low / medium**
 
-Reason: bypasses Smart Actions, role/status validation, workflow note modal, and transition-specific notification behavior.
+Reason: status writes are now guarded, but this component still duplicates action rendering outside the main Smart Actions model.
 
-Recommended action: **Replace with Smart Actions-driven controls or remove if obsolete.**
+Recommended action: **Eventually replace with shared Smart Actions descriptors.**
 
 ### `src/features/orders/OrderActionsPanel.jsx`
 
-Identified behavior:
+Current behavior:
 
 - Contains a freeform status input and calls `features/orders/actions.updateOrderStatus`.
+- No longer exported from `src/features/orders/index.js`.
 
-Risk level: **Critical**
+Risk level: **Medium / quarantined**
 
-Reason: freeform status entry is unsafe for normal product usage and is not compatible with a controlled lifecycle.
+Reason: the file still exists, but normal barrel imports no longer expose it.
 
-Recommended action: **Restrict to dev/admin debug tooling or remove from production routes.**
+Recommended action: **Keep quarantined. Later delete, move to dev-only tooling, or replace with explicit admin override workflow.**
 
-## Productization risks
+## Productization risks remaining
 
-The current app has a polished primary workflow path, but legacy status mutation paths can bypass it. That creates several product risks:
+The primary workflow path is now guarded, but remaining productization risks are:
 
-1. UI can show only valid Smart Actions while another component allows invalid status changes.
-2. Notifications may not fire consistently.
-3. Activity history may depend on fallback or trigger behavior rather than explicit workflow intent.
-4. Future company-specific workflow rules would be hard to enforce.
-5. Multi-company reuse would be risky because direct status writes are harder to govern with company-specific policies.
+1. Backend/Supabase still needs authoritative transition enforcement.
+2. Generic status helpers still exist for compatibility and could be misused later.
+3. Permission context is not yet passed into service-layer guards; current calls preserve MVP fallback behavior.
+4. Workflow action rendering is still duplicated across table/drawer/reviewer shortcut surfaces.
+5. Company-specific workflow settings do not exist yet.
 
 ## Recommended cleanup sequence
 
@@ -173,44 +210,53 @@ src/lib/workflow/orderWorkflow.js
 
 Document all known status mutation surfaces in this audit file.
 
-### Slice 3 — Next
+### Slice 3 — Completed
 
-Add a shared transition helper that validates a requested transition against `ORDER_WORKFLOW_TRANSITIONS` but does not yet replace existing service helpers.
-
-Suggested file:
+Add workflow guard helpers:
 
 ```txt
 src/lib/workflow/orderWorkflowGuards.js
 ```
 
-Initial helper responsibilities:
+### Slice 4 — Completed
 
-- normalize current status
-- validate transition key
-- check allowed `from` statuses
-- return transition metadata
-- produce clear error messages
+Wrap `ordersService.sendOrderToReview` with the transition guard.
 
-No database writes in this slice.
+### Slice 5 — Completed
 
-### Slice 4
+Wrap the remaining primary workflow helpers:
 
-Refactor `ordersService.sendOrderToReview` to use the transition guard internally while preserving existing behavior.
+- `sendOrderBackToAppraiser`
+- `clearReview`
+- `requestFinalApproval`
+- `markReadyForClient`
+- `completeOrder`
 
-### Slice 5
+### Slice 6 — Completed
 
-Refactor `sendOrderBackToAppraiser`, `clearReview`, `requestFinalApproval`, `markReadyForClient`, and `completeOrder` to use the transition guard.
+Quarantine or route unsafe UI drift points:
 
-### Slice 6
+- `ReviewerActionCell.jsx` now uses guarded helpers.
+- `QuickActionsDrawerPanel.jsx` now uses guarded helpers.
+- `OrderActionsPanel` is no longer exported from the orders barrel.
 
-Remove or quarantine unsafe UI drift points:
+### Slice 7 — Completed
 
-- `ReviewerActionCell.jsx`
-- `QuickActionsDrawerPanel.jsx`
-- `OrderActionsPanel.jsx`
-- direct status mutation exports not needed by active UI
+Document generic legacy status mutation helpers as deprecated for normal workflow:
 
-### Slice 7
+- `src/lib/api/orders.js`
+- `src/lib/utils/updateOrderStatus.js`
+- `src/features/orders/actions.js`
+
+### Slice 8 — Next
+
+Consolidate action rendering:
+
+- Reduce duplicated workflow button logic.
+- Move table/drawer/detail surfaces toward one Smart Actions descriptor model.
+- Keep existing handlers and modals while sharing descriptors.
+
+### Slice 9
 
 Design Supabase enforcement:
 
@@ -222,6 +268,12 @@ Goal: frontend and backend enforce the same lifecycle rules.
 
 ## Immediate next slice recommendation
 
-Proceed with Slice 3: add a pure workflow guard module with no database writes and no runtime integration yet.
+Proceed with a small Smart Actions consolidation audit before coding.
 
-That gives us executable validation logic we can test and then gradually wire into the service layer without breaking existing UI behavior.
+Specifically:
+
+1. Identify every component rendering order workflow action buttons.
+2. Classify whether each uses guarded helpers, generic helpers, or duplicated action logic.
+3. Pick one UI surface to migrate toward shared Smart Actions descriptors.
+
+This keeps the next phase aligned with productization and reduces the chance of new action drift.
