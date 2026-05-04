@@ -439,6 +439,30 @@ export async function sendOrderToReview(orderId, actorId, options = {}) {
 export async function sendOrderBackToAppraiser(orderId, actorId, options = {}) {
   console.log("[sendOrderBackToAppraiser] called", { orderId, actorId });
 
+  const { data: existingOrder, error: existingOrderError } = await supabase
+    .from(ORDERS_TABLE)
+    .select("id, status")
+    .eq("id", orderId)
+    .maybeSingle();
+
+  if (existingOrderError) throw existingOrderError;
+  if (!existingOrder) throw new Error("Order not found.");
+
+  const currentStatus = String(existingOrder.status || "").toLowerCase().trim();
+  try {
+    assertOrderWorkflowTransition({
+      currentStatus,
+      transitionKey: "request_revisions",
+      permissions: { loading: true },
+      allowDuringPermissionFallback: true,
+    });
+  } catch (error) {
+    if (error?.code === "invalid_status") {
+      throw new Error("Order cannot be sent back to appraiser from its current status.");
+    }
+    throw error;
+  }
+
   // 1. Only update the status column
   const statusPatch = { status: OrderStatus.NEEDS_REVISIONS };
   console.log("[sendOrderBackToAppraiser] patch", statusPatch);
