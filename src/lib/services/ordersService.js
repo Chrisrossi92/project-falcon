@@ -290,6 +290,30 @@ export async function assignReviewer(orderId, reviewer_id) {
 export async function startReview(orderId, note = null)        { return setOrderStatus(orderId, OrderStatus.IN_REVIEW); }
 export async function requestRevisions(orderId, note = null)   { return setOrderStatus(orderId, OrderStatus.NEEDS_REVISIONS); }
 export async function clearReview(orderId, note = null) {
+  const { data: existingOrder, error: existingOrderError } = await supabase
+    .from(ORDERS_TABLE)
+    .select("id, status")
+    .eq("id", orderId)
+    .maybeSingle();
+
+  if (existingOrderError) throw existingOrderError;
+  if (!existingOrder) throw new Error("Order not found.");
+
+  const currentStatus = String(existingOrder.status || "").toLowerCase().trim();
+  try {
+    assertOrderWorkflowTransition({
+      currentStatus,
+      transitionKey: "approve_review",
+      permissions: { loading: true },
+      allowDuringPermissionFallback: true,
+    });
+  } catch (error) {
+    if (error?.code === "invalid_status") {
+      throw new Error("Order cannot be approved from its current status.");
+    }
+    throw error;
+  }
+
   const { data: order, error } = await supabase
     .from(ORDERS_TABLE)
     .update({ status: OrderStatus.REVIEW_CLEARED })
