@@ -60,7 +60,7 @@ export default function QuickActionsDrawerPanel({
 
   return (
     <Wrap>
-      <SmartActionsControl actions={smartActions} />
+      <SmartActionsControl actions={smartActions} variant="panel" />
     </Wrap>
   );
 }
