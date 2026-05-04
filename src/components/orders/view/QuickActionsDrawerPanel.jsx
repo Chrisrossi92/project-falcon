@@ -1,15 +1,25 @@
 import React, { useState } from "react";
 import { useRole } from "@/lib/hooks/useRole";
+import SmartActionsControl from "@/features/orders/components/SmartActionsControl";
+import { getSmartOrderActions } from "@/features/orders/smartActions";
 import {
   clearReview,
   sendOrderBackToAppraiser,
   sendOrderToReview,
 } from "@/lib/services/ordersService";
 
-export default function QuickActionsDrawerPanel({ orderId, onAfterChange, layout = "stack" }) {
+export default function QuickActionsDrawerPanel({
+  order,
+  orderId: orderIdProp,
+  onAfterChange,
+  onDone,
+  layout = "stack",
+}) {
   const { isAdmin, isReviewer } = useRole() || {};
   const [busy, setBusy] = useState(false);
-  if (!orderId) return null;
+  const orderId = order?.id ?? orderIdProp;
+  const afterChange = onAfterChange ?? onDone;
+  if (!order || !orderId) return null;
 
   async function runWorkflowAction(label, action) {
     const ok = window.confirm(`Set status to "${label}"?`);
@@ -17,15 +27,29 @@ export default function QuickActionsDrawerPanel({ orderId, onAfterChange, layout
     try {
       setBusy(true);
       await action();
-      onAfterChange?.();
+      afterChange?.();
     } finally {
       setBusy(false);
     }
   }
 
-  // role gating
-  const showReviewerActions = !isAdmin && isReviewer;
-  const showAppraiserAction = !isAdmin && !isReviewer;
+  const role = isReviewer ? "reviewer" : "appraiser";
+  const handlers = {
+    onSendToReview: () => runWorkflowAction("In Review", () => sendOrderToReview(orderId)),
+    onClearReview: () => runWorkflowAction("Review Cleared", () => clearReview(orderId)),
+    onSendBackToAppraiser: () => runWorkflowAction("Revisions", () => sendOrderBackToAppraiser(orderId)),
+  };
+  const smartActions = isAdmin
+    ? []
+    : getSmartOrderActions({
+        order,
+        role,
+        permissions: { loading: true },
+        handlers,
+      }).map((action) => ({
+        ...action,
+        disabled: busy || action.disabled,
+      }));
 
   const Wrap = ({ children }) =>
     layout === "bar" ? (
@@ -34,47 +58,9 @@ export default function QuickActionsDrawerPanel({ orderId, onAfterChange, layout
       <div className="space-y-2">{children}</div>
     );
 
-  const btn = "px-4 py-2 rounded-md border text-sm hover:bg-slate-50 disabled:opacity-50";
-
   return (
     <Wrap>
-      {showAppraiserAction && (
-        <button
-          type="button"
-          data-no-drawer
-          className={btn}
-          onClick={() => runWorkflowAction("In Review", () => sendOrderToReview(orderId))}
-          disabled={busy}
-          title="Send this order to review"
-        >
-          Send to Review
-        </button>
-      )}
-
-      {showReviewerActions && (
-        <>
-          <button
-            type="button"
-            data-no-drawer
-            className={btn}
-            onClick={() => runWorkflowAction("Review Cleared", () => clearReview(orderId))}
-            disabled={busy}
-            title="Clear review for admin release"
-          >
-            Clear Review
-          </button>
-          <button
-            type="button"
-            data-no-drawer
-            className={btn}
-            onClick={() => runWorkflowAction("Revisions", () => sendOrderBackToAppraiser(orderId))}
-            disabled={busy}
-            title="Request revisions"
-          >
-            Request Revisions
-          </button>
-        </>
-      )}
+      <SmartActionsControl actions={smartActions} />
     </Wrap>
   );
 }
