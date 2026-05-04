@@ -9,9 +9,22 @@ import {
 
 const ACTIONS_COL_WIDTH = "w-[140px]";
 
-export default function SmartActionsControl({ actions = [] }) {
+export default function SmartActionsControl({
+  actions = [],
+  variant = "table",
+  className = "",
+  buttonClassName = "",
+}) {
   const visibleActions = actions.filter((action) => action.visible);
   const primaryAction = visibleActions.find((action) => action.isPrimary && !action.disabled);
+  const wrapperClassName =
+    variant === "panel"
+      ? `w-full flex ${className}`.trim()
+      : `${ACTIONS_COL_WIDTH} flex justify-center ${className}`.trim();
+  const actionButtonClassName =
+    variant === "panel"
+      ? `h-9 w-full px-3 text-sm ${buttonClassName}`.trim()
+      : `h-8 w-[120px] px-2 text-[11px] ${buttonClassName}`.trim();
 
   const renderDropdown = (dropdownActions, triggerLabel = "View Actions") => {
     if (!dropdownActions.length) return null;
@@ -22,7 +35,7 @@ export default function SmartActionsControl({ actions = [] }) {
           <Button
             size="sm"
             variant="outline"
-            className="h-8 w-[120px] px-2 text-[11px]"
+            className={actionButtonClassName}
           >
             <span className="truncate">{triggerLabel}</span>
           </Button>
@@ -53,7 +66,7 @@ export default function SmartActionsControl({ actions = [] }) {
     visibleActions.length === 0 ? null : visibleActions.length === 1 ? (
       <Button
         size="sm"
-        className="h-8 w-[120px] px-2 text-[11px]"
+        className={actionButtonClassName}
         onClick={visibleActions[0].onClick}
         disabled={visibleActions[0].disabled}
       >
@@ -64,7 +77,7 @@ export default function SmartActionsControl({ actions = [] }) {
     );
 
   return (
-    <div className={`${ACTIONS_COL_WIDTH} flex justify-center`}>
+    <div className={wrapperClassName}>
       {button}
     </div>
   );
