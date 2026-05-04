@@ -3,6 +3,11 @@ import rpcFirst from '@/lib/utils/rpcFirst';
 import supabase from '@/lib/supabaseClient';
 import logOrderEvent from '@/lib/utils/logOrderEvent';
 
+/**
+ * Deprecated for normal workflow lifecycle actions.
+ * This bypasses the guarded workflow helpers in src/lib/services/ordersService.js.
+ * Use those workflow helpers for normal status transitions.
+ */
 export default async function updateOrderStatus(orderId, newStatus, note = null)  {
   // Read prev status for manual logging if we fall back
   const { data: prevRow, error: readErr } = await supabase

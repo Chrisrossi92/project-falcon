@@ -1,5 +1,10 @@
 import { supabase as defaultClient } from '@/lib/supabaseClient';
 
+/**
+ * Deprecated for normal workflow lifecycle actions.
+ * This bypasses the guarded workflow helpers in src/lib/services/ordersService.js.
+ * Use those workflow helpers for normal status transitions.
+ */
 export async function updateOrderStatus(orderId, newStatus, note, client = defaultClient) {
   const { data, error } = await client.rpc('rpc_update_order_status', {
     p_order_id: orderId, p_new_status: newStatus, p_note: note ?? null
