@@ -553,13 +553,21 @@ Deferred follow-up:
 - Admin dashboard KPI direction: KPI cards should become actionable queues, not vanity stats. Proposed default cards are Total Active Orders, Inspected / Awaiting Report, and Due to Client in 2 Days.
 - Clicking an admin KPI should filter the dashboard order list to that subset. MVP can infer Inspected / Awaiting Report from `site_visit_at` / `site_visit_date <= now()` plus active/report-writing statuses, and Due to Client should use `final_due_date`, `final_due_at`, or `due_date` where available.
 - Future company settings should allow configurable KPI cards by card type, statuses, due window, label/header, and date field. Settings UI and DB-backed KPI configuration are deferred; first MVP implementation should stay frontend/service scoped using existing data fields.
+- Calendar + Appointment System MVP is complete: site visit dates are visible in the order row Dates column, appraisers can set missing appointments inline through `SiteVisitPicker`, appointment saves use local wall-clock timestamps instead of UTC conversion, `site_visit_at` is selected before the date-only fallback, and the dashboard calendar refreshes through a dashboard summary refresh token after updates.
+- Calendar labels now use compact visible chips with street plus time for site visits and street-only labels for review/final due dates; full address remains available in the tooltip and chip overflow is contained.
+- Architecture decision: order rows stay compact and date-only for at-a-glance operations, while the calendar is the detailed scheduling surface where appointment time lives. Local browser time is the MVP source of truth for appointments.
+- Deferred appointment/calendar follow-up: existing incorrect stored timestamps need manual re-save, unified Smart Actions, company-level timezone support, and richer calendar UX such as drag/drop or direct calendar editing.
 - Main table workflow actions are permission-gated while preserving legacy fallback during permission loading/errors.
 - Reviewer template role no longer receives `workflow.status.ready_for_client`; reviewers keep `workflow.status.approve_review` for clear-review behavior.
 - Row action dropdown/popover UX remains a deferred redesign item: current menus can overlap rows, render under the table near the bottom, and duplicate action logic across table, drawer, detail, reviewer shortcuts, and shared `OrderActions`.
-- Future Smart Actions should use one action model/builder that determines valid actions by order status, role, permissions, and responsibility, then lets table, drawer, and detail render from the same action descriptors.
-- Planned future components include `buildOrderActions.js`, `SmartActionsButton.jsx`, `SmartActionsPanel.jsx`, and later action-specific note/date forms.
-- First future implementation slice should cover main table workflow actions only, keep existing handlers and `WorkflowNoteModal`, and avoid workflow/service changes.
-- Deferred Smart Actions scope includes drawer/detail replacement, appointment/date editing inside Smart Actions, final approval policy settings, backend/RLS enforcement, and bulk actions.
+- Frontend workflow hardening is complete for the current MVP surface: canonical workflow map added, workflow guards added, primary order workflow helpers guarded, drawer/reviewer shortcut actions routed through guarded helpers, `SmartActionsControl` extracted, `QuickActionsDrawerPanel` now uses the Smart Actions renderer, unsafe `OrderActionsPanel` barrel export quarantined, and generic status helpers documented as deprecated for normal workflow actions.
+- Smart Actions consolidation is now active for the main table and quick actions drawer through shared action descriptors and `SmartActionsControl`.
+- Next milestone: Backend workflow enforcement.
+- Proposed backend entry point: `rpc_transition_order_status`.
+- Reference design: `docs/ORDER_WORKFLOW_BACKEND_PLAN.md`.
+- Goal: move order lifecycle enforcement from frontend-only guards to Supabase-enforced transition logic with transition validation, permission validation, activity logging, and notification enqueueing.
+- SQL is not implemented yet. The next backend slice should design and migrate the RPC deliberately before switching guarded frontend helpers to use it.
+- Deferred Smart Actions scope includes detail replacement, appointment/date editing inside Smart Actions, final approval policy settings, backend/RLS enforcement, and bulk actions.
 - Admin/Abby note notifications can still display a generic actor label such as "User added a note" because the logged-in admin profile/identity hydrates as Demo User instead of Abby Rossi.
 - Treat this as actor display-name/profile hydration cleanup, separate from responsibility resolver routing.
 - Activity / Communication History presentation needs future polish, but is functional and visible.
