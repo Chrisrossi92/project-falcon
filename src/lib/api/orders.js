@@ -213,7 +213,11 @@ export async function fetchOrdersWithFilters(filters = {}) {
    Mutations
    ========================================================================= */
 
-/** Update only the order.status. */
+/**
+ * Deprecated for normal workflow lifecycle actions.
+ * This bypasses the guarded workflow helpers in src/lib/services/ordersService.js.
+ * Use those workflow helpers for normal status transitions.
+ */
 export async function updateOrderStatus(orderId, next) {
   const { data, error } = await supabase
     .from("orders")
@@ -281,7 +285,11 @@ export async function assignClient(orderId, clientId) {
   return data;
 }
 
-/** Bulk status update. */
+/**
+ * Deprecated for normal workflow lifecycle actions.
+ * This bypasses the guarded workflow helpers in src/lib/services/ordersService.js.
+ * Use those workflow helpers for normal status transitions.
+ */
 export async function bulkUpdateStatus(orderIds = [], status) {
   if (!orderIds.length) return { updated: 0 };
   const { data, error } = await supabase
