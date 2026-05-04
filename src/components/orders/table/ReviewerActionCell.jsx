@@ -1,7 +1,9 @@
 // src/components/orders/table/ReviewerActionCell.jsx
 import React, { useState } from "react";
-import { updateOrderStatus } from "@/lib/api/orders";
-import { ORDER_STATUS } from "@/lib/constants/orderStatus";
+import {
+  clearReview,
+  sendOrderBackToAppraiser,
+} from "@/lib/services/ordersService";
 
 /**
  * Reviewer actions:
@@ -12,12 +14,12 @@ export default function ReviewerActionCell({ order, onChanged }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
-  async function setStatus(next) {
+  async function runAction(action) {
     if (!order?.id) return;
     try {
       setBusy(true);
       setErr("");
-      await updateOrderStatus(order.id, next);
+      await action();
       onChanged?.();
     } catch (e) {
       setErr(e?.message || "Failed");
@@ -31,7 +33,7 @@ export default function ReviewerActionCell({ order, onChanged }) {
       <button
         className="px-2 py-1 text-xs rounded border hover:bg-gray-50 disabled:opacity-50"
         disabled={busy}
-        onClick={() => setStatus(ORDER_STATUS.NEEDS_REVISIONS)}
+        onClick={() => runAction(() => sendOrderBackToAppraiser(order.id))}
         title="Send back to appraiser with revisions"
       >
         {busy ? "Working…" : "Revisions"}
@@ -39,7 +41,7 @@ export default function ReviewerActionCell({ order, onChanged }) {
       <button
         className="px-2 py-1 text-xs rounded border hover:bg-gray-50 disabled:opacity-50"
         disabled={busy}
-        onClick={() => setStatus(ORDER_STATUS.REVIEW_CLEARED)}
+        onClick={() => runAction(() => clearReview(order.id))}
         title="Clear review for admin release"
       >
         {busy ? "Working…" : "Clear Review"}
