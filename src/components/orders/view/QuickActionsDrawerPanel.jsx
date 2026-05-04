@@ -1,19 +1,22 @@
 import React, { useState } from "react";
 import { useRole } from "@/lib/hooks/useRole";
-import { updateOrderStatus } from "@/lib/services/ordersService";
-import { ORDER_STATUS } from "@/lib/constants/orderStatus";
+import {
+  clearReview,
+  sendOrderBackToAppraiser,
+  sendOrderToReview,
+} from "@/lib/services/ordersService";
 
 export default function QuickActionsDrawerPanel({ orderId, onAfterChange, layout = "stack" }) {
   const { isAdmin, isReviewer } = useRole() || {};
   const [busy, setBusy] = useState(false);
   if (!orderId) return null;
 
-  async function setStatus(next, label) {
+  async function runWorkflowAction(label, action) {
     const ok = window.confirm(`Set status to "${label}"?`);
     if (!ok) return;
     try {
       setBusy(true);
-      await updateOrderStatus(orderId, next);
+      await action();
       onAfterChange?.();
     } finally {
       setBusy(false);
@@ -40,7 +43,7 @@ export default function QuickActionsDrawerPanel({ orderId, onAfterChange, layout
           type="button"
           data-no-drawer
           className={btn}
-          onClick={() => setStatus(ORDER_STATUS.IN_REVIEW, "In Review")}
+          onClick={() => runWorkflowAction("In Review", () => sendOrderToReview(orderId))}
           disabled={busy}
           title="Send this order to review"
         >
@@ -54,7 +57,7 @@ export default function QuickActionsDrawerPanel({ orderId, onAfterChange, layout
             type="button"
             data-no-drawer
             className={btn}
-            onClick={() => setStatus(ORDER_STATUS.REVIEW_CLEARED, "Review Cleared")}
+            onClick={() => runWorkflowAction("Review Cleared", () => clearReview(orderId))}
             disabled={busy}
             title="Clear review for admin release"
           >
@@ -64,7 +67,7 @@ export default function QuickActionsDrawerPanel({ orderId, onAfterChange, layout
             type="button"
             data-no-drawer
             className={btn}
-            onClick={() => setStatus(ORDER_STATUS.NEEDS_REVISIONS, "Revisions")}
+            onClick={() => runWorkflowAction("Revisions", () => sendOrderBackToAppraiser(orderId))}
             disabled={busy}
             title="Request revisions"
           >
