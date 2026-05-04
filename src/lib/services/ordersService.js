@@ -2,6 +2,7 @@
 import supabase from "@/lib/supabaseClient";
 import { emitNotification, fetchAdminRecipients } from "@/lib/services/notificationsService";
 import { resolveOrderParticipants } from "@/lib/orders/resolveOrderParticipants";
+import { assertOrderWorkflowTransition } from "@/lib/workflow/orderWorkflowGuards";
 
 /** Source of truth */
 const ORDERS_TABLE = "orders";
@@ -17,12 +18,6 @@ export const OrderStatus = {
   READY_FOR_CLIENT: "ready_for_client",
   COMPLETED: "completed",
 };
-
-const APPRAISER_SEND_TO_REVIEW_STATUSES = new Set([
-  OrderStatus.NEW,
-  OrderStatus.IN_PROGRESS,
-  OrderStatus.NEEDS_REVISIONS,
-]);
 
 /* ============================================================================
    READS
@@ -382,8 +377,18 @@ export async function sendOrderToReview(orderId, actorId, options = {}) {
 
   const currentStatus = String(existingOrder.status || "").toLowerCase().trim();
   const isResubmission = currentStatus === OrderStatus.NEEDS_REVISIONS;
-  if (!APPRAISER_SEND_TO_REVIEW_STATUSES.has(currentStatus)) {
-    throw new Error("Order cannot be sent to review from its current status.");
+  try {
+    assertOrderWorkflowTransition({
+      currentStatus,
+      transitionKey: "submit_to_review",
+      permissions: { loading: true },
+      allowDuringPermissionFallback: true,
+    });
+  } catch (error) {
+    if (error?.code === "invalid_status") {
+      throw new Error("Order cannot be sent to review from its current status.");
+    }
+    throw error;
   }
 
   const { data: order, error } = await supabase
@@ -552,7 +557,6 @@ export async function isOrderNumberAvailable(orderNo, { excludeId = null } = {})
   if (res2.error) throw res2.error;
   return (res2.count || 0) === 0;
 }
-
 
 
 
