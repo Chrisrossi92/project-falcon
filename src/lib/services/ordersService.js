@@ -362,6 +362,30 @@ export async function requestFinalApproval(orderId, note = null) {
   return setOrderStatus(orderId, OrderStatus.PENDING_FINAL_APPROVAL);
 }
 export async function markReadyForClient(orderId, note = null) {
+  const { data: existingOrder, error: existingOrderError } = await supabase
+    .from(ORDERS_TABLE)
+    .select("id, status")
+    .eq("id", orderId)
+    .maybeSingle();
+
+  if (existingOrderError) throw existingOrderError;
+  if (!existingOrder) throw new Error("Order not found.");
+
+  const currentStatus = String(existingOrder.status || "").toLowerCase().trim();
+  try {
+    assertOrderWorkflowTransition({
+      currentStatus,
+      transitionKey: "ready_for_client",
+      permissions: { loading: true },
+      allowDuringPermissionFallback: true,
+    });
+  } catch (error) {
+    if (error?.code === "invalid_status") {
+      throw new Error("Order cannot be marked ready for client from its current status.");
+    }
+    throw error;
+  }
+
   const { data: order, error } = await supabase
     .from(ORDERS_TABLE)
     .update({ status: OrderStatus.READY_FOR_CLIENT })
