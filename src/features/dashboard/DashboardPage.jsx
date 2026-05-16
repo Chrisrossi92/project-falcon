@@ -9,7 +9,7 @@ import useSession from "@/lib/hooks/useSession";
 import useOrderEvents from "@/lib/hooks/useOrderEvents";
 import useRole from "@/lib/hooks/useRole";
 import { orderHasQueue } from "@/features/queues/queueEvaluator";
-import { getTopOperationalQueues, summarizeOperationalQueues } from "@/features/queues/queueSummary";
+import { getQueueSummaryById, getTopOperationalQueues, summarizeOperationalQueues } from "@/features/queues/queueSummary";
 import { useMemo, useState } from "react";
 import { ClockAlert, ClipboardCheck, Layers3 } from "lucide-react";
 
@@ -105,6 +105,10 @@ export default function DashboardPage() {
   const topQueues = useMemo(
     () => getTopOperationalQueues(queueSummaries, 4),
     [queueSummaries]
+  );
+  const activeQueueSummary = useMemo(
+    () => getQueueSummaryById(queueSummaries, activeQueueId),
+    [queueSummaries, activeQueueId]
   );
   // Operational queues are derived operational intelligence filters, not workflow statuses.
   const filteredOrdersRows = useMemo(() => {
@@ -255,6 +259,7 @@ export default function DashboardPage() {
             reviewerId={isReviewer ? reviewerId : undefined}
             filters={appliedFilters}
             rowsOverride={filteredOrdersRows}
+            activeQueue={activeQueueSummary}
             pageSize={10}
             scope="dashboard"
             onOrderDatesChanged={() => setDashboardRefreshKey((key) => key + 1)}

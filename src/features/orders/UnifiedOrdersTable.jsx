@@ -59,6 +59,7 @@ export default function UnifiedOrdersTable({
   mode = null,
   reviewerId = null,
   rowsOverride = null,
+  activeQueue = null,
   scope = null,
   onOrderDatesChanged,
 }) {
@@ -454,44 +455,79 @@ export default function UnifiedOrdersTable({
     ]
   );
 
-  const columns = useColumnsConfig(normalizedRole, columnActions);
+  const isDashboardWorklist = scope === "dashboard";
+  const columns = useColumnsConfig(normalizedRole, columnActions, {
+    variant: isDashboardWorklist ? "dashboard" : "default",
+  });
   const template = columns.map((c) => c.width).join(" ");
+  const tableMinWidth = isDashboardWorklist ? "0" : "900px";
+  const tableWidth = isDashboardWorklist ? "100%" : undefined;
 
-  const stickyHeader = "bg-slate-50 sticky left-0 z-20 pr-4 border-r border-slate-200";
-  const stickyCell = "bg-white sticky left-0 z-10 pr-4 border-slate-200 group-hover:bg-slate-50";
+  const stickyHeader = "bg-slate-50/95 sticky left-0 z-20 pr-4 border-r border-slate-200/70";
+  const stickyCell = "bg-white sticky left-0 z-10 pr-4 border-slate-200/70 group-hover:bg-slate-50/80";
 
   return (
     <>
-      <div className={`overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm ring-1 ring-slate-100 ${className}`} style={style}>
+      <div className={`overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_12px_32px_rgba(15,23,42,0.06)] ring-1 ring-white ${className}`} style={style}>
       {tableError && (
-        <div className="px-3 py-2 text-sm text-rose-700 bg-rose-50 border-b">
+        <div className="border-b border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           Failed to load orders: {tableError.message}
         </div>
       )}
 
+      {activeQueue && (
+        <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 via-white to-white px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Filtered Worklist</div>
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <span className="text-sm font-semibold text-slate-950">{activeQueue.label}</span>
+                <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                  {activeQueue.urgency || "unknown"}
+                </span>
+              </div>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500">{activeQueue.description}</p>
+            </div>
+            <div className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-right shadow-sm">
+              <div className="text-xl font-semibold leading-none tracking-tight text-slate-950">{activeQueue.count ?? tableCount ?? 0}</div>
+              <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                active match{(activeQueue.count ?? tableCount ?? 0) === 1 ? "" : "es"}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* header */}
-      <div className="overflow-x-auto">
+      <div className={isDashboardWorklist ? "overflow-hidden" : "overflow-x-auto"}>
         <div
-          className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 px-2 py-2.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600 shadow-[0_1px_0_rgba(15,23,42,0.04)] backdrop-blur"
-          style={{ display: "grid", gridTemplateColumns: template, columnGap: ".25rem", minWidth: "900px" }}
+          className="sticky top-0 z-10 border-b border-slate-200/80 bg-slate-50/95 px-3 py-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 shadow-[0_1px_0_rgba(15,23,42,0.04)] backdrop-blur"
+          style={{ display: "grid", gridTemplateColumns: template, columnGap: ".25rem", minWidth: tableMinWidth, width: tableWidth }}
         >
           {columns.map((c, idx) => (
-            <div key={c.key} className={`px-2 py-1 ${idx === 0 ? stickyHeader : ""}`}>
+            <div key={c.key} className={`px-2 py-1 ${idx === 0 ? stickyHeader : ""} ${c.align === "center" ? "text-center" : ""}`}>
               <div className="truncate">{c.header()}</div>
             </div>
           ))}
         </div>
 
         {/* rows */}
-        <div className="divide-y divide-slate-100" style={{ minWidth: "900px" }}>
+        <div className="bg-white" style={{ minWidth: tableMinWidth, width: tableWidth }}>
           {tableLoading ? (
             [...Array(tableFilters.pageSize || pageSize)].map((_, i) => (
-              <div key={i} className="px-4 py-3 text-sm text-slate-500">
-                Loading...
+              <div key={i} className="border-b border-slate-100/80 px-5 py-4 text-sm text-slate-500">
+                Loading active work...
               </div>
             ))
           ) : !displayData?.length ? (
-            <div className="px-4 py-8 text-center text-sm text-slate-500">No orders.</div>
+            <div className="px-5 py-12 text-center">
+              <div className="text-sm font-medium text-slate-700">
+                {activeQueue ? "No orders match this operational queue." : "No active orders to show."}
+              </div>
+              <div className="mt-1 text-xs text-slate-500">
+                {activeQueue ? "Clear the queue filter to return to the full active worklist." : "The current filters do not have any active work."}
+              </div>
+            </div>
           ) : (
             displayData.map((o, idx) => {
               const rowKey = o.order_id || o.id || o.order_number || `row-${tableFilters?.page ?? 0}-${idx}`;
@@ -513,11 +549,11 @@ export default function UnifiedOrdersTable({
                   order={o}
                   isOpen={expandedId === rowKey}
                   onToggle={() => setExpandedId((x) => (x === rowKey ? null : rowKey))}
-                  className="py-3"
+                  className="py-4"
                   renderCells={() => (
                     <div
                       className="items-start text-sm text-slate-800"
-                      style={{ display: "grid", gridTemplateColumns: template, columnGap: ".25rem" }}
+                      style={{ display: "grid", gridTemplateColumns: template, columnGap: isDashboardWorklist ? ".5rem" : ".25rem" }}
                     >
                       {columns.map((c, cIdx) => {
                         // Status column special rendering
@@ -541,7 +577,7 @@ export default function UnifiedOrdersTable({
 
                         // Default cell
                         return (
-                          <div key={c.key} className={cIdx === 0 ? stickyCell : ""}>
+                          <div key={c.key} className={`${cIdx === 0 ? stickyCell : ""} ${c.align === "center" ? "text-center" : ""}`}>
                             {c.cell(o)}
                           </div>
                         );
@@ -557,7 +593,7 @@ export default function UnifiedOrdersTable({
       </div>
 
       {/* footer */}
-      <div className="border-t bg-slate-50/80 px-4 py-2 flex items-center justify-between text-xs text-slate-600">
+      <div className="flex items-center justify-between border-t border-slate-200/80 bg-slate-50/80 px-4 py-3 text-xs text-slate-600">
         <div>
           Page {tableFilters.page + 1} / {totalPages} — {tableCount || 0} total
         </div>
