@@ -54,6 +54,12 @@ export default function useCalendarEventLoader({ mode = null, reviewerId = null 
           start: row.start_at,
           end: row.end_at,
           orderId: row.order_id || null,
+          clientName: row.client_name || null,
+          appraiserName: row.appraiser_name || null,
+          appraiserColor: row.appraiser_color || null,
+          status: row.status || null,
+          street: row.address || "",
+          address: row.address || "",
           colorClass: TYPE_COLORS[type] || "bg-slate-200 border-slate-200",
         };
       });
@@ -86,6 +92,11 @@ export default function useCalendarEventLoader({ mode = null, reviewerId = null 
         start: e.at,
         end: e.at,
         orderId: e.order_id,
+        clientName: e.client_name || null,
+        appraiserName: e.appraiser_name || null,
+        status: e.status || null,
+        street: e.address || "",
+        address: e.address || "",
         colorClass: TYPE_COLORS[type] || "bg-slate-200 border-slate-200",
       };
     });

@@ -171,49 +171,35 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white/90 shadow-sm">
-        <div className="border-b border-slate-100 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-800 px-5 py-4 text-white">
+        <div className="border-b border-slate-100 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-800 px-5 py-3 text-white">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-300">Falcon Operations</div>
-              <h1 className="mt-2 text-2xl font-semibold tracking-tight">{title}</h1>
+              <h1 className="mt-1.5 text-xl font-semibold tracking-tight">{title}</h1>
               <p className="mt-1 max-w-2xl text-sm text-slate-300">{subtitle}</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        {summaryCards.map((card) => (
-          <SummaryCard
-            key={card.id}
-            label={card.label}
-            subtext={card.subtext}
-            value={card.value}
-            loading={loading}
-            icon={card.icon}
-            accent={card.accent}
-            active={isAdmin && (adminKpiFilter?.id || "total_active") === card.id && !statusFilter}
-            onClick={isAdmin ? () => applyAdminKpiFilter(card.id, card.filter) : undefined}
-          />
-        ))}
-      </div>
-
-      <OperationalQueuesPanel
-        activeQueueId={activeQueueId}
-        onClear={() => setActiveQueueId(null)}
-        onSelect={(queueId) => setActiveQueueId((current) => (current === queueId ? null : queueId))}
-        queues={topQueues}
-      />
-
-      {/* Calendar section */}
-      <section className="space-y-2">
+      <section className="space-y-3">
         <div className="flex items-baseline justify-between gap-2">
-          <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Calendar</h2>
+          <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Operational Cockpit</h2>
+          <div className="text-xs text-slate-500">Calendar-centered view of due work and attention signals</div>
         </div>
+
+        <OperationalQueuesPanel
+          activeQueueId={activeQueueId}
+          compact
+          onClear={() => setActiveQueueId(null)}
+          onSelect={(queueId) => setActiveQueueId((current) => (current === queueId ? null : queueId))}
+          queues={topQueues}
+        />
+
         <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm ring-1 ring-slate-100">
           <DashboardCalendarPanel
             orders={ordersRows || []}
+            role={normalizedRole}
             onOpenOrder={handleOpenOrder}
             fixedHeader={true}
             mode={isReviewer ? "reviewerQueue" : undefined}
@@ -282,16 +268,18 @@ export default function DashboardPage() {
   );
 }
 
-function OperationalQueuesPanel({ activeQueueId, onClear, onSelect, queues }) {
+function OperationalQueuesPanel({ activeQueueId, compact = false, onClear, onSelect, queues }) {
   return (
-    <section className="rounded-2xl border border-slate-200/80 bg-gradient-to-b from-white to-slate-50/70 p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ring-white">
-      <div className="mb-4 flex items-start justify-between gap-3">
+    <section className={`rounded-2xl border border-slate-200/80 bg-gradient-to-b from-white to-slate-50/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ring-white ${compact ? "p-3" : "p-4"}`}>
+      <div className={`${compact ? "mb-3" : "mb-4"} flex items-start justify-between gap-3`}>
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <span className="h-1.5 w-1.5 rounded-full bg-slate-400" aria-hidden="true" />
             <h2 className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Operational Attention</h2>
           </div>
-          <p className="mt-1.5 text-sm text-slate-500">Deterministic queue signals from active dashboard orders.</p>
+          {!compact && (
+            <p className="mt-1.5 text-sm text-slate-500">Deterministic queue signals from active dashboard orders.</p>
+          )}
         </div>
         {activeQueueId && (
           <button
@@ -304,9 +292,11 @@ function OperationalQueuesPanel({ activeQueueId, onClear, onSelect, queues }) {
         )}
       </div>
       {queues.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-200 bg-white/75 px-4 py-5">
+        <div className={`rounded-xl border border-dashed border-slate-200 bg-white/75 px-4 ${compact ? "py-3" : "py-5"}`}>
           <div className="text-sm font-medium text-slate-700">No operational queue alerts right now.</div>
-          <div className="mt-1 text-xs text-slate-500">Active work is clear of the current deterministic attention signals.</div>
+          {!compact && (
+            <div className="mt-1 text-xs text-slate-500">Active work is clear of the current deterministic attention signals.</div>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 xl:grid-cols-4">
@@ -337,7 +327,7 @@ function OperationalQueuesPanel({ activeQueueId, onClear, onSelect, queues }) {
                   </div>
                 </div>
               </div>
-              <div className="mt-3 flex items-center justify-between gap-3">
+              <div className={`${compact ? "mt-2" : "mt-3"} flex items-center justify-between gap-3`}>
                 <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${urgencyClass(queue.urgency)}`}>
                   {queue.urgency || "unknown"}
                 </span>

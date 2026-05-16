@@ -29,7 +29,7 @@ function formatEventTime(value) {
   return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 }
 
-export default function DashboardCalendarPanel({ orders = [], onOpenOrder, fixedHeader = true, mode = null, reviewerId = null }) {
+export default function DashboardCalendarPanel({ orders = [], role = "appraiser", onOpenOrder, fixedHeader = true, mode = null, reviewerId = null }) {
   const hasOrders = Array.isArray(orders) && orders.length > 0;
   const baseLoader = useCalendarEventLoader({ mode, reviewerId }); // fallback when no orders provided
 
@@ -60,7 +60,16 @@ export default function DashboardCalendarPanel({ orders = [], onOpenOrder, fixed
               start: when.toISOString(),
               end: when.toISOString(),
               orderId,
+              orderNumber: o.order_number || o.order_no || null,
+              clientName: o.client_name || null,
+              appraiserId: o.appraiser_id || o.assigned_to || null,
+              appraiserName: o.appraiser_name || null,
+              reviewerId: o.reviewer_id || null,
+              reviewerName: o.reviewer_name || null,
+              status: o.status || null,
+              street,
               address: fullAddr || street,
+              eventTime: type === "site" ? formatEventTime(ts) : "",
             });
           };
 
@@ -81,6 +90,15 @@ export default function DashboardCalendarPanel({ orders = [], onOpenOrder, fixed
           type,
           title: formatCalendarEventTitle(type, { address: r.address, orderId: r.orderId || r.order_id || r.id }),
           orderId: r.orderId || r.order_id || r.id || null,
+          orderNumber: r.orderNumber || r.order_number || r.order_no || null,
+          clientName: r.clientName || r.client_name || null,
+          appraiserId: r.appraiserId || r.appraiser_id || null,
+          appraiserName: r.appraiserName || r.appraiser_name || null,
+          reviewerId: r.reviewerId || r.reviewer_id || null,
+          reviewerName: r.reviewerName || r.reviewer_name || null,
+          status: r.status || null,
+          street: r.street || r.address_line1 || r.address || "",
+          eventTime: type === "site" ? formatEventTime(r.start || r.start_at) : "",
         };
       });
     },
@@ -104,25 +122,33 @@ export default function DashboardCalendarPanel({ orders = [], onOpenOrder, fixed
   return (
     <div className="space-y-3">
       {fixedHeader && (
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <div className="inline-flex items-center gap-1 rounded-md border p-1 bg-white">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-slate-900">Schedule pressure</div>
+            <div className="text-xs text-slate-500">Site visits, review handoffs, and final due dates</div>
+          </div>
+          <div className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50/80 p-1">
             {tabs.map((t) => (
               <button
                 key={t.key}
                 onClick={() => setViewMode(t.key)}
-                className={`px-3 py-1 text-sm rounded ${viewMode === t.key ? "bg-black text-white" : "hover:bg-gray-100"}`}
+                className={`rounded-md px-3 py-1 text-sm font-medium transition ${
+                  viewMode === t.key
+                    ? "bg-white text-slate-950 shadow-sm ring-1 ring-slate-200"
+                    : "text-slate-500 hover:bg-white/70 hover:text-slate-800"
+                }`}
               >
                 {t.label}
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-3">
             <CalendarLegend />
-            <label className="text-xs inline-flex items-center gap-2">
+            <label className="inline-flex items-center gap-2 text-xs font-medium text-slate-500">
               <input type="checkbox" checked={monFriOnly} onChange={(e) => setMonFriOnly(e.target.checked)} />
               Mon–Fri
             </label>
-            <label className="text-xs inline-flex items-center gap-2">
+            <label className="inline-flex items-center gap-2 text-xs font-medium text-slate-500">
               <input type="checkbox" checked={compact} onChange={(e) => setCompact(e.target.checked)} />
               Compact
             </label>
@@ -145,6 +171,7 @@ export default function DashboardCalendarPanel({ orders = [], onOpenOrder, fixed
             showWeekdayHeader
             showWeekends={!monFriOnly}
             compact={compact}
+            role={role}
             onEventClick={(ev) => onOpenOrder?.(ev?.orderId)}
           />
         )}
@@ -155,6 +182,7 @@ export default function DashboardCalendarPanel({ orders = [], onOpenOrder, fixed
             showWeekdayHeader
             showWeekends={!monFriOnly}
             compact={compact}
+            role={role}
             onEventClick={(ev) => onOpenOrder?.(ev?.orderId)}
           />
         )}
@@ -166,6 +194,7 @@ export default function DashboardCalendarPanel({ orders = [], onOpenOrder, fixed
             showWeekends={!monFriOnly}
             compact={false}
             focusToday
+            role={role}
             onEventClick={(ev) => onOpenOrder?.(ev?.orderId)}
           />
         )}

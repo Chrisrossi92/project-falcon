@@ -14,6 +14,7 @@ export default function TwoWeekCalendar({
   showWeekdayHeader = true,
   showWeekends = true,
   compact = true,
+  role = "appraiser",
   focusToday = false,        // when weeks=1 shows a stacked list for today
 }) {
   const [anchor, setAnchor] = useState(() => startOfWeek(new Date()));
@@ -61,18 +62,18 @@ export default function TwoWeekCalendar({
     return (
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">Today</div>
+          <div className="text-sm font-semibold text-slate-700">Today</div>
           <div className="text-sm">
             {today.toLocaleDateString(undefined, { weekday:"long", month:"short", day:"numeric" })}
           </div>
         </div>
-        <div className="border rounded p-2 bg-white">
+        <div className="rounded-lg border border-slate-200 bg-white p-2">
           {list.length === 0 ? (
-            <div className="text-sm text-muted-foreground">No events today.</div>
+            <div className="text-sm text-slate-500">No calendar pressure today.</div>
           ) : (
             <div className="space-y-1">
               {list.sort((a,b)=>new Date(a.start)-new Date(b.start)).map(ev => (
-                <EventChip key={ev.id} event={ev} compact={false} onClick={() => onEventClick?.(ev)} />
+                <EventChip key={ev.id} event={ev} compact={false} role={role} onClick={() => onEventClick?.(ev)} />
               ))}
             </div>
           )}
@@ -84,36 +85,37 @@ export default function TwoWeekCalendar({
   return (
     <div className="space-y-2">
       {/* NEW: pager/header ABOVE calendar */}
-      <div className="flex items-center justify-between sticky top-0 z-[1] bg-white/90 backdrop-blur px-1 py-1 border rounded">
-        <button className="border rounded px-2 py-1 text-sm" onClick={() => setAnchor(addDays(anchor, -(showWeekends?7:5)))}>Prev</button>
-        <div className="flex items-center gap-2">
-          <button className="border rounded px-2 py-1 text-sm" onClick={() => setAnchor(startOfWeek(new Date()))}>Today</button>
-          <div className="text-sm text-muted-foreground">
+      <div className="sticky top-0 z-[1] flex items-center justify-between rounded-lg border border-slate-200 bg-white/95 px-2 py-1.5 backdrop-blur">
+        <button className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900" onClick={() => setAnchor(addDays(anchor, -(showWeekends?7:5)))}>Prev</button>
+        <div className="flex items-center gap-2 text-center">
+          <button className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50" onClick={() => setAnchor(startOfWeek(new Date()))}>Today</button>
+          <div className="text-sm text-slate-500">
             {days[0]?.toLocaleDateString()} – {days[days.length-1]?.toLocaleDateString()}
           </div>
         </div>
-        <button className="border rounded px-2 py-1 text-sm" onClick={() => setAnchor(addDays(anchor, (showWeekends?7:5)))}>Next</button>
+        <button className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900" onClick={() => setAnchor(addDays(anchor, (showWeekends?7:5)))}>Next</button>
       </div>
 
       {/* Weekday header */}
       {showWeekdayHeader && (
-        <div className={"grid text-xs text-muted-foreground " + (showWeekends ? "grid-cols-7" : "grid-cols-5")}>
+        <div className={"grid text-xs font-semibold uppercase tracking-[0.08em] text-slate-400 " + (showWeekends ? "grid-cols-7" : "grid-cols-5")}>
           {WD.filter((_,i)=> showWeekends || (i!==0 && i!==6)).map((d)=>(<div key={d} className="px-2 py-1">{d}</div>))}
         </div>
       )}
 
       {/* Grid */}
-      <div className={"grid border rounded overflow-hidden bg-white " + (showWeekends ? "grid-cols-7" : "grid-cols-5")}>
+      <div className={"grid overflow-hidden rounded-lg border border-slate-200 bg-white " + (showWeekends ? "grid-cols-7" : "grid-cols-5")}>
         {days.map((d, i) => {
           const list = (byDay.get(d.toDateString()) || []).sort((a,b)=>new Date(a.start)-new Date(b.start));
+          const isToday = sameDate(d, new Date());
           return (
-            <div key={i} className="min-h-[140px] border -m-[0.5px] p-1 md:p-2">
-              <div className="text-[11px] md:text-xs font-medium">{d.getDate()}</div>
+            <div key={i} className={`min-h-[140px] border border-slate-100 -m-[0.5px] p-1 md:p-2 ${isToday ? "bg-amber-50/30 ring-1 ring-inset ring-amber-100" : ""}`}>
+              <div className={`text-[11px] font-semibold md:text-xs ${isToday ? "text-amber-800" : "text-slate-600"}`}>{d.getDate()}</div>
               <div className="mt-1 space-y-1">
                 {list.slice(0, 4).map(ev => (
-                  <EventChip key={ev.id} event={ev} compact={compact} onClick={() => onEventClick?.(ev)} />
+                  <EventChip key={ev.id} event={ev} compact={compact} role={role} onClick={() => onEventClick?.(ev)} />
                 ))}
-                {list.length > 4 && <div className="text-[11px] text-muted-foreground">+{list.length-4} more</div>}
+                {list.length > 4 && <div className="text-[11px] text-slate-500">+{list.length-4} more</div>}
               </div>
             </div>
           );
@@ -122,6 +124,4 @@ export default function TwoWeekCalendar({
     </div>
   );
 }
-
-
 
