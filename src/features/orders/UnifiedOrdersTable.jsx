@@ -58,6 +58,7 @@ export default function UnifiedOrdersTable({
   style = {},
   mode = null,
   reviewerId = null,
+  rowsOverride = null,
   scope = null,
   onOrderDatesChanged,
 }) {
@@ -114,6 +115,7 @@ export default function UnifiedOrdersTable({
   const [refreshTick, setRefreshTick] = useState(0);
   const [workflowModal, setWorkflowModal] = useState(null);
   const [workflowBusy, setWorkflowBusy] = useState(false);
+  const hasRowsOverride = Array.isArray(rowsOverride);
 
   const {
     data = [],
@@ -128,11 +130,18 @@ export default function UnifiedOrdersTable({
       mode,
       reviewerId,
       scope,
-      enabled: !roleLoading && (isAdminLike || isReviewer || (isAppraiser && Boolean(internalUserId))),
+      enabled: !hasRowsOverride && !roleLoading && (isAdminLike || isReviewer || (isAppraiser && Boolean(internalUserId))),
     }
   );
 
-  const totalPages = Math.max(1, Math.ceil((count || 0) / (tableFilters.pageSize || pageSize)));
+  const tableData = hasRowsOverride ? rowsOverride : data;
+  const tableCount = hasRowsOverride ? rowsOverride.length : count;
+  const tableLoading = hasRowsOverride ? false : loading;
+  const tableError = hasRowsOverride ? null : error;
+  const pageStart = hasRowsOverride ? (tableFilters.page || 0) * (tableFilters.pageSize || pageSize) : 0;
+  const pageEnd = pageStart + (tableFilters.pageSize || pageSize);
+  const displayData = hasRowsOverride ? tableData.slice(pageStart, pageEnd) : tableData;
+  const totalPages = Math.max(1, Math.ceil((tableCount || 0) / (tableFilters.pageSize || pageSize)));
   const [expandedId, setExpandedId] = useState(null);
 
   const refresh = useCallback(() => setRefreshTick((x) => x + 1), []);
@@ -454,9 +463,9 @@ export default function UnifiedOrdersTable({
   return (
     <>
       <div className={`overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm ring-1 ring-slate-100 ${className}`} style={style}>
-      {error && (
+      {tableError && (
         <div className="px-3 py-2 text-sm text-rose-700 bg-rose-50 border-b">
-          Failed to load orders: {error.message}
+          Failed to load orders: {tableError.message}
         </div>
       )}
 
@@ -475,16 +484,16 @@ export default function UnifiedOrdersTable({
 
         {/* rows */}
         <div className="divide-y divide-slate-100" style={{ minWidth: "900px" }}>
-          {loading ? (
+          {tableLoading ? (
             [...Array(tableFilters.pageSize || pageSize)].map((_, i) => (
               <div key={i} className="px-4 py-3 text-sm text-slate-500">
                 Loading...
               </div>
             ))
-          ) : !data?.length ? (
+          ) : !displayData?.length ? (
             <div className="px-4 py-8 text-center text-sm text-slate-500">No orders.</div>
           ) : (
-            data.map((o, idx) => {
+            displayData.map((o, idx) => {
               const rowKey = o.order_id || o.id || o.order_number || `row-${tableFilters?.page ?? 0}-${idx}`;
               const orderPk = orderPkOf(o);
 
@@ -550,7 +559,7 @@ export default function UnifiedOrdersTable({
       {/* footer */}
       <div className="border-t bg-slate-50/80 px-4 py-2 flex items-center justify-between text-xs text-slate-600">
         <div>
-          Page {tableFilters.page + 1} / {totalPages} — {count || 0} total
+          Page {tableFilters.page + 1} / {totalPages} — {tableCount || 0} total
         </div>
         <OrdersTablePagination currentPage={tableFilters.page + 1} totalPages={totalPages} goToPage={(p) => go(p - 1)} />
       </div>

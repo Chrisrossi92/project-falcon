@@ -8,6 +8,7 @@ import Card from "@/components/ui/Card";
 import useSession from "@/lib/hooks/useSession";
 import useOrderEvents from "@/lib/hooks/useOrderEvents";
 import useRole from "@/lib/hooks/useRole";
+import { orderHasQueue } from "@/features/queues/queueEvaluator";
 import { getTopOperationalQueues, summarizeOperationalQueues } from "@/features/queues/queueSummary";
 import { useMemo, useState } from "react";
 import { ClockAlert, ClipboardCheck, Layers3 } from "lucide-react";
@@ -44,6 +45,7 @@ export default function DashboardPage() {
   const cfg = DASHBOARD_CONFIG[normalizedRole] || DASHBOARD_CONFIG.appraiser;
   const [statusFilter, setStatusFilter] = useState("");
   const [adminKpiFilter, setAdminKpiFilter] = useState(null);
+  const [activeQueueId, setActiveQueueId] = useState(null);
 
   const chipValue = isAdmin ? statusFilter : "";
 
@@ -104,6 +106,11 @@ export default function DashboardPage() {
     () => getTopOperationalQueues(queueSummaries, 4),
     [queueSummaries]
   );
+  // Operational queues are derived operational intelligence filters, not workflow statuses.
+  const filteredOrdersRows = useMemo(() => {
+    if (!activeQueueId) return ordersRows || [];
+    return (ordersRows || []).filter((order) => orderHasQueue(order, activeQueueId));
+  }, [ordersRows, activeQueueId]);
   const summaryCards = isAdmin
     ? [
         {
@@ -188,7 +195,12 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      <OperationalQueuesPanel queues={topQueues} />
+      <OperationalQueuesPanel
+        activeQueueId={activeQueueId}
+        onClear={() => setActiveQueueId(null)}
+        onSelect={(queueId) => setActiveQueueId((current) => (current === queueId ? null : queueId))}
+        queues={topQueues}
+      />
 
       {/* Calendar section */}
       <section className="space-y-2">
@@ -242,6 +254,7 @@ export default function DashboardPage() {
             mode={isReviewer ? "reviewerQueue" : undefined}
             reviewerId={isReviewer ? reviewerId : undefined}
             filters={appliedFilters}
+            rowsOverride={filteredOrdersRows}
             pageSize={10}
             scope="dashboard"
             onOrderDatesChanged={() => setDashboardRefreshKey((key) => key + 1)}
@@ -264,14 +277,23 @@ export default function DashboardPage() {
   );
 }
 
-function OperationalQueuesPanel({ queues }) {
+function OperationalQueuesPanel({ activeQueueId, onClear, onSelect, queues }) {
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ring-1 ring-slate-100">
-      <div className="mb-3 flex items-baseline justify-between gap-3">
+      <div className="mb-3 flex items-start justify-between gap-3">
         <div>
           <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Operational Queues</h2>
           <p className="mt-1 text-sm text-slate-500">Deterministic alerts from active dashboard orders.</p>
         </div>
+        {activeQueueId && (
+          <button
+            type="button"
+            onClick={onClear}
+            className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+          >
+            Clear Filter
+          </button>
+        )}
       </div>
       {queues.length === 0 ? (
         <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
@@ -280,7 +302,16 @@ function OperationalQueuesPanel({ queues }) {
       ) : (
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
           {queues.map((queue) => (
-            <div key={queue.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <button
+              key={queue.id}
+              type="button"
+              onClick={() => onSelect(queue.id)}
+              className={`rounded-xl border p-3 text-left transition ${
+                activeQueueId === queue.id
+                  ? "border-slate-800 bg-slate-100 ring-1 ring-slate-800"
+                  : "border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-white"
+              }`}
+            >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-sm font-semibold text-slate-900">{queue.label}</div>
@@ -295,7 +326,7 @@ function OperationalQueuesPanel({ queues }) {
                   {queue.urgency || "unknown"}
                 </span>
               </div>
-            </div>
+            </button>
           ))}
         </div>
       )}
