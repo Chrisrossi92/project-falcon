@@ -10,7 +10,6 @@ import OrdersTableRow from "@/components/orders/table/OrdersTableRow";
 import OrdersTablePagination from "@/components/orders/table/OrdersTablePagination";
 import OrderStatusBadge from "@/components/orders/table/OrderStatusBadge";
 import OrderDrawerContent from "@/components/orders/drawer/OrderDrawerContent";
-import OrderOpenFullLink from "@/components/orders/drawer/OrderOpenFullLink";
 import ReviewerActionCell from "@/components/orders/table/ReviewerActionCell";
 import { updateSiteVisitAt } from "@/lib/api/orders";
 import {
@@ -535,10 +534,6 @@ export default function UnifiedOrdersTable({
 
               const drawerNode = (
                 <div data-no-drawer>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="text-sm font-semibold">Order {orderNumberOf(o)}</div>
-                    <OrderOpenFullLink orderId={orderPk} />
-                  </div>
                   <OrderDrawerContent orderId={orderPk} order={o} onRefresh={refresh} />
                 </div>
               );
