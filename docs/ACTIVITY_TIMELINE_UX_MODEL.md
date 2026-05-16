@@ -195,6 +195,19 @@ Goals:
 
 The drawer should feel like an operational timeline, not a database event stream.
 
+## Sprint 1 Completion Note - 2026-05-16
+
+Activity Timeline Refinement Sprint 1 established the first implementation pass for person-first operational memory.
+
+Completed:
+
+- Human communication rows now prioritize actor identity and message readability.
+- System and workflow rows now render as quieter, compact audit memory.
+- Actor identity resolution now preserves `actor_name`, `actor_role`, `actor_email`, `actor_id`, and `actor_user_id` when returned by existing feeds or RPCs.
+- New notes now include best-effort actor metadata in `detail.actor`.
+- Generic `User` is now intended as the final fallback only.
+- Notification note language now supports person-first operational memory, while notification delivery remains separate from activity rendering.
+
 ## Future Direction
 
 Future activity timeline capabilities can include:
