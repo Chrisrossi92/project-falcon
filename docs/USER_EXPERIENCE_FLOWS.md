@@ -202,6 +202,14 @@ Company audit events:
 - Owner-only permissions require guardrails.
 - Invitation acceptance creates/links `public.users` and auth identity.
 
+### Current MVP Lock-In
+
+The Users area is now framed as a Team Directory rather than a raw user table. Adding a team member creates a Falcon team profile for assignments, roles, fee splits, active status, and identity color; auth invitations and login credentials remain separate future work.
+
+Identity color is treated as a profile/actor identity signal for avatars and future timeline/calendar identity surfaces. Profile color saves now use the auth/profile foreign key when available and fail gracefully when a team profile is not linked to an auth/profile identity.
+
+Team profile/auth linking remains an important future gap before Falcon has a complete team management and invitation model.
+
 ## 3. Admin Creating A Client
 
 ### Ideal Experience
@@ -255,6 +263,14 @@ Company/client audit events:
 - Orders reference clients.
 - Client portal users eventually map to client records.
 
+### Current MVP Lock-In
+
+Clients MVP lock-in is complete for the current primary-contact model. Client creation/edit labels the existing contact fields as the Primary Client Contact, and client detail uses live schema fields such as `contact_name_1`, `contact_email_1`, and `contact_phone_1` for display.
+
+Related client orders should show clickable order numbers that open full order detail.
+
+The existing `contacts` table remains dormant for now. Falcon should not activate save-to-client-profile contact behavior until the client contacts model is cleaned up and company-scoped.
+
 ## 4. Admin Creating And Assigning An Order
 
 ### Ideal Experience
@@ -276,6 +292,7 @@ After creation, the admin lands on the order drawer/detail with an activity entr
 
 - Order number preview.
 - Client picker with create-new option.
+- Selected-client primary contact preview when a known client is selected.
 - Property details.
 - Assignment controls.
 - Staff availability hints in future.
@@ -284,6 +301,7 @@ After creation, the admin lands on the order drawer/detail with an activity entr
 ### Actions Available
 
 - Create order.
+- Opt in to create a client record from a manual client name.
 - Assign appraiser.
 - Assign reviewer.
 - Add internal note.
@@ -311,6 +329,26 @@ Order activity events:
 - Assignment should use `public.users.id`.
 - Assignment creates or updates order responsibility.
 - Notification payload includes actor, recipient, order number, and assignment context.
+
+### Current MVP Lock-In
+
+New Order intake UX polish is complete for the current form surface:
+
+- Create mode uses `New Order` / `Create Order`; edit mode uses `Edit Order` / `Save Changes`.
+- The intake header shows order number preview, default/current status, and the framing "Create, assign, and schedule the order."
+- Form sections follow the intake mental model: Client & Contact, Property & Report, Scheduling, Assignment & Fee, then Notes.
+- Recommended cues are non-blocking helper callouts, not validation errors.
+- Post-create navigation has one primary destination: the newly-created order detail when the created order ID is available.
+
+Inline manual client creation from New Order is complete for the safe MVP path. When no existing client is selected and a manual client name is entered, admins can opt in to `Create client record from this name`. Falcon checks for obvious duplicate client names first; likely duplicates nudge the admin to select the existing client instead of auto-creating a duplicate. On submit, the client is created first, then the order is created with the new `client_id`; `manual_client_name` is cleared for that linked path. If client creation fails, the order is not created as a fake or missing linked client.
+
+Order-specific Client / Order Contact fields are deferred until schema-backed fields exist:
+
+- `client_contact_name`
+- `client_contact_email`
+- `client_contact_phone`
+
+These future fields represent the loan officer, processor, AMC coordinator, or client POC for a specific order. They must remain separate from property entry contact and site/access contact. Saving order contacts back to the client profile is deferred until the client contacts model is cleaned up.
 
 ## 5. Appraiser Receiving And Working An Order
 
@@ -1024,6 +1062,7 @@ UX patterns to prefer:
 
 - Status chips with clear meaning.
 - Compact operational tables.
+- Order inventory layouts that avoid horizontal scrolling for normal desktop use.
 - Drawer/detail workflows for orders.
 - Segmented filters for queues.
 - Inline previews for setup decisions.

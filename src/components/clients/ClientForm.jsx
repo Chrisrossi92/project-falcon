@@ -174,8 +174,17 @@ export default function ClientForm({ initial, onSubmit, submitLabel = "Save" }) 
           </div>
         )}
 
+        <div className="sm:col-span-2 pt-1">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+            Primary Client Contact
+          </div>
+          <p className="mt-1 text-xs text-slate-500">
+            Main client-side contact for routine order coordination.
+          </p>
+        </div>
+
         <div>
-          <label className="block text-xs text-gray-600 mb-1">Contact Name</label>
+          <label className="block text-xs text-gray-600 mb-1">Primary Contact Name</label>
           <input
             className="w-full rounded border px-3 py-2 text-sm"
             value={values.contact_name_1 || ""}
@@ -185,7 +194,7 @@ export default function ClientForm({ initial, onSubmit, submitLabel = "Save" }) 
         </div>
 
         <div>
-          <label className="block text-xs text-gray-600 mb-1">Contact Email</label>
+          <label className="block text-xs text-gray-600 mb-1">Primary Contact Email</label>
           <input
             className="w-full rounded border px-3 py-2 text-sm"
             type="email"
@@ -196,7 +205,7 @@ export default function ClientForm({ initial, onSubmit, submitLabel = "Save" }) 
         </div>
 
         <div>
-          <label className="block text-xs text-gray-600 mb-1">Phone</label>
+          <label className="block text-xs text-gray-600 mb-1">Primary Contact Phone</label>
           <input
             className="w-full rounded border px-3 py-2 text-sm"
             value={values.contact_phone_1 || ""}
@@ -230,5 +239,4 @@ export default function ClientForm({ initial, onSubmit, submitLabel = "Save" }) 
     </form>
   );
 }
-
 

@@ -9,18 +9,20 @@ export default function NewOrderPage() {
   const { success } = useToast();
 
   return (
-    <div className="p-4 space-y-3">
-      <h1 className="text-lg font-semibold">New Order</h1>
+    <div className="p-4">
       <OrderForm
-        onSaved={() => {
+        onSaved={(createdOrder) => {
           success("Order created");
-          navigate("/orders");
+          if (createdOrder?.id) {
+            navigate(`/orders/${createdOrder.id}`);
+          } else {
+            navigate("/orders");
+          }
         }}
       />
     </div>
   );
 }
-
 
 
 

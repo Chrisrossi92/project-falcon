@@ -5,6 +5,15 @@ import { listAssignableUsers } from "@/lib/services/usersService";
 function Label({ children }) { return <label className="block text-xs font-medium text-gray-600 mb-1">{children}</label>; }
 function MoneyInput(props){ return <input type="number" step="0.01" min="0" {...props} className={"w-full border rounded px-2 py-1 text-sm "+(props.className||"")} />; }
 function PercentInput(props){ return <input type="number" step="0.01" min="0" max="100" {...props} className={"w-full border rounded px-2 py-1 text-sm "+(props.className||"")} />; }
+function RecommendedCue({ show, children }) {
+  if (!show) return null;
+  return (
+    <div className="mt-2 inline-flex max-w-full items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-medium text-slate-600">
+      <span className="h-1.5 w-1.5 rounded-full bg-sky-400" aria-hidden />
+      <span>{children}</span>
+    </div>
+  );
+}
 const round2 = (n) => Math.round(Number(n || 0) * 100) / 100;
 
 export default function AssignmentFields({ value, onChange, isEdit }) {
@@ -13,6 +22,7 @@ export default function AssignmentFields({ value, onChange, isEdit }) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const lastCalcRef = useRef(null);
+  const needsAppraiser = !value.appraiser_id;
 
   const handleAppraiserChange = (appraiserId) => {
     onChange({ appraiser_id: appraiserId || null });
@@ -124,7 +134,7 @@ export default function AssignmentFields({ value, onChange, isEdit }) {
 
   return (
     <div className="rounded-md bg-white/60 p-3 border">
-      <div className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-2">Meta & Assignment</div>
+      <div className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-2">Assignment & Fee</div>
 
       <div className="grid grid-cols-3 gap-3">
         <div className="col-span-3 md:col-span-1">
@@ -152,6 +162,9 @@ export default function AssignmentFields({ value, onChange, isEdit }) {
             {appraisers.map((u) => (<option key={u.id} value={u.id}>{u.name}</option>))}
           </select>
           {!loading && appraisers.length === 0 && <div className="text-xs text-red-600 mt-1">No active appraisers found.</div>}
+          <RecommendedCue show={needsAppraiser && !loading && appraisers.length > 0}>
+            Recommended: assign an appraiser before creating the order.
+          </RecommendedCue>
         </div>
       </div>
 

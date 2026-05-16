@@ -29,6 +29,27 @@ Reference docs:
 - [ ] Activity log remains durable history.
 - [ ] Notifications remain delivery records.
 
+## Current MVP Polish Lock
+
+- [x] New Order intake UX polish complete: create/edit copy, intake header, order number preview, status preview, operational section order, and one post-create destination.
+- [x] New Order recommended cues are non-blocking helper callouts, not hard validation.
+- [x] Inline manual client creation from New Order complete for opt-in path.
+- [x] Manual client creation checks obvious duplicate client names before create.
+- [x] Manual client creation creates the client first, then creates the order with the new `client_id`.
+- [x] Manual client creation failure blocks order creation rather than creating a fake/missing linked order.
+- [x] Clients MVP lock-in complete for current primary-contact fields.
+- [x] Client form labels existing contact fields as Primary Client Contact.
+- [x] Client detail displays live primary contact fields and links related order numbers to full order detail.
+- [x] New Order selected-client primary contact preview complete.
+- [x] Contacts table remains dormant.
+- [x] Order-specific client POC fields are deferred until schema-backed columns exist: `client_contact_name`, `client_contact_email`, `client_contact_phone`.
+- [x] Team Directory MVP polish complete: page framing, Add Team Member copy, profile-only helper copy, identity color label, and card definition.
+- [x] Identity color profile saves are FK-safe and use auth/profile identity when available.
+- [x] Team profiles without auth/profile identity fail profile-color save gracefully instead of throwing a 409.
+- [x] Orders page inventory layout polish complete for current MVP surface.
+- [ ] Team profile/auth linking and true auth invite flow remain future Team Management work.
+- [ ] Client contact architecture remains future work before save-to-client-profile contact behavior.
+
 ## Phase 0: Contract Freeze
 
 ### Planning / Docs
@@ -487,11 +508,10 @@ Status: Notification payload contract MVP complete.
 - [x] Appraiser dashboard excludes `in_review`, `review_cleared`, `pending_final_approval`, `ready_for_client`, and `completed` from active queue while preserving Orders/history visibility.
 - [x] Main table workflow actions are permission-gated with legacy fallback during permission loading/errors.
 - [x] Reviewer template role no longer receives `workflow.status.ready_for_client`.
-- [ ] Redesign admin dashboard KPI cards as actionable queues rather than vanity stats.
-- [ ] Use proposed admin default KPI cards: Total Active Orders, Inspected / Awaiting Report, and Due to Client in 2 Days.
-- [ ] Make KPI clicks filter the dashboard order list to the matching subset.
-- [ ] Infer Inspected / Awaiting Report from `site_visit_at` / `site_visit_date <= now()` plus active/report-writing statuses for MVP.
-- [ ] Use `final_due_date`, `final_due_at`, or `due_date` for Due to Client KPI windows.
+- [x] Dashboard operational cockpit direction locked: slim role context, compact Operational Attention, calendar as primary visual surface, and Active Worklist directly below.
+- [x] Dashboard KPI/business cards intentionally removed from the default dashboard.
+- [x] KPI/business metrics deferred to Reports / Owner analytics instead of competing with daily operational workflow.
+- [ ] Create a dedicated Reports / Owner analytics destination before reintroducing business metric cards.
 - [ ] Defer configurable KPI card settings UI and DB-backed KPI configuration.
 - [x] Calendar + Appointment System MVP complete: site visit appears in row Dates, missing appointments can be set inline with `SiteVisitPicker`, and saves use local wall-clock timestamps instead of UTC conversion.
 - [x] Dashboard/table rows select `site_visit_at` before `site_visit_date`, avoiding the date-only fallback for appointment display.
@@ -500,10 +520,9 @@ Status: Notification payload contract MVP complete.
 - [x] Order row remains compact and date-only; calendar is the detailed scheduling surface for appointment time.
 - [ ] Manually re-save existing incorrect stored appointment timestamps where needed.
 - [ ] Defer company-level timezone support and richer calendar editing/drag-drop UX.
-- [ ] Redesign row action dropdown/popover as a unified Smart Actions button/panel.
-- [ ] Create Smart Actions action model/builder for valid actions by status, role, permissions, and responsibility.
-- [ ] Create `SmartActionsButton.jsx` and `SmartActionsPanel.jsx`.
-- [ ] First Smart Actions slice should replace main table workflow actions only while keeping existing handlers and `WorkflowNoteModal`.
+- [x] Shared Smart Actions descriptors/control are active for the main table and quick actions drawer.
+- [x] First Smart Actions slice replaced main dashboard/table workflow action rendering while preserving existing handlers and `WorkflowNoteModal`.
+- [ ] Future Smart Actions button/panel work remains for detail/drawer replacement, appointment/date editing, final approval policy settings, and bulk actions.
 - [x] Create and apply `rpc_transition_order_status`.
 - [x] Validate backend transition validation.
 - [x] Validate backend permission enforcement.
@@ -522,6 +541,10 @@ Status: Notification payload contract MVP complete.
 - [x] Request revisions path tested through backend RPC: `in_review` -> `needs_revisions`.
 - [x] Activity logging confirmed clean with one canonical `status_changed` row per new transition.
 - [x] Notification/toast behavior preserved.
+- [x] Activity Timeline Sprint 1 complete: person-first communication rows, quieter workflow rows, and centralized actor identity preservation.
+- [x] Activity Timeline Sprint 2 complete: frontend-only operational moment grouping for adjacent note plus workflow/status events within 90 seconds.
+- [x] New activity notes include best-effort actor metadata in `detail.actor`.
+- [ ] Resolve remaining backend/profile hydration cases where seeded/demo users still produce generic or incorrect actor labels.
 - [ ] Audit remaining generic status helpers/RPCs before restriction.
 - [ ] Keep old `rpc_update_order_status` until the generic usage audit is complete.
 - [ ] Do not tighten RLS until the generic usage audit is complete.

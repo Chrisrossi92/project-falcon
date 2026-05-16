@@ -2,8 +2,9 @@
 import React, { useEffect, useState } from "react";
 import supabase from "@/lib/supabaseClient";
 import ActivityLog from "@/components/activity/ActivityLog";
-import OrderDatesPanel from "@/components/orders/view/OrderDatesPanel";
-import AppraiserDrawerSummary from "@/components/orders/view/AppraiserDrawerSummary";
+import OrderStatusBadge from "@/components/orders/table/OrderStatusBadge";
+import OrderOpenFullLink from "@/components/orders/drawer/OrderOpenFullLink";
+import GoogleMapEmbed from "@/components/maps/GoogleMapEmbed";
 
 /** Pull from the normalized v4 view (no legacy fallback). */
 async function fetchViewRow(orderId) {
@@ -98,6 +99,55 @@ function findByKeyIncludesAll(obj, mustInclude = [], mustNotInclude = []) {
   return null;
 }
 
+function orderNumberOf(row) {
+  return row?.order_number || row?.order_no || (row?.id ? row.id.slice(0, 8) : "—");
+}
+
+function addressLineOf(row) {
+  return row?.address_line1 || row?.property_address || row?.address || "";
+}
+
+function cityLineOf(row) {
+  const city = row?.city || "";
+  const state = row?.state || "";
+  const zip = row?.postal_code || row?.zip || "";
+  return [[city, state].filter(Boolean).join(", "), zip].filter(Boolean).join(" ");
+}
+
+function mapsHrefFor(row) {
+  const parts = [
+    addressLineOf(row),
+    row?.city || "",
+    row?.state || "",
+    row?.postal_code || row?.zip || "",
+  ].filter(Boolean);
+  const query = parts.join(", ");
+  return query ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}` : null;
+}
+
+function compactLine(value) {
+  return value == null || String(value).trim() === "" ? null : String(value).trim();
+}
+
+function LocationPlaceholder({ addressLine, cityLine, mapsHref }) {
+  return (
+    <div className="relative min-h-[240px] overflow-hidden rounded-lg border border-dashed border-slate-200 bg-white">
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(0deg,rgba(148,163,184,0.08)_1px,transparent_1px)] bg-[size:22px_22px]" aria-hidden="true" />
+      <div className="absolute left-1/2 top-1/2 h-14 w-14 -translate-x-1/2 -translate-y-1/2 rounded-full border border-slate-200 bg-slate-50 shadow-sm" aria-hidden="true" />
+      <div className="absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-slate-500 shadow-sm" aria-hidden="true" />
+      <div className="absolute inset-x-3 bottom-3 rounded-lg border border-slate-200 bg-white/95 px-3 py-2 shadow-sm">
+        <div className="truncate text-xs font-semibold text-slate-800">{addressLine || "Address not set"}</div>
+        <div className="mt-1 truncate text-xs text-slate-500">{cityLine || "City not set"}</div>
+        {mapsHref && (
+          <a className="mt-2 inline-flex text-xs font-semibold text-slate-600 underline-offset-2 hover:text-slate-950 hover:underline" href={mapsHref} target="_blank" rel="noreferrer">
+            Open in Maps
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function OrderDrawerContent({ orderId, order: rowFromTable }) {
   const id = orderId ?? rowFromTable?.id ?? null;
 
@@ -135,25 +185,36 @@ export default function OrderDrawerContent({ orderId, order: rowFromTable }) {
     };
   }, [id, rowFromTable]);
 
-  async function handleSetAppointment(iso) {
-    if (!id) return;
-
-    const { error } = await supabase
-      .from("orders")
-      .update({ site_visit_at: iso })
-      .eq("id", id);
-
-    if (error) {
-      console.error(error);
-      return;
-    }
-
-    setRow((r) => ({ ...(r || {}), site_visit_at: iso })); // instant UI
-  }
-
   if (!id) return <div className="p-3 text-sm text-muted-foreground">No order selected.</div>;
   if (loading) return <div className="p-3 text-sm text-muted-foreground">Loading…</div>;
   if (err) return <div className="p-3 text-sm text-rose-700 bg-rose-50 border rounded">{err}</div>;
+
+  // Client contact selection is intentionally best-effort until Falcon has a dedicated client/order POC model.
+  const clientContactName =
+    firstTruthy(row, [
+      "client_contact_name",
+      "client_contact",
+      "loan_officer_name",
+      "loan_officer",
+      "borrower_name",
+    ]) ?? row?.client_name ?? null;
+  const clientContactPhone =
+    firstTruthy(row, [
+      "client_contact_phone",
+      "client_phone",
+      "loan_officer_phone",
+      "borrower_phone",
+    ]) ?? findByKeyIncludesAll(row, ["client", "phone"]);
+  const clientContactEmail =
+    firstTruthy(row, [
+      "client_contact_email",
+      "client_email",
+      "loan_officer_email",
+      "borrower_email",
+    ]) ?? findByKeyIncludesAll(row, ["client", "email"]);
+  const hasClientContact = Boolean(
+    compactLine(clientContactName) || compactLine(clientContactPhone) || compactLine(clientContactEmail)
+  );
 
   // ---- Resolve Property Contact from whatever columns exist on orders ----
   const contactName =
@@ -186,76 +247,139 @@ export default function OrderDrawerContent({ orderId, order: rowFromTable }) {
       ? `tel:${rawPhone.replace(/[^\d+]/g, "")}`
       : null;
 
+  const addressLine = addressLineOf(row);
+  const cityLine = cityLineOf(row);
+  const hasLocation = Boolean(addressLine || cityLine);
+  const mapsHref = mapsHrefFor(row);
+  const canRenderEmbeddedMap = Boolean(
+    hasLocation && (import.meta.env.VITE_GOOGLE_MAPS_API_KEY || import.meta.env.VITE_GOOGLE_MAPS_KEY)
+  );
+
   return (
-    <div className="grid grid-cols-12 gap-3">
-      {/* LEFT: Activity */}
-      <div className="col-span-12 lg:col-span-8 space-y-3">
-        <div className="rounded border bg-white flex flex-col">
-          <div className="flex items-center justify-between border-b px-3 py-2">
-            <div className="text-sm font-medium">Activity</div>
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="text-sm font-semibold text-slate-950">Order {orderNumberOf(row)}</div>
+            <OrderStatusBadge status={row?.status} />
           </div>
-          <div className="p-3 min-h-[700px] flex-1 flex flex-col">
-            <ActivityLog orderId={id} order={row} showComposer fill className="h-full flex-1" />
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+            <span className="font-medium text-slate-700">{row?.client_name || "Client not set"}</span>
+            {row?.appraiser_name && <span>Appraiser: {row.appraiser_name}</span>}
+            {(addressLine || cityLine) && (
+              <span className="max-w-xl truncate">
+                {[addressLine, cityLine].filter(Boolean).join(", ")}
+              </span>
+            )}
           </div>
         </div>
+        <OrderOpenFullLink orderId={id} className="shrink-0" />
       </div>
 
-      {/* RIGHT: Property Contact, Dates, Map */}
-      <div className="col-span-12 lg:col-span-4 space-y-3">
-        {/* Property Contact */}
-        <div className="rounded border bg-white">
-          <div className="flex items-center justify-between border-b px-3 py-2">
-            <div className="text-sm font-medium">Property Contact</div>
-          </div>
-          <div className="p-3 text-sm">
-            <div className="text-xs text-muted-foreground">Name</div>
-            <div>{contactName}</div>
-
-            <div className="mt-2 text-xs text-muted-foreground">Phone</div>
-            <div>
-              {telHref ? (
-                <a className="underline underline-offset-2" href={telHref}>
-                  {rawPhone}
-                </a>
-              ) : (
-                rawPhone || "—"
-              )}
+      <div className="grid grid-cols-12 gap-3">
+        <div className="col-span-12 xl:col-span-7">
+          <div className="rounded-xl border border-slate-200/80 bg-white">
+            <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
+              <div>
+                <div className="text-sm font-semibold text-slate-900">Activity</div>
+                <div className="text-xs text-slate-500">Recent timeline and notes</div>
+              </div>
+            </div>
+            <div className="p-2.5">
+              <ActivityLog orderId={id} order={row} showComposer height={340} className="text-sm" />
             </div>
           </div>
         </div>
 
-        {/* Dates (inline editable site visit) */}
-        <div className="rounded border bg-white">
-          <div className="flex items-center justify-between border-b px-3 py-2">
-            <div className="text-sm font-medium">Dates</div>
-          </div>
-          <div className="p-3">
-            <OrderDatesPanel
-              order={row} // includes site_visit_at from orders
-              hideTitle
-              editable
-              onSetAppointment={handleSetAppointment}
-            />
-          </div>
-        </div>
+        <div className="col-span-12 grid gap-3 md:grid-cols-2 xl:col-span-5 xl:grid-cols-1">
+          <div className="rounded-xl border border-slate-200/80 bg-white p-3">
+            <div className="mb-3 text-sm font-semibold text-slate-900">Order Contacts</div>
+            <div className="space-y-3 text-sm">
+              <div className="rounded-lg bg-slate-50/70 px-3 py-2">
+                <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Client Contact</div>
+                {hasClientContact ? (
+                  <div className="space-y-1">
+                    <ContactLine label="Name" value={clientContactName} />
+                    <ContactLine label="Phone" value={clientContactPhone} />
+                    <ContactLine label="Email" value={clientContactEmail} />
+                  </div>
+                ) : (
+                  <div className="text-xs font-medium text-slate-400">Not set</div>
+                )}
+              </div>
 
-        {/* Map */}
-        <div className="rounded border bg-white">
-          <div className="flex items-center justify-between border-b px-3 py-2">
-            <div className="text-sm font-medium">Map</div>
+              <div className="rounded-lg bg-slate-50/70 px-3 py-2">
+                <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Property Contact</div>
+                <div className="space-y-1">
+                  <ContactLine label="Name" value={contactName} />
+                  <div className="grid grid-cols-[44px_minmax(0,1fr)] gap-2">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Phone</div>
+                    <div className="truncate text-xs font-medium text-slate-700">
+                      {telHref ? (
+                        <a className="underline underline-offset-2 hover:text-slate-950" href={telHref}>
+                          {rawPhone}
+                        </a>
+                      ) : (
+                        rawPhone || "—"
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {row?.access_notes && (
+                <div>
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Access</div>
+                  <div className="mt-0.5 line-clamp-2 text-xs leading-5 text-slate-600">{row.access_notes}</div>
+                </div>
+              )}
+            </div>
           </div>
-          <div className="p-3">
-            <AppraiserDrawerSummary order={row} height={260} />
-          </div>
+
+          {hasLocation && (
+            <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <div className="text-sm font-semibold text-slate-900">Map / Location Preview</div>
+                {mapsHref ? (
+                  <a className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 transition hover:border-slate-300 hover:text-slate-900" href={mapsHref} target="_blank" rel="noreferrer">
+                    Open in Maps
+                  </a>
+                ) : (
+                  <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                    Preview
+                  </span>
+                )}
+              </div>
+              {canRenderEmbeddedMap ? (
+                <GoogleMapEmbed
+                  addressLine1={addressLine}
+                  city={row?.city}
+                  state={row?.state}
+                  zip={row?.postal_code || row?.zip}
+                  height={260}
+                  zoom={13}
+                />
+              ) : (
+                <LocationPlaceholder addressLine={addressLine} cityLine={cityLine} mapsHref={mapsHref} />
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-
-
-
+function ContactLine({ label, value }) {
+  const display = compactLine(value);
+  return (
+    <div className="grid grid-cols-[44px_minmax(0,1fr)] gap-2">
+      <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">{label}</div>
+      <div className={`truncate text-xs font-medium ${display ? "text-slate-700" : "text-slate-400"}`}>
+        {display || "Not set"}
+      </div>
+    </div>
+  );
+}
 
 
 

@@ -2,14 +2,25 @@ import React from "react";
 
 function Label({ children }) { return <label className="block text-xs font-medium text-gray-600 mb-1">{children}</label>; }
 function TextInput(props){ return <input {...props} className={"w-full border rounded px-2 py-1 text-sm "+(props.className||"")} />; }
+function RecommendedCue({ show, children }) {
+  if (!show) return null;
+  return (
+    <div className="mt-2 inline-flex max-w-full items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-medium text-slate-600">
+      <span className="h-1.5 w-1.5 rounded-full bg-sky-400" aria-hidden />
+      <span>{children}</span>
+    </div>
+  );
+}
 
 const PROPERTY_TYPES = ["Industrial","Office","Retail","Multifamily","Land","Mixed-Use","Special Purpose","Other"];
 const REPORT_TYPES   = ["Narrative","Form","Restricted","Review","Other"];
 
 export default function PropertyFields({ value, onChange }) {
+  const needsAddress = !String(value.address_line1 || value.property_address || "").trim();
+
   return (
     <div className="rounded-md bg-white/60 p-3 border">
-      <div className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-2">Property</div>
+      <div className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-2">Property & Report</div>
 
       <Label>Address</Label>
       <TextInput
@@ -18,6 +29,9 @@ export default function PropertyFields({ value, onChange }) {
         value={value.address_line1 || ""}
         onChange={(e) => onChange({ address_line1: e.target.value })}
       />
+      <RecommendedCue show={needsAddress}>
+        Recommended: add the property street address for scheduling and worklists.
+      </RecommendedCue>
 
       <div className="mt-3 grid grid-cols-6 gap-3">
         <div className="col-span-3">

@@ -24,6 +24,13 @@ function getUserColor(user) {
   return user?.color || user?.display_color || DEFAULT_COLOR;
 }
 
+function getProfileUserId(user) {
+  if (user?.auth_id) return user.auth_id;
+  if (user?.uid) return user.uid;
+  if (user && !("auth_id" in user) && !("uid" in user)) return user.id || null;
+  return null;
+}
+
 function roleLabel(role) {
   if (!role) return "-";
   const map = {
@@ -93,10 +100,13 @@ function NewUserModal({ open, onClose, onCreate, currentUser }) {
       <div className="absolute inset-0 bg-slate-900/10 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-lg rounded-2xl bg-white shadow-xl p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">New user</h2>
+          <h2 className="text-lg font-semibold">Add Team Member</h2>
           <button className="text-sm text-gray-500" onClick={onClose} disabled={submitting}>
             Close
           </button>
+        </div>
+        <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+          Creates a Falcon team profile for assignments, roles, fee splits, and identity color. Auth invite and login credentials are handled separately.
         </div>
         <form className="space-y-4" onSubmit={handleSubmit}>
           <label className="block text-sm">
@@ -163,7 +173,7 @@ function NewUserModal({ open, onClose, onCreate, currentUser }) {
             />
           </label>
 
-          <div className="text-xs text-gray-500">Login credentials are managed separately in Supabase Auth.</div>
+          <div className="text-xs text-gray-500">This does not send an auth invite or create login credentials.</div>
 
           <div className="flex justify-end gap-2">
             <button type="button" className="px-3 py-1.5 rounded-lg border text-sm" onClick={onClose} disabled={submitting}>
@@ -240,17 +250,20 @@ function UserCard({ user, currentUser, savingId, onSavePatch, onDelete, canUpdat
       console.warn("Only the owner can change roles");
     }
 
-    await onSavePatch(user.id, payload);
+    await onSavePatch(user.id, payload, getProfileUserId(user));
     setIsEditing(false);
   };
 
   const handleSelfColorSave = async () => {
     if (!canUpdateUsers) return;
-    await onSavePatch(user.id, { color: selfColor, display_color: selfColor });
+    await onSavePatch(user.id, { color: selfColor, display_color: selfColor }, getProfileUserId(user));
   };
 
   return (
-    <div className="flex h-80 flex-col rounded-2xl border p-4 shadow-sm overflow-hidden" style={{ borderColor: borderTint }}>
+    <div
+      className="flex h-80 flex-col rounded-xl border bg-white p-4 shadow-sm ring-1 ring-slate-100 transition-shadow hover:shadow-md overflow-hidden"
+      style={{ borderColor: borderTint }}
+    >
       {!isEditing ? (
         <div className="flex h-full flex-col transition-opacity duration-200">
           <div className="flex items-center gap-3">
@@ -308,7 +321,7 @@ function UserCard({ user, currentUser, savingId, onSavePatch, onDelete, canUpdat
                   onClick={() => colorInputRef.current?.click()}
                   disabled={savingId === user.id}
                 >
-                  Change color
+                  Change identity color
                 </button>
                 <input
                   ref={colorInputRef}
@@ -407,7 +420,7 @@ function UserCard({ user, currentUser, savingId, onSavePatch, onDelete, canUpdat
             )}
 
             <label className="block text-sm">
-              <span className="text-gray-600">Color</span>
+              <span className="text-gray-600">Identity color</span>
               <input
                 type="color"
                 className="mt-1 w-full border rounded-lg px-3 py-2 h-10"
@@ -499,7 +512,7 @@ export default function UsersIndex() {
     load();
   }, [showInactive, isOwnerOrAdmin]);
 
-  async function saveUserPatch(id, patch) {
+  async function saveUserPatch(id, patch, profileUserId = null) {
     if (!canUpdateUsers) {
       toast.error("You do not have permission to edit users");
       return;
@@ -532,7 +545,12 @@ export default function UsersIndex() {
         if (patch[k] !== undefined) profilePatch[k] = patch[k];
       });
       if (Object.keys(profilePatch).length > 0) {
-        await updateUserProfile(id, profilePatch);
+        const targetProfileUserId = profileUserId || null;
+        if (!targetProfileUserId) {
+          toast.error("This team profile is not linked to a login yet, so profile details cannot be saved.");
+          return;
+        }
+        await updateUserProfile(targetProfileUserId, profilePatch);
       }
 
       await load();
@@ -563,8 +581,8 @@ export default function UsersIndex() {
     }
 
     try {
-      const row = await createUserRecord(patch);
-      toast.success("User created");
+      await createUserRecord(patch);
+      toast.success("Team member profile created");
       await load();
     } catch (e) {
       if (e?.code === "23505" || (e?.message || "").toLowerCase().includes("duplicate")) {
@@ -578,8 +596,13 @@ export default function UsersIndex() {
 
   return (
     <div className="p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Users</h1>
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-950">Team Directory</h1>
+          <p className="mt-1 max-w-3xl text-sm text-slate-500">
+            Manage Falcon team profiles, roles, fee splits, active status, and identity colors for assignments and operational context.
+          </p>
+        </div>
         <div className="flex items-center gap-3">
           {isOwnerOrAdmin && (
             <label className="flex items-center gap-2 text-sm text-gray-700">
@@ -594,7 +617,7 @@ export default function UsersIndex() {
           )}
           {canCreateUsers && (
             <button className="px-3 py-1.5 rounded-lg border text-sm" onClick={() => setNewOpen(true)}>
-              + New user
+              Add Team Member
             </button>
           )}
           <button className="px-3 py-1.5 rounded-lg border text-sm" onClick={load} disabled={loading}>

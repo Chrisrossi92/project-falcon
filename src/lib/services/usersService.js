@@ -7,7 +7,7 @@ export async function listUsers(opts = {}) {
   const includeInactive = !!opts.includeInactive;
   let query = supabase
     .from("users")
-    .select("id, email, display_name, full_name, role, fee_split, is_active, status, color, phone, avatar_url, updated_at")
+    .select("id, auth_id, uid, email, display_name, full_name, role, fee_split, is_active, status, color, display_color, phone, avatar_url, updated_at")
     .order("display_name", { ascending: true });
   if (!includeInactive) {
     query = query.or("is_active.is.true,status.eq.active");

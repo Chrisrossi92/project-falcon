@@ -141,9 +141,11 @@ export default function OrdersTableRow({
         role="row"
         aria-expanded={isOpen ? "true" : "false"}
         className={[
-          "group border-b border-slate-100 cursor-pointer select-none transition-all duration-150 ease-out",
-          "hover:bg-slate-50 hover:shadow-[inset_3px_0_0_rgba(15,23,42,0.24)] active:scale-[0.997]",
-          "px-4",
+          "group cursor-pointer select-none border-b border-slate-100/80 transition-all duration-150 ease-out",
+          isOpen
+            ? "bg-slate-50 shadow-[inset_3px_0_0_rgba(15,23,42,0.45)]"
+            : "hover:-translate-y-px hover:bg-slate-50/80 hover:shadow-[inset_3px_0_0_rgba(15,23,42,0.22),0_8px_20px_rgba(15,23,42,0.04)] active:translate-y-0",
+          "px-5",
           className,
         ].join(" ")}
       >
@@ -151,8 +153,15 @@ export default function OrdersTableRow({
       </div>
 
       {isOpen && (
-        <div role="region" aria-label="Order inline details" className="border-b bg-slate-50/60 px-4 py-3">
-          <div className="rounded-lg border bg-white shadow-sm p-3" data-no-drawer>
+        <div
+          role="region"
+          aria-label="Order inline details"
+          className="border-b border-slate-100 bg-slate-50/80 px-5 pb-4 pt-0 transition-all duration-200 ease-out"
+        >
+          <div
+            className="origin-top rounded-b-xl rounded-t-none border border-t-0 border-slate-200/80 bg-white p-3 shadow-[0_14px_28px_rgba(15,23,42,0.06)] transition-all duration-200 ease-out"
+            data-no-drawer
+          >
             {drawer}
           </div>
         </div>
@@ -160,8 +169,6 @@ export default function OrdersTableRow({
     </>
   );
 }
-
-
 
 
 

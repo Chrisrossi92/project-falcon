@@ -387,7 +387,10 @@ export default function ClientDetail() {
                     Email
                   </span>
                   <span className="text-gray-900">
-                    {client.email || client.contact_email || "—"}
+                    {client.contact_email_1 ||
+                      client.email ||
+                      client.contact_email ||
+                      "—"}
                   </span>
                 </div>
                 <div className="flex flex-col gap-1">
@@ -540,7 +543,16 @@ function OrdersTable({ rows }) {
                 className="border-b last:border-0 hover:bg-slate-50/70"
               >
                 <td className="px-3 py-1.5 font-mono text-[11px]">
-                  {o.order_number || "—"}
+                  {o.id ? (
+                    <Link
+                      to={`/orders/${o.id}`}
+                      className="text-blue-600 underline-offset-2 hover:underline"
+                    >
+                      {o.order_number || "—"}
+                    </Link>
+                  ) : (
+                    o.order_number || "—"
+                  )}
                 </td>
                 <td className="px-3 py-1.5">
                   <div className="line-clamp-2 max-w-xs text-[11px] text-gray-800">

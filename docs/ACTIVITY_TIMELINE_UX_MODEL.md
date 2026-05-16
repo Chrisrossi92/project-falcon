@@ -220,6 +220,12 @@ Completed:
 - No fetching, services, RPCs, subscriptions, migrations, or filter behavior changed.
 - Future grouping can consider actor affinity, duplicate event collapse, and urgency semantics.
 
+## Actor Identity Color Lock - 2026-05-16
+
+Actor color is now treated as part of Falcon's operational identity model. Team Directory identity colors should be the source for avatar circles and future timeline/calendar identity surfaces when available, with generated/fallback colors used only when no saved identity color exists.
+
+Profile color saves remain tied to auth/profile identity until the team profile/auth linking model is normalized.
+
 ## Future Direction
 
 Future activity timeline capabilities can include:

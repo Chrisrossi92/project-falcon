@@ -2,6 +2,9 @@
 import { useMemo } from "react";
 import getColumnsForRole from "./ordersColumns";
 
-export default function useColumnsConfig(role, actions = {}) {
-  return useMemo(() => getColumnsForRole(role, actions), [role, actions]);
+export default function useColumnsConfig(role, actions = {}, options = {}) {
+  return useMemo(
+    () => getColumnsForRole(role, actions, options),
+    [role, actions, options.variant]
+  );
 }

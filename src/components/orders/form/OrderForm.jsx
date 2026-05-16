@@ -6,6 +6,7 @@ import AssignmentFields from "./AssignmentFields";
 import PropertyFields from "./PropertyFields";
 import DatesFields from "./DatesFields";
 import { createOrder, updateOrder } from "@/lib/services/ordersService";
+import { createClient, searchClientsByName } from "@/lib/services/clientsService";
 import supabase from "@/lib/supabaseClient";
 
 // ---- date helpers ----
@@ -74,11 +75,28 @@ function buildOrderPayload(values) {
   };
 }
 
+function formatStatusLabel(status) {
+  return String(status || "new")
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function normalizeClientName(name) {
+  return String(name || "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
 export default function OrderForm({ order, onClose, onSaved, onCancel }) {
   const navigate = useNavigate();
   const [values, setValues] = useState({});
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState(null);
+  const isEdit = Boolean(order?.id);
+  const formTitle = isEdit ? "Edit Order" : "New Order";
+  const submitLabel = isEdit ? "Save Changes" : "Create Order";
+  const savingLabel = isEdit ? "Saving..." : "Creating...";
+  const statusLabel = formatStatusLabel(values.status || "new");
+  const orderNumberPreview = values.order_number || "Generating order number";
 
   // hydrate from OrderFrontend
   useEffect(() => {
@@ -176,20 +194,56 @@ export default function OrderForm({ order, onClose, onSaved, onCancel }) {
     setError(null);
     setIsSaving(true);
     try {
-      const payload = buildOrderPayload({
+      const nextValues = {
         ...values,
         site_visit_at: values.site_visit_at
           ? fromLocalDateTimeInputToISO(values.site_visit_at)
           : null,
-      });
+      };
 
-      const isEdit = Boolean(order?.id);
+      const shouldCreateClient =
+        !isEdit &&
+        !nextValues.client_id &&
+        nextValues.create_client_from_manual &&
+        String(nextValues.manual_client_name || "").trim();
+
+      if (shouldCreateClient) {
+        const manualClientName = String(nextValues.manual_client_name || "").trim();
+        const matches = await searchClientsByName(manualClientName, { limit: 5 });
+        const normalizedManualName = normalizeClientName(manualClientName);
+        const duplicate = (matches || []).find(
+          (client) => normalizeClientName(client.name) === normalizedManualName
+        );
+
+        if (duplicate) {
+          throw new Error(
+            `A client named "${duplicate.name}" already exists. Select the existing client before creating the order.`
+          );
+        }
+
+        const createdClient = await createClient({
+          name: manualClientName,
+          status: "active",
+          category: "client",
+          amc_id: nextValues.managing_amc_id || null,
+        });
+
+        if (!createdClient?.id) {
+          throw new Error("Client record could not be created. The order was not created.");
+        }
+
+        nextValues.client_id = createdClient.id;
+        nextValues.manual_client_name = null;
+      }
+
+      const payload = buildOrderPayload(nextValues);
+
       const result = isEdit
         ? await updateOrder(order.id, payload)
         : await createOrder(payload);
 
       if (onSaved) onSaved(result);
-      if (result?.id) navigate(`/orders/${result.id}`);
+      else if (result?.id) navigate(`/orders/${result.id}`);
     } catch (err) {
       console.error("Failed to save order", err);
       setError(err.message || "Failed to save order. Please try again.");
@@ -203,8 +257,27 @@ export default function OrderForm({ order, onClose, onSaved, onCancel }) {
       onSubmit={handleSubmit}
       className="flex flex-col gap-6 p-6 bg-white h-full"
     >
-      <div className="flex items-center justify-between mb-1">
-        <h2 className="text-lg font-semibold tracking-tight">Edit Order</h2>
+      <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-2">
+          <div>
+            <h2 className="text-lg font-semibold tracking-tight text-slate-950">
+              {formTitle}
+            </h2>
+            <p className="text-sm text-slate-500">
+              {isEdit
+                ? "Update order intake, scheduling, assignment, and notes."
+                : "Create, assign, and schedule the order."}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 font-medium text-slate-700">
+              {orderNumberPreview}
+            </span>
+            <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-slate-600">
+              Status: {statusLabel}
+            </span>
+          </div>
+        </div>
         <div className="flex items-center gap-2">
           {error && (
             <span className="text-xs text-red-600 max-w-xs">
@@ -223,16 +296,16 @@ export default function OrderForm({ order, onClose, onSaved, onCancel }) {
             disabled={isSaving}
             className="text-sm px-4 py-1.5 rounded-md bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-60"
           >
-            {isSaving ? "Saving..." : "Save"}
+            {isSaving ? savingLabel : submitLabel}
           </button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 overflow-y-auto pr-1">
         <ClientFields value={values} values={values} onChange={handleChange} />
-        <AssignmentFields value={values} values={values} onChange={handleChange} />
         <PropertyFields value={values} values={values} onChange={handleChange} />
         <DatesFields value={values} values={values} onChange={handleChange} />
+        <AssignmentFields value={values} values={values} onChange={handleChange} />
         <div className="col-span-1 xl:col-span-2 space-y-2">
           <label className="block text-sm font-medium text-gray-700">
             Special Instructions (Internal)
@@ -249,8 +322,6 @@ export default function OrderForm({ order, onClose, onSaved, onCancel }) {
     </form>
   );
 }
-
-
 
 
 

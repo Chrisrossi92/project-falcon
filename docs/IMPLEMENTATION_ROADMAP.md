@@ -19,6 +19,25 @@ Implications:
 - Any database function using `auth.uid()` must map it through `public.users.auth_id` before comparing to domain records.
 - Order assignment, activity actors, notification recipients, preferences, and responsibility records should use `public.users.id`.
 
+## Current MVP Polish Lock - 2026-05-16
+
+These completed UI and service slices are locked as part of the current MVP hardening pass. They support Phase 0 visible-contract discipline, Phase 2 permission/profile compatibility, Phase 3 order operations, and Phase 4 activity/notification readability without adding new schema requirements.
+
+Completed:
+
+- New Order intake UX polish is complete: create/edit copy, compact intake header, generated order number preview, default/current status, operational section order, non-blocking recommended cues, and single post-create navigation to order detail when available.
+- Inline manual client creation from New Order is complete for the opt-in MVP path: duplicate name check first, create client first, then create order with `client_id`; if client creation fails, the order is not created as a fake linked record.
+- Clients MVP lock-in is complete for the current primary-contact model: client forms label Primary Client Contact fields, client detail uses live `contact_*_1` fields, related order numbers link to full order detail, and New Order previews selected-client primary contact context.
+- Team Directory MVP polish is complete: Users is framed as Team Directory, Add Team Member creates a Falcon team profile only, identity color is labeled consistently, and card/list visual definition is improved.
+- Identity color save behavior is FK-safe: profile/color writes target `auth_id`, then `uid`, and only fall back to public user ID when older data shape requires it; unlinked profiles show a calm error instead of causing a `user_profiles_user_id_fkey` 409.
+- Orders page inventory layout polish is complete for the current table/drawer surface, including stronger row definition and a more compact operational inventory feel.
+
+Deferred:
+
+- Team profile/auth linking and true auth invite/login credential creation remain future Team Management work.
+- Order-specific client POC fields remain deferred until schema-backed fields are added: `client_contact_name`, `client_contact_email`, and `client_contact_phone`.
+- The existing contacts table remains dormant. Save-to-client-profile contact behavior should wait for a cleaned-up, company-scoped client contacts model.
+
 ## Phase 0: Contract Freeze
 
 ### Goal
@@ -68,18 +87,21 @@ None.
 
 ## Phase 1: Identity Alignment Helpers And RPC Cleanup
 
-Status: In progress.
+Status: MVP identity bridge complete; canonical activity payload enrichment remains in progress.
 
 Completed:
 
 - Batch 1 notification identity alignment.
 - Batch 2 Step 1 access/RLS identity fixes.
 - Lifecycle-based reviewer order visibility.
+- Canonical `activity_log.actor_user_id` write path is in place for current activity RPC logging while legacy actor fields remain populated for compatibility.
+- Activity timeline rendering now preserves available actor identity fields and falls back to generic `User` only after real identity options are exhausted.
 
 Still pending:
 
-- Activity actor write-path cleanup.
 - Canonical activity payload enrichment.
+- Profile/display-name hydration cleanup where seeded/demo users still resolve to generic or incorrect names.
+- Generic status/helper audit before legacy activity/status write paths are restricted.
 
 ### Goal
 
@@ -203,7 +225,7 @@ Completed Phase 1 cleanup:
 
 ## Phase 2: Permission Compatibility Layer
 
-Status: MVP complete enough to move to Phase 3. Phase 3 work has not started.
+Status: MVP complete; Phase 3 responsibility resolver work has started and is MVP-complete for the current single-company workflow scope.
 
 Completed:
 
@@ -550,9 +572,9 @@ Deferred follow-up:
 - `review_cleared` is now introduced and validated for the default reviewer-to-admin handoff: reviewer actions move `in_review` to `review_cleared`, admin/owner can see those orders and continue client release, and `ready_for_client` remains the admin/owner release state.
 - `clearReview()` works, reviewer-facing UI says "Clear Review", direct reviewer status shortcuts use `REVIEW_CLEARED`, activity records "In Review -> Review Cleared", notification copy indicates review cleared/admin release handoff, and `npm run build` passed.
 - Appraiser dashboard active queue now includes only `new`, `in_progress`, and `needs_revisions`; `in_review`, `review_cleared`, `pending_final_approval`, `ready_for_client`, and `completed` are excluded from the active queue while remaining available in Orders/history.
-- Admin dashboard KPI direction: KPI cards should become actionable queues, not vanity stats. Proposed default cards are Total Active Orders, Inspected / Awaiting Report, and Due to Client in 2 Days.
-- Clicking an admin KPI should filter the dashboard order list to that subset. MVP can infer Inspected / Awaiting Report from `site_visit_at` / `site_visit_date <= now()` plus active/report-writing statuses, and Due to Client should use `final_due_date`, `final_due_at`, or `due_date` where available.
-- Future company settings should allow configurable KPI cards by card type, statuses, due window, label/header, and date field. Settings UI and DB-backed KPI configuration are deferred; first MVP implementation should stay frontend/service scoped using existing data fields.
+- Dashboard operational cockpit direction is locked: slim role context, compact Operational Attention signals, calendar as the primary visual surface, and Active Worklist directly below the cockpit.
+- Dashboard KPI/business cards were intentionally removed from the dashboard default experience. Business metrics and owner analytics are deferred to a dedicated Reports / Owner analytics surface.
+- Future company settings can still configure analytics cards, thresholds, labels, and date fields, but that belongs outside the daily operational dashboard unless the signal is directly tied to immediate work.
 - Calendar + Appointment System MVP is complete: site visit dates are visible in the order row Dates column, appraisers can set missing appointments inline through `SiteVisitPicker`, appointment saves use local wall-clock timestamps instead of UTC conversion, `site_visit_at` is selected before the date-only fallback, and the dashboard calendar refreshes through a dashboard summary refresh token after updates.
 - Calendar labels now use compact visible chips with street plus time for site visits and street-only labels for review/final due dates; full address remains available in the tooltip and chip overflow is contained.
 - Architecture decision: order rows stay compact and date-only for at-a-glance operations, while the calendar is the detailed scheduling surface where appointment time lives. Local browser time is the MVP source of truth for appointments.
@@ -567,6 +589,8 @@ Deferred follow-up:
 - Full lifecycle was tested through the backend RPC: `new` -> `in_review` -> `review_cleared` -> `pending_final_approval` -> `ready_for_client` -> `completed`.
 - Request revisions path was tested through the backend RPC: `in_review` -> `needs_revisions`.
 - Activity logging is confirmed clean with one canonical `status_changed` row per new transition, and notification/toast behavior is preserved.
+- Activity Timeline Refinement Sprint 1 is complete: human communication rows prioritize actor/message readability, system/workflow rows render as quieter audit memory, actor identity preservation is centralized, and new notes include best-effort actor metadata in `detail.actor`.
+- Activity Timeline Refinement Sprint 2 is complete: adjacent human note plus workflow/status events group visually as frontend-only operational moments within 90 seconds while preserving all raw activity rows.
 - Next milestone: audit remaining generic status helpers/RPCs before restriction.
 - Do not remove old `rpc_update_order_status` yet.
 - Do not tighten RLS until the generic usage audit is complete.

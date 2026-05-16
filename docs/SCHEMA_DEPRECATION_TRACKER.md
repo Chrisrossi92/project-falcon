@@ -73,7 +73,9 @@ Progress:
 - `public.current_app_user_id()` is now the required helper for auth-to-app-user mapping.
 - Notification identity paths are resolved.
 - RLS/read-check identity paths are partially resolved.
-- Remaining `auth.uid()` activity actor writes are the next Phase 1 target.
+- Canonical activity actor writes are in place for current `rpc_log_event` activity logging through `activity_log.actor_user_id`.
+- Legacy `created_by` and `actor_id` still intentionally store auth/profile-compatible identity for compatibility until activity readers fully migrate.
+- Remaining work is generic helper/RPC audit plus profile/display-name hydration cleanup, not a wholesale missing actor-field path.
 
 Canonical replacement:
 
@@ -83,7 +85,7 @@ Migration action:
 
 - Use `public.current_app_user_id()` for all app-domain comparisons.
 - Continue audit of RPCs, triggers, and RLS policies.
-- Patch remaining activity logging actor writes so actors are stored as `public.users.id`.
+- Keep writing canonical activity actors to `activity_log.actor_user_id` while legacy fields remain compatibility-only.
 
 Drop/archive condition:
 
@@ -144,10 +146,12 @@ Migration action:
 - Keep temporarily.
 - Backfill needed profile fields into `public.users`.
 - Update views/RPCs to read canonical user records.
+- Current Team Directory color/profile writes must use `public.users.auth_id`, then `public.users.uid`, before falling back to `public.users.id` for legacy shapes.
+- If no auth/profile identity exists, profile-color saves should fail gracefully instead of inserting/updating `user_profiles.user_id` with a non-auth public user ID.
 
 Drop/archive condition:
 
-Safe after `public.profiles`, activity actor hydration, admin user management, and calendar views no longer depend on it.
+Safe after `public.profiles`, activity actor hydration/display-name resolution, admin user management, and calendar views no longer depend on it.
 
 Roadmap phase:
 
@@ -202,7 +206,7 @@ Progress:
 - Phase 2 Step 2 added read-only compatibility resolver functions that can return current app user permission keys.
 - Phase 2 Step 3 added frontend permission constants and hooks that can consume resolver output.
 - Phase 2 Step 4 wired initial navigation, route guard, New Order button, and user edit/view permission plumbing: `TopNav` now uses `CLIENTS_READ_ALL` for clients route selection and `USERS_READ` for Users nav visibility with legacy fallback, `ProtectedRoute` accepts optional permission gate props, `/users` uses `USERS_READ`, `/settings` uses `SETTINGS_VIEW`, `/settings/notifications` uses `NOTIFICATIONS_PREFERENCES_MANAGE_OWN`, CommandPalette filters commands by permission, NewOrderButton uses `ORDERS_CREATE`, and UserDetail/UserCard edit behavior uses `USERS_UPDATE`.
-- Phase 2 Step 4 frontend permission plumbing is MVP-complete enough to move to Phase 3; Phase 3 work has not started.
+- Phase 2 Step 4 frontend permission plumbing is MVP-complete; Phase 3 responsibility resolver work has started and is MVP-complete for the current single-company workflow scope.
 - TopNav avatar Settings link and mobile Settings nav item now use `SETTINGS_VIEW`, with existing visibility preserved during permission loading/errors.
 - Chris, Pam, and Abby validated access successfully.
 - Chris/appraiser validated no New Order button; Abby/admin validated New Order button visible.
@@ -942,6 +946,9 @@ Progress:
 - `activity_log.actor_user_id` now captures the canonical `public.users.id` actor for note logging.
 - Legacy `created_by` and `actor_id` remain auth/profile identity for compatibility with the existing FK and activity display.
 - Reviewer/Pam note logging has been validated without `activity_log_created_by_fkey` errors.
+- Activity timeline UI now resolves actor identity from the richest available activity row/detail fields before falling back to generic `User`.
+- New frontend note creation includes best-effort actor metadata in `detail.actor`.
+- Some backend/profile hydration cases can still produce generic or incorrect actor display names and remain a separate cleanup item.
 
 Canonical replacement:
 
@@ -980,6 +987,7 @@ Progress:
 - Phase 1 cleanup updated both `rpc_log_event` overloads so canonical actor identity is written to `actor_user_id`.
 - `created_by` and `actor_id` remain `auth.uid()` to preserve legacy activity display and the existing `activity_log_created_by_fkey`.
 - Reviewer/Pam can post activity notes successfully.
+- Frontend note logging now sends best-effort actor name, email, role, and user ID in `detail.actor` for immediate render stability.
 
 Canonical replacement:
 
@@ -990,6 +998,7 @@ Migration action:
 - Patch identity and authorization.
 - Then enrich payload contract.
 - Keep actor writes split between canonical `actor_user_id` and legacy `created_by`/`actor_id` until activity display is migrated.
+- Audit remaining generic status/activity helper paths before restricting or removing legacy RPCs.
 
 Drop/archive condition:
 
@@ -1405,6 +1414,13 @@ Canonical replacement:
 
 Same table with `company_id`, `client_type`, `status`, metadata, and normalized contacts/billing profile.
 
+Current MVP lock:
+
+- Client forms use existing primary contact fields such as `contact_name_1`, `contact_email_1`, and `contact_phone_1`.
+- New Order can preview the selected client's saved primary contact fields for intake context.
+- Manual client creation from New Order can create a minimal client record by explicit opt-in after duplicate-name checking.
+- No contact table writes occur during order creation.
+
 Migration action:
 
 - Add nullable `company_id`.
@@ -1434,6 +1450,17 @@ May not be company-scoped or aligned with future portal users.
 Canonical replacement:
 
 `client_contacts`.
+
+Current MVP lock:
+
+- The existing contacts table remains dormant.
+- Save-to-client-profile contact behavior is deferred.
+- Property entry/site access contact remains order-specific and separate from client primary contact.
+- Order-specific client POC/contact fields are deferred until schema-backed columns exist:
+  - `orders.client_contact_name`
+  - `orders.client_contact_email`
+  - `orders.client_contact_phone`
+- Those future fields should represent the loan officer, processor, AMC coordinator, or client POC for a specific order, not the property/site access contact.
 
 Migration action:
 
@@ -1563,7 +1590,8 @@ Partially resolved. Earlier policies used JWT role claims and compared order ass
 Progress:
 
 - Phase 1 Batch 2 Step 1 patched read/check paths to use `public.current_app_user_id()` where safe.
-- Activity actor write paths remain pending.
+- Canonical activity actor writes are in place for current activity RPC logging through `activity_log.actor_user_id`.
+- Remaining work is to audit generic status/activity helper paths, policy edges, and profile/display-name hydration before legacy actor fields can be retired.
 
 Canonical replacement:
 
@@ -1572,7 +1600,7 @@ Policies using `current_app_user_id()`, permissions, and eventually `order_parti
 Migration action:
 
 - Keep patched read/check paths.
-- Patch remaining write/actor paths next.
+- Keep canonical actor writes on `activity_log.actor_user_id` and audit remaining generic helper/policy edges before restriction.
 - Later use permission/responsibility helpers.
 
 Drop/archive condition:
