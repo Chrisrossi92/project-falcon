@@ -208,6 +208,18 @@ Completed:
 - Generic `User` is now intended as the final fallback only.
 - Notification note language now supports person-first operational memory, while notification delivery remains separate from activity rendering.
 
+## Sprint 2 Completion Note - 2026-05-16
+
+Activity Timeline Refinement Sprint 2 added the first frontend-only timeline intelligence layer.
+
+Completed:
+
+- Adjacent human note and workflow/status events now group visually as an operational moment when they occur within 90 seconds.
+- Raw activity rows are preserved inside the grouped moment.
+- Auditability is preserved because no activity rows are deleted, collapsed, or filtered out.
+- No fetching, services, RPCs, subscriptions, migrations, or filter behavior changed.
+- Future grouping can consider actor affinity, duplicate event collapse, and urgency semantics.
+
 ## Future Direction
 
 Future activity timeline capabilities can include:
