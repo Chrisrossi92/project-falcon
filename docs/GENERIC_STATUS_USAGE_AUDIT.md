@@ -14,7 +14,7 @@ Do not remove `public.rpc_update_order_status` or tighten `orders.status` RLS un
 
 | Surface | Type | Current status | Risk | Recommended action |
 | --- | --- | --- | --- | --- |
-| `src/features/orders/actions.js:updateOrderStatus` | Frontend RPC wrapper | Legacy / quarantined caller path | Medium | Keep temporarily; verify no active UI imports beyond quarantined legacy panels before removal or rewrite. |
+| `src/features/orders/actions.js:updateOrderStatus` | Frontend RPC wrapper | Quarantined from feature barrel | Low / medium | Keep temporarily for legacy/reference purposes; verify again before removal. |
 | `src/lib/utils/updateOrderStatus.js` | Frontend utility | Unknown / legacy utility | Medium / high | Audit imports and callers; replace active workflow use with named `ordersService` helpers. |
 | `src/lib/api/orders.js:updateOrderStatus` | Frontend direct table update | Legacy API helper | Medium | Keep for compatibility until callers are classified; do not use for normal lifecycle workflow. |
 | `src/lib/api/orders.js:bulkUpdateStatus` | Frontend direct table bulk update | Unknown / possible admin-support path | High | Audit callers and product intent; likely needs explicit admin override semantics before restriction. |
@@ -29,10 +29,12 @@ Do not remove `public.rpc_update_order_status` or tighten `orders.status` RLS un
 - Accepts arbitrary `newStatus`.
 - Calls `rpc_update_order_status`.
 - Current repo note: already marked deprecated for normal workflow lifecycle actions.
-- Apparent usage: imported by `src/features/orders/OrderActionsPanel.jsx`, which is documented as quarantined from the public orders barrel.
-- Status: **Legacy / quarantined caller path**.
-- Risk: **Medium** because it can still mutate arbitrary status if imported directly.
-- Recommended action: audit any active imports outside quarantined legacy UI. If unused, remove or keep quarantined until a broader cleanup. If used, migrate normal workflow callers to named `ordersService` helpers.
+- No longer exported through `src/features/orders/index.js`.
+- File still exists for legacy/reference purposes.
+- No active imports were found during the latest search.
+- Status: **Quarantined from feature barrel**.
+- Risk: **Low / medium** because direct imports are still possible, but normal barrel imports no longer expose it.
+- Recommended action: keep temporarily for legacy/reference purposes. Verify again before removal. Backend RPCs and other generic helpers are not removed yet.
 
 ### `src/lib/utils/updateOrderStatus.js`
 
