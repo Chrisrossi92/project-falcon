@@ -279,51 +279,65 @@ export default function DashboardPage() {
 
 function OperationalQueuesPanel({ activeQueueId, onClear, onSelect, queues }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ring-1 ring-slate-100">
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <div>
-          <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Operational Queues</h2>
-          <p className="mt-1 text-sm text-slate-500">Deterministic alerts from active dashboard orders.</p>
+    <section className="rounded-2xl border border-slate-200/80 bg-gradient-to-b from-white to-slate-50/70 p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ring-white">
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="h-1.5 w-1.5 rounded-full bg-slate-400" aria-hidden="true" />
+            <h2 className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Operational Attention</h2>
+          </div>
+          <p className="mt-1.5 text-sm text-slate-500">Deterministic queue signals from active dashboard orders.</p>
         </div>
         {activeQueueId && (
           <button
             type="button"
             onClick={onClear}
-            className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+            className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition duration-150 hover:-translate-y-px hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
           >
             Clear Filter
           </button>
         )}
       </div>
       {queues.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
-          No operational queue alerts right now.
+        <div className="rounded-xl border border-dashed border-slate-200 bg-white/75 px-4 py-5">
+          <div className="text-sm font-medium text-slate-700">No operational queue alerts right now.</div>
+          <div className="mt-1 text-xs text-slate-500">Active work is clear of the current deterministic attention signals.</div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 xl:grid-cols-4">
           {queues.map((queue) => (
             <button
               key={queue.id}
               type="button"
               onClick={() => onSelect(queue.id)}
-              className={`rounded-xl border p-3 text-left transition ${
+              className={`group relative overflow-hidden rounded-xl border px-3.5 py-3 text-left transition duration-150 ${
                 activeQueueId === queue.id
-                  ? "border-slate-800 bg-slate-100 ring-1 ring-slate-800"
-                  : "border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-white"
+                  ? "border-slate-900 bg-white shadow-[0_10px_24px_rgba(15,23,42,0.08)] ring-1 ring-slate-900"
+                  : "border-slate-200/80 bg-white/70 shadow-[0_1px_1px_rgba(15,23,42,0.03)] hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:shadow-[0_10px_22px_rgba(15,23,42,0.06)]"
               }`}
             >
-              <div className="flex items-start justify-between gap-3">
+              <div className={`absolute inset-x-0 top-0 h-0.5 ${urgencyAccentClass(queue.urgency)}`} aria-hidden="true" />
+              <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold text-slate-900">{queue.label}</div>
-                  <div className="mt-1 text-xs leading-snug text-slate-500">{queue.description}</div>
+                  <div className="flex items-center gap-2">
+                    <span className={`h-2 w-2 rounded-full ${urgencyDotClass(queue.urgency)}`} aria-hidden="true" />
+                    <div className="truncate text-sm font-semibold text-slate-950">{queue.label}</div>
+                  </div>
+                  <div className="mt-1.5 line-clamp-2 text-xs leading-snug text-slate-500">{queue.description}</div>
                 </div>
-                <div className="rounded-lg bg-white px-2.5 py-1 text-lg font-semibold text-slate-950 shadow-sm">
-                  {queue.count}
+                <div className="shrink-0 text-right">
+                  <div className="text-2xl font-semibold leading-none tracking-tight text-slate-950">{queue.count}</div>
+                  <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                    order{queue.count === 1 ? "" : "s"}
+                  </div>
                 </div>
               </div>
-              <div className="mt-3">
-                <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${urgencyClass(queue.urgency)}`}>
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${urgencyClass(queue.urgency)}`}>
                   {queue.urgency || "unknown"}
+                </span>
+                <span className={`text-[11px] font-semibold transition ${activeQueueId === queue.id ? "text-slate-900" : "text-slate-400 group-hover:text-slate-600"}`}>
+                  {activeQueueId === queue.id ? "Selected" : "Filter"}
                 </span>
               </div>
             </button>
@@ -337,16 +351,48 @@ function OperationalQueuesPanel({ activeQueueId, onClear, onSelect, queues }) {
 function urgencyClass(urgency) {
   switch (urgency) {
     case "critical":
-      return "border-rose-200 bg-rose-50 text-rose-700";
+      return "border-rose-200 bg-rose-50/80 text-rose-700";
     case "high":
-      return "border-amber-200 bg-amber-50 text-amber-700";
+      return "border-amber-200 bg-amber-50/80 text-amber-700";
     case "medium":
     case "medium_high":
-      return "border-sky-200 bg-sky-50 text-sky-700";
+      return "border-sky-200 bg-sky-50/80 text-sky-700";
     case "low":
-      return "border-emerald-200 bg-emerald-50 text-emerald-700";
+      return "border-emerald-200 bg-emerald-50/80 text-emerald-700";
     default:
       return "border-slate-200 bg-white text-slate-600";
+  }
+}
+
+function urgencyDotClass(urgency) {
+  switch (urgency) {
+    case "critical":
+      return "bg-rose-500";
+    case "high":
+      return "bg-amber-500";
+    case "medium":
+    case "medium_high":
+      return "bg-sky-500";
+    case "low":
+      return "bg-emerald-500";
+    default:
+      return "bg-slate-400";
+  }
+}
+
+function urgencyAccentClass(urgency) {
+  switch (urgency) {
+    case "critical":
+      return "bg-rose-400";
+    case "high":
+      return "bg-amber-400";
+    case "medium":
+    case "medium_high":
+      return "bg-sky-400";
+    case "low":
+      return "bg-emerald-400";
+    default:
+      return "bg-slate-300";
   }
 }
 
