@@ -4,7 +4,13 @@ import { listOrderActivity, subscribeOrderActivity } from "@/lib/services/activi
 import ActivityNoteForm from "@/components/activity/ActivityNoteForm";
 import Legend from "./Legend";
 import DaySection from "./DaySection";
-import { dayKey, dayLabel, displayNameFrom } from "./utils";
+import {
+  dayKey,
+  dayLabel,
+  displayNameFrom,
+  getActivityActorColorSeed,
+  resolveActivityActor,
+} from "./utils";
 
 // treat these as system events (no user badge)
 const SYSTEM_TYPES = new Set([
@@ -81,10 +87,11 @@ export default function ActivityLog({
     const map = new Map();
     for (const it of rows) {
       if (SYSTEM_TYPES.has(it?.event_type)) continue;
+      const actor = resolveActivityActor(it);
       const key = it?.created_by_email || it?.created_by || displayNameFrom(it?.created_by_name, it?.created_by_email, it?.created_by);
-      const name = displayNameFrom(it?.created_by_name, it?.created_by_email, it?.created_by);
-      const email = it?.created_by_email || null;
-      if (!map.has(key)) map.set(key, { key, name, email });
+      const name = actor.shortName || displayNameFrom(it?.created_by_name, it?.created_by_email, it?.created_by);
+      const colorSeed = getActivityActorColorSeed(actor);
+      if (!map.has(key)) map.set(key, { key, name, email: colorSeed, colorSeed });
     }
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [rows]);
@@ -205,7 +212,6 @@ const grouped = useMemo(() => {
     </div>
   );
 }
-
 
 
 

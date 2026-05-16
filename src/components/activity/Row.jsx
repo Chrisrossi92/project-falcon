@@ -6,6 +6,7 @@ import {
   formatWhen,
   formatActivity,
   resolveActivityActor,
+  colorForActivityActor,
   isHumanCommunicationEvent,
   isSystemEvent,
 } from "./utils";
@@ -17,6 +18,7 @@ export default function Row({ item, grouped = false }) {
   const label = LABEL[et] || et || "Event";
 
   const actor = resolveActivityActor(item);
+  const actorColor = colorForActivityActor(actor);
 
   let body = formatActivity(item);
   if (!body) {
@@ -36,7 +38,10 @@ export default function Row({ item, grouped = false }) {
         ].join(" ")}
       >
         <div className="flex items-start gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-700">
+          <div
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-xs font-semibold"
+            style={actorColor}
+          >
             {actor.initials}
           </div>
 

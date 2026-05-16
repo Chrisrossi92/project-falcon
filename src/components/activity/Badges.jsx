@@ -19,8 +19,8 @@ export function TypeBadge({ type = "system" }) {
   );
 }
 
-export function UserBadge({ nameOrId, email }) {
-  const seed = email || nameOrId || "";
+export function UserBadge({ nameOrId, email, seed: explicitSeed }) {
+  const seed = explicitSeed || email || nameOrId || "";
   const c = colorForUser(seed);
   const bg = hsl({ h: c.h, s: c.s, l: c.l });
   const br = hsl({ h: c.h, s: c.s, l: c.borderL });

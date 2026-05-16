@@ -82,12 +82,12 @@ export function resolveActivityActor(item = {}) {
     detail.created_by_email
   );
   const id = firstText(
-    item.created_by,
-    item.actor_id,
     item.actor_user_id,
+    detail.actor_user_id,
     actor.user_id,
+    item.actor_id,
     detail.actor_id,
-    detail.actor_user_id
+    item.created_by
   );
   const fallback = !isGenericUserLabel(realName)
     ? realName
@@ -104,6 +104,21 @@ export function resolveActivityActor(item = {}) {
     email,
     id,
     isGeneric: fullName === "User",
+  };
+}
+
+export function getActivityActorColorSeed(actor = {}) {
+  return actor.id || actor.email || actor.fullName || actor.shortName || "";
+}
+
+export function colorForActivityActor(actor = {}) {
+  const seed = getActivityActorColorSeed(actor);
+  const color = colorForUser(seed);
+
+  return {
+    backgroundColor: hsl({ h: color.h, s: color.s, l: color.l }),
+    borderColor: hsl({ h: color.h, s: color.s, l: color.borderL }),
+    color: color.text,
   };
 }
 
