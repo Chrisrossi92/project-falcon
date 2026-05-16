@@ -393,12 +393,11 @@ export async function markReadyForClient(orderId, note = null) {
     throw error;
   }
 
-  const { data: order, error } = await supabase
-    .from(ORDERS_TABLE)
-    .update({ status: OrderStatus.READY_FOR_CLIENT })
-    .eq("id", orderId)
-    .select("id, reviewer_id, order_number, status")
-    .maybeSingle();
+  const { data: order, error } = await supabase.rpc("rpc_transition_order_status", {
+    p_order_id: orderId,
+    p_transition_key: "ready_for_client",
+    p_note: note ?? null,
+  });
 
   if (error) throw error;
   if (!order) throw new Error("No order updated (permission or id mismatch).");
@@ -679,7 +678,6 @@ export async function isOrderNumberAvailable(orderNo, { excludeId = null } = {})
   if (res2.error) throw res2.error;
   return (res2.count || 0) === 0;
 }
-
 
 
 
