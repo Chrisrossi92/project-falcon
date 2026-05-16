@@ -314,12 +314,11 @@ export async function clearReview(orderId, note = null) {
     throw error;
   }
 
-  const { data: order, error } = await supabase
-    .from(ORDERS_TABLE)
-    .update({ status: OrderStatus.REVIEW_CLEARED })
-    .eq("id", orderId)
-    .select("id, appraiser_id, reviewer_id, order_number, status")
-    .maybeSingle();
+  const { data: order, error } = await supabase.rpc("rpc_transition_order_status", {
+    p_order_id: orderId,
+    p_transition_key: "approve_review",
+    p_note: note ?? null,
+  });
 
   if (error) throw error;
   if (!order) throw new Error("No order updated (permission or id mismatch).");
@@ -359,7 +358,15 @@ export async function requestFinalApproval(orderId, note = null) {
     throw error;
   }
 
-  return setOrderStatus(orderId, OrderStatus.PENDING_FINAL_APPROVAL);
+  const { data: order, error } = await supabase.rpc("rpc_transition_order_status", {
+    p_order_id: orderId,
+    p_transition_key: "request_final_approval",
+    p_note: note ?? null,
+  });
+
+  if (error) throw error;
+  if (!order) throw new Error("No order updated (permission or id mismatch).");
+  return order;
 }
 export async function markReadyForClient(orderId, note = null) {
   const { data: existingOrder, error: existingOrderError } = await supabase
@@ -672,8 +679,6 @@ export async function isOrderNumberAvailable(orderNo, { excludeId = null } = {})
   if (res2.error) throw res2.error;
   return (res2.count || 0) === 0;
 }
-
-
 
 
 
