@@ -7,6 +7,25 @@ import { getSmartOrderActions } from "@/features/orders/smartActions";
 const fmtDate = (d) =>
   !d ? "-" : isNaN(new Date(d)) ? "-" : new Date(d).toLocaleDateString();
 
+const dueDateTone = (d) => {
+  if (!d || isNaN(new Date(d))) return "text-slate-500";
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(d);
+  target.setHours(0, 0, 0, 0);
+  const days = Math.ceil((target.getTime() - today.getTime()) / 86400000);
+  if (days < 0) return "text-rose-700";
+  if (days <= 2) return "text-amber-700";
+  return "text-slate-700";
+};
+
+const DueDateLine = ({ label, value }) => (
+  <div className="flex items-center justify-between gap-2 whitespace-nowrap rounded-lg bg-slate-50/70 px-2 py-1">
+    <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">{label}</span>
+    <span className={`text-[12px] font-semibold tabular-nums ${dueDateTone(value)}`}>{fmtDate(value)}</span>
+  </div>
+);
+
 const pickFee = (r) => [r?.base_fee, r?.appraiser_fee].find((x) => x != null);
 const money = (n) =>
   n == null ? "-" : Number(n).toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 });
@@ -54,6 +73,31 @@ const addressCell = (o) => (
   </div>
 );
 
+const propertySummaryCell = (o) => {
+  const propertyType = o?.property_type || "Property type not set";
+  const reportType = o?.report_type || "Report type not set";
+  const location = cityLine(o);
+
+  return (
+    <div className="min-w-0 text-sm">
+      <div className="truncate font-medium text-slate-900" title={o.address_line1 || ""}>
+        {o.address_line1 || "-"}
+      </div>
+      <div className="mt-1 truncate text-xs text-slate-500" title={location}>
+        {location || "-"}
+      </div>
+      <div className="mt-2 flex min-w-0 flex-wrap gap-1.5">
+        <span className="max-w-full truncate rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+          {propertyType}
+        </span>
+        <span className="max-w-full truncate rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-medium text-slate-500">
+          {reportType}
+        </span>
+      </div>
+    </div>
+  );
+};
+
 const propertyReportColumnBase = {
   id: "property_report",
   width: "200px",
@@ -74,6 +118,12 @@ const feeOnlyCell = (o) => (
   <div className="text-sm whitespace-nowrap font-medium">{money(pickFee(o))}</div>
 );
 
+const dashboardFeeCell = (o) => (
+  <div className="text-center">
+    <div className="text-sm font-semibold tabular-nums text-slate-900">{money(pickFee(o))}</div>
+  </div>
+);
+
 const datesColumnBase = {
   id: "dates",
   width: "200px",
@@ -83,23 +133,24 @@ const datesColumnBase = {
     const rev = order?.review_due_at ?? null;
     const fin = order?.final_due_at ?? null;
     return (
-      <div className="space-y-1 text-[12px] leading-tight">
-        <div className="whitespace-nowrap text-slate-700" title={site || ""}>
+      <div className="space-y-1.5 text-[12px] leading-tight">
+        <div className="flex items-center justify-between gap-2 whitespace-nowrap rounded-lg bg-slate-50/70 px-2 py-1" title={site || ""}>
+          <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Site</span>
           {site ? (
-            <>Site:&nbsp;{fmtDate(site)}</>
+            <span className="text-[12px] font-semibold text-slate-700 tabular-nums">{fmtDate(site)}</span>
           ) : isAppraiser && onSetSiteVisit ? (
             <SiteVisitPicker
               value={site}
               emptyLabel="Site: Not set"
-              buttonClassName="h-6 px-2 text-[12px] font-medium"
+              buttonClassName="h-6 rounded-full px-2 text-[12px] font-medium"
               onChange={(iso) => onSetSiteVisit(order, iso)}
             />
           ) : (
-            <>Site:&nbsp;Not set</>
+            <span className="text-[12px] font-semibold text-slate-500">Not set</span>
           )}
         </div>
-        <div className="text-rose-600" title={rev || ""}>Rev:&nbsp;{fmtDate(rev)}</div>
-        <div className="text-rose-600" title={fin || ""}>Final:&nbsp;{fmtDate(fin)}</div>
+        <DueDateLine label="Review" value={rev} />
+        <DueDateLine label="Final" value={fin} />
       </div>
     );
   },
@@ -107,8 +158,9 @@ const datesColumnBase = {
 
 const col = (key, width, header, cell, extras = {}) => ({ key, width, header, cell, ...extras });
 
-export function getColumnsForRole(role, actions = {}) {
+export function getColumnsForRole(role, actions = {}, options = {}) {
   const normalizedRole = (role || "appraiser").toString().toLowerCase();
+  const isDashboardVariant = options?.variant === "dashboard";
   const isAppraiser = normalizedRole === "appraiser";
   const isReviewer = normalizedRole === "reviewer";
   const {
@@ -129,19 +181,21 @@ export function getColumnsForRole(role, actions = {}) {
     onRequestFinalApproval,
     onReadyForClient,
   };
-  const orderStatusColumn = col("order",      "180px",              () => "Order / Stat.",       (order) => orderCell(order), { locked: true });
-  const clientColumn = col("client",    "200px",              () => "Client / Appraiser",                clientCell);
+  const orderStatusColumn = col("order",      isDashboardVariant ? "minmax(120px,0.78fr)" : "minmax(150px,0.82fr)",              () => "Order / Status",       (order) => orderCell(order), { locked: true });
+  const clientColumn = col("client",    isDashboardVariant ? "minmax(130px,0.9fr)" : "minmax(150px,0.9fr)",              () => "Client / Appraiser",                clientCell);
   const addressColumn = col("address",  "minmax(200px,1fr)",  () => "Address",               addressCell);
+  const propertySummaryColumn = col("propertySummary", isDashboardVariant ? "minmax(170px,1.15fr)" : "minmax(220px,1.35fr)", () => "Property Summary", propertySummaryCell);
   const propertyReportColumn = col("propReport",  propertyReportColumnBase.width,  propertyReportColumnBase.header, (order) => propertyReportColumnBase.cell(order));
-  const feeColumn = col("fee",          "140px",              () => "Fee",                   feeOnlyCell);
-  const datesColumn = col("dates",   datesColumnBase.width,   datesColumnBase.header, (order) => datesColumnBase.cell(order, { isAppraiser, onSetSiteVisit }));
+  const feeColumn = col("fee",          isDashboardVariant ? "92px" : "104px",              () => "Fee",                   isDashboardVariant ? dashboardFeeCell : feeOnlyCell, { align: isDashboardVariant ? "center" : undefined });
+  const datesColumn = col("dates",   isDashboardVariant ? "minmax(128px,0.82fr)" : "minmax(150px,0.82fr)",   isDashboardVariant ? () => "Dates" : datesColumnBase.header, (order) => datesColumnBase.cell(order, { isAppraiser, onSetSiteVisit }));
 
   const ACTIONS_COL_WIDTH = "w-[140px]";
 
   const actionsColumn = {
     key: "actions",
     id: "actions",
-    width: "140px",
+    width: isDashboardVariant ? "126px" : "128px",
+    align: isDashboardVariant ? "center" : undefined,
     header: () => (
       <div className={`${ACTIONS_COL_WIDTH} flex justify-center text-xs font-medium text-muted-foreground`}>
         Actions
@@ -156,19 +210,27 @@ export function getColumnsForRole(role, actions = {}) {
         permissions,
         handlers,
       });
-      return <SmartActionsControl actions={smartActions} />;
+      return <SmartActionsControl actions={smartActions} variant={isDashboardVariant ? "dashboard" : "table"} />;
     },
   };
 
-  const columns = [
-    orderStatusColumn,
-    clientColumn,
-    addressColumn,
-    propertyReportColumn,
-    feeColumn,
-    actionsColumn,
-    datesColumn,
-  ];
+  const columns = isDashboardVariant
+    ? [
+        orderStatusColumn,
+        clientColumn,
+        propertySummaryColumn,
+        feeColumn,
+        actionsColumn,
+        datesColumn,
+      ]
+    : [
+        orderStatusColumn,
+        clientColumn,
+        propertySummaryColumn,
+        feeColumn,
+        actionsColumn,
+        datesColumn,
+      ];
 
   return columns;
 }

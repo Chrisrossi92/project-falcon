@@ -55,9 +55,15 @@ export default function OrdersPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Orders</h1>
-        <NewOrderButton show className="ml-2" />
+      <div className="flex flex-wrap items-end justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+        <div className="min-w-0">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Operational Inventory</div>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">Orders</h1>
+          <p className="mt-1 max-w-2xl text-sm text-slate-500">
+            Search, filter, and manage the full order record without changing dashboard queue focus.
+          </p>
+        </div>
+        <NewOrderButton show className="shrink-0" />
       </div>
 
       <OrdersFilters value={filters} onChange={onChange} />
@@ -78,7 +84,6 @@ export default function OrdersPage() {
     </div>
   );
 }
-
 
 
 

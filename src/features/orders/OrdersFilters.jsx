@@ -54,22 +54,30 @@ export default function OrdersFilters({ value, onChange }) {
   // helper: convert single status to statusIn array for the table
   const isActive = (key) => (v.statusIn?.[0] || "") === key;
   const setStatus = (key) => set({ statusIn: key ? [key] : [] });
+  const controlClass =
+    "h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 shadow-sm transition focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100";
 
   return (
-    <div className="rounded-2xl border bg-white p-4 space-y-3">
-      {/* Search row */}
+    <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-3">
+        <div className="min-w-0">
+          <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Find Orders</div>
+          <div className="mt-1 text-sm text-slate-500">Filter the full inventory by status, owner, client, and due window.</div>
+        </div>
+      </div>
+
       <div className="flex flex-wrap items-center gap-3">
         <input
-          className="w-full md:w-[380px] rounded-md border px-3 py-2 text-sm"
+          className={`${controlClass} w-full md:w-[360px]`}
           placeholder="Order # / Title / Address"
           value={v.search ?? ""}
           onChange={(e) => set({ search: e.target.value, page: 0 })}
         />
 
-        <div className="flex items-center gap-2">
-          <label className="text-sm text-gray-600">Client</label>
+        <div className="flex min-w-[13rem] items-center gap-2">
+          <label className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Client</label>
           <select
-            className="border rounded-md px-3 py-2 text-sm min-w-[12rem]"
+            className={`${controlClass} min-w-[10rem]`}
             value={v.clientId ?? ""}
             onChange={(e) => set({ clientId: e.target.value, page: 0 })}
           >
@@ -82,10 +90,10 @@ export default function OrdersFilters({ value, onChange }) {
           </select>
         </div>
 
-        <div className="flex items-center gap-2">
-          <label className="text-sm text-gray-600">Appraiser</label>
+        <div className="flex min-w-[13rem] items-center gap-2">
+          <label className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Appraiser</label>
           <select
-            className="border rounded-md px-3 py-2 text-sm min-w-[10rem]"
+            className={`${controlClass} min-w-[10rem]`}
             value={v.appraiserId ?? ""}
             onChange={(e) => set({ appraiserId: e.target.value, page: 0 })}
           >
@@ -101,7 +109,7 @@ export default function OrdersFilters({ value, onChange }) {
 
       {/* Status pills (single-select → statusIn[0]) */}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="text-sm text-gray-600 mr-1">Status</div>
+        <div className="mr-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Status</div>
         {STATUS.map(([key, label]) => {
           const active = isActive(key);
           return (
@@ -110,8 +118,10 @@ export default function OrdersFilters({ value, onChange }) {
               type="button"
               onClick={() => setStatus(active ? "" : key)}
               className={
-                "text-xs px-2.5 py-1.5 rounded-md border " +
-                (active ? "bg-black text-white border-black" : "bg-white hover:bg-gray-50")
+                "rounded-full border px-2.5 py-1.5 text-xs font-semibold shadow-sm transition " +
+                (active
+                  ? "border-slate-800 bg-slate-900 text-white ring-1 ring-slate-800"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900")
               }
             >
               {label}
@@ -123,9 +133,9 @@ export default function OrdersFilters({ value, onChange }) {
       {/* Priority + Due */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
-          <label className="text-sm text-gray-600">Priority</label>
+          <label className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Priority</label>
           <select
-            className="border rounded-md px-3 py-2 text-sm"
+            className={controlClass}
             value={v.priority ?? ""}
             onChange={(e) => set({ priority: e.target.value, page: 0 })}
           >
@@ -138,9 +148,9 @@ export default function OrdersFilters({ value, onChange }) {
         </div>
 
         <div className="flex items-center gap-2">
-          <label className="text-sm text-gray-600">Due</label>
+          <label className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Due</label>
           <select
-            className="border rounded-md px-3 py-2 text-sm"
+            className={controlClass}
             value={v.dueWindow ?? ""}
             onChange={(e) => set({ dueWindow: e.target.value, page: 0 })}
           >

@@ -459,8 +459,8 @@ export default function UnifiedOrdersTable({
     variant: isDashboardWorklist ? "dashboard" : "default",
   });
   const template = columns.map((c) => c.width).join(" ");
-  const tableMinWidth = isDashboardWorklist ? "0" : "900px";
-  const tableWidth = isDashboardWorklist ? "100%" : undefined;
+  const tableMinWidth = "0";
+  const tableWidth = "100%";
 
   const stickyHeader = "bg-slate-50/95 sticky left-0 z-20 pr-4 border-r border-slate-200/70";
   const stickyCell = "bg-white sticky left-0 z-10 pr-4 border-slate-200/70 group-hover:bg-slate-50/80";
@@ -498,7 +498,7 @@ export default function UnifiedOrdersTable({
       )}
 
       {/* header */}
-      <div className={isDashboardWorklist ? "overflow-hidden" : "overflow-x-auto"}>
+      <div className="overflow-hidden">
         <div
           className="sticky top-0 z-10 border-b border-slate-200/80 bg-slate-50/95 px-3 py-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 shadow-[0_1px_0_rgba(15,23,42,0.04)] backdrop-blur"
           style={{ display: "grid", gridTemplateColumns: template, columnGap: ".25rem", minWidth: tableMinWidth, width: tableWidth }}
