@@ -27,8 +27,13 @@ function shape(row) {
     title: row.title ?? null,
     created_at: row.created_at,
     created_by: row.created_by,
-    created_by_name: row.created_by_name || null,
-    created_by_email: row.created_by_email || null,
+    created_by_name: row.created_by_name || row.actor_name || null,
+    created_by_email: row.created_by_email || row.actor_email || null,
+    actor_name: row.actor_name || null,
+    actor_role: row.actor_role || null,
+    actor_email: row.actor_email || null,
+    actor_id: row.actor_id || null,
+    actor_user_id: row.actor_user_id || null,
     detail: row.detail || null,
   };
 }
@@ -76,13 +81,28 @@ export function subscribeOrderActivity(orderId, cb) {
 }
 
 // Insert a note with cached author info for robustness
-export async function logNote(orderId, message) {
+export async function logNote(orderId, message, options = {}) {
   if (!orderId) throw new Error("Missing orderId");
+
+  const actor = options?.actor || null;
+  const details = {
+    note: message,
+    ...(actor
+      ? {
+          actor: {
+            name: actor.name || null,
+            email: actor.email || null,
+            user_id: actor.user_id || null,
+            role: actor.role || null,
+          },
+        }
+      : {}),
+  };
 
   const { data: newId, error } = await supabase.rpc("rpc_log_event", {
     p_order_id: orderId,
     p_event_type: "note",
-    p_details: { note: message },
+    p_details: details,
   });
 
   if (error) {
@@ -95,7 +115,6 @@ export async function logNote(orderId, message) {
   const found = feed.find((r) => r.id === newId) || null;
   return found || { id: newId, order_id: orderId, event_type: "note", message, created_at: new Date().toISOString() };
 }
-
 
 
 

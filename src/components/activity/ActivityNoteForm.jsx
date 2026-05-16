@@ -74,6 +74,40 @@ export default function ActivityNoteForm({ orderId, order = null, onSaved }) {
     return "User";
   }
 
+  function currentUserEmail() {
+    return currentUser?.email || currentUser?.user_metadata?.email || null;
+  }
+
+  async function resolveActorMetadata() {
+    const name = await currentUserDisplayName();
+    let email = currentUserEmail();
+
+    if (!email) {
+      try {
+        const profile = await getCurrentUserProfile();
+        email = profile?.email || null;
+      } catch {
+        // Best-effort actor metadata only; note logging should continue.
+      }
+    }
+
+    if (!email) {
+      try {
+        const { data } = await supabase.auth.getUser();
+        email = data?.user?.email || null;
+      } catch {
+        // Best-effort actor metadata only; note logging should continue.
+      }
+    }
+
+    return {
+      name,
+      email,
+      user_id: userId || currentUser?.id || null,
+      role: role || null,
+    };
+  }
+
   async function resolveOrderNumber() {
     const localOrderNumber = usableOrderNumber(order?.order_number || order?.order_no || order?.orderNumber);
     if (localOrderNumber) return localOrderNumber;
@@ -185,7 +219,8 @@ export default function ActivityNoteForm({ orderId, order = null, onSaved }) {
     const message = msg.trim();
     try {
       setBusy(true); setErr(null);
-      await logNote(orderId, message);
+      const actor = await resolveActorMetadata();
+      await logNote(orderId, message, { actor });
       try {
         await emitNoteNotification(message);
       } catch (notifyErr) {

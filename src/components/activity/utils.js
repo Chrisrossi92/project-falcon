@@ -27,7 +27,88 @@ export function displayNameFrom(createdByName, createdByEmail, createdById) {
   return createdById || "User";
 }
 
+function firstText(...values) {
+  return values
+    .map((value) => String(value || "").trim())
+    .find(Boolean) || null;
+}
+
+function isGenericUserLabel(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return !normalized || normalized === "user" || normalized === "demo user" || normalized === "system";
+}
+
+function shortenDisplayName(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  if (raw.includes("@")) return displayNameFrom(null, raw, null);
+
+  const parts = raw.split(/\s+/).filter(Boolean);
+  if (parts.length <= 1) return raw;
+
+  const first = parts[0];
+  const last = parts[parts.length - 1];
+  const initial = last ? `${last.charAt(0).toUpperCase()}.` : "";
+  return [first, initial].filter(Boolean).join(" ");
+}
+
+function initialsFor(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "U";
+  const source = raw.includes("@") ? raw.split("@")[0] : raw;
+  const parts = source.split(/[._\-\s]+/).filter(Boolean);
+  if (!parts.length) return "U";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
+
+export function resolveActivityActor(item = {}) {
+  const detail = item?.detail && typeof item.detail === "object" ? item.detail : {};
+  const actor = detail?.actor && typeof detail.actor === "object" ? detail.actor : {};
+
+  const realName = firstText(
+    item.created_by_name,
+    item.actor_name,
+    actor.name,
+    actor.full_name,
+    detail.actor_name,
+    detail.created_by_name
+  );
+  const email = firstText(
+    item.created_by_email,
+    item.actor_email,
+    actor.email,
+    detail.actor_email,
+    detail.created_by_email
+  );
+  const id = firstText(
+    item.created_by,
+    item.actor_id,
+    item.actor_user_id,
+    actor.user_id,
+    detail.actor_id,
+    detail.actor_user_id
+  );
+  const fallback = !isGenericUserLabel(realName)
+    ? realName
+    : email
+    ? displayNameFrom(null, email, null)
+    : id || "User";
+  const fullName = fallback || "User";
+  const shortName = shortenDisplayName(fullName) || fullName;
+
+  return {
+    fullName,
+    shortName,
+    initials: initialsFor(fullName),
+    email,
+    id,
+    isGeneric: fullName === "User",
+  };
+}
+
 export const LABEL = {
+  note: "Note",
   note_added: "Note",
   order_created: "Order created",
   status_changed: "Status",
