@@ -8,7 +8,7 @@ This document is intentionally audit-focused. It tracks current risk, completed 
 
 ## Current hardening status
 
-Status: **Primary workflow guard slice complete.**
+Status: **Backend workflow enforcement foundation complete; frontend helper migration next.**
 
 Completed:
 
@@ -31,6 +31,12 @@ Completed:
   - `src/lib/api/orders.js`
   - `src/lib/utils/updateOrderStatus.js`
   - `src/features/orders/actions.js`
+- Created and applied `rpc_transition_order_status`.
+- Validated backend transition validation and permission enforcement.
+- Validated missing permission rejection and invalid transition rejection.
+- Validated happy path `submit_to_review`.
+- Disabled duplicate legacy order activity triggers.
+- Confirmed RPC transitions now produce one clean `status_changed` activity row.
 
 ## Canonical workflow reference
 
@@ -65,9 +71,9 @@ Primary table workflow actions call named service helpers from `src/lib/services
 
 Risk level: **Low / improving**
 
-Reason: the main table path routes through Smart Actions and guarded service helpers. Permission fallback remains intentionally preserved for MVP compatibility.
+Reason: the main table path routes through Smart Actions and guarded service helpers. Permission fallback remains intentionally preserved for MVP compatibility. Backend RPC enforcement is validated but the frontend service helpers have not yet been migrated to call it.
 
-Recommended action: **Keep. Next hardening step is to pass real permission context into guarded helpers rather than `{ loading: true }`.**
+Recommended action: **Migrate workflow helpers to `rpc_transition_order_status` one at a time, starting with `sendOrderToReview`.**
 
 ## Status write surfaces
 
@@ -190,11 +196,13 @@ Recommended action: **Keep quarantined. Later delete, move to dev-only tooling, 
 
 The primary workflow path is now guarded, but remaining productization risks are:
 
-1. Backend/Supabase still needs authoritative transition enforcement.
+1. Frontend workflow helpers still need to migrate to the validated backend transition RPC.
 2. Generic status helpers still exist for compatibility and could be misused later.
 3. Permission context is not yet passed into service-layer guards; current calls preserve MVP fallback behavior.
 4. Workflow action rendering is still duplicated across table/drawer/reviewer shortcut surfaces.
 5. Company-specific workflow settings do not exist yet.
+6. `rpc_update_order_status` must remain until all helpers migrate and validation passes.
+7. RLS should not be tightened until all helpers migrate and validation passes.
 
 ## Recommended cleanup sequence
 
@@ -248,7 +256,7 @@ Document generic legacy status mutation helpers as deprecated for normal workflo
 - `src/lib/utils/updateOrderStatus.js`
 - `src/features/orders/actions.js`
 
-### Slice 8 — Next
+### Slice 8 — Completed
 
 Consolidate action rendering:
 
@@ -256,24 +264,37 @@ Consolidate action rendering:
 - Move table/drawer/detail surfaces toward one Smart Actions descriptor model.
 - Keep existing handlers and modals while sharing descriptors.
 
-### Slice 9
+### Slice 9 — Completed
 
 Design Supabase enforcement:
 
-- either transition RPC
-- or trigger/policy enforcement
-- or both
+- `rpc_transition_order_status` created and applied.
+- Transition validation works.
+- Permission enforcement works.
+- Missing permission rejection validated.
+- Invalid transition rejection validated.
+- Happy path `submit_to_review` validated.
+- Duplicate legacy order activity triggers disabled.
+- Activity now logs one clean `status_changed` row after an RPC transition.
 
 Goal: frontend and backend enforce the same lifecycle rules.
 
+### Slice 10 — Next
+
+Migrate frontend workflow helpers to the transition RPC one at a time:
+
+- Start with `ordersService.sendOrderToReview`.
+- Keep old `rpc_update_order_status` until all helpers migrate and validation passes.
+- Do not tighten RLS until all helpers migrate and validation passes.
+
 ## Immediate next slice recommendation
 
-Proceed with a small Smart Actions consolidation audit before coding.
+Proceed with one frontend helper migration to `rpc_transition_order_status`.
 
 Specifically:
 
-1. Identify every component rendering order workflow action buttons.
-2. Classify whether each uses guarded helpers, generic helpers, or duplicated action logic.
-3. Pick one UI surface to migrate toward shared Smart Actions descriptors.
+1. Migrate `ordersService.sendOrderToReview` first.
+2. Validate the RPC transition, notification behavior, and single `status_changed` activity row.
+3. Continue helper-by-helper only after validation passes.
 
-This keeps the next phase aligned with productization and reduces the chance of new action drift.
+This keeps backend enforcement adoption incremental while preserving compatibility paths.

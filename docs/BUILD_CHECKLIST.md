@@ -493,11 +493,30 @@ Status: Notification payload contract MVP complete.
 - [ ] Infer Inspected / Awaiting Report from `site_visit_at` / `site_visit_date <= now()` plus active/report-writing statuses for MVP.
 - [ ] Use `final_due_date`, `final_due_at`, or `due_date` for Due to Client KPI windows.
 - [ ] Defer configurable KPI card settings UI and DB-backed KPI configuration.
+- [x] Calendar + Appointment System MVP complete: site visit appears in row Dates, missing appointments can be set inline with `SiteVisitPicker`, and saves use local wall-clock timestamps instead of UTC conversion.
+- [x] Dashboard/table rows select `site_visit_at` before `site_visit_date`, avoiding the date-only fallback for appointment display.
+- [x] Dashboard calendar refreshes after inline site visit updates through a dashboard summary refresh token.
+- [x] Calendar chips use compact visible labels and contain overflow; site visits show street plus time, review/final due dates show street only, and full address is retained for tooltip context.
+- [x] Order row remains compact and date-only; calendar is the detailed scheduling surface for appointment time.
+- [ ] Manually re-save existing incorrect stored appointment timestamps where needed.
+- [ ] Defer company-level timezone support and richer calendar editing/drag-drop UX.
 - [ ] Redesign row action dropdown/popover as a unified Smart Actions button/panel.
 - [ ] Create Smart Actions action model/builder for valid actions by status, role, permissions, and responsibility.
 - [ ] Create `SmartActionsButton.jsx` and `SmartActionsPanel.jsx`.
 - [ ] First Smart Actions slice should replace main table workflow actions only while keeping existing handlers and `WorkflowNoteModal`.
-- [ ] Defer drawer/detail replacement, appointment/date editing, final approval policy settings, backend/RLS enforcement, and bulk actions.
+- [x] Create and apply `rpc_transition_order_status`.
+- [x] Validate backend transition validation.
+- [x] Validate backend permission enforcement.
+- [x] Validate missing permission rejection.
+- [x] Validate invalid transition rejection.
+- [x] Validate happy path `submit_to_review`.
+- [x] Disable duplicate legacy order activity triggers.
+- [x] Confirm RPC transition activity logs one clean `status_changed` row.
+- [ ] Migrate frontend `ordersService` workflow helpers to `rpc_transition_order_status` one at a time.
+- [ ] Migrate `sendOrderToReview` first.
+- [ ] Keep old `rpc_update_order_status` until all helpers migrate and validation passes.
+- [ ] Do not tighten RLS until all helpers migrate and validation passes.
+- [ ] Defer drawer/detail replacement, appointment/date editing, final approval policy settings, RLS tightening, and bulk actions.
 - [ ] Activity event retains context after reassignment.
 - [ ] Admin feed prototype can render from payload.
 
