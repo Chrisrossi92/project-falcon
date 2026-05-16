@@ -8,6 +8,7 @@ import Card from "@/components/ui/Card";
 import useSession from "@/lib/hooks/useSession";
 import useOrderEvents from "@/lib/hooks/useOrderEvents";
 import useRole from "@/lib/hooks/useRole";
+import { getTopOperationalQueues, summarizeOperationalQueues } from "@/features/queues/queueSummary";
 import { useMemo, useState } from "react";
 import { ClockAlert, ClipboardCheck, Layers3 } from "lucide-react";
 
@@ -95,6 +96,14 @@ export default function DashboardPage() {
     ? "Review assigned orders and keep technical clearance moving."
     : "Track assigned work, due dates, and revision requests.";
   const ordersCount = summary.orders.count ?? 0;
+  const queueSummaries = useMemo(
+    () => summarizeOperationalQueues(ordersRows || []),
+    [ordersRows]
+  );
+  const topQueues = useMemo(
+    () => getTopOperationalQueues(queueSummaries, 4),
+    [queueSummaries]
+  );
   const summaryCards = isAdmin
     ? [
         {
@@ -179,6 +188,8 @@ export default function DashboardPage() {
         ))}
       </div>
 
+      <OperationalQueuesPanel queues={topQueues} />
+
       {/* Calendar section */}
       <section className="space-y-2">
         <div className="flex items-baseline justify-between gap-2">
@@ -251,6 +262,61 @@ export default function DashboardPage() {
       )}
     </div>
   );
+}
+
+function OperationalQueuesPanel({ queues }) {
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ring-1 ring-slate-100">
+      <div className="mb-3 flex items-baseline justify-between gap-3">
+        <div>
+          <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Operational Queues</h2>
+          <p className="mt-1 text-sm text-slate-500">Deterministic alerts from active dashboard orders.</p>
+        </div>
+      </div>
+      {queues.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
+          No operational queue alerts right now.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {queues.map((queue) => (
+            <div key={queue.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-slate-900">{queue.label}</div>
+                  <div className="mt-1 text-xs leading-snug text-slate-500">{queue.description}</div>
+                </div>
+                <div className="rounded-lg bg-white px-2.5 py-1 text-lg font-semibold text-slate-950 shadow-sm">
+                  {queue.count}
+                </div>
+              </div>
+              <div className="mt-3">
+                <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${urgencyClass(queue.urgency)}`}>
+                  {queue.urgency || "unknown"}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function urgencyClass(urgency) {
+  switch (urgency) {
+    case "critical":
+      return "border-rose-200 bg-rose-50 text-rose-700";
+    case "high":
+      return "border-amber-200 bg-amber-50 text-amber-700";
+    case "medium":
+    case "medium_high":
+      return "border-sky-200 bg-sky-50 text-sky-700";
+    case "low":
+      return "border-emerald-200 bg-emerald-50 text-emerald-700";
+    default:
+      return "border-slate-200 bg-white text-slate-600";
+  }
 }
 
 function SummaryCard({ label, subtext, value, loading, icon: Icon, accent = "from-slate-600 to-slate-400", active = false, onClick }) {
