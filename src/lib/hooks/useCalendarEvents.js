@@ -1,12 +1,13 @@
 import { useCallback } from "react";
 import supabase from "@/lib/supabaseClient";
 import { OrderStatus } from "@/lib/services/ordersService";
+import {
+  formatCalendarEventTitle as formatSharedCalendarEventTitle,
+  normalizeCalendarEvent,
+} from "@/lib/calendar/normalizeCalendarEvent";
 
 export function formatCalendarEventTitle(type, { address = "", orderId = null } = {}) {
-  const addr = (address || "").trim();
-  if (addr) return addr;
-  if (orderId) return `Order ${orderId.toString().slice(0, 8)}`;
-  return "Event";
+  return formatSharedCalendarEventTitle(type, { address, orderId });
 }
 
 /**
@@ -47,7 +48,7 @@ export default function useCalendarEventLoader({ mode = null, reviewerId = null 
 
       return (data || []).map((row) => {
         const type = row.event_type || "event";
-        return {
+        return normalizeCalendarEvent({
           id: row.id,
           type,
           title: formatCalendarEventTitle(type, { address: row.address, orderId: row.order_id }),
@@ -61,7 +62,7 @@ export default function useCalendarEventLoader({ mode = null, reviewerId = null 
           street: row.address || "",
           address: row.address || "",
           colorClass: TYPE_COLORS[type] || "bg-slate-200 border-slate-200",
-        };
+        });
       });
     } catch (e) {
       // fall through to RPC
@@ -85,7 +86,7 @@ export default function useCalendarEventLoader({ mode = null, reviewerId = null 
       // We can’t distinguish review vs final from `kind === 'due'` in this RPC,
       // so call it "due_for_review" for now; update if your RPC includes more detail.
       const type = e.kind === "site_visit" ? "site_visit" : "due_for_review";
-      return {
+      return normalizeCalendarEvent({
         id: `${e.order_id}-${type}-${e.at}`,
         type,
         title: formatCalendarEventTitle(type, { address: e.address, orderId: e.order_id }),
@@ -98,7 +99,7 @@ export default function useCalendarEventLoader({ mode = null, reviewerId = null 
         street: e.address || "",
         address: e.address || "",
         colorClass: TYPE_COLORS[type] || "bg-slate-200 border-slate-200",
-      };
+      });
     });
   }, []);
 }

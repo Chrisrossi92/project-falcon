@@ -16,6 +16,8 @@ export default function TwoWeekCalendar({
   compact = true,
   role = "appraiser",
   focusToday = false,        // when weeks=1 shows a stacked list for today
+  selectedDay,
+  onSelectDay,
 }) {
   const [anchor, setAnchor] = useState(() => startOfWeek(new Date()));
   const daysPerRow = showWeekends ? 7 : 5;
@@ -108,8 +110,22 @@ export default function TwoWeekCalendar({
         {days.map((d, i) => {
           const list = (byDay.get(d.toDateString()) || []).sort((a,b)=>new Date(a.start)-new Date(b.start));
           const isToday = sameDate(d, new Date());
+          const isSelected = selectedDay && sameDate(d, selectedDay);
           return (
-            <div key={i} className={`min-h-[140px] border border-slate-100 -m-[0.5px] p-1 md:p-2 ${isToday ? "bg-amber-50/30 ring-1 ring-inset ring-amber-100" : ""}`}>
+            <div
+              key={i}
+              role={onSelectDay ? "button" : undefined}
+              tabIndex={onSelectDay ? 0 : undefined}
+              onClick={() => onSelectDay?.(new Date(d))}
+              onKeyDown={(event) => {
+                if (!onSelectDay) return;
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onSelectDay(new Date(d));
+                }
+              }}
+              className={`min-h-[140px] border border-slate-100 -m-[0.5px] p-1 transition md:p-2 ${onSelectDay ? "cursor-pointer hover:bg-slate-50" : ""} ${isToday ? "bg-amber-50/30 ring-1 ring-inset ring-amber-100" : ""} ${isSelected ? "relative z-[1] bg-blue-50/40 ring-1 ring-inset ring-blue-200" : ""}`}
+            >
               <div className={`text-[11px] font-semibold md:text-xs ${isToday ? "text-amber-800" : "text-slate-600"}`}>{d.getDate()}</div>
               <div className="mt-1 space-y-1">
                 {list.slice(0, 4).map(ev => (
@@ -124,4 +140,3 @@ export default function TwoWeekCalendar({
     </div>
   );
 }
-

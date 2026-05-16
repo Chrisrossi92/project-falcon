@@ -150,7 +150,10 @@ export default function EventChip({ event, compact = true, role = "appraiser", o
         className={`flex max-w-full min-w-0 items-center overflow-hidden rounded-md border text-left shadow-[0_1px_0_rgba(15,23,42,0.03)] transition ${chipClasses(type, pressure)} ${
           compact ? "gap-1 px-1.5 py-[2px] text-[11px] leading-4" : "gap-2 px-2 py-1 text-xs leading-5"
         }`}
-        onClick={() => onClick?.(event)}
+        onClick={(clickEvent) => {
+          clickEvent.stopPropagation();
+          onClick?.(event, clickEvent);
+        }}
         title={titleText}
       >
         <span className={`shrink-0 font-semibold uppercase tracking-[0.08em] ${compact ? "text-[9px]" : "text-[10px]"} ${labelClasses(type, pressure)}`}>

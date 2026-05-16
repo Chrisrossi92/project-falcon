@@ -420,6 +420,28 @@ Visual weight should match operational importance.
 
 Critical attention should be visible, but not alarming by default. Routine counts should be quiet. Destructive or urgent actions should have clear but controlled emphasis.
 
+## Calendar Surfaces
+
+Calendar surfaces have distinct jobs.
+
+The dashboard calendar is the operational pressure snapshot. It should show near-term site visits, review handoffs, and client due dates as part of the daily cockpit, supporting Operational Attention and the Active Worklist without becoming a generic calendar app.
+
+The standalone `/calendar` surface is the operational scheduling workspace. It should support fuller planning across the active workload with richer order context, role-aware event rendering, restrained filters, and calm scheduling language.
+
+Locked calendar direction:
+
+- `/calendar` is framed as Operational Schedule / Scheduling Workspace.
+- Dashboard and standalone calendars share event normalization where safe.
+- Month view uses operational event chips instead of emoji-first generic event buttons.
+- Event shape carries order number, client, status, ownership, address, source field, and timing context where available.
+- Dashboard Month mode uses the same event normalization and click-through behavior while remaining a pressure snapshot; standalone `/calendar` owns fuller scheduling workspace context.
+- Standalone `/calendar` includes selected-day context: month and two-week day cells can update a right rail with event count, Site / Review / Final counts, grouped event lists, and order/client/address/status/ownership context where available.
+- Event chip order navigation remains preserved; the right rail is contextual scheduling support, not analytics/KPI reporting.
+- Standalone `/calendar` uses operational Lens controls as the primary filter model: All, My Work, Site Visits, Review Handoffs, and Client Due. Visible Signals controls are removed, and the legend explains chip meaning rather than filter state.
+- Scheduling intelligence is currently deterministic metadata, not prediction: normalized events support `operationalSignals` for missing site visit, review compression, appraiser unassigned, and reviewer unassigned. The right rail shows quiet per-event and selected-day operational notes while calendar grid cells and chips remain uncluttered.
+
+Future calendar depth should arrive in layers: deterministic unassigned/at-risk lenses, conflict and workload metadata, then drag/drop or direct schedule editing after permissions and event model stability.
+
 ## Productization Philosophy
 
 ### Curated Experiences Over Infinite Customization

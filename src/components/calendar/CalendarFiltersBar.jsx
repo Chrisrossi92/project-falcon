@@ -1,71 +1,102 @@
 // src/components/calendar/CalendarFiltersBar.jsx
 import React from "react";
 
+function SegmentedButton({ active, children, onClick }) {
+  return (
+    <button
+      type="button"
+      className={`rounded-md px-3 py-1 text-sm font-medium transition ${
+        active
+          ? "bg-white text-slate-950 shadow-sm ring-1 ring-slate-200"
+          : "text-slate-500 hover:bg-white/70 hover:text-slate-800"
+      }`}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
+}
+
+function FilterToggle({ active, children, onClick }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+        active
+          ? "border-slate-800 bg-slate-900 text-white shadow-sm"
+          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+      }`}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
+}
+
+const LENSES = [
+  { id: "all", label: "All" },
+  { id: "mine", label: "My Work" },
+  { id: "site", label: "Site Visits" },
+  { id: "review", label: "Review Handoffs" },
+  { id: "final", label: "Client Due" },
+];
+
 export default function CalendarFiltersBar({
   view, setView,                // '2w' | 'month'
   weeks, setWeeks,              // 1 | 2 | 4 (only used for 2w view)
   showWeekends, setShowWeekends,
-  showSite, setShowSite,
-  showReview, setShowReview,
-  showFinal, setShowFinal,
+  lens = "all",
+  setLens,
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-3 mb-3">
-      {/* View */}
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-muted-foreground">View</span>
-        <div className="inline-flex border rounded overflow-hidden">
-          <button
-            className={`px-2 py-1 text-sm ${view === "2w" ? "bg-black text-white" : "bg-white"}`}
-            onClick={() => setView("2w")}
-          >
+    <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-2.5">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="px-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+          View
+        </span>
+        <div className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50/80 p-1">
+          <SegmentedButton active={view === "2w"} onClick={() => setView("2w")}>
             2 weeks
-          </button>
-          <button
-            className={`px-2 py-1 text-sm ${view === "month" ? "bg-black text-white" : "bg-white"}`}
-            onClick={() => setView("month")}
-          >
+          </SegmentedButton>
+          <SegmentedButton active={view === "month"} onClick={() => setView("month")}>
             Month
-          </button>
+          </SegmentedButton>
         </div>
       </div>
 
-      {/* 2w Options */}
       {view === "2w" && (
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Weeks</span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="px-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+            Range
+          </span>
           {[1,2,4].map(n => (
-            <button
-              key={n}
-              className={`px-2 py-1 text-sm border rounded ${weeks === n ? "bg-slate-900 text-white" : "bg-white"}`}
-              onClick={() => setWeeks(n)}
-            >
-              {n}
-            </button>
+            <FilterToggle key={n} active={weeks === n} onClick={() => setWeeks(n)}>
+              {n}w
+            </FilterToggle>
           ))}
-          <label className="flex items-center gap-2 text-sm ml-2">
-            <input type="checkbox" checked={showWeekends} onChange={e => setShowWeekends(e.target.checked)} />
+          <FilterToggle active={showWeekends} onClick={() => setShowWeekends(!showWeekends)}>
             Weekends
-          </label>
+          </FilterToggle>
         </div>
       )}
 
-      {/* Filters */}
-      <div className="flex items-center gap-3 ml-auto">
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={showSite} onChange={e => setShowSite(e.target.checked)} />
-          📍 Site
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={showReview} onChange={e => setShowReview(e.target.checked)} />
-          📝 Review
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={showFinal} onChange={e => setShowFinal(e.target.checked)} />
-          ✅ Final
-        </label>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="px-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+          Lens
+        </span>
+        <div className="inline-flex flex-wrap items-center gap-1 rounded-lg border border-slate-200 bg-slate-50/80 p-1">
+          {LENSES.map((item) => (
+            <SegmentedButton
+              key={item.id}
+              active={lens === item.id}
+              onClick={() => setLens?.(item.id)}
+            >
+              {item.label}
+            </SegmentedButton>
+          ))}
+        </div>
       </div>
     </div>
   );
 }
-

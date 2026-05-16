@@ -1,30 +1,42 @@
 // src/components/calendar/CalendarGrid.jsx
 import React, { useMemo } from "react";
+import EventChip from "@/components/calendar/EventChip";
 
 function startOfMonth(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
 function endOfMonth(d)   { return new Date(d.getFullYear(), d.getMonth() + 1, 0); }
 function startOfWeek(d)  { const x = new Date(d); const day = x.getDay(); x.setDate(x.getDate() - day); x.setHours(0,0,0,0); return x; }
+function startOfWorkWeek(d) { const x = new Date(d); const day = x.getDay(); const offset = day === 0 ? -6 : 1 - day; x.setDate(x.getDate() + offset); x.setHours(0,0,0,0); return x; }
 function addDays(d, n)   { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
-
-const TYPE_EMOJI = {
-  site:   "📍",  // Site Visit
-  review: "📝",  // Review Due
-  final:  "✅",  // Final / Global Due
-};
+function addVisibleDays(d, n, showWeekends) {
+  const x = new Date(d);
+  let added = 0;
+  while (added < n) {
+    x.setDate(x.getDate() + 1);
+    const day = x.getDay();
+    if (showWeekends || (day !== 0 && day !== 6)) added += 1;
+  }
+  return x;
+}
 
 export default function CalendarGrid({
   anchor,               // Date (any day in current month)
   events = [],          // [{orderId, orderNo, type, start, address}]
   onPrev, onNext,       // () => void
   onSelectOrder,        // (orderId) => void
+  onSelectEvent,        // (event) => void
+  onSelectDay,          // (date) => void
+  selectedDay,
+  role = "appraiser",
+  showWeekends = true,
 }) {
   const month = useMemo(() => {
     const first = startOfMonth(anchor);
     const last  = endOfMonth(anchor);
-    const gridStart = startOfWeek(first);
-    const cells = Array.from({ length: 42 }, (_, i) => addDays(gridStart, i));
+    const gridStart = showWeekends ? startOfWeek(first) : startOfWorkWeek(first);
+    const cellCount = (showWeekends ? 7 : 5) * 6;
+    const cells = Array.from({ length: cellCount }, (_, i) => showWeekends ? addDays(gridStart, i) : addVisibleDays(gridStart, i, false));
     return { first, last, gridStart, cells };
-  }, [anchor]);
+  }, [anchor, showWeekends]);
 
   const eventsByDay = useMemo(() => {
     const m = new Map();
@@ -49,49 +61,57 @@ export default function CalendarGrid({
       </div>
 
       {/* Weekday row */}
-      <div className="grid grid-cols-7 text-xs text-muted-foreground">
-        {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((d) => (
+      <div className={`grid text-xs text-muted-foreground ${showWeekends ? "grid-cols-7" : "grid-cols-5"}`}>
+        {(showWeekends ? ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"] : ["Mon","Tue","Wed","Thu","Fri"]).map((d) => (
           <div key={d} className="px-2 py-1">{d}</div>
         ))}
       </div>
 
       {/* 6x7 grid */}
-      <div className="grid grid-cols-7 grid-rows-6 border rounded overflow-hidden bg-white">
+      <div className={`grid grid-rows-6 border rounded overflow-hidden bg-white ${showWeekends ? "grid-cols-7" : "grid-cols-5"}`}>
         {month.cells.map((day, idx) => {
           const isOtherMonth = day.getMonth() !== anchor.getMonth();
+          const isSelected = selectedDay &&
+            day.getFullYear() === selectedDay.getFullYear() &&
+            day.getMonth() === selectedDay.getMonth() &&
+            day.getDate() === selectedDay.getDate();
           const key = new Date(day.getFullYear(), day.getMonth(), day.getDate()).toDateString();
           const dayEvents = eventsByDay.get(key) || [];
           return (
             <div
               key={idx}
+              role={onSelectDay ? "button" : undefined}
+              tabIndex={onSelectDay ? 0 : undefined}
+              onClick={() => onSelectDay?.(new Date(day))}
+              onKeyDown={(event) => {
+                if (!onSelectDay) return;
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onSelectDay(new Date(day));
+                }
+              }}
               className={
-                "min-h-[110px] border -m-[0.5px] p-1 md:p-2 " +
+                "min-h-[110px] border -m-[0.5px] p-1 transition md:p-2 " +
+                (onSelectDay ? "cursor-pointer hover:bg-slate-50 " : "") +
+                (isSelected ? "relative z-[1] bg-blue-50/40 ring-1 ring-inset ring-blue-200 " : "") +
                 (isOtherMonth ? "bg-gray-50 text-gray-400" : "bg-white")
               }
             >
               <div className="text-xs md:text-[13px] font-medium">{day.getDate()}</div>
 
               <div className="mt-1 space-y-1">
-                {dayEvents.slice(0, 3).map((ev) => {
-                  const emoji = TYPE_EMOJI[ev.type] || "•";
-                  const address = ev.address && ev.address !== "—" ? ev.address : "";
-                  const orderLabel = ev.orderNo ?? ev.orderId?.slice(0, 8) ?? "";
-                  const fallback = address || (orderLabel ? `Order ${orderLabel}` : "Event");
-
-                  return (
-                    <button
-                      key={ev.id || `${ev.orderId}:${ev.type}`}
-                      className="w-full text-left text-[11px] md:text-xs px-1 py-0.5 rounded hover:bg-gray-100 border"
-                      title={fallback}
-                      onClick={() => onSelectOrder?.(ev.orderId)}
-                    >
-                      <div className="truncate">
-                        <span className="mr-1">{emoji}</span>
-                        <span className="font-medium">{address || fallback}</span>
-                      </div>
-                    </button>
-                  );
-                })}
+                {dayEvents.slice(0, 3).map((ev) => (
+                  <EventChip
+                    key={ev.id || `${ev.orderId}:${ev.type}`}
+                    event={ev}
+                    compact
+                    role={role}
+                    onClick={() => {
+                      if (onSelectEvent) onSelectEvent(ev);
+                      else onSelectOrder?.(ev.orderId);
+                    }}
+                  />
+                ))}
                 {dayEvents.length > 3 && (
                   <div className="text-[11px] text-muted-foreground">+{dayEvents.length - 3} more</div>
                 )}

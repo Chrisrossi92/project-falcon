@@ -518,8 +518,41 @@ Status: Notification payload contract MVP complete.
 - [x] Dashboard calendar refreshes after inline site visit updates through a dashboard summary refresh token.
 - [x] Calendar chips use compact visible labels and contain overflow; site visits show street plus time, review/final due dates show street only, and full address is retained for tooltip context.
 - [x] Order row remains compact and date-only; calendar is the detailed scheduling surface for appointment time.
+- [x] Calendar product distinction locked: dashboard calendar is the operational pressure snapshot and standalone `/calendar` is the operational scheduling workspace.
+- [x] Standalone `/calendar` reframed as Operational Schedule / Scheduling Workspace with restrained toolbar/filter language.
+- [x] Standalone two-week/month calendar views receive role context.
+- [x] Shared calendar event normalization added and used by `/calendar`, dashboard calendar, `MonthsCalendar`, and `useCalendarEvents` where safe.
+- [x] Month view uses operational `EventChip` rendering; emoji-first month events removed.
+- [x] Slice 4 complete: standalone `/calendar` has selected-day state, selectable month/two-week day cells, and a right rail with event count, Site / Review / Final counts, grouped event lists, and order/client/address/status/ownership context where available.
+- [x] Calendar event chip order navigation remains preserved while day selection updates contextual scheduling support.
+- [x] Calendar right rail is contextual scheduling support, not analytics/KPI reporting.
+- [x] Slice 5 complete: standalone `/calendar` uses Lens as the primary filter model with All, My Work, Site Visits, Review Handoffs, and Client Due.
+- [x] Visible Signals controls removed to avoid redundant/double-filter behavior; legend remains explanatory rather than interactive filter state.
+- [x] Right rail reflects the same lensed event set as the calendar.
+- [x] Slice 6 complete: normalized calendar events support deterministic `operationalSignals`, not predictive scoring.
+- [x] Current operational signals: `missing_site_visit`, `review_compression`, `appraiser_unassigned`, and `reviewer_unassigned`.
+- [x] Right rail displays quiet per-event operational notes and soft aggregate notes for heavy selected-day review/final concentration.
+- [x] Calendar grid cells and chips remain uncluttered.
+- [x] No backend/schema/RPC/drag-drop/schedule-editing changes were made for Slice 6.
+- [x] Dashboard Month mode navigation bug fixed.
+- [x] `MonthsCalendar` supports controlled or internal anchor state.
+- [x] Dashboard Month mode receives dashboard event loader, role, weekend visibility, and event click handler.
+- [x] Dashboard Month remains a pressure snapshot, not a standalone workspace.
+- [x] Standalone `/calendar` month navigation remains controlled directly from `Calendar.jsx`.
+- [x] `CalendarGrid` supports weekday-only rendering and event selection fallback behavior.
+- [x] QA: Dashboard Month Prev/Next changes active month.
+- [x] QA: Dashboard 2 weeks/week/day modes still work.
+- [x] QA: Dashboard event click-through opens order.
+- [x] QA: Standalone Month Prev/Next still works.
+- [x] QA: Standalone 2-week view still works.
+- [x] QA: Standalone right rail day selection still works.
+- [x] QA: Event chip click-through still opens order detail.
+- [x] Calendar QA build passes.
+- [x] Calendar QA `git diff --check` passes.
+- [ ] Full lint remains known unreliable until project lint config cleanup.
+- [ ] Defer at-risk scoring, predictive risk, conflict detection, workload/capacity modeling, unassigned/at-risk lenses, chip/month-cell warning indicators, canonical backend calendar source, company timezone, and editable/reschedulable permissions.
 - [ ] Manually re-save existing incorrect stored appointment timestamps where needed.
-- [ ] Defer company-level timezone support and richer calendar editing/drag-drop UX.
+- [ ] Defer conflict/workload/unassigned logic, canonical backend calendar source, company-level timezone support, editable/reschedulable flags, scheduling conflict metadata, and richer calendar editing/drag-drop UX until event model and permissions are stable.
 - [x] Shared Smart Actions descriptors/control are active for the main table and quick actions drawer.
 - [x] First Smart Actions slice replaced main dashboard/table workflow action rendering while preserving existing handlers and `WorkflowNoteModal`.
 - [ ] Future Smart Actions button/panel work remains for detail/drawer replacement, appointment/date editing, final approval policy settings, and bulk actions.

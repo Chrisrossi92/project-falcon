@@ -349,7 +349,11 @@ Avoid "all orders all the time." Historical and completed work should remain acc
 
 ## Calendar Philosophy
 
-The calendar is an operational timeline.
+The calendar is an operational timeline, but calendar surfaces have different jobs.
+
+The dashboard calendar is the operational pressure snapshot. It should help users understand what is due, scheduled, or at risk inside the daily cockpit.
+
+The standalone `/calendar` surface is the operational scheduling workspace. It can carry broader planning context, richer event detail, and future scheduling controls without overloading the dashboard.
 
 It should show inspections, review deadlines, final due dates, and other time-based commitments in a way that supports daily planning. It should not dominate the dashboard unless the user's role depends primarily on scheduling.
 
@@ -363,6 +367,19 @@ It should integrate naturally into daily flow:
 - Calendar density should remain manageable.
 
 The calendar should avoid visual overload. Too many event types, colors, badges, and dense text blocks can make it harder to plan. Compact, consistent labels are preferable.
+
+Current locked calendar direction:
+
+- Dashboard calendar remains the cockpit pressure snapshot.
+- Standalone `/calendar` is framed as Operational Schedule / Scheduling Workspace.
+- Shared event normalization is used across calendar surfaces where safe.
+- Month events use operational chips, not emoji-first generic labels.
+- Standalone `/calendar` now supports selected-day context with a right rail for event counts, Site / Review / Final grouping, and order/client/address/status/ownership detail where available.
+- The right rail is scheduling context, not an analytics/KPI surface.
+- Standalone `/calendar` uses operational Lens controls as the primary filter model: All, My Work, Site Visits, Review Handoffs, and Client Due.
+- Visible Signals controls are removed to avoid double-filter confusion, and the legend remains explanatory rather than interactive filter state.
+- Scheduling intelligence is currently lightweight deterministic metadata through normalized event `operationalSignals`; the right rail shows quiet per-event and selected-day operational notes while calendar grid cells and chips remain uncluttered.
+- Future predictive risk, conflict detection, workload/capacity modeling, deterministic unassigned/at-risk lenses, and editable scheduling belong to later calendar architecture work.
 
 ## KPI / Analytics Philosophy
 
