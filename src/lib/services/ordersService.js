@@ -536,23 +536,17 @@ export async function sendOrderBackToAppraiser(orderId, actorId, options = {}) {
     throw error;
   }
 
-  // 1. Only update the status column
-  const statusPatch = { status: OrderStatus.NEEDS_REVISIONS };
-  console.log("[sendOrderBackToAppraiser] patch", statusPatch);
-
-  const { data, error } = await supabase
-  .from("orders")
-  .update(statusPatch)
-  .eq("id", orderId)
-  .select("id, appraiser_id, reviewer_id, order_number, status")
-  .maybeSingle();
+  const { data: order, error } = await supabase.rpc("rpc_transition_order_status", {
+    p_order_id: orderId,
+    p_transition_key: "request_revisions",
+    p_note: options?.note ?? null,
+  });
 
   if (error) {
     console.error("[sendOrderBackToAppraiser] update error", error);
     throw error;
   }
 
-  const order = data;
   if (!order) {
     throw new Error("No order updated (permission or id mismatch).");
   }
@@ -678,7 +672,6 @@ export async function isOrderNumberAvailable(orderNo, { excludeId = null } = {})
   if (res2.error) throw res2.error;
   return (res2.count || 0) === 0;
 }
-
 
 
 
