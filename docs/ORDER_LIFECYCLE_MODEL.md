@@ -252,6 +252,8 @@ Design decision:
 - These notification choices should be controlled by company workflow/notification settings later.
 - Final owner approval should be configurable: none, always required, or required by client/report type/threshold/manual decision later.
 - Potential future statuses include `review_cleared` and `pending_final_approval` before `ready_for_client`.
+- Current validated handoff uses `review_cleared`: reviewers clear technical review, the order remains visible to reviewer/admin/owner, and admin/owner then controls client release to `ready_for_client`.
+- Activity log records "In Review -> Review Cleared"; notification copy indicates review cleared/admin release handoff.
 
 Meaning:
 
@@ -377,7 +379,8 @@ Recommended allowed transitions:
 | `in_progress` | `in_review` | Submit to review | `workflow.status.submit_to_review` | Assigned appraiser, admin override |
 | `in_review` | `needs_revisions` | Request revisions | `workflow.status.request_revisions` | Assigned reviewer, admin override |
 | `needs_revisions` | `in_review` | Resubmit to review | `workflow.status.resubmit` | Assigned appraiser, admin override |
-| `in_review` | `ready_for_client` | Approve review | `workflow.status.approve_review` | Assigned reviewer, admin override |
+| `in_review` | `review_cleared` | Clear review | `workflow.status.approve_review` | Assigned reviewer, admin override |
+| `review_cleared` | `ready_for_client` | Mark ready for client | `workflow.status.ready_for_client` | Admin, owner |
 | `ready_for_client` | `delivered` | Deliver to client | `workflow.status.deliver_to_client` | Admin, reviewer if delegated |
 | `delivered` | `completed` | Close order | `workflow.status.complete` | Admin, billing if delegated, owner |
 | `ready_for_client` | `completed` | Close without separate delivery status | `workflow.status.complete` | Admin, owner |
@@ -757,6 +760,8 @@ Activity log records should be retained even if participants are later removed, 
 ## Notification Payload Requirements
 
 Lifecycle notifications should include enough context to render cleanly without extra queries.
+
+Phase 4 MVP state: order-facing notifications centrally normalize `payload.order_number`, workflow actions emit one actionable notification per action, and optional workflow note snippets are included in the workflow notification. Activity log remains the source of full communication history; notifications are summaries.
 
 Recommended payload fields:
 

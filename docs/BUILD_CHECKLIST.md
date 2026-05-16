@@ -512,10 +512,20 @@ Status: Notification payload contract MVP complete.
 - [x] Validate happy path `submit_to_review`.
 - [x] Disable duplicate legacy order activity triggers.
 - [x] Confirm RPC transition activity logs one clean `status_changed` row.
-- [ ] Migrate frontend `ordersService` workflow helpers to `rpc_transition_order_status` one at a time.
-- [ ] Migrate `sendOrderToReview` first.
-- [ ] Keep old `rpc_update_order_status` until all helpers migrate and validation passes.
-- [ ] Do not tighten RLS until all helpers migrate and validation passes.
+- [x] `sendOrderToReview` uses `rpc_transition_order_status`.
+- [x] `sendOrderBackToAppraiser` uses `rpc_transition_order_status`.
+- [x] `clearReview` uses `rpc_transition_order_status`.
+- [x] `requestFinalApproval` uses `rpc_transition_order_status`.
+- [x] `markReadyForClient` uses `rpc_transition_order_status`.
+- [x] `completeOrder` uses `rpc_transition_order_status`.
+- [x] Full lifecycle tested through backend RPC: `new` -> `in_review` -> `review_cleared` -> `pending_final_approval` -> `ready_for_client` -> `completed`.
+- [x] Request revisions path tested through backend RPC: `in_review` -> `needs_revisions`.
+- [x] Activity logging confirmed clean with one canonical `status_changed` row per new transition.
+- [x] Notification/toast behavior preserved.
+- [ ] Audit remaining generic status helpers/RPCs before restriction.
+- [ ] Keep old `rpc_update_order_status` until the generic usage audit is complete.
+- [ ] Do not tighten RLS until the generic usage audit is complete.
+- [ ] Consider backend notification ownership later.
 - [ ] Defer drawer/detail replacement, appointment/date editing, final approval policy settings, RLS tightening, and bulk actions.
 - [ ] Activity event retains context after reassignment.
 - [ ] Admin feed prototype can render from payload.

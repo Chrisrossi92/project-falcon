@@ -563,13 +563,17 @@ Deferred follow-up:
 - Frontend workflow hardening is complete for the current MVP surface: canonical workflow map added, workflow guards added, primary order workflow helpers guarded, drawer/reviewer shortcut actions routed through guarded helpers, `SmartActionsControl` extracted, `QuickActionsDrawerPanel` now uses the Smart Actions renderer, unsafe `OrderActionsPanel` barrel export quarantined, and generic status helpers documented as deprecated for normal workflow actions.
 - Smart Actions consolidation is now active for the main table and quick actions drawer through shared action descriptors and `SmartActionsControl`.
 - Backend workflow enforcement foundation is complete: `rpc_transition_order_status` was created and applied, transition validation works, permission enforcement works, missing permission and invalid transition rejections were validated, the happy path `submit_to_review` was validated, duplicate legacy order activity triggers were disabled, and RPC transitions now produce one clean `status_changed` activity row.
-- Next milestone: migrate frontend `ordersService` workflow helpers to `rpc_transition_order_status` one at a time.
-- First helper to migrate: `sendOrderToReview`.
+- Frontend workflow helper migration is complete: `sendOrderToReview`, `sendOrderBackToAppraiser`, `clearReview`, `requestFinalApproval`, `markReadyForClient`, and `completeOrder` now use `rpc_transition_order_status`.
+- Full lifecycle was tested through the backend RPC: `new` -> `in_review` -> `review_cleared` -> `pending_final_approval` -> `ready_for_client` -> `completed`.
+- Request revisions path was tested through the backend RPC: `in_review` -> `needs_revisions`.
+- Activity logging is confirmed clean with one canonical `status_changed` row per new transition, and notification/toast behavior is preserved.
+- Next milestone: audit remaining generic status helpers/RPCs before restriction.
 - Do not remove old `rpc_update_order_status` yet.
-- Do not tighten RLS until all helpers migrate and validation passes.
+- Do not tighten RLS until the generic usage audit is complete.
+- Consider backend notification ownership later.
 - Reference design: `docs/ORDER_WORKFLOW_BACKEND_PLAN.md`.
 - Goal: move order lifecycle enforcement from frontend-only guards to Supabase-enforced transition logic with transition validation, permission validation, activity logging, and notification enqueueing.
-- Deferred Smart Actions scope includes detail replacement, appointment/date editing inside Smart Actions, final approval policy settings, backend/RLS enforcement, and bulk actions.
+- Deferred Smart Actions scope includes detail replacement, appointment/date editing inside Smart Actions, final approval policy settings, RLS tightening, and bulk actions.
 - Admin/Abby note notifications can still display a generic actor label such as "User added a note" because the logged-in admin profile/identity hydrates as Demo User instead of Abby Rossi.
 - Treat this as actor display-name/profile hydration cleanup, separate from responsibility resolver routing.
 - Activity / Communication History presentation needs future polish, but is functional and visible.

@@ -552,6 +552,11 @@ Current risk:
 
 Contains legacy/duplicate fields, lacks company scoping, and assignment FKs have historically pointed toward auth/profile identity.
 
+Progress:
+
+- Calendar + Appointment System MVP is complete for `site_visit_at`: the order row Dates column shows site visit, review due, and final due; missing site visits can be set inline through `SiteVisitPicker`; saves use local wall-clock time rather than UTC conversion; dashboard/table selects `site_visit_at` before the date-only fallback; and the dashboard calendar refreshes after inline appointment updates.
+- Calendar remains the detailed scheduling surface for appointment time, while order rows stay compact/date-only. Existing incorrect stored appointment timestamps require manual re-save; company-level timezone support and richer calendar editing remain deferred.
+
 Canonical replacement:
 
 None. The table remains canonical but should be cleaned additively.

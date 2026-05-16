@@ -550,6 +550,12 @@ Clicking a KPI should filter the dashboard order list to that subset. MVP can in
 
 Future company settings should allow configurable KPI cards without clutter: card type, statuses, due window, label/header, and date field. Settings UI and DB-backed KPI configuration are deferred; the first MVP implementation should be frontend/service scoped using existing data fields.
 
+Calendar + Appointment System MVP is complete. Site visit appointments are visible in the order row Dates column, appraisers can set missing appointments inline through `SiteVisitPicker`, and appointment saves use local wall-clock time instead of UTC conversion. Dashboard/table rows now select `site_visit_at` before the date-only fallback, and the dashboard calendar refreshes after inline appointment updates through the shared dashboard summary refresh token.
+
+Calendar event labels use compact visible chips: site visits show street plus appointment time, while review/final due dates show street only. Full address remains available in tooltip context and chip overflow is contained inside the day cell. Product model: order rows stay compact for at-a-glance operations, while the calendar is the detailed scheduling surface where appointment time lives. Local browser time is the MVP source of truth for appointments.
+
+Deferred calendar work: existing incorrect stored timestamps require manual re-save, unified Smart Actions, company-level timezone support, and richer calendar UX such as drag/drop or direct calendar editing.
+
 It should show:
 
 - Orders needing assignment.

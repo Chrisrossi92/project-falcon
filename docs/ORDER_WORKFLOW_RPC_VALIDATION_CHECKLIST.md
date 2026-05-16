@@ -18,6 +18,10 @@ Use this checklist to track validation for the new `rpc_transition_order_status`
 - [x] Happy path `submit_to_review` was validated.
 - [x] Duplicate legacy order activity triggers were disabled.
 - [x] Activity now logs one clean `status_changed` row after an RPC transition.
+- [x] Primary `ordersService.js` workflow helpers now use `rpc_transition_order_status`.
+- [x] Full lifecycle tested through backend RPC: `new` -> `in_review` -> `review_cleared` -> `pending_final_approval` -> `ready_for_client` -> `completed`.
+- [x] Request revisions path tested: `in_review` -> `needs_revisions`.
+- [x] Notification/toast behavior preserved.
 
 ## 1. Pre-Apply Checks
 
@@ -37,12 +41,12 @@ Use this checklist to track validation for the new `rpc_transition_order_status`
 - [x] `submit_to_review`: `new` -> `in_review`
 - [ ] `submit_to_review`: `in_progress` -> `in_review`
 - [ ] `submit_to_review`: `needs_revisions` -> `in_review`
-- [ ] `request_revisions`: `in_review` -> `needs_revisions`
-- [ ] `approve_review`: `in_review` -> `review_cleared`
-- [ ] `request_final_approval`: `review_cleared` -> `pending_final_approval`
+- [x] `request_revisions`: `in_review` -> `needs_revisions`
+- [x] `approve_review`: `in_review` -> `review_cleared`
+- [x] `request_final_approval`: `review_cleared` -> `pending_final_approval`
 - [ ] `ready_for_client`: `review_cleared` -> `ready_for_client`
-- [ ] `ready_for_client`: `pending_final_approval` -> `ready_for_client`
-- [ ] `complete`: `ready_for_client` -> `completed`
+- [x] `ready_for_client`: `pending_final_approval` -> `ready_for_client`
+- [x] `complete`: `ready_for_client` -> `completed`
 
 ## 4. Failure Tests
 
@@ -58,11 +62,18 @@ Use this checklist to track validation for the new `rpc_transition_order_status`
 - [ ] Actor uses `public.users.id` resolved through `current_app_user_id`.
 - [ ] Previous and new statuses are correct.
 - [ ] Optional note appears where expected.
+- [x] New RPC transitions produce one canonical `status_changed` row each.
 
 ## 6. Frontend Migration Readiness
 
 - [x] Do not switch `ordersService.js` to `rpc_transition_order_status` until validation passes.
-- [ ] Migrate frontend `ordersService.js` workflow helpers to `rpc_transition_order_status` one at a time.
-- [ ] Migrate `sendOrderToReview` first.
+- [x] `sendOrderToReview` uses `rpc_transition_order_status`.
+- [x] `sendOrderBackToAppraiser` uses `rpc_transition_order_status`.
+- [x] `clearReview` uses `rpc_transition_order_status`.
+- [x] `requestFinalApproval` uses `rpc_transition_order_status`.
+- [x] `markReadyForClient` uses `rpc_transition_order_status`.
+- [x] `completeOrder` uses `rpc_transition_order_status`.
 - [ ] Do not remove old `rpc_update_order_status` yet.
-- [ ] Do not tighten RLS until all helpers migrate and validation passes.
+- [ ] Audit remaining generic status helpers/RPCs before restriction.
+- [ ] Do not tighten RLS until the generic usage audit is complete.
+- [ ] Consider backend notification ownership later.

@@ -8,7 +8,7 @@ This document is intentionally audit-focused. It tracks current risk, completed 
 
 ## Current hardening status
 
-Status: **Backend workflow enforcement foundation complete; frontend helper migration next.**
+Status: **Primary workflow helpers use backend RPC; generic status usage audit next.**
 
 Completed:
 
@@ -37,6 +37,17 @@ Completed:
 - Validated happy path `submit_to_review`.
 - Disabled duplicate legacy order activity triggers.
 - Confirmed RPC transitions now produce one clean `status_changed` activity row.
+- Migrated primary workflow helpers to `rpc_transition_order_status`:
+  - `sendOrderToReview`
+  - `sendOrderBackToAppraiser`
+  - `clearReview`
+  - `requestFinalApproval`
+  - `markReadyForClient`
+  - `completeOrder`
+- Tested full lifecycle through backend RPC: `new` -> `in_review` -> `review_cleared` -> `pending_final_approval` -> `ready_for_client` -> `completed`.
+- Tested request revisions path through backend RPC: `in_review` -> `needs_revisions`.
+- Confirmed activity logging remains clean with one canonical `status_changed` row per new transition.
+- Confirmed notification/toast behavior is preserved.
 
 ## Canonical workflow reference
 
@@ -71,9 +82,9 @@ Primary table workflow actions call named service helpers from `src/lib/services
 
 Risk level: **Low / improving**
 
-Reason: the main table path routes through Smart Actions and guarded service helpers. Permission fallback remains intentionally preserved for MVP compatibility. Backend RPC enforcement is validated but the frontend service helpers have not yet been migrated to call it.
+Reason: the main table path routes through Smart Actions and guarded service helpers. Permission fallback remains intentionally preserved for MVP compatibility. The primary workflow helpers now call the backend transition RPC.
 
-Recommended action: **Migrate workflow helpers to `rpc_transition_order_status` one at a time, starting with `sendOrderToReview`.**
+Recommended action: **Audit remaining generic status helpers and legacy RPCs before restricting direct status writes.**
 
 ## Status write surfaces
 
@@ -194,15 +205,15 @@ Recommended action: **Keep quarantined. Later delete, move to dev-only tooling, 
 
 ## Productization risks remaining
 
-The primary workflow path is now guarded, but remaining productization risks are:
+The primary workflow path is now guarded and backed by `rpc_transition_order_status`, but remaining productization risks are:
 
-1. Frontend workflow helpers still need to migrate to the validated backend transition RPC.
-2. Generic status helpers still exist for compatibility and could be misused later.
-3. Permission context is not yet passed into service-layer guards; current calls preserve MVP fallback behavior.
-4. Workflow action rendering is still duplicated across table/drawer/reviewer shortcut surfaces.
-5. Company-specific workflow settings do not exist yet.
-6. `rpc_update_order_status` must remain until all helpers migrate and validation passes.
-7. RLS should not be tightened until all helpers migrate and validation passes.
+1. Generic status helpers still exist for compatibility and could be misused later.
+2. Permission context is not yet passed into service-layer guards; current calls preserve MVP fallback behavior.
+3. Workflow action rendering is still duplicated across table/drawer/reviewer shortcut surfaces.
+4. Company-specific workflow settings do not exist yet.
+5. `rpc_update_order_status` must remain until the generic usage audit is complete.
+6. RLS should not be tightened until the generic usage audit is complete.
+7. Backend notification ownership should be considered later; frontend notification behavior is currently preserved.
 
 ## Recommended cleanup sequence
 
@@ -279,22 +290,37 @@ Design Supabase enforcement:
 
 Goal: frontend and backend enforce the same lifecycle rules.
 
-### Slice 10 — Next
+### Slice 10 — Completed
 
 Migrate frontend workflow helpers to the transition RPC one at a time:
 
-- Start with `ordersService.sendOrderToReview`.
-- Keep old `rpc_update_order_status` until all helpers migrate and validation passes.
-- Do not tighten RLS until all helpers migrate and validation passes.
+- `sendOrderToReview` uses `rpc_transition_order_status`.
+- `sendOrderBackToAppraiser` uses `rpc_transition_order_status`.
+- `clearReview` uses `rpc_transition_order_status`.
+- `requestFinalApproval` uses `rpc_transition_order_status`.
+- `markReadyForClient` uses `rpc_transition_order_status`.
+- `completeOrder` uses `rpc_transition_order_status`.
+- Full lifecycle tested through backend RPC: `new` -> `in_review` -> `review_cleared` -> `pending_final_approval` -> `ready_for_client` -> `completed`.
+- Request revisions path tested through backend RPC: `in_review` -> `needs_revisions`.
+- Activity logging confirmed clean with one canonical `status_changed` row per new transition.
+- Notification/toast behavior preserved.
+
+### Slice 11 — Next
+
+Audit remaining generic status helpers and legacy RPCs before restriction:
+
+- Keep old `rpc_update_order_status` until the generic usage audit is complete.
+- Do not tighten RLS until the generic usage audit is complete.
+- Consider backend notification ownership later.
 
 ## Immediate next slice recommendation
 
-Proceed with one frontend helper migration to `rpc_transition_order_status`.
+Proceed with a generic status usage audit before restriction.
 
 Specifically:
 
-1. Migrate `ordersService.sendOrderToReview` first.
-2. Validate the RPC transition, notification behavior, and single `status_changed` activity row.
-3. Continue helper-by-helper only after validation passes.
+1. Identify remaining imports/callers of generic status helpers and `rpc_update_order_status`.
+2. Classify each path as active UI, admin/support override, compatibility, or dead code.
+3. Decide which paths move to `rpc_transition_order_status`, which need explicit override semantics, and which can remain temporarily.
 
-This keeps backend enforcement adoption incremental while preserving compatibility paths.
+This keeps restriction work grounded in real usage before removing legacy RPCs or tightening RLS.
