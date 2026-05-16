@@ -107,6 +107,36 @@ export function resolveActivityActor(item = {}) {
   };
 }
 
+export const HUMAN_COMMUNICATION_TYPES = new Set(["note", "note_added"]);
+
+export const WORKFLOW_EVENT_TYPES = new Set([
+  "status_changed",
+  "sent_to_review",
+  "sent_back_to_appraiser",
+  "ready_for_client",
+  "completed",
+]);
+
+export const SYSTEM_EVENT_TYPES = new Set([
+  "order_created",
+  "status_changed",
+  "dates_updated",
+  "assignee_changed",
+  "fee_changed",
+]);
+
+export function isHumanCommunicationEvent(eventType) {
+  return HUMAN_COMMUNICATION_TYPES.has(eventType);
+}
+
+export function isWorkflowEvent(eventType) {
+  return WORKFLOW_EVENT_TYPES.has(eventType);
+}
+
+export function isSystemEvent(eventType) {
+  return SYSTEM_EVENT_TYPES.has(eventType) || WORKFLOW_EVENT_TYPES.has(eventType);
+}
+
 export const LABEL = {
   note: "Note",
   note_added: "Note",
