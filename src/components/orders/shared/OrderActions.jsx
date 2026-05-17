@@ -1,4 +1,5 @@
 // src/components/orders/OrderActions.jsx
+// Legacy/quarantined surface. Do not reintroduce without aligning with Smart Actions / canonical workflow.
 import React, { useState } from "react";
 import toast from "react-hot-toast";
 import { useRole } from "@/lib/hooks/useRole";

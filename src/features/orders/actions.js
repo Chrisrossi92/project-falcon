@@ -1,3 +1,4 @@
+// Legacy/quarantined workflow adapter. Do not reintroduce without aligning with Smart Actions / canonical workflow.
 import { supabase as defaultClient } from '@/lib/supabaseClient';
 
 /**

@@ -1,4 +1,5 @@
 // src/components/admin/AdminCalendar.jsx
+// Legacy/quarantined calendar surface. Do not reintroduce without routing through normalizeCalendarEvent and current calendar components.
 import React, { useRef, useState, useEffect, useCallback, useMemo } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";

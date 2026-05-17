@@ -1,4 +1,5 @@
 // src/components/calendar/DashboardCalendar.jsx
+// Legacy/quarantined calendar surface. Do not reintroduce without routing through normalizeCalendarEvent and current calendar components.
 import React, { useCallback, useMemo, useState } from "react";
 import TwoWeekCalendar from "@/components/calendar/TwoWeekCalendar";
 import CalendarFiltersBar from "@/components/calendar/CalendarFiltersBar";

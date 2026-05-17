@@ -62,7 +62,7 @@ Reference docs:
 - [x] `npm run lint` exits zero with warnings only.
 - [x] `npm run build` passes.
 - [x] `git diff --check` passes.
-- [ ] 199 lint warnings remain and are deferred as a separate cleanup pass.
+- [ ] 196 lint warnings remain and are deferred as a separate cleanup pass.
 - [ ] TypeScript linting remains deferred until `@typescript-eslint` parser/plugin setup and Supabase type-file encoding decisions are handled.
 - [ ] Full CI remains future work.
 - [ ] Existing build warnings remain: Tailwind ambiguous `ease-[${EASING}]` class warning and large bundle chunk warning.
@@ -614,6 +614,12 @@ Status: Notification payload contract MVP complete.
 - [x] `order.completed` suppresses the actor when actor identity is available.
 - [x] Runtime recipient doctrine otherwise unchanged: no `ready_for_client` routing, admin/owner role mapping, backend/schema/RPC/UI, queue/calendar, reminder, or escalation changes.
 - [ ] Defer `ready_for_client` recipient doctrine review, admin/owner recipient distinction, registry-driven ownership recipient matrix, notification preference-policy reconciliation, and `/activity` notification-history versus order activity separation.
+- [x] Legacy Surface Quarantine Slice 1 complete: unused `ReviewerActionCell` import removed from `UnifiedOrdersTable`.
+- [x] Quarantine comments added to legacy workflow/calendar surfaces.
+- [x] Unused `src/components/test.jsx` demo stub deleted.
+- [x] Active canonical surfaces remain unchanged.
+- [x] No runtime behavior/routes/backend/schema/RPC/workflow/notification changes were made for Legacy Surface Quarantine Slice 1.
+- [ ] Defer deeper legacy deletion, status-write cleanup, notification hooks/index classification, `ordersService` legacy alias cleanup, and old API helper cleanup.
 - [ ] Future Smart Actions button/panel work remains for detail/drawer replacement, appointment/date editing, final approval policy settings, and bulk actions.
 - [x] Create and apply `rpc_transition_order_status`.
 - [x] Validate backend transition validation.

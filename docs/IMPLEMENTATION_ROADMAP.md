@@ -55,7 +55,7 @@ Completed:
 
 Deferred:
 
-- 199 lint warnings remain and should be handled in a separate warning cleanup pass.
+- 196 lint warnings remain and should be handled in a separate warning cleanup pass.
 - TypeScript linting remains deferred until parser/plugin setup and Supabase type-file encoding decisions are handled.
 - Full CI is future work.
 - Existing build warnings remain: Tailwind ambiguous `ease-[${EASING}]` class warning and large bundle chunk warning.
@@ -639,6 +639,9 @@ Deferred follow-up:
 - Notification + Activity Cohesion Slice 2 is complete: actor suppression is hardened for `order.sent_back_to_appraiser`, and `order.completed` suppresses the actor when actor identity is available.
 - Runtime recipient doctrine otherwise remains unchanged for Slice 2: no `ready_for_client` routing changes, admin/owner role mapping changes, backend/schema/RPC/UI changes, queue/calendar signal notifications, reminders, or escalations were added.
 - Deferred notification/activity cohesion work includes `ready_for_client` recipient doctrine review, admin/owner recipient distinction, registry-driven ownership recipient matrix, notification preference-policy reconciliation, and clearer separation between `/activity` notification history and order-level activity timeline.
+- Legacy Surface Quarantine Slice 1 is complete: the unused `ReviewerActionCell` import was removed from `UnifiedOrdersTable`, high/medium-risk legacy workflow and calendar surfaces now carry explicit quarantine comments, and the unused `src/components/test.jsx` demo stub was deleted.
+- Active canonical workflow, calendar, queue, notification, and activity surfaces remain unchanged. No runtime behavior, routes, backend/schema/RPC, workflow, or notification behavior changed, and lint warnings dropped from 199 to 196.
+- Deferred legacy cleanup includes deeper deletion, status-write cleanup, notification hooks/index classification, `ordersService` legacy alias cleanup, and old API helper cleanup.
 - Backend workflow enforcement foundation is complete: `rpc_transition_order_status` was created and applied, transition validation works, permission enforcement works, missing permission and invalid transition rejections were validated, the happy path `submit_to_review` was validated, duplicate legacy order activity triggers were disabled, and RPC transitions now produce one clean `status_changed` activity row.
 - Frontend workflow helper migration is complete: `sendOrderToReview`, `sendOrderBackToAppraiser`, `clearReview`, `requestFinalApproval`, `markReadyForClient`, and `completeOrder` now use `rpc_transition_order_status`.
 - Full lifecycle was tested through the backend RPC: `new` -> `in_review` -> `review_cleared` -> `pending_final_approval` -> `ready_for_client` -> `completed`.

@@ -1,3 +1,4 @@
+// Legacy/quarantined surface. Do not reintroduce without aligning with Smart Actions / canonical workflow.
 import { useState } from 'react';
 import { updateOrderStatus, assignOrder, updateDueDates } from './actions';
 

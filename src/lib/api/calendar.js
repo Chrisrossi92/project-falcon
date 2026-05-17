@@ -1,4 +1,5 @@
 // src/lib/api/calendar.js
+// Legacy/quarantined calendar adapter. Do not reintroduce without routing through normalizeCalendarEvent and current calendar components.
 import supabase from "@/lib/supabaseClient";
 
 export async function createEvent(args) {

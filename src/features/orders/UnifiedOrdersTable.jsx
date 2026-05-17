@@ -10,7 +10,6 @@ import OrdersTableRow from "@/components/orders/table/OrdersTableRow";
 import OrdersTablePagination from "@/components/orders/table/OrdersTablePagination";
 import OrderStatusBadge from "@/components/orders/table/OrderStatusBadge";
 import OrderDrawerContent from "@/components/orders/drawer/OrderDrawerContent";
-import ReviewerActionCell from "@/components/orders/table/ReviewerActionCell";
 import { updateSiteVisitAt } from "@/lib/api/orders";
 import {
   sendOrderToReview,
