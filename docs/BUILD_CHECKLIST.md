@@ -585,6 +585,11 @@ Status: Notification payload contract MVP complete.
 - [x] Existing Orders filters/search remain preserved and combine with queue filtering.
 - [x] Normal `/orders` behavior remains unchanged without a queue parameter.
 - [x] No dashboard queue cards, table columns, backend/schema/RPC changes, prediction, or scoring were added for Slice 3.
+- [x] Operational Queue Intelligence Slice 4 complete: dashboard selected operational queue exposes a restrained "View in Orders" action.
+- [x] Dashboard queue deep-link targets `/orders?queue=<selectedQueueId>`.
+- [x] Slice 4 connects dashboard operational attention to the full Orders inventory.
+- [x] Active Worklist queue selection/filtering and order click-through remain unchanged.
+- [x] No new queues, backend/schema/RPC changes, prediction/scoring, badges, or table redesign were added for Slice 4.
 - [ ] Backend canonical queue source remains future work for larger tenants; current Orders queue filtering is frontend-derived and capped by the existing 1000-row summary fetch.
 - [ ] Defer stuck orders, revision loop risk, reviewer/appraiser overload, capacity modeling, at-risk scoring, company-configurable thresholds, and backend canonical queue source.
 - [ ] Defer at-risk scoring, predictive risk, conflict detection, workload/capacity modeling, unassigned/at-risk lenses, chip/month-cell warning indicators, canonical backend calendar source, company timezone, and editable/reschedulable permissions.

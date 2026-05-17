@@ -117,6 +117,12 @@ Normal `/orders` behavior is unchanged when no queue parameter is present. No ba
 
 Known limitation: queue filtering is frontend-derived from the current summary fetch and capped by the existing 1000-row pull. A backend canonical queue source remains future work for larger tenants.
 
+Operational Queue Intelligence Slice 4 is complete.
+
+When a dashboard operational queue is selected, the Active Worklist queue context now exposes a restrained "View in Orders" action. The action links to `/orders?queue=<selectedQueueId>`, connecting dashboard operational attention to the full Orders inventory.
+
+Dashboard queue card selection, Active Worklist filtering, and order click-through remain unchanged. No new queues, backend/schema/RPC changes, prediction/scoring, badges, or table redesign were added.
+
 ## Initial Proposed Operational Queues
 
 ### Due Soon

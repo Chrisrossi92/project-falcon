@@ -246,6 +246,14 @@ export default function DashboardPage() {
             filters={appliedFilters}
             rowsOverride={filteredOrdersRows}
             activeQueue={activeQueueSummary}
+            activeQueueAction={
+              activeQueueId
+                ? {
+                    label: "View in Orders",
+                    onClick: () => nav(`/orders?queue=${encodeURIComponent(activeQueueId)}`),
+                  }
+                : null
+            }
             pageSize={10}
             scope="dashboard"
             onOrderDatesChanged={() => setDashboardRefreshKey((key) => key + 1)}

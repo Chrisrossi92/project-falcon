@@ -621,6 +621,8 @@ Deferred follow-up:
 - The Orders table now shows the same quiet queue explanation used by the dashboard when queue context is active; existing Orders filters/search remain preserved and combine with queue filtering.
 - Normal `/orders` behavior is unchanged without a queue parameter. No dashboard queue cards, table columns, backend/schema/RPC changes, prediction, or scoring were added for Slice 3.
 - Known Slice 3 limitation: queue filtering is frontend-derived from the current summary fetch and capped by the existing 1000-row pull; a backend canonical queue source remains future work for larger tenants.
+- Operational Queue Intelligence Slice 4 is complete: when a dashboard operational queue is selected, the Active Worklist queue context exposes a restrained "View in Orders" action linking to `/orders?queue=<selectedQueueId>`.
+- Slice 4 connects dashboard operational attention to the full Orders inventory while preserving dashboard queue selection/filtering and order click-through. No new queues, backend/schema/RPC changes, prediction/scoring, badges, or table redesign were added.
 - Deferred queue intelligence work includes stuck orders, revision loop risk, reviewer/appraiser overload, capacity modeling, at-risk scoring, company-configurable thresholds, and a backend canonical queue source.
 - Main table workflow actions are permission-gated while preserving legacy fallback during permission loading/errors.
 - Reviewer template role no longer receives `workflow.status.ready_for_client`; reviewers keep `workflow.status.approve_review` for clear-review behavior.
