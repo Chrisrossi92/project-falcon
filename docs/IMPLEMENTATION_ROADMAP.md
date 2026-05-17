@@ -646,6 +646,9 @@ Deferred follow-up:
 - Legacy status mutation helpers are quarantined with explicit comments: `ordersService.setOrderStatus` and aliases, `lib/api/orders.updateOrderStatus`, `lib/api/orders.bulkUpdateStatus`, and `lib/utils/updateOrderStatus`.
 - Canonical workflow transitions and Smart Actions remain the governed lifecycle path. No backend/schema/RPC, permission, queue, notification, workflow-status, or lifecycle behavior changes were made, and lint warnings dropped from 196 to 193.
 - Deferred legacy cleanup includes deeper deletion, more aggressive legacy helper quarantine/removal after import verification, notification hooks/index classification, `ordersService` legacy alias cleanup, old API helper cleanup, transition capability matrix, backend enforcement review, and status-write CI/search guard.
+- Multi-Company Readiness Slice 1 is complete: default platform policy modules were added for workflow, queue, calendar, and notification behavior.
+- These modules represent current single-company platform defaults only. They abstract due-soon at 48 hours, active appraiser statuses, the completed status set, review compression at 2 days, and default weekend calendar visibility without behavior change.
+- No tenant lookup, backend storage, settings UI, `company_id`, permission change, runtime policy resolution, workflow behavior change, queue behavior change, notification behavior change, or calendar behavior change was added. Future company policy should override through company-aware policy resolution.
 - Backend workflow enforcement foundation is complete: `rpc_transition_order_status` was created and applied, transition validation works, permission enforcement works, missing permission and invalid transition rejections were validated, the happy path `submit_to_review` was validated, duplicate legacy order activity triggers were disabled, and RPC transitions now produce one clean `status_changed` activity row.
 - Frontend workflow helper migration is complete: `sendOrderToReview`, `sendOrderBackToAppraiser`, `clearReview`, `requestFinalApproval`, `markReadyForClient`, and `completeOrder` now use `rpc_transition_order_status`.
 - Full lifecycle was tested through the backend RPC: `new` -> `in_review` -> `review_cleared` -> `pending_final_approval` -> `ready_for_client` -> `completed`.
@@ -778,7 +781,7 @@ Completed first payload slice:
 
 ## Phase 5: Company Foundation
 
-Status: Reviewer/admin workflow separation MVP complete for current single-company workflow.
+Status: Reviewer/admin workflow separation MVP complete for current single-company workflow; default operational policy abstraction points exist as frontend platform defaults.
 
 ### Goal
 
@@ -798,6 +801,7 @@ Database:
 
 App:
 
+- Default frontend policy modules exist for current workflow, queue, calendar, and notification defaults.
 - Company context provider later.
 - Setup/checklist later.
 - Settings screens later.
@@ -827,6 +831,7 @@ Backfill a single default company.
 
 Minimal in this phase:
 
+- Keep default platform policy modules as compatibility defaults until company-aware policy resolution exists.
 - Read active/default company where needed.
 - Do not require full account switching yet.
 

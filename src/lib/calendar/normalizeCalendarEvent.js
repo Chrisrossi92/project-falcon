@@ -1,3 +1,5 @@
+import { DEFAULT_CALENDAR_POLICY } from "@/lib/policies/defaultCalendarPolicy";
+
 export function normalizeCalendarEventType(value) {
   const raw = String(value || "").toLowerCase();
   if (raw.includes("site")) return "site";
@@ -81,7 +83,12 @@ export function deriveCalendarOperationalSignals(order = {}, eventType = "") {
   }
 
   const reviewToFinalDays = daysBetween(reviewDue, finalDue);
-  if ((type === "review" || type === "final") && reviewToFinalDays !== null && reviewToFinalDays >= 0 && reviewToFinalDays <= 2) {
+  if (
+    (type === "review" || type === "final") &&
+    reviewToFinalDays !== null &&
+    reviewToFinalDays >= 0 &&
+    reviewToFinalDays <= DEFAULT_CALENDAR_POLICY.reviewCompressionThresholdDays
+  ) {
     signals.push({
       id: "review_compression",
       label: "Review and client due dates are tightly compressed.",

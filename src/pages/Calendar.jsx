@@ -12,6 +12,7 @@ import {
   filterCalendarEventsByRange,
   normalizeCalendarEventType,
 } from "@/lib/calendar/normalizeCalendarEvent";
+import { DEFAULT_CALENDAR_POLICY } from "@/lib/policies/defaultCalendarPolicy";
 
 function sameId(a, b) {
   if (!a || !b) return false;
@@ -21,7 +22,7 @@ function sameId(a, b) {
 export default function CalendarPage() {
   const [view, setView] = useState("month"); // 'month' | '2w'
   const [weeks, setWeeks] = useState(2);
-  const [showWeekends, setShowWeekends] = useState(true);
+  const [showWeekends, setShowWeekends] = useState(DEFAULT_CALENDAR_POLICY.weekendsVisibleDefault);
 
   const [lens, setLens] = useState("all");
 
@@ -215,7 +216,6 @@ export default function CalendarPage() {
     </div>
   );
 }
-
 
 
 

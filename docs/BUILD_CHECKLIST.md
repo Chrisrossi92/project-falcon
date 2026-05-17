@@ -629,6 +629,11 @@ Status: Notification payload contract MVP complete.
 - [x] No backend/schema/RPC/permission/queue/notification behavior changes were made for Status-Write Cleanup Slice 1.
 - [x] Lint warnings reduced from 196 to 193.
 - [ ] Defer deeper legacy deletion, more aggressive legacy helper quarantine/removal after import verification, notification hooks/index classification, `ordersService` legacy alias cleanup, old API helper cleanup, transition capability matrix, backend enforcement review, and status-write CI/search guard.
+- [x] Multi-Company Readiness Slice 1 complete: default platform policy modules added for workflow, queue, calendar, and notification behavior.
+- [x] These modules represent current single-company platform defaults.
+- [x] Current constants abstracted without behavior change: due-soon 48 hours, active appraiser statuses, completed status set, review compression 2 days, and weekend visibility default.
+- [x] No tenant lookup, backend storage, settings UI, `company_id`, permissions change, or runtime policy resolution was added.
+- [x] Future company policy layer should override through company-aware policy resolution.
 - [ ] Future Smart Actions button/panel work remains for detail/drawer replacement, appointment/date editing, final approval policy settings, and bulk actions.
 - [x] Create and apply `rpc_transition_order_status`.
 - [x] Validate backend transition validation.
@@ -669,7 +674,7 @@ Status: Notification payload contract MVP complete.
 
 ## Phase 5: Company Foundation
 
-Status: Reviewer/admin workflow separation MVP complete for current single-company workflow.
+Status: Reviewer/admin workflow separation MVP complete for current single-company workflow; default platform policy modules exist as company-readiness prep.
 
 ### Planning / Docs
 
@@ -693,6 +698,11 @@ Status: Reviewer/admin workflow separation MVP complete for current single-compa
 
 ### App / Service Implementation
 
+- [x] Add default workflow policy module for current single-company platform defaults.
+- [x] Add default queue policy module for current single-company platform defaults.
+- [x] Add default calendar policy module for current single-company platform defaults.
+- [x] Add default notification policy module for current single-company platform defaults.
+- [x] Abstract current due-soon, queue status, review compression, and weekend visibility defaults without behavior change.
 - [ ] Add active/default company resolution.
 - [ ] Keep single-company behavior working.
 - [ ] Avoid full account switching for now.

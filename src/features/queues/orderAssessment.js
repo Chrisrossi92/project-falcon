@@ -2,10 +2,14 @@ import {
   OPERATIONAL_QUEUE_DEFINITIONS,
   OPERATIONAL_QUEUE_IDS,
 } from "./queueDefinitions";
+import {
+  DEFAULT_ACTIVE_APPRAISER_STATUSES,
+  DEFAULT_COMPLETED_STATUSES,
+  DEFAULT_DUE_SOON_HOURS,
+} from "@/lib/policies/defaultQueuePolicy";
 
-const ACTIVE_APPRAISER_STATUSES = new Set(["new", "in_progress", "needs_revisions"]);
-const COMPLETED_STATUSES = new Set(["completed"]);
-const DEFAULT_DUE_SOON_HOURS = 48;
+const ACTIVE_APPRAISER_STATUSES = new Set(DEFAULT_ACTIVE_APPRAISER_STATUSES);
+const COMPLETED_STATUSES = new Set(DEFAULT_COMPLETED_STATUSES);
 
 const QUEUE_DEFINITION_BY_ID = new Map(
   OPERATIONAL_QUEUE_DEFINITIONS.map((definition, index) => [
