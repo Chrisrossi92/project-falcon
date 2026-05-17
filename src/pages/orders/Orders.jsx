@@ -4,6 +4,9 @@ import { useLocation, useNavigate } from "react-router-dom";
 import OrdersFilters from "@/features/orders/OrdersFilters";
 import UnifiedOrdersTable from "@/features/orders/UnifiedOrdersTable";
 import NewOrderButton from "@/components/orders/NewOrderButton";
+import { orderHasQueue } from "@/features/queues/queueEvaluator";
+import { getQueueSummaryById, summarizeOperationalQueues } from "@/features/queues/queueSummary";
+import { useOrdersSummary } from "@/lib/hooks/useOrders";
 
 function useQuery() {
   const { search } = useLocation();
@@ -19,6 +22,7 @@ function readFilters(qs) {
     appraiserId: qs.get("appraiserId") || "",
     priority: qs.get("priority") || "",
     dueWindow: qs.get("due") || "",
+    queueId: qs.get("queue") || "",
     statusIn,
     page: Math.max(0, parseInt(qs.get("page") || "0", 10)),
     pageSize: Math.max(10, parseInt(qs.get("pageSize") || "15", 10)),
@@ -34,6 +38,7 @@ function writeFilters(navigate, next) {
   if (next.clientId) qs.set("clientId", next.clientId);
   if (next.priority) qs.set("priority", next.priority);
   if (next.dueWindow) qs.set("due", next.dueWindow);
+  if (next.queueId) qs.set("queue", next.queueId);
   if (next.search) qs.set("q", next.search);
   qs.set("page", String(Math.max(0, next.page || 0)));
   qs.set("pageSize", String(Math.max(10, next.pageSize || 15)));
@@ -46,6 +51,30 @@ export default function OrdersPage() {
   const [filters, setFilters] = useState(() => readFilters(qs));
 
   useEffect(() => setFilters(readFilters(qs)), [qs]);
+
+  const queueId = filters.queueId || "";
+  const queueSourceFilters = useMemo(() => {
+    const { queueId: _queueId, page: _page, pageSize: _pageSize, ...rest } = filters;
+    return {
+      ...rest,
+      page: 0,
+      pageSize: 1000,
+    };
+  }, [filters]);
+  const queueSource = useOrdersSummary(queueSourceFilters, {
+    enabled: Boolean(queueId),
+    scope: "orders",
+  });
+  const queueRows = useMemo(() => {
+    if (!queueId) return null;
+    return (queueSource.rows || []).filter((order) => orderHasQueue(order, queueId));
+  }, [queueId, queueSource.rows]);
+  const activeQueue = useMemo(() => {
+    if (!queueId) return null;
+    const summaries = summarizeOperationalQueues(queueSource.rows || []);
+    const summary = getQueueSummaryById(summaries, queueId);
+    return summary ? { ...summary, count: queueRows?.length || 0 } : null;
+  }, [queueId, queueRows, queueSource.rows]);
 
   function onChange(patch) {
     const next = { ...filters, ...patch, page: 0 };
@@ -75,16 +104,18 @@ export default function OrdersPage() {
           c: filters.clientId || "",
           a: filters.appraiserId || "",
           d: filters.dueWindow || "",
+          queue: filters.queueId || "",
           p: filters.page,
           ps: filters.pageSize,
         })}
         filters={filters}
         pageSize={filters.pageSize || 15}
+        rowsOverride={queueId ? queueRows || [] : null}
+        activeQueue={activeQueue}
       />
     </div>
   );
 }
-
 
 
 

@@ -107,6 +107,16 @@ Queue cards, queue filtering, table columns, order click-through, and Smart Acti
 
 No backend, schema, RPC, new queue, prediction, or scoring changes were made for Slice 2.
 
+Operational Queue Intelligence Slice 3 is complete.
+
+The Orders workspace now supports queue-aware inventory views through `/orders?queue=<queue_id>`. When a queue parameter is present, Orders uses the shared queue evaluator to derive the filtered row set and passes the selected queue context into `UnifiedOrdersTable`.
+
+The same quiet queue explanation appears above the Orders table, so dashboard and inventory surfaces use consistent operational language. Existing Orders search, status, client, appraiser, priority, due-window, and pagination behavior remain preserved and combine with queue filtering. No dashboard queue cards were duplicated, and no table columns were added.
+
+Normal `/orders` behavior is unchanged when no queue parameter is present. No backend, schema, or RPC changes were made for Slice 3.
+
+Known limitation: queue filtering is frontend-derived from the current summary fetch and capped by the existing 1000-row pull. A backend canonical queue source remains future work for larger tenants.
+
 ## Initial Proposed Operational Queues
 
 ### Due Soon
