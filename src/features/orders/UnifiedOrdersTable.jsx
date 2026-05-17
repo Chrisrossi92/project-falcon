@@ -36,8 +36,10 @@ const mapsHref = (street, cityline) => {
   return full ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(full)}` : null;
 };
 const fmtDate = (d) => (!d ? "-" : isNaN(new Date(d)) ? "-" : new Date(d).toLocaleDateString());
-const orderNumberOf = (row) =>
-  row?.order_number || (row?.id || row?.order_id ? (row?.id || row?.order_id).slice(0, 8) : "");
+const orderNumberOf = (row) => {
+  const fallbackId = row?.id || row?.order_id;
+  return row?.order_number || (fallbackId ? String(fallbackId).slice(0, 8) : "");
+};
 
 function orderPkOf(o) {
   return o?.id || o?.order_id || null;

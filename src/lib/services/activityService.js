@@ -77,7 +77,11 @@ export function subscribeOrderActivity(orderId, cb) {
     )
     .subscribe();
 
-  return () => { try { supabase.removeChannel(channel); } catch {} };
+  return () => {
+    try { supabase.removeChannel(channel); } catch {
+      // Realtime channel cleanup is best-effort during unsubscribe.
+    }
+  };
 }
 
 // Insert a note with cached author info for robustness
@@ -115,7 +119,6 @@ export async function logNote(orderId, message, options = {}) {
   const found = feed.find((r) => r.id === newId) || null;
   return found || { id: newId, order_id: orderId, event_type: "note", message, created_at: new Date().toISOString() };
 }
-
 
 
 

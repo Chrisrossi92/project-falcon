@@ -189,7 +189,9 @@ export default function NotificationBell() {
       )
       .subscribe();
     return () => {
-      try { supabase.removeChannel(channel); } catch {}
+      try { supabase.removeChannel(channel); } catch {
+        // Channel cleanup is best-effort during component teardown.
+      }
     };
   }, [channelName, userId]);
 

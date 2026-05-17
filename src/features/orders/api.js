@@ -216,7 +216,9 @@ export async function getOrderById(orderId, client = defaultClient) {
       .single();
 
     if (!error && data) return { data };
-  } catch {}
+  } catch {
+    // Fall back to the base orders table when the list view is unavailable.
+  }
 
   const { data, error } = await client
     .from("orders")
@@ -304,6 +306,5 @@ export async function getOrdersCount(q = {}, client = defaultClient) {
   if (e2) return { count: 0, error: e2.message };
   return { count: c2 || 0 };
 }
-
 
 

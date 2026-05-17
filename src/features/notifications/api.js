@@ -16,7 +16,9 @@ export async function getNotificationPrefs() {
   try {
     const rpc = await supabase.rpc("rpc_notification_prefs_get");
     if (!rpc.error) return rpc.data ?? null;
-  } catch {}
+  } catch {
+    // Fall back to direct table reads when the RPC is unavailable.
+  }
   try {
     const uid = await getUserId();
     if (!uid) return null;
@@ -26,7 +28,9 @@ export async function getNotificationPrefs() {
       .or(`user_id.eq.${uid},uid.eq.${uid}`)
       .maybeSingle();
     return data ?? null;
-  } catch {}
+  } catch {
+    // Notification preferences are optional; callers handle null.
+  }
   return null;
 }
 
@@ -34,7 +38,9 @@ export async function ensureNotificationPrefs() {
   try {
     const rpc = await supabase.rpc("rpc_notification_prefs_ensure");
     if (!rpc.error) return rpc.data ?? true;
-  } catch {}
+  } catch {
+    // Fall back to direct table writes when the RPC is unavailable.
+  }
   try {
     const uid = await getUserId();
     if (!uid) return false;
@@ -42,7 +48,9 @@ export async function ensureNotificationPrefs() {
       .from("notification_prefs")
       .upsert([{ user_id: uid }], { onConflict: "user_id" });
     return true;
-  } catch {}
+  } catch {
+    // Preference creation is best-effort for older environments.
+  }
   return false;
 }
 
@@ -50,7 +58,9 @@ export async function updateNotificationPrefs(patch = {}) {
   try {
     const rpc = await supabase.rpc("rpc_notification_prefs_update", { p_patch: patch });
     if (!rpc.error) return rpc.data ?? patch;
-  } catch {}
+  } catch {
+    // Fall back to direct table writes when the RPC is unavailable.
+  }
   try {
     const uid = await getUserId();
     if (!uid) return patch;
@@ -60,7 +70,9 @@ export async function updateNotificationPrefs(patch = {}) {
       .select("*")
       .maybeSingle();
     return data ?? patch;
-  } catch {}
+  } catch {
+    // Keep the optimistic patch result if persistence fails.
+  }
   return patch;
 }
 
@@ -124,4 +136,3 @@ export default {
 };
 
 export { markRead } from "@/lib/services/notificationsService";
-

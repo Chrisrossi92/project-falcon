@@ -177,40 +177,36 @@ export default function ActivityNoteForm({ orderId, order = null, onSaved }) {
         ? "Admin note"
         : "Note";
 
-    try {
-      await emitNotification(eventKey, {
-        recipients: [recipient],
-        order: order || { id: orderId },
-        payload: {
-          message,
-          order_id: order?.id || orderId || null,
-          order_number: orderNumber,
-          note_text: message,
-          actor: {
-            user_id: userId || null,
-            name: actorName,
-            role_on_order: actorRoleOnOrder,
-          },
-          recipient: {
-            user_id: recipient.userId,
-            name: recipientName,
-            role_on_order: recipientRoleOnOrder,
-          },
-          order_participants: {
-            appraiser_id: order?.appraiser_id || null,
-            appraiser_name: order?.appraiser_name || "Appraiser",
-            reviewer_id: order?.reviewer_id || null,
-            reviewer_name: order?.reviewer_name || "Reviewer",
-          },
-          communication: {
-            direction_label: `${actorName} → ${recipientName}`,
-            kind_label: kindLabel,
-          },
+    await emitNotification(eventKey, {
+      recipients: [recipient],
+      order: order || { id: orderId },
+      payload: {
+        message,
+        order_id: order?.id || orderId || null,
+        order_number: orderNumber,
+        note_text: message,
+        actor: {
+          user_id: userId || null,
+          name: actorName,
+          role_on_order: actorRoleOnOrder,
         },
-      });
-    } catch (error) {
-      throw error;
-    }
+        recipient: {
+          user_id: recipient.userId,
+          name: recipientName,
+          role_on_order: recipientRoleOnOrder,
+        },
+        order_participants: {
+          appraiser_id: order?.appraiser_id || null,
+          appraiser_name: order?.appraiser_name || "Appraiser",
+          reviewer_id: order?.reviewer_id || null,
+          reviewer_name: order?.reviewer_name || "Reviewer",
+        },
+        communication: {
+          direction_label: `${actorName} → ${recipientName}`,
+          kind_label: kindLabel,
+        },
+      },
+    });
   }
 
   async function onSubmit(e) {
