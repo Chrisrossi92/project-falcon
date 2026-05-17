@@ -517,6 +517,7 @@ export async function sendOrderToReview(orderId, actorId, options = {}) {
 
 export async function sendOrderBackToAppraiser(orderId, actorId, options = {}) {
   console.log("[sendOrderBackToAppraiser] called", { orderId, actorId });
+  const actorUserId = actorId || null;
 
   const { data: existingOrder, error: existingOrderError } = await supabase
     .from(ORDERS_TABLE)
@@ -558,13 +559,13 @@ export async function sendOrderBackToAppraiser(orderId, actorId, options = {}) {
   }
 
   const resolvedParticipants = resolveOrderParticipants(order, {
-    actorUserId: null,
+    actorUserId,
     actorRole: null,
     event: "workflow.sent_back_to_appraiser",
     status: order.status,
   });
 
-  const recipients = resolvedParticipants.recipients
+  let recipients = resolvedParticipants.recipients
     .filter((userId) => userId && userId === order.appraiser_id)
     .map((userId) => ({ userId, role: "appraiser" }));
 
@@ -574,6 +575,8 @@ export async function sendOrderBackToAppraiser(orderId, actorId, options = {}) {
 
   const adminRecipients = await fetchAdminRecipients();
   recipients.push(...adminRecipients);
+  const suppressUserIds = new Set(resolvedParticipants.suppressUserIds.filter(Boolean));
+  recipients = recipients.filter((recipient) => !suppressUserIds.has(recipient.userId));
 
   if (recipients.length > 0) {
     const payload = options?.noteText ? { note_text: options.noteText } : {};
@@ -589,6 +592,7 @@ export async function sendOrderBackToAppraiser(orderId, actorId, options = {}) {
 
 export async function completeOrder(orderId, actorId) {
   console.log("[completeOrder] called", { orderId, actorId });
+  const actorUserId = actorId || null;
 
   const { data: existingOrder, error: existingOrderError } = await supabase
     .from(ORDERS_TABLE)
@@ -631,12 +635,12 @@ export async function completeOrder(orderId, actorId) {
 
   const adminRecipients = await fetchAdminRecipients();
   const resolvedParticipants = resolveOrderParticipants(order, {
-    actorUserId: null,
+    actorUserId,
     actorRole: null,
     event: "workflow.completed",
     status: order.status,
   });
-  const recipients = [];
+  let recipients = [];
   recipients.push(...adminRecipients);
 
   const appraiserRecipients = resolvedParticipants.recipients
@@ -648,6 +652,8 @@ export async function completeOrder(orderId, actorId) {
   if (!appraiserRecipients.length && order.appraiser_id) {
     recipients.push({ userId: order.appraiser_id, role: "appraiser" });
   }
+  const suppressUserIds = new Set(resolvedParticipants.suppressUserIds.filter(Boolean));
+  recipients = recipients.filter((recipient) => !suppressUserIds.has(recipient.userId));
 
   if (recipients.length > 0) {
     emitNotification("order.completed", { recipients, order }).catch((err) =>
@@ -673,7 +679,6 @@ export async function isOrderNumberAvailable(orderNo, { excludeId = null } = {})
   if (res2.error) throw res2.error;
   return (res2.count || 0) === 0;
 }
-
 
 
 

@@ -610,7 +610,10 @@ Status: Notification payload contract MVP complete.
 - [x] Title/body generation centralized for `order.new_assigned`, `order.sent_to_review`, `order.sent_back_to_appraiser`, `order.review_cleared`, `order.ready_for_client`, `order.completed`, `note.appraiser_added`, and `note.reviewer_added`.
 - [x] Notification Settings event keys/copy align to canonical live event keys.
 - [x] Runtime behavior preserved: no new notification types, recipient routing changes, backend/schema/RPC changes, or queue/calendar signal notifications.
-- [ ] Defer preference-policy semantics, registry-driven recipient ownership matrix, and `/activity` notification-history versus order activity separation.
+- [x] Notification + Activity Cohesion Slice 2 complete: actor suppression hardened for `order.sent_back_to_appraiser`.
+- [x] `order.completed` suppresses the actor when actor identity is available.
+- [x] Runtime recipient doctrine otherwise unchanged: no `ready_for_client` routing, admin/owner role mapping, backend/schema/RPC/UI, queue/calendar, reminder, or escalation changes.
+- [ ] Defer `ready_for_client` recipient doctrine review, admin/owner recipient distinction, registry-driven ownership recipient matrix, notification preference-policy reconciliation, and `/activity` notification-history versus order activity separation.
 - [ ] Future Smart Actions button/panel work remains for detail/drawer replacement, appointment/date editing, final approval policy settings, and bulk actions.
 - [x] Create and apply `rpc_transition_order_status`.
 - [x] Validate backend transition validation.

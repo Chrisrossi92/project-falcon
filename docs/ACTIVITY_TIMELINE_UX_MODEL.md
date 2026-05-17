@@ -238,6 +238,25 @@ Deferred:
 - Registry-driven recipient ownership matrix.
 - Clearer product separation between `/activity` notification history and order-level activity timeline.
 
+## Notification Actor Suppression Lock - 2026-05-16
+
+Notification + Activity Cohesion Slice 2 hardened actor suppression for current workflow handoff notifications.
+
+Completed:
+
+- `order.sent_back_to_appraiser` now suppresses the actor consistently.
+- `order.completed` now suppresses the actor when actor identity is available.
+- Runtime recipient doctrine otherwise remains unchanged.
+- No `ready_for_client` routing changes were made.
+- No admin/owner role mapping, backend/schema/RPC/UI/queue/calendar/reminder/escalation changes were made.
+
+Deferred:
+
+- `ready_for_client` recipient doctrine review.
+- Admin/owner recipient distinction.
+- Registry-driven ownership recipient matrix.
+- Notification preference-policy reconciliation.
+
 ## Actor Identity Color Lock - 2026-05-16
 
 Actor color is now treated as part of Falcon's operational identity model. Team Directory identity colors should be the source for avatar circles and future timeline/calendar identity surfaces when available, with generated/fallback colors used only when no saved identity color exists.

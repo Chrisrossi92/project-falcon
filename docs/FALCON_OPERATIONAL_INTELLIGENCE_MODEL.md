@@ -476,7 +476,17 @@ Title/body generation is centralized for:
 - `note.appraiser_added`
 - `note.reviewer_added`
 
-Notification Settings event keys and labels now align to canonical live event keys. Runtime behavior is unchanged: no new notification types, recipient routing changes, backend/schema/RPC changes, or queue/calendar signal notifications were added. Preference-policy semantics, a registry-driven recipient ownership matrix, and the `/activity` notification-history versus order activity separation remain deferred.
+Notification Settings event keys and labels now align to canonical live event keys. Runtime behavior is unchanged: no new notification types, recipient routing changes, backend/schema/RPC changes, or queue/calendar signal notifications were added.
+
+Notification + Activity Cohesion Slice 2 is complete. Actor suppression is now hardened for workflow handoff notifications: `order.sent_back_to_appraiser` suppresses the actor consistently, and `order.completed` suppresses the actor when actor identity is available. Runtime recipient doctrine otherwise remains unchanged.
+
+Still deferred:
+
+- `ready_for_client` recipient doctrine review.
+- Admin/owner recipient distinction.
+- Registry-driven ownership recipient matrix.
+- Notification preference-policy reconciliation.
+- `/activity` notification-history versus order activity separation.
 
 ### Shared Language
 
