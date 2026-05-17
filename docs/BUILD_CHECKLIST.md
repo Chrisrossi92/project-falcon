@@ -50,6 +50,23 @@ Reference docs:
 - [ ] Team profile/auth linking and true auth invite flow remain future Team Management work.
 - [ ] Client contact architecture remains future work before save-to-client-profile contact behavior.
 
+## Engineering Infrastructure Stabilization
+
+- [x] ESLint flat config stabilized for the current JavaScript/JSX app surface.
+- [x] `dist/`, generated/build/vendor output, archived code, legacy config drift, and TypeScript files are intentionally excluded from lint scope for now.
+- [x] JSX parsing works for app/test JavaScript files in the active lint scope.
+- [x] Browser globals are configured for app files.
+- [x] Duplicate unused-variable reporting is reduced by disabling core `no-unused-vars` where `unused-imports/no-unused-vars` is active.
+- [x] React hooks plugin is wired.
+- [x] Current lint errors were fixed.
+- [x] `npm run lint` exits zero with warnings only.
+- [x] `npm run build` passes.
+- [x] `git diff --check` passes.
+- [ ] 199 lint warnings remain and are deferred as a separate cleanup pass.
+- [ ] TypeScript linting remains deferred until `@typescript-eslint` parser/plugin setup and Supabase type-file encoding decisions are handled.
+- [ ] Full CI remains future work.
+- [ ] Existing build warnings remain: Tailwind ambiguous `ease-[${EASING}]` class warning and large bundle chunk warning.
+
 ## Phase 0: Contract Freeze
 
 ### Planning / Docs
@@ -549,7 +566,7 @@ Status: Notification payload contract MVP complete.
 - [x] QA: Event chip click-through still opens order detail.
 - [x] Calendar QA build passes.
 - [x] Calendar QA `git diff --check` passes.
-- [ ] Full lint remains known unreliable until project lint config cleanup.
+- [x] Full lint now exits zero after ESLint stabilization; remaining lint output is warnings only.
 - [ ] Defer at-risk scoring, predictive risk, conflict detection, workload/capacity modeling, unassigned/at-risk lenses, chip/month-cell warning indicators, canonical backend calendar source, company timezone, and editable/reschedulable permissions.
 - [ ] Manually re-save existing incorrect stored appointment timestamps where needed.
 - [ ] Defer conflict/workload/unassigned logic, canonical backend calendar source, company-level timezone support, editable/reschedulable flags, scheduling conflict metadata, and richer calendar editing/drag-drop UX until event model and permissions are stable.

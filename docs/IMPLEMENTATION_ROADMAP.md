@@ -38,6 +38,28 @@ Deferred:
 - Order-specific client POC fields remain deferred until schema-backed fields are added: `client_contact_name`, `client_contact_email`, and `client_contact_phone`.
 - The existing contacts table remains dormant. Save-to-client-profile contact behavior should wait for a cleaned-up, company-scoped client contacts model.
 
+## Engineering Infrastructure Stabilization - 2026-05-16
+
+Completed:
+
+- ESLint flat config is stabilized for the current JavaScript/JSX app surface.
+- Generated/build/vendor output is excluded from lint scope, including `dist/`, `node_modules/`, `coverage/`, `.supabase/`, `tmp/`, and `build/`.
+- TypeScript files are intentionally excluded for now, including generated Supabase type files.
+- JSX parsing works for active app/test JavaScript files.
+- Browser globals are configured for app files.
+- Duplicate unused-variable reporting is reduced by disabling core `no-unused-vars` where `unused-imports/no-unused-vars` is active.
+- React hooks lint plugin is wired.
+- Current lint errors were fixed, and `npm run lint` exits zero with warnings only.
+- `npm run build` passes.
+- `git diff --check` passes.
+
+Deferred:
+
+- 199 lint warnings remain and should be handled in a separate warning cleanup pass.
+- TypeScript linting remains deferred until parser/plugin setup and Supabase type-file encoding decisions are handled.
+- Full CI is future work.
+- Existing build warnings remain: Tailwind ambiguous `ease-[${EASING}]` class warning and large bundle chunk warning.
+
 ## Phase 0: Contract Freeze
 
 ### Goal
@@ -586,7 +608,7 @@ Deferred follow-up:
 - No backend/schema/RPC/drag-drop/schedule-editing changes were made for Slice 6.
 - Calendar QA/polish pass fixed dashboard Month mode navigation: `MonthsCalendar` now supports controlled or internal anchor state, dashboard Month mode receives the dashboard event loader, role, weekend visibility, and event click handler, `CalendarGrid` supports weekday-only rendering and event selection fallback behavior, standalone `/calendar` month navigation remains controlled directly from `Calendar.jsx`, and dashboard Month remains a pressure snapshot rather than a standalone workspace.
 - Remaining standalone calendar roadmap: at-risk scoring, predictive risk, conflict detection, workload/capacity modeling, unassigned/at-risk lenses, chip/month-cell warning indicators, canonical backend calendar source, company timezone, and editable/reschedulable permissions remain deferred until deterministic metadata, policy, and permissions mature.
-- Known calendar technical notes: build passes; full lint remains unreliable because of existing project-wide ESLint/config issues including `dist` linting and JSX/TS parsing failures; current calendar still reads active-order normalized event data directly in places; right rail has no conflict/workload/unassigned logic yet and stacks below the calendar on smaller screens; canonical backend calendar source, company timezone, editable/reschedulable flags, and scheduling conflict metadata remain future hooks.
+- Known calendar technical notes: build passes; lint now exits zero after ESLint stabilization with warnings only; current calendar still reads active-order normalized event data directly in places; right rail has no conflict/workload/unassigned logic yet and stacks below the calendar on smaller screens; canonical backend calendar source, company timezone, editable/reschedulable flags, and scheduling conflict metadata remain future hooks.
 - Deferred appointment/calendar follow-up: existing incorrect stored timestamps need manual re-save, unified Smart Actions, company-level timezone support, and richer calendar UX such as drag/drop or direct calendar editing.
 - Main table workflow actions are permission-gated while preserving legacy fallback during permission loading/errors.
 - Reviewer template role no longer receives `workflow.status.ready_for_client`; reviewers keep `workflow.status.approve_review` for clear-review behavior.
