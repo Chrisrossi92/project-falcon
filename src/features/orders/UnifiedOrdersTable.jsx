@@ -237,7 +237,7 @@ export default function UnifiedOrdersTable({
         });
         refresh();
         toast({
-          title: "Sent back to appraiser",
+          title: "Revisions requested",
           description: `Revisions requested for order ${order.order_number || orderPk}.`,
           tone: "success",
         });
@@ -245,7 +245,7 @@ export default function UnifiedOrdersTable({
         console.error("Failed to send back to appraiser", err);
         toast({
           title: "Error",
-          description: err?.message ? `Could not send back: ${err.message}` : "Could not send order back to appraiser.",
+          description: err?.message ? `Could not request revisions: ${err.message}` : "Could not request revisions.",
           tone: "error",
         });
       }
@@ -616,13 +616,13 @@ export default function UnifiedOrdersTable({
       <WorkflowNoteModal
         open={Boolean(workflowModal)}
         busy={workflowBusy}
-        title={workflowModal?.action === "send_back_to_appraiser" ? "Send Back to Appraiser" : "Send to Review"}
+        title={workflowModal?.action === "send_back_to_appraiser" ? "Request Revisions" : "Send to Review"}
         description={
           workflowModal?.action === "send_back_to_appraiser"
-            ? "Add an optional revision note before sending the order back."
+            ? "Add an optional revision note before requesting changes from the appraiser."
             : "Add an optional resubmission note before sending the order to review."
         }
-        confirmLabel={workflowModal?.action === "send_back_to_appraiser" ? "Send Back" : "Send to Review"}
+        confirmLabel={workflowModal?.action === "send_back_to_appraiser" ? "Request Revisions" : "Send to Review"}
         onCancel={closeWorkflowModal}
         onConfirm={confirmWorkflowModal}
       />

@@ -597,6 +597,12 @@ Status: Notification payload contract MVP complete.
 - [ ] Defer conflict/workload/unassigned logic, canonical backend calendar source, company-level timezone support, editable/reschedulable flags, scheduling conflict metadata, and richer calendar editing/drag-drop UX until event model and permissions are stable.
 - [x] Shared Smart Actions descriptors/control are active for the main table and quick actions drawer.
 - [x] First Smart Actions slice replaced main dashboard/table workflow action rendering while preserving existing handlers and `WorkflowNoteModal`.
+- [x] Workflow Cohesion Slice 1 complete: canonical user-facing workflow vocabulary is locked.
+- [x] Workflow labels align to Send to Review, Resubmit to Review, Request Revisions, Clear Review, Request Final Approval, Mark Ready for Client, and Mark Complete.
+- [x] Explicit `order.ready_for_client` notification title/body copy added.
+- [x] Activity fallback wording aligned to canonical workflow vocabulary.
+- [x] Safe legacy action labels/comments aligned without removing legacy surfaces.
+- [x] No workflow behavior/status/RPC/permission/queue/lifecycle changes were made for Workflow Cohesion Slice 1.
 - [ ] Future Smart Actions button/panel work remains for detail/drawer replacement, appointment/date editing, final approval policy settings, and bulk actions.
 - [x] Create and apply `rpc_transition_order_status`.
 - [x] Validate backend transition validation.

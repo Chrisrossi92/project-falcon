@@ -22,7 +22,7 @@ export default function QuickActionsDrawerPanel({
   if (!order || !orderId) return null;
 
   async function runWorkflowAction(label, action) {
-    const ok = window.confirm(`Set status to "${label}"?`);
+    const ok = window.confirm(`Run "${label}"?`);
     if (!ok) return;
     try {
       setBusy(true);
@@ -35,9 +35,9 @@ export default function QuickActionsDrawerPanel({
 
   const role = isReviewer ? "reviewer" : "appraiser";
   const handlers = {
-    onSendToReview: () => runWorkflowAction("In Review", () => sendOrderToReview(orderId)),
-    onClearReview: () => runWorkflowAction("Review Cleared", () => clearReview(orderId)),
-    onSendBackToAppraiser: () => runWorkflowAction("Revisions", () => sendOrderBackToAppraiser(orderId)),
+    onSendToReview: () => runWorkflowAction("Send to Review", () => sendOrderToReview(orderId)),
+    onClearReview: () => runWorkflowAction("Clear Review", () => clearReview(orderId)),
+    onSendBackToAppraiser: () => runWorkflowAction("Request Revisions", () => sendOrderBackToAppraiser(orderId)),
   };
   const smartActions = isAdmin
     ? []
@@ -64,6 +64,5 @@ export default function QuickActionsDrawerPanel({
     </Wrap>
   );
 }
-
 
 

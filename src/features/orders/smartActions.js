@@ -72,7 +72,7 @@ export function getSmartOrderActions({ order, role, permissions = {}, handlers =
     return [
       {
         id: "send_back_to_appraiser",
-        label: "Return to Appraiser",
+        label: "Request Revisions",
         visible: canShowReviewActionStatus,
         disabled: !canSendBackToAppraiser,
         isPrimary: false,
@@ -80,7 +80,7 @@ export function getSmartOrderActions({ order, role, permissions = {}, handlers =
       },
       {
         id: "clear_review",
-        label: "Approve Review",
+        label: "Clear Review",
         visible: canShowReviewActionStatus,
         disabled: !canClearReview,
         isPrimary: canShowReviewActionStatus && canClearReview,
@@ -92,7 +92,7 @@ export function getSmartOrderActions({ order, role, permissions = {}, handlers =
   return [
     {
       id: "send_to_review",
-      label: "Send to review",
+      label: "Send to Review",
       visible: canShowSendToReviewStatus && canSubmitOrResubmit,
       disabled: false,
       isPrimary: false,
@@ -100,7 +100,7 @@ export function getSmartOrderActions({ order, role, permissions = {}, handlers =
     },
     {
       id: "send_back_to_appraiser",
-      label: "Return to Appraiser",
+      label: "Request Revisions",
       visible: canSendBackToAppraiser,
       disabled: false,
       isPrimary: false,
@@ -108,7 +108,7 @@ export function getSmartOrderActions({ order, role, permissions = {}, handlers =
     },
     {
       id: "clear_review",
-      label: "Approve Review",
+      label: "Clear Review",
       visible: canClearReview,
       disabled: false,
       isPrimary: canClearReview,
@@ -124,7 +124,7 @@ export function getSmartOrderActions({ order, role, permissions = {}, handlers =
     },
     {
       id: "ready_for_client",
-      label: "Ready for Client",
+      label: "Mark Ready for Client",
       visible: canMarkReadyForClient,
       disabled: false,
       isPrimary: canMarkReadyForClient,

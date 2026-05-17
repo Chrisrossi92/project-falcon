@@ -516,6 +516,18 @@ Clear Review emits an admin/owner handoff notification. Send-to-review and send-
 
 Main table workflow actions are now permission-gated with legacy fallback during permission loading/errors. Reviewer no longer has the default ready-for-client template permission; admin/owner owns client release.
 
+Workflow Cohesion Slice 1 locks canonical user-facing workflow labels across current Smart Actions, workflow modal copy, notification copy, activity fallback wording, and safe legacy action surfaces:
+
+- `submit_to_review`: Send to Review.
+- `needs_revisions` resubmission: Resubmit to Review.
+- `request_revisions`: Request Revisions.
+- `approve_review`: Clear Review.
+- `request_final_approval`: Request Final Approval.
+- `ready_for_client`: Mark Ready for Client.
+- `complete`: Mark Complete.
+
+This was a vocabulary-only alignment. It did not change workflow behavior, statuses, permissions, RPCs, queue logic, or lifecycle structure.
+
 Activity / Communication History UX polish slice is complete: posted notes refresh silently without a full loading flash, and the activity viewport remains fixed-height and scrollable after updates. Activity logging, notifications, realtime, and workflow behavior are unchanged.
 
 When an order is marked Ready for Client, the appraiser should generally receive a cleared/released notification, admins/owners should remain action-aware, and reviewer notification should be optional/configurable through future company workflow/notification settings.

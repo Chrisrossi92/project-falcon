@@ -359,12 +359,14 @@ function buildNotificationTitle(eventKey, orderNumber, payload = {}) {
     case "order.new_assigned":
       return `Order ${num} assigned`;
     case "order.sent_to_review":
-      if (payload?.is_resubmission) return `Resubmitted for review: ${num}`;
+      if (payload?.is_resubmission) return `Resubmitted to review: ${num}`;
       return `Order ${num} sent to review`;
     case "order.sent_back_to_appraiser":
       return `Revisions requested: ${num}`;
     case "order.review_cleared":
       return `Review cleared: ${num}`;
+    case "order.ready_for_client":
+      return `Ready for client: ${num}`;
     case "order.completed":
       return `Order ${num} completed`;
     case "note.appraiser_added":
@@ -383,13 +385,15 @@ function buildNotificationBody(eventKey, order, payload) {
       return `A new order was assigned for ${client}.`;
     case "order.sent_to_review":
       if (payload?.note_text) return payload.note_text;
-      if (payload?.is_resubmission) return `Appraiser resubmitted this report for back-check.`;
+      if (payload?.is_resubmission) return `Appraiser resubmitted this report to review.`;
       return `Appraiser sent this report for review.`;
     case "order.sent_back_to_appraiser":
       if (payload?.note_text) return payload.note_text;
       return `Reviewer requested changes to this report.`;
     case "order.review_cleared":
       return `Reviewer cleared this order for admin release.`;
+    case "order.ready_for_client":
+      return `Order is ready for client delivery.`;
     case "order.completed":
       return `Report for ${client} was marked complete.`;
     case "note.appraiser_added":

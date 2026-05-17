@@ -31,7 +31,7 @@ export const ORDER_WORKFLOW_TRANSITIONS = Object.freeze({
   request_revisions: Object.freeze({
     key: "request_revisions",
     actionId: "send_back_to_appraiser",
-    label: "Return to Appraiser",
+    label: "Request Revisions",
     from: Object.freeze([ORDER_STATUS.IN_REVIEW]),
     to: ORDER_STATUS.NEEDS_REVISIONS,
     primaryActorRole: "reviewer",
@@ -43,7 +43,7 @@ export const ORDER_WORKFLOW_TRANSITIONS = Object.freeze({
   approve_review: Object.freeze({
     key: "approve_review",
     actionId: "clear_review",
-    label: "Approve Review",
+    label: "Clear Review",
     from: Object.freeze([ORDER_STATUS.IN_REVIEW]),
     to: ORDER_STATUS.REVIEW_CLEARED,
     primaryActorRole: "reviewer",
@@ -67,7 +67,7 @@ export const ORDER_WORKFLOW_TRANSITIONS = Object.freeze({
   ready_for_client: Object.freeze({
     key: "ready_for_client",
     actionId: "ready_for_client",
-    label: "Ready for Client",
+    label: "Mark Ready for Client",
     from: Object.freeze([
       ORDER_STATUS.REVIEW_CLEARED,
       ORDER_STATUS.PENDING_FINAL_APPROVAL,

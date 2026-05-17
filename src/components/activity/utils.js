@@ -258,9 +258,9 @@ export function formatActivity(item = {}) {
       return "";
     }
     case "sent_to_review":
-      return "Sent to review";
+      return "Sent to Review";
     case "sent_back_to_appraiser":
-      return "Returned to appraiser for revisions";
+      return "Revisions requested";
     case "ready_for_client":
       return "Marked ready for client";
     case "completed":

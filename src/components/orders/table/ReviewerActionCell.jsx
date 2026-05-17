@@ -6,8 +6,11 @@ import {
 } from "@/lib/services/ordersService";
 
 /**
+ * Legacy reviewer action surface. Current table action rendering should use
+ * SmartActionsControl and canonical workflow labels.
+ *
  * Reviewer actions:
- *  - Revisions -> status = REVISIONS (back to appraiser queue)
+ *  - Request Revisions -> status = NEEDS_REVISIONS (back to appraiser queue)
  *  - Clear Review -> status = REVIEW_CLEARED (admin release queue)
  */
 export default function ReviewerActionCell({ order, onChanged }) {
@@ -34,15 +37,15 @@ export default function ReviewerActionCell({ order, onChanged }) {
         className="px-2 py-1 text-xs rounded border hover:bg-gray-50 disabled:opacity-50"
         disabled={busy}
         onClick={() => runAction(() => sendOrderBackToAppraiser(order.id))}
-        title="Send back to appraiser with revisions"
+        title="Request revisions from appraiser"
       >
-        {busy ? "Working…" : "Revisions"}
+        {busy ? "Working…" : "Request Revisions"}
       </button>
       <button
         className="px-2 py-1 text-xs rounded border hover:bg-gray-50 disabled:opacity-50"
         disabled={busy}
         onClick={() => runAction(() => clearReview(order.id))}
-        title="Clear review for admin release"
+        title="Clear Review for admin release"
       >
         {busy ? "Working…" : "Clear Review"}
       </button>

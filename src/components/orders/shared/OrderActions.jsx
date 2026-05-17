@@ -14,6 +14,8 @@ import { logNote } from "@/lib/services/activityService";
 import { ORDER_STATUS, normalizeStatus } from "@/lib/constants/orderStatus";
 
 export default function OrderActions({ order, onAfterAction }) {
+  // Legacy action panel. Current workflow surfaces should use Smart Actions and
+  // the canonical workflow vocabulary from orderWorkflow.js.
   const { isAdmin, isReviewer } = useRole() || {};
   const [note, setNote] = useState("");
 
@@ -40,7 +42,7 @@ export default function OrderActions({ order, onAfterAction }) {
   const canRequestRev = (isReviewer || isAdmin) && status === ORDER_STATUS.IN_REVIEW;
   const canReady      = (isReviewer || isAdmin) && (status === ORDER_STATUS.IN_REVIEW || status === ORDER_STATUS.NEEDS_REVISIONS);
 
-  // IMPORTANT: “Send to Client” is an admin/conductor action
+  // IMPORTANT: client delivery/closeout is an admin/conductor action.
   const canSend       = isAdmin && status === ORDER_STATUS.READY_FOR_CLIENT;
 
   const canComplete   = isAdmin && status !== ORDER_STATUS.COMPLETED;
@@ -57,7 +59,7 @@ export default function OrderActions({ order, onAfterAction }) {
       const ok = window.confirm(confirmCompleteText);
       if (!ok) return;
     }
-    await doAction(markComplete, "Mark complete", [id, note || null]);
+    await doAction(markComplete, "Mark Complete", [id, note || null]);
   }
 
   return (
@@ -77,7 +79,7 @@ export default function OrderActions({ order, onAfterAction }) {
         {canApprove && (
           <button
             className="px-3 py-1.5 text-sm rounded border hover:bg-gray-50"
-            onClick={() => doAction(approveReview, "Clear review", [id, note || null])}
+            onClick={() => doAction(approveReview, "Clear Review", [id, note || null])}
           >
             Clear Review
           </button>
@@ -86,7 +88,7 @@ export default function OrderActions({ order, onAfterAction }) {
         {canRequestRev && (
           <button
             className="px-3 py-1.5 text-sm rounded border hover:bg-gray-50"
-            onClick={() => doAction(requestRevisions, "Request revisions", [id, note || null])}
+            onClick={() => doAction(requestRevisions, "Request Revisions", [id, note || null])}
           >
             Request Revisions
           </button>
@@ -95,18 +97,18 @@ export default function OrderActions({ order, onAfterAction }) {
         {canReady && (
           <button
             className="px-3 py-1.5 text-sm rounded border hover:bg-gray-50"
-            onClick={() => doAction(markReadyToSend, "Mark review cleared", [id])}
+            onClick={() => doAction(markReadyToSend, "Clear Review", [id])}
           >
-            Review Cleared
+            Clear Review
           </button>
         )}
 
         {canSend && (
           <button
             className="px-3 py-1.5 text-sm rounded border hover:bg-gray-50"
-            onClick={() => doAction(sendToClient, "Send to client", [id, {}])}
+            onClick={() => doAction(sendToClient, "Mark Complete", [id, {}])}
           >
-            Send to Client
+            Mark Complete
           </button>
         )}
 
@@ -139,4 +141,3 @@ export default function OrderActions({ order, onAfterAction }) {
     </div>
   );
 }
-
