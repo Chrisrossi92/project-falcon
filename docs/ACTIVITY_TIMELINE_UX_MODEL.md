@@ -220,6 +220,24 @@ Completed:
 - No fetching, services, RPCs, subscriptions, migrations, or filter behavior changed.
 - Future grouping can consider actor affinity, duplicate event collapse, and urgency semantics.
 
+## Notification Registry Lock - 2026-05-16
+
+Notification + Activity Cohesion Slice 1 added a canonical notification event registry for current workflow and note notification semantics.
+
+Completed:
+
+- Notification title/body generation is centralized for `order.new_assigned`, `order.sent_to_review`, `order.sent_back_to_appraiser`, `order.review_cleared`, `order.ready_for_client`, `order.completed`, `note.appraiser_added`, and `note.reviewer_added`.
+- Registry metadata now captures `key`, `label`, `category`, `priority`, `primaryRecipientRole`, `suppressActor`, `secondaryRecipientIntent`, `buildTitle`, and `buildBody`.
+- Notification Settings event keys and copy now align to canonical live event keys.
+- Runtime behavior is preserved: no new notification types, recipient routing changes, backend/schema/RPC changes, or queue/calendar signal notifications were added.
+- Activity remains the durable order memory; notifications remain delivery prompts.
+
+Deferred:
+
+- Preference-policy semantics.
+- Registry-driven recipient ownership matrix.
+- Clearer product separation between `/activity` notification history and order-level activity timeline.
+
 ## Actor Identity Color Lock - 2026-05-16
 
 Actor color is now treated as part of Falcon's operational identity model. Team Directory identity colors should be the source for avatar circles and future timeline/calendar identity surfaces when available, with generated/fallback colors used only when no saved identity color exists.

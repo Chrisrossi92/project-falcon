@@ -484,7 +484,9 @@ Status: Notification payload contract MVP complete.
 - [x] Keep resubmission on `order.sent_to_review` with payload flag instead of new notification policy.
 - [x] Seed `order.review_cleared` notification policy.
 - [x] Emit `order.review_cleared` to admin/owner recipients from `clearReview`.
-- [ ] Make remaining notification title/body display-ready.
+- [x] Centralize current workflow/note notification title/body generation through canonical notification event registry.
+- [x] Align Notification Settings event keys/copy to canonical live notification event keys.
+- [ ] Make any future notification title/body display-ready through the registry before use.
 - [ ] Ensure RPC errors are checked and surfaced.
 - [ ] Implement or align `emitOrderEvent`.
 
@@ -603,6 +605,12 @@ Status: Notification payload contract MVP complete.
 - [x] Activity fallback wording aligned to canonical workflow vocabulary.
 - [x] Safe legacy action labels/comments aligned without removing legacy surfaces.
 - [x] No workflow behavior/status/RPC/permission/queue/lifecycle changes were made for Workflow Cohesion Slice 1.
+- [x] Notification + Activity Cohesion Slice 1 complete: canonical notification event registry added.
+- [x] Registry fields include `key`, `label`, `category`, `priority`, `primaryRecipientRole`, `suppressActor`, `secondaryRecipientIntent`, `buildTitle`, and `buildBody`.
+- [x] Title/body generation centralized for `order.new_assigned`, `order.sent_to_review`, `order.sent_back_to_appraiser`, `order.review_cleared`, `order.ready_for_client`, `order.completed`, `note.appraiser_added`, and `note.reviewer_added`.
+- [x] Notification Settings event keys/copy align to canonical live event keys.
+- [x] Runtime behavior preserved: no new notification types, recipient routing changes, backend/schema/RPC changes, or queue/calendar signal notifications.
+- [ ] Defer preference-policy semantics, registry-driven recipient ownership matrix, and `/activity` notification-history versus order activity separation.
 - [ ] Future Smart Actions button/panel work remains for detail/drawer replacement, appointment/date editing, final approval policy settings, and bulk actions.
 - [x] Create and apply `rpc_transition_order_status`.
 - [x] Validate backend transition validation.

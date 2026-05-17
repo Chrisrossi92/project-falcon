@@ -632,6 +632,11 @@ Deferred follow-up:
 - Workflow Cohesion Slice 1 is complete: canonical user-facing workflow vocabulary is locked and current labels align to Send to Review, Resubmit to Review, Request Revisions, Clear Review, Request Final Approval, Mark Ready for Client, and Mark Complete.
 - Slice 1 added explicit `order.ready_for_client` notification copy, aligned activity fallback wording, and updated safe legacy action labels/comments without removing legacy surfaces.
 - No workflow behavior, status, RPC, permission, queue, or lifecycle changes were made for Workflow Cohesion Slice 1.
+- Notification + Activity Cohesion Slice 1 is complete: a canonical notification event registry now defines notification `key`, `label`, `category`, `priority`, `primaryRecipientRole`, `suppressActor`, `secondaryRecipientIntent`, `buildTitle`, and `buildBody`.
+- Notification title/body generation is centralized for `order.new_assigned`, `order.sent_to_review`, `order.sent_back_to_appraiser`, `order.review_cleared`, `order.ready_for_client`, `order.completed`, `note.appraiser_added`, and `note.reviewer_added`.
+- Notification Settings event keys/copy now align to canonical live event keys.
+- Runtime behavior is preserved for Notification + Activity Cohesion Slice 1: no new notification types, recipient routing changes, backend/schema/RPC changes, or queue/calendar signal notifications were added.
+- Deferred notification/activity cohesion work includes preference-policy semantics, a registry-driven recipient ownership matrix, and clearer separation between `/activity` notification history and order-level activity timeline.
 - Backend workflow enforcement foundation is complete: `rpc_transition_order_status` was created and applied, transition validation works, permission enforcement works, missing permission and invalid transition rejections were validated, the happy path `submit_to_review` was validated, duplicate legacy order activity triggers were disabled, and RPC transitions now produce one clean `status_changed` activity row.
 - Frontend workflow helper migration is complete: `sendOrderToReview`, `sendOrderBackToAppraiser`, `clearReview`, `requestFinalApproval`, `markReadyForClient`, and `completeOrder` now use `rpc_transition_order_status`.
 - Full lifecycle was tested through the backend RPC: `new` -> `in_review` -> `review_cleared` -> `pending_final_approval` -> `ready_for_client` -> `completed`.
@@ -736,6 +741,10 @@ Completed first payload slice:
 - Send-to-review workflow notification now includes optional note text and suppresses the duplicate note notification.
 - `order.review_cleared` notification policy is seeded for admin/owner handoff delivery.
 - Notifications are consistent across current workflow actions: one actionable notification per action.
+- Canonical notification event registry is now the frontend semantic source for current workflow/note title/body generation and fallback category/priority metadata.
+- Notification Settings event keys and labels now align to canonical live event keys instead of stale legacy keys.
+- Registry introduction preserved runtime behavior: no new notification types, no recipient routing changes, no backend/schema/RPC changes, and no queue/calendar signal notifications.
+- Preference-policy semantics, a registry-driven recipient ownership matrix, and `/activity` notification-history versus order activity separation remain deferred.
 - Activity log remains the source of full communication history; notifications are summaries.
 - ActivityLog UX polish slice is complete: posted notes silently refresh through `listOrderActivity` without a full loading flash, the composer uses the `onSaved` callback, and the viewport remains fixed-height/scrollable even with `fill` layout.
 - Activity logging, notifications, realtime subscription, and workflow logic were unchanged.

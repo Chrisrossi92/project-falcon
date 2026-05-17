@@ -5,22 +5,15 @@ import {
   rpcSetNotificationPolicy,
   updateMyNotificationPrefs,
 } from "@/lib/services/api";
+import {
+  NOTIFICATION_EVENT_KEYS,
+  NOTIFICATION_SETTINGS_EVENTS,
+} from "@/features/notifications/notificationEvents";
 
-// Canonical event keys
-const EVENT_KEYS = [
-  "order.assigned",
-  "order.status_changed",
-  "order.appointment_updated",
-  "order.due_updated",
-];
-
-// Friendly labels for UI
-const LABELS = {
-  "order.assigned": "Order Assigned",
-  "order.status_changed": "Order Status Changed",
-  "order.appointment_updated": "Site Visit / Appointment Updated",
-  "order.due_updated": "Review/Final Due Updated",
-};
+const EVENT_KEYS = NOTIFICATION_SETTINGS_EVENTS.map((event) => event.key);
+const LABELS = Object.fromEntries(
+  NOTIFICATION_SETTINGS_EVENTS.map((event) => [event.key, event.label])
+);
 
 function Switch({ checked, onChange, disabled }) {
   return (
@@ -70,7 +63,7 @@ export default function NotificationPrefsPanel({ showAdminSections = false, show
     return (
       row?.rules ?? {
         center: { "*": true },
-        email: { "*": false, "order.assigned": true },
+        email: { "*": false, [NOTIFICATION_EVENT_KEYS.ORDER_NEW_ASSIGNED]: true },
       }
     );
   }, [policies]);
@@ -79,8 +72,11 @@ export default function NotificationPrefsPanel({ showAdminSections = false, show
     const row = policies.find((p) => p.key === "defaults.appraiser");
     return (
       row?.rules ?? {
-        center: { "order.assigned": true, "order.status_changed": true },
-        email: { "order.assigned": true },
+        center: {
+          [NOTIFICATION_EVENT_KEYS.ORDER_NEW_ASSIGNED]: true,
+          [NOTIFICATION_EVENT_KEYS.ORDER_SENT_BACK_TO_APPRAISER]: true,
+        },
+        email: { [NOTIFICATION_EVENT_KEYS.ORDER_NEW_ASSIGNED]: true },
       }
     );
   }, [policies]);

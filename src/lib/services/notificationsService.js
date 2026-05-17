@@ -1,4 +1,9 @@
 import { supabase } from "@/lib/supabaseClient";
+import {
+  buildNotificationBodyFromRegistry,
+  buildNotificationTitleFromRegistry,
+  getNotificationEvent,
+} from "@/features/notifications/notificationEvents";
 
 const debug = process.env.NODE_ENV === "development";
 
@@ -178,8 +183,9 @@ export async function emitNotification(eventKey, { recipients, order, payload = 
     }
 
     const rules = policyRow.rules;
-    const category = rules.category || "order";
-    const priority = rules.priority || "normal";
+    const eventDefinition = getNotificationEvent(eventKey);
+    const category = rules.category || eventDefinition?.category || "order";
+    const priority = rules.priority || eventDefinition?.priority || "normal";
 
     const inserts = [];
     const seenRecipientIds = new Set();
@@ -252,8 +258,9 @@ export async function emitNotification(eventKey, { recipients, order, payload = 
       if (!shouldInApp) continue;
 
       const orderNumber = await resolveOrderNumber(order, payload);
-      const title = buildNotificationTitle(eventKey, orderNumber, payload);
-      const body = buildNotificationBody(eventKey, order, payload);
+      const notificationContext = { order, orderNumber, payload, recipient };
+      const title = buildNotificationTitleFromRegistry(eventKey, notificationContext);
+      const body = buildNotificationBodyFromRegistry(eventKey, notificationContext);
       const normalizedPayload = {
         order_number: orderNumber,
         status: order?.status,
@@ -350,56 +357,5 @@ export async function markRead(id) {
   } catch (err) {
     if (debug) console.debug("[markRead] failed", err?.message || err);
     return null;
-  }
-}
-
-function buildNotificationTitle(eventKey, orderNumber, payload = {}) {
-  const num = orderNumber || "order";
-  switch (eventKey) {
-    case "order.new_assigned":
-      return `Order ${num} assigned`;
-    case "order.sent_to_review":
-      if (payload?.is_resubmission) return `Resubmitted to review: ${num}`;
-      return `Order ${num} sent to review`;
-    case "order.sent_back_to_appraiser":
-      return `Revisions requested: ${num}`;
-    case "order.review_cleared":
-      return `Review cleared: ${num}`;
-    case "order.ready_for_client":
-      return `Ready for client: ${num}`;
-    case "order.completed":
-      return `Order ${num} completed`;
-    case "note.appraiser_added":
-    case "note.reviewer_added":
-      return `${payload?.actor?.name || "Someone"} added a note`;
-    default:
-      return `Order ${num} updated`;
-  }
-}
-
-function buildNotificationBody(eventKey, order, payload) {
-  const client = order?.client_name || "client";
-  switch (eventKey) {
-    case "order.new_assigned":
-      // keep admin anonymous
-      return `A new order was assigned for ${client}.`;
-    case "order.sent_to_review":
-      if (payload?.note_text) return payload.note_text;
-      if (payload?.is_resubmission) return `Appraiser resubmitted this report to review.`;
-      return `Appraiser sent this report for review.`;
-    case "order.sent_back_to_appraiser":
-      if (payload?.note_text) return payload.note_text;
-      return `Reviewer requested changes to this report.`;
-    case "order.review_cleared":
-      return `Reviewer cleared this order for admin release.`;
-    case "order.ready_for_client":
-      return `Order is ready for client delivery.`;
-    case "order.completed":
-      return `Report for ${client} was marked complete.`;
-    case "note.appraiser_added":
-    case "note.reviewer_added":
-      return payload?.note_text || payload?.message || "";
-    default:
-      return payload?.message || "";
   }
 }

@@ -451,6 +451,33 @@ Notifications are delivery prompts.
 
 They should route direct personal prompts and configured alerts. They are not the source of truth; activity remains the durable record.
 
+Notification + Activity Cohesion Slice 1 is complete. Falcon now has a canonical notification event registry for current workflow and note delivery events. The registry is the semantic source of truth for notification copy and metadata, with these fields:
+
+```txt
+key
+label
+category
+priority
+primaryRecipientRole
+suppressActor
+secondaryRecipientIntent
+buildTitle
+buildBody
+```
+
+Title/body generation is centralized for:
+
+- `order.new_assigned`
+- `order.sent_to_review`
+- `order.sent_back_to_appraiser`
+- `order.review_cleared`
+- `order.ready_for_client`
+- `order.completed`
+- `note.appraiser_added`
+- `note.reviewer_added`
+
+Notification Settings event keys and labels now align to canonical live event keys. Runtime behavior is unchanged: no new notification types, recipient routing changes, backend/schema/RPC changes, or queue/calendar signal notifications were added. Preference-policy semantics, a registry-driven recipient ownership matrix, and the `/activity` notification-history versus order activity separation remain deferred.
+
 ### Shared Language
 
 Across surfaces, Falcon should use consistent concepts:
