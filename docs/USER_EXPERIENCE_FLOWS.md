@@ -340,6 +340,8 @@ New Order intake UX polish is complete for the current form surface:
 - Recommended cues are non-blocking helper callouts, not validation errors.
 - Post-create navigation has one primary destination: the newly-created order detail when the created order ID is available.
 
+Status-Write Cleanup Slice 1 is complete. The order form still shows lifecycle status context, but it no longer acts as a lifecycle transition surface. New orders always initialize as `new`; edit saves do not include lifecycle `status`; and `AssignmentFields` no longer exposes editable lifecycle status selection. Lifecycle movement belongs to canonical workflow transitions and Smart Actions.
+
 Inline manual client creation from New Order is complete for the safe MVP path. When no existing client is selected and a manual client name is entered, admins can opt in to `Create client record from this name`. Falcon checks for obvious duplicate client names first; likely duplicates nudge the admin to select the existing client instead of auto-creating a duplicate. On submit, the client is created first, then the order is created with the new `client_id`; `manual_client_name` is cleared for that linked path. If client creation fails, the order is not created as a fake or missing linked client.
 
 Order-specific Client / Order Contact fields are deferred until schema-backed fields exist:
@@ -527,6 +529,8 @@ Workflow Cohesion Slice 1 locks canonical user-facing workflow labels across cur
 - `complete`: Mark Complete.
 
 This was a vocabulary-only alignment. It did not change workflow behavior, statuses, permissions, RPCs, queue logic, or lifecycle structure.
+
+Status-Write Cleanup Slice 1 removes active UI lifecycle bypasses without changing workflow behavior. Order Detail status is read-only, Order Form edit saves no longer write lifecycle `status`, and New Order creation initializes as `new`. Legacy status mutation helpers are quarantined in code comments, while Smart Actions and canonical workflow transition helpers remain the governed lifecycle path.
 
 Activity / Communication History UX polish slice is complete: posted notes refresh silently without a full loading flash, and the activity viewport remains fixed-height and scrollable after updates. Activity logging, notifications, realtime, and workflow behavior are unchanged.
 

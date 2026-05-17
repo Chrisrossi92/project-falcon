@@ -4,6 +4,9 @@ import supabase from '@/lib/supabaseClient';
 import logOrderEvent from '@/lib/utils/logOrderEvent';
 
 /**
+ * Legacy/quarantined status mutation path.
+ * Do not use for lifecycle transitions; use canonical workflow transition helpers/RPC.
+ *
  * Deprecated for normal workflow lifecycle actions.
  * This bypasses the guarded workflow helpers in src/lib/services/ordersService.js.
  * Use those workflow helpers for normal status transitions.
@@ -40,5 +43,4 @@ export default async function updateOrderStatus(orderId, newStatus, note = null)
 
   return true;
 }
-
 

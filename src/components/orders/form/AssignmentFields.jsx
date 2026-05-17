@@ -139,15 +139,12 @@ export default function AssignmentFields({ value, onChange, isEdit }) {
       <div className="grid grid-cols-3 gap-3">
         <div className="col-span-3 md:col-span-1">
           <Label>Status</Label>
-          <select
-            className="w-full border rounded px-2 py-1 text-sm"
-            value={(value.status || "new").toLowerCase()}
-            onChange={(e) => onChange({ status: e.target.value.toLowerCase() })}
-          >
-            {["new","in_progress","in_review","needs_revisions","completed"].map((s) => (
-              <option key={s} value={s}>{s.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())}</option>
-            ))}
-          </select>
+          <div className="w-full rounded border bg-slate-50 px-2 py-1 text-sm text-slate-600">
+            {(isEdit ? value.status || "new" : "new")
+              .replace(/_/g, " ")
+              .toLowerCase()
+              .replace(/\b\w/g, (c) => c.toUpperCase())}
+          </div>
         </div>
 
         <div className="col-span-3 md:col-span-2">

@@ -40,9 +40,8 @@ const fromLocalDateTimeInputToISO = (value) => {
   return d.toISOString();
 };
 
-function buildOrderPayload(values) {
-  return {
-    status: String(values.status || "new").toLowerCase(),
+function buildOrderPayload(values, { isEdit = false } = {}) {
+  const payload = {
     order_number: values.order_number || null,
 
     client_id: values.client_id || null,
@@ -73,6 +72,12 @@ function buildOrderPayload(values) {
 
     notes: values.notes || null,
   };
+
+  if (!isEdit) {
+    payload.status = "new";
+  }
+
+  return payload;
 }
 
 function formatStatusLabel(status) {
@@ -236,7 +241,7 @@ export default function OrderForm({ order, onClose, onSaved, onCancel }) {
         nextValues.manual_client_name = null;
       }
 
-      const payload = buildOrderPayload(nextValues);
+      const payload = buildOrderPayload(nextValues, { isEdit });
 
       const result = isEdit
         ? await updateOrder(order.id, payload)
@@ -305,7 +310,7 @@ export default function OrderForm({ order, onClose, onSaved, onCancel }) {
         <ClientFields value={values} values={values} onChange={handleChange} />
         <PropertyFields value={values} values={values} onChange={handleChange} />
         <DatesFields value={values} values={values} onChange={handleChange} />
-        <AssignmentFields value={values} values={values} onChange={handleChange} />
+        <AssignmentFields value={values} values={values} onChange={handleChange} isEdit={isEdit} />
         <div className="col-span-1 xl:col-span-2 space-y-2">
           <label className="block text-sm font-medium text-gray-700">
             Special Instructions (Internal)
@@ -322,7 +327,6 @@ export default function OrderForm({ order, onClose, onSaved, onCancel }) {
     </form>
   );
 }
-
 
 
 

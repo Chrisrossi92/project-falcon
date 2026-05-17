@@ -347,6 +347,8 @@ Internal transition keys can remain stable even when user-facing copy changes. C
 
 Workflow Cohesion Slice 1 is complete. User-facing Smart Actions, workflow modal copy, notification fallback copy, activity fallback wording, and safe legacy action labels now align to this vocabulary. Explicit `order.ready_for_client` notification title/body copy is in place. No workflow behavior, permissions, RPCs, statuses, queue logic, or lifecycle structure changed.
 
+Status-Write Cleanup Slice 1 is complete. Active UI lifecycle bypasses are removed: Order Detail status is read-only, Order Form edit saves do not write lifecycle `status`, New Order creation initializes status as `new`, and `AssignmentFields` no longer exposes editable lifecycle status selection. Legacy status mutation helpers are quarantined with comments, and canonical workflow transitions / Smart Actions remain the governed lifecycle path. No backend/schema/RPC, permission, queue, notification, or workflow behavior changed.
+
 ## 6. Quiet Intelligence Philosophy
 
 Falcon avoids:

@@ -62,7 +62,7 @@ Reference docs:
 - [x] `npm run lint` exits zero with warnings only.
 - [x] `npm run build` passes.
 - [x] `git diff --check` passes.
-- [ ] 196 lint warnings remain and are deferred as a separate cleanup pass.
+- [ ] 193 lint warnings remain and are deferred as a separate cleanup pass.
 - [ ] TypeScript linting remains deferred until `@typescript-eslint` parser/plugin setup and Supabase type-file encoding decisions are handled.
 - [ ] Full CI remains future work.
 - [ ] Existing build warnings remain: Tailwind ambiguous `ease-[${EASING}]` class warning and large bundle chunk warning.
@@ -619,7 +619,16 @@ Status: Notification payload contract MVP complete.
 - [x] Unused `src/components/test.jsx` demo stub deleted.
 - [x] Active canonical surfaces remain unchanged.
 - [x] No runtime behavior/routes/backend/schema/RPC/workflow/notification changes were made for Legacy Surface Quarantine Slice 1.
-- [ ] Defer deeper legacy deletion, status-write cleanup, notification hooks/index classification, `ordersService` legacy alias cleanup, and old API helper cleanup.
+- [x] Status-Write Cleanup Slice 1 complete: active direct lifecycle status bypasses removed.
+- [x] Order Detail lifecycle status is read-only.
+- [x] Order edit saves no longer include lifecycle `status`.
+- [x] New Order creation always initializes status as `new`.
+- [x] `AssignmentFields` no longer exposes editable lifecycle status selection.
+- [x] Legacy status mutation helpers quarantined with comments: `ordersService.setOrderStatus` and aliases, `lib/api/orders.updateOrderStatus`, `lib/api/orders.bulkUpdateStatus`, and `lib/utils/updateOrderStatus`.
+- [x] Canonical workflow transitions and Smart Actions remain the governed lifecycle path.
+- [x] No backend/schema/RPC/permission/queue/notification behavior changes were made for Status-Write Cleanup Slice 1.
+- [x] Lint warnings reduced from 196 to 193.
+- [ ] Defer deeper legacy deletion, more aggressive legacy helper quarantine/removal after import verification, notification hooks/index classification, `ordersService` legacy alias cleanup, old API helper cleanup, transition capability matrix, backend enforcement review, and status-write CI/search guard.
 - [ ] Future Smart Actions button/panel work remains for detail/drawer replacement, appointment/date editing, final approval policy settings, and bulk actions.
 - [x] Create and apply `rpc_transition_order_status`.
 - [x] Validate backend transition validation.

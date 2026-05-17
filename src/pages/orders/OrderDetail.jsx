@@ -1,6 +1,6 @@
 // src/pages/OrderDetail.jsx
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import supabase from "@/lib/supabaseClient";
 import GoogleMapEmbed from "@/components/maps/GoogleMapEmbed";
 import SiteVisitPicker from "@/components/dates/SiteVisitPicker";
@@ -8,8 +8,6 @@ import TwoWeekCalendar from "@/components/calendar/TwoWeekCalendar";
 import CalendarLegend from "@/components/calendar/CalendarLegend";
 import OrderStatusBadge from "@/components/orders/table/OrderStatusBadge";
 import ActivityLog from "@/components/activity/ActivityLog";
-import { useRole } from "@/lib/hooks/useRole";
-import { ORDER_STATUS } from "@/lib/constants/orderStatus";
 import useOrder from "@/lib/hooks/useOrder";
 
 /* ---------- helpers ---------- */
@@ -22,14 +20,9 @@ const ICONS = { site_visit: "SV", due_for_review: "REV", due_to_client: "FIN" };
 const pick = (...vals) => vals.find((v) => v !== undefined && v !== null && v !== "") ?? null;
 const reviewDateOf = (o) => pick(o.review_due_at);
 
-const statusLabel = (s) =>
-  s ? s.toLowerCase().replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase()) : "";
-
 /* ============================== component ============================== */
 export default function OrderDetail() {
-  const nav = useNavigate();
   const { id } = useParams();
-  const { isAdmin } = useRole() || {};
 
   const { order, loading, error: loadErr, refresh } = useOrder(id);
 
@@ -37,10 +30,6 @@ export default function OrderDetail() {
   const [clientName, setClientName] = useState("-");
   const [amcName, setAmcName] = useState("-");
   const [appraiserName, setAppraiserName] = useState("-");
-
-  // inline status save
-  const [savingStatus, setSavingStatus] = useState(false);
-  const [statusError, setStatusError] = useState("");
 
   useEffect(() => {
     if (order) {
@@ -82,26 +71,6 @@ export default function OrderDetail() {
     },
     [order]
   );
-
-  async function handleStatusChange(next) {
-    if (!order?.id || !isAdmin) return;
-    try {
-      setSavingStatus(true);
-      setStatusError("");
-      const { data, error } = await supabase
-        .from("orders")
-        .update({ status: next, updated_at: new Date().toISOString() })
-        .eq("id", order.id)
-        .select("status, updated_at")
-        .maybeSingle();
-      if (error) throw error;
-      refresh();
-    } catch (e) {
-      setStatusError(e?.message || "Failed to update status");
-    } finally {
-      setSavingStatus(false);
-    }
-  }
 
   async function saveAppt(iso) {
     const { error } = await supabase
@@ -150,7 +119,7 @@ export default function OrderDetail() {
         </div>
       </div>
 
-      {/* ROW 1: CLIENT + APPRAISER (with inline status editor) */}
+      {/* ROW 1: CLIENT + APPRAISER */}
       <div className="grid grid-cols-12 gap-4 items-stretch">
         {/* Client */}
         <div className="col-span-12 lg:col-span-6">
@@ -186,7 +155,6 @@ export default function OrderDetail() {
           <div className="h-full rounded-md bg-white p-3 border">
             <div className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-2">Appraiser</div>
 
-            {/* inline row: Appraiser (left) + Status (right) */}
             <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
               <div className="flex flex-col gap-1">
                 <div className="text-xs text-gray-500 uppercase">Appraiser</div>
@@ -199,20 +167,7 @@ export default function OrderDetail() {
 
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-500">Status</span>
-                <select
-                  className="border rounded px-2 py-1 text-sm disabled:opacity-50"
-                  value={order.status || "NEW"}
-                  onChange={(e) => handleStatusChange(e.target.value)}
-                  disabled={!isAdmin || savingStatus}
-                >
-                  {Object.values(ORDER_STATUS).map((s) => (
-                    <option key={s} value={s}>
-                      {statusLabel(s)}
-                    </option>
-                  ))}
-                </select>
-                {savingStatus && <span className="text-[11px] text-gray-500">Saving...</span>}
-                {statusError && <span className="text-[11px] text-rose-600">{statusError}</span>}
+                <OrderStatusBadge status={order.status} />
               </div>
             </div>
 

@@ -202,7 +202,10 @@ export async function archiveOrder(orderId) {
   return data;
 }
 
-/** Set status */
+/**
+ * Legacy/quarantined status mutation path.
+ * Do not use for lifecycle transitions; use canonical workflow transition helpers/RPC.
+ */
 export async function setOrderStatus(orderId, status /* note optional */) {
   const { data, error } = await supabase
     .from(ORDERS_TABLE)
@@ -287,6 +290,7 @@ export async function assignReviewer(orderId, reviewer_id) {
    WORKFLOW HELPERS
    ========================================================================== */
 
+// Legacy/quarantined aliases. Do not use for lifecycle transitions; use canonical workflow transition helpers/RPC.
 export async function startReview(orderId, note = null)        { return setOrderStatus(orderId, OrderStatus.IN_REVIEW); }
 export async function requestRevisions(orderId, note = null)   { return setOrderStatus(orderId, OrderStatus.NEEDS_REVISIONS); }
 export async function clearReview(orderId, note = null) {
@@ -679,8 +683,6 @@ export async function isOrderNumberAvailable(orderNo, { excludeId = null } = {})
   if (res2.error) throw res2.error;
   return (res2.count || 0) === 0;
 }
-
-
 
 
 
