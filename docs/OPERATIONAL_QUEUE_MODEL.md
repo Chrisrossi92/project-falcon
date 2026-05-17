@@ -62,6 +62,51 @@ Operational queues are derived operational intelligence, not core order statuses
 - Queues should not create hidden lifecycle states.
 - Queue logic should start simple and become configurable only after repeated operational need is clear.
 
+## Current Frontend Assessment Foundation
+
+Operational Queue Intelligence Slice 1 is complete.
+
+Falcon now has a shared deterministic frontend order assessment helper. It produces quiet, explainable metadata from the current normalized order row without changing workflow status, persistence, dashboard UI, or backend behavior.
+
+Assessment shape:
+
+```txt
+queueIds
+signals
+nextOwner
+primaryQueueId
+```
+
+Current centralized queues:
+
+- `due_soon`
+- `overdue`
+- `waiting_on_reviewer`
+- `waiting_on_appraiser`
+- `final_approval_queue`
+- `ready_for_delivery`
+- `unassigned_orders`
+
+Signals are operational explanations, not predictive scoring. Examples include "Client due date is within 48 hours.", "Review is waiting on reviewer.", and "Ownership assignment is incomplete."
+
+Existing dashboard queue counts and filtering are preserved. The dashboard still presents Operational Attention and Active Worklist behavior as before; this slice only centralizes the deterministic assessment layer.
+
+No backend, schema, RPC, or UI changes were made for this slice.
+
+Operational Queue Intelligence Slice 2 is complete.
+
+When a dashboard queue is selected, the Active Worklist now shows quiet explanatory queue context derived from the shared assessment signal labels. This helps explain why the current filtered worklist exists without adding row clutter or alert language.
+
+Example behavior:
+
+- Due Soon explains that the client due date is within 48 hours.
+- Waiting on Reviewer explains that review is waiting on reviewer action.
+- Ready For Delivery explains that the order is ready for delivery.
+
+Queue cards, queue filtering, table columns, order click-through, and Smart Actions remain unchanged. Row-level signal display is intentionally deferred to avoid table clutter.
+
+No backend, schema, RPC, new queue, prediction, or scoring changes were made for Slice 2.
+
 ## Initial Proposed Operational Queues
 
 ### Due Soon
@@ -315,6 +360,16 @@ Suggested actions:
 ## Future Intelligent Queues
 
 Later Falcon versions can add AI-assisted or model-assisted queues, but those should build on deterministic queue foundations.
+
+Known deferred deterministic queue work:
+
+- Stuck orders.
+- Revision loop risk.
+- Reviewer/appraiser overload.
+- Capacity modeling.
+- At-risk scoring.
+- Company-configurable thresholds.
+- Backend canonical queue source.
 
 Potential future queues:
 

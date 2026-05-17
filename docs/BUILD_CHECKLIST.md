@@ -567,6 +567,18 @@ Status: Notification payload contract MVP complete.
 - [x] Calendar QA build passes.
 - [x] Calendar QA `git diff --check` passes.
 - [x] Full lint now exits zero after ESLint stabilization; remaining lint output is warnings only.
+- [x] Operational Queue Intelligence Slice 1 complete: shared deterministic order assessment helper added.
+- [x] Assessment shape includes `queueIds`, `signals`, `nextOwner`, and `primaryQueueId`.
+- [x] Centralized current queue assessment for `due_soon`, `overdue`, `waiting_on_reviewer`, `waiting_on_appraiser`, `final_approval_queue`, `ready_for_delivery`, and `unassigned_orders`.
+- [x] Existing dashboard queue counts/filtering and Active Worklist behavior preserved.
+- [x] Queue signals are quiet explainable metadata, not predictive scoring.
+- [x] No backend/schema/RPC/UI changes were made for Operational Queue Intelligence Slice 1.
+- [x] Operational Queue Intelligence Slice 2 complete: dashboard Active Worklist shows quiet explanatory queue context when a queue is selected.
+- [x] Queue explanations are derived from shared deterministic assessment signal labels.
+- [x] Slice 2 preserves queue cards, filtering, table columns, order click-through, and Smart Actions.
+- [x] Row-level signal display intentionally deferred to avoid table clutter.
+- [x] No backend/schema/RPC/new queues/prediction/scoring changes were made for Slice 2.
+- [ ] Defer stuck orders, revision loop risk, reviewer/appraiser overload, capacity modeling, at-risk scoring, company-configurable thresholds, and backend canonical queue source.
 - [ ] Defer at-risk scoring, predictive risk, conflict detection, workload/capacity modeling, unassigned/at-risk lenses, chip/month-cell warning indicators, canonical backend calendar source, company timezone, and editable/reschedulable permissions.
 - [ ] Manually re-save existing incorrect stored appointment timestamps where needed.
 - [ ] Defer conflict/workload/unassigned logic, canonical backend calendar source, company-level timezone support, editable/reschedulable flags, scheduling conflict metadata, and richer calendar editing/drag-drop UX until event model and permissions are stable.

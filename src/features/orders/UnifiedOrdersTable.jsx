@@ -488,6 +488,9 @@ export default function UnifiedOrdersTable({
                 </span>
               </div>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500">{activeQueue.description}</p>
+              {activeQueue.explanation ? (
+                <p className="mt-0.5 max-w-3xl text-xs leading-5 text-slate-400">{activeQueue.explanation}</p>
+              ) : null}
             </div>
             <div className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-right shadow-sm">
               <div className="text-xl font-semibold leading-none tracking-tight text-slate-950">{activeQueue.count ?? tableCount ?? 0}</div>

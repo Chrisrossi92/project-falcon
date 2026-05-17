@@ -1,5 +1,5 @@
 import { OPERATIONAL_QUEUE_DEFINITIONS } from "./queueDefinitions";
-import { evaluateOrderQueues } from "./queueEvaluator";
+import { assessOrderOperationalQueues } from "./orderAssessment";
 
 const URGENCY_PRIORITY = Object.freeze({
   critical: 4,
@@ -19,23 +19,41 @@ export function summarizeOperationalQueues(orders = [], options = {}) {
         description: definition.description,
         count: 0,
         orders: [],
+        signalLabels: [],
+        explanation: "",
       },
     ])
   );
 
   for (const order of orders || []) {
-    const queueIds = evaluateOrderQueues(order, options);
+    const assessment = assessOrderOperationalQueues(order, options);
 
-    for (const queueId of queueIds) {
+    for (const queueId of assessment.queueIds) {
       const summary = summariesById.get(queueId);
       if (!summary) continue;
 
       summary.count += 1;
       summary.orders.push(order);
+
+      const signal = assessment.signals.find((item) => item.id === queueId);
+      if (signal?.label && !summary.signalLabels.includes(signal.label)) {
+        summary.signalLabels.push(signal.label);
+      }
     }
   }
 
-  return OPERATIONAL_QUEUE_DEFINITIONS.map((definition) => summariesById.get(definition.id));
+  return OPERATIONAL_QUEUE_DEFINITIONS.map((definition) => {
+    const summary = summariesById.get(definition.id);
+    const label = summary?.signalLabels?.[0] || "";
+    const normalizedLabel = label
+      ? label.replace(/\.$/, "").replace(/^./, (char) => char.toLowerCase())
+      : "";
+
+    return {
+      ...summary,
+      explanation: normalizedLabel ? `Showing orders where ${normalizedLabel}.` : "",
+    };
+  });
 }
 
 function getUrgencyPriority(urgency) {
