@@ -5,6 +5,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const refreshMock = vi.hoisted(() => vi.fn());
 const updateSiteVisitAtViaRpcMock = vi.hoisted(() => vi.fn());
+const listOrderDocumentsMock = vi.hoisted(() => vi.fn());
+const createOrderDocumentDownloadUrlMock = vi.hoisted(() => vi.fn());
+const archiveOrderDocumentMock = vi.hoisted(() => vi.fn());
 const DOCUMENT_POSITION_FOLLOWING = 4;
 
 vi.mock("react-router-dom", () => ({
@@ -54,8 +57,15 @@ vi.mock("@/lib/hooks/usePermissions", () => ({
   useEffectivePermissions: () => ({
     loading: false,
     error: null,
+    hasPermission: (permission) => permission === "documents.delete",
     hasAllPermissions: () => false,
   }),
+}));
+
+vi.mock("@/features/order-documents/api", () => ({
+  listOrderDocuments: listOrderDocumentsMock,
+  createOrderDocumentDownloadUrl: createOrderDocumentDownloadUrlMock,
+  archiveOrderDocument: archiveOrderDocumentMock,
 }));
 
 vi.mock("@/lib/hooks/useToast", () => ({
@@ -102,9 +112,43 @@ describe("OrderDetail site visit save", () => {
       id: "order-1",
       site_visit_at: "2026-05-20T14:00:00.000Z",
     });
+    listOrderDocumentsMock.mockReset();
+    listOrderDocumentsMock.mockResolvedValue([
+      {
+        id: "doc-1",
+        order_id: "order-1",
+        category: "engagement",
+        title: "Engagement Letter",
+        file_name: "engagement.pdf",
+        file_size: 2048,
+        status: "active",
+        visibility_scope: "internal",
+        created_at: "2026-05-20T12:00:00.000Z",
+      },
+      {
+        id: "doc-2",
+        order_id: "order-1",
+        category: "source_documents",
+        title: null,
+        file_name: "rent-roll.xlsx",
+        file_size: null,
+        status: "archived",
+        visibility_scope: "internal",
+        created_at: "2026-05-19T12:00:00.000Z",
+      },
+    ]);
+    createOrderDocumentDownloadUrlMock.mockReset();
+    createOrderDocumentDownloadUrlMock.mockResolvedValue({
+      signed_url: "https://example.test/signed-download",
+    });
+    archiveOrderDocumentMock.mockReset();
+    archiveOrderDocumentMock.mockResolvedValue({ id: "doc-1", status: "archived" });
+    vi.spyOn(window, "open").mockImplementation(() => null);
+    vi.spyOn(window, "confirm").mockReturnValue(true);
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     cleanup();
   });
 
@@ -180,5 +224,47 @@ describe("OrderDetail site visit save", () => {
     expect(within(detailBody).getByText("Activity")).toBeInTheDocument();
     expect(overview.compareDocumentPosition(propertyHeading)).toBe(DOCUMENT_POSITION_FOLLOWING);
     expect(overview.compareDocumentPosition(activityHeading)).toBe(DOCUMENT_POSITION_FOLLOWING);
+  });
+
+  it("renders compact order files under the property map", async () => {
+    render(<OrderDetail />);
+
+    const files = await screen.findByLabelText("Order files");
+
+    expect(listOrderDocumentsMock).toHaveBeenCalledWith("order-1");
+    expect(within(files).getByText("Files")).toBeInTheDocument();
+    expect(within(files).getByText("Engagement Letter")).toBeInTheDocument();
+    expect(within(files).getByText("Engagement")).toBeInTheDocument();
+    expect(within(files).getByText("2.0 KB")).toBeInTheDocument();
+    expect(within(files).getByText("rent-roll.xlsx")).toBeInTheDocument();
+    expect(within(files).getByText("Archived")).toBeInTheDocument();
+  });
+
+  it("opens documents through the signed download Edge helper", async () => {
+    render(<OrderDetail />);
+
+    const files = await screen.findByLabelText("Order files");
+    fireEvent.click(within(files).getByRole("button", { name: "Open" }));
+
+    await waitFor(() => {
+      expect(createOrderDocumentDownloadUrlMock).toHaveBeenCalledWith("doc-1");
+    });
+    expect(window.open).toHaveBeenCalledWith(
+      "https://example.test/signed-download",
+      "_blank",
+      "noopener,noreferrer",
+    );
+  });
+
+  it("archives active documents through the archive RPC helper and refreshes the list", async () => {
+    render(<OrderDetail />);
+
+    const files = await screen.findByLabelText("Order files");
+    fireEvent.click(within(files).getByRole("button", { name: "Archive" }));
+
+    await waitFor(() => {
+      expect(archiveOrderDocumentMock).toHaveBeenCalledWith("doc-1");
+    });
+    expect(listOrderDocumentsMock).toHaveBeenCalledTimes(2);
   });
 });

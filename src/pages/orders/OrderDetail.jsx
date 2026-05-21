@@ -9,6 +9,11 @@ import useOrder from "@/lib/hooks/useOrder";
 import { useEffectivePermissions } from "@/lib/hooks/usePermissions";
 import { useToast } from "@/lib/hooks/useToast";
 import { PERMISSIONS } from "@/lib/permissions/constants";
+import {
+  archiveOrderDocument,
+  createOrderDocumentDownloadUrl,
+  listOrderDocuments,
+} from "@/features/order-documents/api";
 import OfferAssignmentModal from "@/features/assignments/components/OfferAssignmentModal";
 import OwnerOrderAssignmentsPanel from "@/features/assignments/components/OwnerOrderAssignmentsPanel";
 import { updateSiteVisitAtViaRpc } from "@/lib/services/ordersService";
@@ -18,9 +23,22 @@ const fmtDate = (s) => (s ? new Date(s).toLocaleDateString() : "-");
 const fmtDateTime = (s) => (s ? new Date(s).toLocaleString() : "-");
 const money = (n) =>
   n == null ? "-" : Number(n).toLocaleString(undefined, { style: "currency", currency: "USD" });
+const fileSize = (n) => {
+  if (n == null || Number.isNaN(Number(n))) return null;
+  const size = Number(n);
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(size >= 10 * 1024 ? 0 : 1)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(size >= 10 * 1024 * 1024 ? 0 : 1)} MB`;
+};
 
 const pick = (...vals) => vals.find((v) => v !== undefined && v !== null && v !== "") ?? null;
 const reviewDateOf = (o) => pick(o.review_due_at);
+const categoryLabel = (value) =>
+  String(value || "")
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ") || "Document";
 
 function SummaryField({ label, value, children }) {
   return (
@@ -47,6 +65,164 @@ function OverviewSection({ title, children, className = "" }) {
       </div>
       <div className="grid gap-3 sm:grid-cols-2">{children}</div>
     </section>
+  );
+}
+
+function FilesCard({ orderId, canArchive }) {
+  const [files, setFiles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [busyId, setBusyId] = useState(null);
+
+  const loadFiles = async () => {
+    if (!orderId) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const rows = await listOrderDocuments(orderId);
+      setFiles(Array.isArray(rows) ? rows : []);
+    } catch (loadError) {
+      setFiles([]);
+      setError(loadError);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    let active = true;
+
+    async function load() {
+      if (!orderId) return;
+      setLoading(true);
+      setError(null);
+
+      try {
+        const rows = await listOrderDocuments(orderId);
+        if (active) setFiles(Array.isArray(rows) ? rows : []);
+      } catch (loadError) {
+        if (active) {
+          setFiles([]);
+          setError(loadError);
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    load();
+
+    return () => {
+      active = false;
+    };
+  }, [orderId]);
+
+  const latestFiles = files.slice(0, 5);
+
+  async function handleDownload(document) {
+    setBusyId(document.id);
+
+    try {
+      const result = await createOrderDocumentDownloadUrl(document.id);
+      window.open(result.signed_url, "_blank", "noopener,noreferrer");
+    } catch (downloadError) {
+      alert(downloadError?.message || "Could not open this file.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handleArchive(document) {
+    if (!window.confirm(`Archive ${document.title || document.file_name}?`)) return;
+
+    setBusyId(document.id);
+
+    try {
+      await archiveOrderDocument(document.id);
+      await loadFiles();
+    } catch (archiveError) {
+      alert(archiveError?.message || "Could not archive this file.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  return (
+    <div className="mt-4 rounded-md bg-white p-3 border" aria-label="Order files">
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold">
+          Files
+        </div>
+        {!loading && !error && (
+          <div className="text-[11px] text-gray-500">
+            {files.length} {files.length === 1 ? "file" : "files"}
+          </div>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="mt-3 text-sm text-gray-500">Loading files...</div>
+      ) : error ? (
+        <div className="mt-3 text-sm text-amber-700">Files unavailable.</div>
+      ) : latestFiles.length === 0 ? (
+        <div className="mt-3 text-sm text-gray-500">No files yet</div>
+      ) : (
+        <div className="mt-3 divide-y divide-gray-100">
+          {latestFiles.map((document) => {
+            const label = document.title || document.file_name || "Document";
+            const size = fileSize(document.file_size);
+            const isArchived = document.status === "archived";
+            const isBusy = busyId === document.id;
+
+            return (
+              <div key={document.id} className="py-2 first:pt-0 last:pb-0">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium text-gray-900" title={label}>
+                      {label}
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500">
+                      <span>{categoryLabel(document.category)}</span>
+                      <span>{fmtDate(document.created_at)}</span>
+                      {size && <span>{size}</span>}
+                      {isArchived && (
+                        <span className="rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-amber-700">
+                          Archived
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    {!isArchived && (
+                      <button
+                        type="button"
+                        onClick={() => handleDownload(document)}
+                        disabled={isBusy}
+                        className="rounded border px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        Open
+                      </button>
+                    )}
+                    {canArchive && !isArchived && (
+                      <button
+                        type="button"
+                        onClick={() => handleArchive(document)}
+                        disabled={isBusy}
+                        className="rounded border px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        Archive
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -97,6 +273,10 @@ export default function OrderDetail() {
       PERMISSIONS.RELATIONSHIPS_ASSIGN_WORK,
       PERMISSIONS.RELATIONSHIPS_READ,
     ]);
+  const canArchiveDocuments =
+    !permissions.loading &&
+    !permissions.error &&
+    permissions.hasPermission(PERMISSIONS.DOCUMENTS_DELETE);
 
   async function saveAppt(iso) {
     try {
@@ -217,6 +397,8 @@ export default function OrderDetail() {
               />
             </div>
           </div>
+
+          <FilesCard orderId={order.id} canArchive={canArchiveDocuments} />
         </div>
 
         <div className="col-span-12 lg:col-span-7">
