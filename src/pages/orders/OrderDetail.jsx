@@ -1,10 +1,8 @@
 // src/pages/OrderDetail.jsx
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import GoogleMapEmbed from "@/components/maps/GoogleMapEmbed";
 import SiteVisitPicker from "@/components/dates/SiteVisitPicker";
-import TwoWeekCalendar from "@/components/calendar/TwoWeekCalendar";
-import CalendarLegend from "@/components/calendar/CalendarLegend";
 import OrderStatusBadge from "@/components/orders/table/OrderStatusBadge";
 import ActivityLog from "@/components/activity/ActivityLog";
 import useOrder from "@/lib/hooks/useOrder";
@@ -21,9 +19,36 @@ const fmtDateTime = (s) => (s ? new Date(s).toLocaleString() : "-");
 const money = (n) =>
   n == null ? "-" : Number(n).toLocaleString(undefined, { style: "currency", currency: "USD" });
 
-const ICONS = { site_visit: "SV", due_for_review: "REV", due_to_client: "FIN" };
 const pick = (...vals) => vals.find((v) => v !== undefined && v !== null && v !== "") ?? null;
 const reviewDateOf = (o) => pick(o.review_due_at);
+
+function SummaryField({ label, value, children }) {
+  return (
+    <div className="min-w-0">
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+        {label}
+      </div>
+      {children ? (
+        <div className="mt-1 text-sm font-medium text-gray-900">{children}</div>
+      ) : (
+        <div className="mt-1 truncate text-sm font-medium text-gray-900" title={value || "-"}>
+          {value || "-"}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function OverviewSection({ title, children, className = "" }) {
+  return (
+    <section className={`rounded-lg border border-gray-100 bg-gray-50/60 p-3 ${className}`}>
+      <div className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+        {title}
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">{children}</div>
+    </section>
+  );
+}
 
 /* ============================== component ============================== */
 export default function OrderDetail() {
@@ -57,6 +82,9 @@ export default function OrderDetail() {
   const addr2 =
     [order?.city, order?.state].filter(Boolean).join(", ") +
     (order?.postal_code ? ` ${order.postal_code}` : "");
+  const propertyAddress = [addr1, addr2].filter(Boolean).join(", ");
+  const contactName = order?.property_contact_name || order?.entry_contact_name || "";
+  const contactPhone = order?.property_contact_phone || order?.entry_contact_phone || "";
 
   const copyNo = () => navigator.clipboard?.writeText(titleNo).catch(() => {});
 
@@ -69,27 +97,6 @@ export default function OrderDetail() {
       PERMISSIONS.RELATIONSHIPS_ASSIGN_WORK,
       PERMISSIONS.RELATIONSHIPS_READ,
     ]);
-
-  // calendar events (icon-only chips assumed in EventChip)
-  const orderEventsLoader = useCallback(
-    async (start, end) => {
-      if (!order) return [];
-      const add = (dt, type) => {
-        if (!dt) return;
-        const when = new Date(dt);
-        if (when >= start && when <= end) {
-          const icon = ICONS[type] || "*";
-          return { id: `${order.id}-${type}`, type, start: when.toISOString(), end: when.toISOString(), label: icon, title: icon };
-        }
-      };
-      return [
-        add(order.site_visit_at, "site_visit"),
-        add(reviewDateOf(order), "due_for_review"),
-        add(order.final_due_at ?? order.due_date, "due_to_client"),
-      ].filter(Boolean);
-    },
-    [order]
-  );
 
   async function saveAppt(iso) {
     try {
@@ -107,7 +114,7 @@ export default function OrderDetail() {
 
   return (
     <div className="p-4 space-y-4">
-      {/* HEADER */}
+      {/* Operational overview */}
       <div className="rounded-xl border bg-white p-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0">
@@ -143,105 +150,60 @@ export default function OrderDetail() {
             </Link>
           </div>
         </div>
-      </div>
-
-      {/* ROW 1: CLIENT + APPRAISER */}
-      <div className="grid grid-cols-12 gap-4 items-stretch">
-        {/* Client */}
-        <div className="col-span-12 lg:col-span-6">
-          <div className="h-full rounded-md bg-white p-3 border">
-            <div className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-2">Client</div>
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <div className="text-xs text-gray-500 mb-1">AMC (optional)</div>
-                <div className="text-gray-800">{amcName || "-"}</div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-500 mb-1">Client</div>
-                <div className="text-gray-800">{clientName || "-"}</div>
-              </div>
-            </div>
-
-            {/* Property contact */}
-            <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <div className="text-xs text-gray-500 mb-1">Contact Name</div>
-                <div className="text-gray-800">{order.entry_contact_name || "-"}</div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-500 mb-1">Contact Phone</div>
-                <div className="text-gray-800">{order.entry_contact_phone || "-"}</div>
-              </div>
-            </div>
+        <div
+          className="mt-4 border-t border-gray-100 pt-4"
+          aria-label="Operational Overview"
+        >
+          <div className="mb-3 text-[11px] uppercase tracking-wide text-gray-500 font-semibold">
+            Operational Overview
           </div>
-        </div>
+          <div className="grid gap-3 lg:grid-cols-12">
+            <OverviewSection title="Order / Client" className="lg:col-span-4">
+              <SummaryField label="Client" value={clientName} />
+              <SummaryField label="AMC" value={amcName} />
+            </OverviewSection>
 
-        {/* Appraiser + Status inline */}
-        <div className="col-span-12 lg:col-span-6">
-          <div className="h-full rounded-md bg-white p-3 border">
-            <div className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-2">Appraiser</div>
+            <OverviewSection title="Property / Assignment" className="lg:col-span-8">
+              <SummaryField label="Property Address" value={propertyAddress} />
+              <SummaryField label="Property Type" value={order.property_type} />
+              <SummaryField label="Report Type" value={order.report_type} />
+            </OverviewSection>
 
-            <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-              <div className="flex flex-col gap-1">
-                <div className="text-xs text-gray-500 uppercase">Appraiser</div>
-                <div className="text-sm text-gray-800">{appraiserName}</div>
-              </div>
-              <div className="flex flex-col gap-1">
-                <div className="text-xs text-gray-500 uppercase">Reviewer</div>
-                <div className="text-sm text-gray-800">{order.reviewer_name || "–"}</div>
-              </div>
+            <OverviewSection title="Schedule" className="lg:col-span-7">
+              <SummaryField label="Site Visit">
+                <SiteVisitPicker value={order.site_visit_at} onChange={saveAppt} />
+              </SummaryField>
+              <SummaryField label="Review Due" value={fmtDate(reviewDateOf(order))} />
+              <SummaryField label="Final Due" value={fmtDate(order.final_due_at ?? order.due_date)} />
+              <SummaryField label="Updated" value={fmtDateTime(order.updated_at)} />
+            </OverviewSection>
 
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500">Status</span>
-                <OrderStatusBadge status={order.status} />
-              </div>
-            </div>
+            <OverviewSection title="Team / Fees" className="lg:col-span-5">
+              <SummaryField label="Appraiser" value={appraiserName} />
+              <SummaryField label="Reviewer" value={order.reviewer_name || "-"} />
+              <SummaryField label="Split %" value={order.split_pct != null ? `${order.split_pct}` : "-"} />
+              <SummaryField label="Base Fee" value={money(order.base_fee)} />
+              <SummaryField label="Appraiser Fee" value={money(order.appraiser_fee)} />
+            </OverviewSection>
 
-            <div className="grid grid-cols-3 gap-3 text-sm">
-              <div>
-                <div className="text-xs text-gray-500 mb-1">Split %</div>
-                <div className="text-gray-800">{order.split_pct != null ? `${order.split_pct}` : "-"}</div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-500 mb-1">Base Fee</div>
-                <div className="text-gray-800">{money(order.base_fee)}</div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-500 mb-1">Appraiser Fee</div>
-                <div className="text-gray-800">{money(order.appraiser_fee)}</div>
-              </div>
-            </div>
+            <OverviewSection title="Property Contact / Access" className="lg:col-span-12">
+              <SummaryField label="Contact" value={contactName} />
+              <SummaryField label="Contact Phone" value={contactPhone} />
+            </OverviewSection>
           </div>
         </div>
       </div>
 
-      <OwnerOrderAssignmentsPanel
-        orderId={order.id}
-        canOfferAssignment={canOfferAssignment}
-        onOfferAssignment={() => setOfferAssignmentOpen(true)}
-      />
-
-      {/* ROW 2: PROPERTY (L) + DATES (R) */}
-      <div className="grid grid-cols-12 gap-4 items-start">
-        {/* Property */}
-        <div className="col-span-12 lg:col-span-6">
+      {/* Detail body */}
+      <div className="grid grid-cols-12 gap-4 items-start" aria-label="Order detail body">
+        <div className="col-span-12 lg:col-span-5">
           <div className="rounded-md bg-white p-3 border">
-            <div className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-2">Property</div>
+            <div className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-2">Property / Map</div>
 
-            <div className="grid grid-cols-12 gap-4 items-start mb-3">
-              <div className="col-span-12 md:col-span-6">
-                <div className="text-xs text-gray-500 mb-0.5">Address</div>
-                <div className="text-sm text-gray-800">{addr1 || "-"}</div>
-                <div className="text-xs text-gray-500">{addr2 || "-"}</div>
-              </div>
-              <div className="col-span-6 md:col-span-3">
-                <div className="text-xs text-gray-500 mb-0.5">Property Type</div>
-                <div className="text-sm text-gray-800">{order.property_type || "-"}</div>
-              </div>
-              <div className="col-span-6 md:col-span-3">
-                <div className="text-xs text-gray-500 mb-0.5">Report Type</div>
-                <div className="text-sm text-gray-800">{order.report_type || "-"}</div>
-              </div>
+            <div className="mb-3 text-sm">
+              <div className="text-xs text-gray-500 mb-0.5">Address</div>
+              <div className="text-gray-800">{addr1 || "-"}</div>
+              <div className="text-xs text-gray-500">{addr2 || "-"}</div>
             </div>
 
             <div className="w-full h-64 md:h-72">
@@ -257,65 +219,26 @@ export default function OrderDetail() {
           </div>
         </div>
 
-        {/* Dates (site visit editable via overlay button) */}
-        <div className="col-span-12 lg:col-span-6">
+        <div className="col-span-12 lg:col-span-7">
           <div className="rounded-md bg-white p-3 border">
-            <div className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-2">Dates</div>
-
-            <div className="grid grid-cols-12 gap-3 items-start mb-2 text-sm">
-              <div className="col-span-6 md:col-span-3">
-                <div className="text-xs text-gray-500 mb-1">Site Visit</div>
-                <SiteVisitPicker value={order.site_visit_at} onChange={saveAppt} />
-              </div>
-              <div className="col-span-6 md:col-span-3">
-                <div className="text-xs text-gray-500">Review Due</div>
-                <div className="text-gray-800">{fmtDate(reviewDateOf(order))}</div>
-              </div>
-              <div className="col-span-6 md:col-span-3">
-                <div className="text-xs text-gray-500">Final Due</div>
-                <div className="text-gray-800">{fmtDate(order.final_due_at ?? order.due_date)}</div>
-              </div>
-              <div className="col-span-6 md:col-span-3">
-                <div className="text-xs text-gray-500">Updated</div>
-                <div className="text-gray-800">{fmtDateTime(order.updated_at)}</div>
-              </div>
+            <div className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-2">
+              Activity
             </div>
-
-            {/* Natural-height calendar; horizontal scroll safe */}
-            <div className="w-full overflow-x-auto">
-              <div className="min-w-[620px]">
-                <TwoWeekCalendar
-                  getEvents={orderEventsLoader}
-                  onEventClick={() => {}}
-                  weeks={2}
-                  showWeekdayHeader
-                  showWeekends
-                  compact
-                />
-              </div>
-            </div>
-
-            <div className="mt-1 flex justify-end">
-              <div className="text-xs">
-                <CalendarLegend />
-              </div>
-            </div>
+            <ActivityLog orderId={order.id} order={order} showComposer height={420} />
           </div>
         </div>
       </div>
+
+      <OwnerOrderAssignmentsPanel
+        orderId={order.id}
+        canOfferAssignment={canOfferAssignment}
+        onOfferAssignment={() => setOfferAssignmentOpen(true)}
+      />
 
       {/* Notes */}
       <div className="rounded-md bg-white p-3 border">
         <div className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-2">Notes</div>
         <div className="text-sm text-gray-800 whitespace-pre-wrap">{order.access_notes || order.notes || "-"}</div>
-      </div>
-
-      {/* Activity */}
-      <div className="rounded-md bg-white p-3 border">
-        <div className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-2">
-          Activity / Communication History
-        </div>
-        <ActivityLog orderId={order.id} order={order} showComposer height={520} />
       </div>
 
       <OfferAssignmentModal

@@ -113,11 +113,21 @@ while avoiding Dart-style fragmentation.
    Identify current file/attachment surfaces and design how files should appear as order workflow
    assets before implementing storage or upload changes.
 
-5. Orders filters refinement.
+5. Order Detail print/export packet planning.
+   Admins need a safe way to print or export order detail records for invoicing support, workfile
+   documentation, internal admin records, and later dispute/audit review. Plan two modes after the
+   Order Detail layout stabilizes and before or alongside attachments/files: `Order Summary`
+   should include the operational overview only with no activity log, while `Order Audit` should
+   include the operational overview plus activity log. The first implementation should use already
+   loaded order/activity data where possible, then evaluate whether a dedicated print route or PDF
+   export is needed. Permissions, route guards, order visibility, activity visibility, RLS, and RPC
+   boundaries must remain unchanged.
+
+6. Orders filters refinement.
    Ensure Orders search/filtering remains visible and useful while preserving context-first entry.
    Filters should narrow the table, not dominate the page.
 
-6. Admin/workflow separation cleanup.
+7. Admin/workflow separation cleanup.
    Keep Owner Setup, Team Access, profile, and setup surfaces distinct from dashboard/order workflow
    surfaces. Do not pull admin widgets into the operational dashboard.
 
@@ -131,20 +141,27 @@ while avoiding Dart-style fragmentation.
    Add contextual attachment groups for engagement, source documents, report files, revision files,
    and internal materials, with permissions and storage rules designed before implementation.
 
-3. Communication intelligence without gimmicks.
+3. Print-ready order records.
+   Add printable/exportable order record packets once Order Detail hierarchy is stable. `Order
+   Summary` should support operational/invoicing/workfile needs without activity history, and
+   `Order Audit` should include activity history for internal records and later dispute/audit
+   review. Prefer existing loaded data first; add dedicated print/PDF infrastructure only after
+   confirming security, permissions, and data-shape needs.
+
+4. Communication intelligence without gimmicks.
    Surface unresolved messages, recent changes, and workflow-relevant notes without replacing the
    activity log or inventing subjective priority.
 
-4. Role-specific operational emphasis.
+5. Role-specific operational emphasis.
    Owner/Admin: company workload, calendar, status distribution, assignment load.
    Reviewer: in-review, returned, ready-for-client, review handoffs.
    Appraiser: assigned work, due soon, site visits, revision requests.
 
-5. Advanced filters as progressive disclosure.
+6. Advanced filters as progressive disclosure.
    Move toward simple default filters with expandable advanced controls, avoiding giant always-open
    enterprise search forms.
 
-6. Commercial-first operational context.
+7. Commercial-first operational context.
    Expand detail surfaces to support commercial-specific data and documentation without forcing
    residential assumptions into the primary workflow.
 
@@ -161,14 +178,19 @@ while avoiding Dart-style fragmentation.
 3. Activity/Communication Timeline Polish.
    Improve grouping, actor labels, and timeline scanability using existing activity data.
 
-4. Attachments/Files Workflow Design.
+4. Order Detail Print Packet Design.
+   Define print/export behavior for `Order Summary` and `Order Audit` after the Order Detail layout
+   stabilizes. Keep the design read-only, visibility-safe, and based on existing order/activity data
+   before considering a dedicated print route or PDF export.
+
+5. Attachments/Files Workflow Design.
    Design file categories, order placement, permissions, and storage/RLS requirements before adding
    upload behavior.
 
-5. Orders Filter/Context Refinement.
+6. Orders Filter/Context Refinement.
    Keep the Orders page context-first while improving visible filters and table scanability.
 
-6. Dashboard Follow-On Polish.
+7. Dashboard Follow-On Polish.
    Continue small dashboard improvements only when they support Calendar plus Orders, not when they
    add dashboard theater.
 
