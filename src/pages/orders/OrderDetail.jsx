@@ -1,7 +1,6 @@
 // src/pages/OrderDetail.jsx
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { useParams, Link } from "react-router-dom";
-import supabase from "@/lib/supabaseClient";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import GoogleMapEmbed from "@/components/maps/GoogleMapEmbed";
 import SiteVisitPicker from "@/components/dates/SiteVisitPicker";
 import TwoWeekCalendar from "@/components/calendar/TwoWeekCalendar";
@@ -9,6 +8,12 @@ import CalendarLegend from "@/components/calendar/CalendarLegend";
 import OrderStatusBadge from "@/components/orders/table/OrderStatusBadge";
 import ActivityLog from "@/components/activity/ActivityLog";
 import useOrder from "@/lib/hooks/useOrder";
+import { useEffectivePermissions } from "@/lib/hooks/usePermissions";
+import { useToast } from "@/lib/hooks/useToast";
+import { PERMISSIONS } from "@/lib/permissions/constants";
+import OfferAssignmentModal from "@/features/assignments/components/OfferAssignmentModal";
+import OwnerOrderAssignmentsPanel from "@/features/assignments/components/OwnerOrderAssignmentsPanel";
+import { updateSiteVisitAtViaRpc } from "@/lib/services/ordersService";
 
 /* ---------- helpers ---------- */
 const fmtDate = (s) => (s ? new Date(s).toLocaleDateString() : "-");
@@ -23,8 +28,12 @@ const reviewDateOf = (o) => pick(o.review_due_at);
 /* ============================== component ============================== */
 export default function OrderDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
 
   const { order, loading, error: loadErr, refresh } = useOrder(id);
+  const permissions = useEffectivePermissions();
+  const { success } = useToast();
+  const [offerAssignmentOpen, setOfferAssignmentOpen] = useState(false);
 
   // Display names
   const [clientName, setClientName] = useState("-");
@@ -51,6 +60,16 @@ export default function OrderDetail() {
 
   const copyNo = () => navigator.clipboard?.writeText(titleNo).catch(() => {});
 
+  const canOfferAssignment =
+    !permissions.loading &&
+    !permissions.error &&
+    permissions.hasAllPermissions([
+      PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_OFFER,
+      PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_OWNER,
+      PERMISSIONS.RELATIONSHIPS_ASSIGN_WORK,
+      PERMISSIONS.RELATIONSHIPS_READ,
+    ]);
+
   // calendar events (icon-only chips assumed in EventChip)
   const orderEventsLoader = useCallback(
     async (start, end) => {
@@ -73,12 +92,10 @@ export default function OrderDetail() {
   );
 
   async function saveAppt(iso) {
-    const { error } = await supabase
-      .from("orders")
-      .update({ site_visit_at: iso || null, updated_at: new Date().toISOString() })
-      .eq("id", order.id);
-    if (error) {
-      alert(error.message || "Failed to save site visit");
+    try {
+      await updateSiteVisitAtViaRpc(order.id, iso || null);
+    } catch (error) {
+      alert(error?.message || "Failed to save site visit");
       return;
     }
     refresh();
@@ -92,8 +109,8 @@ export default function OrderDetail() {
     <div className="p-4 space-y-4">
       {/* HEADER */}
       <div className="rounded-xl border bg-white p-4">
-        <div className="flex items-center justify-between gap-3">
-          <div>
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="min-w-0">
             <div className="text-lg font-semibold flex items-center gap-3">
               <span>Order {titleNo}</span>
               <OrderStatusBadge status={order.status} />
@@ -108,7 +125,16 @@ export default function OrderDetail() {
             </div>
             <div className="text-xs text-gray-500">Created {fmtDateTime(order.created_at)}</div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {canOfferAssignment && (
+              <button
+                type="button"
+                onClick={() => setOfferAssignmentOpen(true)}
+                className="px-3 py-1.5 border border-slate-950 bg-slate-950 text-white rounded text-sm font-semibold hover:bg-slate-800"
+              >
+                Offer Assignment
+              </button>
+            )}
             <Link to="/orders" className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50">
               {"<- Back"}
             </Link>
@@ -188,6 +214,12 @@ export default function OrderDetail() {
           </div>
         </div>
       </div>
+
+      <OwnerOrderAssignmentsPanel
+        orderId={order.id}
+        canOfferAssignment={canOfferAssignment}
+        onOfferAssignment={() => setOfferAssignmentOpen(true)}
+      />
 
       {/* ROW 2: PROPERTY (L) + DATES (R) */}
       <div className="grid grid-cols-12 gap-4 items-start">
@@ -286,6 +318,16 @@ export default function OrderDetail() {
         <ActivityLog orderId={order.id} order={order} showComposer height={520} />
       </div>
 
+      <OfferAssignmentModal
+        open={offerAssignmentOpen}
+        order={order}
+        onClose={() => setOfferAssignmentOpen(false)}
+        onSuccess={(assignmentId) => {
+          setOfferAssignmentOpen(false);
+          success("Assignment offer created.");
+          navigate(`/assignments/${assignmentId}`);
+        }}
+      />
     </div>
   );
 }

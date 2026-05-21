@@ -8,6 +8,14 @@ import { assertOrderWorkflowTransition } from "@/lib/workflow/orderWorkflowGuard
 const ORDERS_TABLE = "orders";
 const ORDERS_VIEW  = "v_orders_frontend_v4";
 
+function warnDeprecatedDirectOrderMutation(helperName, replacement) {
+  if (import.meta.env?.DEV !== true) return;
+  const suffix = replacement ? ` Use ${replacement} instead.` : "";
+  console.warn(
+    `[ordersService] ${helperName} performs a direct orders table mutation and is deprecated.${suffix}`
+  );
+}
+
 export const OrderStatus = {
   NEW: "new",
   IN_PROGRESS: "in_progress",
@@ -156,10 +164,16 @@ export async function getOrder(orderId) {
 }
 
 /* ============================================================================
-   WRITES (direct table; RLS enforces permissions)
+   WRITES
    ========================================================================== */
 
+/**
+ * Deprecated direct order create helper.
+ * Use createOrderViaRpc(...) so server-side order numbering, company scope, and
+ * client/AMC guards stay authoritative.
+ */
 export async function createOrder(payload, context = {}) {
+  warnDeprecatedDirectOrderMutation("createOrder", "createOrderViaRpc");
   const { data: order, error } = await supabase
     .from(ORDERS_TABLE)
     .insert(payload)
@@ -171,7 +185,41 @@ export async function createOrder(payload, context = {}) {
   return order;
 }
 
+export async function createOrderViaRpc(payload) {
+  const { data: order, error } = await supabase.rpc("rpc_create_order", {
+    payload,
+  });
+  if (error) throw error;
+  return order ?? null;
+}
+
+export async function updateOrderViaRpc(orderId, patch) {
+  const { data: order, error } = await supabase.rpc("rpc_update_order", {
+    order_id: orderId,
+    patch,
+  });
+  if (error) throw error;
+  return order ?? null;
+}
+
+export async function updateSiteVisitAtViaRpc(orderId, siteVisitAt) {
+  return updateOrderViaRpc(orderId, {
+    site_visit_at: siteVisitAt || null,
+  });
+}
+
+export async function overrideOrderNumber(orderId, orderNumber, reason = null) {
+  const { data, error } = await supabase.rpc("rpc_order_number_override", {
+    p_order_id: orderId,
+    p_order_number: orderNumber,
+    p_reason: reason,
+  });
+  if (error) throw error;
+  return data ?? null;
+}
+
 export async function updateOrder(orderId, patch) {
+  warnDeprecatedDirectOrderMutation("updateOrder", "updateOrderViaRpc");
   const { data, error } = await supabase
     .from(ORDERS_TABLE)
     .update(patch)
@@ -183,6 +231,7 @@ export async function updateOrder(orderId, patch) {
 }
 
 export async function deleteOrder(orderId) {
+  warnDeprecatedDirectOrderMutation("deleteOrder", "a guarded archive/delete RPC");
   const { error } = await supabase
     .from(ORDERS_TABLE)
     .delete()
@@ -192,6 +241,7 @@ export async function deleteOrder(orderId) {
 }
 
 export async function archiveOrder(orderId) {
+  warnDeprecatedDirectOrderMutation("archiveOrder", "a guarded archive RPC");
   const { data, error } = await supabase
     .from(ORDERS_TABLE)
     .update({ is_archived: true })
@@ -207,6 +257,7 @@ export async function archiveOrder(orderId) {
  * Do not use for lifecycle transitions; use canonical workflow transition helpers/RPC.
  */
 export async function setOrderStatus(orderId, status /* note optional */) {
+  warnDeprecatedDirectOrderMutation("setOrderStatus", "canonical workflow transition helpers");
   const { data, error } = await supabase
     .from(ORDERS_TABLE)
     .update({ status })
@@ -228,6 +279,7 @@ export async function updateOrderDates(
   orderId,
   { site_visit_at = null, review_due_at = null, final_due_at = null, due_date = null } = {}
 ) {
+  warnDeprecatedDirectOrderMutation("updateOrderDates", "updateSiteVisitAtViaRpc or updateOrderViaRpc");
   const patch = {};
 
   if (site_visit_at !== null) {
@@ -262,6 +314,7 @@ export async function updateOrderDates(
 
 /** Assign participants (appraiser / reviewer) */
 export async function assignParticipants(orderId, { appraiser_id = null, reviewer_id = null } = {}) {
+  warnDeprecatedDirectOrderMutation("assignParticipants", "a guarded assignment RPC");
   const patch = {};
   if (appraiser_id !== null) patch.appraiser_id = appraiser_id;
   if (reviewer_id  !== null) patch.reviewer_id  = reviewer_id;
@@ -444,6 +497,7 @@ export async function updateAssignees(orderId, patch) {
 }
 
 export async function updateOrderStatus(orderId, status, extra = {}) {
+  warnDeprecatedDirectOrderMutation("updateOrderStatus", "canonical workflow transition helpers");
   const patch = { status, ...(extra || {}) };
   return updateOrder(orderId, patch);
 }
@@ -684,7 +738,12 @@ export async function isOrderNumberAvailable(orderNo, { excludeId = null } = {})
   return (res2.count || 0) === 0;
 }
 
+export async function isOrderNumberAvailableV2(orderNo, { orderId = null } = {}) {
+  const { data, error } = await supabase.rpc("rpc_is_order_number_available_v2", {
+    p_order_number: orderNo,
+    p_order_id: orderId,
+  });
 
-
-
-
+  if (error) throw error;
+  return data?.available === true;
+}

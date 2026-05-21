@@ -4,8 +4,11 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import supabase from "@/lib/supabaseClient";
 import ClientForm from "@/components/clients/ClientForm";
-import { updateClient } from "@/lib/services/clientsService";
-import { useRole } from "@/lib/hooks/useRole";
+import {
+  getClientManagementDetail,
+  updateClientManagementClient,
+} from "@/features/clients/clientManagementApi";
+import { useCurrentUserAppContext } from "@/features/auth/useCurrentUserAppContext";
 import { useCan } from "@/lib/hooks/usePermissions";
 import { PERMISSIONS } from "@/lib/permissions/constants";
 
@@ -44,16 +47,33 @@ const parseFee = (val) => {
   return null;
 };
 
+function clientUpdateErrorMessage(error) {
+  const message = error?.message || "";
+  if (message.includes("client_name_required")) return "Enter a client name.";
+  if (message.includes("client_name_already_exists")) return "A client with this name already exists.";
+  if (message.includes("invalid_amc")) return "Choose a valid AMC.";
+  if (
+    message.includes("permission")
+    || message.includes("forbidden")
+    || error?.code === "42501"
+  ) {
+    return "You do not have permission to update this client.";
+  }
+  return "Falcon could not update this client.";
+}
+
 /* ============================== main ============================== */
 
 export default function ClientDetail() {
   const params = useParams();
   const clientIdParam = params.clientId || params.id || null;
   const nav = useNavigate();
-  const { isAdmin, isReviewer, userId: publicUserId, loading: roleLoading } = useRole() || {};
+  const { context: appContext, loading: appContextLoading } = useCurrentUserAppContext();
+  const publicUserId = appContext?.user_id || null;
+  const isAdmin = Boolean(appContext?.is_owner || appContext?.is_admin_role);
+  const isReviewer = !isAdmin && Boolean(appContext?.is_reviewer_role);
   const canUpdateAllClientsPermission = useCan(PERMISSIONS.CLIENTS_UPDATE_ALL);
-  const canUpdateAllClients = canUpdateAllClientsPermission.allowed
-    || ((canUpdateAllClientsPermission.loading || canUpdateAllClientsPermission.error) && isAdmin);
+  const canUpdateAllClients = canUpdateAllClientsPermission.allowed;
 
   const numericId = Number(clientIdParam);
   const [loading, setLoading] = useState(true);
@@ -61,13 +81,12 @@ export default function ClientDetail() {
 
   const [client, setClient] = useState(null);
   const [amc, setAmc] = useState(null);
-  const [kpis, setKpis] = useState(null);
   const [orders, setOrders] = useState([]);
 
   const [editing, setEditing] = useState(false);
 
   useEffect(() => {
-    if (roleLoading) return;
+    if (appContextLoading) return;
 
     if (!clientIdParam || Number.isNaN(numericId) || !Number.isFinite(numericId)) {
       setErr("Invalid client id");
@@ -82,18 +101,7 @@ export default function ClientDetail() {
         setLoading(true);
         setErr(null);
 
-        // 1) load client, KPIs, and orders in parallel
-        const clientPromise = supabase
-          .from("clients")
-          .select("*")
-          .eq("id", numericId)
-          .single();
-
-        const kpiPromise = supabase
-          .from("v_client_kpis")
-          .select("*")
-          .eq("client_id", numericId)
-          .maybeSingle();
+        const clientPromise = getClientManagementDetail(numericId);
 
         let ordersQuery = supabase
           .from("v_orders_frontend_v4")
@@ -102,9 +110,14 @@ export default function ClientDetail() {
           )
           .eq("client_id", numericId);
 
-        if (!isAdmin && publicUserId) {
-          if (isReviewer) ordersQuery = ordersQuery.eq("reviewer_id", publicUserId);
-          else ordersQuery = ordersQuery.eq("appraiser_id", publicUserId);
+        if (!isAdmin) {
+          if (!publicUserId) {
+            ordersQuery = ordersQuery.is("id", null);
+          } else if (isReviewer) {
+            ordersQuery = ordersQuery.eq("reviewer_id", publicUserId);
+          } else {
+            ordersQuery = ordersQuery.eq("appraiser_id", publicUserId);
+          }
         }
 
         const ordersPromise = ordersQuery
@@ -112,13 +125,10 @@ export default function ClientDetail() {
           .limit(100);
 
         const [
-          { data: clientRow, error: clientErr },
-          { data: kpiRow, error: kpiErr },
+          clientRow,
           { data: orderRows, error: ordersErr },
-        ] = await Promise.all([clientPromise, kpiPromise, ordersPromise]);
+        ] = await Promise.all([clientPromise, ordersPromise]);
 
-        if (clientErr) throw clientErr;
-        if (kpiErr) throw kpiErr;
         if (ordersErr) throw ordersErr;
 
         if (cancelled) return;
@@ -131,7 +141,6 @@ export default function ClientDetail() {
         }
 
         setClient(clientRow);
-        setKpis(kpiRow || null);
         setOrders(orderRows || []);
         if (process.env.NODE_ENV === "development" && (orderRows || []).length) {
           console.debug("[ClientDetail orders sample]", orderRows[0]?.order_number, {
@@ -141,25 +150,12 @@ export default function ClientDetail() {
           });
         }
 
-        // 2) If this client is tied to an AMC, load that AMC
-        const category =
-          (clientRow.category ||
-            clientRow.client_type ||
-            clientRow.type ||
-            "client"
-          ).toLowerCase();
-
-        if (category !== "amc" && clientRow.amc_id) {
-          try {
-            const { data: amcRow, error: amcErr } = await supabase
-              .from("clients")
-              .select("id, name, category")
-              .eq("id", clientRow.amc_id)
-              .single();
-            if (!amcErr) setAmc(amcRow || null);
-          } catch {
-            /* non-blocking */
-          }
+        if ((clientRow.category || "").toLowerCase() !== "amc" && clientRow.amc_id) {
+          setAmc({
+            id: clientRow.amc_id,
+            name: clientRow.amc_name,
+            category: "amc",
+          });
         } else {
           setAmc(null);
         }
@@ -175,17 +171,17 @@ export default function ClientDetail() {
     return () => {
       cancelled = true;
     };
-  }, [clientIdParam, numericId, isAdmin, isReviewer, publicUserId, roleLoading]);
+  }, [clientIdParam, numericId, isAdmin, isReviewer, publicUserId, appContextLoading]);
 
   const stats = useMemo(() => {
     if (!orders || orders.length === 0) {
       return {
-        totalOrders: isAdmin ? (kpis?.total_orders ?? 0) : 0,
+        totalOrders: client?.total_orders ?? 0,
         activeOrders: 0,
         completedOrders: 0,
         totalFees: 0,
-        lastOrderDate: isAdmin ? (kpis?.last_order_date || null) : null,
-        avgFee: isAdmin ? (kpis?.avg_total_fee ?? null) : null,
+        lastOrderDate: client?.last_order_date || null,
+        avgFee: client?.avg_total_fee ?? null,
       };
     }
 
@@ -225,24 +221,33 @@ export default function ClientDetail() {
       lastOrderDate: lastDate ? new Date(lastDate).toISOString() : null,
       avgFee,
     };
-  }, [orders, kpis, isAdmin]);
+  }, [orders, client]);
 
   async function handleUpdateClient(patch) {
     if (!client) return;
     if (!canUpdateAllClients) return;
 
     try {
-      const row = await updateClient(client.id, patch);
-      setClient(row);
+      const row = await updateClientManagementClient(client.id, patch);
+      setClient((prev) => ({ ...prev, ...row }));
+      if ((row.category || "").toLowerCase() !== "amc" && row.amc_id) {
+        setAmc({
+          id: row.amc_id,
+          name: row.amc_name,
+          category: "amc",
+        });
+      } else {
+        setAmc(null);
+      }
       setEditing(false);
       toast.success("Client updated");
     } catch (e) {
       console.error(e);
-      toast.error(e?.message || "Failed to update client");
+      toast.error(clientUpdateErrorMessage(e));
     }
   }
 
-  if (loading || roleLoading) {
+  if (loading || appContextLoading) {
     return (
       <div className="p-4 md:p-6">
         <div className="text-sm text-gray-600">Loading client…</div>
@@ -475,7 +480,7 @@ export default function ClientDetail() {
               <div className="rounded-lg bg-slate-50 p-3">
                 <div className="text-xs text-gray-500">Avg Fee</div>
                 <div className="mt-1 text-lg font-semibold text-gray-900">
-                  {money0(stats.avgFee ?? kpis?.avg_total_fee ?? null)}
+                  {money0(stats.avgFee ?? null)}
                 </div>
               </div>
               <div className="rounded-lg bg-slate-50 p-3">
@@ -488,7 +493,7 @@ export default function ClientDetail() {
                 <div className="text-xs text-gray-500">Last Order</div>
                 <div className="mt-1 text-lg font-semibold text-gray-900">
                   {fmtDate(
-                    stats.lastOrderDate || kpis?.last_order_date || null
+                    stats.lastOrderDate || null
                   )}
                 </div>
               </div>
@@ -515,7 +520,6 @@ export default function ClientDetail() {
 /* ============================== subcomponents ============================== */
 
 function OrdersTable({ rows }) {
-  const feeFor = (o) => [o.fee_amount, o.base_fee, o.appraiser_fee].map(parseFee).find((v) => v != null);
   if (!rows || rows.length === 0) return null;
 
   return (

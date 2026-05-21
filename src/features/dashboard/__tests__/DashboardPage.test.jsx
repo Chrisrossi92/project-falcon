@@ -1,0 +1,261 @@
+// @vitest-environment jsdom
+import "@testing-library/jest-dom/vitest";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const summaryState = vi.hoisted(() => ({
+  current: null,
+}));
+
+const permissionState = vi.hoisted(() => ({
+  settingsView: false,
+}));
+
+const tableMock = vi.hoisted(() => vi.fn());
+const calendarMock = vi.hoisted(() => vi.fn());
+const DOCUMENT_POSITION_FOLLOWING = 4;
+
+vi.mock("@/lib/hooks/useDashboardSummary", () => ({
+  useDashboardSummary: () => summaryState.current,
+}));
+
+vi.mock("@/lib/hooks/usePermissions", () => ({
+  useCan: () => ({
+    allowed: permissionState.settingsView,
+    loading: false,
+    error: null,
+    permissionKeys: permissionState.settingsView ? ["settings.view"] : [],
+    reload: vi.fn(),
+  }),
+}));
+
+vi.mock("@/features/orders/UnifiedOrdersTable", () => ({
+  default: (props) => {
+    tableMock(props);
+    return (
+      <div data-testid="unified-orders-table">
+        <div>rows: {props.rowsOverride?.length ?? 0}</div>
+      </div>
+    );
+  },
+}));
+
+vi.mock("@/components/dashboard/DashboardCalendarPanel", () => ({
+  default: (props) => {
+    calendarMock(props);
+    return <div data-testid="dashboard-calendar">calendar rows: {props.orders?.length ?? 0}</div>;
+  },
+}));
+
+const { default: DashboardPage } = await import("../DashboardPage.jsx");
+
+function dueDate(daysFromNow) {
+  const date = new Date();
+  date.setDate(date.getDate() + daysFromNow);
+  return date.toISOString();
+}
+
+function buildSummary(overrides = {}) {
+  return {
+    role: "owner",
+    isAdmin: true,
+    isReviewer: false,
+    loading: false,
+    tableFilters: {},
+    userId: "owner-user",
+    orders: {
+      count: 4,
+      inProgress: 1,
+      dueIn7: 2,
+      inspectedAwaitingReport: 1,
+      dueToClient2: 1,
+    },
+    ordersRows: [
+      {
+        id: "order-new",
+        order_number: "1001",
+        status: "new",
+        appraiser_id: "appraiser-1",
+        appraiser_name: "Appraiser One",
+        final_due_date: dueDate(-1),
+      },
+      {
+        id: "order-review",
+        order_number: "1002",
+        status: "in_review",
+        reviewer_id: "reviewer-1",
+        reviewer_name: "Reviewer One",
+        final_due_date: dueDate(1),
+      },
+      {
+        id: "order-approval",
+        order_number: "1003",
+        status: "pending_final_approval",
+        appraiser_id: "appraiser-2",
+        final_due_date: dueDate(5),
+      },
+      {
+        id: "order-routine",
+        order_number: "1004",
+        status: "in_progress",
+        appraiser_id: "appraiser-3",
+        final_due_date: dueDate(14),
+      },
+      {
+        id: "order-revisions",
+        order_number: "1005",
+        status: "needs_revisions",
+        appraiser_id: "appraiser-4",
+        appraiser_name: "Appraiser Four",
+        final_due_date: dueDate(3),
+      },
+      {
+        id: "order-ready",
+        order_number: "1006",
+        status: "ready_for_client",
+        reviewer_id: "reviewer-2",
+        reviewer_name: "Reviewer Two",
+        final_due_date: dueDate(4),
+      },
+    ],
+    ...overrides,
+  };
+}
+
+function renderDashboard() {
+  return render(
+    <MemoryRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
+      <DashboardPage />
+    </MemoryRouter>,
+  );
+}
+
+describe("DashboardPage operational polish", () => {
+  beforeEach(() => {
+    summaryState.current = buildSummary();
+    permissionState.settingsView = false;
+    tableMock.mockClear();
+    calendarMock.mockClear();
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  it("renders the polished operational sections from existing summary data", () => {
+    renderDashboard();
+
+    const calendarHeading = screen.getByText("Calendar");
+    const ordersHeading = screen.getByText("Active Worklist");
+    const statusHeading = screen.getByText("Status");
+
+    expect(statusHeading).toBeInTheDocument();
+    expect(calendarHeading).toBeInTheDocument();
+    expect(ordersHeading).toBeInTheDocument();
+    expect(screen.queryByText("Priority Worklist Preview")).not.toBeInTheDocument();
+    expect(screen.queryByText("Workload Snapshot")).not.toBeInTheDocument();
+    expect(screen.queryByText("Review Bottlenecks")).not.toBeInTheDocument();
+    expect(screen.queryByText("Schedule")).not.toBeInTheDocument();
+    expect(screen.queryByText("Schedule pressure")).not.toBeInTheDocument();
+    expect(screen.queryByText("Due dates and site visits.")).not.toBeInTheDocument();
+    expect(screen.queryByText(/pressure/i)).not.toBeInTheDocument();
+    expect(calendarHeading.compareDocumentPosition(ordersHeading)).toBe(DOCUMENT_POSITION_FOLLOWING);
+    expect(calendarHeading.compareDocumentPosition(statusHeading)).toBe(DOCUMENT_POSITION_FOLLOWING);
+    expect(ordersHeading.compareDocumentPosition(statusHeading)).toBe(DOCUMENT_POSITION_FOLLOWING);
+
+    for (const label of ["New", "In Progress", "In Review", "Needs Revisions", "Ready for Client"]) {
+      expect(screen.getByRole("button", { name: new RegExp(label, "i") })).toBeInTheDocument();
+    }
+    const statusFilters = screen.getByRole("group", { name: /status filters/i });
+    expect(statusFilters).toHaveClass("grid-cols-1");
+    expect(statusFilters).not.toHaveClass("grid-cols-2");
+    expect(within(screen.getByRole("button", { name: /new/i })).getByText("1")).toBeInTheDocument();
+    expect(within(screen.getByRole("button", { name: /ready for client/i })).getByText("1")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /new/i })).toHaveClass("bg-blue-50");
+    expect(screen.getByRole("button", { name: /in review/i })).toHaveClass("bg-indigo-50");
+    expect(screen.queryByText("Operational Attention")).not.toBeInTheDocument();
+
+    expect(calendarMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ orders: summaryState.current.ordersRows }),
+    );
+    expect(tableMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        rowsOverride: summaryState.current.ordersRows,
+        scope: "dashboard",
+      }),
+    );
+  });
+
+  it("filters the existing dashboard rows when a status card is selected and cleared", () => {
+    renderDashboard();
+
+    const inReview = screen.getByRole("button", { name: /in review/i });
+    fireEvent.click(inReview);
+
+    expect(inReview).toHaveAttribute("aria-pressed", "true");
+    expect(inReview).toHaveClass("bg-indigo-100");
+    expect(inReview).toHaveClass("translate-x-0.5");
+
+    expect(tableMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        rowsOverride: [expect.objectContaining({ id: "order-review" })],
+      }),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /clear filter/i }));
+
+    expect(tableMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        rowsOverride: summaryState.current.ordersRows,
+      }),
+    );
+  });
+
+  it("renders clean empty states when loaded dashboard rows have no action signals", () => {
+    summaryState.current = buildSummary({
+      orders: {
+        count: 0,
+        inProgress: 0,
+        dueIn7: 0,
+        inspectedAwaitingReport: 0,
+        dueToClient2: 0,
+      },
+      ordersRows: [],
+    });
+
+    renderDashboard();
+
+    expect(within(screen.getByRole("button", { name: /new/i })).getByText("0")).toBeInTheDocument();
+    expect(within(screen.getByRole("button", { name: /ready for client/i })).getByText("0")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /view order/i })).not.toBeInTheDocument();
+  });
+
+  it("uses role-specific worklist copy without changing dashboard gate behavior", () => {
+    summaryState.current = buildSummary({
+      role: "reviewer",
+      isAdmin: false,
+      isReviewer: true,
+      userId: "reviewer-1",
+      orders: {
+        count: 1,
+        inProgress: 0,
+        dueIn7: 1,
+        inspectedAwaitingReport: 0,
+        dueToClient2: 1,
+      },
+    });
+
+    renderDashboard();
+
+    expect(screen.getByText("Reviewer Dashboard")).toBeInTheDocument();
+    expect(screen.getByText("My Review Work")).toBeInTheDocument();
+    expect(tableMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        mode: "reviewerQueue",
+        reviewerId: "reviewer-1",
+        scope: "dashboard",
+      }),
+    );
+  });
+});

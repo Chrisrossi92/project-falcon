@@ -6,7 +6,7 @@ import TwoWeekCalendar from "@/components/calendar/TwoWeekCalendar";
 import CalendarGrid from "@/components/calendar/CalendarGrid";
 import CalendarDayDetailRail from "@/components/calendar/CalendarDayDetailRail";
 import supabase from "@/lib/supabaseClient";
-import useRole from "@/lib/hooks/useRole";
+import { useCurrentUserAppContext } from "@/features/auth/useCurrentUserAppContext";
 import {
   calendarEventsFromOrder,
   filterCalendarEventsByRange,
@@ -36,11 +36,23 @@ export default function CalendarPage() {
     return today;
   });
 
-  const roleHook = useRole() || {};
-  const { isAdmin, isReviewer, userId } = roleHook;
-  const calendarRole = roleHook.role || (isAdmin ? "admin" : isReviewer ? "reviewer" : "appraiser");
+  const { context: appContext, loading: appContextLoading } = useCurrentUserAppContext();
+  const userId = appContext?.user_id || null;
+  const isAdmin = Boolean(appContext?.is_owner || appContext?.is_admin_role);
+  const isReviewer = !isAdmin && Boolean(appContext?.is_reviewer_role);
+  const calendarRole = appContext?.is_owner
+    ? "owner"
+    : isAdmin
+    ? "admin"
+    : isReviewer
+    ? "reviewer"
+    : appContext?.is_appraiser_role
+    ? "appraiser"
+    : String(appContext?.primary_role_key || appContext?.role_keys?.[0] || "appraiser").toLowerCase();
 
   useEffect(() => {
+    if (appContextLoading) return;
+
     let ok = true;
     (async () => {
       try {
@@ -90,7 +102,7 @@ export default function CalendarPage() {
     return () => {
       ok = false;
     };
-  }, [isAdmin, isReviewer, userId]);
+  }, [appContextLoading, isAdmin, isReviewer, userId]);
 
   const deriveEvents = useCallback(
     (start, end) => {
@@ -216,6 +228,5 @@ export default function CalendarPage() {
     </div>
   );
 }
-
 
 

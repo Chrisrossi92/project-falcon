@@ -154,6 +154,11 @@ export default function ActivityPage() {
   }, [items, search, stateFilter, typeFilter]);
 
   const openItem = (notification) => {
+    const assignmentId = notification?.payload?.assignment_id || notification?.assignment_id || null;
+    if (assignmentId) {
+      navigate(`/assignments/${assignmentId}`);
+      return;
+    }
     if (notification?.link_path) {
       navigate(notification.link_path);
       return;
@@ -252,7 +257,8 @@ export default function ActivityPage() {
               const state = notificationState(notification);
               const type = typeInfoFor(notification);
               const orderNumber = orderNumberFor(notification);
-              const isOpenable = Boolean(notification?.link_path || notification?.order_id);
+              const assignmentId = notification?.payload?.assignment_id || notification?.assignment_id || null;
+              const isOpenable = Boolean(assignmentId || notification?.link_path || notification?.order_id);
 
               return (
                 <article

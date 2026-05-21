@@ -4,17 +4,25 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Layout from "@/layout/Layout";
 import ProtectedRoute from "@/lib/hooks/ProtectedRoute";
 import { PERMISSIONS } from "@/lib/permissions/constants";
+import {
+  notificationSettingsRoute,
+  productMetadataDiagnosticsRoute,
+} from "@/routes/diagnosticRoutes";
 
 // Pages
 import Login from "@/pages/auth/Login";
+import AcceptCompanyInvitePage from "@/features/company-invitations/AcceptCompanyInvitePage";
 import Settings from "@/pages/Settings";
-import DashboardPage from "@/features/dashboard/DashboardPage";
+import DashboardGate from "@/features/dashboard/DashboardGate";
 import Orders from "@/pages/orders/Orders";
 import NewOrder from "@/pages/NewOrder";
 import OrderDetail from "@/pages/orders/OrderDetail";
 import EditOrder from "@/pages/orders/EditOrder";
 import Calendar from "@/pages/Calendar";
 import Activity from "@/pages/Activity";
+import AssignmentsPage, { ASSIGNMENT_NAV_PERMISSIONS } from "@/features/assignments/AssignmentsPage";
+import AssignmentDetail from "@/features/assignments/AssignmentDetail";
+import RelationshipsPage, { RELATIONSHIP_NAV_PERMISSION } from "@/features/relationships/RelationshipsPage";
 
 // Clients (legacy admin pages kept)
 import ClientsDashboard from "@/pages/clients/ClientsDashboard";
@@ -23,10 +31,9 @@ import ClientProfile from "@/pages/clients/ClientProfile";
 import EditClient from "@/pages/clients/EditClient";
 
 // Users
-import UsersIndex from "@/pages/admin/UsersIndex";   // <- roster + role/split controls
-import UserDetail from "@/pages/users/UserDetail";
-import EditUser from "@/pages/users/EditUser";
-import UserHub from "@/pages/users/UserHub";
+import OwnerSetup from "@/pages/admin/OwnerSetup";
+import ProductMetadataDiagnostics from "@/pages/admin/ProductMetadataDiagnostics";
+import UsersIndex from "@/pages/admin/UsersIndex";
 
 // Optional: role-aware clients cards/detail (if you added them)
 import ClientsIndex from "@/pages/clients/ClientsIndex";
@@ -40,14 +47,15 @@ export default function AppRoutes() {
     <Routes>
       {/* Public */}
       <Route path="/login" element={<Login />} />
+      <Route path="/accept-invite/:invitationId" element={<AcceptCompanyInvitePage />} />
 
       {/* Authenticated area */}
       <Route element={<Layout />}>
         <Route
           path="/dashboard"
           element={
-            <ProtectedRoute roles={["owner", "admin", "reviewer", "appraiser"]}>
-              <DashboardPage />
+            <ProtectedRoute>
+              <DashboardGate />
             </ProtectedRoute>
           }
         />
@@ -56,47 +64,115 @@ export default function AppRoutes() {
         <Route
           path="/orders"
           element={
-            <ProtectedRoute roles={["owner", "admin", "reviewer", "appraiser"]}>
+            <ProtectedRoute
+              requiredAnyPermissions={[
+                PERMISSIONS.ORDERS_READ_ALL,
+                PERMISSIONS.ORDERS_READ_ASSIGNED,
+              ]}
+            >
               <Orders />
             </ProtectedRoute>
           }
         />
         <Route
           path="/orders/new"
-          element={<ProtectedRoute roles={["owner", "admin"]}><NewOrder /></ProtectedRoute>}
+          element={<ProtectedRoute requiredPermission={PERMISSIONS.ORDERS_CREATE}><NewOrder /></ProtectedRoute>}
         />
         <Route
           path="/orders/:id"
-          element={<ProtectedRoute roles={["owner", "admin", "reviewer", "appraiser"]}><OrderDetail /></ProtectedRoute>}
+          element={
+            <ProtectedRoute
+              requiredAnyPermissions={[
+                PERMISSIONS.ORDERS_READ_ALL,
+                PERMISSIONS.ORDERS_READ_ASSIGNED,
+              ]}
+            >
+              <OrderDetail />
+            </ProtectedRoute>
+          }
         />
         <Route
           path="/orders/:id/edit"
-          element={<ProtectedRoute roles={["owner", "admin"]}><EditOrder /></ProtectedRoute>}
+          element={<ProtectedRoute requiredPermission={PERMISSIONS.ORDERS_UPDATE_ALL}><EditOrder /></ProtectedRoute>}
         />
 
         {/* Calendar */}
         <Route
           path="/calendar"
-          element={<ProtectedRoute roles={["owner", "admin", "reviewer", "appraiser"]}><Calendar /></ProtectedRoute>}
+          element={
+            <ProtectedRoute
+              requiredAnyPermissions={[
+                PERMISSIONS.NAVIGATION_ORDERS_VIEW,
+                PERMISSIONS.ORDERS_READ_ALL,
+                PERMISSIONS.ORDERS_READ_ASSIGNED,
+              ]}
+            >
+              <Calendar />
+            </ProtectedRoute>
+          }
         />
 
         {/* Activity */}
         <Route
           path="/activity"
-          element={<ProtectedRoute roles={["owner", "admin", "manager", "reviewer", "appraiser"]}><Activity /></ProtectedRoute>}
+          element={
+            <ProtectedRoute
+              requiredAnyPermissions={[
+                PERMISSIONS.ACTIVITY_READ_ALL,
+                PERMISSIONS.ACTIVITY_READ_ASSIGNED,
+              ]}
+            >
+              <Activity />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Assignments */}
+        <Route
+          path="/assignments"
+          element={
+            <ProtectedRoute requiredAnyPermissions={ASSIGNMENT_NAV_PERMISSIONS}>
+              <AssignmentsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/assignments/:assignmentId"
+          element={
+            <ProtectedRoute requiredAnyPermissions={ASSIGNMENT_NAV_PERMISSIONS}>
+              <AssignmentDetail />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Relationships */}
+        <Route
+          path="/relationships"
+          element={
+            <ProtectedRoute requiredPermission={RELATIONSHIP_NAV_PERMISSION}>
+              <RelationshipsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/relationships/:relationshipId"
+          element={
+            <ProtectedRoute requiredPermission={RELATIONSHIP_NAV_PERMISSION}>
+              <RelationshipsPage />
+            </ProtectedRoute>
+          }
         />
 
         {/* Clients (legacy admin pages) */}
         <Route
           path="/clients"
-          element={<ProtectedRoute roles={["owner", "admin"]}><ClientsDashboard /></ProtectedRoute>}
+          element={<ProtectedRoute requiredPermission={PERMISSIONS.CLIENTS_READ_ALL}><ClientsDashboard /></ProtectedRoute>}
         />
         <Route
           path="/clients/new"
           element={
             <ProtectedRoute
               requiredPermission={PERMISSIONS.CLIENTS_CREATE}
-              roles={["owner", "admin"]}
             >
               <NewClient />
             </ProtectedRoute>
@@ -104,14 +180,13 @@ export default function AppRoutes() {
         />
         <Route
           path="/clients/profile/:clientId"
-          element={<ProtectedRoute roles={["owner", "admin"]}><ClientProfile /></ProtectedRoute>}
+          element={<ProtectedRoute requiredPermission={PERMISSIONS.CLIENTS_READ_ALL}><ClientProfile /></ProtectedRoute>}
         />
         <Route
           path="/clients/edit/:clientId"
           element={
             <ProtectedRoute
               requiredPermission={PERMISSIONS.CLIENTS_UPDATE_ALL}
-              roles={["owner", "admin"]}
             >
               <EditClient />
             </ProtectedRoute>
@@ -121,20 +196,37 @@ export default function AppRoutes() {
         {/* Optional: cards + role-aware detail */}
         <Route
           path="/clients/cards"
-          element={<ProtectedRoute roles={["owner", "admin", "appraiser"]}><ClientsIndex /></ProtectedRoute>}
+          element={
+            <ProtectedRoute
+              requiredAnyPermissions={[
+                PERMISSIONS.CLIENTS_READ_ALL,
+                PERMISSIONS.CLIENTS_READ_ASSIGNED,
+              ]}
+            >
+              <ClientsIndex />
+            </ProtectedRoute>
+          }
         />
         <Route
           path="/clients/:id"
-          element={<ProtectedRoute roles={["owner", "admin", "appraiser"]}><ClientDetail /></ProtectedRoute>}
+          element={
+            <ProtectedRoute
+              requiredAnyPermissions={[
+                PERMISSIONS.CLIENTS_READ_ALL,
+                PERMISSIONS.CLIENTS_READ_ASSIGNED,
+              ]}
+            >
+              <ClientDetail />
+            </ProtectedRoute>
+          }
         />
 
-        {/* ✅ Users — single page with admin role/split controls */}
+        {/* Users — Team Access via company member RPCs */}
         <Route
           path="/users"
           element={
             <ProtectedRoute
               requiredPermission={PERMISSIONS.USERS_READ}
-              roles={["owner", "admin", "manager", "reviewer", "appraiser"]}
             >
               <UsersIndex />
             </ProtectedRoute>
@@ -142,36 +234,15 @@ export default function AppRoutes() {
         />
         <Route
           path="/users/:userId"
-          element={
-            <ProtectedRoute
-              requiredPermission={PERMISSIONS.USERS_UPDATE}
-              roles={["owner", "admin"]}
-            >
-              <UserDetail />
-            </ProtectedRoute>
-          }
+          element={<Navigate to="/users" replace />}
         />
         <Route
           path="/users/new"
-          element={
-            <ProtectedRoute
-              requiredPermission={PERMISSIONS.USERS_CREATE}
-              roles={["owner", "admin"]}
-            >
-              <UserDetail />
-            </ProtectedRoute>
-          }
+          element={<Navigate to="/users" replace />}
         />
         <Route
           path="/users/view/:userId"
-          element={
-            <ProtectedRoute
-              requiredPermission={PERMISSIONS.USERS_READ}
-              roles={["owner", "admin", "manager", "reviewer", "appraiser"]}
-            >
-              <UserHub />
-            </ProtectedRoute>
-          }
+          element={<Navigate to="/settings" replace />}
         />
 
         {/* Settings */}
@@ -180,20 +251,38 @@ export default function AppRoutes() {
           element={
             <ProtectedRoute
               requiredPermission={PERMISSIONS.SETTINGS_VIEW}
-              roles={["owner", "admin", "manager", "reviewer", "appraiser"]}
             >
               <Settings />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/settings/notifications"
+          path={notificationSettingsRoute.path}
           element={
             <ProtectedRoute
-              requiredPermission={PERMISSIONS.NOTIFICATIONS_PREFERENCES_MANAGE_OWN}
-              roles={["owner", "admin", "manager", "reviewer", "appraiser"]}
+              requiredPermission={notificationSettingsRoute.requiredPermission}
             >
               <NotificationSettings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={productMetadataDiagnosticsRoute.path}
+          element={
+            <ProtectedRoute
+              requiredPermission={productMetadataDiagnosticsRoute.requiredPermission}
+            >
+              <ProductMetadataDiagnostics />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings/owner-setup"
+          element={
+            <ProtectedRoute
+              requiredPermission={PERMISSIONS.SETTINGS_VIEW}
+            >
+              <OwnerSetup />
             </ProtectedRoute>
           }
         />
@@ -207,13 +296,3 @@ export default function AppRoutes() {
     </Routes>
   );
 }
-
-
-
-
-
-
-
-
-
-

@@ -1,6 +1,6 @@
 // src/components/ui/AppraiserSelect.jsx
 import React, { useEffect, useState } from "react";
-import { listAppraisers } from "@/lib/services/userService";
+import { listCompanyAssignableAppraisers } from "@/features/company-members/assignableUsersApi";
 
 /**
  * Props:
@@ -26,7 +26,7 @@ export default function AppraiserSelect({
     (async () => {
       try {
         setLoading(true); setErr(null);
-        const data = await listAppraisers({ includeInactive: false });
+        const data = await listCompanyAssignableAppraisers();
         if (!mounted) return;
         setRows(Array.isArray(data) ? data : []);
       } catch (e) {
@@ -59,4 +59,3 @@ export default function AppraiserSelect({
     </div>
   );
 }
-

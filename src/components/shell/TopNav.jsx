@@ -5,8 +5,9 @@ import NotificationBell from "@/components/notifications/NotificationBell";
 import CommandPalette from "@/components/nav/CommandPalette";
 import { getCurrentUserProfile } from "@/lib/services/api";
 import AvatarBadge from "@/components/ui/AvatarBadge";
-import { useRole } from "@/lib/hooks/useRole";
-import { useCan } from "@/lib/hooks/usePermissions";
+import { useCan, useCanAny } from "@/lib/hooks/usePermissions";
+import { getCurrentPrimaryNavLinks } from "@/lib/navigation/currentPrimaryNavLinks";
+import { avatarSettingsUtilityLinks } from "@/lib/navigation/currentSettingsUtilityLinks";
 import { PERMISSIONS } from "@/lib/permissions/constants";
 import { Menu, Search } from "lucide-react";
 
@@ -40,11 +41,11 @@ function NavItem({ to, children, onClick }) {
   );
 }
 
-function AvatarMenu({ me, showSettings = true }) {
+function AvatarMenu({ me }) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const display = me?.display_name || me?.full_name || me?.name || me?.email || "User";
-  const role    = me?.role || "—";
+  const [accountSettingsLink] = avatarSettingsUtilityLinks;
 
   async function logout() {
     await supabase.auth.signOut();
@@ -85,17 +86,12 @@ function AvatarMenu({ me, showSettings = true }) {
         <div id="avatar-menu" className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-200 bg-white shadow-xl z-50">
           <div className="px-3 py-2">
             <div className="text-sm font-medium truncate">{display}</div>
-            <div className="text-xs text-gray-500">Role: {role}</div>
+            <div className="text-xs text-gray-500 truncate">{me?.email || "Account"}</div>
           </div>
           <div className="h-px bg-gray-200" />
-          <Link to={`/users/view/${me?.id ?? ""}`} className="block px-3 py-2 text-sm hover:bg-gray-50" onClick={() => setOpen(false)}>
-            Profile
+          <Link to={accountSettingsLink.path} className="block px-3 py-2 text-sm hover:bg-gray-50" onClick={() => setOpen(false)}>
+            {accountSettingsLink.label}
           </Link>
-          {showSettings && (
-            <Link to="/settings" className="block px-3 py-2 text-sm hover:bg-gray-50" onClick={() => setOpen(false)}>
-              Settings
-            </Link>
-          )}
           <button className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50" onClick={logout}>
             Logout
           </button>
@@ -111,16 +107,27 @@ export default function TopNav() {
   const [me, setMe]      = useState(null);
   const [open, setOpen]  = useState(false); // mobile sheet
   const [pal, setPal]    = useState(false); // command palette
-  const { isAdmin }      = useRole() || {};
   const canReadAllClients = useCan(PERMISSIONS.CLIENTS_READ_ALL);
+  const canReadAssignedClients = useCan(PERMISSIONS.CLIENTS_READ_ASSIGNED);
+  const canReadAssignments = useCanAny([
+    PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_ASSIGNED,
+    PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_OWNER,
+  ]);
+  const canReadRelationships = useCan(PERMISSIONS.RELATIONSHIPS_READ);
   const canReadUsers = useCan(PERMISSIONS.USERS_READ);
   const canViewSettings = useCan(PERMISSIONS.SETTINGS_VIEW);
-  const useLegacyClientsPath = canReadAllClients.loading || canReadAllClients.error;
-  const clientsPath = useLegacyClientsPath
-    ? (isAdmin ? "/clients" : "/clients/cards")
-    : (canReadAllClients.allowed ? "/clients" : "/clients/cards");
-  const showUsersNav = canReadUsers.allowed || ((canReadUsers.loading || canReadUsers.error) && isAdmin);
-  const showSettingsNav = canViewSettings.allowed || canViewSettings.loading || canViewSettings.error;
+  const clientsPath = canReadAllClients.allowed ? "/clients" : "/clients/cards";
+  const showUsersNav = canReadUsers.allowed;
+  const showAssignmentsNav = canReadAssignments.allowed;
+  const showRelationshipsNav = canReadRelationships.allowed;
+  const showSettingsNav = canViewSettings.allowed;
+  const primaryNavLinks = getCurrentPrimaryNavLinks({
+    canReadAllClients: canReadAllClients.allowed,
+    canReadAssignedClients: canReadAssignedClients.allowed,
+    canReadAssignments: showAssignmentsNav,
+    canReadRelationships: showRelationshipsNav,
+    canReadUsers: showUsersNav,
+  });
 
   useEffect(() => {
     (async () => {
@@ -149,10 +156,9 @@ export default function TopNav() {
           <Brand />
 
           <nav className="hidden items-center gap-1 rounded-xl border border-slate-200 bg-slate-100/80 p-1 md:flex">
-            <NavItem to="/orders">Orders</NavItem>
-            <NavItem to="/calendar">Calendar</NavItem>
-            <NavItem to={clientsPath}>Clients</NavItem>
-            {showUsersNav && <NavItem to="/users">Users</NavItem>}
+            {primaryNavLinks.map((link) => (
+              <NavItem key={link.id} to={link.path}>{link.label}</NavItem>
+            ))}
           </nav>
 
           <div className="ml-auto flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-1 shadow-sm">
@@ -169,7 +175,7 @@ export default function TopNav() {
               ⌘K
             </button>
             <NotificationBell />
-            <AvatarMenu me={me} showSettings={showSettingsNav} />
+            <AvatarMenu me={me} />
             <button className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50 md:hidden" onClick={() => setOpen((v) => !v)} aria-label="Open menu">
               <Menu className="h-4 w-4" aria-hidden="true" />
             </button>
@@ -180,10 +186,11 @@ export default function TopNav() {
         {open && (
           <div className="md:hidden border-t border-slate-200 bg-white/95 shadow-lg backdrop-blur-xl">
             <nav className="px-3 py-3 flex flex-col gap-1">
-              <NavItem to="/orders"   onClick={() => setOpen(false)}>Orders</NavItem>
-              <NavItem to="/calendar" onClick={() => setOpen(false)}>Calendar</NavItem>
-              <NavItem to={clientsPath} onClick={() => setOpen(false)}>Clients</NavItem>
-              {showUsersNav && <NavItem to="/users" onClick={() => setOpen(false)}>Users</NavItem>}
+              {primaryNavLinks.map((link) => (
+                <NavItem key={link.id} to={link.path} onClick={() => setOpen(false)}>
+                  {link.label}
+                </NavItem>
+              ))}
               <div className="h-px bg-gray-200 my-1" />
               {showSettingsNav && <NavItem to="/settings" onClick={() => setOpen(false)}>Settings</NavItem>}
             </nav>
@@ -200,6 +207,3 @@ export default function TopNav() {
     </>
   );
 }
-
-
-

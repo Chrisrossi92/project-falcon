@@ -1,27 +1,10 @@
 // src/lib/services/clientsService.js
 import supabase from "@/lib/supabaseClient";
 
-/* ============================== LIST / METRICS ============================== */
-/** Biggest clients first by default, with optional name search. */
-export async function listClients({
-  search = "",
-  orderBy = "orders_count",
-  descending = true,
-} = {}) {
-  let q = supabase.from("v_client_metrics").select("*", { count: "exact" });
+// Legacy compatibility service. Do not add new client-management call sites here.
+// New client UI should use company-scoped RPC wrappers in features/clients.
 
-  if (search) {
-    const like = `%${search}%`;
-    q = q.or([`name.ilike.${like}`].join(","));
-  }
-
-  q = q.order(orderBy, { ascending: !descending }).order("name", { ascending: true });
-
-  const { data, error, count } = await q;
-  if (error) throw error;
-  return { rows: data || [], count: count || 0 };
-}
-
+/* ============================== ACTIVE COMPATIBILITY ============================== */
 /** Orders for a single client (newest first) from normalized orders view. */
 export async function listClientOrders(clientId, { page = 0, pageSize = 25 } = {}) {
   const fromIdx = page * pageSize;
@@ -55,66 +38,6 @@ export async function listClientOrders(clientId, { page = 0, pageSize = 25 } = {
   return { rows: data || [], count: count || 0 };
 }
 
-/** Quick search for picking a merge target (excludes the current id). */
-export async function searchClientsByName(term, { excludeId = null, limit = 10 } = {}) {
-  const like = `%${(term || "").trim()}%`;
-  let q = supabase.from("clients")
-    .select("id,name,category,status,is_merged,merged_into_id")
-    .ilike("name", like)
-    .order("name", { ascending: true })
-    .limit(limit);
-
-  if (excludeId != null) q = q.neq("id", excludeId);
-
-  const { data, error } = await q;
-  if (error) throw error;
-  return data || [];
-}
-
-/** RPC-driven merge */
-export async function mergeClients(sourceId, targetId, strategy = {}) {
-  const { data, error } = await supabase.rpc("merge_clients", {
-    p_source_id: Number(sourceId),
-    p_target_id: Number(targetId),
-    p_strategy: strategy
-  });
-  if (error) throw error;
-  return data;
-}
-
-
-/* ============================== CRUD (clients) ============================== */
-
-export async function getClient(clientId) {
-  const { data, error } = await supabase.from("clients").select("*").eq("id", clientId).single();
-  if (error) throw error;
-  return data;
-}
-
-export async function createClient(payload) {
-  const { data, error } = await supabase.from("clients").insert(payload).select("*").single();
-  if (error) throw error;
-  return data;
-}
-
-export async function updateClient(clientId, patch) {
-  const { data, error } = await supabase
-    .from("clients")
-    .update(patch)
-    .eq("id", clientId)
-    .select("*")
-    .single();
-  if (error) throw error;
-  return data;
-}
-
-export async function deleteClient(clientId) {
-  const { error } = await supabase.from("clients").delete().eq("id", clientId);
-  if (error) throw error;
-  return true;
-}
-
-/* ============================== VALIDATION ============================== */
 /**
  * Case-insensitive exact-match check via RPC.
  * Accepts either { ignoreClientId } or { excludeId } for backward compatibility.
@@ -142,22 +65,3 @@ export async function isClientNameAvailable(
   // RPC returns "is taken?" -> available if false
   return !data;
 }
-
-/* ============================== COMPAT ALIASES ============================== */
-// Older code sometimes imports these names:
-export const fetchClients = listClients;
-export const fetchClientById = getClient;
-export const getClientById = getClient;
-export const fetchClientOrders = listClientOrders;
-
-
-
-
-
-
-
-
-
-
-
-

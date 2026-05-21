@@ -1,28 +1,35 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
-import supabase from "@/lib/supabaseClient";
+import { isOrderNumberAvailableV2 } from "@/lib/services/ordersService";
 
-export default function OrderNumberField({ value, onChange }) {
+export default function OrderNumberField({ value, onChange, orderId = null }) {
   const [checking, setChecking] = useState(false);
   const [available, setAvailable] = useState(null);
   const debounceRef = useRef();
 
   useEffect(() => {
+    const orderNumber = String(value || "").trim();
     setAvailable(null);
-    if (!value) return;
+    if (!orderNumber) return;
     clearTimeout(debounceRef.current);
+    let cancelled = false;
     debounceRef.current = setTimeout(async () => {
       setChecking(true);
-      const { data, error } = await supabase
-        .from("orders")
-        .select("id")
-        .eq("order_number", value)
-        .limit(1);
-      if (!error) setAvailable(!data?.length);
-      setChecking(false);
+      try {
+        const nextAvailable = await isOrderNumberAvailableV2(orderNumber, { orderId });
+        if (!cancelled) setAvailable(nextAvailable);
+      } catch (error) {
+        console.error("Failed to check order number availability", error);
+        if (!cancelled) setAvailable(null);
+      } finally {
+        if (!cancelled) setChecking(false);
+      }
     }, 350);
-    return () => clearTimeout(debounceRef.current);
-  }, [value]);
+    return () => {
+      cancelled = true;
+      clearTimeout(debounceRef.current);
+    };
+  }, [orderId, value]);
 
   return (
     <div>
@@ -36,4 +43,3 @@ export default function OrderNumberField({ value, onChange }) {
     </div>
   );
 }
-

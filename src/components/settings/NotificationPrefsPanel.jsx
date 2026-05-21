@@ -36,17 +36,15 @@ function Switch({ checked, onChange, disabled }) {
  *  - showTitle: boolean (render H1 when used as a full page)
  */
 export default function NotificationPrefsPanel({ showAdminSections = false, showTitle = false }) {
-  const [me, setMe] = useState(null);
   const [policies, setPolicies] = useState([]);                 // admin-only policy rows
   const [userPrefs, setUserPrefs] = useState({ center: {}, email: {} });
   const [locks, setLocks] = useState({ email_required: [] });
 
-  const isAdmin = showAdminSections || me?.role === "admin";
+  const isAdmin = showAdminSections;
 
   useEffect(() => {
     (async () => {
       const prof = await getCurrentUserProfile();
-      setMe(prof);
       setUserPrefs(prof?.notification_prefs ?? { center: {}, email: {} });
 
       if (isAdmin) {

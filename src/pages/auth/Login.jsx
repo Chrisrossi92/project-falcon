@@ -1,19 +1,32 @@
 // src/pages/Login.jsx
-import React, { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Auth } from "@supabase/auth-ui-react";
 import { ThemeSupa } from "@supabase/auth-ui-shared";
 import supabase from "@/lib/supabaseClient";
 import { useSessionContext } from "@supabase/auth-helpers-react";
 
+function safeReturnPath(value) {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed.startsWith("/") || trimmed.startsWith("//")) return null;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) return null;
+  return trimmed;
+}
+
 export default function Login() {
   const { session } = useSessionContext();
   const nav = useNavigate();
+  const location = useLocation();
+  const returnTo =
+    safeReturnPath(location.state?.returnTo) ||
+    safeReturnPath(new URLSearchParams(location.search).get("returnTo")) ||
+    "/dashboard";
 
-  // If already signed in, go to dashboard
+  // If already signed in, go to the requested internal return path.
   useEffect(() => {
-    if (session?.user) nav("/dashboard", { replace: true });
-  }, [session, nav]);
+    if (session?.user) nav(returnTo, { replace: true });
+  }, [session, nav, returnTo]);
 
   return (
     <div
@@ -101,8 +114,6 @@ export default function Login() {
     </div>
   );
 }
-
-
 
 
 

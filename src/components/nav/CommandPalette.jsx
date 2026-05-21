@@ -1,43 +1,73 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  getCurrentCommandPaletteCommands,
+  getCurrentOrderSearchFallback,
+} from "@/lib/commandPalette/currentCommandPaletteCommands";
 import { useEffectivePermissions } from "@/lib/hooks/usePermissions";
 import { PERMISSIONS } from "@/lib/permissions/constants";
 
-const ITEMS = [
-  { id: "orders",    label: "Go to Orders",          hint: "g o", to: "/orders", permission: PERMISSIONS.NAVIGATION_ORDERS_VIEW },
-  { id: "calendar",  label: "Go to Calendar",        hint: "g c", to: "/calendar" },
-  { id: "users",     label: "Go to Users",           hint: "g u", to: "/users", permissionAny: [PERMISSIONS.USERS_READ, PERMISSIONS.NAVIGATION_USERS_VIEW] },
-  { id: "settings",  label: "Open Settings",         hint: ",",   to: "/settings", permissionAny: [PERMISSIONS.SETTINGS_VIEW, PERMISSIONS.NAVIGATION_SETTINGS_VIEW] },
-  { id: "notif",     label: "Notification Settings", hint: "",    to: "/settings/notifications", permission: PERMISSIONS.NOTIFICATIONS_PREFERENCES_MANAGE_OWN },
-];
+const COMMAND_PERMISSION_KEYS = Object.freeze([
+  PERMISSIONS.NAVIGATION_ORDERS_VIEW,
+  PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_ASSIGNED,
+  PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_OWNER,
+  PERMISSIONS.RELATIONSHIPS_READ,
+  PERMISSIONS.NAVIGATION_CLIENTS_VIEW,
+  PERMISSIONS.USERS_READ,
+  PERMISSIONS.NAVIGATION_USERS_VIEW,
+  PERMISSIONS.SETTINGS_VIEW,
+  PERMISSIONS.NAVIGATION_SETTINGS_VIEW,
+  PERMISSIONS.NOTIFICATIONS_PREFERENCES_MANAGE_OWN,
+]);
 
 export default function CommandPalette({ open, onClose, onNavigate, clientsPath = "/clients" }) {
   const [q, setQ]   = useState("");
   const [idx, setI] = useState(0);
   const inputRef    = useRef(null);
-  const { loading, error, hasPermission, hasAnyPermission } = useEffectivePermissions();
-  const useLegacyItems = loading || error;
+  const { loading, error, hasPermission } = useEffectivePermissions();
+
+  const commandPermissions = useMemo(
+    () =>
+      Object.fromEntries(
+        COMMAND_PERMISSION_KEYS.map((permissionKey) => [
+          permissionKey,
+          hasPermission(permissionKey),
+        ]),
+      ),
+    [hasPermission],
+  );
+
+  const commands = useMemo(
+    () =>
+      getCurrentCommandPaletteCommands({
+        clientsPath,
+        error,
+        loading,
+        permissions: commandPermissions,
+      }),
+    [clientsPath, commandPermissions, error, loading],
+  );
+
+  const orderSearchFallback = useMemo(
+    () =>
+      getCurrentOrderSearchFallback({
+        error,
+        loading,
+        permissions: commandPermissions,
+      }),
+    [commandPermissions, error, loading],
+  );
+
+  const canUseAssignments = commands.some((command) => command.id === "assignments");
+  const canUseRelationships = commands.some((command) => command.id === "relationships");
 
   // Filter first so effects can depend on it safely
   const filtered = useMemo(() => {
-    const allItems = [
-      ...ITEMS.slice(0, 2),
-      { id: "clients", label: "Go to Clients", hint: "g l", to: clientsPath, permission: PERMISSIONS.NAVIGATION_CLIENTS_VIEW },
-      ...ITEMS.slice(2),
-    ];
-    const items = useLegacyItems
-      ? allItems
-      : allItems.filter((it) => {
-          if (it.permission) return hasPermission(it.permission);
-          if (it.permissionAny) return hasAnyPermission(it.permissionAny);
-          return true;
-        });
     const needle = q.trim().toLowerCase();
-    if (!needle) return items;
-    return items.filter((it) => it.label.toLowerCase().includes(needle));
-  }, [q, clientsPath, hasAnyPermission, hasPermission, useLegacyItems]);
+    if (!needle) return commands;
+    return commands.filter((it) => it.label.toLowerCase().includes(needle));
+  }, [commands, q]);
 
-  const canSearchOrders =
-    useLegacyItems || hasPermission(PERMISSIONS.NAVIGATION_ORDERS_VIEW);
+  const canSearchOrders = orderSearchFallback.canSearchOrders;
 
   // Reset & focus when opened
   useEffect(() => {
@@ -69,7 +99,7 @@ export default function CommandPalette({ open, onClose, onNavigate, clientsPath 
         if (item) {
           onNavigate?.(item.to);
         } else if (q.trim() && canSearchOrders) {
-          onNavigate?.(`/orders?q=${encodeURIComponent(q.trim())}`);
+          onNavigate?.(orderSearchFallback.toSearchPath(q));
         } else {
           onClose?.();
         }
@@ -77,7 +107,7 @@ export default function CommandPalette({ open, onClose, onNavigate, clientsPath 
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, idx, q, filtered, canSearchOrders, onNavigate, onClose]);
+  }, [open, idx, q, filtered, canSearchOrders, orderSearchFallback, onNavigate, onClose]);
 
   if (!open) return null;
 
@@ -90,7 +120,7 @@ export default function CommandPalette({ open, onClose, onNavigate, clientsPath 
             ref={inputRef}
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search… (Orders, Clients, Users, Settings)"
+            placeholder={`Search... (Orders${canUseAssignments ? ", Assignments" : ""}${canUseRelationships ? ", Relationships" : ""}, Clients, Users, Settings)`}
             className="w-full outline-none text-sm px-1.5 py-1.5"
           />
         </div>

@@ -3,20 +3,27 @@ import React, { useState } from "react";
 import supabase from "@/lib/supabaseClient";
 import { logNote } from "@/lib/services/activityService";
 import { emitNotification } from "@/lib/services/notificationsService";
-import { getCurrentUserProfile } from "@/lib/services/api";
-import useRole from "@/lib/hooks/useRole";
-import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
+import { useCurrentUserAppContext } from "@/features/auth/useCurrentUserAppContext";
 import { resolveOrderParticipants } from "@/lib/orders/resolveOrderParticipants";
 
 const GENERIC_USER_NAMES = new Set(["user", "demo user"]);
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+function deriveActorRole(context) {
+  if (context?.is_owner) return "owner";
+  if (context?.is_admin_role) return "admin";
+  if (context?.is_reviewer_role) return "reviewer";
+  if (context?.is_appraiser_role) return "appraiser";
+  return String(context?.primary_role_key || context?.role_keys?.[0] || "").toLowerCase() || null;
+}
+
 export default function ActivityNoteForm({ orderId, order = null, onSaved }) {
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
-  const { role, userId } = useRole() || {};
-  const { user: currentUser } = useCurrentUser();
+  const { context: appContext } = useCurrentUserAppContext();
+  const userId = appContext?.user_id || null;
+  const role = deriveActorRole(appContext);
 
   function displayNameFromUser(user) {
     const fields = [user?.display_name, user?.full_name, user?.name, user?.email];
@@ -52,16 +59,8 @@ export default function ActivityNoteForm({ orderId, order = null, onSaved }) {
   }
 
   async function currentUserDisplayName() {
-    const loadedName = displayNameFromUser(currentUser);
+    const loadedName = displayNameFromUser(appContext);
     if (loadedName) return loadedName;
-
-    try {
-      const profile = await getCurrentUserProfile();
-      const profileName = displayNameFromUser(profile);
-      if (profileName) return profileName;
-    } catch {
-      // Best-effort display fallback only; note logging/routing should continue.
-    }
 
     try {
       const { data } = await supabase.auth.getUser();
@@ -75,21 +74,12 @@ export default function ActivityNoteForm({ orderId, order = null, onSaved }) {
   }
 
   function currentUserEmail() {
-    return currentUser?.email || currentUser?.user_metadata?.email || null;
+    return appContext?.email || null;
   }
 
   async function resolveActorMetadata() {
     const name = await currentUserDisplayName();
     let email = currentUserEmail();
-
-    if (!email) {
-      try {
-        const profile = await getCurrentUserProfile();
-        email = profile?.email || null;
-      } catch {
-        // Best-effort actor metadata only; note logging should continue.
-      }
-    }
 
     if (!email) {
       try {
@@ -103,7 +93,7 @@ export default function ActivityNoteForm({ orderId, order = null, onSaved }) {
     return {
       name,
       email,
-      user_id: userId || currentUser?.id || null,
+      user_id: userId,
       role: role || null,
     };
   }

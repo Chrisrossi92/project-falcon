@@ -52,6 +52,23 @@ export const PERMISSIONS = Object.freeze({
   ASSIGNMENTS_REASSIGN: "assignments.reassign",
   ASSIGNMENTS_CLEAR: "assignments.clear",
 
+  ORDER_COMPANY_ASSIGNMENTS_READ_ASSIGNED: "order_company_assignments.read_assigned",
+  ORDER_COMPANY_ASSIGNMENTS_READ_OWNER: "order_company_assignments.read_owner",
+  ORDER_COMPANY_ASSIGNMENTS_OFFER: "order_company_assignments.offer",
+  ORDER_COMPANY_ASSIGNMENTS_RESPOND: "order_company_assignments.respond",
+  ORDER_COMPANY_ASSIGNMENTS_PROGRESS: "order_company_assignments.progress",
+  ORDER_COMPANY_ASSIGNMENTS_COMPLETE: "order_company_assignments.complete",
+  ORDER_COMPANY_ASSIGNMENTS_CANCEL: "order_company_assignments.cancel",
+  ORDER_COMPANY_ASSIGNMENTS_REVOKE: "order_company_assignments.revoke",
+
+  RELATIONSHIPS_READ: "relationships.read",
+  RELATIONSHIPS_INVITE: "relationships.invite",
+  RELATIONSHIPS_APPROVE: "relationships.approve",
+  RELATIONSHIPS_SUSPEND: "relationships.suspend",
+  RELATIONSHIPS_ARCHIVE: "relationships.archive",
+  RELATIONSHIPS_MANAGE_COMPLIANCE: "relationships.manage_compliance",
+  RELATIONSHIPS_ASSIGN_WORK: "relationships.assign_work",
+
   WORKFLOW_STATUS_SUBMIT_TO_REVIEW: "workflow.status.submit_to_review",
   WORKFLOW_STATUS_REQUEST_REVISIONS: "workflow.status.request_revisions",
   WORKFLOW_STATUS_RESUBMIT: "workflow.status.resubmit",
@@ -125,4 +142,3 @@ export const PERMISSIONS = Object.freeze({
 });
 
 export const ALL_PERMISSION_KEYS = Object.freeze(Object.values(PERMISSIONS));
-

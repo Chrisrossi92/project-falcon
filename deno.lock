@@ -1,0 +1,73 @@
+{
+  "version": "5",
+  "redirects": {
+    "https://esm.sh/@supabase/supabase-js@2": "https://esm.sh/@supabase/supabase-js@2.106.0"
+  },
+  "remote": {
+    "https://deno.land/std@0.224.0/async/delay.ts": "f90dd685b97c2f142b8069082993e437b1602b8e2561134827eeb7c12b95c499",
+    "https://deno.land/std@0.224.0/http/server.ts": "f9313804bf6467a1704f45f76cb6cd0a3396a3b31c316035e6a4c2035d1ea514",
+    "https://esm.sh/@supabase/supabase-js@2.106.0": "a897c060b1e4db8c6a1d713e2c00a7281b11dfdddcc43f0510433851315c36a7"
+  },
+  "workspace": {
+    "packageJson": {
+      "dependencies": [
+        "npm:@babel/parser@^7.28.5",
+        "npm:@babel/traverse@^7.28.5",
+        "npm:@eslint/js@^9.9.0",
+        "npm:@fullcalendar/core@6.1.19",
+        "npm:@fullcalendar/daygrid@6.1.19",
+        "npm:@fullcalendar/interaction@6.1.19",
+        "npm:@fullcalendar/react@6.1.19",
+        "npm:@fullcalendar/timegrid@6.1.19",
+        "npm:@radix-ui/react-dialog@^1.1.15",
+        "npm:@radix-ui/react-scroll-area@^1.2.10",
+        "npm:@radix-ui/react-slot@^1.2.3",
+        "npm:@supabase/auth-helpers-react@0.5",
+        "npm:@supabase/auth-ui-react@~0.4.7",
+        "npm:@supabase/auth-ui-shared@~0.1.8",
+        "npm:@supabase/supabase-js@^2.56.1",
+        "npm:@testing-library/jest-dom@^6.5.0",
+        "npm:@testing-library/react@16",
+        "npm:@vitejs/plugin-react@^4.3.1",
+        "npm:@vitest/coverage-v8@^2.0.5",
+        "npm:autoprefixer@^10.4.19",
+        "npm:chart.js@^4.5.1",
+        "npm:class-variance-authority@~0.7.1",
+        "npm:clsx@^2.1.1",
+        "npm:date-fns@^4.1.0",
+        "npm:date-holidays@^3.26.5",
+        "npm:dotenv@^17.2.1",
+        "npm:eslint-plugin-react-hooks@^7.0.1",
+        "npm:eslint-plugin-react@^7.37.5",
+        "npm:eslint-plugin-unused-imports@^4.3.0",
+        "npm:eslint@^9.9.0",
+        "npm:fast-glob@^3.3.3",
+        "npm:jsdom@25",
+        "npm:knip@^5.63.1",
+        "npm:leaflet@^1.9.4",
+        "npm:lucide-react@0.542",
+        "npm:madge@^6.1.0",
+        "npm:picocolors@^1.1.1",
+        "npm:postcss@^8.4.41",
+        "npm:react-calendar@6",
+        "npm:react-chartjs-2@^5.3.1",
+        "npm:react-datepicker@^8.7.0",
+        "npm:react-dom@^18.2.0",
+        "npm:react-grid-layout@^1.5.2",
+        "npm:react-hot-toast@^2.6.0",
+        "npm:react-leaflet@^4.2.1",
+        "npm:react-resizable@^3.0.5",
+        "npm:react-router-dom@^6.26.1",
+        "npm:react-select@^5.10.2",
+        "npm:react@^18.2.0",
+        "npm:tailwind-merge@^3.3.1",
+        "npm:tailwindcss-animate@^1.0.7",
+        "npm:tailwindcss@^3.4.10",
+        "npm:undici@^7.15.0",
+        "npm:vite@^5.4.2",
+        "npm:vitest@^2.0.5",
+        "npm:xlsx@~0.18.5"
+      ]
+    }
+  }
+}

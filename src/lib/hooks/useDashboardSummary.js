@@ -1,11 +1,21 @@
 // src/lib/hooks/useDashboardSummary.js
 import { useMemo } from "react";
 import { useCurrentUser } from "./useCurrentUser";
-import { getCapabilities } from "../utils/roles";
 import { useOrdersSummary } from "./useOrders";
 import { ORDER_STATUS } from "@/lib/constants/orderStatus";
 import useDashboardKpis from "./useDashboardKpis";
-import { useRole } from "@/lib/hooks/useRole";
+import { useCurrentUserAppContext } from "@/features/auth/useCurrentUserAppContext";
+
+function deriveLensRole(context) {
+  const primaryRole = String(context?.primary_role_key || "").toLowerCase();
+  const firstRole = String(context?.role_keys?.[0] || "").toLowerCase();
+
+  if (context?.is_owner) return "owner";
+  if (context?.is_admin_role) return "admin";
+  if (context?.is_reviewer_role) return "reviewer";
+  if (context?.is_appraiser_role) return "appraiser";
+  return primaryRole || firstRole || "appraiser";
+}
 
 /**
  * Centralized dashboard data:
@@ -15,10 +25,24 @@ import { useRole } from "@/lib/hooks/useRole";
  */
 export function useDashboardSummary({ refreshKey = 0 } = {}) {
   const { user, loading: userLoading } = useCurrentUser();
-  const roleInfo = useRole() || {};
-  const { userId: publicUserId, authUserId, role, isAdmin, isReviewer, appraiserView, loading: roleLoading } = roleInfo;
-  const caps = getCapabilities({ ...user, role });
-  const isAppraiser = appraiserView;
+  const {
+    context: appContext,
+    loading: appContextLoading,
+    error: appContextError,
+  } = useCurrentUserAppContext();
+  const publicUserId = appContext?.user_id || null;
+  const role = deriveLensRole(appContext);
+  const isOwner = Boolean(appContext?.is_owner);
+  const isAdmin = Boolean(appContext?.is_owner || appContext?.is_admin_role);
+  const isReviewer = !isAdmin && Boolean(appContext?.is_reviewer_role);
+  const isAppraiser = !isAdmin && !isReviewer && Boolean(appContext?.is_appraiser_role);
+  const caps = {
+    role,
+    isOwner,
+    isAdmin,
+    isReviewer,
+    isAppraiser,
+  };
 
   // Build role-aware filters for both summary and table
   const tableFilters = useMemo(() => {
@@ -44,7 +68,7 @@ export function useDashboardSummary({ refreshKey = 0 } = {}) {
   const hasIdForRole =
     (!isAppraiser || Boolean(tableFilters.appraiserId || tableFilters.assignedAppraiserId)) &&
     (!isReviewer || Boolean(tableFilters.reviewerId));
-  const summary = useOrdersSummary(tableFilters, { enabled: hasIdForRole && !userLoading && !roleLoading, scope: "dashboard", refreshKey });
+  const summary = useOrdersSummary(tableFilters, { enabled: hasIdForRole && !userLoading && !appContextLoading, scope: "dashboard", refreshKey });
   const kpis = useDashboardKpis(
     {
       reviewerId: isReviewer ? publicUserId || null : null,
@@ -54,12 +78,11 @@ export function useDashboardSummary({ refreshKey = 0 } = {}) {
       managingAmcId: role === "client" ? user?.managing_amc_id || null : null,
       statusIn: tableFilters.statusIn || [],
     },
-    { enabled: hasIdForRole && !userLoading && !roleLoading }
+    { enabled: hasIdForRole && !userLoading && !appContextLoading }
   );
 
   if (import.meta?.env?.DEV) {
     console.debug("[useDashboardSummary]", {
-      authUserId,
       publicUserId,
       role,
       appliedFilterIds: {
@@ -71,8 +94,11 @@ export function useDashboardSummary({ refreshKey = 0 } = {}) {
 
   return {
     user,
+    userId: publicUserId,
+    appContext,
+    appContextError,
     ...caps,
-    loading: userLoading || summary.loading || kpis.loading,
+    loading: userLoading || appContextLoading || summary.loading || kpis.loading,
     orders: {
       count: kpis.total_active ?? summary.count,
       inProgress: kpis.in_progress ?? summary.inProgress,

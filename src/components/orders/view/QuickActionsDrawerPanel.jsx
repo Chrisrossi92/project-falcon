@@ -1,7 +1,9 @@
 import React, { useState } from "react";
-import { useRole } from "@/lib/hooks/useRole";
 import SmartActionsControl from "@/features/orders/components/SmartActionsControl";
 import { getSmartOrderActions } from "@/features/orders/smartActions";
+import { useCurrentUserAppContext } from "@/features/auth/useCurrentUserAppContext";
+import { useEffectivePermissions } from "@/lib/hooks/usePermissions";
+import { PERMISSIONS } from "@/lib/permissions/constants";
 import {
   clearReview,
   sendOrderBackToAppraiser,
@@ -15,7 +17,10 @@ export default function QuickActionsDrawerPanel({
   onDone,
   layout = "stack",
 }) {
-  const { isAdmin, isReviewer } = useRole() || {};
+  const { context: appContext, loading: contextLoading } = useCurrentUserAppContext();
+  const workflowPermissions = useEffectivePermissions();
+  const isAdmin = Boolean(appContext?.is_owner || appContext?.is_admin_role);
+  const isReviewer = !isAdmin && Boolean(appContext?.is_reviewer_role);
   const [busy, setBusy] = useState(false);
   const orderId = order?.id ?? orderIdProp;
   const afterChange = onAfterChange ?? onDone;
@@ -44,7 +49,16 @@ export default function QuickActionsDrawerPanel({
     : getSmartOrderActions({
         order,
         role,
-        permissions: { loading: true },
+        permissions: {
+          loading: contextLoading || workflowPermissions.loading,
+          error: workflowPermissions.error,
+          canSubmitToReview: workflowPermissions.hasPermission(PERMISSIONS.WORKFLOW_STATUS_SUBMIT_TO_REVIEW),
+          canResubmit: workflowPermissions.hasPermission(PERMISSIONS.WORKFLOW_STATUS_RESUBMIT),
+          canRequestRevisions: workflowPermissions.hasPermission(PERMISSIONS.WORKFLOW_STATUS_REQUEST_REVISIONS),
+          canApproveReview: workflowPermissions.hasPermission(PERMISSIONS.WORKFLOW_STATUS_APPROVE_REVIEW),
+          canReadyForClient: workflowPermissions.hasPermission(PERMISSIONS.WORKFLOW_STATUS_READY_FOR_CLIENT),
+          canComplete: workflowPermissions.hasPermission(PERMISSIONS.WORKFLOW_STATUS_COMPLETE),
+        },
         handlers,
       }).map((action) => ({
         ...action,
@@ -64,5 +78,4 @@ export default function QuickActionsDrawerPanel({
     </Wrap>
   );
 }
-
 

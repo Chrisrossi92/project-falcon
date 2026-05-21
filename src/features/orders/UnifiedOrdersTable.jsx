@@ -1,5 +1,4 @@
 import React, { useCallback, useMemo, useState } from "react";
-import useRole from "@/lib/hooks/useRole";
 import useSession from "@/lib/hooks/useSession";
 import { useOrders } from "@/lib/hooks/useOrders";
 import { normalizeOrderStatus, ORDER_STATUS } from "@/lib/constants/orderStatus";
@@ -25,6 +24,7 @@ import WorkflowNoteModal from "@/components/orders/WorkflowNoteModal";
 
 import useColumnsConfig from "@/features/orders/columns/useColumnsConfig";
 import { useToast } from "@/lib/hooks/useToast";
+import { useCurrentUserAppContext } from "@/features/auth/useCurrentUserAppContext";
 
 /* helpers */
 const feeOf = (r) => [r?.base_fee, r?.appraiser_fee].find((v) => v != null);
@@ -68,8 +68,18 @@ export default function UnifiedOrdersTable({
   const { toast } = useToast();
   const workflowPermissions = useEffectivePermissions();
 
-  const { role: hookRole, userId: internalUserId, loading: roleLoading } = useRole() || {};
-  const normalizedRole = (roleProp || hookRole || "appraiser").toString().toLowerCase();
+  const { context: appContext, loading: appContextLoading } = useCurrentUserAppContext();
+  const contextRole = appContext?.is_owner
+    ? "owner"
+    : appContext?.is_admin_role
+    ? "admin"
+    : appContext?.is_reviewer_role
+    ? "reviewer"
+    : appContext?.is_appraiser_role
+    ? "appraiser"
+    : String(appContext?.primary_role_key || appContext?.role_keys?.[0] || "appraiser").toLowerCase();
+  const internalUserId = appContext?.user_id || null;
+  const normalizedRole = (roleProp || contextRole || "appraiser").toString().toLowerCase();
   const isAdminLike = normalizedRole === "owner" || normalizedRole === "admin";
   const isReviewer = normalizedRole === "reviewer";
   const isAppraiser = normalizedRole === "appraiser";
@@ -132,7 +142,7 @@ export default function UnifiedOrdersTable({
       mode,
       reviewerId,
       scope,
-      enabled: !hasRowsOverride && !roleLoading && (isAdminLike || isReviewer || (isAppraiser && Boolean(internalUserId))),
+      enabled: !hasRowsOverride && !appContextLoading && (isAdminLike || isReviewer || (isAppraiser && Boolean(internalUserId))),
     }
   );
 

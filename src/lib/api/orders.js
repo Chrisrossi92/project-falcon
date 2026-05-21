@@ -1,6 +1,6 @@
 // src/lib/api/orders.js
 import supabase from "@/lib/supabaseClient";
-import { OrderStatus } from "@/lib/services/ordersService";
+import { OrderStatus, updateSiteVisitAtViaRpc } from "@/lib/services/ordersService";
 
 const VIEW_BY_SCOPE = {
   dashboard: "v_orders_active_frontend_v4",
@@ -19,6 +19,14 @@ const ORDERABLE_COLUMNS = new Set([
   "final_due_date",
 ]);
 const REPORT_WRITING_STATUSES = ["new", "in_progress", "needs_revisions"];
+
+function warnDeprecatedDirectOrderMutation(helperName, replacement) {
+  if (import.meta.env?.DEV !== true) return;
+  const suffix = replacement ? ` Use ${replacement} instead.` : "";
+  console.warn(
+    `[ordersApi] ${helperName} performs a direct orders table mutation and is deprecated.${suffix}`
+  );
+}
 
 const BASE_SELECT = `
   id,
@@ -222,6 +230,7 @@ export async function fetchOrdersWithFilters(filters = {}) {
  * Use those workflow helpers for normal status transitions.
  */
 export async function updateOrderStatus(orderId, next) {
+  warnDeprecatedDirectOrderMutation("updateOrderStatus", "canonical workflow transition helpers");
   const { data, error } = await supabase
     .from("orders")
     .update({ status: next, updated_at: new Date().toISOString() })
@@ -240,6 +249,7 @@ export async function updateOrderDates(
   orderId,
   { siteVisit = null, reviewDue = null, finalDue = null } = {}
 ) {
+  warnDeprecatedDirectOrderMutation("updateOrderDates", "updateSiteVisitAtViaRpc or updateOrderViaRpc");
   const patch = {};
   if (siteVisit !== null) patch.site_visit_at = siteVisit;
   if (reviewDue !== null) patch.review_due_at = reviewDue;  // <-- correct field
@@ -260,6 +270,7 @@ export async function updateOrderDates(
 
 /** Assign appraiser by user id. */
 export async function assignAppraiser(orderId, appraiserId) {
+  warnDeprecatedDirectOrderMutation("assignAppraiser", "a guarded assignment RPC");
   const { data, error } = await supabase
     .from("orders")
     .update({ appraiser_id: appraiserId })
@@ -275,6 +286,7 @@ export async function assignAppraiser(orderId, appraiserId) {
 
 /** Assign client by client id. */
 export async function assignClient(orderId, clientId) {
+  warnDeprecatedDirectOrderMutation("assignClient", "a guarded order/client attachment RPC");
   const { data, error } = await supabase
     .from("orders")
     .update({ client_id: clientId })
@@ -297,6 +309,7 @@ export async function assignClient(orderId, clientId) {
  * Use those workflow helpers for normal status transitions.
  */
 export async function bulkUpdateStatus(orderIds = [], status) {
+  warnDeprecatedDirectOrderMutation("bulkUpdateStatus", "canonical workflow transition helpers");
   if (!orderIds.length) return { updated: 0 };
   const { data, error } = await supabase
     .from("orders")
@@ -312,6 +325,7 @@ export async function bulkUpdateStatus(orderIds = [], status) {
 
 /** Bulk assign appraiser. */
 export async function bulkAssignAppraiser(orderIds = [], appraiserId) {
+  warnDeprecatedDirectOrderMutation("bulkAssignAppraiser", "a guarded assignment RPC");
   if (!orderIds.length) return { updated: 0 };
   const { data, error } = await supabase
     .from("orders")
@@ -331,6 +345,7 @@ export async function bulkAssignAppraiser(orderIds = [], appraiserId) {
 
 /** Minimal create (expand as your schema evolves). */
 export async function createOrder(payload = {}) {
+  warnDeprecatedDirectOrderMutation("createOrder", "createOrderViaRpc");
   // Map form-friendly fields to real columns and drop unknown keys
   const prepared = {
     order_number: payload.order_number || payload.order_no || null,
@@ -400,6 +415,7 @@ export async function createOrder(payload = {}) {
 
 /** Soft delete (archive). */
 export async function archiveOrder(orderId) {
+  warnDeprecatedDirectOrderMutation("archiveOrder", "a guarded archive RPC");
   const { data, error } = await supabase
     .from("orders")
     .update({ is_archived: true, updated_at: new Date().toISOString() })
@@ -419,33 +435,32 @@ export async function archiveOrder(orderId) {
 
 /** Update site visit and mirror to calendar RPC (best-effort). */
 export const updateSiteVisitAt = async (orderId, newDateTime, extras) => {
-  const { data, error } = await supabase
-    .from("orders")
-    .update({ site_visit_at: newDateTime, updated_at: new Date().toISOString() })
-    .eq("id", orderId)
-    .select();
-
-  if (error) {
+  let updatedOrder = null;
+  try {
+    updatedOrder = await updateSiteVisitAtViaRpc(orderId, newDateTime);
+  } catch (error) {
     console.error("Error updating site visit:", error);
     return null;
   }
 
-  try {
-    await supabase.rpc("rpc_create_calendar_event", {
-      p_event_type: "site_visit",
-      p_title: `Site Visit – ${extras?.address || "Subject"}`,
-      p_start_at: newDateTime,
-      p_end_at: newDateTime,
-      p_order_id: orderId,
-      p_appraiser_id: extras?.appraiserId ?? null,
-      p_location: extras?.address ?? null,
-      p_notes: null,
-    });
-  } catch (e) {
-    console.warn("rpc_create_calendar_event (site_visit) failed:", e?.message);
+  if (newDateTime) {
+    try {
+      await supabase.rpc("rpc_create_calendar_event", {
+        p_event_type: "site_visit",
+        p_title: `Site Visit – ${extras?.address || "Subject"}`,
+        p_start_at: newDateTime,
+        p_end_at: newDateTime,
+        p_order_id: orderId,
+        p_appraiser_id: extras?.appraiserId ?? null,
+        p_location: extras?.address ?? null,
+        p_notes: null,
+      });
+    } catch (e) {
+      console.warn("rpc_create_calendar_event (site_visit) failed:", e?.message);
+    }
   }
 
-  return data?.[0] || null;
+  return updatedOrder;
 };
 
 /** Read back a single site visit field from orders. */

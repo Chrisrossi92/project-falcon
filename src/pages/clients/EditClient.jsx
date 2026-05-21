@@ -1,23 +1,66 @@
 // src/pages/EditClient.jsx
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import toast from "react-hot-toast";
-import { useClient } from "@/lib/hooks/useClients";
 import ClientForm from "@/components/clients/ClientForm";
-import { updateClient } from "@/lib/services/clientsService";
+import {
+  getClientManagementDetail,
+  updateClientManagementClient,
+} from "@/features/clients/clientManagementApi";
+
+function clientUpdateErrorMessage(error) {
+  const message = error?.message || "";
+  if (message.includes("client_name_required")) return "Enter a client name.";
+  if (message.includes("client_name_already_exists")) return "A client with this name already exists.";
+  if (message.includes("invalid_amc")) return "Choose a valid AMC.";
+  if (
+    message.includes("permission")
+    || message.includes("forbidden")
+    || error?.code === "42501"
+  ) {
+    return "You do not have permission to update this client.";
+  }
+  return "Falcon could not update this client.";
+}
 
 export default function EditClient() {
   const { clientId } = useParams();
   const nav = useNavigate();
-  const { data: client, loading, error } = useClient(clientId);
+  const [client, setClient] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const row = await getClientManagementDetail(clientId);
+        if (!cancelled) setClient(row);
+      } catch (e) {
+        if (!cancelled) {
+          setClient(null);
+          setError(e);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [clientId]);
 
   async function handleSubmit(patch) {
     try {
-      const row = await updateClient(clientId, patch);
+      const row = await updateClientManagementClient(clientId, patch);
       toast.success("Client updated");
       nav(`/clients/${row.id}`, { replace: true });
     } catch (e) {
-      toast.error(e?.message || "Failed to update client");
+      toast.error(clientUpdateErrorMessage(e));
     }
   }
 
@@ -39,8 +82,6 @@ export default function EditClient() {
     </div>
   );
 }
-
-
 
 
 

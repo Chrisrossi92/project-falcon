@@ -1,17 +1,12 @@
 // src/features/dashboard/DashboardPage.jsx
-import React from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useDashboardSummary } from "@/lib/hooks/useDashboardSummary";
 import UnifiedOrdersTable from "@/features/orders/UnifiedOrdersTable";
 import DashboardCalendarPanel from "@/components/dashboard/DashboardCalendarPanel";
-import Card from "@/components/ui/Card";
-import useSession from "@/lib/hooks/useSession";
-import useOrderEvents from "@/lib/hooks/useOrderEvents";
-import useRole from "@/lib/hooks/useRole";
-import { orderHasQueue } from "@/features/queues/queueEvaluator";
-import { getQueueSummaryById, getTopOperationalQueues, summarizeOperationalQueues } from "@/features/queues/queueSummary";
+import { useCan } from "@/lib/hooks/usePermissions";
+import { PERMISSIONS } from "@/lib/permissions/constants";
+import { ORDER_STATUS, normalizeOrderStatus } from "@/lib/constants/orderStatus";
 import { useMemo, useState } from "react";
-import { ClockAlert, ClipboardCheck, Layers3 } from "lucide-react";
 
 const DASHBOARD_CONFIG = {
   owner:     { showOrdersTable: true, showReviewQueue: false },
@@ -21,12 +16,43 @@ const DASHBOARD_CONFIG = {
   reviewer:  { showOrdersTable: true, showReviewQueue: false }, // show reviewer queue in orders table
 };
 
+const STATUS_TIMELINE = Object.freeze([
+  {
+    label: "New",
+    value: ORDER_STATUS.NEW,
+    tone: "border-blue-300 bg-blue-50 text-blue-800",
+    selectedTone: "border-blue-500 bg-blue-100 text-blue-950 ring-blue-300",
+  },
+  {
+    label: "In Progress",
+    value: ORDER_STATUS.IN_PROGRESS,
+    tone: "border-amber-300 bg-amber-50 text-amber-800",
+    selectedTone: "border-amber-500 bg-amber-100 text-amber-950 ring-amber-300",
+  },
+  {
+    label: "In Review",
+    value: ORDER_STATUS.IN_REVIEW,
+    tone: "border-indigo-300 bg-indigo-50 text-indigo-800",
+    selectedTone: "border-indigo-500 bg-indigo-100 text-indigo-950 ring-indigo-300",
+  },
+  {
+    label: "Needs Revisions",
+    value: ORDER_STATUS.NEEDS_REVISIONS,
+    tone: "border-rose-300 bg-rose-50 text-rose-800",
+    selectedTone: "border-rose-500 bg-rose-100 text-rose-950 ring-rose-300",
+  },
+  {
+    label: "Ready for Client",
+    value: ORDER_STATUS.READY_FOR_CLIENT,
+    tone: "border-emerald-300 bg-emerald-50 text-emerald-800",
+    selectedTone: "border-emerald-500 bg-emerald-100 text-emerald-950 ring-emerald-300",
+  },
+]);
+
 export default function DashboardPage() {
   const nav = useNavigate();
-  const roleHook = useRole() || {};
   const [dashboardRefreshKey, setDashboardRefreshKey] = useState(0);
   const summary = useDashboardSummary({ refreshKey: dashboardRefreshKey });
-  const { session } = useSession() || {};
   const {
     role: summaryRole,
     isAdmin: summaryIsAdmin,
@@ -34,58 +60,32 @@ export default function DashboardPage() {
     loading: summaryLoading,
     tableFilters,
     ordersRows,
-    user,
+    userId,
   } = summary;
-  const normalizedRole = roleHook.role || summaryRole || "appraiser";
-  const isAdmin = roleHook.isAdmin ?? summaryIsAdmin;
-  const isReviewer = roleHook.isReviewer ?? summaryIsReviewer;
-  const loading = summaryLoading || roleHook.loading;
-  const reviewerId = isReviewer ? roleHook.userId || user?.id || null : null;
+  const normalizedRole = summaryRole || "appraiser";
+  const isAdmin = summaryIsAdmin;
+  const isReviewer = summaryIsReviewer;
+  const loading = summaryLoading;
+  const reviewerId = isReviewer ? userId || null : null;
 
   const cfg = DASHBOARD_CONFIG[normalizedRole] || DASHBOARD_CONFIG.appraiser;
   const [statusFilter, setStatusFilter] = useState("");
-  const [adminKpiFilter, setAdminKpiFilter] = useState(null);
-  const [activeQueueId, setActiveQueueId] = useState(null);
-
-  const chipValue = isAdmin ? statusFilter : "";
 
   const appliedFilters = useMemo(() => {
     const next = { ...(tableFilters || {}) };
     if (isAdmin) {
-      if (adminKpiFilter) {
-        next.statusIn = [];
-        next.inspectedAwaitingReport = false;
-        next.finalDueWithinDays = null;
-        Object.assign(next, adminKpiFilter.filter || {});
-      } else {
-        next.statusIn = statusFilter ? [statusFilter] : [];
-        next.inspectedAwaitingReport = false;
-        next.finalDueWithinDays = null;
-      }
+      next.inspectedAwaitingReport = false;
+      next.finalDueWithinDays = null;
       next.page = 0;
     } else {
       next.page = next.page || 0;
     }
     return next;
-  }, [tableFilters, isAdmin, statusFilter, adminKpiFilter]);
+  }, [tableFilters, isAdmin]);
 
   const toggleStatus = (val) => {
-    setAdminKpiFilter(null);
     setStatusFilter((curr) => (curr === val ? "" : val));
   };
-
-  const applyAdminKpiFilter = (id, filter = null) => {
-    setStatusFilter("");
-    setAdminKpiFilter(filter ? { id, filter } : null);
-  };
-
-  const statusChips = [
-    { label: "All", value: "" },
-    { label: "Ready for Client", value: "ready_for_client" },
-    { label: "In Review", value: "in_review" },
-    { label: "Needs Revisions", value: "needs_revisions" },
-    { label: "New", value: "new" },
-  ];
 
   const title = isReviewer
     ? "Reviewer Dashboard"
@@ -93,75 +93,27 @@ export default function DashboardPage() {
     ? "Admin Dashboard"
     : "My Dashboard";
   const subtitle = isAdmin
-    ? "Monitor active queues, delivery pressure, and workflow handoffs."
+    ? "Monitor the schedule, active orders, and workflow handoffs."
     : isReviewer
     ? "Review assigned orders and keep technical clearance moving."
     : "Track assigned work, due dates, and revision requests.";
   const ordersCount = summary.orders.count ?? 0;
-  const queueSummaries = useMemo(
-    () => summarizeOperationalQueues(ordersRows || []),
-    [ordersRows]
-  );
-  const topQueues = useMemo(
-    () => getTopOperationalQueues(queueSummaries, 4),
-    [queueSummaries]
-  );
-  const activeQueueSummary = useMemo(
-    () => getQueueSummaryById(queueSummaries, activeQueueId),
-    [queueSummaries, activeQueueId]
-  );
-  // Operational queues are derived operational intelligence filters, not workflow statuses.
+  const statusCounts = useMemo(() => {
+    const counts = Object.fromEntries(STATUS_TIMELINE.map((status) => [status.value, 0]));
+    (ordersRows || []).forEach((order) => {
+      const status = normalizeOrderStatus(order?.status_normalized || order?.status);
+      if (Object.prototype.hasOwnProperty.call(counts, status)) {
+        counts[status] += 1;
+      }
+    });
+    return counts;
+  }, [ordersRows]);
   const filteredOrdersRows = useMemo(() => {
-    if (!activeQueueId) return ordersRows || [];
-    return (ordersRows || []).filter((order) => orderHasQueue(order, activeQueueId));
-  }, [ordersRows, activeQueueId]);
-  const summaryCards = isAdmin
-    ? [
-        {
-          id: "total_active",
-          label: "Total Active Orders",
-          subtext: "All active workflow orders",
-          value: summary.orders.count,
-          filter: null,
-          icon: Layers3,
-          accent: "from-slate-700 to-slate-500",
-        },
-        {
-          id: "inspected_awaiting_report",
-          label: "Inspected / Awaiting Report",
-          subtext: "Site visit complete, awaiting submission",
-          value: summary.orders.inspectedAwaitingReport,
-          filter: { inspectedAwaitingReport: true },
-          icon: ClipboardCheck,
-          accent: "from-amber-600 to-orange-500",
-        },
-        {
-          id: "due_to_client_2",
-          label: "Due to Client in 2 Days",
-          subtext: "Urgent delivery window",
-          value: summary.orders.dueToClient2,
-          filter: { finalDueWithinDays: 2 },
-          icon: ClockAlert,
-          accent: "from-rose-600 to-red-500",
-        },
-      ]
-    : [
-        {
-          id: "orders",
-          label: isReviewer ? "All Orders" : "My Orders",
-          value: summary.orders.count,
-        },
-        {
-          id: "in_progress",
-          label: "In Progress",
-          value: summary.orders.inProgress,
-        },
-        {
-          id: "due_in_7",
-          label: "Due in 7 Days",
-          value: summary.orders.dueIn7,
-        },
-      ];
+    if (!statusFilter) return ordersRows || [];
+    return (ordersRows || []).filter(
+      (order) => normalizeOrderStatus(order?.status_normalized || order?.status) === statusFilter,
+    );
+  }, [ordersRows, statusFilter]);
 
   const handleOpenOrder = (orderId) => {
     if (!orderId) return;
@@ -178,88 +130,88 @@ export default function DashboardPage() {
               <h1 className="mt-1.5 text-xl font-semibold tracking-tight">{title}</h1>
               <p className="mt-1 max-w-2xl text-sm text-slate-300">{subtitle}</p>
             </div>
+            <div className="rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-right shadow-sm">
+              <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-300">
+                Active Orders
+              </div>
+              <div className="mt-1 text-2xl font-semibold tracking-tight">
+                {loading ? "-" : ordersCount}
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      <section className="space-y-3">
-        <div className="flex items-baseline justify-between gap-2">
-          <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Operational Cockpit</h2>
-          <div className="text-xs text-slate-500">Calendar-centered view of due work and attention signals</div>
-        </div>
+      <OwnerSetupDashboardPrompt />
 
-        <OperationalQueuesPanel
-          activeQueueId={activeQueueId}
-          compact
-          onClear={() => setActiveQueueId(null)}
-          onSelect={(queueId) => setActiveQueueId((current) => (current === queueId ? null : queueId))}
-          queues={topQueues}
-        />
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm ring-1 ring-slate-100">
-          <DashboardCalendarPanel
-            orders={ordersRows || []}
-            role={normalizedRole}
-            onOpenOrder={handleOpenOrder}
-            fixedHeader={true}
-            mode={isReviewer ? "reviewerQueue" : undefined}
-            reviewerId={isReviewer ? reviewerId : undefined}
-          />
-        </div>
-      </section>
-
-      {/* Orders section */}
-      {cfg.showOrdersTable && (
-        <section className="space-y-2">
-          <div className="flex items-baseline justify-between gap-2">
-            <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-              {isAdmin || isReviewer ? "Orders" : "My Orders"}
+      <section
+        className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm ring-1 ring-slate-100"
+        aria-labelledby="dashboard-calendar-heading"
+      >
+        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2 px-1">
+          <div>
+            <h2
+              id="dashboard-calendar-heading"
+              className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500"
+            >
+              Calendar
             </h2>
-            <div className="text-sm text-slate-500">
-              {ordersCount} order{ordersCount === 1 ? "" : "s"}
-            </div>
           </div>
-          {isAdmin && (
-            <div className="flex flex-wrap gap-2">
-              {statusChips.map((chip) => {
-                const active = chipValue === chip.value;
-                return (
-                  <button
-                    key={chip.value || "all"}
-                    onClick={() => toggleStatus(chip.value)}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold shadow-sm transition ${
-                      active
-                        ? "border-slate-800 bg-slate-900 text-white ring-1 ring-slate-800"
-                        : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
-                    }`}
-                  >
-                    {chip.label}
-                  </button>
-                );
-              })}
+        </div>
+        <DashboardCalendarPanel
+          orders={ordersRows || []}
+          role={normalizedRole}
+          onOpenOrder={handleOpenOrder}
+          fixedHeader={true}
+          mode={isReviewer ? "reviewerQueue" : undefined}
+          reviewerId={isReviewer ? reviewerId : undefined}
+        />
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_13rem]">
+        {/* Orders section */}
+        {cfg.showOrdersTable && (
+          <div className="space-y-2">
+            <div className="flex items-baseline justify-between gap-2">
+              <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                {isAdmin ? "Active Worklist" : isReviewer ? "My Review Work" : "My Assignments"}
+              </h2>
+              <div className="text-sm text-slate-500">
+                {ordersCount} order{ordersCount === 1 ? "" : "s"}
+              </div>
             </div>
-          )}
-          <UnifiedOrdersTable
-            role={normalizedRole}
-            mode={isReviewer ? "reviewerQueue" : undefined}
-            reviewerId={isReviewer ? reviewerId : undefined}
-            filters={appliedFilters}
-            rowsOverride={filteredOrdersRows}
-            activeQueue={activeQueueSummary}
-            activeQueueAction={
-              activeQueueId
-                ? {
-                    label: "View in Orders",
-                    onClick: () => nav(`/orders?queue=${encodeURIComponent(activeQueueId)}`),
-                  }
-                : null
-            }
-            pageSize={10}
-            scope="dashboard"
-            onOrderDatesChanged={() => setDashboardRefreshKey((key) => key + 1)}
-          />
-        </section>
-      )}
+            <UnifiedOrdersTable
+              role={normalizedRole}
+              mode={isReviewer ? "reviewerQueue" : undefined}
+              reviewerId={isReviewer ? reviewerId : undefined}
+              filters={appliedFilters}
+              rowsOverride={filteredOrdersRows}
+              pageSize={10}
+              scope="dashboard"
+              onOrderDatesChanged={() => setDashboardRefreshKey((key) => key + 1)}
+            />
+          </div>
+        )}
+
+        <aside className="space-y-3 lg:sticky lg:top-24 lg:self-start">
+          <section className="space-y-3">
+            <div className="flex items-baseline justify-between gap-2">
+              <div>
+                <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                  Status
+                </h2>
+              </div>
+            </div>
+
+            <StatusTimelineRail
+              counts={statusCounts}
+              selectedStatus={statusFilter}
+              onClear={() => setStatusFilter("")}
+              onSelect={toggleStatus}
+            />
+          </section>
+        </aside>
+      </section>
 
       {/* Placeholder for future review queue */}
       {cfg.showReviewQueue && (
@@ -276,163 +228,69 @@ export default function DashboardPage() {
   );
 }
 
-function OperationalQueuesPanel({ activeQueueId, compact = false, onClear, onSelect, queues }) {
+function StatusTimelineRail({ counts, onClear, onSelect, selectedStatus }) {
   return (
-    <section className={`rounded-2xl border border-slate-200/80 bg-gradient-to-b from-white to-slate-50/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ring-white ${compact ? "p-3" : "p-4"}`}>
-      <div className={`${compact ? "mb-3" : "mb-4"} flex items-start justify-between gap-3`}>
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="h-1.5 w-1.5 rounded-full bg-slate-400" aria-hidden="true" />
-            <h2 className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Operational Attention</h2>
-          </div>
-          {!compact && (
-            <p className="mt-1.5 text-sm text-slate-500">Deterministic queue signals from active dashboard orders.</p>
-          )}
-        </div>
-        {activeQueueId && (
-          <button
-            type="button"
-            onClick={onClear}
-            className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition duration-150 hover:-translate-y-px hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
-          >
-            Clear Filter
-          </button>
-        )}
-      </div>
-      {queues.length === 0 ? (
-        <div className={`rounded-xl border border-dashed border-slate-200 bg-white/75 px-4 ${compact ? "py-3" : "py-5"}`}>
-          <div className="text-sm font-medium text-slate-700">No operational queue alerts right now.</div>
-          {!compact && (
-            <div className="mt-1 text-xs text-slate-500">Active work is clear of the current deterministic attention signals.</div>
-          )}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 xl:grid-cols-4">
-          {queues.map((queue) => (
+    <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+      <div role="group" aria-label="Status filters" className="grid grid-cols-1 gap-2">
+        {STATUS_TIMELINE.map((status) => {
+          const selected = selectedStatus === status.value;
+          return (
             <button
-              key={queue.id}
+              key={status.value}
               type="button"
-              onClick={() => onSelect(queue.id)}
-              className={`group relative overflow-hidden rounded-xl border px-3.5 py-3 text-left transition duration-150 ${
-                activeQueueId === queue.id
-                  ? "border-slate-900 bg-white shadow-[0_10px_24px_rgba(15,23,42,0.08)] ring-1 ring-slate-900"
-                  : "border-slate-200/80 bg-white/70 shadow-[0_1px_1px_rgba(15,23,42,0.03)] hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:shadow-[0_10px_22px_rgba(15,23,42,0.06)]"
+              onClick={() => onSelect(status.value)}
+              aria-pressed={selected}
+              className={`flex min-h-16 items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-left transition-all duration-200 motion-reduce:transition-none ${
+                selected
+                  ? `${status.selectedTone} translate-x-0.5 shadow-sm ring-2 motion-reduce:translate-x-0`
+                  : `${status.tone} hover:brightness-95`
               }`}
             >
-              <div className={`absolute inset-x-0 top-0 h-0.5 ${urgencyAccentClass(queue.urgency)}`} aria-hidden="true" />
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className={`h-2 w-2 rounded-full ${urgencyDotClass(queue.urgency)}`} aria-hidden="true" />
-                    <div className="truncate text-sm font-semibold text-slate-950">{queue.label}</div>
-                  </div>
-                  <div className="mt-1.5 line-clamp-2 text-xs leading-snug text-slate-500">{queue.description}</div>
-                </div>
-                <div className="shrink-0 text-right">
-                  <div className="text-2xl font-semibold leading-none tracking-tight text-slate-950">{queue.count}</div>
-                  <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
-                    order{queue.count === 1 ? "" : "s"}
-                  </div>
-                </div>
-              </div>
-              <div className={`${compact ? "mt-2" : "mt-3"} flex items-center justify-between gap-3`}>
-                <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${urgencyClass(queue.urgency)}`}>
-                  {queue.urgency || "unknown"}
-                </span>
-                <span className={`text-[11px] font-semibold transition ${activeQueueId === queue.id ? "text-slate-900" : "text-slate-400 group-hover:text-slate-600"}`}>
-                  {activeQueueId === queue.id ? "Selected" : "Filter"}
-                </span>
-              </div>
+              <span className="text-xs font-semibold leading-tight">{status.label}</span>
+              <span className="text-2xl font-semibold leading-none tracking-tight tabular-nums">
+                {counts[status.value] || 0}
+              </span>
             </button>
-          ))}
-        </div>
-      )}
-    </section>
+          );
+        })}
+      </div>
+      {selectedStatus ? (
+        <button
+          type="button"
+          onClick={onClear}
+          className="mt-3 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+        >
+          Clear Filter
+        </button>
+      ) : null}
+    </div>
   );
 }
 
-function urgencyClass(urgency) {
-  switch (urgency) {
-    case "critical":
-      return "border-rose-200 bg-rose-50/80 text-rose-700";
-    case "high":
-      return "border-amber-200 bg-amber-50/80 text-amber-700";
-    case "medium":
-    case "medium_high":
-      return "border-sky-200 bg-sky-50/80 text-sky-700";
-    case "low":
-      return "border-emerald-200 bg-emerald-50/80 text-emerald-700";
-    default:
-      return "border-slate-200 bg-white text-slate-600";
-  }
-}
+export function OwnerSetupDashboardPrompt() {
+  const canViewSettings = useCan(PERMISSIONS.SETTINGS_VIEW);
 
-function urgencyDotClass(urgency) {
-  switch (urgency) {
-    case "critical":
-      return "bg-rose-500";
-    case "high":
-      return "bg-amber-500";
-    case "medium":
-    case "medium_high":
-      return "bg-sky-500";
-    case "low":
-      return "bg-emerald-500";
-    default:
-      return "bg-slate-400";
-  }
-}
+  if (!canViewSettings.allowed) return null;
 
-function urgencyAccentClass(urgency) {
-  switch (urgency) {
-    case "critical":
-      return "bg-rose-400";
-    case "high":
-      return "bg-amber-400";
-    case "medium":
-    case "medium_high":
-      return "bg-sky-400";
-    case "low":
-      return "bg-emerald-400";
-    default:
-      return "bg-slate-300";
-  }
-}
-
-function SummaryCard({ label, subtext, value, loading, icon: Icon, accent = "from-slate-600 to-slate-400", active = false, onClick }) {
-  const interactive = typeof onClick === "function";
   return (
-    <Card
-      className={`relative h-full overflow-hidden border-slate-200 bg-white/95 shadow-sm transition ${
-        interactive ? "cursor-pointer hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg" : ""
-      } ${active ? "border-slate-700 bg-slate-50 ring-1 ring-slate-700" : ""}`}
-      onClick={onClick}
-      role={interactive ? "button" : undefined}
-      tabIndex={interactive ? 0 : undefined}
-      onKeyDown={
-        interactive
-          ? (event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                onClick();
-              }
-            }
-          : undefined
-      }
-    >
-      <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${accent}`} />
-      <div className="flex items-start justify-between gap-3">
+    <section className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-amber-950 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{label}</div>
-          {subtext && <div className="mt-1.5 text-xs leading-snug text-slate-500">{subtext}</div>}
-        </div>
-        {Icon && (
-          <div className={`rounded-xl border p-3 shadow-sm ${active ? "border-slate-300 bg-white text-slate-900" : "border-slate-200 bg-slate-50 text-slate-500"}`}>
-            <Icon className="h-5 w-5" aria-hidden="true" />
+          <div className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">
+            Diagnostic guidance only
           </div>
-        )}
+          <h2 className="mt-1 text-base font-semibold text-slate-950">Review owner setup</h2>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-amber-900">
+            Review company setup readiness without changing permissions, workflow, route access, or operational visibility.
+          </p>
+        </div>
+        <Link
+          to="/settings/owner-setup"
+          className="inline-flex shrink-0 items-center justify-center rounded-md border border-amber-300 bg-white px-3 py-2 text-sm font-semibold text-amber-900 shadow-sm hover:bg-amber-100"
+        >
+          Review setup readiness
+        </Link>
       </div>
-      <div className="mt-4 text-3xl font-semibold tracking-tight text-slate-950">{loading ? "—" : value ?? 0}</div>
-    </Card>
+    </section>
   );
 }

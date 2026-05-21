@@ -1,28 +1,28 @@
 import React, { useEffect, useState } from "react";
-import { getClient, listClientOrders, updateClient } from "@/lib/services/clientsService";
+import { getClientManagementDetail } from "@/features/clients/clientManagementApi";
+import { listClientOrders } from "@/lib/services/clientsService";
 import { useParams } from "react-router-dom";
 
 const fmt = (d) => (d ? new Date(d).toLocaleDateString() : "—");
 
 export default function ClientProfile() {
-  const { id } = useParams();
+  const { id, clientId } = useParams();
+  const resolvedClientId = clientId || id;
   const [client, setClient] = useState(null);
   const [orders, setOrders] = useState([]);
   const [err, setErr] = useState(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
-      setLoading(true); setErr(null);
+      setErr(null);
       try {
-        const c = await getClient(id);
+        const c = await getClientManagementDetail(resolvedClientId);
         setClient(c);
-        const { rows } = await listClientOrders(id, { page: 0, pageSize: 50 });
+        const { rows } = await listClientOrders(resolvedClientId, { page: 0, pageSize: 50 });
         setOrders(rows);
       } catch (e) { setErr(e); }
-      finally { setLoading(false); }
     })();
-  }, [id]);
+  }, [resolvedClientId]);
 
   return (
     <div className="p-4 space-y-4">
@@ -59,8 +59,6 @@ export default function ClientProfile() {
     </div>
   );
 }
-
-
 
 
 

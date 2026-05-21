@@ -77,9 +77,18 @@ export default function NotificationBell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
+  const assignmentPathFor = (n) => {
+    const assignmentId = n?.payload?.assignment_id || n?.assignment_id || null;
+    if (!assignmentId) return null;
+    return `/assignments/${assignmentId}`;
+  };
+
   const openOrder = (n) => {
     if (!n) return;
-    if (n.link_path) {
+    const assignmentPath = assignmentPathFor(n);
+    if (assignmentPath) {
+      navigate(assignmentPath);
+    } else if (n.link_path) {
       navigate(n.link_path);
     } else if (n.order_id) {
       navigate(`/orders/${n.order_id}`);

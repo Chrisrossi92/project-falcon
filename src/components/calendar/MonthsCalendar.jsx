@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import CalendarGrid from "@/components/calendar/CalendarGrid";
 import useCalendarEventLoader from "@/lib/hooks/useCalendarEvents";
-import useRole from "@/lib/hooks/useRole";
+import { useCurrentUserAppContext } from "@/features/auth/useCurrentUserAppContext";
 import { normalizeCalendarEvent } from "@/lib/calendar/normalizeCalendarEvent";
 
 export default function MonthsCalendar({
@@ -17,10 +17,24 @@ export default function MonthsCalendar({
   const [events, setEvents] = useState([]);
   const [internalAnchor, setInternalAnchor] = useState(() => new Date());
   const activeAnchor = anchor || internalAnchor;
-  const roleHook = useRole() || {};
-  const isReviewer = roleHook?.isReviewer;
-  const calendarRole = role || roleHook.role || (roleHook.isAdmin ? "admin" : isReviewer ? "reviewer" : "appraiser");
-  const fallbackLoader = useCalendarEventLoader({ mode: isReviewer ? "reviewerQueue" : null, reviewerId: isReviewer ? roleHook.userId : null });
+  const { context: appContext } = useCurrentUserAppContext();
+  const isAdmin = Boolean(appContext?.is_owner || appContext?.is_admin_role);
+  const isReviewer = !isAdmin && Boolean(appContext?.is_reviewer_role);
+  const calendarRole = role || (
+    appContext?.is_owner
+      ? "owner"
+      : isAdmin
+      ? "admin"
+      : isReviewer
+      ? "reviewer"
+      : appContext?.is_appraiser_role
+      ? "appraiser"
+      : String(appContext?.primary_role_key || appContext?.role_keys?.[0] || "appraiser").toLowerCase()
+  );
+  const fallbackLoader = useCalendarEventLoader({
+    mode: isReviewer ? "reviewerQueue" : null,
+    reviewerId: isReviewer ? appContext?.user_id || null : null,
+  });
   const loader = getEvents || fallbackLoader;
 
   const monthStart = useMemo(

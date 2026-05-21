@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
-import supabase from "@/lib/supabaseClient";
-import { searchClientsByName } from "@/lib/services/clientsService";
+import {
+  listOrderFormClientOptions,
+  searchOrderFormClientsByName,
+} from "@/features/orders/orderClientOptionsApi";
 
 function Label({ children }) { return <label className="block text-xs font-medium text-gray-600 mb-1">{children}</label>; }
 function TextInput(props){ return <input {...props} className={"w-full border rounded px-2 py-1 text-sm "+(props.className||"")} />; }
@@ -61,15 +63,9 @@ export default function ClientFields({ value, onChange }) {
 
   useEffect(() => {
     (async () => {
-      const [{ data: cl }, { data: amcRows }] = await Promise.all([
-        supabase
-          .from("clients")
-          .select("id,name,category,amc_id,is_merged,contact_name_1,contact_email_1,contact_phone_1")
-          .neq("is_merged", true)
-          .order("name"),
-        supabase.from("clients").select("id,name").eq("category", "amc").order("name"),
-      ]);
-      setClients(cl ?? []); setAmcs(amcRows ?? []);
+      const rows = await listOrderFormClientOptions();
+      setClients(rows ?? []);
+      setAmcs((rows || []).filter((client) => String(client.category || "").toLowerCase() === "amc"));
     })();
   }, []);
 
@@ -101,7 +97,7 @@ export default function ClientFields({ value, onChange }) {
     setCheckingClientName(true);
     const timer = window.setTimeout(async () => {
       try {
-        const matches = await searchClientsByName(manualClientName, { limit: 5 });
+        const matches = await searchOrderFormClientsByName(manualClientName, 5);
         if (cancelled) return;
         const normalized = manualClientName.toLowerCase();
         const exact = (matches || []).find(

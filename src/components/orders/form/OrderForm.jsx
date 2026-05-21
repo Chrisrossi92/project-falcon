@@ -5,9 +5,11 @@ import ClientFields from "./ClientFields";
 import AssignmentFields from "./AssignmentFields";
 import PropertyFields from "./PropertyFields";
 import DatesFields from "./DatesFields";
-import { createOrder, updateOrder } from "@/lib/services/ordersService";
-import { createClient, searchClientsByName } from "@/lib/services/clientsService";
-import supabase from "@/lib/supabaseClient";
+import { createOrderViaRpc, updateOrderViaRpc } from "@/lib/services/ordersService";
+import {
+  createOrderFormClient,
+  searchOrderFormClientsByName,
+} from "@/features/orders/orderClientOptionsApi";
 
 // ---- date helpers ----
 const toYMD = (value) => {
@@ -42,8 +44,6 @@ const fromLocalDateTimeInputToISO = (value) => {
 
 function buildOrderPayload(values, { isEdit = false } = {}) {
   const payload = {
-    order_number: values.order_number || null,
-
     client_id: values.client_id || null,
     manual_client_name: values.manual_client_name || null,
     managing_amc_id: values.managing_amc_id || null,
@@ -91,6 +91,33 @@ function normalizeClientName(name) {
   return String(name || "").trim().replace(/\s+/g, " ").toLowerCase();
 }
 
+function getInlineClientCreateErrorMessage(error) {
+  const message = String(error?.message || error?.details || error?.hint || "");
+
+  if (message.includes("client_name_required")) {
+    return "Enter a client name.";
+  }
+
+  if (message.includes("client_name_already_exists")) {
+    return "A client with this name already exists.";
+  }
+
+  if (message.includes("invalid_amc")) {
+    return "Choose a valid AMC.";
+  }
+
+  if (
+    message.includes("permission") ||
+    message.includes("forbidden") ||
+    message.includes("not authorized") ||
+    error?.code === "42501"
+  ) {
+    return "You do not have permission to create clients.";
+  }
+
+  return "Falcon could not create this client.";
+}
+
 export default function OrderForm({ order, onClose, onSaved, onCancel }) {
   const navigate = useNavigate();
   const [values, setValues] = useState({});
@@ -101,7 +128,9 @@ export default function OrderForm({ order, onClose, onSaved, onCancel }) {
   const submitLabel = isEdit ? "Save Changes" : "Create Order";
   const savingLabel = isEdit ? "Saving..." : "Creating...";
   const statusLabel = formatStatusLabel(values.status || "new");
-  const orderNumberPreview = values.order_number || "Generating order number";
+  const orderNumberPreview = isEdit
+    ? values.order_number || "Order number unavailable"
+    : "Generated on save";
 
   // hydrate from OrderFrontend
   useEffect(() => {
@@ -133,29 +162,6 @@ export default function OrderForm({ order, onClose, onSaved, onCancel }) {
       access_notes: order.access_notes ?? "",
       notes: order.notes ?? "",
     });
-  }, [order]);
-
-  useEffect(() => {
-    if (order) return;
-
-    let cancelled = false;
-
-    (async () => {
-      const { data, error: rpcError } = await supabase.rpc(
-        "rpc_get_next_order_number"
-      );
-
-      if (cancelled || rpcError || !data) return;
-
-      setValues((prev) => {
-        if (prev.order_number) return prev;
-        return { ...prev, order_number: data };
-      });
-    })();
-
-    return () => {
-      cancelled = true;
-    };
   }, [order]);
 
   const applyPatch = (patch) => {
@@ -214,7 +220,7 @@ export default function OrderForm({ order, onClose, onSaved, onCancel }) {
 
       if (shouldCreateClient) {
         const manualClientName = String(nextValues.manual_client_name || "").trim();
-        const matches = await searchClientsByName(manualClientName, { limit: 5 });
+        const matches = await searchOrderFormClientsByName(manualClientName, 5);
         const normalizedManualName = normalizeClientName(manualClientName);
         const duplicate = (matches || []).find(
           (client) => normalizeClientName(client.name) === normalizedManualName
@@ -226,12 +232,15 @@ export default function OrderForm({ order, onClose, onSaved, onCancel }) {
           );
         }
 
-        const createdClient = await createClient({
-          name: manualClientName,
-          status: "active",
-          category: "client",
-          amc_id: nextValues.managing_amc_id || null,
-        });
+        let createdClient;
+        try {
+          createdClient = await createOrderFormClient({
+            name: manualClientName,
+            amcId: nextValues.managing_amc_id || null,
+          });
+        } catch (clientError) {
+          throw new Error(getInlineClientCreateErrorMessage(clientError));
+        }
 
         if (!createdClient?.id) {
           throw new Error("Client record could not be created. The order was not created.");
@@ -244,8 +253,8 @@ export default function OrderForm({ order, onClose, onSaved, onCancel }) {
       const payload = buildOrderPayload(nextValues, { isEdit });
 
       const result = isEdit
-        ? await updateOrder(order.id, payload)
-        : await createOrder(payload);
+        ? await updateOrderViaRpc(order.id, payload)
+        : await createOrderViaRpc(payload);
 
       if (onSaved) onSaved(result);
       else if (result?.id) navigate(`/orders/${result.id}`);
@@ -310,7 +319,13 @@ export default function OrderForm({ order, onClose, onSaved, onCancel }) {
         <ClientFields value={values} values={values} onChange={handleChange} />
         <PropertyFields value={values} values={values} onChange={handleChange} />
         <DatesFields value={values} values={values} onChange={handleChange} />
-        <AssignmentFields value={values} values={values} onChange={handleChange} isEdit={isEdit} />
+        <AssignmentFields
+          value={values}
+          values={values}
+          onChange={handleChange}
+          isEdit={isEdit}
+          orderId={order?.id || null}
+        />
         <div className="col-span-1 xl:col-span-2 space-y-2">
           <label className="block text-sm font-medium text-gray-700">
             Special Instructions (Internal)
@@ -327,14 +342,6 @@ export default function OrderForm({ order, onClose, onSaved, onCancel }) {
     </form>
   );
 }
-
-
-
-
-
-
-
-
 
 
 

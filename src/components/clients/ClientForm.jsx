@@ -1,7 +1,7 @@
 // src/components/clients/ClientForm.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import supabase from "@/lib/supabaseClient";
+import { listClientManagementAmcOptions } from "@/features/clients/clientManagementApi";
 import { isClientNameAvailable } from "@/lib/services/clientsService";
 
 export default function ClientForm({ initial, onSubmit, submitLabel = "Save" }) {
@@ -43,21 +43,24 @@ export default function ClientForm({ initial, onSubmit, submitLabel = "Save" }) 
 
   // Load AMC options for selector
   useEffect(() => {
+    let cancelled = false;
+
     (async () => {
-      setLoadingAmcs(true);
-      const { data, error } = await supabase
-        .from("clients")
-        .select("id,name,category")
-        .eq("category", "amc")
-        .order("name", { ascending: true });
-      if (error) {
+      try {
+        setLoadingAmcs(true);
+        const rows = await listClientManagementAmcOptions();
+        if (!cancelled) setAmcs(rows);
+      } catch (error) {
         console.error("Load AMCs failed:", error);
-        setAmcs([]);
-      } else {
-        setAmcs(data || []);
+        if (!cancelled) setAmcs([]);
+      } finally {
+        if (!cancelled) setLoadingAmcs(false);
       }
-      setLoadingAmcs(false);
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // If switching to AMC, clear amc_id
@@ -239,4 +242,3 @@ export default function ClientForm({ initial, onSubmit, submitLabel = "Save" }) 
     </form>
   );
 }
-

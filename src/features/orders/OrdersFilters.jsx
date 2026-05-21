@@ -1,7 +1,7 @@
 // src/features/orders/OrdersFilters.jsx
 import React, { useEffect, useState } from "react";
-import supabase from "@/lib/supabaseClient";
-import { listAssignableUsers } from "@/lib/services/usersService";
+import { listCompanyAssignableAppraisers } from "@/features/company-members/assignableUsersApi";
+import { listOrderFilterClients } from "@/features/orders/orderFilterOptionsApi";
 
 const STATUS = [
   ["", "All"],
@@ -39,9 +39,9 @@ export default function OrdersFilters({ value, onChange }) {
 
   useEffect(() => {
     (async () => {
-      const [assignable, { data: clis }] = await Promise.all([
-        listAssignableUsers({ roles: ["appraiser", "admin", "owner"] }),
-        supabase.from("clients").select("id, name").order("name", { ascending: true }),
+      const [assignable, clis] = await Promise.all([
+        listCompanyAssignableAppraisers(),
+        listOrderFilterClients(),
       ]);
 
       setUsers(assignable || []);

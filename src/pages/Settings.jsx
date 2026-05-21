@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
-import  useSession  from "@/lib/hooks/useSession";
 import { getNotificationPrefs, updateNotificationPrefs } from "@/features/notifications/api";
-import { setUserColor } from "@/lib/services/usersService";
+import { settingsPageUtilityLinks } from "@/lib/navigation/currentSettingsUtilityLinks";
+import { getCurrentUserSettings, updateCurrentUserSettings } from "@/features/user-settings/api";
 
 // theme helpers
 const THEME_KEY = "falcon.theme";
@@ -16,23 +16,44 @@ function applyTheme(theme) {
 }
 
 export default function Settings() {
-  const { user } = useSession();
-
   const [prefs, setPrefs] = useState({ dnd: false, dnd_until: null, snooze_until: null });
   const [savingPrefs, setSavingPrefs] = useState(false);
 
   const [color, setColor] = useState("");
+  const [savingColor, setSavingColor] = useState(false);
   const [theme, setTheme] = useState(() => localStorage.getItem(THEME_KEY) || "system");
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       const p = (await getNotificationPrefs()) || {};
+      if (cancelled) return;
       setPrefs({
         dnd: !!p.dnd,
         dnd_until: p.dnd_until || null,
         snooze_until: p.snooze_until || null,
       });
     })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const settings = await getCurrentUserSettings();
+        if (!cancelled) {
+          setColor(settings?.display_color || settings?.color || "");
+        }
+      } catch {
+        if (!cancelled) setColor("");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -64,11 +85,27 @@ export default function Settings() {
   }
 
   async function saveColor() {
+    setSavingColor(true);
     try {
-      await setUserColor(user?.id || user?.user_id || user?.auth_id || user?.uid, color || null);
+      const settings = await updateCurrentUserSettings({ display_color: color || null });
+      setColor(settings?.display_color || settings?.color || "");
       toast.success("Color saved");
     } catch (e) {
-      toast.error(e?.message || "Failed to save color");
+      const message = String(e?.message || "");
+      if (message.includes("invalid_profile_color")) {
+        toast.error("Use a valid hex color like #3366FF.");
+      } else if (
+        message.includes("permission")
+        || message.includes("not authorized")
+        || message.includes("app_user_not_found")
+        || e?.code === "42501"
+      ) {
+        toast.error("Falcon could not update your profile settings.");
+      } else {
+        toast.error("Falcon could not save your settings.");
+      }
+    } finally {
+      setSavingColor(false);
     }
   }
 
@@ -79,14 +116,18 @@ export default function Settings() {
           <h1 className="text-lg font-semibold">Settings</h1>
           <p className="text-sm text-gray-600">Theme, Do Not Disturb, and profile preferences.</p>
         </div>
-        {/* ✅ clear entry to notification settings */}
-        <Link
-          to="/settings/notifications"
-          className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-50"
-          title="Open Notification Settings"
-        >
-          Notification Settings →
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          {settingsPageUtilityLinks.map((link) => (
+            <Link
+              key={link.id}
+              to={link.path}
+              className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-50"
+              title={`Open ${link.label.replace(/\s+→$/, '')}`}
+            >
+              {link.label}
+            </Link>
+          ))}
+        </div>
       </div>
 
       {/* Theme */}
@@ -167,17 +208,18 @@ export default function Settings() {
             onChange={(e) => setColor(e.target.value)}
           />
           <div className="h-6 w-6 rounded border" style={{ background: color || "#fff" }} />
-          <button className="px-3 py-1.5 text-sm rounded border hover:bg-gray-50" onClick={saveColor}>
-            Save Color
+          <button
+            className="px-3 py-1.5 text-sm rounded border hover:bg-gray-50 disabled:opacity-50"
+            disabled={savingColor}
+            onClick={saveColor}
+          >
+            {savingColor ? "Saving…" : "Save Color"}
           </button>
         </div>
       </div>
     </div>
   );
 }
-
-
-
 
 
 

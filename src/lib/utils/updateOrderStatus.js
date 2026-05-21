@@ -3,6 +3,13 @@ import rpcFirst from '@/lib/utils/rpcFirst';
 import supabase from '@/lib/supabaseClient';
 import logOrderEvent from '@/lib/utils/logOrderEvent';
 
+function warnLegacyUpdateOrderStatus() {
+  if (import.meta.env?.DEV !== true) return;
+  console.warn(
+    '[updateOrderStatus] Legacy direct status fallback is deprecated. Use canonical workflow transition helpers for active UI.'
+  );
+}
+
 /**
  * Legacy/quarantined status mutation path.
  * Do not use for lifecycle transitions; use canonical workflow transition helpers/RPC.
@@ -12,6 +19,7 @@ import logOrderEvent from '@/lib/utils/logOrderEvent';
  * Use those workflow helpers for normal status transitions.
  */
 export default async function updateOrderStatus(orderId, newStatus, note = null)  {
+  warnLegacyUpdateOrderStatus();
   // Read prev status for manual logging if we fall back
   const { data: prevRow, error: readErr } = await supabase
     .from('orders')
@@ -43,4 +51,3 @@ export default async function updateOrderStatus(orderId, newStatus, note = null)
 
   return true;
 }
-
