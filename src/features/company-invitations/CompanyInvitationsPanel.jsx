@@ -23,9 +23,9 @@ function formatDate(value) {
 
 function statusLabel(status) {
   const labels = {
-    prepared: "Prepared",
-    sent: "Sent",
-    auth_failed: "Auth failed",
+    prepared: "Ready to send",
+    sent: "Awaiting acceptance",
+    auth_failed: "Needs attention",
     accepted: "Accepted",
     cancelled: "Cancelled",
     expired: "Expired",
@@ -42,14 +42,20 @@ function statusClass(status) {
 
 function statusHelp(status) {
   const labels = {
-    prepared: "Ready to send or resend",
-    sent: "Waiting for acceptance",
-    auth_failed: "Email send needs attention",
-    accepted: "Access accepted",
-    cancelled: "Invite no longer active",
-    expired: "Send a new invite if needed",
+    prepared: "Staged invite. Send again or cancel if the details are wrong.",
+    sent: "Invite sent. Access starts only after the recipient accepts.",
+    auth_failed: "Email send needs attention. Resend or cancel if needed.",
+    accepted: "Accepted by the recipient. Membership is now governed by Team Access.",
+    cancelled: "Cancelled invitations cannot be used for access.",
+    expired: "Expired invitations cannot be used. Send a new invite if access is still needed.",
   };
   return labels[status] || "Invitation state recorded";
+}
+
+function statusAccessNote(status) {
+  if (status === "accepted") return "Active after acceptance";
+  if (status === "cancelled" || status === "expired") return "No active access";
+  return "Pending access";
 }
 
 function safeInvitationError(error, fallback) {
@@ -75,6 +81,15 @@ function roleNames(invitation) {
     const label = role.display_name || role.role_name || role.role_key || "Role";
     return role.is_primary ? `${label} (primary)` : label;
   }).join(", ");
+}
+
+function timestampDetail(label, value, fallback = "Not recorded") {
+  return (
+    <div className="grid gap-0.5">
+      <span className="font-medium text-slate-700">{formatDate(value)}</span>
+      <span className="text-xs text-slate-400">{value ? label : fallback}</span>
+    </div>
+  );
 }
 
 export default function CompanyInvitationsPanel({
@@ -220,7 +235,7 @@ export default function CompanyInvitationsPanel({
           <table className="min-w-full divide-y divide-slate-200 text-sm">
             <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
               <tr>
-                <th className="px-4 py-3">Email</th>
+                <th className="px-4 py-3">Invited Member</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Roles</th>
                 <th className="px-4 py-3">Invited By</th>
@@ -234,7 +249,12 @@ export default function CompanyInvitationsPanel({
             <tbody className="divide-y divide-slate-100 bg-white">
               {rows.map((invitation) => (
                 <tr key={invitation.invitation_id} className="align-top">
-                  <td className="px-4 py-3 font-medium text-slate-900">{invitation.invite_email}</td>
+                  <td className="px-4 py-3">
+                    <div className="grid gap-0.5">
+                      <span className="font-medium text-slate-900">{invitation.invite_email}</span>
+                      <span className="text-xs text-slate-500">{statusAccessNote(invitation.invitation_status)}</span>
+                    </div>
+                  </td>
                   <td className="px-4 py-3">
                     <div className="grid gap-1">
                       <span className={`inline-flex w-fit rounded-full border px-2 py-0.5 text-xs font-medium ${statusClass(invitation.invitation_status)}`}>
@@ -243,14 +263,23 @@ export default function CompanyInvitationsPanel({
                       <span className="text-xs text-slate-500">{statusHelp(invitation.invitation_status)}</span>
                     </div>
                   </td>
-                  <td className="max-w-xs px-4 py-3 text-slate-600">{roleNames(invitation)}</td>
+                  <td className="max-w-xs px-4 py-3 text-slate-600">
+                    <div className="grid gap-0.5">
+                      <span>{roleNames(invitation)}</span>
+                      <span className="text-xs text-slate-400">Role presets apply after acceptance.</span>
+                    </div>
+                  </td>
                   <td className="px-4 py-3 text-slate-600">{invitation.invited_by_display_name || "-"}</td>
-                  <td className="px-4 py-3 text-slate-600">{formatDate(invitation.created_at)}</td>
-                  <td className="px-4 py-3 text-slate-600">{formatDate(invitation.expires_at)}</td>
-                  <td className="px-4 py-3 text-slate-600">{formatDate(invitation.auth_invite_sent_at)}</td>
+                  <td className="px-4 py-3 text-slate-600">{timestampDetail("Created", invitation.created_at)}</td>
+                  <td className="px-4 py-3 text-slate-600">{timestampDetail("Invite expires", invitation.expires_at)}</td>
+                  <td className="px-4 py-3 text-slate-600">{timestampDetail("Backend send recorded", invitation.auth_invite_sent_at, "Send not recorded")}</td>
                   {status !== "open" && (
                     <td className="px-4 py-3 text-slate-600">
-                      {formatDate(invitation.accepted_at || invitation.cancelled_at)}
+                      {timestampDetail(
+                        invitation.accepted_at ? "Accepted" : invitation.cancelled_at ? "Cancelled" : "No close timestamp",
+                        invitation.accepted_at || invitation.cancelled_at,
+                        invitation.invitation_status === "expired" ? "Expired by deadline" : "Not recorded"
+                      )}
                     </td>
                   )}
                   <td className="px-4 py-3">

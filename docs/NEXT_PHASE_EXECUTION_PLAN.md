@@ -428,6 +428,36 @@ Deferred Team Access onboarding work after closeout remains guided invite wizard
 bulk invites, onboarding email polish, permission diff views, audit trail for access changes,
 role-specific onboarding paths, access review exports, and deeper setup checklist automation.
 
+Admin Onboarding Slice 3A plans safer invite-flow UX improvements before implementation. The
+current invite foundation remains Edge/RPC mediated through Team Access: send and resend use
+existing invitation Edge Functions, invitation list/cancel use governed RPCs, acceptance remains
+backend-governed, statuses distinguish prepared/sent/auth-failed/accepted/cancelled/expired, and
+role assignment uses assignable role presets plus primary-role selection. The recommended first
+implementation is read-only/status/help-text polish only: clearer invite status chips, expiration
+and sent messaging from existing fields, success confirmation copy that explains access starts only
+after acceptance, role/primary-role help text, clearer pending-member messaging, empty-state
+onboarding hints, and `what happens next` copy. Invite workflow redesign, automated onboarding
+emails, bulk invites, backend/API changes, permission changes, RLS changes, and acceptance behavior
+changes remain out of scope.
+
+Deferred invite-flow work remains invite resend flow redesign, invite expiration management,
+onboarding email templates, guided onboarding wizard, role templates, bulk/team onboarding, and
+invite audit trail UI.
+
+Admin Onboarding Slices 3B through 3D audit, implement, and close out the first invitation
+readability polish foundation. The locked foundation keeps invitations on existing governed
+invitation/member state, uses clearer invitation status chips, treats sent invitations as awaiting
+acceptance, distinguishes invited people from active team members, clarifies that role presets
+apply only after acceptance, improves timestamp context labels, adds invite modal guidance, and
+uses success messaging that says access starts after recipient acceptance. Guardrails remain
+unchanged: no invite workflow changes, no resend behavior changes, no expiration handling changes,
+no permission/RLS changes, no hidden activation or escalation, and backend invitation ownership
+remains authoritative for list, send, resend, cancel, and acceptance behavior.
+
+Deferred invite-flow work after closeout remains resend flow redesign, expiration management,
+onboarding email templates, invite audit trail UI, bulk invites, role templates, guided onboarding
+wizard, and any future delivery diagnostics or resend history.
+
 Guardrails require onboarding to respect company scope/RLS, avoid hidden permission escalation,
 keep owner/admin authority backend authoritative, keep setup helpers advisory/read-only where
 possible, and avoid any mutation shortcut that bypasses RPC/Edge ownership.

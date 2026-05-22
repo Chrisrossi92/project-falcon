@@ -683,7 +683,7 @@ export default function UsersIndex() {
         onClose={() => setInviteOpen(false)}
         onInvited={() => {
           setInviteOpen(false);
-          toast.success("Company invitation sent.");
+          toast.success("Invitation sent. Access starts after the recipient accepts.");
           setInvitationRefreshKey((key) => key + 1);
           load();
         }}

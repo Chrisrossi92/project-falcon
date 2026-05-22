@@ -206,11 +206,50 @@ describe("UsersIndex Team Access readability", () => {
 
     await screen.findByText("Pending Invitations");
     expect(screen.getByText("pending@example.com")).toBeInTheDocument();
-    expect(screen.getAllByText("Sent").length).toBeGreaterThan(0);
-    expect(screen.getByText("Waiting for acceptance")).toBeInTheDocument();
+    expect(screen.getByText("Pending access")).toBeInTheDocument();
+    expect(screen.getByText("Awaiting acceptance")).toBeInTheDocument();
+    expect(screen.getByText("Invite sent. Access starts only after the recipient accepts.")).toBeInTheDocument();
     expect(screen.getByText("Admin (primary)")).toBeInTheDocument();
+    expect(screen.getByText("Role presets apply after acceptance.")).toBeInTheDocument();
+    expect(screen.getByText("Backend send recorded")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Send another invite email/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+  });
+
+  it("renders invite modal help text without sending or activating access", async () => {
+    invitationsApiMock.listCompanyRolePresets.mockResolvedValue([
+      {
+        role_id: "role-admin",
+        role_name: "Admin",
+        description: "Can manage operational setup.",
+        assignable_by_current_user: true,
+      },
+      {
+        role_id: "role-reviewer",
+        role_name: "Reviewer",
+        description: "Can review orders.",
+        assignable_by_current_user: true,
+      },
+    ]);
+
+    renderUsersIndex();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Invite Member" }));
+
+    expect(await screen.findByRole("dialog", { name: "Invite Member" })).toBeInTheDocument();
+    expect(screen.getByText(/Access activates only after the recipient accepts/)).toBeInTheDocument();
+    expect(screen.getByText("The invited person appears as pending until they accept.")).toBeInTheDocument();
+    expect(screen.getByText(/backend permissions remain authoritative/i)).toBeInTheDocument();
+
+    const adminRole = screen.getByText("Admin").closest("label");
+    const reviewerRole = screen.getByText("Reviewer").closest("label");
+
+    fireEvent.click(within(adminRole).getByRole("checkbox"));
+    fireEvent.click(within(reviewerRole).getByRole("checkbox"));
+
+    expect(await screen.findByText("Primary Role")).toBeInTheDocument();
+    expect(screen.getByText("Primary role is the main role label shown after acceptance.")).toBeInTheDocument();
+    expect(invitationsApiMock.sendCompanyInvitation).not.toHaveBeenCalled();
   });
 
   it("renders safer empty states", async () => {

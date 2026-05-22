@@ -740,6 +740,317 @@ Deferred Team Access onboarding work:
 - Audit trail for access changes.
 - Deeper setup checklist automation.
 
+## Invite Flow UX Planning
+
+Admin Onboarding Slice 3A plans safer and clearer invite-flow UX improvements before
+implementation.
+
+### Current Invite Foundation
+
+- Company invitations are Edge/RPC mediated through the existing Team Access flow.
+- New invite sends use the `invite-company-member` Edge Function.
+- Resend uses the `resend-company-member-invite` Edge Function.
+- Invitation list/read state uses `rpc_company_member_invitations_list(...)`.
+- Invitation cancellation uses the invitation cancel RPC.
+- Invitation acceptance remains backend-governed and activates access only after authenticated
+  acceptance/finalization.
+- Invitation statuses currently distinguish `prepared`, `sent`, `auth_failed`, `accepted`,
+  `cancelled`, and `expired`.
+- The Team Access panel already separates pending invitations from active members and explains that
+  pending invites do not grant access.
+- Invite creation already requires role selection from assignable company role presets and a
+  primary role selection.
+- Invited/inactive membership staging remains backend-owned; the UI should describe it but not
+  imply access exists before acceptance.
+
+### Invite Flow UX Goals
+
+- Reduce owner/admin confusion during first-time invites.
+- Make invitation state obvious without exposing backend internals.
+- Clarify what happens after an invite is sent.
+- Reduce accidental role mistakes by explaining selected role presets and primary role meaning.
+- Improve confidence for first-time company owners who are inviting their initial team.
+- Keep pending invitations visually distinct from active company access.
+- Keep failure and resend guidance clear but non-alarming.
+
+### Candidate Invite Improvements
+
+- Clearer invite status chips for `prepared`, `sent`, `auth_failed`, `accepted`, `cancelled`, and
+  `expired`.
+- Invite expiration and resent messaging where `expires_at` and `auth_invite_sent_at` are already
+  available.
+- Invite success confirmation polish that states the invite was sent and access starts only after
+  acceptance.
+- Role explanation/help text in the invite modal using safe role preset names and descriptions.
+- Clearer primary-role explanation.
+- Clearer pending-member messaging in the Pending Invitations panel.
+- Empty-state onboarding hints for no pending invites and solo-owner operation.
+- `What happens next` explanatory copy after invite send and inside the invite modal.
+
+### Invite Flow Governance Rules
+
+- No permission escalation.
+- Backend invitation ownership remains authoritative.
+- No direct role, membership, user, invitation, or role-permission table writes.
+- Invitation acceptance remains backend-governed.
+- No hidden auto-activation.
+- No invite bypasses around company scope, current-company membership, role assignability, or
+  backend `can_*` booleans.
+- Frontend copy may explain invitation state, but must not become an authorization source.
+- Role explanations must not imply exact permission coverage unless backed by an authoritative
+  backend read.
+
+### Recommended First Invite Implementation
+
+The first invite-flow implementation should be read-only/status/help-text polish:
+
+- refine invitation status labels and next-step help;
+- improve invite modal explanatory copy around role presets, primary role, and acceptance;
+- improve success copy after invite send;
+- use only already available invitation and role-preset fields;
+- keep existing invite, resend, cancel, role assignment, and acceptance behavior unchanged;
+- add no invitation workflow redesign;
+- add no automated onboarding emails;
+- add no bulk invite behavior;
+- add no backend/API/RPC/schema changes.
+
+### Deferred Invite Flow Work
+
+- Invite resend flow redesign.
+- Invite expiration management.
+- Onboarding email templates.
+- Guided onboarding wizard.
+- Role templates.
+- Bulk/team onboarding.
+- Invite audit trail UI.
+
+## Invitation Data Shape Audit
+
+Admin Onboarding Slice 3B audits the current invitation/member onboarding data flow before invite
+UX polish implementation.
+
+### Current Invitation Rendering / Data Flow
+
+Invitation list:
+
+- `CompanyInvitationsPanel` loads rows through `listCompanyInvitations(status, 100)`, which calls
+  `rpc_company_member_invitations_list(p_status, p_limit)`.
+- The safe invitation projection returns `invitation_id`, `invite_email`, `invitation_status`,
+  `role_assignments`, `primary_role_id`, `invited_by_display_name`, `created_at`, `expires_at`,
+  `auth_invite_sent_at`, `accepted_at`, `cancelled_at`, `can_cancel`, and `can_resend`.
+- The panel supports `open`, `terminal`, and `all` filters. Backend filtering maps `open` to
+  `prepared`, `sent`, and `auth_failed`; `terminal` to `accepted`, `cancelled`, and `expired`.
+- Rows currently display email, status, safe role labels, inviter display name, created/expires/sent
+  timestamps, closed timestamp for non-open filters, and backend-provided action availability.
+- The panel already treats Pending Invitations as separate from active team membership and states
+  that pending invitations do not grant access until accepted.
+
+Invite creation:
+
+- `InviteCompanyMemberModal` loads role presets through `listCompanyRolePresets()`.
+- The modal displays assignable role preset names and descriptions only when
+  `assignable_by_current_user` is true.
+- The modal requires email and at least one role preset, supports a primary role when multiple roles
+  are selected, and sends through `sendCompanyInvitation(...)` / `invite-company-member`.
+- Invite success currently closes the modal, refreshes invitations/member data, and shows a generic
+  company-invitation-sent toast from `UsersIndex`.
+
+Resend, cancel, and acceptance:
+
+- Resend uses `resendCompanyInvitation(...)` / `resend-company-member-invite`.
+- Cancel uses `cancelCompanyInvitation(...)` / `rpc_company_member_invitation_cancel(...)`.
+- Acceptance uses `rpc_company_member_invite_accept(...)` and is backend-governed.
+- Acceptance requires a `sent` invitation, a non-expired invitation, matching Auth identity/email,
+  a staged membership, valid role presets, and an active company before activating membership and
+  role assignments.
+
+Active versus invited membership linkage:
+
+- Invitation records can link to `invited_user_id` and `membership_id`, but the Team Access
+  invitation list intentionally exposes only safe lifecycle metadata and role labels.
+- Pending invitations may have staged inactive membership/role assignment records backend-side, but
+  UI copy must continue treating that state as non-active access until acceptance.
+- Active member rows come from the member list RPC, not from the invitation row itself.
+
+### Authoritative Invitation States
+
+- `prepared`: backend-created invitation staging exists, but Auth email delivery may not be
+  confirmed.
+- `sent`: Auth invite send/finalize succeeded enough for the backend to mark the invitation sent;
+  it still does not mean the recipient has accepted or gained access.
+- `auth_failed`: Auth invite send/finalize failed or needs attention; it is authoritative as an
+  invitation lifecycle state, not as a complete delivery diagnosis.
+- `accepted`: the backend acceptance RPC activated membership/roles and recorded acceptance.
+- `cancelled`: the backend cancel path made the invitation unusable.
+- `expired`: the backend expiration checks marked the invitation expired or acceptance found it
+  expired.
+
+### Ambiguous Labels / Statuses
+
+- `Prepared` can sound ready for the recipient, but it may only mean backend staging exists.
+- `Sent` can be mistaken for guaranteed email delivery; it should be described as waiting for
+  acceptance rather than proof the recipient received email.
+- `Auth failed` is technical and should be translated into owner-facing guidance such as email send
+  needs attention.
+- `Past/Terminal` is accurate but may be less clear than copy that explains accepted, cancelled, or
+  expired invites are no longer pending.
+- `Closed` currently uses `accepted_at || cancelled_at`; expired rows may show `-` unless a separate
+  expiration timestamp is used as explanatory date context.
+- Role labels show assigned role presets, but they do not explain exact permission coverage.
+
+### Safe Help Text / Copy Additions
+
+- Explain that access starts only after the recipient accepts the invitation.
+- Explain that `sent` means Falcon is waiting for acceptance, not guaranteed operational access.
+- Explain that `prepared` can be resent/sent again or cancelled if the address/roles are wrong.
+- Explain that `auth_failed` needs resend/cancel attention.
+- Explain that cancelled or expired invitations do not grant access and should be replaced with a
+  new invite if access is still needed.
+- Explain primary role as the main role label for the member after acceptance, without implying
+  additional authority.
+- Use role preset descriptions where already available; avoid raw permission claims.
+
+### Safe Timestamps
+
+- `created_at`: safe to display as invite row creation time.
+- `expires_at`: safe to display as the current invitation expiration deadline.
+- `auth_invite_sent_at`: safe to display as the backend-known Auth invite send/finalize timestamp
+  when present; it must not be described as proof of email delivery to the recipient's inbox.
+- `accepted_at`: safe to display for accepted terminal rows.
+- `cancelled_at`: safe to display for cancelled terminal rows.
+- Expired rows can safely show `expires_at` as expiration context, but the current projection does
+  not return a separate `expired_at`.
+
+### Expiration / Resend State
+
+- Expiration support exists backend-side through `expires_at`, acceptance-time expiration checks,
+  and status `expired`.
+- Resend support exists through the resend Edge Function and backend prepare/finalize RPCs.
+- The list projection exposes `can_resend`, but not resend count, resend history, previous
+  invitation lineage, or delivery diagnostics.
+- Future UX should not claim rich expiration management, delivery tracking, or resend history until
+  those fields are explicitly exposed.
+
+### Safe First-Pass Invite Polish Targets
+
+- Clearer pending/invited chips using existing `invitation_status`.
+- `Awaiting acceptance` messaging for `sent` invitations.
+- Role explanation copy using safe role preset labels/descriptions.
+- Primary-role explanation copy.
+- Invite success/next-step explanation that the recipient must accept before access activates.
+- Safer empty states for no pending invitations and no assignable role presets.
+- Attention copy for `auth_failed`, cancelled, and expired states.
+
+### Unsafe Assumptions To Avoid
+
+- Do not imply invite delivery success beyond `auth_invite_sent_at` / `sent` state.
+- Do not imply expiration management beyond currently exposed `expires_at` and `expired` status.
+- Do not imply resend history, delivery receipts, or recipient email open/click tracking.
+- Do not imply permissions activate before backend acceptance.
+- Do not infer onboarding completion from invitation existence.
+- Do not infer exact permissions from role names or descriptions.
+- Do not treat staged inactive membership/role records as active access.
+- Do not bypass backend `can_cancel` / `can_resend` flags.
+- Do not expose invitation tokens, Auth ids, provider errors, raw metadata, or cross-company
+  invitation data.
+
+## Invitation Readability Polish
+
+Admin Onboarding Slice 3C implements the first invitation readability and onboarding clarity polish
+using only existing governed invitation/member state.
+
+### Implemented Invitation Presentation Changes
+
+- Invitation status chips now use owner-facing labels such as `Ready to send`,
+  `Awaiting acceptance`, and `Needs attention`.
+- Sent invitations now explain that access starts only after recipient acceptance.
+- Invitation rows distinguish invited people as `Pending access`, `Active after acceptance`, or
+  `No active access` based only on existing invitation status.
+- Role display now states that role presets apply after acceptance.
+- Invite timestamps now include safer context labels for created, expiration deadline, backend send
+  record, accepted, cancelled, or missing close timestamps.
+- Empty states continue to explain when there are no pending invitations or no invitations for a
+  selected filter.
+- The invite modal now explains that invited people remain pending until acceptance.
+- The invite modal role help text clarifies that role labels describe intended access after
+  acceptance while backend permissions remain authoritative.
+- Primary role help text now explains that the primary role is the main role label shown after
+  acceptance.
+- Invite success copy now states that access starts after recipient acceptance.
+
+### Preserved Invitation Semantics
+
+- Invite send remains on the existing `invite-company-member` Edge Function path.
+- Resend remains on the existing `resend-company-member-invite` Edge Function path.
+- Cancel remains on `rpc_company_member_invitation_cancel(...)`.
+- Invitation list remains on `rpc_company_member_invitations_list(...)`.
+- Acceptance remains backend-governed through the acceptance RPC.
+- No invite workflow, resend behavior, expiration behavior, permission/RLS behavior, backend/API,
+  or onboarding automation changed.
+- The UI does not imply delivery success beyond backend-known sent state or
+  `auth_invite_sent_at`.
+- The UI does not imply active permissions before acceptance.
+- The UI does not infer onboarding completion from invitation existence.
+
+### Invitation Polish Test Coverage
+
+Focused tests cover:
+
+- invitation readability and pending-access distinction;
+- status chip/help text rendering;
+- safe role explanation copy;
+- timestamp context rendering;
+- invite modal help text and primary-role explanation;
+- safer empty states;
+- no invitation/member mutation API calls during readability-only rendering.
+
+## Invite Flow Polish Closeout
+
+Admin Onboarding Slice 3D locks the first invitation/onboarding readability foundation as
+complete. This closeout records the current product boundary without adding runtime behavior.
+
+### Locked Invitation Readability Foundation
+
+- Invitation status chips use clearer owner-facing labels for prepared, sent, attention, accepted,
+  cancelled, and expired states.
+- Sent invitations use awaiting-acceptance semantics and clarify that access starts only after the
+  recipient accepts.
+- Invitation rows distinguish invited people from active team members through pending-access,
+  active-after-acceptance, and no-active-access labels.
+- Role help text explains that role presets describe intended access after acceptance and that
+  backend permissions remain authoritative.
+- Primary-role help text explains the display label without implying exact permission scope.
+- Timestamp display includes safer labels for created time, expiration deadline, backend send
+  record, accepted time, cancelled time, and missing close timestamps.
+- Invite modal guidance clarifies that invited people remain pending until acceptance.
+- Invite success messaging states that access starts after recipient acceptance.
+- Empty states remain safer and do not imply delivery, activation, or onboarding completion.
+
+### Locked Invite Guardrails
+
+- No invite workflow changes were added.
+- No resend behavior changed.
+- No expiration handling or expiration management behavior changed.
+- No permission, RLS, role assignment, or acceptance behavior changed.
+- No hidden activation or escalation path was added.
+- Backend invitation ownership remains authoritative for list, send, resend, cancel, and
+  acceptance behavior.
+- Pending invitations remain non-authoritative onboarding state and do not grant active access.
+- The UI must not imply invite delivery success beyond backend-known state.
+- The UI must not imply active permissions before acceptance.
+- The UI must not infer onboarding completion from invitation existence.
+
+### Deferred Invite Flow Work
+
+- Resend flow redesign.
+- Expiration management.
+- Onboarding email templates.
+- Invite audit trail UI.
+- Bulk invites.
+- Role templates.
+- Guided onboarding wizard.
+- Delivery diagnostics or resend history if backend support is intentionally designed later.
+
 ## Governance Rules
 
 - Onboarding must respect company scope, RLS, current-company context, and active membership.
@@ -868,3 +1179,34 @@ templates, bulk invites, onboarding email polish, permission diff views, access-
 and deeper setup checklist automation deferred. No runtime behavior, backend state, permissions,
 RLS, invitation workflow, role editing behavior, or onboarding automation changes are part of this
 slice.
+
+Admin Onboarding Slice 3A is complete when this plan documents the current invitation foundation,
+invite-flow UX goals, candidate clarity improvements, governance rules, recommended first
+read-only/status/help-text implementation, and deferred invite-flow work. No runtime behavior,
+backend state, permissions, RLS, invitation behavior, role assignment behavior, acceptance behavior,
+or onboarding automation changes are part of this slice.
+
+Admin Onboarding Slice 3B is complete when this plan documents the current invitation rendering and
+data flow, authoritative invitation states, ambiguous labels/statuses, safe help text, safe
+timestamps, expiration/resend state boundaries, safe first-pass polish targets, and unsafe
+assumptions to avoid. No runtime behavior, backend state, permissions, RLS, invitation behavior,
+role assignment behavior, acceptance behavior, or onboarding automation changes are part of this
+slice.
+
+Admin Onboarding Slice 3C is complete when invitation readability improves using existing governed
+state only, invitation status chips/help text are clearer, awaiting-acceptance messaging is
+explicit, role and primary-role explanations avoid permission claims, invited-member state remains
+distinct from active access, timestamps have safer context labels, empty states are clearer, and
+focused tests cover presentation plus no mutation calls during readability rendering. No backend
+state, permissions, RLS, invite workflow, resend behavior, expiration behavior, acceptance behavior,
+hidden activation/escalation, or onboarding automation changes are part of this slice.
+
+Admin Onboarding Slice 3D is complete when this plan, the next-phase plan, and roadmap mark the
+invitation readability polish foundation complete; record the locked status chips,
+awaiting-acceptance semantics, role help text, timestamp labels, invite modal guidance, success
+messaging, and invited-versus-active distinction; preserve guardrails against invite workflow,
+resend, expiration, permission, hidden activation/escalation, and backend-ownership changes; and
+keep resend flow, expiration management, onboarding email templates, invite audit trail, bulk
+invites, role templates, and guided onboarding wizard deferred. No runtime behavior, backend state,
+permissions, RLS, invitation workflow, resend behavior, expiration behavior, acceptance behavior,
+or onboarding automation changes are part of this slice.

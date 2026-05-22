@@ -178,7 +178,9 @@ export default function InviteCompanyMemberModal({ open, onClose, onInvited }) {
           <div>
             <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Team Access</div>
             <h2 id="invite-company-member-title" className="mt-1 text-xl font-semibold text-slate-950">Invite Member</h2>
-            <p className="mt-1 text-sm text-slate-500">Send a company invitation with preset role access. Access activates only after acceptance.</p>
+            <p className="mt-1 text-sm text-slate-500">
+              Send a company invitation with preset role access. Access activates only after the recipient accepts.
+            </p>
           </div>
           <button
             ref={closeButtonRef}
@@ -211,12 +213,15 @@ export default function InviteCompanyMemberModal({ open, onClose, onInvited }) {
               placeholder="person@example.com"
               required
             />
+            <span className="text-xs text-slate-500">The invited person appears as pending until they accept.</span>
           </label>
 
           <section aria-labelledby="role-presets-title" className="grid gap-2">
             <div>
               <h3 id="role-presets-title" className="text-sm font-medium text-slate-700">Role Presets</h3>
-              <p className="mt-1 text-xs text-slate-500">Template roles only. Custom role editing is not available here.</p>
+              <p className="mt-1 text-xs text-slate-500">
+                Template roles only. These labels describe intended access after acceptance; backend permissions remain authoritative.
+              </p>
             </div>
             {loadingRoles ? (
               <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-500">Loading role presets...</div>
@@ -262,8 +267,9 @@ export default function InviteCompanyMemberModal({ open, onClose, onInvited }) {
                   .filter((role) => selectedRoleIds.includes(role.role_id))
                   .map((role) => (
                     <option key={role.role_id} value={role.role_id}>{role.role_name}</option>
-                  ))}
+                ))}
               </select>
+              <span className="text-xs text-slate-500">Primary role is the main role label shown after acceptance.</span>
             </label>
           )}
 
