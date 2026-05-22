@@ -198,9 +198,20 @@ describe("DashboardPage operational polish", () => {
   it("renders the polished operational sections from existing summary data", () => {
     renderDashboard();
 
+    expect(screen.getByText("Operations Dashboard")).toBeInTheDocument();
+    expect(
+      screen.getByText("Calendar, active orders, and workflow handoffs for the current company."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Company")).toBeInTheDocument();
+    expect(screen.getAllByText("Falcon Appraisals")).toHaveLength(2);
+    expect(screen.getByText("Work View")).toBeInTheDocument();
+    expect(screen.getByText("Owner / Admin")).toBeInTheDocument();
+
     const calendarHeading = screen.getByText("Calendar");
     const ordersHeading = screen.getByText("Active Worklist");
     const statusHeading = screen.getByText("Status");
+    const supportHeading = screen.getByText("Operational Support");
+    expect(screen.getByText("Secondary context from existing dashboard reads.")).toBeInTheDocument();
     const kpiCards = screen.getByRole("region", { name: /operational kpi cards/i });
 
     expect(statusHeading).toBeInTheDocument();
@@ -234,6 +245,7 @@ describe("DashboardPage operational polish", () => {
     expect(calendarHeading.compareDocumentPosition(ordersHeading)).toBe(DOCUMENT_POSITION_FOLLOWING);
     expect(calendarHeading.compareDocumentPosition(statusHeading)).toBe(DOCUMENT_POSITION_FOLLOWING);
     expect(ordersHeading.compareDocumentPosition(statusHeading)).toBe(DOCUMENT_POSITION_FOLLOWING);
+    expect(statusHeading.compareDocumentPosition(supportHeading)).toBe(DOCUMENT_POSITION_FOLLOWING);
 
     for (const label of ["New", "In Progress", "In Review", "Needs Revisions", "Ready for Client"]) {
       expect(screen.getByRole("button", { name: new RegExp(label, "i") })).toBeInTheDocument();
@@ -270,7 +282,6 @@ describe("DashboardPage operational polish", () => {
     expect(within(readiness).getByText("Operational Readiness")).toBeInTheDocument();
     expect(within(readiness).getByText("Read-only")).toBeInTheDocument();
     expect(within(readiness).getByText("Current company")).toBeInTheDocument();
-    expect(within(readiness).getByText("Falcon Appraisals")).toBeInTheDocument();
     expect(within(readiness).getByText("Owner/admin access")).toBeInTheDocument();
     expect(within(readiness).getByText("Management dashboard access is active")).toBeInTheDocument();
     expect(within(readiness).getByText("Team Access")).toBeInTheDocument();
@@ -537,7 +548,9 @@ describe("DashboardPage operational polish", () => {
 
     renderDashboard();
 
-    expect(screen.getByText("Reviewer Dashboard")).toBeInTheDocument();
+    expect(screen.getByText("Operations Dashboard")).toBeInTheDocument();
+    expect(screen.getByText("Calendar context and review work assigned to your queue.")).toBeInTheDocument();
+    expect(screen.getByText("Reviewer")).toBeInTheDocument();
     expect(screen.getByText("My Review Work")).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: /operational readiness/i })).not.toBeInTheDocument();
     expect(tableMock).toHaveBeenLastCalledWith(

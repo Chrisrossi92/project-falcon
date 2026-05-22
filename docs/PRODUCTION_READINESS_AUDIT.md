@@ -198,6 +198,281 @@ Each checklist section records test goal, basic steps, expected result, and fail
 notes/escalation. The checklist is manual for this slice; automated production smoke tests remain
 deferred post-MVP hardening.
 
+## Production Verification Status
+
+### Slice 2A: Local Migration Replay Status Check
+
+On 2026-05-22, local-only replay validation was attempted against the current workspace using
+Supabase CLI `2.101.0` and Docker `29.4.3` on branch `main`.
+
+Commands run:
+
+- `supabase db reset`;
+- `supabase --version`;
+- `docker --version`;
+- `git rev-parse --abbrev-ref HEAD`;
+- `date '+%Y-%m-%d %H:%M:%S %Z'`.
+
+Result:
+
+- The first local reset attempt was blocked by sandbox permissions writing the Supabase CLI
+  telemetry file under `~/.supabase`.
+- The command was rerun with local filesystem approval for the Supabase CLI.
+- The reset reached local database recreation and schema initialization.
+- Full local migration replay failed before completion because Docker could not resolve:
+
+```text
+public.ecr.aws/supabase/storage-api:optimize-existing-functions-again
+```
+
+Exact blocker:
+
+```text
+failed to pull docker image: Error response from daemon: failed to resolve reference
+"public.ecr.aws/supabase/storage-api:optimize-existing-functions-again":
+public.ecr.aws/supabase/storage-api:optimize-existing-functions-again: not found
+```
+
+Readiness conclusion:
+
+- Local full reset/replay is still not validated.
+- Migration replay confidence remains a blocker before production cutover.
+- Targeted `psql` replay remains useful only for specific reviewed migrations and is not equivalent
+  to full reset or fresh-project replay validation.
+- No staging project, hosted legacy project, future production project, Vercel deployment,
+  environment variable, storage policy, Edge Function, or schema edit was changed.
+
+### Slice 2B: Environment Parity Evidence Capture
+
+On 2026-05-22, local repo, GitHub remote, Vercel-local, and tool-version evidence was captured
+without changing environments.
+
+Verified locally:
+
+- branch `main`;
+- commit `a25a588251093b9c464a95ee41176faef572e80c`;
+- `HEAD` tag `admin-invite-flow-polish-v1`;
+- local tags through `admin-invite-flow-polish-v1`;
+- Node `v22.16.0`;
+- npm `10.8.0`;
+- Supabase CLI `2.101.0`;
+- Docker `29.4.3`;
+- Vercel CLI `47.0.6`;
+- `vercel.json` exists;
+- no local `.vercel` project-link directory is present.
+
+Verified by read-only GitHub remote query:
+
+- `origin/main` matches local `HEAD` at `a25a588251093b9c464a95ee41176faef572e80c`.
+- Local release/baseline tags are present on `origin`.
+- `admin-invite-flow-polish-v1` resolves to the current `HEAD` commit.
+
+Verified from docs/repo configuration:
+
+- Modern staging project remains `voompccpkjfcsmehdoqu`.
+- Legacy hosted project remains `okwqhkrsjgxrhyisaovc`.
+- The no-retrofit legacy decision remains current.
+- `vercel.json` still includes a Content Security Policy `connect-src` entry for the legacy hosted
+  Supabase URL `https://okwqhkrsjgxrhyisaovc.supabase.co`.
+
+Requires GitHub/Vercel UI confirmation:
+
+- Vercel production deployment commit/tag and domain alignment.
+- Vercel production/preview environment variables.
+- Vercel project dashboard linkage, because no local `.vercel` directory is present.
+
+Requires Supabase dashboard confirmation:
+
+- Staging and legacy project dashboard settings.
+- Staging migration head, storage bucket/policy status, auth redirect URLs, and Edge Function
+  deployment status.
+- Future clean production project remains TBD and not yet verified.
+
+Readiness conclusion:
+
+- Local/GitHub tag evidence is materially stronger after this capture.
+- Vercel deployment alignment remains a `Needs verification` item.
+- Supabase dashboard parity remains a `Needs verification` / cutover-blocking item depending on
+  area.
+- No environment variables, Supabase projects, Vercel settings, production project, schema,
+  storage, Edge Function, or runtime files were changed.
+
+### Slice 2C: Vercel / Env Config Audit
+
+On 2026-05-22, repository-local Vercel configuration and local env file names were inspected
+without changing config or printing secret values.
+
+Files inspected:
+
+- `vercel.json`;
+- `.env.local`;
+- `docs/ENVIRONMENT_PARITY_CHECKLIST.md`;
+- `docs/PRODUCTION_READINESS_AUDIT.md`;
+- `docs/PRODUCTION_BOOTSTRAP_PLAN.md`.
+
+Verified locally:
+
+- `vercel.json` still references the legacy hosted project `okwqhkrsjgxrhyisaovc`.
+- `vercel.json` Content Security Policy `connect-src` currently allows:
+  - `'self'`;
+  - `https://okwqhkrsjgxrhyisaovc.supabase.co`.
+- `vercel.json` does not currently include the modern staging Supabase host or a future clean
+  production Supabase host in `connect-src`.
+- `vercel.json` represents app/config origins including `'self'` and `https://cdn.jsdelivr.net`.
+- The only repo-root env file found is `.env.local`.
+- `.env.local` defines `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
+- `.env.local` `VITE_SUPABASE_URL` targets modern staging project ref `voompccpkjfcsmehdoqu`.
+- No local `.vercel` project-link directory exists.
+
+Requires Vercel dashboard confirmation:
+
+- Current Vercel project linkage and ownership.
+- Production deployment source commit/tag.
+- Production/preview/development env var names and target project refs.
+- Production and preview domain alignment with Supabase Auth redirect URLs and Edge Function
+  CORS/origin settings.
+- Any dashboard-level headers, redirects, build settings, or domains not represented in
+  repository-local `vercel.json`.
+
+Readiness conclusion:
+
+- Local config evidence confirms a cutover mismatch to resolve later: local `.env.local` targets
+  modern staging, while `vercel.json` CSP still allows only the legacy hosted Supabase URL for
+  browser `connect-src`.
+- This is not changed in Slice 2C by design.
+- Vercel deployment alignment remains `Needs verification` and must be resolved before production
+  cutover.
+- No env vars, `vercel.json`, Vercel dashboard settings, Supabase settings/projects, runtime code,
+  schema, storage, Edge Functions, or production project state were changed.
+
+### Slice 2D: Local Runtime Environment Verification
+
+On 2026-05-22, the local Vite runtime was verified against the current local frontend environment
+target without changing local env vars, Vercel dashboard settings, Supabase settings/projects, CSP,
+runtime code, schema, storage, Edge Functions, or production project state.
+
+Local app URL used:
+
+- `http://127.0.0.1:5173/`.
+
+Expected environment target:
+
+- modern staging Supabase project ref `voompccpkjfcsmehdoqu`.
+
+Files and commands inspected:
+
+- `docs/ENVIRONMENT_PARITY_CHECKLIST.md`;
+- `docs/PRODUCTION_READINESS_AUDIT.md`;
+- `package.json` scripts;
+- `.env.local` variable names and known project ref only;
+- served Vite root, `/dashboard`, `/orders`, `src/lib/supabaseClient.js`, and
+  `src/pages/Dashboard.jsx`;
+- runtime source scan for `voompccpkjfcsmehdoqu` and `okwqhkrsjgxrhyisaovc`;
+- headless Chrome DevTools Protocol route/network check for `/dashboard` and `/orders`.
+
+Verified locally:
+
+- `npm run dev -- --host 127.0.0.1` starts the frontend successfully after local server binding is
+  allowed. The first attempt was blocked by local sandbox restrictions with `listen EPERM` on
+  `127.0.0.1:5173`; the approved rerun started Vite normally.
+- The local app shell responds with HTTP 200 for `/`, `/dashboard`, and `/orders`.
+- The served Vite Supabase client module resolves `VITE_SUPABASE_URL` to modern staging project ref
+  `voompccpkjfcsmehdoqu`.
+- The served Dashboard module resolves its direct Supabase client initialization to the same modern
+  staging project ref.
+- Runtime source scan found no legacy project ref literal in active `src`, `public`, `index.html`,
+  `package.json`, or `vite.config.*` files.
+- A clean temporary browser profile had no active session; protected `/dashboard` and `/orders`
+  routes redirected to `/login` and rendered the Falcon sign-in screen.
+- Browser route content was nonblank, and no Vite/React error overlay appeared.
+- Browser network/resource capture showed no requests to legacy hosted project
+  `okwqhkrsjgxrhyisaovc`.
+- No Supabase API requests were made before login in the clean browser profile, so authenticated
+  dashboard/order data loading remains an explicit staging-user smoke item.
+- No mixed modern/legacy Supabase project behavior was observed in served runtime modules or the
+  browser route/resource capture.
+
+Runtime notes:
+
+- Local Vite responses do not apply the repository `vercel.json` CSP header, so this local check
+  cannot prove Vercel CSP behavior. The known 2C mismatch remains: repo CSP currently allows only
+  the legacy hosted Supabase URL while local `.env.local` targets modern staging.
+- Headless Chrome reported React Router v7 future-flag warnings.
+- Headless Chrome reported external stylesheet `net::ERR_BLOCKED_BY_ORB` failures; these were not
+  Supabase requests and were not evidence of project-target mixing.
+
+Readiness conclusion:
+
+- Local runtime target evidence is stronger: the current local app boots and serves frontend
+  Supabase configuration for modern staging rather than the legacy hosted project.
+- Authenticated dashboard/orders smoke still needs a known staging session or credentials.
+- Vercel deployment/CSP alignment remains `Needs verification` and should not be inferred from
+  local Vite behavior.
+- No env vars, `vercel.json`, Vercel dashboard settings, Supabase settings/projects, runtime code,
+  schema, storage, Edge Functions, or production project state were changed.
+
+### Slice 2E: Vercel Dashboard Verification Checklist
+
+On 2026-05-22, the manual Vercel dashboard verification checklist was defined before any deployed
+setting is touched. This slice is documentation-only and creates the evidence format for later
+manual dashboard inspection.
+
+Manual checks to perform in Vercel:
+
+- project link / project name;
+- production deployment commit SHA;
+- production deployment branch;
+- production domain;
+- preview domain behavior;
+- production env vars present by name only;
+- preview env vars present by name only;
+- whether production currently points to legacy or modern Supabase;
+- whether preview currently points to staging;
+- custom headers/CSP behavior from the deployed build;
+- rollback/deployment history availability.
+
+Evidence format:
+
+| Checked item | Observed value / safe summary | Status | Required follow-up |
+|---|---|---|---|
+| Vercel project link / project name | Project name only. | verified / mismatch / needs decision | Confirm intended Falcon frontend project. |
+| Production deployment commit SHA | Full SHA if visible. | verified / mismatch / needs decision | Compare with GitHub `main` and release tag expectations. |
+| Production deployment branch | Branch name only. | verified / mismatch / needs decision | Confirm `main` unless a release branch was approved. |
+| Production domain | Domain names only. | verified / mismatch / needs decision | Compare with Supabase Auth and Edge Function origins later. |
+| Preview domain behavior | Preview domain pattern or enabled/disabled summary. | verified / mismatch / needs decision | Decide intended preview Auth/CORS behavior. |
+| Production env vars present by name only | Names only, no values. | verified / mismatch / needs decision | Confirm required names exist before target changes. |
+| Preview env vars present by name only | Names only, no values. | verified / mismatch / needs decision | Confirm preview/staging naming parity. |
+| Production Supabase target classification | `legacy`, `modern staging`, `future production`, or `unknown`; safe project ref only if visible. | verified / mismatch / needs decision | Decide whether target is acceptable before cutover. |
+| Preview Supabase target classification | `staging`, `legacy`, `future production`, or `unknown`; safe project ref only if visible. | verified / mismatch / needs decision | Confirm preview does not point at final production by accident. |
+| Deployed custom headers/CSP | Header names and safe origin hostnames only. | verified / mismatch / needs decision | Compare deployed CSP with repo `vercel.json`; no CSP edits yet. |
+| Rollback/deployment history | Availability summary only. | verified / mismatch / needs decision | Define rollback owner and exact rollback path. |
+
+Do not record:
+
+- secret values;
+- anon key values;
+- service-role values;
+- full env var values;
+- screenshots containing secrets, token previews, env values, or sensitive dashboard panes.
+
+Safe next step:
+
+- Manually inspect the Vercel dashboard and capture evidence in the checklist format.
+- Do not change Vercel env vars yet.
+- Do not update CSP yet.
+- Do not change Supabase settings/projects.
+- Do not change runtime code.
+- Use captured evidence only to plan the later Vercel env/CSP alignment slice.
+
+Readiness conclusion:
+
+- Vercel dashboard verification remains `Needs verification` until the checklist is manually
+  completed.
+- The known repo-local mismatch remains unresolved by design: local `.env.local` targets modern
+  staging while repo `vercel.json` CSP still allows only the legacy hosted Supabase URL.
+- No Vercel settings, env vars, Supabase settings/projects, CSP, runtime code, schema, storage,
+  Edge Functions, or production project state were changed.
+
 ## Go / No-Go Summary
 
 Ready enough:

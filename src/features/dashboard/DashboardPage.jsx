@@ -119,6 +119,13 @@ function displayName(value, fallback) {
   return text || fallback;
 }
 
+function roleContextLabel({ isAdmin, isReviewer, role }) {
+  if (isAdmin) return "Owner / Admin";
+  if (isReviewer) return "Reviewer";
+  if (role === "appraiser") return "Appraiser";
+  return displayName(role, "Operational");
+}
+
 function addGroupedCount(map, id, label, fallback) {
   if (!id) return;
   const key = String(id);
@@ -372,16 +379,14 @@ export default function DashboardPage() {
     setStatusFilter((curr) => (curr === val ? "" : val));
   };
 
-  const title = isReviewer
-    ? "Reviewer Dashboard"
-    : isAdmin
-    ? "Admin Dashboard"
-    : "My Dashboard";
+  const title = "Operations Dashboard";
   const subtitle = isAdmin
-    ? "Monitor the schedule, active orders, and workflow handoffs."
+    ? "Calendar, active orders, and workflow handoffs for the current company."
     : isReviewer
-    ? "Review assigned orders and keep technical clearance moving."
-    : "Track assigned work, due dates, and revision requests.";
+    ? "Calendar context and review work assigned to your queue."
+    : "Calendar context, assigned orders, and revision follow-up.";
+  const companyLabel = displayName(appContext?.company_name, "Current company");
+  const roleLabel = roleContextLabel({ isAdmin, isReviewer, role: normalizedRole });
   const ordersCount = summary.orders.count ?? 0;
   const kpiValues = useMemo(
     () => ({
@@ -442,32 +447,46 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white/90 shadow-sm">
-        <div className="border-b border-slate-100 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-800 px-5 py-3 text-white">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-300">Falcon Operations</div>
-              <h1 className="mt-1.5 text-xl font-semibold tracking-tight">{title}</h1>
-              <p className="mt-1 max-w-2xl text-sm text-slate-300">{subtitle}</p>
+    <div className="space-y-5">
+      <section className="rounded-2xl border border-slate-200 bg-white/95 px-4 py-4 shadow-sm ring-1 ring-slate-100 sm:px-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="min-w-0">
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+              Falcon Operations
             </div>
-            <div className="rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-right shadow-sm">
-              <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-300">
-                Active Orders
+            <h1 className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-950">
+              {title}
+            </h1>
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">{subtitle}</p>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-3 lg:min-w-[420px]">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                Company
               </div>
-              <div className="mt-1 text-2xl font-semibold tracking-tight">
+              <div className="mt-1 truncate text-sm font-semibold text-slate-950">
+                {companyLabel}
+              </div>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                Work View
+              </div>
+              <div className="mt-1 truncate text-sm font-semibold text-slate-950">
+                {roleLabel}
+              </div>
+            </div>
+            <div className="rounded-xl border border-slate-900 bg-slate-950 px-3 py-2 text-white">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-300">
+                Active
+              </div>
+              <div className="mt-1 text-2xl font-semibold leading-none tracking-tight tabular-nums">
                 {loading ? "-" : ordersCount}
               </div>
             </div>
           </div>
         </div>
       </section>
-
-      <OperationalKpiCards loading={loading} values={kpiValues} />
-
-      <WorkloadVisibilitySection loading={loading} summary={workloadSummary} />
-
-      {isAdmin && <OperationalReadinessCard items={readinessItems} />}
 
       <OwnerSetupDashboardPrompt />
 
@@ -495,7 +514,7 @@ export default function DashboardPage() {
         />
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_13rem]">
+      <section className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_12rem]">
         {/* Orders section */}
         {cfg.showOrdersTable && (
           <div className="space-y-2">
@@ -520,7 +539,7 @@ export default function DashboardPage() {
           </div>
         )}
 
-        <aside className="space-y-3 lg:sticky lg:top-24 lg:self-start">
+        <aside className="space-y-3 lg:sticky lg:top-20 lg:self-start">
           <section className="space-y-3">
             <div className="flex items-baseline justify-between gap-2">
               <div>
@@ -538,6 +557,26 @@ export default function DashboardPage() {
             />
           </section>
         </aside>
+      </section>
+
+      <section
+        aria-labelledby="dashboard-support-heading"
+        className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-3 shadow-sm ring-1 ring-slate-100 sm:p-4"
+      >
+        <div>
+          <h2
+            id="dashboard-support-heading"
+            className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500"
+          >
+            Operational Support
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Secondary context from existing dashboard reads.
+          </p>
+        </div>
+        <OperationalKpiCards loading={loading} values={kpiValues} />
+        <WorkloadVisibilitySection loading={loading} summary={workloadSummary} />
+        {isAdmin && <OperationalReadinessCard items={readinessItems} />}
       </section>
 
       {/* Placeholder for future review queue */}
@@ -829,15 +868,18 @@ export function OwnerSetupDashboardPrompt() {
   if (!canViewSettings.allowed) return null;
 
   return (
-    <section className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-amber-950 shadow-sm">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <section className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950 shadow-sm">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="min-w-0">
           <div className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">
-            Diagnostic guidance only
+            Setup Guidance
           </div>
-          <h2 className="mt-1 text-base font-semibold text-slate-950">Review owner setup</h2>
-          <p className="mt-1 max-w-3xl text-sm leading-6 text-amber-900">
-            Review company setup readiness without changing permissions, workflow, route access, or operational visibility.
+          <h2 className="mt-0.5 text-sm font-semibold text-slate-950">
+            Review owner setup readiness
+          </h2>
+          <p className="mt-1 max-w-3xl text-sm leading-5 text-amber-900">
+            Diagnostic guidance only. This does not change permissions, workflow, route access, or
+            operational visibility.
           </p>
         </div>
         <Link

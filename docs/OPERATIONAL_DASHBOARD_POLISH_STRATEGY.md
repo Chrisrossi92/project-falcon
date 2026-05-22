@@ -785,3 +785,110 @@ Preserved:
 analytics queries, data sources, smart-action changes, or dashboard mutation behavior.
 
 Tests were updated to assert `Calendar` renders and the removed calendar copy does not render.
+
+## 10K10 Implementation Update
+
+Phase 10K10 polished the dashboard header into a cleaner command-center surface while preserving
+dashboard authority and data sources.
+
+Implemented:
+
+- Replaced role-specific page titles with a stable `Operations Dashboard` title.
+- Added calmer role-aware subtitle copy:
+  - owner/admin: current-company calendar, active orders, and workflow handoffs;
+  - reviewer: calendar context and assigned review work;
+  - appraiser/default: calendar context, assigned orders, and revision follow-up.
+- Added compact header context chips for:
+  - current company name from existing app context;
+  - current work view / role lens from existing dashboard summary state;
+  - active order count from existing `summary.orders.count`.
+- Tightened header spacing, alignment, and responsive stacking.
+- Refined the Owner Setup prompt into a compact `Setup Guidance` strip below the operational
+  header so setup/readiness stays separate from operational work.
+- Kept Calendar immediately after the setup prompt as the primary operational context.
+- Kept Orders immediately after Calendar as the primary work surface.
+- Kept the deterministic single-column Status rail beside the Orders table on wide screens and
+  stacked naturally on smaller screens.
+- Moved KPI cards, workload visibility, and operational readiness into a clearly labeled
+  `Operational Support` section below the primary Calendar plus Orders flow.
+- Tightened the desktop rail from `13rem` to `12rem` and adjusted sticky offset from `top-24` to
+  `top-20` so it reads as a supporting control rather than a competing panel.
+
+Preserved:
+
+- Calendar remains the primary operational context.
+- Orders table remains the primary work surface.
+- Status rail remains deterministic and simple.
+- Status counts still derive from already loaded dashboard `ordersRows`.
+- Header active count still derives from existing `summary.orders.count`.
+- Company and role context derive from existing dashboard/app context only.
+- Owner Setup prompt remains permission-gated by existing `settings.view`.
+- Operational readiness remains read-only and diagnostic.
+- Smart actions remain in the existing table/drawer workflow.
+
+10K10 did not add backend calls, migrations, routes, registries, permissions, RLS/RPCs,
+analytics queries, new dashboard data sources, fake KPIs, predictive scoring, product-mode/module
+authority, dashboard authority changes, or dashboard mutation behavior.
+
+Tests were updated in `src/features/dashboard/__tests__/DashboardPage.test.jsx` and
+`src/features/dashboard/__tests__/OwnerSetupDashboardPrompt.test.jsx` to assert the unified
+header, company/work-view context, primary Calendar/Orders/Status ordering, secondary support
+section, compact setup guidance copy, and preserved table/status filtering behavior.
+
+## 10K11 Closeout / Dashboard Polish Foundation Lock
+
+Phase 10K11 closes out the current Operational Dashboard polish foundation as complete for this
+track. The completed dashboard is an operational command-center surface, not an analytics product,
+forecasting engine, or product-mode dashboard framework.
+
+Locked completed foundation:
+
+- Unified `Operations Dashboard` header.
+- Compact current company, work-view, and active-order context derived from existing dashboard/app
+  context.
+- Setup/readiness guidance separated from operational work as a read-only `Setup Guidance` prompt.
+- Calendar remains first as the primary operational context.
+- Orders remains the primary work surface.
+- Deterministic Status rail remains simple, based on existing loaded dashboard rows and canonical
+  order statuses.
+- KPI cards, workload visibility, and read-only operational readiness live in secondary
+  `Operational Support`.
+- Dashboard copy avoids fake urgency, fake analytics, predictive scoring, and unsupported pressure
+  language.
+
+Locked guardrails:
+
+- No backend changes.
+- No new queries.
+- No analytics redesign.
+- No dashboard authority changes.
+- No product-mode authority.
+- No hidden mutation behavior.
+- No cross-company aggregates.
+- No fake KPIs.
+- No predictive scoring.
+- No dashboard-level mutation controls outside existing table/drawer smart-action paths.
+- No assignment packet data blended into owned-order dashboard lanes.
+- No Vendor or Client dashboard leakage of internal order/review/staff workload.
+- Existing `DashboardGate`, route guards, permissions, order projections, `UnifiedOrdersTable`,
+  `DashboardCalendarPanel`, and smart-action/canonical workflow paths remain authoritative.
+
+Deferred dashboard work:
+
+- Richer owner analytics/reporting page.
+- True server-side analytics if active-row frontend aggregation becomes insufficient.
+- Configurable dashboard widgets.
+- Dashboard personalization.
+- Mode-specific dashboards later for Staff, AMC, Vendor, Client, and Hybrid experiences.
+- Calendar scheduling intelligence later.
+- Workload trends, aging buckets, staffing/forecasting, review-cycle analytics, and exports.
+- Production/deployment verification remains separate from dashboard polish.
+
+Recommended next direction:
+
+- Pause the Operational Dashboard polish track at 10K11 unless production smoke or user feedback
+  identifies a concrete layout issue.
+- Treat richer analytics/reporting as a new design phase with backend/data contracts before
+  implementation.
+- Treat mode-specific dashboards as future product-mode runtime work, not an extension of the
+  current Staff/default operational dashboard polish.

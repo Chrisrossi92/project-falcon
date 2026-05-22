@@ -199,17 +199,287 @@ Baseline tags to preserve and verify:
 - `operational-ux-foundation-v1`;
 - `operational-timeline-foundation-v1`;
 - `saved-views-foundation-v1`;
-- `document-experience-foundation-v1`.
+- `document-experience-foundation-v1`;
+- `production-readiness-foundation-v1`;
+- `admin-onboarding-foundation-v1`;
+- `admin-onboarding-team-access-v1`;
+- `admin-invite-flow-polish-v1`.
 
 Tag parity checks:
 
 - Confirm each tag exists locally and remotely before final cutover.
-- Confirm `document-experience-foundation-v1` exists or create it in a separate approved release
-  hygiene slice before relying on it as a rollback marker.
 - Record which tag/commit Vercel production currently serves before cutover.
 - Record the post-cutover tag/commit after smoke validation.
 - Rollback should restore previous Vercel env/deployment and point traffic back to legacy or the
   previously approved project; it should not attempt reverse migration of the final project.
+
+## Evidence Capture Log
+
+### 2026-05-22 Local / GitHub / Vercel Evidence
+
+Commands run:
+
+```bash
+git rev-parse --abbrev-ref HEAD
+git rev-parse HEAD
+git tag --sort=creatordate
+git tag --points-at HEAD
+git remote -v
+git ls-remote --tags origin
+git ls-remote --heads origin main
+node --version
+npm --version
+supabase --version
+docker --version
+vercel --version
+cat vercel.json
+test -d .vercel
+date '+%Y-%m-%d %H:%M:%S %Z'
+```
+
+Verified locally:
+
+- Branch: `main`.
+- Commit: `a25a588251093b9c464a95ee41176faef572e80c`.
+- Tag at `HEAD`: `admin-invite-flow-polish-v1`.
+- Local tags:
+  - `governance-baseline-v1`;
+  - `product-expansion-foundation-v1`;
+  - `operations-dashboard-foundation-v1`;
+  - `operational-ux-foundation-v1`;
+  - `operational-timeline-foundation-v1`;
+  - `saved-views-foundation-v1`;
+  - `document-experience-foundation-v1`;
+  - `production-readiness-foundation-v1`;
+  - `admin-onboarding-foundation-v1`;
+  - `admin-onboarding-team-access-v1`;
+  - `admin-invite-flow-polish-v1`.
+- Git remote: `origin` points to `https://github.com/Chrisrossi92/project-falcon.git`.
+- Node: `v22.16.0`.
+- npm: `10.8.0`.
+- Supabase CLI: `2.101.0`.
+- Docker: `29.4.3`.
+- Vercel CLI: `47.0.6`.
+- Local `vercel.json` exists.
+- Local `.vercel` project-link directory is not present.
+- Evidence timestamp: `2026-05-22 17:02:27 EDT`.
+
+Verified by read-only GitHub remote query:
+
+- `origin/main` points to `a25a588251093b9c464a95ee41176faef572e80c`, matching local `HEAD` at
+  capture time.
+- The local tags listed above are present on `origin`.
+- `admin-invite-flow-polish-v1` resolves to `a25a588251093b9c464a95ee41176faef572e80c`.
+
+Verified from docs/repo configuration:
+
+- Modern staging Supabase project ref remains `voompccpkjfcsmehdoqu`.
+- Legacy hosted Supabase project ref remains `okwqhkrsjgxrhyisaovc`.
+- The no-retrofit legacy decision remains documented: modern company-scoped features should not be
+  pushed into the legacy hosted schema as a retrofit.
+- `vercel.json` currently includes a `connect-src` Content Security Policy entry for
+  `https://okwqhkrsjgxrhyisaovc.supabase.co`.
+
+Requires GitHub / Vercel UI confirmation:
+
+- The currently deployed Vercel production commit and deployment tag.
+- Vercel production and preview environment-variable values.
+- Vercel production domain and preview-domain behavior.
+- Whether the Vercel project is linked in the dashboard even though no local `.vercel` directory is
+  present.
+
+Requires Supabase dashboard confirmation:
+
+- Modern staging project settings, auth redirect URLs, Edge Function deployment status, storage
+  bucket/policy status, and migration head.
+- Legacy hosted project settings and production/archive state.
+- Future clean production project remains not created / not yet verified.
+
+Not yet verified:
+
+- Remote GitHub tag protection or release metadata beyond read-only tag presence.
+- Vercel deployment alignment with the current `main` commit.
+- Supabase dashboard migration history for staging/future production.
+- Final production Supabase project ref, secrets, storage, functions, redirects, and bootstrap
+  state.
+
+### 2026-05-22 Vercel / Env Config Audit
+
+Production Verification Slice 2C inspected repository-local deployment configuration and local env
+file names only. No env values, secrets, Vercel dashboard settings, Supabase settings, runtime
+files, or `vercel.json` contents were changed.
+
+Commands/files inspected:
+
+```bash
+cat vercel.json
+find . -maxdepth 1 -name '.env*' -type f -print
+awk -F= '/^[A-Za-z_][A-Za-z0-9_]*=/{print FILENAME ":" $1}' .env.local
+awk -F= '/^[A-Za-z_][A-Za-z0-9_]*=/{...known project ref detection only...}' .env.local
+test -d .vercel
+```
+
+Verified locally:
+
+- `vercel.json` exists and still references the legacy hosted Supabase project ref
+  `okwqhkrsjgxrhyisaovc`.
+- The `Content-Security-Policy` in `vercel.json` has this `connect-src` shape:
+  - `'self'`;
+  - `https://okwqhkrsjgxrhyisaovc.supabase.co`.
+- `vercel.json` also represents these non-Supabase app/config origins:
+  - `'self'`;
+  - `https://cdn.jsdelivr.net` for script/style loading.
+- No modern staging Supabase host and no future clean production Supabase host are currently present
+  in the `vercel.json` `connect-src` allowlist.
+- The only local env file found at repo root is `.env.local`.
+- `.env.local` defines these frontend Vite env var names:
+  - `VITE_SUPABASE_URL`;
+  - `VITE_SUPABASE_ANON_KEY`.
+- `.env.local` `VITE_SUPABASE_URL` targets project ref `voompccpkjfcsmehdoqu`.
+- No env secret values were printed or recorded.
+- No local `.vercel` project-link directory exists.
+
+Expected frontend Vite env var names:
+
+- `VITE_SUPABASE_URL`;
+- `VITE_SUPABASE_ANON_KEY`;
+- `VITE_GOOGLE_MAPS_API_KEY` or `VITE_GOOGLE_MAPS_KEY` where maps are enabled.
+
+Requires Vercel dashboard confirmation:
+
+- Current Vercel project link/ownership, because no local `.vercel` project-link directory exists.
+- Production deployment source commit/tag.
+- Production, preview, and development env var names and target project refs.
+- Whether production currently points at the legacy hosted project, staging, or another target.
+- Whether the production domain, preview domains, and any custom domains match Supabase Auth and
+  Edge Function CORS/origin configuration.
+- Whether Vercel has additional headers, redirects, domains, or build settings not represented in
+  repo-local `vercel.json`.
+- Future cutover requirement: before production points at a clean modern Supabase project,
+  `vercel.json` CSP `connect-src` and Vercel env vars must be reviewed together so frontend network
+  policy and Supabase target agree.
+
+### 2026-05-22 Local Runtime Environment Verification
+
+Production Verification Slice 2D verified the local Vite runtime against the current local env
+target without changing env vars, Vercel settings, Supabase settings/projects, CSP, runtime code, or
+dashboard configuration.
+
+Commands/files inspected:
+
+```bash
+sed -n '1,260p' docs/ENVIRONMENT_PARITY_CHECKLIST.md
+sed -n '1,260p' docs/PRODUCTION_READINESS_AUDIT.md
+node -e "const p=require('./package.json'); console.log(JSON.stringify(p.scripts,null,2))"
+ls -la .env.local
+awk -F= '/^[A-Za-z_][A-Za-z0-9_]*=/{...variable name and known project ref detection only...}' .env.local
+npm run dev -- --host 127.0.0.1
+curl -sS -D - http://127.0.0.1:5173/
+curl -sS -D - http://127.0.0.1:5173/dashboard
+curl -sS -D - http://127.0.0.1:5173/orders
+curl -sS http://127.0.0.1:5173/src/lib/supabaseClient.js
+curl -sS http://127.0.0.1:5173/src/pages/Dashboard.jsx
+rg -n "okwqhkrsjgxrhyisaovc|voompccpkjfcsmehdoqu" src public index.html package.json vite.config.*
+headless Chrome DevTools Protocol route/network check for /dashboard and /orders
+```
+
+Verified locally:
+
+- Local app URL used: `http://127.0.0.1:5173/`.
+- Expected environment target: modern staging project ref `voompccpkjfcsmehdoqu`.
+- The first dev-server start attempt was blocked by local sandbox network binding restrictions
+  (`listen EPERM` on `127.0.0.1:5173`); rerunning the same local dev command with local server
+  approval started Vite successfully.
+- Root, `/dashboard`, and `/orders` returned the Vite app shell with HTTP 200 responses.
+- The served Vite Supabase client module resolves `VITE_SUPABASE_URL` to modern staging project ref
+  `voompccpkjfcsmehdoqu`.
+- The served Dashboard module also resolves its direct Supabase client initialization to modern
+  staging project ref `voompccpkjfcsmehdoqu`.
+- Runtime source scan across `src`, `public`, `index.html`, `package.json`, and `vite.config.*`
+  found no direct legacy or modern project ref literals in runtime source files.
+- Headless Chrome route checks loaded `/dashboard` and `/orders`; both protected routes redirected
+  to `/login` in the clean temporary browser profile.
+- Auth/session behavior observed: no existing session was present in the temporary browser profile,
+  so the app rendered the Falcon sign-in screen instead of authenticated dashboard/orders content.
+- Browser route content was nonblank, and no Vite/React error overlay appeared.
+- Browser network/resource capture saw no requests to legacy hosted project
+  `okwqhkrsjgxrhyisaovc`.
+- Browser network/resource capture saw no Supabase API requests before login because the clean
+  browser profile had no active session and no credentials were submitted.
+- No mixed modern/legacy Supabase project behavior was observed in served runtime modules or browser
+  route/resource capture.
+- Local Vite responses did not include the repo `vercel.json` Content Security Policy header, so
+  this local check cannot prove Vercel CSP behavior. The 2C CSP mismatch remains a Vercel
+  configuration item to confirm later.
+
+Observed nonblocking local runtime notes:
+
+- Headless Chrome reported React Router v7 future-flag warnings.
+- Headless Chrome reported stylesheet `net::ERR_BLOCKED_BY_ORB` failures for external stylesheet
+  resources; these were not Supabase requests and were not evidence of legacy/modern project
+  mixing.
+
+Still requires authenticated/browser confirmation:
+
+- Dashboard and Orders authenticated data loading with a known staging user.
+- Auth login success against modern staging.
+- Vercel preview/production CSP behavior after `connect-src` is aligned with the intended Supabase
+  target.
+- Vercel dashboard environment-variable target refs and deployed-domain behavior.
+
+### 2026-05-22 Vercel Dashboard Verification Checklist
+
+Production Verification Slice 2E defines the exact manual Vercel dashboard verification checklist
+to run before touching deployed settings. This is evidence capture only. Do not change Vercel env
+vars, project settings, domains, deployment aliases, custom headers, build settings, Supabase
+settings, Supabase projects, local env files, `vercel.json`, CSP, runtime code, or production data
+while completing this checklist.
+
+Safe evidence rules:
+
+- Record env var names only.
+- Record Supabase project refs only when visible from a URL or safe project identifier.
+- Record deployment commit SHA, branch, domain names, and dashboard-safe project names.
+- Record whether each finding is verified, a mismatch, or needs a decision.
+- Do not record secret values.
+- Do not record anon key values.
+- Do not record service-role values.
+- Do not paste full env var values into docs, tickets, chat, screenshots, or terminal logs.
+- Do not attach screenshots containing env values, tokens, secret previews, or sensitive dashboard
+  panes.
+- If a screenshot is needed later, crop or redact it before storage and prefer text evidence.
+
+Manual dashboard checks:
+
+| Checked item | Observed value / safe summary | Status | Required follow-up |
+|---|---|---|---|
+| Vercel project link / project name | TBD manual dashboard capture. Record project name only. | Needs decision | Confirm this is the intended Falcon frontend project before env or domain work. |
+| Production deployment commit SHA | TBD manual dashboard capture. Record full SHA if visible. | Needs decision | Compare against GitHub `main` and release tag expectations. |
+| Production deployment branch | TBD manual dashboard capture. Record branch name only. | Needs decision | Confirm production deploys from `main` unless a release branch was intentionally approved. |
+| Production domain | TBD manual dashboard capture. Record domain names only. | Needs decision | Compare with Supabase Auth redirect URLs and Edge Function CORS/origin settings later. |
+| Preview domain behavior | TBD manual dashboard capture. Record preview domain pattern or enabled/disabled summary. | Needs decision | Decide whether previews should be allowed in Supabase Auth/CORS before cutover. |
+| Production env vars present by name only | TBD manual dashboard capture. Expected names include `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and any app-origin/map keys in use. | Needs decision | Do not record values. Confirm required names exist before any target change. |
+| Preview env vars present by name only | TBD manual dashboard capture. Expected names include `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and any app-origin/map keys in use. | Needs decision | Do not record values. Confirm preview names match intended staging/preview behavior. |
+| Production Supabase target classification | TBD manual dashboard capture. Record only `legacy`, `modern staging`, `future production`, or `unknown`; include safe project ref if visible. | Needs decision | Determine whether production currently points to legacy `okwqhkrsjgxrhyisaovc`, modern staging `voompccpkjfcsmehdoqu`, or another project. |
+| Preview Supabase target classification | TBD manual dashboard capture. Record only `staging`, `legacy`, `future production`, or `unknown`; include safe project ref if visible. | Needs decision | Confirm preview currently points to staging/preview, not final production by accident. |
+| Custom headers / CSP behavior from deployed build | TBD manual deployed-response capture. Record header names and safe origin hostnames only. | Needs decision | Compare deployed CSP with repo `vercel.json`; do not update CSP yet. |
+| Rollback / deployment history availability | TBD manual dashboard capture. Record whether prior deployments and rollback/promote controls are available. | Needs decision | Define rollback owner and exact rollback path before cutover. |
+
+Status values:
+
+- `Verified`: observed value matches the expected production-readiness direction.
+- `Mismatch`: observed value conflicts with the expected direction or known docs.
+- `Needs decision`: observed value is unknown, ambiguous, not yet checked, or requires product/release
+  owner approval before changes.
+
+Proposed safe next step:
+
+1. Manually inspect the Vercel dashboard using this checklist.
+2. Capture only safe evidence in the table above or in a follow-up evidence section.
+3. Do not change env vars yet.
+4. Do not update CSP yet.
+5. Do not change domains, aliases, build settings, redirects, headers, or deployment promotions yet.
+6. Use the captured evidence to decide the later Vercel env/CSP alignment slice.
 
 ## Explicit Non-Goals For Slice 1C
 

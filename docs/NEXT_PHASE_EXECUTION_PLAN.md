@@ -252,6 +252,48 @@ Deferred workload work remains optional reviewer filter control UX, overdue-by-a
 aging buckets, charts/trends, staffing/forecasting support, and server-side analytics views or RPCs
 only if active-row frontend aggregation becomes insufficient.
 
+### Completed Operational Dashboard Polish Foundation
+
+Operational Dashboard Slices 10K1 through 10K11 complete the current Staff/default operational
+dashboard polish foundation in `docs/OPERATIONAL_DASHBOARD_POLISH_STRATEGY.md`.
+
+The locked foundation is:
+
+- unified `Operations Dashboard` header;
+- compact current company, work-view, and active-order context from existing dashboard/app context;
+- setup/readiness separated as a read-only `Setup Guidance` prompt;
+- Calendar remains first as the primary operational context;
+- Orders remains the primary work surface;
+- deterministic Status rail remains simple and derived from already loaded dashboard rows;
+- KPI cards, workload visibility, and read-only operational readiness live in secondary
+  `Operational Support`;
+- no fake analytics, fake KPIs, predictive scoring, hidden priority model, or unsupported pressure
+  language.
+
+Guardrails:
+
+- no backend changes;
+- no new queries;
+- no analytics redesign;
+- no dashboard authority changes;
+- no product-mode authority;
+- no hidden mutation behavior;
+- no cross-company aggregates;
+- no dashboard-level mutation controls outside existing table/drawer smart-action paths;
+- existing `DashboardGate`, route guards, permissions, order projections, calendar panel, Orders
+  table, and canonical workflow paths remain authoritative.
+
+Deferred dashboard work:
+
+- richer owner analytics/reporting page;
+- true server-side analytics if needed;
+- configurable dashboard widgets;
+- dashboard personalization;
+- mode-specific dashboards later;
+- calendar scheduling intelligence later;
+- workload trends, aging buckets, staffing/forecasting, review-cycle analytics, and exports;
+- production/deployment verification remains separate from dashboard polish.
+
 ### Completed Orders Filtering/Search Audit
 
 Operational UX Slice B1 inventories the active Orders filtering/search surface in

@@ -33,6 +33,58 @@ that does not replace full reset/replay validation. Before production cutover, F
 true clean replay path in local Docker or a disposable Supabase project, including storage/function
 dependencies where applicable.
 
+## Local Replay Status Log
+
+### 2026-05-22 Local Reset Attempt
+
+Validation target:
+
+- local Supabase only;
+- branch `main`;
+- Supabase CLI `2.101.0`;
+- Docker `29.4.3`;
+- timestamp captured at `2026-05-22 16:56:01 EDT`.
+
+Commands run:
+
+```bash
+supabase db reset
+supabase --version
+docker --version
+git rev-parse --abbrev-ref HEAD
+date '+%Y-%m-%d %H:%M:%S %Z'
+```
+
+Result:
+
+- The first `supabase db reset` attempt was blocked by local sandbox permissions when the CLI tried
+  to write `/Users/christopherrossi/.supabase/telemetry.json`.
+- The same command was rerun with local filesystem approval for the Supabase CLI only.
+- The reset reached `Resetting local database`, `Recreating database`, and `Initialising schema`.
+- Full migration replay did not complete.
+- Docker failed to resolve the required storage image:
+
+```text
+public.ecr.aws/supabase/storage-api:optimize-existing-functions-again
+```
+
+Exact reset failure:
+
+```text
+failed to pull docker image: Error response from daemon: failed to resolve reference
+"public.ecr.aws/supabase/storage-api:optimize-existing-functions-again":
+public.ecr.aws/supabase/storage-api:optimize-existing-functions-again: not found
+```
+
+Status:
+
+- Local full reset/replay remains blocked.
+- Migration replay confidence remains unvalidated for production cutover.
+- Targeted `psql` replay remains a fallback for validating specific reviewed migrations only.
+- Targeted `psql` replay does not replace full local reset or fresh-project replay evidence.
+- No staging, hosted legacy, production, Vercel, storage, Edge Function, or environment change was
+  made as part of this status check.
+
 ## Prerequisites
 
 - Confirm the intended validation target:
