@@ -401,6 +401,33 @@ automation, role-specific onboarding, storage/permission/backend validation sign
 vendor onboarding, setup completion tracking, onboarding emails, setup templates, billing, and
 subscription setup.
 
+Admin Onboarding Slice 2A plans the next Team Access onboarding/admin UX improvements without
+runtime changes. The current foundation already includes company member listing, governed
+role/status APIs, invitation RPC/Edge infrastructure, owner/admin hierarchy, permission-based route
+access, and the company-scoped membership model. The recommended first implementation is
+read-only/status clarity polish: clearer member status chips, active versus invited grouping,
+plain-language role summaries, pending-invite next-step copy, owner/admin help text, and safer
+empty states. Invite behavior, role editing behavior, permissions, backend APIs/RPCs, and company
+scope remain unchanged.
+
+Deferred Team Access onboarding work remains guided invite wizard, role templates, bulk invites,
+onboarding email polish, permission diff views, audit trail for access changes, role-specific
+onboarding paths, and access review exports.
+
+Admin Onboarding Slices 2B through 2D audit, implement, and close out the first Team Access
+readability polish foundation. The locked foundation keeps Team Access on existing governed member
+and invitation data, groups active members under `Active Team Members`, groups non-active rows
+under `Inactive / Invited Members` when inactive rows are shown, emphasizes Owner/Admin state from
+existing safe fields, shows role primary markers separately, adds compact access summaries, improves
+empty states, and clarifies Pending Invitations status help/copy. Guardrails remain unchanged: no
+permission changes, no role editing behavior changes, no invite flow changes, no hidden escalation,
+no frontend-invented permissions, company scope remains authoritative, and existing RPC/Edge paths
+remain the only approved member/role/invitation mutation paths.
+
+Deferred Team Access onboarding work after closeout remains guided invite wizard, role templates,
+bulk invites, onboarding email polish, permission diff views, audit trail for access changes,
+role-specific onboarding paths, access review exports, and deeper setup checklist automation.
+
 Guardrails require onboarding to respect company scope/RLS, avoid hidden permission escalation,
 keep owner/admin authority backend authoritative, keep setup helpers advisory/read-only where
 possible, and avoid any mutation shortcut that bypasses RPC/Edge ownership.

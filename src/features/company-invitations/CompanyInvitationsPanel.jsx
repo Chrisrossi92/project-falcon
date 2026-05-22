@@ -40,6 +40,18 @@ function statusClass(status) {
   return "border-slate-200 bg-slate-100 text-slate-600";
 }
 
+function statusHelp(status) {
+  const labels = {
+    prepared: "Ready to send or resend",
+    sent: "Waiting for acceptance",
+    auth_failed: "Email send needs attention",
+    accepted: "Access accepted",
+    cancelled: "Invite no longer active",
+    expired: "Send a new invite if needed",
+  };
+  return labels[status] || "Invitation state recorded";
+}
+
 function safeInvitationError(error, fallback) {
   const text = `${error?.code || ""} ${error?.message || ""}`.toLowerCase();
   if (/invitation_not_found|not_resendable|not_cancelable|no longer/.test(text)) {
@@ -61,7 +73,7 @@ function roleNames(invitation) {
   if (!roles.length) return "-";
   return roles.map((role) => {
     const label = role.display_name || role.role_name || role.role_key || "Role";
-    return role.is_primary ? `${label} primary` : label;
+    return role.is_primary ? `${label} (primary)` : label;
   }).join(", ");
 }
 
@@ -153,7 +165,9 @@ export default function CompanyInvitationsPanel({
         <div>
           <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Team Access</div>
           <h2 className="mt-1 text-lg font-semibold text-slate-950">{title}</h2>
-          <p className="mt-1 text-sm text-slate-500">Invitations do not grant access until accepted.</p>
+          <p className="mt-1 text-sm text-slate-500">
+            Pending invitations are separate from active team membership and do not grant access until accepted.
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <select
@@ -197,7 +211,9 @@ export default function CompanyInvitationsPanel({
         </div>
       ) : rows.length === 0 ? (
         <div className="px-4 py-6 text-sm text-slate-500">
-          {status === "open" ? "No pending invitations." : "No invitations found."}
+          {status === "open"
+            ? "No pending invitations. Invite a member when another person needs company access."
+            : "No invitations found for this filter."}
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -220,9 +236,12 @@ export default function CompanyInvitationsPanel({
                 <tr key={invitation.invitation_id} className="align-top">
                   <td className="px-4 py-3 font-medium text-slate-900">{invitation.invite_email}</td>
                   <td className="px-4 py-3">
-                    <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${statusClass(invitation.invitation_status)}`}>
-                      {statusLabel(invitation.invitation_status)}
-                    </span>
+                    <div className="grid gap-1">
+                      <span className={`inline-flex w-fit rounded-full border px-2 py-0.5 text-xs font-medium ${statusClass(invitation.invitation_status)}`}>
+                        {statusLabel(invitation.invitation_status)}
+                      </span>
+                      <span className="text-xs text-slate-500">{statusHelp(invitation.invitation_status)}</span>
+                    </div>
                   </td>
                   <td className="max-w-xs px-4 py-3 text-slate-600">{roleNames(invitation)}</td>
                   <td className="px-4 py-3 text-slate-600">{invitation.invited_by_display_name || "-"}</td>

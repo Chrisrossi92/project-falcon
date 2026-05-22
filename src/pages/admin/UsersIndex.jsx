@@ -43,6 +43,7 @@ function statusClass(status) {
   const normalized = String(status || "").toLowerCase();
   if (normalized === "active") return "border-emerald-200 bg-emerald-50 text-emerald-700";
   if (normalized === "invited") return "border-blue-200 bg-blue-50 text-blue-700";
+  if (normalized === "inactive") return "border-slate-300 bg-slate-50 text-slate-600";
   return "border-slate-200 bg-slate-100 text-slate-600";
 }
 
@@ -61,11 +62,22 @@ function primaryRoleId(member) {
 
 function roleLabels(member) {
   const roles = roleAssignments(member);
-  if (!roles.length) return ["No active role"];
-  return roles.map((role) => {
-    const name = role.role_name || "Role";
-    return role.is_primary ? `${name} primary` : name;
-  });
+  if (!roles.length) return [{ name: "No active role", primary: false, owner: false, admin: false }];
+  return roles.map((role) => ({
+    name: role.role_name || "Role",
+    primary: Boolean(role.is_primary),
+    owner: Boolean(role.is_owner_role) || String(role.role_name || "").toLowerCase() === "owner",
+    admin: String(role.role_name || "").toLowerCase() === "admin",
+  }));
+}
+
+function memberAccessSummary(member) {
+  const roles = roleAssignments(member);
+  if (member?.is_owner || roles.some((role) => role.is_owner_role || String(role.role_name || "").toLowerCase() === "owner")) {
+    return "Owner-protected access";
+  }
+  if (!roles.length) return "No active role assigned";
+  return `${roles.length} active ${roles.length === 1 ? "role" : "roles"}`;
 }
 
 function safeMemberActionError(error, fallback) {
@@ -298,6 +310,8 @@ function MemberCard({ member, busy, onEditRoles, onSetStatus }) {
   const color = getMemberColor(member);
   const roles = roleLabels(member);
   const status = String(member.membership_status || "").toLowerCase();
+  const hasOwnerAccess = member?.is_owner || roles.some((role) => role.owner);
+  const hasAdminAccess = roles.some((role) => role.admin);
 
   return (
     <article className="flex min-h-72 flex-col rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
@@ -314,15 +328,28 @@ function MemberCard({ member, busy, onEditRoles, onSetStatus }) {
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="truncate font-semibold text-slate-950">{name}</div>
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <div className="truncate font-semibold text-slate-950">{name}</div>
+            {hasOwnerAccess && (
+              <span className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                Owner
+              </span>
+            )}
+            {!hasOwnerAccess && hasAdminAccess && (
+              <span className="inline-flex rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700">
+                Admin
+              </span>
+            )}
+          </div>
           <div className="truncate text-xs text-slate-500">{member.email || "-"}</div>
           <div className="mt-2 flex flex-wrap gap-1">
             {roles.map((role) => (
               <span
-                key={role}
+                key={`${role.name}-${role.primary ? "primary" : "role"}`}
                 className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-700"
               >
-                {role}
+                {role.name}
+                {role.primary && <span className="ml-1 text-slate-400">Primary</span>}
               </span>
             ))}
           </div>
@@ -335,6 +362,10 @@ function MemberCard({ member, busy, onEditRoles, onSetStatus }) {
           <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${statusClass(status)}`}>
             {statusLabel(status)}
           </span>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-slate-500">Access summary</span>
+          <span className="text-right text-xs font-medium text-slate-700">{memberAccessSummary(member)}</span>
         </div>
         <div className="flex items-center justify-between gap-3">
           <span className="text-slate-500">Login linked</span>
@@ -420,6 +451,14 @@ export default function UsersIndex() {
 
   const activeCount = useMemo(
     () => members.filter((member) => String(member.membership_status || "").toLowerCase() === "active").length,
+    [members]
+  );
+  const activeMembers = useMemo(
+    () => members.filter((member) => String(member.membership_status || "").toLowerCase() === "active"),
+    [members]
+  );
+  const inactiveOrInvitedMembers = useMemo(
+    () => members.filter((member) => String(member.membership_status || "").toLowerCase() !== "active"),
     [members]
   );
 
@@ -533,9 +572,10 @@ export default function UsersIndex() {
         <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
             <UserRoundX className="h-4 w-4 text-slate-500" aria-hidden="true" />
-            Listed Members
+            Members Shown
           </div>
           <div className="mt-2 text-2xl font-semibold text-slate-950">{members.length}</div>
+          <p className="mt-1 text-xs text-slate-500">Inactive members appear only when enabled.</p>
         </div>
         <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
@@ -549,7 +589,9 @@ export default function UsersIndex() {
       <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 px-4 py-4">
           <h2 className="text-lg font-semibold text-slate-950">Members</h2>
-          <p className="mt-1 text-sm text-slate-500">Current-company members only. Invitation state does not grant access until accepted.</p>
+          <p className="mt-1 text-sm text-slate-500">
+            Current-company members only. Owner and role authority remains backend-governed.
+          </p>
         </div>
 
         {loading ? (
@@ -561,18 +603,70 @@ export default function UsersIndex() {
             </div>
           </div>
         ) : members.length === 0 ? (
-          <div className="px-4 py-6 text-sm text-slate-500">No company members found.</div>
+          <div className="px-4 py-6 text-sm text-slate-500">
+            No company members are visible for the current filter. Solo-owner setup is valid; use invitations when another person needs access.
+          </div>
         ) : (
-          <div className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {members.map((member) => (
-              <MemberCard
-                key={member.membership_id || member.user_id}
-                member={member}
-                busy={busyMemberId === member.user_id}
-                onEditRoles={setRoleEditorMember}
-                onSetStatus={handleSetStatus}
-              />
-            ))}
+          <div className="space-y-5 p-4">
+            <div>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-900">Active Team Members</h3>
+                  <p className="mt-0.5 text-xs text-slate-500">People with active current-company membership.</p>
+                </div>
+                <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                  {activeMembers.length}
+                </span>
+              </div>
+              {activeMembers.length === 0 ? (
+                <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-500">
+                  No active team members are visible.
+                </div>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {activeMembers.map((member) => (
+                    <MemberCard
+                      key={member.membership_id || member.user_id}
+                      member={member}
+                      busy={busyMemberId === member.user_id}
+                      onEditRoles={setRoleEditorMember}
+                      onSetStatus={handleSetStatus}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {showInactive && (
+              <div>
+                <div className="mb-3 flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-900">Inactive / Invited Members</h3>
+                    <p className="mt-0.5 text-xs text-slate-500">These rows are separated from active access for clarity.</p>
+                  </div>
+                  <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-600">
+                    {inactiveOrInvitedMembers.length}
+                  </span>
+                </div>
+                {inactiveOrInvitedMembers.length === 0 ? (
+                  <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-500">
+                    No inactive or invited member rows are visible.
+                  </div>
+                ) : (
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    {inactiveOrInvitedMembers.map((member) => (
+                      <MemberCard
+                        key={member.membership_id || member.user_id}
+                        member={member}
+                        busy={busyMemberId === member.user_id}
+                        onEditRoles={setRoleEditorMember}
+                        onSetStatus={handleSetStatus}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </section>

@@ -404,6 +404,342 @@ Closeout guardrails:
 - Empty orders, empty saved views, empty Historical Orders, and solo-owner operation remain valid
   neutral states.
 
+## Team Access UX Planning
+
+Admin Onboarding Slice 2A plans the next Team Access onboarding/admin UX improvements before
+implementation.
+
+### Current Team Access Foundation
+
+- Team Access lists company members through governed company member RPCs.
+- Member role/status mutations already route through approved Team Access APIs/RPCs.
+- Invitation infrastructure exists through invitation prepare/finalize/list/cancel/resend RPC and
+  Edge Function paths.
+- Owner/admin hierarchy is backend-governed through company membership, role assignment, and
+  permission checks.
+- Route access is permission-based through `users.read`.
+- The company-scoped membership model remains the authority for who participates in a company.
+- Existing Team Access and invitation surfaces must remain the write paths for member/role/invite
+  behavior.
+
+### Team Access UX Goals
+
+- Make it obvious who currently has access to the company.
+- Clarify each person's role/function without exposing raw permission internals as the primary UI.
+- Show invitation and member status clearly.
+- Reduce owner/admin uncertainty about pending invites, inactive members, and active team members.
+- Support onboarding without permission confusion or accidental role escalation.
+- Keep role and permission authority backend-owned and explain frontend state as display only.
+
+### Candidate Improvements
+
+- Clearer member status chips for active, inactive, invited, pending, cancelled, expired, or failed
+  states where those states are already available.
+- Role summary cards that describe owner/admin/appraiser/reviewer functions in plain operational
+  language.
+- Separate or visually grouped invited versus active member sections.
+- Permission summary display that stays high-level and avoids implying frontend authority.
+- `Next step` copy for pending invites, such as resend, wait for acceptance, or cancel if wrong.
+- Owner/admin explanatory help text describing who can manage access and why backend permissions
+  remain authoritative.
+- Safer empty states for solo-owner companies and companies with no pending invites.
+
+### Team Access Governance Rules
+
+- No permission redesign.
+- No hidden role escalation.
+- All mutations remain through existing approved Team Access and invitation paths.
+- No direct `users`, `company_memberships`, role assignment, role permission, or invitation table
+  writes from frontend code.
+- Company scope remains authoritative for all lists and actions.
+- Owner/admin hierarchy remains backend-governed.
+- Status chips and summaries are explanatory only and must not become authorization sources.
+- Invitation copy must not imply that access exists before backend acceptance/finalization.
+
+### Recommended First Team Access Implementation
+
+The first Team Access implementation should be read-only/status clarity polish:
+
+- improve existing status chips and labels;
+- make active members and pending/invited members easier to distinguish;
+- add concise owner/admin help text;
+- add safer solo-owner and no-invitation empty states;
+- keep existing invite, resend, cancel, role update, deactivate, and reactivate behavior unchanged;
+- add no new invite behavior;
+- add no role editing behavior changes;
+- add no backend/API/RPC/schema changes.
+
+### Deferred Team Access Work
+
+- Guided invite wizard.
+- Role templates.
+- Bulk invites.
+- Onboarding email polish.
+- Permission diff views.
+- Audit trail for access changes.
+- Role-specific onboarding paths.
+- Access review exports.
+
+## Team Access Data Shape Audit
+
+Admin Onboarding Slice 2B audits the current Team Access data/read flows before UX polish.
+
+### Current Rendering / Data Sources
+
+Team Access route:
+
+- `/users` renders `UsersIndex` behind `PERMISSIONS.USERS_READ`.
+- `UsersIndex` loads members through `listCompanyMembers({ includeInactive })`, which calls
+  `rpc_company_member_list(p_include_inactive)`.
+- `UsersIndex` loads role presets through `listCompanyRolePresets()`, which calls
+  `rpc_company_role_preset_list()`.
+- The page also renders `CompanyInvitationsPanel`, which loads invitation rows through
+  `rpc_company_member_invitations_list(p_status, p_limit)`.
+- Invite creation and resend remain Edge-mediated through `invite-company-member` and
+  `resend-company-member-invite`; cancellation and acceptance remain RPC-owned.
+
+Member rows:
+
+- Safe member fields already returned include `user_id`, `membership_id`, `display_name`,
+  `full_name`, `email`, `phone`, `avatar_url`, `display_color`, `membership_status`,
+  `membership_type`, `is_primary`, `joined_at`, `auth_linked`, `is_owner`, `role_assignments`,
+  `can_update_roles`, `can_deactivate`, and `can_reactivate`.
+- The backend projection is current-company scoped and documented as returning safe role labels
+  only, with no Auth ids, raw permission keys, operational data, or cross-company members.
+- Current rendering shows member identity, email, active role chips, membership status, login
+  linked, joined date, optional phone, and available role/status actions.
+
+Invitation rows:
+
+- Safe invitation fields already returned include `invitation_id`, `invite_email`,
+  `invitation_status`, `role_assignments`, `primary_role_id`, `invited_by_display_name`,
+  `created_at`, `expires_at`, `auth_invite_sent_at`, `accepted_at`, `cancelled_at`, `can_cancel`,
+  and `can_resend`.
+- Supported status filters are `open`, `terminal`, `all`, and individual states.
+- `open` includes `prepared`, `sent`, and `auth_failed`; `terminal` includes `accepted`,
+  `cancelled`, and `expired`.
+- Current rendering shows email, status chip, role names, inviter display name, created/expires/sent
+  timestamps, closed timestamp for non-open filters, and resend/cancel actions where allowed.
+
+Role display and permission summaries:
+
+- Member role assignments contain `role_assignment_id`, `role_id`, `role_name`, `is_owner_role`,
+  `is_primary`, and assignment `status`.
+- The frontend filters member roles to active role assignments for display and appends `primary` to
+  the primary role label.
+- Role presets expose `role_id`, `role_key`, `role_name`, `description`, owner/system/template
+  flags, `active_assignment_count`, `permission_count`, `owner_only_permission_count`, and
+  `assignable_by_current_user`.
+- The active UI uses role names and descriptions but does not currently surface permission counts
+  as a formal permission summary.
+- Raw permission keys are not exposed in Team Access; permission summaries are aggregate counts
+  only and should remain explanatory.
+
+Owner/admin indicators:
+
+- Member rows include `is_owner`, but current visible owner/admin distinction is mostly derived
+  from active role chips rather than a separate owner/admin indicator.
+- Role editing and owner grant/revoke restrictions are backend-owned through existing RPCs and
+  permission checks.
+- Current error copy already distinguishes protected Owner grant/revoke cases.
+
+Active/invited states:
+
+- Active and inactive member states are distinguishable through `membership_status`.
+- Invited membership can be represented by `membership_status = invited` if returned by the member
+  list, but most pending invite clarity comes from the separate invitation panel.
+- Invitation states distinguish `prepared`, `sent`, `auth_failed`, `accepted`, `cancelled`, and
+  `expired`.
+- Auth email delivery state is partially visible through `auth_invite_sent_at` and `auth_failed`.
+
+Current company scope assumptions:
+
+- Member and invitation projections resolve `current_company_id()` and require active
+  current-company membership.
+- Route visibility is frontend-gated by permission hooks, but backend RPC authorization remains
+  authoritative.
+- Frontend grouping, chips, summaries, and copy must not imply cross-company visibility or
+  authorization.
+
+### Already Safe To Display
+
+- Member display name, full name, email, phone, avatar/color, membership status/type, primary flag,
+  joined date, auth linked state, owner-role indicator, active role labels, and action availability
+  booleans.
+- Invitation email, invitation lifecycle status, requested role labels, primary role marker,
+  inviter display name, created/expires/sent/accepted/cancelled timestamps, and resend/cancel
+  availability.
+- Role preset name, description, owner-role/system/template flags, active assignment count,
+  permission count, owner-only permission count, and assignability by current user.
+- High-level page copy explaining that roles are company-scoped presets and invitations do not
+  grant access until accepted.
+
+### Label / Status Inconsistencies And Confusion Risks
+
+- Member status labels are minimal (`Active`, `Inactive`, `Invited`) while invitation statuses have
+  more lifecycle detail (`Prepared`, `Sent`, `Auth failed`, `Accepted`, `Cancelled`, `Expired`).
+- `Listed Members` can be confused with total access because inactive members appear only when the
+  `Show inactive` toggle is enabled.
+- Role labels append `primary` inline, which is accurate but can read like a separate role rather
+  than the primary role marker.
+- Owner/admin meaning is conveyed through role chips and modal copy, but no nearby explanatory text
+  states that Owner access is backend-protected and cannot be casually granted/revoked.
+- `Login linked` may be unclear to owners; it means an Auth identity is linked, not necessarily that
+  the user has completed operational onboarding.
+- `Prepared` versus `Sent` invite states may be unclear without next-step copy.
+- `Auth failed` is visible but does not currently explain whether resend or cancellation is the
+  expected next step.
+- Permission summaries are not currently surfaced; role preset permission counts exist but are not
+  a substitute for exact permission diffing.
+
+### Already Distinguishable Invitation / Member States
+
+- Members: `active`, `inactive`, and potentially `invited` from `membership_status`.
+- Invitations: `prepared`, `sent`, `auth_failed`, `accepted`, `cancelled`, and `expired` from
+  `invitation_status`.
+- Open invitations: `prepared`, `sent`, and `auth_failed`.
+- Terminal invitations: `accepted`, `cancelled`, and `expired`.
+- Resend/cancel availability: backend-provided `can_resend` and `can_cancel`.
+- Role assignability: backend-provided `assignable_by_current_user`.
+- Member role/status action availability: backend-provided `can_update_roles`, `can_deactivate`,
+  and `can_reactivate`.
+
+### Permission Summary State
+
+- Existing authoritative state:
+  - route/page access through `users.read`;
+  - invitation send/list affordances through `users.invite`, `users.manage_company_access`, and
+    `roles.assign`;
+  - role grant/revoke protection through backend RPC permission checks;
+  - role-preset aggregate counts through `permission_count` and `owner_only_permission_count`.
+- Existing inferred/frontend state:
+  - active role chip labels derived by filtering `role_assignments` to active status;
+  - primary role label derived from `is_primary`;
+  - role sort order by role name.
+- Not available today:
+  - exact permission diff view by member;
+  - raw permission key list per role in Team Access;
+  - per-member resolved effective permission list;
+  - audit trail view for historical access changes.
+
+### Safe First-Pass UX Polish Targets
+
+- Clearer status chips for member and invitation states using existing status fields.
+- Group active members separately from inactive/invited members when the inactive toggle is enabled.
+- Group open/pending invitations separately from terminal invitations or improve the filter labels
+  and empty states.
+- Add role description/help text explaining Owner, Admin, Appraiser, Reviewer, and Billing presets
+  using existing role preset descriptions where available.
+- Add next-step copy for pending invitation states:
+  - prepared: resend/send another invite email or cancel if incorrect;
+  - sent: wait for acceptance or resend if needed;
+  - auth failed: resend or cancel;
+  - expired/cancelled: send a new invite if access is still needed.
+- Add owner/admin explanatory copy that Owner access is backend-protected and the company must keep
+  an active owner.
+- Improve empty states for solo-owner companies, no pending invites, no inactive members, and no
+  assignable role presets.
+
+### Unsafe / Risky Areas
+
+- Do not infer exact permissions from role names or frontend role ordering.
+- Do not show permission diff claims unless backed by an authoritative backend read.
+- Do not create frontend-generated role assumptions that imply security authority.
+- Do not add hidden escalation paths around Owner/Admin grants.
+- Do not bypass backend `can_*` booleans for role/status/invite actions.
+- Do not direct-write `users`, `company_memberships`, `user_role_assignments`, `roles`,
+  `role_permissions`, or `company_member_invitations`.
+- Do not treat pending invitations as active access.
+- Do not expose raw permission keys, Auth ids, provider tokens, invite tokens, or cross-company
+  member data.
+
+## Team Access Readability Polish
+
+Admin Onboarding Slice 2C implements the first Team Access readability polish using only existing
+governed member and invitation data.
+
+### Implemented Presentation Changes
+
+- The member section now separates visible active rows under `Active Team Members`.
+- When inactive rows are shown, non-active member rows render under `Inactive / Invited Members`
+  instead of mixing with active access.
+- Member cards now emphasize Owner and Admin access with explanatory chips derived from existing
+  role/member fields.
+- Member role chips now show the role name and a distinct `Primary` marker instead of inline
+  `primary` wording.
+- Member cards now include a compact access summary derived only from active role assignments:
+  owner-protected access, no active role assigned, or the count of active roles.
+- The summary metric formerly labeled `Listed Members` now reads `Members Shown` and clarifies that
+  inactive members appear only when enabled.
+- Empty states now explain that solo-owner operation can be valid and that invitations should be
+  used when another person needs access.
+- The invitation panel copy now reinforces that pending invitations are separate from active team
+  membership.
+- Invitation statuses now include lightweight next-step text such as waiting for acceptance, ready
+  to resend, email send needs attention, or send a new invite if needed.
+- Invitation role display now marks primary roles as `(primary)` for readability.
+
+### Preserved Behavior
+
+- Member listing still uses `rpc_company_member_list(...)` through the existing frontend API.
+- Invitation listing still uses `rpc_company_member_invitations_list(...)` through the existing
+  frontend API.
+- Invite creation/resend remain on existing Edge Function paths.
+- Invitation cancel, member role update, and member deactivate/reactivate remain on existing RPC
+  paths.
+- No role editing behavior, invite flow behavior, permission/RLS behavior, backend state, or
+  onboarding automation changed.
+- The polish adds no frontend-invented permissions and does not bypass backend `can_*` booleans.
+
+### Test Coverage
+
+Focused Team Access tests cover:
+
+- active versus inactive/invited member grouping;
+- member status chip rendering;
+- Owner/Admin access indicators and role primary markers;
+- pending invitation status help and role primary labeling;
+- improved empty states;
+- no governed mutation API calls during readability-only rendering.
+
+## Team Access Polish Closeout
+
+Admin Onboarding Slice 2D locks the initial Team Access readability/onboarding polish as complete.
+
+Locked foundation:
+
+- Active company members are grouped under `Active Team Members`.
+- Non-active member rows are grouped under `Inactive / Invited Members` when the inactive toggle is
+  enabled.
+- Owner/Admin indicators are clearer and remain derived from existing safe member/role fields.
+- Role primary markers render as separate labels.
+- Compact access summaries use existing active role assignment data only.
+- Empty states are safer for solo-owner companies, no visible members, no pending invitations, and
+  filtered invitation views.
+- Pending Invitations copy and status help text clarify that pending invites do not grant access
+  until accepted.
+
+Locked guardrails:
+
+- No permission changes.
+- No role editing behavior changes.
+- No invite flow changes.
+- No hidden escalation.
+- No frontend-invented permissions.
+- Company scope remains authoritative.
+- Existing backend `can_*` booleans remain the authority for visible mutation actions.
+- Existing RPC/Edge paths remain the only approved member, role, and invitation write paths.
+
+Deferred Team Access onboarding work:
+
+- Guided invite wizard.
+- Role templates.
+- Bulk invites.
+- Onboarding email polish.
+- Permission diff views.
+- Audit trail for access changes.
+- Deeper setup checklist automation.
+
 ## Governance Rules
 
 - Onboarding must respect company scope, RLS, current-company context, and active membership.
@@ -449,14 +785,20 @@ no automated enforcement or setup mutation.
 ## Deferred Work
 
 - Guided onboarding wizard.
+- Guided invite wizard.
 - Company setup templates.
 - Automated onboarding emails.
+- Onboarding email polish.
 - Setup automation.
 - Company setup checklist automation.
+- Role templates.
+- Bulk invites.
 - Client onboarding.
 - AMC/vendor onboarding flows.
 - Billing/subscription setup.
 - Advanced role/permission diffing.
+- Permission diff views.
+- Audit trail for access changes.
 - Automated production readiness execution.
 - Cross-company admin console or global support tooling.
 - Onboarding completion percentage.
@@ -496,3 +838,33 @@ Operational Readiness card foundation complete, record the locked guardrails, an
 wizard, automation, validation-signal, role-specific, client/AMC/vendor onboarding, and completion
 tracking work deferred. No runtime behavior, backend state, permissions, RLS, invitation behavior,
 checklist automation, or onboarding automation changes are part of this slice.
+
+Admin Onboarding Slice 2A is complete when this plan documents the current Team Access foundation,
+UX goals, candidate clarity improvements, governance rules, recommended first read-only/status
+polish implementation, and deferred Team Access onboarding work. No runtime behavior, backend
+state, permissions, RLS, invitation behavior, role editing behavior, or onboarding automation
+changes are part of this slice.
+
+Admin Onboarding Slice 2B is complete when this plan documents the current Team Access data/read
+flows, safe fields, inconsistent labels/statuses, role terminology risks, distinguishable
+invitation/member states, existing versus inferred permission summaries, safe first-pass polish
+targets, and unsafe areas. No runtime behavior, backend state, permissions, RLS, invitation
+behavior, role editing behavior, or onboarding automation changes are part of this slice.
+
+Admin Onboarding Slice 2C is complete when Team Access improves readability using existing governed
+member/invitation data only, separates active members from inactive/invited rows, keeps pending
+invitations distinct from active access, adds clearer status chips and Owner/Admin indicators,
+improves role primary labels and empty states, preserves existing mutation/action paths, and is
+covered by focused presentation tests. No backend state, permissions, RLS, invitation workflow,
+role editing redesign, hidden escalation, frontend-invented permission, or onboarding automation
+changes are part of this slice.
+
+Admin Onboarding Slice 2D is complete when this plan, the next-phase plan, and roadmap mark the
+Team Access readability polish foundation complete; record the locked grouping, indicators, role
+markers, summaries, empty states, and Pending Invitations copy/status help; preserve guardrails
+against permission changes, role editing changes, invite flow changes, hidden escalation,
+frontend-invented permissions, and company-scope bypass; and keep guided invite wizard, role
+templates, bulk invites, onboarding email polish, permission diff views, access-change audit trail,
+and deeper setup checklist automation deferred. No runtime behavior, backend state, permissions,
+RLS, invitation workflow, role editing behavior, or onboarding automation changes are part of this
+slice.
