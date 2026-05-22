@@ -8,6 +8,7 @@ const updateSiteVisitAtViaRpcMock = vi.hoisted(() => vi.fn());
 const listOrderDocumentsMock = vi.hoisted(() => vi.fn());
 const createOrderDocumentDownloadUrlMock = vi.hoisted(() => vi.fn());
 const archiveOrderDocumentMock = vi.hoisted(() => vi.fn());
+const uploadOrderDocumentMock = vi.hoisted(() => vi.fn());
 const DOCUMENT_POSITION_FOLLOWING = 4;
 
 vi.mock("react-router-dom", () => ({
@@ -58,6 +59,7 @@ vi.mock("@/lib/hooks/usePermissions", () => ({
     loading: false,
     error: null,
     hasPermission: (permission) => permission === "documents.delete",
+    hasAnyPermission: (permissions) => permissions.includes("documents.upload.all"),
     hasAllPermissions: () => false,
   }),
 }));
@@ -66,6 +68,7 @@ vi.mock("@/features/order-documents/api", () => ({
   listOrderDocuments: listOrderDocumentsMock,
   createOrderDocumentDownloadUrl: createOrderDocumentDownloadUrlMock,
   archiveOrderDocument: archiveOrderDocumentMock,
+  uploadOrderDocument: uploadOrderDocumentMock,
 }));
 
 vi.mock("@/lib/hooks/useToast", () => ({
@@ -143,6 +146,8 @@ describe("OrderDetail site visit save", () => {
     });
     archiveOrderDocumentMock.mockReset();
     archiveOrderDocumentMock.mockResolvedValue({ id: "doc-1", status: "archived" });
+    uploadOrderDocumentMock.mockReset();
+    uploadOrderDocumentMock.mockResolvedValue({ id: "doc-3", status: "active" });
     vi.spyOn(window, "open").mockImplementation(() => null);
     vi.spyOn(window, "confirm").mockReturnValue(true);
   });
@@ -234,7 +239,7 @@ describe("OrderDetail site visit save", () => {
     expect(listOrderDocumentsMock).toHaveBeenCalledWith("order-1");
     expect(within(files).getByText("Files")).toBeInTheDocument();
     expect(within(files).getByText("Engagement Letter")).toBeInTheDocument();
-    expect(within(files).getByText("Engagement")).toBeInTheDocument();
+    expect(within(files).getAllByText("Engagement").length).toBeGreaterThan(0);
     expect(within(files).getByText("2.0 KB")).toBeInTheDocument();
     expect(within(files).getByText("rent-roll.xlsx")).toBeInTheDocument();
     expect(within(files).getByText("Archived")).toBeInTheDocument();
@@ -266,5 +271,59 @@ describe("OrderDetail site visit save", () => {
       expect(archiveOrderDocumentMock).toHaveBeenCalledWith("doc-1");
     });
     expect(listOrderDocumentsMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("uploads a selected order file through the upload helper and refreshes the list", async () => {
+    render(<OrderDetail />);
+
+    const files = await screen.findByLabelText("Order files");
+    const input = within(files).getByLabelText("Choose order file");
+    const file = new File(["lease"], "Lease.pdf", { type: "application/pdf" });
+
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await waitFor(() => {
+      expect(uploadOrderDocumentMock).toHaveBeenCalledWith({
+        orderId: "order-1",
+        file,
+        category: "engagement",
+        title: "Lease.pdf",
+        visibilityScope: "internal",
+      });
+    });
+    await waitFor(() => {
+      expect(within(files).getByText("Upload complete")).toBeInTheDocument();
+    });
+    expect(listOrderDocumentsMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("uploads a dropped order file through the upload helper", async () => {
+    render(<OrderDetail />);
+
+    const files = await screen.findByLabelText("Order files");
+    fireEvent.change(within(files).getByLabelText("Document category"), {
+      target: { value: "source_documents" },
+    });
+
+    const dropZone = within(files).getByText("Drop a file here");
+    const file = new File(["rent roll"], "Rent Roll.xlsx", {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    fireEvent.drop(dropZone, {
+      dataTransfer: {
+        files: [file],
+      },
+    });
+
+    await waitFor(() => {
+      expect(uploadOrderDocumentMock).toHaveBeenCalledWith({
+        orderId: "order-1",
+        file,
+        category: "source_documents",
+        title: "Rent Roll.xlsx",
+        visibilityScope: "internal",
+      });
+    });
   });
 });

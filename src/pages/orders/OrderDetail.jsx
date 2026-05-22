@@ -1,5 +1,5 @@
 // src/pages/OrderDetail.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import GoogleMapEmbed from "@/components/maps/GoogleMapEmbed";
 import SiteVisitPicker from "@/components/dates/SiteVisitPicker";
@@ -13,6 +13,7 @@ import {
   archiveOrderDocument,
   createOrderDocumentDownloadUrl,
   listOrderDocuments,
+  uploadOrderDocument,
 } from "@/features/order-documents/api";
 import OfferAssignmentModal from "@/features/assignments/components/OfferAssignmentModal";
 import OwnerOrderAssignmentsPanel from "@/features/assignments/components/OwnerOrderAssignmentsPanel";
@@ -33,6 +34,14 @@ const fileSize = (n) => {
 
 const pick = (...vals) => vals.find((v) => v !== undefined && v !== null && v !== "") ?? null;
 const reviewDateOf = (o) => pick(o.review_due_at);
+const DOCUMENT_CATEGORIES = Object.freeze([
+  "engagement",
+  "source_documents",
+  "property_media",
+  "review_revisions",
+  "final_report",
+  "internal_workfile",
+]);
 const categoryLabel = (value) =>
   String(value || "")
     .split("_")
@@ -68,11 +77,17 @@ function OverviewSection({ title, children, className = "" }) {
   );
 }
 
-function FilesCard({ orderId, canArchive }) {
+function FilesCard({ orderId, canArchive, canUpload }) {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [busyId, setBusyId] = useState(null);
+  const [category, setCategory] = useState("engagement");
+  const [dragActive, setDragActive] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState("");
+  const [uploadError, setUploadError] = useState(false);
+  const fileInputRef = useRef(null);
 
   const loadFiles = async () => {
     if (!orderId) return;
@@ -149,6 +164,45 @@ function FilesCard({ orderId, canArchive }) {
     }
   }
 
+  async function uploadFile(file) {
+    if (!file || uploading) return;
+
+    setUploading(true);
+    setUploadStatus(`Uploading ${file.name}...`);
+    setUploadError(false);
+    setError(null);
+
+    try {
+      await uploadOrderDocument({
+        orderId,
+        file,
+        category,
+        title: file.name,
+        visibilityScope: "internal",
+      });
+      setUploadStatus("Upload complete");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      await loadFiles();
+    } catch (uploadError) {
+      setUploadStatus(uploadError?.message || "Upload failed");
+      setUploadError(true);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function handleFileChange(event) {
+    const file = event.target.files?.[0];
+    uploadFile(file);
+  }
+
+  function handleDrop(event) {
+    event.preventDefault();
+    setDragActive(false);
+    const file = event.dataTransfer?.files?.[0];
+    uploadFile(file);
+  }
+
   return (
     <div className="mt-4 rounded-md bg-white p-3 border" aria-label="Order files">
       <div className="flex items-center justify-between gap-3">
@@ -161,6 +215,58 @@ function FilesCard({ orderId, canArchive }) {
           </div>
         )}
       </div>
+
+      {canUpload && (
+        <div className="mt-3 rounded border border-dashed border-gray-200 bg-gray-50/70 p-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <select
+              aria-label="Document category"
+              value={category}
+              onChange={(event) => setCategory(event.target.value)}
+              disabled={uploading}
+              className="rounded border bg-white px-2 py-1 text-xs text-gray-700 disabled:opacity-50"
+            >
+              {DOCUMENT_CATEGORIES.map((option) => (
+                <option key={option} value={option}>
+                  {categoryLabel(option)}
+                </option>
+              ))}
+            </select>
+            <input
+              ref={fileInputRef}
+              aria-label="Choose order file"
+              type="file"
+              onChange={handleFileChange}
+              disabled={uploading}
+              className="min-w-0 flex-1 text-xs text-gray-600 file:mr-2 file:rounded file:border file:bg-white file:px-2 file:py-1 file:text-xs file:text-gray-700 disabled:opacity-50"
+            />
+          </div>
+          <div
+            onDragOver={(event) => {
+              event.preventDefault();
+              setDragActive(true);
+            }}
+            onDragLeave={() => setDragActive(false)}
+            onDrop={handleDrop}
+            className={`mt-2 rounded border px-2 py-2 text-center text-xs ${
+              dragActive
+                ? "border-slate-400 bg-white text-slate-700"
+                : "border-gray-200 bg-white/70 text-gray-500"
+            }`}
+          >
+            Drop a file here
+          </div>
+          {(uploading || uploadStatus) && (
+            <div
+              className={`mt-2 text-xs ${
+                uploading ? "text-gray-600" : uploadError ? "text-amber-700" : "text-emerald-700"
+              }`}
+            >
+              {uploadStatus}
+            </div>
+          )}
+        </div>
+      )}
 
       {loading ? (
         <div className="mt-3 text-sm text-gray-500">Loading files...</div>
@@ -277,6 +383,13 @@ export default function OrderDetail() {
     !permissions.loading &&
     !permissions.error &&
     permissions.hasPermission(PERMISSIONS.DOCUMENTS_DELETE);
+  const canUploadDocuments =
+    !permissions.loading &&
+    !permissions.error &&
+    permissions.hasAnyPermission([
+      PERMISSIONS.DOCUMENTS_UPLOAD_ASSIGNED,
+      PERMISSIONS.DOCUMENTS_UPLOAD_ALL,
+    ]);
 
   async function saveAppt(iso) {
     try {
@@ -398,7 +511,11 @@ export default function OrderDetail() {
             </div>
           </div>
 
-          <FilesCard orderId={order.id} canArchive={canArchiveDocuments} />
+          <FilesCard
+            orderId={order.id}
+            canArchive={canArchiveDocuments}
+            canUpload={canUploadDocuments}
+          />
         </div>
 
         <div className="col-span-12 lg:col-span-7">
