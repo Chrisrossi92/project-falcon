@@ -214,6 +214,10 @@ describe("OrderDetail site visit save", () => {
     archiveOrderDocumentMock.mockResolvedValue({ id: "doc-1", status: "archived" });
     uploadOrderDocumentMock.mockReset();
     uploadOrderDocumentMock.mockResolvedValue({ id: "doc-3", status: "active" });
+    Object.defineProperty(window, "print", {
+      configurable: true,
+      value: vi.fn(),
+    });
     vi.spyOn(window, "open").mockImplementation(() => null);
     vi.spyOn(window, "confirm").mockReturnValue(true);
   });
@@ -391,6 +395,178 @@ describe("OrderDetail site visit save", () => {
         visibilityScope: "internal",
       });
     });
+  });
+
+  it("opens a read-only print packet preview and prints through the browser", async () => {
+    render(<OrderDetail />);
+
+    await screen.findByLabelText("Order files");
+    fireEvent.click(screen.getByRole("button", { name: "Print Packet" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Print Packet" });
+    const packet = within(dialog).getByLabelText("Read-only print packet");
+
+    expect(within(packet).getByText("Internal Order Print Packet")).toBeInTheDocument();
+    expect(within(packet).getByText("Order 2026001")).toBeInTheDocument();
+    expect(within(packet).getByText("Order Summary")).toBeInTheDocument();
+    expect(within(packet).getByText("Subject / Property")).toBeInTheDocument();
+    expect(within(packet).getByText("Client And Participants")).toBeInTheDocument();
+    expect(within(packet).getByText("Key Dates")).toBeInTheDocument();
+    expect(within(packet).getByText("Status And Activity Summary")).toBeInTheDocument();
+    expect(within(packet).getByText("Files Summary")).toBeInTheDocument();
+    expect(within(packet).getByText("100 Main St, Boston, MA 02110")).toBeInTheDocument();
+    expect(within(packet).getByText("Avery Appraiser")).toBeInTheDocument();
+    expect(within(packet).getByText("Riley Reviewer")).toBeInTheDocument();
+    expect(within(packet).getAllByText("2 files").length).toBeGreaterThan(0);
+    expect(within(packet).getByText("Document Categories")).toBeInTheDocument();
+    expect(within(packet).getByLabelText("Document category counts")).toHaveTextContent(
+      "Engagement: 1 file",
+    );
+    expect(within(packet).getByLabelText("Document category counts")).toHaveTextContent(
+      "Source Documents: 1 file",
+    );
+    expect(packet).toHaveClass("order-print-packet");
+    expect(dialog.closest(".order-print-surface")).toBeInTheDocument();
+    expect(within(packet).queryByRole("button")).not.toBeInTheDocument();
+    expect(within(packet).queryByText("Archive order")).not.toBeInTheDocument();
+    expect(within(packet).queryByText("Cancel order")).not.toBeInTheDocument();
+    expect(within(packet).queryByText("Void order")).not.toBeInTheDocument();
+    expect(within(packet).queryByText("Open")).not.toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Print" }));
+
+    expect(window.print).toHaveBeenCalledTimes(1);
+    expect(createOrderDocumentDownloadUrlMock).not.toHaveBeenCalled();
+    expect(archiveOrderViaRpcMock).not.toHaveBeenCalled();
+    expect(cancelOrderViaRpcMock).not.toHaveBeenCalled();
+    expect(voidOrderViaRpcMock).not.toHaveBeenCalled();
+  });
+
+  it("renders document category counts without document links or signed URL behavior", async () => {
+    listOrderDocumentsMock.mockResolvedValueOnce([
+      {
+        id: "doc-1",
+        order_id: "order-1",
+        category: "engagement",
+        title: "Engagement Letter",
+        file_name: "engagement.pdf",
+        file_size: 2048,
+        status: "active",
+        created_at: "2026-05-20T12:00:00.000Z",
+      },
+      {
+        id: "doc-2",
+        order_id: "order-1",
+        category: "final_report",
+        title: "Final Report",
+        file_name: "report.pdf",
+        file_size: 4096,
+        status: "active",
+        created_at: "2026-05-21T12:00:00.000Z",
+      },
+      {
+        id: "doc-3",
+        order_id: "order-1",
+        category: null,
+        title: "Workfile",
+        file_name: "workfile.pdf",
+        file_size: 1024,
+        status: "active",
+        created_at: "2026-05-22T12:00:00.000Z",
+      },
+    ]);
+
+    render(<OrderDetail />);
+
+    await screen.findByLabelText("Order files");
+    fireEvent.click(screen.getByRole("button", { name: "Print Packet" }));
+
+    const packet = within(screen.getByRole("dialog", { name: "Print Packet" })).getByLabelText(
+      "Read-only print packet",
+    );
+    const categoryCounts = within(packet).getByLabelText("Document category counts");
+
+    expect(within(packet).getAllByText("3 files").length).toBeGreaterThan(0);
+    expect(categoryCounts).toHaveTextContent("Engagement: 1 file");
+    expect(categoryCounts).toHaveTextContent("Final Report: 1 file");
+    expect(categoryCounts).toHaveTextContent("Uncategorized: 1 file");
+    expect(within(packet).queryByRole("link")).not.toBeInTheDocument();
+    expect(within(packet).queryByText("Open")).not.toBeInTheDocument();
+    expect(within(packet).queryByText("Archive")).not.toBeInTheDocument();
+    expect(screen.queryByText("https://example.test/signed-download")).not.toBeInTheDocument();
+    expect(createOrderDocumentDownloadUrlMock).not.toHaveBeenCalled();
+  });
+
+  it("renders an archived read-only notice in the print packet", async () => {
+    orderMock.is_archived = true;
+
+    render(<OrderDetail />);
+
+    await screen.findByLabelText("Order files");
+    fireEvent.click(screen.getByRole("button", { name: "Print Packet" }));
+
+    const packet = within(screen.getByRole("dialog", { name: "Print Packet" })).getByLabelText(
+      "Read-only print packet",
+    );
+    const notice = within(packet).getByLabelText("Retired lifecycle notice");
+
+    expect(within(notice).getByText("Archived order")).toBeInTheDocument();
+    expect(
+      within(notice).getByText(
+        "This order was removed from active operational lists and preserved for read-only history. The archive state does not delete documents, activity, assignments, or the order number.",
+      ),
+    ).toBeInTheDocument();
+    expect(within(packet).queryByRole("button")).not.toBeInTheDocument();
+    expect(within(packet).queryByText("Archive order")).not.toBeInTheDocument();
+    expect(archiveOrderViaRpcMock).not.toHaveBeenCalled();
+  });
+
+  it("renders a cancelled read-only notice in the print packet", async () => {
+    orderMock.status = "cancelled";
+
+    render(<OrderDetail />);
+
+    await screen.findByLabelText("Order files");
+    fireEvent.click(screen.getByRole("button", { name: "Print Packet" }));
+
+    const packet = within(screen.getByRole("dialog", { name: "Print Packet" })).getByLabelText(
+      "Read-only print packet",
+    );
+    const notice = within(packet).getByLabelText("Retired lifecycle notice");
+
+    expect(within(notice).getByText("Cancelled order")).toBeInTheDocument();
+    expect(
+      within(notice).getByText(
+        "This legitimate order was stopped before completion and preserved for read-only history. Cancellation does not delete documents, activity, assignments, or the order number.",
+      ),
+    ).toBeInTheDocument();
+    expect(within(packet).queryByRole("button")).not.toBeInTheDocument();
+    expect(within(packet).queryByText("Cancel order")).not.toBeInTheDocument();
+    expect(cancelOrderViaRpcMock).not.toHaveBeenCalled();
+  });
+
+  it("renders a voided read-only notice in the print packet", async () => {
+    orderMock.status = "voided";
+
+    render(<OrderDetail />);
+
+    await screen.findByLabelText("Order files");
+    fireEvent.click(screen.getByRole("button", { name: "Print Packet" }));
+
+    const packet = within(screen.getByRole("dialog", { name: "Print Packet" })).getByLabelText(
+      "Read-only print packet",
+    );
+    const notice = within(packet).getByLabelText("Retired lifecycle notice");
+
+    expect(within(notice).getByText("Voided order")).toBeInTheDocument();
+    expect(
+      within(notice).getByText(
+        "This order was administratively invalidated and preserved for read-only history. Voiding does not delete documents, activity, assignments, or the order number.",
+      ),
+    ).toBeInTheDocument();
+    expect(within(packet).queryByRole("button")).not.toBeInTheDocument();
+    expect(within(packet).queryByText("Void order")).not.toBeInTheDocument();
+    expect(voidOrderViaRpcMock).not.toHaveBeenCalled();
   });
 
   it("does not show the order archive action without orders.archive permission", () => {

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const builders = vi.hoisted(() => []);
 const supabaseMock = vi.hoisted(() => ({
   from: vi.fn(),
+  rpc: vi.fn(),
 }));
 
 function createBuilder({ table, columns, options }) {
@@ -16,6 +17,7 @@ function createBuilder({ table, columns, options }) {
     eq: vi.fn(() => builder),
     gte: vi.fn(() => builder),
     in: vi.fn(() => builder),
+    lt: vi.fn(() => builder),
     lte: vi.fn(() => builder),
     not: vi.fn(() => builder),
     or: vi.fn(() => builder),
@@ -32,12 +34,13 @@ vi.mock("@/lib/supabaseClient", () => ({
   default: supabaseMock,
 }));
 
-const { fetchOrdersWithFilters } = await import("../orders.js");
+const { fetchOrdersWithFilters, listHistoricalOrders } = await import("../orders.js");
 
 describe("fetchOrdersWithFilters archived visibility", () => {
   beforeEach(() => {
     builders.length = 0;
     supabaseMock.from.mockReset();
+    supabaseMock.rpc.mockReset();
     supabaseMock.from.mockImplementation((table) => ({
       select: (columns, options) => createBuilder({ table, columns, options }),
     }));
@@ -77,6 +80,54 @@ describe("fetchOrdersWithFilters archived visibility", () => {
 
     for (const builder of builders) {
       expect(builder.not).not.toHaveBeenCalledWith("status", "in", "(cancelled,voided)");
+    }
+  });
+
+  it("lists historical orders through an explicit read-only helper", async () => {
+    await listHistoricalOrders({ page: 0, pageSize: 25 });
+
+    expect(builders).toHaveLength(2);
+    expect(builders[0].table).toBe("v_orders_frontend_v4");
+    expect(builders[1].table).toBe("v_orders_frontend_v4");
+
+    for (const builder of builders) {
+      expect(builder.or).not.toHaveBeenCalledWith("is_archived.is.null,is_archived.eq.false");
+      expect(builder.not).not.toHaveBeenCalledWith("status", "in", "(cancelled,voided)");
+    }
+  });
+
+  it("keeps active/default list behavior unchanged after adding historical helper", async () => {
+    await fetchOrdersWithFilters({ scope: "orders" });
+
+    for (const builder of builders) {
+      expect(builder.or).toHaveBeenCalledWith("is_archived.is.null,is_archived.eq.false");
+      expect(builder.not).toHaveBeenCalledWith("status", "in", "(cancelled,voided)");
+      expect(builder.lt).not.toHaveBeenCalledWith("final_due_date", expect.any(String));
+    }
+  });
+
+  it("does not call mutation RPCs while listing historical orders", async () => {
+    await listHistoricalOrders({ search: "2026" });
+
+    expect(supabaseMock.rpc).not.toHaveBeenCalled();
+  });
+
+  it("filters active orders to overdue final due dates only when requested", async () => {
+    await fetchOrdersWithFilters({ scope: "orders", dueWindow: "overdue" });
+
+    for (const builder of builders) {
+      expect(builder.lt).toHaveBeenCalledWith("final_due_date", expect.any(String));
+      expect(builder.not).toHaveBeenCalledWith("final_due_date", "is", null);
+      expect(builder.or).toHaveBeenCalledWith("is_archived.is.null,is_archived.eq.false");
+      expect(builder.not).toHaveBeenCalledWith("status", "in", "(cancelled,voided)");
+    }
+  });
+
+  it("keeps retired lifecycle rows excluded from overdue filters by default", async () => {
+    await fetchOrdersWithFilters({ scope: "orders", dueWindow: "overdue" });
+
+    for (const builder of builders) {
+      expect(builder.not).toHaveBeenCalledWith("status", "in", "(cancelled,voided)");
     }
   });
 });

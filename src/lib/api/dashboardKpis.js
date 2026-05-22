@@ -37,7 +37,16 @@ export async function fetchDashboardKpis(scope = {}) {
   const clientDueIso = clientDueLimit.toISOString();
   const nowIso = new Date().toISOString();
 
-  const [total_active, in_progress, due_in_7, inspected_awaiting_report, due_to_client_2] = await Promise.all([
+  const [
+    total_active,
+    in_progress,
+    due_in_7,
+    inspected_awaiting_report,
+    due_to_client_2,
+    in_review,
+    needs_revisions,
+    overdue,
+  ] = await Promise.all([
     countWithScope(baseScope),
     countWithScope(baseScope, (q) => q.eq("status", "in_progress")),
     countWithScope(baseScope, (q) =>
@@ -58,7 +67,23 @@ export async function fetchDashboardKpis(scope = {}) {
         .lte("final_due_date", clientDueIso)
         .not("final_due_date", "is", null)
     ),
+    countWithScope(baseScope, (q) => q.eq("status", "in_review")),
+    countWithScope(baseScope, (q) => q.eq("status", "needs_revisions")),
+    countWithScope(baseScope, (q) =>
+      q
+        .lt("final_due_date", nowIso)
+        .not("final_due_date", "is", null)
+    ),
   ]);
 
-  return { total_active, in_progress, due_in_7, inspected_awaiting_report, due_to_client_2 };
+  return {
+    total_active,
+    in_progress,
+    due_in_7,
+    inspected_awaiting_report,
+    due_to_client_2,
+    in_review,
+    needs_revisions,
+    overdue,
+  };
 }

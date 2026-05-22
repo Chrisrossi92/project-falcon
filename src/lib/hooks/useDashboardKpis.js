@@ -8,7 +8,14 @@ import { fetchDashboardKpis } from "@/lib/api/dashboardKpis";
 export function useDashboardKpis(scope = {}, { enabled = true } = {}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [data, setData] = useState({ total_active: 0, in_progress: 0, due_in_7: 0 });
+  const [data, setData] = useState({
+    total_active: 0,
+    in_progress: 0,
+    due_in_7: 0,
+    in_review: 0,
+    needs_revisions: 0,
+    overdue: 0,
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -28,7 +35,14 @@ export function useDashboardKpis(scope = {}, { enabled = true } = {}) {
         if (cancelled) return;
         console.warn("[useDashboardKpis] failed to load KPIs", e);
         setError(e);
-        setData({ total_active: 0, in_progress: 0, due_in_7: 0 });
+        setData({
+          total_active: 0,
+          in_progress: 0,
+          due_in_7: 0,
+          in_review: 0,
+          needs_revisions: 0,
+          overdue: 0,
+        });
       } finally {
         if (!cancelled) setLoading(false);
       }

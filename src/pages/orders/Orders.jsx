@@ -1,6 +1,6 @@
 // src/pages/Orders.jsx
 import React, { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import OrdersFilters from "@/features/orders/OrdersFilters";
 import UnifiedOrdersTable from "@/features/orders/UnifiedOrdersTable";
 import NewOrderButton from "@/components/orders/NewOrderButton";
@@ -92,7 +92,15 @@ export default function OrdersPage() {
             Search, filter, and manage the full order record without changing dashboard queue focus.
           </p>
         </div>
-        <NewOrderButton show className="shrink-0" />
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <Link
+            to="/orders/historical"
+            className="rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+          >
+            Historical Orders
+          </Link>
+          <NewOrderButton show className="shrink-0" />
+        </div>
       </div>
 
       <OrdersFilters value={filters} onChange={onChange} />
@@ -116,7 +124,6 @@ export default function OrdersPage() {
     </div>
   );
 }
-
 
 
 

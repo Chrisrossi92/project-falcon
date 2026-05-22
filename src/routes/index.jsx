@@ -15,6 +15,7 @@ import AcceptCompanyInvitePage from "@/features/company-invitations/AcceptCompan
 import Settings from "@/pages/Settings";
 import DashboardGate from "@/features/dashboard/DashboardGate";
 import Orders from "@/pages/orders/Orders";
+import HistoricalOrders from "@/pages/orders/HistoricalOrders";
 import NewOrder from "@/pages/NewOrder";
 import OrderDetail from "@/pages/orders/OrderDetail";
 import EditOrder from "@/pages/orders/EditOrder";
@@ -71,6 +72,19 @@ export default function AppRoutes() {
               ]}
             >
               <Orders />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/orders/historical"
+          element={
+            <ProtectedRoute
+              requiredAnyPermissions={[
+                PERMISSIONS.ORDERS_READ_ALL,
+                PERMISSIONS.ORDERS_READ_ASSIGNED,
+              ]}
+            >
+              <HistoricalOrders />
             </ProtectedRoute>
           }
         />

@@ -49,6 +49,41 @@ const STATUS_TIMELINE = Object.freeze([
   },
 ]);
 
+const OPERATIONAL_KPI_CARDS = Object.freeze([
+  {
+    key: "activeOrders",
+    label: "Active Orders",
+    caption: "Current operational queue",
+    to: "/orders",
+    tone: "border-slate-200 bg-slate-50 text-slate-900",
+    valueClassName: "text-slate-950",
+  },
+  {
+    key: "inReview",
+    label: "In Review",
+    caption: "Orders awaiting review clearance",
+    to: "/orders?status=in_review",
+    tone: "border-indigo-200 bg-indigo-50 text-indigo-900",
+    valueClassName: "text-indigo-950",
+  },
+  {
+    key: "needsRevisions",
+    label: "Needs Revisions",
+    caption: "Returned for report updates",
+    to: "/orders?status=needs_revisions",
+    tone: "border-rose-200 bg-rose-50 text-rose-900",
+    valueClassName: "text-rose-950",
+  },
+  {
+    key: "overdue",
+    label: "Overdue Orders",
+    caption: "Active orders past final due date",
+    to: "/orders?due=overdue",
+    tone: "border-amber-200 bg-amber-50 text-amber-900",
+    valueClassName: "text-amber-950",
+  },
+]);
+
 export default function DashboardPage() {
   const nav = useNavigate();
   const [dashboardRefreshKey, setDashboardRefreshKey] = useState(0);
@@ -98,6 +133,15 @@ export default function DashboardPage() {
     ? "Review assigned orders and keep technical clearance moving."
     : "Track assigned work, due dates, and revision requests.";
   const ordersCount = summary.orders.count ?? 0;
+  const kpiValues = useMemo(
+    () => ({
+      activeOrders: ordersCount,
+      inReview: summary.orders.inReview ?? 0,
+      needsRevisions: summary.orders.needsRevisions ?? 0,
+      overdue: summary.orders.overdue ?? 0,
+    }),
+    [ordersCount, summary.orders.inReview, summary.orders.needsRevisions, summary.orders.overdue],
+  );
   const statusCounts = useMemo(() => {
     const counts = Object.fromEntries(STATUS_TIMELINE.map((status) => [status.value, 0]));
     (ordersRows || []).forEach((order) => {
@@ -141,6 +185,8 @@ export default function DashboardPage() {
           </div>
         </div>
       </section>
+
+      <OperationalKpiCards loading={loading} values={kpiValues} />
 
       <OwnerSetupDashboardPrompt />
 
@@ -225,6 +271,48 @@ export default function DashboardPage() {
         </section>
       )}
     </div>
+  );
+}
+
+function OperationalKpiCards({ loading, values }) {
+  return (
+    <section
+      aria-label="Operational KPI cards"
+      className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
+    >
+      {OPERATIONAL_KPI_CARDS.map((card) => {
+        const content = (
+          <>
+            <div className="text-xs font-semibold uppercase tracking-[0.14em] opacity-75">
+              {card.label}
+            </div>
+            <div className={`mt-2 text-3xl font-semibold tracking-tight tabular-nums ${card.valueClassName}`}>
+              {loading ? "-" : values[card.key] ?? 0}
+            </div>
+            <div className="mt-1 text-xs leading-snug opacity-80">{card.caption}</div>
+          </>
+        );
+        const className = `block min-h-28 rounded-xl border px-4 py-3 shadow-sm ${card.tone}`;
+
+        if (card.to) {
+          return (
+            <Link
+              key={card.key}
+              to={card.to}
+              className={`${className} transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-slate-300 motion-reduce:hover:translate-y-0`}
+            >
+              {content}
+            </Link>
+          );
+        }
+
+        return (
+          <div key={card.key} className={className}>
+            {content}
+          </div>
+        );
+      })}
+    </section>
   );
 }
 

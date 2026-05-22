@@ -79,6 +79,7 @@ function applyCommonFilters(
     assignedAppraiserId = null,
     inspectedAwaitingReport = false,
     finalDueWithinDays = null,
+    dueWindow = "",
     from = null,
     to = null,
   search = "",
@@ -117,6 +118,11 @@ function applyCommonFilters(
         .not("final_due_date", "is", null);
     }
   }
+  if (dueWindow === "overdue") {
+    q = q
+      .lt("final_due_date", new Date().toISOString())
+      .not("final_due_date", "is", null);
+  }
 
   if (from) q = q.gte("created_at", from);
   if (to) q = q.lte("created_at", to);
@@ -150,6 +156,7 @@ export async function fetchOrdersWithFilters(filters = {}) {
     assignedAppraiserId = null,
     inspectedAwaitingReport = false,
     finalDueWithinDays = null,
+    dueWindow = "",
     from = null,
     to = null,
     activeOnly = false,
@@ -180,6 +187,7 @@ export async function fetchOrdersWithFilters(filters = {}) {
     reviewerId,
     inspectedAwaitingReport,
     finalDueWithinDays,
+    dueWindow,
     from,
     to,
     search,
@@ -222,6 +230,7 @@ export async function fetchOrdersWithFilters(filters = {}) {
     assignedAppraiserId,
     inspectedAwaitingReport,
     finalDueWithinDays,
+    dueWindow,
     from,
     to,
     search,
@@ -237,6 +246,22 @@ export async function fetchOrdersWithFilters(filters = {}) {
   if (error) return { rows: [], count: derivedCount, error };
 
   return { rows: data || [], count: derivedCount, countError: countErr || null };
+}
+
+export async function listHistoricalOrders(filters = {}) {
+  const {
+    includeArchived: _includeArchived,
+    includeRetiredLifecycle: _includeRetiredLifecycle,
+    scope: _scope,
+    ...readFilters
+  } = filters;
+
+  return fetchOrdersWithFilters({
+    ...readFilters,
+    scope: "orders",
+    includeArchived: true,
+    includeRetiredLifecycle: true,
+  });
 }
 
 // (rest of file unchanged)

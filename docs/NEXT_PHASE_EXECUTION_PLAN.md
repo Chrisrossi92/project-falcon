@@ -1,0 +1,251 @@
+# Next Phase Execution Plan
+
+## Purpose
+
+This plan starts from `governance-baseline-v1` and turns the governance retrospective into an
+execution shape for the next phase of Falcon work.
+
+This is a planning document. It makes no runtime behavior, permission, RLS, RPC, route, UI,
+workflow, lifecycle, assignment, activity, notification, or feature changes.
+
+Baseline references:
+
+- Git tag: `governance-baseline-v1`
+- `docs/STAGING_BASELINE_SNAPSHOT.md`
+- `docs/OPERATIONAL_GOVERNANCE_SNAPSHOT.md`
+- `docs/GOVERNANCE_RETROSPECTIVE_AND_NEXT_PHASE.md`
+- `docs/ORDER_DETAIL_PRINT_PACKET_PLAN.md`
+- `docs/HISTORICAL_ADMIN_READBACK_PLAN.md`
+- `docs/DASHBOARD_ANALYTICS_PLAN.md`
+
+## Executive Direction
+
+Falcon should resume **selective product expansion on governed, low-risk surfaces** while keeping
+two narrower tracks active:
+
+1. targeted backend ownership migrations where frontend orchestration is the main remaining risk;
+2. production cutover readiness for broader customer rollout.
+
+The first next slice should be a safe read-only or product-facing surface, not another heavy
+mutation sprint. The chosen first candidate is **read-only Order Detail Print Packets** because it
+is operationally useful, aligned with preserved-history doctrine, and does not require new mutation
+authority. Slices 1A through 1G now define, implement, polish, review, and close out the governed
+print packet foundation in `docs/ORDER_DETAIL_PRINT_PACKET_PLAN.md`.
+
+The first historical/admin readback MVP is also complete. Historical/Admin Readback Slices 1A
+through 1F now plan, implement, polish, and close out the initial read-only `Historical Orders`
+surface in `docs/HISTORICAL_ADMIN_READBACK_PLAN.md`.
+
+## Track 1: Safe Product Expansion
+
+### Purpose
+
+Restart visible product progress on top of the stabilized governance layer without opening new
+write paths or lifecycle behavior.
+
+### Candidate Work Items
+
+- Read-only Order Detail Print Packets:
+  - `Order Summary`;
+  - `Order Audit`;
+  - reuse already authorized order/activity data where practical.
+- Order Detail layout and information architecture improvements.
+- Activity timeline read UX:
+  - grouping;
+  - filtering;
+  - clearer human-note versus system-event rendering.
+- Assignment packet read/detail UX improvements that keep mutations on existing
+  `rpc_order_company_assignment_*` paths.
+- Notification center read UX and preference UX, limited to existing read/mark/preference RPCs.
+- Historical/Admin readback planning and future read-only list/detail UX:
+  - archived order visibility;
+  - cancelled/voided order visibility;
+  - explicit historical filters;
+  - preserved-history Order Detail readback.
+- Governed dashboard KPI planning and lightweight operational KPI cards:
+  - active order count;
+  - overdue orders;
+  - in-review backlog;
+  - appraiser/reviewer workload summaries;
+  - historical metrics only when explicitly labeled and sourced.
+
+### Guardrails
+
+- No new lifecycle mutation, restore, reopen, unarchive, or hard delete behavior.
+- No bulk lifecycle actions or table-row lifecycle menus.
+- No new frontend-authored authoritative system activity.
+- No new notification fanout for lifecycle, document, team, relationship, or assignment events.
+- No direct table mutation helpers.
+- Historical/admin readback runtime work must use explicit low-level opt-in flags and source-scan
+  whitelists.
+
+### Recommended First Slice
+
+Completed in Slices 1A through 1G: build the first read-only Order Detail Print Packets foundation:
+
+- define the packet contract, sections, and future modes;
+- use current permission/read surfaces and already loaded Order Detail/Files card data;
+- avoid new backend APIs, RPCs, routes, database tables, and PDF generation;
+- exclude mutation controls;
+- add focused UI/test coverage around rendering, browser print, lifecycle notices, document category
+  counts, and no mutation or signed URL side effects.
+
+The completed foundation is a browser print stylesheet with a dedicated read-only preview component
+inside Order Detail. It includes print isolation, lifecycle notices, and document category counts,
+while excluding signed URLs, downloads, file contents, mutations, new backend/API/RPC work, and new
+routes. Dedicated print routes, PDF export, richer activity summaries, sanitized document metadata
+rows, and client-safe/external packet variants remain deferred future enhancements.
+
+### Completed Historical Readback MVP
+
+Historical/Admin Readback Slices 1A through 1F complete the initial governed `Historical Orders`
+readback surface:
+
+- dedicated `/orders/historical` route;
+- explicit `listHistoricalOrders(...)` query helper;
+- read-only list of archived, cancelled, and voided records;
+- archived/cancelled/voided state labels;
+- frontend-only state filters;
+- links to preserved-history Order Detail readback;
+- conservative secondary entry point from the active Orders page;
+- no mutations, actions, restore, reopen, unarchive, hard delete, backend API/RPC/RLS changes, or
+  active-list behavior changes.
+
+Deferred historical enhancements remain server-side filtering/search, historical counts or KPIs,
+richer lifecycle timeline views, admin-only permission tightening if needed, restore/reopen/
+unarchive doctrine before any implementation, exports/reporting, and client-safe history views.
+
+### Completed Dashboard Analytics KPI Foundation
+
+Dashboard Analytics Slices 1A through 1G complete the initial governed dashboard KPI foundation in
+`docs/DASHBOARD_ANALYTICS_PLAN.md`.
+
+The completed foundation is a lightweight active operational KPI row with:
+
+- `Active Orders` -> `/orders`;
+- `In Review` -> `/orders?status=in_review`;
+- `Needs Revisions` -> `/orders?status=needs_revisions`;
+- `Overdue Orders` -> `/orders?due=overdue`.
+
+The cards remain read-only, reuse existing order/dashboard read paths, respect current company
+scope, RLS, and permission boundaries, keep active metrics confined to active operational rows, and
+avoid hidden archived/cancelled/voided leakage. No backend analytics pipeline, dashboard-specific
+RPC, mutation behavior, workflow/lifecycle behavior, charting, historical metric, cross-company
+aggregate, export, or scheduled reporting was added.
+
+Deferred dashboard analytics work remains workload cards, reviewer/appraiser queues, trend charts,
+historical metrics, lifecycle analytics, server-side analytics views if needed, and
+exports/reporting.
+
+## Track 2: Targeted Backend Ownership Migrations
+
+### Purpose
+
+Reduce the highest-value transitional governance seams without reopening broad stabilization work.
+These migrations should be small, replacing one frontend-owned side effect at a time.
+
+### Candidate Work Items
+
+- Source-scan hardening for low-level activity/notification helper reachability.
+- Backend workflow notification design:
+  - `order.sent_to_review`;
+  - `order.sent_back_to_appraiser`;
+  - `order.review_cleared`;
+  - `order.ready_for_client`;
+  - `order.completed`;
+  - decide `request_final_approval`.
+- Backend-owned review/revision note orchestration if atomic notes are required.
+- Reviewer assignment notification doctrine.
+- Participant assignment RPC unification:
+  - appraiser;
+  - reviewer;
+  - `assigned_to` compatibility retirement.
+- Lifecycle notification doctrine for archive/cancel/void.
+- Document notification doctrine for upload/archive.
+- Generic activity/notification helper quarantine.
+
+### Guardrails
+
+- Backend fanout must replace matching frontend fanout in the same slice.
+- Each migration should prove one notification row per intended recipient and no duplicate email
+  queue trigger effects.
+- Payloads must be safe, minimal, and source-traceable.
+- Actor attribution must come from backend app user/company context.
+- Do not migrate all side effects at once; work event-family by event-family.
+- Do not add new product behavior while changing ownership unless the behavior is explicitly in the
+  slice scope.
+
+### Recommended First Slice
+
+Do a narrow source-scan hardening slice before the first backend fanout migration:
+
+- block active imports/usages of low-level activity/notification compatibility helpers where they
+  are not explicitly approved;
+- keep current approved paths working;
+- add tests around the scan behavior.
+
+This reduces regression risk before product work starts creating more read surfaces.
+
+## Track 3: Production Cutover Readiness
+
+### Purpose
+
+Prepare Falcon for broader customer rollout by validating the modern company-scoped architecture,
+data migration posture, deployment safety, and rollback plan.
+
+### Candidate Work Items
+
+- Confirm final production target project, secrets, CORS origins, Edge Function deployment, and
+  storage posture.
+- Rehearse migration with production-like data:
+  - table counts;
+  - company row;
+  - memberships;
+  - order/client ownership;
+  - activity/notification ownership;
+  - assignment packet isolation.
+- Verify Team Access owner invariants, invite lifecycle, deactivate/reactivate, and role grants.
+- Keep Order Documents blocked from legacy production until company-scoped staging/final production
+  validates the full storage/RPC flow.
+- Define post-cutover smoke checks, monitoring, rollback, and reconciliation rules.
+- Preserve the legacy hosted project as archive/source until retention and reconciliation policy is
+  explicit.
+
+### Guardrails
+
+- Do not push modern governance migrations directly into legacy production as a first move.
+- Do not deploy Order Documents to legacy production.
+- Do not promote a temporary staging project as final production without an explicit naming, secret,
+  and cutover decision.
+- No production mutation without a current backup and rollback path.
+- No deleting the legacy project immediately after cutover.
+
+### Recommended First Slice
+
+Run a production readiness checkpoint:
+
+- review `STAGING_COMPANY_SCOPE_MIGRATION_PLAN.md` and `FINAL_PRODUCTION_CUTOVER_PLAN.md`;
+- decide whether the next rollout target is modern staging, limited pilot, or final production;
+- produce a short go/no-go checklist for the chosen target.
+
+## Recommended Ordering
+
+1. Completed: start Track 1 with read-only Order Detail Print Packets.
+2. Completed: implement and close out the initial read-only Historical Orders readback surface.
+3. Completed: implement and close out the initial governed Dashboard KPI foundation.
+4. In parallel, run Track 3's production readiness checkpoint.
+5. Before adding new side-effecting features, run Track 2's source-scan hardening slice.
+6. Continue Track 1 with Order Detail/activity read UX improvements.
+7. Design the first Track 2 backend workflow notification migration, but implement only after the
+   no-duplicate replacement plan is clear.
+8. Resolve client archive semantics before broad client/AMC expansion.
+9. Continue production cutover rehearsals until broader customer rollout is unblocked.
+
+## Explicit Non-Goals For The First Slice
+
+- No new mutation RPCs.
+- No lifecycle behavior changes.
+- No assignment behavior changes.
+- No notification fanout redesign.
+- No History/Admin runtime readback surface in the planning slice.
+- No direct production migration.

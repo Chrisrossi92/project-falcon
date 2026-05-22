@@ -77,6 +77,7 @@ export function useOrders(initialSeed = {}, options = {}) {
           assignedAppraiserId: filters.assignedAppraiserId || null,
           inspectedAwaitingReport: filters.inspectedAwaitingReport || false,
           finalDueWithinDays: filters.finalDueWithinDays ?? null,
+          dueWindow: filters.dueWindow || "",
           from: filters.from || null,
           to: filters.to || null,
           activeOnly: false, // fetch all; we'll filter active locally if needed

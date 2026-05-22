@@ -68,6 +68,9 @@ function buildSummary(overrides = {}) {
       count: 4,
       inProgress: 1,
       dueIn7: 2,
+      inReview: 1,
+      needsRevisions: 1,
+      overdue: 1,
       inspectedAwaitingReport: 1,
       dueToClient2: 1,
     },
@@ -149,10 +152,29 @@ describe("DashboardPage operational polish", () => {
     const calendarHeading = screen.getByText("Calendar");
     const ordersHeading = screen.getByText("Active Worklist");
     const statusHeading = screen.getByText("Status");
+    const kpiCards = screen.getByRole("region", { name: /operational kpi cards/i });
 
     expect(statusHeading).toBeInTheDocument();
     expect(calendarHeading).toBeInTheDocument();
     expect(ordersHeading).toBeInTheDocument();
+    expect(within(kpiCards).getByText("Active Orders")).toBeInTheDocument();
+    expect(within(kpiCards).getByText("Current operational queue")).toBeInTheDocument();
+    expect(within(kpiCards).getByText("In Review")).toBeInTheDocument();
+    expect(within(kpiCards).getByText("Orders awaiting review clearance")).toBeInTheDocument();
+    expect(within(kpiCards).getByText("Needs Revisions")).toBeInTheDocument();
+    expect(within(kpiCards).getByText("Returned for report updates")).toBeInTheDocument();
+    expect(within(kpiCards).getByText("Overdue Orders")).toBeInTheDocument();
+    expect(within(kpiCards).getByText("Active orders past final due date")).toBeInTheDocument();
+    expect(within(kpiCards).getAllByText("1")).toHaveLength(3);
+    expect(within(kpiCards).queryByRole("button")).not.toBeInTheDocument();
+    const kpiLinks = within(kpiCards).getAllByRole("link");
+    expect(kpiLinks.map((link) => link.getAttribute("href"))).toEqual([
+      "/orders",
+      "/orders?status=in_review",
+      "/orders?status=needs_revisions",
+      "/orders?due=overdue",
+    ]);
+    expect(within(kpiCards).queryByRole("button")).not.toBeInTheDocument();
     expect(screen.queryByText("Priority Worklist Preview")).not.toBeInTheDocument();
     expect(screen.queryByText("Workload Snapshot")).not.toBeInTheDocument();
     expect(screen.queryByText("Review Bottlenecks")).not.toBeInTheDocument();
@@ -218,6 +240,9 @@ describe("DashboardPage operational polish", () => {
         count: 0,
         inProgress: 0,
         dueIn7: 0,
+        inReview: 0,
+        needsRevisions: 0,
+        overdue: 0,
         inspectedAwaitingReport: 0,
         dueToClient2: 0,
       },
@@ -228,6 +253,8 @@ describe("DashboardPage operational polish", () => {
 
     expect(within(screen.getByRole("button", { name: /new/i })).getByText("0")).toBeInTheDocument();
     expect(within(screen.getByRole("button", { name: /ready for client/i })).getByText("0")).toBeInTheDocument();
+    const kpiCards = screen.getByRole("region", { name: /operational kpi cards/i });
+    expect(within(kpiCards).getAllByText("0")).toHaveLength(4);
     expect(screen.queryByRole("link", { name: /view order/i })).not.toBeInTheDocument();
   });
 
@@ -241,6 +268,9 @@ describe("DashboardPage operational polish", () => {
         count: 1,
         inProgress: 0,
         dueIn7: 1,
+        inReview: 1,
+        needsRevisions: 0,
+        overdue: 0,
         inspectedAwaitingReport: 0,
         dueToClient2: 1,
       },

@@ -30,6 +30,42 @@
 /* optional: utility class for consistent numeric alignment */
 .tabular-nums { font-variant-numeric: tabular-nums; }
 
+@media print {
+  @page {
+    margin: 0.5in;
+  }
+
+  html,
+  body,
+  #root {
+    background: #fff !important;
+  }
+
+  body:has(.order-print-surface) * {
+    visibility: hidden;
+  }
+
+  body:has(.order-print-surface) .order-print-surface,
+  body:has(.order-print-surface) .order-print-surface * {
+    visibility: visible;
+  }
+
+  body:has(.order-print-surface) .order-print-surface {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+  }
+
+  .order-print-packet {
+    color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .order-print-section,
+  .order-print-header {
+    page-break-inside: avoid;
+  }
+}
 
 
 

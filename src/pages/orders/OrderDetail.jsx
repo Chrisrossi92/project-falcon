@@ -22,6 +22,7 @@ import {
 } from "@/features/orders/orderArchiveReadiness";
 import OfferAssignmentModal from "@/features/assignments/components/OfferAssignmentModal";
 import OwnerOrderAssignmentsPanel from "@/features/assignments/components/OwnerOrderAssignmentsPanel";
+import OrderPrintPacket from "@/features/orders/print/OrderPrintPacket";
 import {
   archiveOrderViaRpc,
   cancelOrderViaRpc,
@@ -115,6 +116,23 @@ const categoryLabel = (value) =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ") || "Document";
 
+const documentCategoryKey = (document) =>
+  pick(document?.category, document?.document_type, document?.type) || "uncategorized";
+
+const buildDocumentCategoryCounts = (documents) => {
+  const counts = new Map();
+
+  for (const document of documents || []) {
+    const key = documentCategoryKey(document);
+    const label = key === "uncategorized" ? "Uncategorized" : categoryLabel(key);
+    counts.set(label, (counts.get(label) || 0) + 1);
+  }
+
+  return Array.from(counts.entries())
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+};
+
 function SummaryField({ label, value, children }) {
   return (
     <div className="min-w-0">
@@ -143,7 +161,7 @@ function OverviewSection({ title, children, className = "" }) {
   );
 }
 
-function FilesCard({ orderId, canArchive, canUpload }) {
+function FilesCard({ orderId, canArchive, canUpload, onFilesLoaded }) {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -163,9 +181,12 @@ function FilesCard({ orderId, canArchive, canUpload }) {
 
     try {
       const rows = await listOrderDocuments(orderId);
-      setFiles(Array.isArray(rows) ? rows : []);
+      const nextFiles = Array.isArray(rows) ? rows : [];
+      setFiles(nextFiles);
+      onFilesLoaded?.(nextFiles);
     } catch (loadError) {
       setFiles([]);
+      onFilesLoaded?.([]);
       setError(loadError);
     } finally {
       setLoading(false);
@@ -182,10 +203,15 @@ function FilesCard({ orderId, canArchive, canUpload }) {
 
       try {
         const rows = await listOrderDocuments(orderId);
-        if (active) setFiles(Array.isArray(rows) ? rows : []);
+        const nextFiles = Array.isArray(rows) ? rows : [];
+        if (active) {
+          setFiles(nextFiles);
+          onFilesLoaded?.(nextFiles);
+        }
       } catch (loadError) {
         if (active) {
           setFiles([]);
+          onFilesLoaded?.([]);
           setError(loadError);
         }
       } finally {
@@ -198,7 +224,7 @@ function FilesCard({ orderId, canArchive, canUpload }) {
     return () => {
       active = false;
     };
-  }, [orderId]);
+  }, [onFilesLoaded, orderId]);
 
   const latestFiles = files.slice(0, 5);
 
@@ -415,6 +441,8 @@ export default function OrderDetail() {
   const [lifecycleReason, setLifecycleReason] = useState("");
   const [lifecycleSubmitting, setLifecycleSubmitting] = useState(false);
   const [lifecycleError, setLifecycleError] = useState("");
+  const [printPacketOpen, setPrintPacketOpen] = useState(false);
+  const [orderFiles, setOrderFiles] = useState([]);
 
   // Display names
   const [clientName, setClientName] = useState("-");
@@ -443,6 +471,13 @@ export default function OrderDetail() {
   const contactPhone = order?.property_contact_phone || order?.entry_contact_phone || "";
 
   const copyNo = () => navigator.clipboard?.writeText(titleNo).catch(() => {});
+  const handleFilesLoaded = React.useCallback((files) => {
+    setOrderFiles(Array.isArray(files) ? files : []);
+  }, []);
+  const documentCategoryCounts = useMemo(
+    () => buildDocumentCategoryCounts(orderFiles),
+    [orderFiles],
+  );
 
   const canOfferAssignment =
     !permissions.loading &&
@@ -534,14 +569,19 @@ export default function OrderDetail() {
     }
   }
 
+  function handlePrintPacket() {
+    window.print();
+  }
+
   if (loading) return <div className="p-4 text-sm">Loading...</div>;
   if (loadErr) return <div className="p-4 text-sm text-rose-600">Failed to load order.</div>;
   if (!order) return <div className="p-4 text-sm text-amber-700">Order not found.</div>;
 
   return (
-    <div className="p-4 space-y-4">
-      {/* Operational overview */}
-      <div className="rounded-xl border bg-white p-4">
+    <div className="p-4 space-y-4 print:p-0">
+      <div className="space-y-4 print:hidden">
+        {/* Operational overview */}
+        <div className="rounded-xl border bg-white p-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0">
             <div className="text-lg font-semibold flex items-center gap-3">
@@ -598,6 +638,13 @@ export default function OrderDetail() {
                 Void order
               </button>
             )}
+            <button
+              type="button"
+              onClick={() => setPrintPacketOpen(true)}
+              className="px-3 py-1.5 border rounded text-sm font-semibold text-gray-700 hover:bg-gray-50"
+            >
+              Print Packet
+            </button>
             <Link to="/orders" className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50">
               {"<- Back"}
             </Link>
@@ -666,10 +713,10 @@ export default function OrderDetail() {
             </OverviewSection>
           </div>
         </div>
-      </div>
+        </div>
 
-      {/* Detail body */}
-      <div className="grid grid-cols-12 gap-4 items-start" aria-label="Order detail body">
+        {/* Detail body */}
+        <div className="grid grid-cols-12 gap-4 items-start" aria-label="Order detail body">
         <div className="col-span-12 lg:col-span-5">
           <div className="rounded-md bg-white p-3 border">
             <div className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-2">Property / Map</div>
@@ -696,6 +743,7 @@ export default function OrderDetail() {
             orderId={order.id}
             canArchive={canArchiveDocuments}
             canUpload={canUploadDocuments}
+            onFilesLoaded={handleFilesLoaded}
           />
         </div>
 
@@ -707,30 +755,82 @@ export default function OrderDetail() {
             <ActivityLog orderId={order.id} order={order} showComposer height={420} />
           </div>
         </div>
+        </div>
+
+        <OwnerOrderAssignmentsPanel
+          orderId={order.id}
+          canOfferAssignment={canOfferAssignment}
+          onOfferAssignment={() => setOfferAssignmentOpen(true)}
+        />
+
+        {/* Notes */}
+        <div className="rounded-md bg-white p-3 border">
+          <div className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-2">Notes</div>
+          <div className="text-sm text-gray-800 whitespace-pre-wrap">{order.access_notes || order.notes || "-"}</div>
+        </div>
+
+        <OfferAssignmentModal
+          open={offerAssignmentOpen}
+          order={order}
+          onClose={() => setOfferAssignmentOpen(false)}
+          onSuccess={(assignmentId) => {
+            setOfferAssignmentOpen(false);
+            success("Assignment offer created.");
+            navigate(`/assignments/${assignmentId}`);
+          }}
+        />
       </div>
 
-      <OwnerOrderAssignmentsPanel
-        orderId={order.id}
-        canOfferAssignment={canOfferAssignment}
-        onOfferAssignment={() => setOfferAssignmentOpen(true)}
-      />
-
-      {/* Notes */}
-      <div className="rounded-md bg-white p-3 border">
-        <div className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-2">Notes</div>
-        <div className="text-sm text-gray-800 whitespace-pre-wrap">{order.access_notes || order.notes || "-"}</div>
-      </div>
-
-      <OfferAssignmentModal
-        open={offerAssignmentOpen}
-        order={order}
-        onClose={() => setOfferAssignmentOpen(false)}
-        onSuccess={(assignmentId) => {
-          setOfferAssignmentOpen(false);
-          success("Assignment offer created.");
-          navigate(`/assignments/${assignmentId}`);
-        }}
-      />
+      {printPacketOpen && (
+        <div
+          className="order-print-surface fixed inset-0 z-50 overflow-y-auto bg-slate-950/50 px-4 py-6 print:static print:inset-auto print:z-auto print:block print:overflow-visible print:bg-white print:p-0"
+          role="presentation"
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="order-print-packet-title"
+            className="mx-auto max-w-5xl rounded-lg border bg-white shadow-xl print:max-w-none print:border-0 print:shadow-none"
+          >
+            <div className="flex items-center justify-between gap-3 border-b px-4 py-3 print:hidden">
+              <div>
+                <div id="order-print-packet-title" className="text-base font-semibold text-gray-950">
+                  Print Packet
+                </div>
+                <div className="text-xs text-gray-500">
+                  Read-only internal summary. Browser print handles output.
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handlePrintPacket}
+                  className="rounded border border-slate-900 bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-800"
+                >
+                  Print
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPrintPacketOpen(false)}
+                  className="rounded border px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+            <div className="p-4 print:p-0">
+              <OrderPrintPacket
+                order={order}
+                clientName={clientName}
+                amcName={amcName}
+                appraiserName={appraiserName}
+                fileCount={orderFiles.length}
+                documentCategoryCounts={documentCategoryCounts}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {archiveConfirmOpen && (
         <div
