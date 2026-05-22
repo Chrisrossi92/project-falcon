@@ -18,7 +18,12 @@ vi.mock("@/lib/supabaseClient", () => ({
 
 vi.mock("@/lib/services/ordersService", () => ordersServiceMock);
 
-const { createOrder, updateSiteVisitAt } = await import("../orders.js");
+const {
+  assignAppraiser,
+  bulkAssignAppraiser,
+  createOrder,
+  updateSiteVisitAt,
+} = await import("../orders.js");
 
 describe("updateSiteVisitAt", () => {
   beforeEach(() => {
@@ -127,6 +132,22 @@ describe("updateSiteVisitAt", () => {
     expect(warnSpy).toHaveBeenCalledWith(
       "[ordersApi] createOrder performs a direct orders table mutation and is deprecated. Use createOrderViaRpc instead."
     );
+
+    warnSpy.mockRestore();
+  });
+
+  it("keeps deprecated direct appraiser assignment helpers quarantined as throwing stubs", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await expect(assignAppraiser("order-1", "appraiser-1")).rejects.toThrow(
+      "Order assignment changes must use backend-owned assignment/order RPCs.",
+    );
+    await expect(bulkAssignAppraiser(["order-1"], "appraiser-1")).rejects.toThrow(
+      "Order assignment changes must use backend-owned assignment/order RPCs.",
+    );
+
+    expect(supabaseMock.from).not.toHaveBeenCalled();
+    expect(supabaseMock.rpc).not.toHaveBeenCalled();
 
     warnSpy.mockRestore();
   });

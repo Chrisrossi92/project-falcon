@@ -15,9 +15,19 @@ import {
   listOrderDocuments,
   uploadOrderDocument,
 } from "@/features/order-documents/api";
+import {
+  canArchiveOrder,
+  canCancelOrder,
+  canVoidOrder,
+} from "@/features/orders/orderArchiveReadiness";
 import OfferAssignmentModal from "@/features/assignments/components/OfferAssignmentModal";
 import OwnerOrderAssignmentsPanel from "@/features/assignments/components/OwnerOrderAssignmentsPanel";
-import { updateSiteVisitAtViaRpc } from "@/lib/services/ordersService";
+import {
+  archiveOrderViaRpc,
+  cancelOrderViaRpc,
+  updateSiteVisitAtViaRpc,
+  voidOrderViaRpc,
+} from "@/lib/services/ordersService";
 
 /* ---------- helpers ---------- */
 const fmtDate = (s) => (s ? new Date(s).toLocaleDateString() : "-");
@@ -42,6 +52,62 @@ const DOCUMENT_CATEGORIES = Object.freeze([
   "final_report",
   "internal_workfile",
 ]);
+const ARCHIVE_ORDER_COPY = Object.freeze({
+  title: "Archive order",
+  warning:
+    "This removes the order from active operational lists. It does not delete the order, change its status, remove documents, remove activity, or release the order number.",
+  reasonLabel: "Reason for archive (optional)",
+  confirmLabel: "Archive order",
+  success: "Order archived. It was removed from active lists, and its history was preserved.",
+  failure: "Could not archive order. No changes were made.",
+  noticeTitle: "Archived order",
+  notice:
+    "This order is preserved for history. It is hidden from active operational lists and archive does not change status, remove documents, remove activity, or release the order number.",
+});
+const LIFECYCLE_ACTION_COPY = Object.freeze({
+  cancel: {
+    title: "Cancel order",
+    warning:
+      "Cancelling marks a legitimate order as stopped before completion. It does not delete the order, release the order number, or remove documents/activity.",
+    reasonLabel: "Reason for cancellation",
+    confirmLabel: "Cancel order",
+    pendingLabel: "Cancelling...",
+    success: "Order cancelled. Its history was preserved.",
+    failure: "Could not cancel order. No changes were made.",
+    submit: cancelOrderViaRpc,
+    buttonClass:
+      "px-3 py-1.5 border border-rose-300 bg-rose-50 text-rose-800 rounded text-sm font-semibold hover:bg-rose-100",
+    confirmClass:
+      "rounded border border-rose-700 bg-rose-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-rose-800 disabled:opacity-50",
+  },
+  void: {
+    title: "Void order",
+    warning:
+      "Voiding marks this order as administratively invalid, such as a duplicate, mistake, or record opened in error. It does not delete the order, release the order number, or remove documents/activity.",
+    reasonLabel: "Reason for voiding",
+    confirmLabel: "Void order",
+    pendingLabel: "Voiding...",
+    success: "Order voided. Its history was preserved.",
+    failure: "Could not void order. No changes were made.",
+    submit: voidOrderViaRpc,
+    buttonClass:
+      "px-3 py-1.5 border border-slate-300 bg-slate-50 text-slate-800 rounded text-sm font-semibold hover:bg-slate-100",
+    confirmClass:
+      "rounded border border-slate-800 bg-slate-800 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-900 disabled:opacity-50",
+  },
+});
+const LIFECYCLE_HISTORY_NOTICE = Object.freeze({
+  cancelled: {
+    title: "Cancelled order",
+    notice:
+      "This order is preserved for history. It is hidden from active operational queues and cancellation does not delete the order, release the order number, or remove documents/activity.",
+  },
+  voided: {
+    title: "Voided order",
+    notice:
+      "This order is preserved for history. It is hidden from active operational queues and voiding does not delete the order, release the order number, or remove documents/activity.",
+  },
+});
 const categoryLabel = (value) =>
   String(value || "")
     .split("_")
@@ -339,8 +405,16 @@ export default function OrderDetail() {
 
   const { order, loading, error: loadErr, refresh } = useOrder(id);
   const permissions = useEffectivePermissions();
-  const { success } = useToast();
+  const { success, error: toastError } = useToast();
   const [offerAssignmentOpen, setOfferAssignmentOpen] = useState(false);
+  const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false);
+  const [archiveReason, setArchiveReason] = useState("");
+  const [archiveSubmitting, setArchiveSubmitting] = useState(false);
+  const [archiveError, setArchiveError] = useState("");
+  const [lifecycleAction, setLifecycleAction] = useState(null);
+  const [lifecycleReason, setLifecycleReason] = useState("");
+  const [lifecycleSubmitting, setLifecycleSubmitting] = useState(false);
+  const [lifecycleError, setLifecycleError] = useState("");
 
   // Display names
   const [clientName, setClientName] = useState("-");
@@ -390,6 +464,13 @@ export default function OrderDetail() {
       PERMISSIONS.DOCUMENTS_UPLOAD_ASSIGNED,
       PERMISSIONS.DOCUMENTS_UPLOAD_ALL,
     ]);
+  const canArchiveThisOrder = canArchiveOrder(order, permissions);
+  const canCancelThisOrder = canCancelOrder(order, permissions);
+  const canVoidThisOrder = canVoidOrder(order, permissions);
+  const lifecycleCopy = lifecycleAction ? LIFECYCLE_ACTION_COPY[lifecycleAction] : null;
+  const lifecycleReasonTrimmed = lifecycleReason.trim();
+  const lifecycleHistoryNotice =
+    LIFECYCLE_HISTORY_NOTICE[String(order?.status || "").toLowerCase()] || null;
 
   async function saveAppt(iso) {
     try {
@@ -399,6 +480,58 @@ export default function OrderDetail() {
       return;
     }
     refresh();
+  }
+
+  async function handleArchiveOrder() {
+    if (!order?.id || archiveSubmitting) return;
+
+    setArchiveSubmitting(true);
+    setArchiveError("");
+
+    try {
+      const reason = archiveReason.trim();
+      await archiveOrderViaRpc(order.id, reason || null);
+      setArchiveConfirmOpen(false);
+      setArchiveReason("");
+      success(ARCHIVE_ORDER_COPY.success);
+      await refresh();
+    } catch {
+      setArchiveError(ARCHIVE_ORDER_COPY.failure);
+      toastError(ARCHIVE_ORDER_COPY.failure);
+    } finally {
+      setArchiveSubmitting(false);
+    }
+  }
+
+  function openLifecycleAction(action) {
+    setLifecycleAction(action);
+    setLifecycleReason("");
+    setLifecycleError("");
+  }
+
+  function closeLifecycleAction() {
+    setLifecycleAction(null);
+    setLifecycleReason("");
+    setLifecycleError("");
+  }
+
+  async function handleLifecycleAction() {
+    if (!order?.id || !lifecycleCopy || lifecycleSubmitting || !lifecycleReasonTrimmed) return;
+
+    setLifecycleSubmitting(true);
+    setLifecycleError("");
+
+    try {
+      await lifecycleCopy.submit(order.id, lifecycleReasonTrimmed);
+      closeLifecycleAction();
+      success(lifecycleCopy.success);
+      await refresh();
+    } catch {
+      setLifecycleError(lifecycleCopy.failure);
+      toastError(lifecycleCopy.failure);
+    } finally {
+      setLifecycleSubmitting(false);
+    }
   }
 
   if (loading) return <div className="p-4 text-sm">Loading...</div>;
@@ -435,6 +568,36 @@ export default function OrderDetail() {
                 Offer Assignment
               </button>
             )}
+            {canArchiveThisOrder && (
+              <button
+                type="button"
+                onClick={() => {
+                  setArchiveError("");
+                  setArchiveConfirmOpen(true);
+                }}
+                className="px-3 py-1.5 border border-amber-300 bg-amber-50 text-amber-800 rounded text-sm font-semibold hover:bg-amber-100"
+              >
+                Archive order
+              </button>
+            )}
+            {canCancelThisOrder && (
+              <button
+                type="button"
+                onClick={() => openLifecycleAction("cancel")}
+                className={LIFECYCLE_ACTION_COPY.cancel.buttonClass}
+              >
+                Cancel order
+              </button>
+            )}
+            {canVoidThisOrder && (
+              <button
+                type="button"
+                onClick={() => openLifecycleAction("void")}
+                className={LIFECYCLE_ACTION_COPY.void.buttonClass}
+              >
+                Void order
+              </button>
+            )}
             <Link to="/orders" className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50">
               {"<- Back"}
             </Link>
@@ -443,6 +606,24 @@ export default function OrderDetail() {
             </Link>
           </div>
         </div>
+        {order.is_archived === true && (
+          <div
+            className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+            role="status"
+          >
+            <div className="font-semibold">{ARCHIVE_ORDER_COPY.noticeTitle}</div>
+            <div className="mt-1">{ARCHIVE_ORDER_COPY.notice}</div>
+          </div>
+        )}
+        {lifecycleHistoryNotice && (
+          <div
+            className="mt-4 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800"
+            role="status"
+          >
+            <div className="font-semibold">{lifecycleHistoryNotice.title}</div>
+            <div className="mt-1">{lifecycleHistoryNotice.notice}</div>
+          </div>
+        )}
         <div
           className="mt-4 border-t border-gray-100 pt-4"
           aria-label="Operational Overview"
@@ -550,6 +731,124 @@ export default function OrderDetail() {
           navigate(`/assignments/${assignmentId}`);
         }}
       />
+
+      {archiveConfirmOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4"
+          role="presentation"
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="archive-order-title"
+            className="w-full max-w-md rounded-lg border bg-white p-4 shadow-xl"
+          >
+            <div id="archive-order-title" className="text-base font-semibold text-gray-950">
+              {ARCHIVE_ORDER_COPY.title}
+            </div>
+            <p className="mt-2 text-sm leading-6 text-gray-700">{ARCHIVE_ORDER_COPY.warning}</p>
+
+            <label className="mt-4 block text-sm font-medium text-gray-700">
+              {ARCHIVE_ORDER_COPY.reasonLabel}
+              <textarea
+                value={archiveReason}
+                onChange={(event) => setArchiveReason(event.target.value)}
+                disabled={archiveSubmitting}
+                rows={3}
+                className="mt-2 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500 disabled:bg-gray-50 disabled:text-gray-500"
+              />
+            </label>
+
+            {archiveError && (
+              <div className="mt-3 rounded border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                {archiveError}
+              </div>
+            )}
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setArchiveConfirmOpen(false);
+                  setArchiveReason("");
+                  setArchiveError("");
+                }}
+                disabled={archiveSubmitting}
+                className="rounded border px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleArchiveOrder}
+                disabled={archiveSubmitting}
+                className="rounded border border-amber-700 bg-amber-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-amber-800 disabled:opacity-50"
+              >
+                {archiveSubmitting ? "Archiving..." : ARCHIVE_ORDER_COPY.confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {lifecycleCopy && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4"
+          role="presentation"
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="order-lifecycle-action-title"
+            className="w-full max-w-md rounded-lg border bg-white p-4 shadow-xl"
+          >
+            <div id="order-lifecycle-action-title" className="text-base font-semibold text-gray-950">
+              {lifecycleCopy.title}
+            </div>
+            <p className="mt-2 text-sm leading-6 text-gray-700">{lifecycleCopy.warning}</p>
+
+            <label className="mt-4 block text-sm font-medium text-gray-700">
+              {lifecycleCopy.reasonLabel}
+              <textarea
+                value={lifecycleReason}
+                onChange={(event) => {
+                  setLifecycleReason(event.target.value);
+                  setLifecycleError("");
+                }}
+                disabled={lifecycleSubmitting}
+                rows={3}
+                required
+                className="mt-2 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500 disabled:bg-gray-50 disabled:text-gray-500"
+              />
+            </label>
+
+            {lifecycleError && (
+              <div className="mt-3 rounded border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                {lifecycleError}
+              </div>
+            )}
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeLifecycleAction}
+                disabled={lifecycleSubmitting}
+                className="rounded border px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleLifecycleAction}
+                disabled={lifecycleSubmitting || !lifecycleReasonTrimmed}
+                className={lifecycleCopy.confirmClass}
+              >
+                {lifecycleSubmitting ? lifecycleCopy.pendingLabel : lifecycleCopy.confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -11,6 +11,19 @@ async function getUserId() {
   }
 }
 
+function notificationPrefsRpcError(action, error) {
+  const details = [error?.message, error?.details, error?.hint].filter(Boolean).join(" ");
+  const rpcUnavailable = error?.code === "42883"
+    || error?.code === "PGRST202"
+    || /rpc_notification_prefs|schema cache|does not exist|could not find/i.test(details);
+  const message = rpcUnavailable
+    ? `Notification preference ${action} is unavailable because the required RPC is not deployed.`
+    : `Unable to ${action} notification preferences${details ? `: ${details}` : "."}`;
+  const wrapped = new Error(message);
+  wrapped.cause = error;
+  return wrapped;
+}
+
 /* ---------- prefs ---------- */
 export async function getNotificationPrefs() {
   try {
@@ -35,45 +48,15 @@ export async function getNotificationPrefs() {
 }
 
 export async function ensureNotificationPrefs() {
-  try {
-    const rpc = await supabase.rpc("rpc_notification_prefs_ensure");
-    if (!rpc.error) return rpc.data ?? true;
-  } catch {
-    // Fall back to direct table writes when the RPC is unavailable.
-  }
-  try {
-    const uid = await getUserId();
-    if (!uid) return false;
-    await supabase
-      .from("notification_prefs")
-      .upsert([{ user_id: uid }], { onConflict: "user_id" });
-    return true;
-  } catch {
-    // Preference creation is best-effort for older environments.
-  }
-  return false;
+  const rpc = await supabase.rpc("rpc_notification_prefs_ensure");
+  if (rpc.error) throw notificationPrefsRpcError("initialization", rpc.error);
+  return rpc.data ?? true;
 }
 
 export async function updateNotificationPrefs(patch = {}) {
-  try {
-    const rpc = await supabase.rpc("rpc_notification_prefs_update", { p_patch: patch });
-    if (!rpc.error) return rpc.data ?? patch;
-  } catch {
-    // Fall back to direct table writes when the RPC is unavailable.
-  }
-  try {
-    const uid = await getUserId();
-    if (!uid) return patch;
-    const { data } = await supabase
-      .from("notification_prefs")
-      .upsert([{ user_id: uid, ...patch }], { onConflict: "user_id" })
-      .select("*")
-      .maybeSingle();
-    return data ?? patch;
-  } catch {
-    // Keep the optimistic patch result if persistence fails.
-  }
-  return patch;
+  const rpc = await supabase.rpc("rpc_notification_prefs_update", { patch });
+  if (rpc.error) throw notificationPrefsRpcError("update", rpc.error);
+  return rpc.data ?? patch;
 }
 
 /* ---------- counts & lists ---------- */

@@ -5,10 +5,38 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const refreshMock = vi.hoisted(() => vi.fn());
 const updateSiteVisitAtViaRpcMock = vi.hoisted(() => vi.fn());
+const archiveOrderViaRpcMock = vi.hoisted(() => vi.fn());
+const cancelOrderViaRpcMock = vi.hoisted(() => vi.fn());
+const voidOrderViaRpcMock = vi.hoisted(() => vi.fn());
 const listOrderDocumentsMock = vi.hoisted(() => vi.fn());
 const createOrderDocumentDownloadUrlMock = vi.hoisted(() => vi.fn());
 const archiveOrderDocumentMock = vi.hoisted(() => vi.fn());
 const uploadOrderDocumentMock = vi.hoisted(() => vi.fn());
+const permissionKeysMock = vi.hoisted(() => []);
+const toastSuccessMock = vi.hoisted(() => vi.fn());
+const toastErrorMock = vi.hoisted(() => vi.fn());
+const orderMock = vi.hoisted(() => ({
+  id: "order-1",
+  order_number: "2026001",
+  status: "new",
+  is_archived: false,
+  client_name: "Acme Lending",
+  amc_name: "Northstar AMC",
+  appraiser_name: "Avery Appraiser",
+  reviewer_name: "Riley Reviewer",
+  address_line1: "100 Main St",
+  city: "Boston",
+  state: "MA",
+  postal_code: "02110",
+  property_contact_name: "Casey Contact",
+  property_contact_phone: "555-0100",
+  created_at: "2026-05-20T12:00:00.000Z",
+  updated_at: "2026-05-20T12:00:00.000Z",
+  site_visit_at: null,
+  review_due_at: "2026-05-22T12:00:00.000Z",
+  final_due_at: "2026-05-29T12:00:00.000Z",
+  due_date: null,
+}));
 const DOCUMENT_POSITION_FOLLOWING = 4;
 
 vi.mock("react-router-dom", () => ({
@@ -23,27 +51,7 @@ vi.mock("react-router-dom", () => ({
 
 vi.mock("@/lib/hooks/useOrder", () => ({
   default: () => ({
-    order: {
-      id: "order-1",
-      order_number: "2026001",
-      status: "new",
-      client_name: "Acme Lending",
-      amc_name: "Northstar AMC",
-      appraiser_name: "Avery Appraiser",
-      reviewer_name: "Riley Reviewer",
-      address_line1: "100 Main St",
-      city: "Boston",
-      state: "MA",
-      postal_code: "02110",
-      property_contact_name: "Casey Contact",
-      property_contact_phone: "555-0100",
-      created_at: "2026-05-20T12:00:00.000Z",
-      updated_at: "2026-05-20T12:00:00.000Z",
-      site_visit_at: null,
-      review_due_at: "2026-05-22T12:00:00.000Z",
-      final_due_at: "2026-05-29T12:00:00.000Z",
-      due_date: null,
-    },
+    order: { ...orderMock },
     loading: false,
     error: null,
     refresh: refreshMock,
@@ -51,16 +59,22 @@ vi.mock("@/lib/hooks/useOrder", () => ({
 }));
 
 vi.mock("@/lib/services/ordersService", () => ({
+  archiveOrderViaRpc: archiveOrderViaRpcMock,
+  cancelOrderViaRpc: cancelOrderViaRpcMock,
   updateSiteVisitAtViaRpc: updateSiteVisitAtViaRpcMock,
+  voidOrderViaRpc: voidOrderViaRpcMock,
 }));
 
 vi.mock("@/lib/hooks/usePermissions", () => ({
   useEffectivePermissions: () => ({
     loading: false,
     error: null,
-    hasPermission: (permission) => permission === "documents.delete",
-    hasAnyPermission: (permissions) => permissions.includes("documents.upload.all"),
-    hasAllPermissions: () => false,
+    permissionKeys: permissionKeysMock,
+    hasPermission: (permission) => permissionKeysMock.includes(permission),
+    hasAnyPermission: (permissions) =>
+      permissions.some((permission) => permissionKeysMock.includes(permission)),
+    hasAllPermissions: (permissions) =>
+      permissions.every((permission) => permissionKeysMock.includes(permission)),
   }),
 }));
 
@@ -73,7 +87,8 @@ vi.mock("@/features/order-documents/api", () => ({
 
 vi.mock("@/lib/hooks/useToast", () => ({
   useToast: () => ({
-    success: vi.fn(),
+    success: toastSuccessMock,
+    error: toastErrorMock,
   }),
 }));
 
@@ -109,12 +124,63 @@ const { default: OrderDetail } = await import("../OrderDetail.jsx");
 
 describe("OrderDetail site visit save", () => {
   beforeEach(() => {
+    Object.assign(orderMock, {
+      id: "order-1",
+      order_number: "2026001",
+      status: "new",
+      is_archived: false,
+      client_name: "Acme Lending",
+      amc_name: "Northstar AMC",
+      appraiser_name: "Avery Appraiser",
+      reviewer_name: "Riley Reviewer",
+      address_line1: "100 Main St",
+      city: "Boston",
+      state: "MA",
+      postal_code: "02110",
+      property_contact_name: "Casey Contact",
+      property_contact_phone: "555-0100",
+      created_at: "2026-05-20T12:00:00.000Z",
+      updated_at: "2026-05-20T12:00:00.000Z",
+      site_visit_at: null,
+      review_due_at: "2026-05-22T12:00:00.000Z",
+      final_due_at: "2026-05-29T12:00:00.000Z",
+      due_date: null,
+    });
     refreshMock.mockReset();
     updateSiteVisitAtViaRpcMock.mockReset();
     updateSiteVisitAtViaRpcMock.mockResolvedValue({
       id: "order-1",
       site_visit_at: "2026-05-20T14:00:00.000Z",
     });
+    archiveOrderViaRpcMock.mockReset();
+    archiveOrderViaRpcMock.mockResolvedValue({
+      id: "order-1",
+      order_number: "2026001",
+      status: "new",
+      is_archived: true,
+    });
+    cancelOrderViaRpcMock.mockReset();
+    cancelOrderViaRpcMock.mockResolvedValue({
+      id: "order-1",
+      order_number: "2026001",
+      status: "cancelled",
+      is_archived: false,
+    });
+    voidOrderViaRpcMock.mockReset();
+    voidOrderViaRpcMock.mockResolvedValue({
+      id: "order-1",
+      order_number: "2026001",
+      status: "voided",
+      is_archived: false,
+    });
+    permissionKeysMock.splice(
+      0,
+      permissionKeysMock.length,
+      "documents.delete",
+      "documents.upload.all",
+    );
+    toastSuccessMock.mockReset();
+    toastErrorMock.mockReset();
     listOrderDocumentsMock.mockReset();
     listOrderDocumentsMock.mockResolvedValue([
       {
@@ -325,5 +391,238 @@ describe("OrderDetail site visit save", () => {
         visibilityScope: "internal",
       });
     });
+  });
+
+  it("does not show the order archive action without orders.archive permission", () => {
+    render(<OrderDetail />);
+
+    expect(screen.queryByRole("button", { name: "Archive order" })).not.toBeInTheDocument();
+  });
+
+  it("shows archived order history notice and hides archive action for archived orders", () => {
+    permissionKeysMock.push("orders.archive");
+    orderMock.is_archived = true;
+
+    render(<OrderDetail />);
+
+    expect(screen.getByText("Archived order")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "This order is preserved for history. It is hidden from active operational lists and archive does not change status, remove documents, remove activity, or release the order number.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Archive order" })).not.toBeInTheDocument();
+    expect(screen.getByTestId("activity-log")).toBeInTheDocument();
+  });
+
+  it("shows archive confirmation copy only after the guarded order archive action is opened", () => {
+    permissionKeysMock.push("orders.archive");
+
+    render(<OrderDetail />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Archive order" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Archive order" });
+    expect(within(dialog).getAllByText("Archive order")).toHaveLength(2);
+    expect(
+      within(dialog).getByText(
+        "This removes the order from active operational lists. It does not delete the order, change its status, remove documents, remove activity, or release the order number.",
+      ),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Reason for archive (optional)")).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Archive order" })).toBeInTheDocument();
+  });
+
+  it("archives through the backend RPC wrapper and refreshes order state", async () => {
+    permissionKeysMock.push("orders.archive");
+
+    render(<OrderDetail />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Archive order" }));
+    const dialog = screen.getByRole("dialog", { name: "Archive order" });
+    fireEvent.change(within(dialog).getByLabelText("Reason for archive (optional)"), {
+      target: { value: "Duplicate request" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Archive order" }));
+
+    await waitFor(() => {
+      expect(archiveOrderViaRpcMock).toHaveBeenCalledWith("order-1", "Duplicate request");
+    });
+    await waitFor(() => {
+      expect(refreshMock).toHaveBeenCalled();
+    });
+    expect(toastSuccessMock).toHaveBeenCalledWith(
+      "Order archived. It was removed from active lists, and its history was preserved.",
+    );
+    expect(screen.queryByRole("dialog", { name: "Archive order" })).not.toBeInTheDocument();
+  });
+
+  it("keeps failed archive attempts in the confirmation modal without local mutation", async () => {
+    permissionKeysMock.push("orders.archive");
+    archiveOrderViaRpcMock.mockRejectedValueOnce(new Error("Permission denied"));
+
+    render(<OrderDetail />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Archive order" }));
+    const dialog = screen.getByRole("dialog", { name: "Archive order" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Archive order" }));
+
+    await waitFor(() => {
+      expect(archiveOrderViaRpcMock).toHaveBeenCalledWith("order-1", null);
+    });
+    expect(toastErrorMock).toHaveBeenCalledWith("Could not archive order. No changes were made.");
+    expect(refreshMock).not.toHaveBeenCalled();
+    expect(
+      within(screen.getByRole("dialog", { name: "Archive order" })).getByText(
+        "Could not archive order. No changes were made.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("shows cancel and void actions only with matching lifecycle permissions", () => {
+    render(<OrderDetail />);
+
+    expect(screen.queryByRole("button", { name: "Cancel order" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Void order" })).not.toBeInTheDocument();
+    cleanup();
+
+    permissionKeysMock.push("orders.cancel");
+    render(<OrderDetail />);
+
+    expect(screen.getByRole("button", { name: "Cancel order" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Void order" })).not.toBeInTheDocument();
+    cleanup();
+
+    permissionKeysMock.splice(0, permissionKeysMock.length, "orders.void");
+    render(<OrderDetail />);
+
+    expect(screen.queryByRole("button", { name: "Cancel order" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Void order" })).toBeInTheDocument();
+  });
+
+  it("shows cancel confirmation doctrine copy and requires a trimmed reason", async () => {
+    permissionKeysMock.push("orders.cancel");
+
+    render(<OrderDetail />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel order" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Cancel order" });
+    expect(within(dialog).getAllByText("Cancel order")).toHaveLength(2);
+    expect(
+      within(dialog).getByText(
+        "Cancelling marks a legitimate order as stopped before completion. It does not delete the order, release the order number, or remove documents/activity.",
+      ),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Reason for cancellation")).toBeRequired();
+    expect(within(dialog).getByRole("button", { name: "Cancel order" })).toBeDisabled();
+
+    fireEvent.change(within(dialog).getByLabelText("Reason for cancellation"), {
+      target: { value: "  Client withdrew  " },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel order" }));
+
+    await waitFor(() => {
+      expect(cancelOrderViaRpcMock).toHaveBeenCalledWith("order-1", "Client withdrew");
+    });
+    await waitFor(() => {
+      expect(refreshMock).toHaveBeenCalled();
+    });
+    expect(toastSuccessMock).toHaveBeenCalledWith("Order cancelled. Its history was preserved.");
+    expect(screen.queryByRole("dialog", { name: "Cancel order" })).not.toBeInTheDocument();
+  });
+
+  it("shows void confirmation doctrine copy and requires a trimmed reason", async () => {
+    permissionKeysMock.push("orders.void");
+
+    render(<OrderDetail />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Void order" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Void order" });
+    expect(within(dialog).getAllByText("Void order")).toHaveLength(2);
+    expect(
+      within(dialog).getByText(
+        "Voiding marks this order as administratively invalid, such as a duplicate, mistake, or record opened in error. It does not delete the order, release the order number, or remove documents/activity.",
+      ),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Reason for voiding")).toBeRequired();
+    expect(within(dialog).getByRole("button", { name: "Void order" })).toBeDisabled();
+
+    fireEvent.change(within(dialog).getByLabelText("Reason for voiding"), {
+      target: { value: "  Duplicate order  " },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Void order" }));
+
+    await waitFor(() => {
+      expect(voidOrderViaRpcMock).toHaveBeenCalledWith("order-1", "Duplicate order");
+    });
+    await waitFor(() => {
+      expect(refreshMock).toHaveBeenCalled();
+    });
+    expect(toastSuccessMock).toHaveBeenCalledWith("Order voided. Its history was preserved.");
+    expect(screen.queryByRole("dialog", { name: "Void order" })).not.toBeInTheDocument();
+  });
+
+  it("keeps failed cancel attempts in the confirmation modal without local mutation", async () => {
+    permissionKeysMock.push("orders.cancel");
+    cancelOrderViaRpcMock.mockRejectedValueOnce(new Error("Permission denied"));
+
+    render(<OrderDetail />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel order" }));
+    const dialog = screen.getByRole("dialog", { name: "Cancel order" });
+    fireEvent.change(within(dialog).getByLabelText("Reason for cancellation"), {
+      target: { value: "Client withdrew" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel order" }));
+
+    await waitFor(() => {
+      expect(cancelOrderViaRpcMock).toHaveBeenCalledWith("order-1", "Client withdrew");
+    });
+    expect(toastErrorMock).toHaveBeenCalledWith("Could not cancel order. No changes were made.");
+    expect(refreshMock).not.toHaveBeenCalled();
+    expect(
+      within(screen.getByRole("dialog", { name: "Cancel order" })).getByText(
+        "Could not cancel order. No changes were made.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("hides cancel and void actions after terminal lifecycle state", () => {
+    permissionKeysMock.push("orders.archive", "orders.cancel", "orders.void");
+    orderMock.status = "cancelled";
+
+    render(<OrderDetail />);
+
+    expect(screen.getByText("Cancelled order")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "This order is preserved for history. It is hidden from active operational queues and cancellation does not delete the order, release the order number, or remove documents/activity.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Archive order" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancel order" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Void order" })).not.toBeInTheDocument();
+    expect(screen.getByTestId("activity-log")).toBeInTheDocument();
+  });
+
+  it("shows voided preserved-history notice and hides lifecycle actions", () => {
+    permissionKeysMock.push("orders.archive", "orders.cancel", "orders.void");
+    orderMock.status = "voided";
+
+    render(<OrderDetail />);
+
+    expect(screen.getByText("Voided order")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "This order is preserved for history. It is hidden from active operational queues and voiding does not delete the order, release the order number, or remove documents/activity.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Archive order" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancel order" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Void order" })).not.toBeInTheDocument();
+    expect(screen.getByTestId("activity-log")).toBeInTheDocument();
   });
 });

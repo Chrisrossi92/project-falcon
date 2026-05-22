@@ -23,14 +23,37 @@ vi.mock("@/lib/workflow/orderWorkflowGuards", () => ({
 }));
 
 const {
+  archiveOrder,
+  archiveOrderViaRpc,
+  assignAppraiser,
+  assignParticipants,
+  assignReviewer,
+  cancelOrderViaRpc,
+  clearReview,
+  completeOrder,
   createOrder,
   createOrderViaRpc,
+  deleteOrder,
+  getOrder,
   isOrderNumberAvailableV2,
   overrideOrderNumber,
+  markReadyForClient,
+  requestFinalApproval,
+  setOrderStatus,
+  startReview,
+  sendOrderBackToAppraiser,
+  sendOrderToReview,
   updateOrder,
+  updateAssignees,
+  updateOrderStatus,
   updateOrderViaRpc,
   updateSiteVisitAtViaRpc,
+  voidOrderViaRpc,
 } = await import("../ordersService.js");
+
+const { emitNotification, fetchAdminRecipients } = await import("@/lib/services/notificationsService");
+const { resolveOrderParticipants } = await import("@/lib/orders/resolveOrderParticipants");
+const { assertOrderWorkflowTransition } = await import("@/lib/workflow/orderWorkflowGuards");
 
 describe("createOrderViaRpc", () => {
   beforeEach(() => {
@@ -44,6 +67,7 @@ describe("createOrderViaRpc", () => {
       order_number: "LEGACY-PREFETCH",
       property_address: "1 Main St",
       city: "Austin",
+      appraiser_id: "appraiser-1",
     };
     const createdOrder = {
       id: "order-1",
@@ -144,6 +168,95 @@ describe("deprecated direct order helpers", () => {
 
     warnSpy.mockRestore();
   });
+
+  it("blocks status changes through deprecated updateOrder", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await expect(updateOrder("order-1", { status: "in_review" })).rejects.toThrow(
+      "Order status changes must use canonical workflow transition RPCs.",
+    );
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      "[ordersService] updateOrder performs a direct orders table mutation and is deprecated. Use updateOrderViaRpc instead."
+    );
+    expect(supabaseMock.from).not.toHaveBeenCalled();
+    expect(supabaseMock.rpc).not.toHaveBeenCalled();
+
+    warnSpy.mockRestore();
+  });
+
+  it("keeps deprecated status helpers quarantined as throwing stubs", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await expect(setOrderStatus("order-1", "in_review")).rejects.toThrow(
+      "Order status changes must use canonical workflow transition RPCs.",
+    );
+    await expect(updateOrderStatus("order-1", "in_review")).rejects.toThrow(
+      "Order status changes must use canonical workflow transition RPCs.",
+    );
+    await expect(startReview("order-1")).rejects.toThrow(
+      "Order status changes must use canonical workflow transition RPCs.",
+    );
+
+    expect(supabaseMock.from).not.toHaveBeenCalled();
+    expect(supabaseMock.rpc).not.toHaveBeenCalled();
+
+    warnSpy.mockRestore();
+  });
+
+  it("keeps deprecated deleteOrder quarantined as a throwing stub", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await expect(deleteOrder("order-1")).rejects.toThrow(
+      "Order archive/delete must use backend-owned lifecycle RPCs.",
+    );
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      "[ordersService] deleteOrder performs a direct orders table mutation and is deprecated. Use backend-owned lifecycle RPCs instead."
+    );
+    expect(supabaseMock.from).not.toHaveBeenCalled();
+    expect(supabaseMock.rpc).not.toHaveBeenCalled();
+
+    warnSpy.mockRestore();
+  });
+
+  it("keeps deprecated archiveOrder quarantined as a throwing stub", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await expect(archiveOrder("order-1")).rejects.toThrow(
+      "Order archive/delete must use backend-owned lifecycle RPCs.",
+    );
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      "[ordersService] archiveOrder performs a direct orders table mutation and is deprecated. Use rpc_order_archive instead."
+    );
+    expect(supabaseMock.from).not.toHaveBeenCalled();
+    expect(supabaseMock.rpc).not.toHaveBeenCalled();
+
+    warnSpy.mockRestore();
+  });
+
+  it("keeps deprecated direct assignment helpers quarantined as throwing stubs", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await expect(assignParticipants("order-1", { appraiser_id: "appraiser-1" })).rejects.toThrow(
+      "Order assignment changes must use backend-owned assignment/order RPCs.",
+    );
+    await expect(assignAppraiser("order-1", "appraiser-1")).rejects.toThrow(
+      "Order assignment changes must use backend-owned assignment/order RPCs.",
+    );
+    await expect(assignReviewer("order-1", "reviewer-1")).rejects.toThrow(
+      "Order assignment changes must use backend-owned assignment/order RPCs.",
+    );
+    await expect(updateAssignees("order-1", { appraiser_id: "appraiser-1" })).rejects.toThrow(
+      "Order assignment changes must use backend-owned assignment/order RPCs.",
+    );
+
+    expect(supabaseMock.from).not.toHaveBeenCalled();
+    expect(supabaseMock.rpc).not.toHaveBeenCalled();
+
+    warnSpy.mockRestore();
+  });
 });
 
 describe("isOrderNumberAvailableV2", () => {
@@ -209,9 +322,10 @@ describe("updateOrderViaRpc", () => {
     supabaseMock.from.mockReset();
   });
 
-  it("calls the guarded update order RPC with the submitted patch", async () => {
+  it("calls the guarded update order RPC with participant fields in the submitted patch", async () => {
     const patch = {
       property_address: "1 Main St",
+      appraiser_id: "appraiser-1",
       reviewer_id: "reviewer-1",
       split_pct: 42.5,
     };
@@ -229,6 +343,7 @@ describe("updateOrderViaRpc", () => {
       order_id: "order-1",
       patch,
     });
+    expect(supabaseMock.from).not.toHaveBeenCalled();
   });
 
   it("does not direct update orders or call create/override RPCs", async () => {
@@ -386,5 +501,357 @@ describe("overrideOrderNumber", () => {
     supabaseMock.rpc.mockResolvedValue({ data: null, error: null });
 
     await expect(overrideOrderNumber("order-1", "2026001")).resolves.toBeNull();
+  });
+});
+
+describe("archiveOrderViaRpc", () => {
+  beforeEach(() => {
+    supabaseMock.rpc.mockReset();
+    supabaseMock.from.mockReset();
+  });
+
+  it("calls the guarded order archive RPC with expected args", async () => {
+    const result = {
+      status: "archived",
+      order_id: "order-1",
+      order_number: "2026001",
+      order_status: "in_progress",
+      is_archived: true,
+    };
+    supabaseMock.rpc.mockResolvedValue({ data: result, error: null });
+
+    await expect(archiveOrderViaRpc("order-1", "Duplicate retained for audit")).resolves.toBe(
+      result,
+    );
+
+    expect(supabaseMock.rpc).toHaveBeenCalledTimes(1);
+    expect(supabaseMock.rpc).toHaveBeenCalledWith("rpc_order_archive", {
+      p_order_id: "order-1",
+      p_reason: "Duplicate retained for audit",
+    });
+  });
+
+  it("passes null reason by default", async () => {
+    supabaseMock.rpc.mockResolvedValue({
+      data: { status: "archived", order_id: "order-1" },
+      error: null,
+    });
+
+    await archiveOrderViaRpc("order-1");
+
+    expect(supabaseMock.rpc).toHaveBeenCalledWith("rpc_order_archive", {
+      p_order_id: "order-1",
+      p_reason: null,
+    });
+  });
+
+  it("does not direct update or delete orders", async () => {
+    supabaseMock.rpc.mockResolvedValue({
+      data: { status: "archived", order_id: "order-1" },
+      error: null,
+    });
+
+    await archiveOrderViaRpc("order-1", "No longer active");
+
+    expect(supabaseMock.from).not.toHaveBeenCalled();
+  });
+
+  it("throws archive RPC errors for callers to handle", async () => {
+    const error = Object.assign(new Error("order_archive_not_authorized"), {
+      code: "42501",
+    });
+    supabaseMock.rpc.mockResolvedValue({ data: null, error });
+
+    await expect(archiveOrderViaRpc("order-1", "No longer active")).rejects.toBe(error);
+  });
+
+  it("returns null when the archive RPC returns no result and no error", async () => {
+    supabaseMock.rpc.mockResolvedValue({ data: null, error: null });
+
+    await expect(archiveOrderViaRpc("order-1")).resolves.toBeNull();
+  });
+});
+
+describe("cancelOrderViaRpc", () => {
+  beforeEach(() => {
+    supabaseMock.rpc.mockReset();
+    supabaseMock.from.mockReset();
+  });
+
+  it("calls the guarded order cancel RPC with expected args", async () => {
+    const result = {
+      status: "cancelled",
+      order_id: "order-1",
+      order_number: "2026001",
+      order_status: "cancelled",
+      is_archived: false,
+    };
+    supabaseMock.rpc.mockResolvedValue({ data: result, error: null });
+
+    await expect(cancelOrderViaRpc("order-1", "Client withdrew")).resolves.toBe(result);
+
+    expect(supabaseMock.rpc).toHaveBeenCalledTimes(1);
+    expect(supabaseMock.rpc).toHaveBeenCalledWith("rpc_order_cancel", {
+      p_order_id: "order-1",
+      p_reason: "Client withdrew",
+    });
+  });
+
+  it("requires and trims the cancellation reason before calling the RPC", async () => {
+    supabaseMock.rpc.mockResolvedValue({
+      data: { status: "cancelled", order_id: "order-1" },
+      error: null,
+    });
+
+    await expect(cancelOrderViaRpc("order-1", "  Client withdrew  ")).resolves.toEqual({
+      status: "cancelled",
+      order_id: "order-1",
+    });
+
+    expect(supabaseMock.rpc).toHaveBeenCalledWith("rpc_order_cancel", {
+      p_order_id: "order-1",
+      p_reason: "Client withdrew",
+    });
+
+    supabaseMock.rpc.mockClear();
+    await expect(cancelOrderViaRpc("order-1", "   ")).rejects.toThrow(
+      "Order cancellation reason is required.",
+    );
+    expect(supabaseMock.rpc).not.toHaveBeenCalled();
+  });
+
+  it("does not direct update orders", async () => {
+    supabaseMock.rpc.mockResolvedValue({
+      data: { status: "cancelled", order_id: "order-1" },
+      error: null,
+    });
+
+    await cancelOrderViaRpc("order-1", "Client withdrew");
+
+    expect(supabaseMock.from).not.toHaveBeenCalled();
+  });
+
+  it("throws cancel RPC errors for callers to handle", async () => {
+    const error = Object.assign(new Error("order_cancel_not_authorized"), {
+      code: "42501",
+    });
+    supabaseMock.rpc.mockResolvedValue({ data: null, error });
+
+    await expect(cancelOrderViaRpc("order-1", "Client withdrew")).rejects.toBe(error);
+  });
+});
+
+describe("voidOrderViaRpc", () => {
+  beforeEach(() => {
+    supabaseMock.rpc.mockReset();
+    supabaseMock.from.mockReset();
+  });
+
+  it("calls the guarded order void RPC with expected args", async () => {
+    const result = {
+      status: "voided",
+      order_id: "order-1",
+      order_number: "2026001",
+      order_status: "voided",
+      is_archived: false,
+    };
+    supabaseMock.rpc.mockResolvedValue({ data: result, error: null });
+
+    await expect(voidOrderViaRpc("order-1", "Duplicate order")).resolves.toBe(result);
+
+    expect(supabaseMock.rpc).toHaveBeenCalledTimes(1);
+    expect(supabaseMock.rpc).toHaveBeenCalledWith("rpc_order_void", {
+      p_order_id: "order-1",
+      p_reason: "Duplicate order",
+    });
+  });
+
+  it("requires and trims the void reason before calling the RPC", async () => {
+    supabaseMock.rpc.mockResolvedValue({
+      data: { status: "voided", order_id: "order-1" },
+      error: null,
+    });
+
+    await expect(voidOrderViaRpc("order-1", "  Duplicate order  ")).resolves.toEqual({
+      status: "voided",
+      order_id: "order-1",
+    });
+
+    expect(supabaseMock.rpc).toHaveBeenCalledWith("rpc_order_void", {
+      p_order_id: "order-1",
+      p_reason: "Duplicate order",
+    });
+
+    supabaseMock.rpc.mockClear();
+    await expect(voidOrderViaRpc("order-1", "   ")).rejects.toThrow(
+      "Order void reason is required.",
+    );
+    expect(supabaseMock.rpc).not.toHaveBeenCalled();
+  });
+
+  it("does not direct update orders", async () => {
+    supabaseMock.rpc.mockResolvedValue({
+      data: { status: "voided", order_id: "order-1" },
+      error: null,
+    });
+
+    await voidOrderViaRpc("order-1", "Duplicate order");
+
+    expect(supabaseMock.from).not.toHaveBeenCalled();
+  });
+
+  it("throws void RPC errors for callers to handle", async () => {
+    const error = Object.assign(new Error("order_void_not_authorized"), {
+      code: "42501",
+    });
+    supabaseMock.rpc.mockResolvedValue({ data: null, error });
+
+    await expect(voidOrderViaRpc("order-1", "Duplicate order")).rejects.toBe(error);
+  });
+});
+
+describe("canonical workflow transition helpers", () => {
+  function mockExistingOrder(status) {
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: { id: "order-1", status },
+      error: null,
+    });
+    const eq = vi.fn(() => ({ maybeSingle }));
+    const select = vi.fn(() => ({ eq }));
+    supabaseMock.from.mockReturnValue({ select });
+  }
+
+  beforeEach(() => {
+    supabaseMock.rpc.mockReset();
+    supabaseMock.from.mockReset();
+    emitNotification.mockReset();
+    fetchAdminRecipients.mockReset();
+    resolveOrderParticipants.mockReset();
+    assertOrderWorkflowTransition.mockReset();
+    emitNotification.mockResolvedValue(undefined);
+    fetchAdminRecipients.mockResolvedValue([]);
+    resolveOrderParticipants.mockReturnValue({
+      recipients: [],
+      suppressUserIds: [],
+    });
+  });
+
+  it.each([
+    {
+      name: "sendOrderToReview",
+      fn: () => sendOrderToReview("order-1", "user-1", { note: "Ready" }),
+      currentStatus: "new",
+      transitionKey: "submit_to_review",
+      note: "Ready",
+    },
+    {
+      name: "sendOrderBackToAppraiser",
+      fn: () => sendOrderBackToAppraiser("order-1", "user-1", { note: "Fix needed" }),
+      currentStatus: "in_review",
+      transitionKey: "request_revisions",
+      note: "Fix needed",
+    },
+    {
+      name: "clearReview",
+      fn: () => clearReview("order-1", "Approved"),
+      currentStatus: "in_review",
+      transitionKey: "approve_review",
+      note: "Approved",
+    },
+    {
+      name: "requestFinalApproval",
+      fn: () => requestFinalApproval("order-1", "Final check"),
+      currentStatus: "review_cleared",
+      transitionKey: "request_final_approval",
+      note: "Final check",
+    },
+    {
+      name: "markReadyForClient",
+      fn: () => markReadyForClient("order-1", "Release"),
+      currentStatus: "pending_final_approval",
+      transitionKey: "ready_for_client",
+      note: "Release",
+    },
+    {
+      name: "completeOrder",
+      fn: () => completeOrder("order-1", "user-1"),
+      currentStatus: "ready_for_client",
+      transitionKey: "complete",
+      note: null,
+    },
+  ])("routes $name through rpc_transition_order_status with required payload fields", async ({
+    fn,
+    currentStatus,
+    transitionKey,
+    note,
+  }) => {
+    const transitionedOrder = {
+      id: "order-1",
+      status: "transitioned",
+      appraiser_id: "appraiser-1",
+      reviewer_id: "reviewer-1",
+    };
+    mockExistingOrder(currentStatus);
+    supabaseMock.rpc.mockResolvedValue({ data: transitionedOrder, error: null });
+
+    await expect(fn()).resolves.toBe(transitionedOrder);
+
+    expect(assertOrderWorkflowTransition).toHaveBeenCalledWith({
+      currentStatus,
+      transitionKey,
+      permissions: { loading: true },
+      allowDuringPermissionFallback: true,
+    });
+    expect(supabaseMock.rpc).toHaveBeenCalledTimes(1);
+    expect(supabaseMock.rpc).toHaveBeenCalledWith("rpc_transition_order_status", {
+      p_order_id: "order-1",
+      p_transition_key: transitionKey,
+      p_note: note,
+    });
+    expect(supabaseMock.from).toHaveBeenCalledWith("orders");
+    expect(supabaseMock.from.mock.results[0].value).not.toHaveProperty("update");
+  });
+
+  it("propagates canonical workflow RPC errors", async () => {
+    const error = Object.assign(new Error("workflow transition denied"), {
+      code: "42501",
+    });
+    mockExistingOrder("new");
+    supabaseMock.rpc.mockResolvedValue({ data: null, error });
+
+    await expect(sendOrderToReview("order-1", "user-1", { note: "Ready" })).rejects.toBe(error);
+
+    expect(supabaseMock.rpc).toHaveBeenCalledWith("rpc_transition_order_status", {
+      p_order_id: "order-1",
+      p_transition_key: "submit_to_review",
+      p_note: "Ready",
+    });
+    expect(supabaseMock.from.mock.results[0].value).not.toHaveProperty("update");
+  });
+});
+
+describe("getOrder archived readback", () => {
+  beforeEach(() => {
+    supabaseMock.rpc.mockReset();
+    supabaseMock.from.mockReset();
+  });
+
+  it("loads archived order detail directly without applying archive exclusion", async () => {
+    const archivedOrder = {
+      id: "order-1",
+      order_number: "2026001",
+      status: "in_progress",
+      is_archived: true,
+    };
+    const single = vi.fn().mockResolvedValue({ data: archivedOrder, error: null });
+    const eq = vi.fn(() => ({ single }));
+    const select = vi.fn(() => ({ eq }));
+    supabaseMock.from.mockReturnValue({ select });
+
+    await expect(getOrder("order-1")).resolves.toBe(archivedOrder);
+
+    expect(supabaseMock.from).toHaveBeenCalledWith("v_orders_frontend_v4");
+    expect(select.mock.calls[0][0]).toContain("is_archived");
+    expect(eq).toHaveBeenCalledWith("id", "order-1");
   });
 });

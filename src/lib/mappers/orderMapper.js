@@ -9,6 +9,7 @@ import { normalizeOrderStatus } from "@/lib/constants/orderStatus";
  * @property {string|null} order_id            Alias of id for callers that still expect order_id
  * @property {string|null} status              Raw status from backend
  * @property {string|null} status_normalized   Normalized status (snake-case uppercase)
+ * @property {boolean} is_archived
  * @property {string|null} client_id
  * @property {string|null} client_name
  * @property {string|null} amc_id
@@ -50,6 +51,7 @@ const emptyOrder = {
   order_no: null,
   status: null,
   status_normalized: null,
+  is_archived: false,
   client_id: null,
   client_name: null,
   amc_id: null,
@@ -121,6 +123,7 @@ export function mapOrderRow(row = {}) {
     order_no: orderNumber,
     status,
     status_normalized: statusNormalized,
+    is_archived: row.is_archived === true,
     client_id: row.client_id ?? null,
     client_name:
       row.client_name ??

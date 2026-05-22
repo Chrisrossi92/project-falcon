@@ -7,6 +7,7 @@ import { assertOrderWorkflowTransition } from "@/lib/workflow/orderWorkflowGuard
 /** Source of truth */
 const ORDERS_TABLE = "orders";
 const ORDERS_VIEW  = "v_orders_frontend_v4";
+const RETIRED_LIFECYCLE_STATUSES = ["cancelled", "voided"];
 
 function warnDeprecatedDirectOrderMutation(helperName, replacement) {
   if (import.meta.env?.DEV !== true) return;
@@ -14,6 +15,30 @@ function warnDeprecatedDirectOrderMutation(helperName, replacement) {
   console.warn(
     `[ordersService] ${helperName} performs a direct orders table mutation and is deprecated.${suffix}`
   );
+}
+
+function throwDeprecatedOrderRetirementHelper() {
+  throw new Error("Order archive/delete must use backend-owned lifecycle RPCs.");
+}
+
+function throwDeprecatedOrderStatusHelper() {
+  throw new Error("Order status changes must use canonical workflow transition RPCs.");
+}
+
+function throwDeprecatedOrderAssignmentHelper() {
+  throw new Error("Order assignment changes must use backend-owned assignment/order RPCs.");
+}
+
+async function transitionOrderStatusViaRpc({ orderId, transitionKey, note = null }) {
+  const { data: order, error } = await supabase.rpc("rpc_transition_order_status", {
+    p_order_id: orderId,
+    p_transition_key: transitionKey,
+    p_note: note ?? null,
+  });
+
+  if (error) throw error;
+  if (!order) throw new Error("No order updated (permission or id mismatch).");
+  return order;
 }
 
 export const OrderStatus = {
@@ -33,7 +58,7 @@ export const OrderStatus = {
 
 /**
  * List orders from the normalized view.
- * - activeOnly: excludes archived AND any status starting with 'complete' (case-insensitive)
+ * - activeOnly: excludes archived, completed, cancelled, and voided statuses.
  * - appraiserId: pins results to the assigned appraiser (used for appraiser dashboards/tables)
  */
 export async function listOrders({
@@ -87,7 +112,7 @@ export async function listOrders({
   // Active only: not archived + (status is NULL OR NOT ILIKE 'complete%')
   if (activeOnly) {
     q = q.neq("is_archived", true);
-    q = q.or("status.is.null,status.neq.completed");
+    q = q.not("status", "in", `(${["completed", ...RETIRED_LIFECYCLE_STATUSES].join(",")})`);
   }
 
   if (search) {
@@ -126,6 +151,7 @@ export async function getOrder(orderId) {
         id,
         order_number,
         status,
+        is_archived,
         client_id,
         client_name,
         amc_id,
@@ -218,8 +244,49 @@ export async function overrideOrderNumber(orderId, orderNumber, reason = null) {
   return data ?? null;
 }
 
+export async function archiveOrderViaRpc(orderId, reason = null) {
+  const { data, error } = await supabase.rpc("rpc_order_archive", {
+    p_order_id: orderId,
+    p_reason: reason,
+  });
+  if (error) throw error;
+  return data ?? null;
+}
+
+export async function cancelOrderViaRpc(orderId, reason) {
+  const normalizedReason = String(reason ?? "").trim();
+  if (!normalizedReason) {
+    throw new Error("Order cancellation reason is required.");
+  }
+
+  const { data, error } = await supabase.rpc("rpc_order_cancel", {
+    p_order_id: orderId,
+    p_reason: normalizedReason,
+  });
+  if (error) throw error;
+  return data ?? null;
+}
+
+export async function voidOrderViaRpc(orderId, reason) {
+  const normalizedReason = String(reason ?? "").trim();
+  if (!normalizedReason) {
+    throw new Error("Order void reason is required.");
+  }
+
+  const { data, error } = await supabase.rpc("rpc_order_void", {
+    p_order_id: orderId,
+    p_reason: normalizedReason,
+  });
+  if (error) throw error;
+  return data ?? null;
+}
+
 export async function updateOrder(orderId, patch) {
   warnDeprecatedDirectOrderMutation("updateOrder", "updateOrderViaRpc");
+  if (Object.prototype.hasOwnProperty.call(patch || {}, "status")) {
+    return throwDeprecatedOrderStatusHelper();
+  }
+
   const { data, error } = await supabase
     .from(ORDERS_TABLE)
     .update(patch)
@@ -230,42 +297,23 @@ export async function updateOrder(orderId, patch) {
   return data;
 }
 
-export async function deleteOrder(orderId) {
-  warnDeprecatedDirectOrderMutation("deleteOrder", "a guarded archive/delete RPC");
-  const { error } = await supabase
-    .from(ORDERS_TABLE)
-    .delete()
-    .eq("id", orderId);
-  if (error) throw error;
-  return true;
+export async function deleteOrder(_orderId) {
+  warnDeprecatedDirectOrderMutation("deleteOrder", "backend-owned lifecycle RPCs");
+  return throwDeprecatedOrderRetirementHelper();
 }
 
-export async function archiveOrder(orderId) {
-  warnDeprecatedDirectOrderMutation("archiveOrder", "a guarded archive RPC");
-  const { data, error } = await supabase
-    .from(ORDERS_TABLE)
-    .update({ is_archived: true })
-    .eq("id", orderId)
-    .select("*")
-    .single();
-  if (error) throw error;
-  return data;
+export async function archiveOrder(_orderId) {
+  warnDeprecatedDirectOrderMutation("archiveOrder", "rpc_order_archive");
+  return throwDeprecatedOrderRetirementHelper();
 }
 
 /**
  * Legacy/quarantined status mutation path.
  * Do not use for lifecycle transitions; use canonical workflow transition helpers/RPC.
  */
-export async function setOrderStatus(orderId, status /* note optional */) {
+export async function setOrderStatus(_orderId, _status /* note optional */) {
   warnDeprecatedDirectOrderMutation("setOrderStatus", "canonical workflow transition helpers");
-  const { data, error } = await supabase
-    .from(ORDERS_TABLE)
-    .update({ status })
-    .eq("id", orderId)
-    .select("*")
-    .single();
-  if (error) throw error;
-  return data;
+  return throwDeprecatedOrderStatusHelper();
 }
 
 /**
@@ -313,22 +361,9 @@ export async function updateOrderDates(
 }
 
 /** Assign participants (appraiser / reviewer) */
-export async function assignParticipants(orderId, { appraiser_id = null, reviewer_id = null } = {}) {
-  warnDeprecatedDirectOrderMutation("assignParticipants", "a guarded assignment RPC");
-  const patch = {};
-  if (appraiser_id !== null) patch.appraiser_id = appraiser_id;
-  if (reviewer_id  !== null) patch.reviewer_id  = reviewer_id;
-
-  if (!Object.keys(patch).length) return null;
-
-  const { data, error } = await supabase
-    .from(ORDERS_TABLE)
-    .update(patch)
-    .eq("id", orderId)
-    .select("*")
-    .single();
-  if (error) throw error;
-  return data;
+export async function assignParticipants(_orderId, _participants = {}) {
+  warnDeprecatedDirectOrderMutation("assignParticipants", "backend-owned assignment/order RPCs");
+  return throwDeprecatedOrderAssignmentHelper();
 }
 
 /** Convenience wrappers (used by forms/drawers) */
@@ -344,8 +379,8 @@ export async function assignReviewer(orderId, reviewer_id) {
    ========================================================================== */
 
 // Legacy/quarantined aliases. Do not use for lifecycle transitions; use canonical workflow transition helpers/RPC.
-export async function startReview(orderId, note = null)        { return setOrderStatus(orderId, OrderStatus.IN_REVIEW); }
-export async function requestRevisions(orderId, note = null)   { return setOrderStatus(orderId, OrderStatus.NEEDS_REVISIONS); }
+export async function startReview(orderId, _note = null)        { return setOrderStatus(orderId, OrderStatus.IN_REVIEW); }
+export async function requestRevisions(orderId, _note = null)   { return setOrderStatus(orderId, OrderStatus.NEEDS_REVISIONS); }
 export async function clearReview(orderId, note = null) {
   const { data: existingOrder, error: existingOrderError } = await supabase
     .from(ORDERS_TABLE)
@@ -371,14 +406,11 @@ export async function clearReview(orderId, note = null) {
     throw error;
   }
 
-  const { data: order, error } = await supabase.rpc("rpc_transition_order_status", {
-    p_order_id: orderId,
-    p_transition_key: "approve_review",
-    p_note: note ?? null,
+  const order = await transitionOrderStatusViaRpc({
+    orderId,
+    transitionKey: "approve_review",
+    note,
   });
-
-  if (error) throw error;
-  if (!order) throw new Error("No order updated (permission or id mismatch).");
 
   const recipients = await fetchAdminRecipients();
 
@@ -415,14 +447,11 @@ export async function requestFinalApproval(orderId, note = null) {
     throw error;
   }
 
-  const { data: order, error } = await supabase.rpc("rpc_transition_order_status", {
-    p_order_id: orderId,
-    p_transition_key: "request_final_approval",
-    p_note: note ?? null,
+  const order = await transitionOrderStatusViaRpc({
+    orderId,
+    transitionKey: "request_final_approval",
+    note,
   });
-
-  if (error) throw error;
-  if (!order) throw new Error("No order updated (permission or id mismatch).");
   return order;
 }
 export async function markReadyForClient(orderId, note = null) {
@@ -450,14 +479,11 @@ export async function markReadyForClient(orderId, note = null) {
     throw error;
   }
 
-  const { data: order, error } = await supabase.rpc("rpc_transition_order_status", {
-    p_order_id: orderId,
-    p_transition_key: "ready_for_client",
-    p_note: note ?? null,
+  const order = await transitionOrderStatusViaRpc({
+    orderId,
+    transitionKey: "ready_for_client",
+    note,
   });
-
-  if (error) throw error;
-  if (!order) throw new Error("No order updated (permission or id mismatch).");
 
   const recipients = [];
 
@@ -478,9 +504,9 @@ export async function markReadyForClient(orderId, note = null) {
 }
 export async function approveReview(orderId, note = null)      { return clearReview(orderId, note); }
 export async function markReadyToSend(orderId, note = null)    { return clearReview(orderId, note); }
-export async function markComplete(orderId, note = null)       { return setOrderStatus(orderId, OrderStatus.COMPLETED); }
-export async function putOnHold(orderId, note = null)          { return setOrderStatus(orderId, OrderStatus.IN_PROGRESS); }
-export async function resumeInProgress(orderId, note = null)   { return setOrderStatus(orderId, OrderStatus.IN_PROGRESS); }
+export async function markComplete(orderId, _note = null)       { return setOrderStatus(orderId, OrderStatus.COMPLETED); }
+export async function putOnHold(orderId, _note = null)          { return setOrderStatus(orderId, OrderStatus.IN_PROGRESS); }
+export async function resumeInProgress(orderId, _note = null)   { return setOrderStatus(orderId, OrderStatus.IN_PROGRESS); }
 export async function sendToClient(orderId, note = null)       { return markComplete(orderId, note); }
 export async function markDelivered(orderId, note = null)      { return sendToClient(orderId, note); }
 
@@ -496,10 +522,9 @@ export async function updateAssignees(orderId, patch) {
   return assignParticipants(orderId, { appraiser_id, reviewer_id });
 }
 
-export async function updateOrderStatus(orderId, status, extra = {}) {
+export async function updateOrderStatus(_orderId, _status, _extra = {}) {
   warnDeprecatedDirectOrderMutation("updateOrderStatus", "canonical workflow transition helpers");
-  const patch = { status, ...(extra || {}) };
-  return updateOrder(orderId, patch);
+  return throwDeprecatedOrderStatusHelper();
 }
 
 export async function sendOrderToReview(orderId, actorId, options = {}) {
@@ -529,14 +554,11 @@ export async function sendOrderToReview(orderId, actorId, options = {}) {
     throw error;
   }
 
-  const { data: order, error } = await supabase.rpc("rpc_transition_order_status", {
-    p_order_id: orderId,
-    p_transition_key: "submit_to_review",
-    p_note: options?.note ?? null,
+  const order = await transitionOrderStatusViaRpc({
+    orderId,
+    transitionKey: "submit_to_review",
+    note: options?.note ?? null,
   });
-
-  if (error) throw error;
-  if (!order) throw new Error("No order updated (permission or id mismatch).");
 
   const resolvedParticipants = resolveOrderParticipants(order, {
     actorUserId,
@@ -601,20 +623,11 @@ export async function sendOrderBackToAppraiser(orderId, actorId, options = {}) {
     throw error;
   }
 
-  const { data: order, error } = await supabase.rpc("rpc_transition_order_status", {
-    p_order_id: orderId,
-    p_transition_key: "request_revisions",
-    p_note: options?.note ?? null,
+  const order = await transitionOrderStatusViaRpc({
+    orderId,
+    transitionKey: "request_revisions",
+    note: options?.note ?? null,
   });
-
-  if (error) {
-    console.error("[sendOrderBackToAppraiser] update error", error);
-    throw error;
-  }
-
-  if (!order) {
-    throw new Error("No order updated (permission or id mismatch).");
-  }
 
   const resolvedParticipants = resolveOrderParticipants(order, {
     actorUserId,
@@ -676,20 +689,11 @@ export async function completeOrder(orderId, actorId) {
     throw error;
   }
 
-  const { data: order, error } = await supabase.rpc("rpc_transition_order_status", {
-    p_order_id: orderId,
-    p_transition_key: "complete",
-    p_note: null,
+  const order = await transitionOrderStatusViaRpc({
+    orderId,
+    transitionKey: "complete",
+    note: null,
   });
-
-  if (error) {
-    console.error("[completeOrder] update error", error);
-    throw error;
-  }
-
-  if (!order) {
-    throw new Error("No order updated (permission or id mismatch).");
-  }
 
   const adminRecipients = await fetchAdminRecipients();
   const resolvedParticipants = resolveOrderParticipants(order, {

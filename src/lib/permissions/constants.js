@@ -42,6 +42,8 @@ export const PERMISSIONS = Object.freeze({
   ORDERS_UPDATE_ALL: "orders.update.all",
   ORDERS_DELETE: "orders.delete",
   ORDERS_ARCHIVE: "orders.archive",
+  ORDERS_CANCEL: "orders.cancel",
+  ORDERS_VOID: "orders.void",
   ORDERS_EXPORT: "orders.export",
 
   ASSIGNMENTS_READ: "assignments.read",

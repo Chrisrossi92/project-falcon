@@ -8,6 +8,7 @@ const VIEW_BY_SCOPE = {
 };
 
 const DEFAULT_VIEW = VIEW_BY_SCOPE.orders;
+const RETIRED_LIFECYCLE_STATUSES = ["cancelled", "voided"];
 const ORDERABLE_COLUMNS = new Set([
   "created_at",
   "updated_at",
@@ -28,11 +29,20 @@ function warnDeprecatedDirectOrderMutation(helperName, replacement) {
   );
 }
 
+function throwDeprecatedOrderStatusHelper() {
+  throw new Error("Order status changes must use canonical workflow transition RPCs.");
+}
+
+function throwDeprecatedOrderAssignmentHelper() {
+  throw new Error("Order assignment changes must use backend-owned assignment/order RPCs.");
+}
+
 const BASE_SELECT = `
   id,
   order_id,
   order_number,
   status,
+  is_archived,
   client_id,
   client_name,
   amc_id,
@@ -71,9 +81,19 @@ function applyCommonFilters(
     finalDueWithinDays = null,
     from = null,
     to = null,
-    search = "",
+  search = "",
+  includeArchived = false,
+  includeRetiredLifecycle = false,
   } = {}
 ) {
+  if (!includeArchived) {
+    q = q.or("is_archived.is.null,is_archived.eq.false");
+  }
+
+  if (!includeRetiredLifecycle) {
+    q = q.not("status", "in", `(${RETIRED_LIFECYCLE_STATUSES.join(",")})`);
+  }
+
   if (statusIn?.length) q = q.in("status", statusIn);
   if (clientId) q = q.eq("client_id", clientId);
   const targetAppraiserId = assignedAppraiserId || appraiserId;
@@ -133,6 +153,8 @@ export async function fetchOrdersWithFilters(filters = {}) {
     from = null,
     to = null,
     activeOnly = false,
+    includeArchived = false,
+    includeRetiredLifecycle = false,
     page = 0,
     pageSize = 50,
     orderBy = "created_at",
@@ -149,6 +171,8 @@ export async function fetchOrdersWithFilters(filters = {}) {
 
   countQuery = applyCommonFilters(countQuery, {
     activeOnly,
+    includeArchived,
+    includeRetiredLifecycle,
     statusIn,
     clientId,
     appraiserId,
@@ -189,6 +213,8 @@ export async function fetchOrdersWithFilters(filters = {}) {
 
   dataQuery = applyCommonFilters(dataQuery, {
     activeOnly,
+    includeArchived,
+    includeRetiredLifecycle,
     statusIn,
     clientId,
     appraiserId,
@@ -229,19 +255,9 @@ export async function fetchOrdersWithFilters(filters = {}) {
  * This bypasses the guarded workflow helpers in src/lib/services/ordersService.js.
  * Use those workflow helpers for normal status transitions.
  */
-export async function updateOrderStatus(orderId, next) {
+export async function updateOrderStatus(_orderId, _next) {
   warnDeprecatedDirectOrderMutation("updateOrderStatus", "canonical workflow transition helpers");
-  const { data, error } = await supabase
-    .from("orders")
-    .update({ status: next, updated_at: new Date().toISOString() })
-    .eq("id", orderId)
-    .select()
-    .single();
-  if (error) {
-    console.error("updateOrderStatus error:", error);
-    throw error;
-  }
-  return data;
+  return throwDeprecatedOrderStatusHelper();
 }
 
 /** Update date fields; pass any subset: { siteVisit, reviewDue, finalDue } */
@@ -269,19 +285,9 @@ export async function updateOrderDates(
 }
 
 /** Assign appraiser by user id. */
-export async function assignAppraiser(orderId, appraiserId) {
-  warnDeprecatedDirectOrderMutation("assignAppraiser", "a guarded assignment RPC");
-  const { data, error } = await supabase
-    .from("orders")
-    .update({ appraiser_id: appraiserId })
-    .eq("id", orderId)
-    .select()
-    .single();
-  if (error) {
-    console.error("assignAppraiser error:", error);
-    throw error;
-  }
-  return data;
+export async function assignAppraiser(_orderId, _appraiserId) {
+  warnDeprecatedDirectOrderMutation("assignAppraiser", "backend-owned assignment/order RPCs");
+  return throwDeprecatedOrderAssignmentHelper();
 }
 
 /** Assign client by client id. */
@@ -308,35 +314,15 @@ export async function assignClient(orderId, clientId) {
  * This bypasses the guarded workflow helpers in src/lib/services/ordersService.js.
  * Use those workflow helpers for normal status transitions.
  */
-export async function bulkUpdateStatus(orderIds = [], status) {
+export async function bulkUpdateStatus(_orderIds = [], _status) {
   warnDeprecatedDirectOrderMutation("bulkUpdateStatus", "canonical workflow transition helpers");
-  if (!orderIds.length) return { updated: 0 };
-  const { data, error } = await supabase
-    .from("orders")
-    .update({ status, updated_at: new Date().toISOString() })
-    .in("id", orderIds)
-    .select("id");
-  if (error) {
-    console.error("bulkUpdateStatus error:", error);
-    throw error;
-  }
-  return { updated: data?.length ?? 0 };
+  return throwDeprecatedOrderStatusHelper();
 }
 
 /** Bulk assign appraiser. */
-export async function bulkAssignAppraiser(orderIds = [], appraiserId) {
-  warnDeprecatedDirectOrderMutation("bulkAssignAppraiser", "a guarded assignment RPC");
-  if (!orderIds.length) return { updated: 0 };
-  const { data, error } = await supabase
-    .from("orders")
-    .update({ appraiser_id: appraiserId })
-    .in("id", orderIds)
-    .select("id");
-  if (error) {
-    console.error("bulkAssignAppraiser error:", error);
-    throw error;
-  }
-  return { updated: data?.length ?? 0 };
+export async function bulkAssignAppraiser(_orderIds = [], _appraiserId) {
+  warnDeprecatedDirectOrderMutation("bulkAssignAppraiser", "backend-owned assignment/order RPCs");
+  return throwDeprecatedOrderAssignmentHelper();
 }
 
 /* =========================================================================
@@ -414,19 +400,9 @@ export async function createOrder(payload = {}) {
 }
 
 /** Soft delete (archive). */
-export async function archiveOrder(orderId) {
-  warnDeprecatedDirectOrderMutation("archiveOrder", "a guarded archive RPC");
-  const { data, error } = await supabase
-    .from("orders")
-    .update({ is_archived: true, updated_at: new Date().toISOString() })
-    .eq("id", orderId)
-    .select()
-    .single();
-  if (error) {
-    console.error("archiveOrder error:", error);
-    throw error;
-  }
-  return data;
+export async function archiveOrder(_orderId) {
+  warnDeprecatedDirectOrderMutation("archiveOrder", "rpc_order_archive");
+  throw new Error("Order archive/delete must use backend-owned lifecycle RPCs.");
 }
 
 /* =========================================================================

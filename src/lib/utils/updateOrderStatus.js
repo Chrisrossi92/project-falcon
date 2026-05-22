@@ -1,8 +1,4 @@
 // src/lib/utils/updateOrderStatus.js
-import rpcFirst from '@/lib/utils/rpcFirst';
-import supabase from '@/lib/supabaseClient';
-import logOrderEvent from '@/lib/utils/logOrderEvent';
-
 function warnLegacyUpdateOrderStatus() {
   if (import.meta.env?.DEV !== true) return;
   console.warn(
@@ -18,36 +14,7 @@ function warnLegacyUpdateOrderStatus() {
  * This bypasses the guarded workflow helpers in src/lib/services/ordersService.js.
  * Use those workflow helpers for normal status transitions.
  */
-export default async function updateOrderStatus(orderId, newStatus, note = null)  {
+export default async function updateOrderStatus(_orderId, _newStatus, _note = null)  {
   warnLegacyUpdateOrderStatus();
-  // Read prev status for manual logging if we fall back
-  const { data: prevRow, error: readErr } = await supabase
-    .from('orders')
-    .select('status')
-    .eq('id', orderId)
-    .single();
-  if (readErr) throw readErr;
-  const prev = prevRow?.status ?? null;
-
-  await rpcFirst(
-    'rpc_update_order_status',
-    { p_order_id: orderId, p_new_status: newStatus, p_note: note },
-    async () => {
-      const { error } = await supabase
-        .from('orders')
-        .update({ status: newStatus })
-        .eq('id', orderId);
-      if (error) throw error;
-
-      await logOrderEvent({
-        order_id: orderId,
-        action: 'status_changed',
-        prev_status: prev,
-        new_status: newStatus,
-        message: note ?? null,
-      });
-    }
-  );
-
-  return true;
+  throw new Error('Order status changes must use canonical workflow transition RPCs.');
 }

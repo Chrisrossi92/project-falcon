@@ -1,6 +1,8 @@
 // src/features/orders/api.js
 import { supabase as defaultClient } from '@/lib/supabaseClient';
 
+const RETIRED_LIFECYCLE_STATUSES = ['cancelled', 'voided'];
+
 function normalizeQuery(q) {
   const page = Math.max(1, Number(q?.page ?? 1) || 1);
   const pageSize = Math.min(100, Math.max(1, Number(q?.pageSize ?? 25) || 25));
@@ -14,6 +16,7 @@ function normalizeQuery(q) {
     priority: (q?.priority ?? '').trim() || null,
     dueWindow: (q?.dueWindow ?? '').trim() || null, // '', 'overdue', '3','7','14'
     includeArchived: Boolean(q?.includeArchived),
+    includeRetiredLifecycle: Boolean(q?.includeRetiredLifecycle),
     sort: q?.sort ?? 'priority_asc,due_date_asc',
   };
 }
@@ -57,7 +60,7 @@ function mapOrdersFallback(rows) {
 async function tryViewList(q, client) {
   const {
     page, pageSize, status, search, appraiserId, clientId,
-    priority, dueWindow, includeArchived, sort
+    priority, dueWindow, includeArchived, includeRetiredLifecycle, sort
   } = normalizeQuery(q);
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
@@ -71,6 +74,9 @@ async function tryViewList(q, client) {
 
   if (!includeArchived) {
     query = query.or('is_archived.is.null,is_archived.eq.false');
+  }
+  if (!includeRetiredLifecycle) {
+    query = query.not('status', 'in', `(${RETIRED_LIFECYCLE_STATUSES.join(',')})`);
   }
 
   if (dueWindow) {
@@ -125,7 +131,7 @@ async function tryViewList(q, client) {
 async function fallbackList(q, client) {
   const {
     page, pageSize, status, search, appraiserId, clientId,
-    dueWindow, includeArchived
+    dueWindow, includeArchived, includeRetiredLifecycle
   } = normalizeQuery(q);
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
@@ -148,6 +154,9 @@ async function fallbackList(q, client) {
   if (!includeArchived) {
     // If your orders table lacks is_archived, remove this line
     query = query.or('is_archived.is.null,is_archived.eq.false');
+  }
+  if (!includeRetiredLifecycle) {
+    query = query.not('status', 'in', `(${RETIRED_LIFECYCLE_STATUSES.join(',')})`);
   }
 
   if (dueWindow) {
@@ -233,7 +242,16 @@ export async function getOrderById(orderId, client = defaultClient) {
 /** Count matching orders (view → fallback) */
 export async function getOrdersCount(q = {}, client = defaultClient) {
   try {
-    const { status, search, appraiserId, clientId, priority, dueWindow, includeArchived } = normalizeQuery(q);
+    const {
+      status,
+      search,
+      appraiserId,
+      clientId,
+      priority,
+      dueWindow,
+      includeArchived,
+      includeRetiredLifecycle,
+    } = normalizeQuery(q);
     let query = client
       .from('v_orders_list_with_last_activity')
       .select('*', { count: 'exact', head: true });
@@ -244,6 +262,9 @@ export async function getOrdersCount(q = {}, client = defaultClient) {
     if (priority)    query = query.eq('priority', priority);
 
     if (!includeArchived) query = query.or('is_archived.is.null,is_archived.eq.false');
+    if (!includeRetiredLifecycle) {
+      query = query.not('status', 'in', `(${RETIRED_LIFECYCLE_STATUSES.join(',')})`);
+    }
 
     if (dueWindow) {
       const today = isoDateOnly(new Date());
@@ -269,12 +290,23 @@ export async function getOrdersCount(q = {}, client = defaultClient) {
   }
 
   // Fallback count from base table
-  const { status, search, appraiserId, clientId, dueWindow, includeArchived } = normalizeQuery(q);
+  const {
+    status,
+    search,
+    appraiserId,
+    clientId,
+    dueWindow,
+    includeArchived,
+    includeRetiredLifecycle,
+  } = normalizeQuery(q);
   let q2 = client.from('orders').select('*', { count: 'exact', head: true });
   if (status)      q2 = q2.eq('status', status);
   if (appraiserId) q2 = q2.eq('appraiser_id', appraiserId);
   if (clientId)    q2 = q2.eq('client_id', clientId);
   if (!includeArchived) q2 = q2.or('is_archived.is.null,is_archived.eq.false');
+  if (!includeRetiredLifecycle) {
+    q2 = q2.not('status', 'in', `(${RETIRED_LIFECYCLE_STATUSES.join(',')})`);
+  }
 
   if (search) {
     const term = `%${search}%`;
@@ -306,5 +338,4 @@ export async function getOrdersCount(q = {}, client = defaultClient) {
   if (e2) return { count: 0, error: e2.message };
   return { count: c2 || 0 };
 }
-
 
