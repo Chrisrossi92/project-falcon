@@ -11,6 +11,29 @@ RLS, RPC, and company-scope boundaries.
 This is a design document only. It does not implement storage, migrations, RPCs, UI, routes, or
 permission changes.
 
+## Hosted Deployment Blocker
+
+The order document backend and `OrderDetail` Files UI are implemented against the newer
+company-scoped `20260518` migration chain.
+
+The current hosted Supabase target, `okwqhkrsjgxrhyisaovc`, reflects the older/non-company schema
+captured in `supabase/schema_dumps/20260517_remote_public_schema.sql`. That hosted schema lacks:
+
+- `public.companies`;
+- `orders.company_id`;
+- current-company helper functions such as `default_company_id()`, `current_company_id()`, and
+  `current_app_user_has_current_company()`;
+- `current_app_user_can_read_order(uuid)`.
+
+Remote attachment deployment is blocked until the hosted database is migrated to the company-scoped
+foundation or a staging clone is created and upgraded first. The order document migrations must not
+be manually adapted to the hosted legacy schema, because doing so would bypass the security model
+that makes document metadata, signed URLs, visibility scopes, and activity safe.
+
+Edge Functions may deploy independently, but upload/download will fail until the required database
+migrations and RPCs exist on the target project. Do not weaken attachment security, broaden legacy
+order access, or replace company-scoped authorization checks to support the older hosted schema.
+
 ## Competitive Research Basis
 
 The competitive research points to a clear product direction:
