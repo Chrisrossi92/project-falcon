@@ -1,5 +1,5 @@
 // src/components/clients/ClientDetail.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import supabase from "@/lib/supabaseClient";
@@ -45,6 +45,13 @@ const parseFee = (val) => {
     return Number.isFinite(n) ? n : null;
   }
   return null;
+};
+
+const formatCategoryLabel = (category) => {
+  const value = String(category || "client").trim();
+  if (!value) return "Client";
+  if (value.toLowerCase() === "amc") return "AMC";
+  return `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
 };
 
 function clientUpdateErrorMessage(error) {
@@ -250,7 +257,12 @@ export default function ClientDetail() {
   if (loading || appContextLoading) {
     return (
       <div className="p-4 md:p-6">
-        <div className="text-sm text-gray-600">Loading client…</div>
+        <div
+          role="status"
+          className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600"
+        >
+          Loading client relationship...
+        </div>
       </div>
     );
   }
@@ -258,16 +270,26 @@ export default function ClientDetail() {
   if (err && !client) {
     return (
       <div className="p-4 md:p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <h1 className="text-lg font-semibold">Client</h1>
+        <div className="mb-4 flex flex-col gap-3 rounded-xl border border-slate-200 bg-white px-4 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Relationship Detail
+            </div>
+            <h1 className="mt-1 text-xl font-semibold text-slate-950">Client</h1>
+          </div>
           <Link
             to="/clients"
-            className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50"
+            className="inline-flex items-center justify-center rounded-md border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
             Back to clients
           </Link>
         </div>
-        <div className="text-sm text-rose-600">{err}</div>
+        <div
+          role="alert"
+          className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
+        >
+          {err}
+        </div>
       </div>
     );
   }
@@ -275,13 +297,16 @@ export default function ClientDetail() {
   if (!client) {
     return (
       <div className="p-4 md:p-6">
-        <div className="text-sm text-gray-600">Client not found.</div>
+        <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-600">
+          Client not found.
+        </div>
       </div>
     );
   }
 
   const category =
     client.category || client.client_type || client.type || "client";
+  const categoryLabel = formatCategoryLabel(category);
   const statusLabel = (client.status || "ACTIVE").toUpperCase();
 
   const activeOrders = stats.activeOrders ?? 0;
@@ -296,69 +321,90 @@ export default function ClientDetail() {
   );
 
   return (
-    <div className="p-4 md:p-6">
-      {/* Header */}
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <h1 className="truncate text-xl font-semibold text-gray-900">
-              {client.name || "Untitled client"}
-            </h1>
-            <span
-              className={
-                "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium " +
-                statusChipClasses(statusLabel)
-              }
-            >
-              {statusLabel}
-            </span>
+    <div className="space-y-5 p-4 md:p-6">
+      <header className="rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-4 shadow-sm md:px-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Relationship Detail
+            </div>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <h1 className="min-w-0 truncate text-2xl font-semibold tracking-tight text-slate-950">
+                {client.name || "Untitled client"}
+              </h1>
+              <span
+                className={
+                  "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium " +
+                  statusChipClasses(statusLabel)
+                }
+              >
+                {statusLabel}
+              </span>
+            </div>
+
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-600">
+              <span>{categoryLabel}</span>
+              {amc && (
+                <>
+                  <span aria-hidden="true" className="text-slate-300">/</span>
+                  <span>
+                    Managed through{" "}
+                    <Link
+                      to={`/clients/${amc.id}`}
+                      className="font-medium text-slate-800 underline decoration-dotted underline-offset-2 hover:text-slate-950"
+                    >
+                      {amc.name}
+                    </Link>
+                  </span>
+                </>
+              )}
+            </div>
           </div>
 
-          <div className="mt-1 text-xs text-gray-500 flex flex-wrap items-center gap-2">
-            <span className="capitalize">{category}</span>
-            {amc && (
-              <>
-                <span>•</span>
-                <span>
-                  Under AMC:{" "}
-                  <Link
-                    to={`/clients/${amc.id}`}
-                    className="text-blue-600 underline-offset-2 hover:underline"
-                  >
-                    {amc.name}
-                  </Link>
-                </span>
-              </>
-            )}
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:min-w-[24rem]">
+            <ContextTile label="Visible orders" value={stats.totalOrders} />
+            <ContextTile label="Active orders" value={activeOrders} />
+            <ContextTile label="Last order" value={fmtDate(stats.lastOrderDate || null)} />
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="mt-4 flex flex-col gap-2 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-end">
           {canUpdateAllClients && (
             <button
               type="button"
               onClick={() => setEditing((v) => !v)}
-              className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50"
+              className="inline-flex items-center justify-center rounded-md border border-slate-900 bg-slate-900 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800"
             >
-              {editing ? "Cancel" : "Edit Client"}
+              {editing ? "Cancel editing" : "Edit Client"}
             </button>
           )}
           <button
             type="button"
             onClick={() => nav("/clients")}
-            className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50"
+            className="inline-flex items-center justify-center rounded-md border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
             Back to Clients
           </button>
         </div>
-      </div>
+      </header>
 
-      {/* Content grid */}
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1.4fr)]">
-        {/* Left column: details + orders */}
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(18rem,0.95fr)]">
         <div className="space-y-4">
-          {/* Client details / edit form */}
-          <div className="rounded-xl border bg-white p-4">
+          <section
+            aria-labelledby="client-contact-heading"
+            className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+          >
+            <div className="mb-4 border-b border-slate-100 pb-3">
+              <h2
+                id="client-contact-heading"
+                className="text-base font-semibold text-slate-950"
+              >
+                Client Contact
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Primary contact fields currently stored on this client record.
+              </p>
+            </div>
             {editing && canUpdateAllClients ? (
               <ClientForm
                 initial={client}
@@ -366,74 +412,67 @@ export default function ClientDetail() {
                 submitLabel="Save Changes"
               />
             ) : (
-              <div className="space-y-2 text-sm">
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs font-medium text-gray-500">
-                    Primary Contact
-                  </span>
-                  <span className="text-gray-900">
-                    {client.primary_contact_name ||
-                      client.contact_name_1 ||
-                      "—"}
-                  </span>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs font-medium text-gray-500">
-                    Primary Phone
-                  </span>
-                  <span className="text-gray-900">
-                    {client.primary_contact_phone ||
-                      client.contact_phone_1 ||
-                      "—"}
-                  </span>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs font-medium text-gray-500">
-                    Email
-                  </span>
-                  <span className="text-gray-900">
-                    {client.contact_email_1 ||
-                      client.email ||
-                      client.contact_email ||
-                      "—"}
-                  </span>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs font-medium text-gray-500">
-                    Notes
-                  </span>
-                  <span className="text-gray-900">
-                    {client.notes || client.internal_notes || "—"}
-                  </span>
-                </div>
+              <div className="grid gap-3 text-sm sm:grid-cols-2">
+                <DetailField
+                  label="Primary Contact"
+                  value={client.primary_contact_name || client.contact_name_1 || "—"}
+                />
+                <DetailField
+                  label="Primary Phone"
+                  value={client.primary_contact_phone || client.contact_phone_1 || "—"}
+                />
+                <DetailField
+                  label="Email"
+                  value={
+                    client.contact_email_1 ||
+                    client.email ||
+                    client.contact_email ||
+                    "—"
+                  }
+                />
+                <DetailField
+                  label="Notes"
+                  value={client.notes || client.internal_notes || "—"}
+                  className="sm:col-span-2"
+                />
               </div>
             )}
-          </div>
+          </section>
 
-          {/* Orders list */}
-          <div className="rounded-xl border bg-white p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-gray-900">
-                Orders
-              </h2>
+          <section
+            aria-labelledby="client-orders-heading"
+            className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+          >
+            <div className="mb-4 flex flex-col gap-2 border-b border-slate-100 pb-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2
+                  id="client-orders-heading"
+                  className="text-base font-semibold text-slate-950"
+                >
+                  Related Orders
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Orders visible to your current company role for this client.
+                </p>
+              </div>
               {anyOrders && (
-                <span className="text-xs text-gray-500">
-                  {stats.totalOrders} total • {activeOrders} active •{" "}
+                <span className="text-sm font-medium text-slate-600">
+                  {stats.totalOrders} total / {activeOrders} active /{" "}
                   {completedOrders} completed
                 </span>
               )}
             </div>
 
             {!anyOrders ? (
-              <div className="text-sm text-gray-600">
-                No orders yet for this client.
+              <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-600">
+                No visible orders for this client.
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-5">
                 {activeList.length > 0 && (
                   <div>
-                    <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-emerald-700">
-                      Active
+                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                      Active Orders
                     </div>
                     <OrdersTable rows={activeList} />
                   </div>
@@ -441,83 +480,94 @@ export default function ClientDetail() {
 
                 {completedList.length > 0 && (
                   <div>
-                    <div className="mb-1 mt-3 text-xs font-semibold uppercase tracking-wide text-gray-600">
-                      Completed
+                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                      Completed Orders
                     </div>
                     <OrdersTable rows={completedList} />
                   </div>
                 )}
               </div>
             )}
-          </div>
+          </section>
         </div>
 
-        {/* Right column: KPIs */}
-        <div className="space-y-4">
-          <div className="rounded-xl border bg-white p-4">
-            <h2 className="mb-3 text-sm font-semibold text-gray-900">
-              Client KPIs
+        <aside className="space-y-4">
+          <section
+            aria-labelledby="client-context-heading"
+            className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+          >
+            <h2
+              id="client-context-heading"
+              className="mb-3 text-base font-semibold text-slate-950"
+            >
+              Visible Order Context
             </h2>
             <div className="grid grid-cols-2 gap-3 text-sm">
-              <div className="rounded-lg bg-slate-50 p-3">
-                <div className="text-xs text-gray-500">Total Orders</div>
-                <div className="mt-1 text-lg font-semibold text-gray-900">
-                  {stats.totalOrders}
-                </div>
-              </div>
-              <div className="rounded-lg bg-slate-50 p-3">
-                <div className="text-xs text-gray-500">Active Orders</div>
-                <div className="mt-1 text-lg font-semibold text-gray-900">
-                  {activeOrders}
-                </div>
-              </div>
-              <div className="rounded-lg bg-slate-50 p-3">
-                <div className="text-xs text-gray-500">Completed</div>
-                <div className="mt-1 text-lg font-semibold text-gray-900">
-                  {completedOrders}
-                </div>
-              </div>
-              <div className="rounded-lg bg-slate-50 p-3">
-                <div className="text-xs text-gray-500">Avg Fee</div>
-                <div className="mt-1 text-lg font-semibold text-gray-900">
-                  {money0(stats.avgFee ?? null)}
-                </div>
-              </div>
-              <div className="rounded-lg bg-slate-50 p-3">
-                <div className="text-xs text-gray-500">Total Fees</div>
-                <div className="mt-1 text-lg font-semibold text-gray-900">
-                  {money0(stats.totalFees)}
-                </div>
-              </div>
-              <div className="rounded-lg bg-slate-50 p-3">
-                <div className="text-xs text-gray-500">Last Order</div>
-                <div className="mt-1 text-lg font-semibold text-gray-900">
-                  {fmtDate(
-                    stats.lastOrderDate || null
-                  )}
-                </div>
-              </div>
+              <MetricTile label="Total Orders" value={stats.totalOrders} />
+              <MetricTile label="Active Orders" value={activeOrders} />
+              <MetricTile label="Completed" value={completedOrders} />
+              <MetricTile label="Avg Fee" value={money0(stats.avgFee ?? null)} />
+              <MetricTile label="Total Fees" value={money0(stats.totalFees)} />
+              <MetricTile
+                label="Last Order"
+                value={fmtDate(stats.lastOrderDate || null)}
+              />
             </div>
-          </div>
+          </section>
 
-          {/* Placeholder for future stuff */}
-          <div className="rounded-xl border bg-white p-4">
-            <h2 className="mb-2 text-sm font-semibold text-gray-900">
+          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <h2 className="mb-2 text-base font-semibold text-slate-950">
               Relationship Notes
             </h2>
-            <p className="text-xs text-gray-500">
-              In the future we can use this space for things like average
-              turn-time, preferred products, special instructions, or
-              profitability by year.
+            <p className="text-sm leading-6 text-slate-500">
+              Internal relationship context remains read-only here unless you
+              use the existing edit flow for supported client fields.
             </p>
-          </div>
-        </div>
+          </section>
+        </aside>
       </div>
     </div>
   );
 }
 
 /* ============================== subcomponents ============================== */
+
+function ContextTile({ label, value }) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm">
+      <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+        {label}
+      </div>
+      <div className="mt-1 truncate text-sm font-medium text-slate-950">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function DetailField({ label, value, className = "" }) {
+  return (
+    <div
+      className={`rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 ${className}`}
+    >
+      <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+        {label}
+      </div>
+      <div className="mt-1 whitespace-pre-wrap text-sm text-slate-900">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function MetricTile({ label, value }) {
+  return (
+    <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
+      <div className="text-xs text-slate-500">{label}</div>
+      <div className="mt-1 text-lg font-semibold text-slate-950">{value}</div>
+    </div>
+  );
+}
 
 function OrdersTable({ rows }) {
   if (!rows || rows.length === 0) return null;

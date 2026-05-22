@@ -1,5 +1,4 @@
 // src/components/clients/ClientCard.jsx
-import React from "react";
 import { Link } from "react-router-dom";
 import { useCan } from "@/lib/hooks/usePermissions";
 import { PERMISSIONS } from "@/lib/permissions/constants";
@@ -40,102 +39,111 @@ export default function ClientCard({ client, metrics }) {
   const { total_orders, avg_fee, last_activity } = metrics || {};
 
   const statusLabel = status ? status.toUpperCase() : "ACTIVE";
+  const detailLabel = name ? `View ${name} client detail` : "View client detail";
+  const cardLabel = name ? `${name} client summary` : "Client summary";
 
   return (
-    <div className="group flex flex-col justify-between rounded-2xl border bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
-      {/* Header row */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <h2 className="truncate text-sm font-semibold text-gray-900">
-              {name || "Untitled client"}
-            </h2>
-            {category && (
-              <span
-                className={
-                  "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium " +
-                  badgeClasses(category)
-                }
-              >
-                {category}
-              </span>
-            )}
-          </div>
-          <div className="mt-1 text-xs text-gray-500">
-            {primary_contact ? (
-              <span>{primary_contact}</span>
-            ) : (
-              <span className="italic text-gray-400">No primary contact</span>
-            )}
-            {phone && (
-              <>
-                <span className="mx-1">•</span>
-                <a
-                  href={`tel:${phone}`}
-                  className="underline decoration-dotted underline-offset-2"
-                  onClick={(e) => e.stopPropagation()}
+    <article
+      aria-label={cardLabel}
+      className="group flex h-full flex-col justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md motion-reduce:hover:translate-y-0"
+    >
+      <div className="space-y-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="min-w-0 truncate text-base font-semibold leading-6 text-slate-950">
+                {name || "Untitled client"}
+              </h2>
+              {category && (
+                <span
+                  className={
+                    "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium " +
+                    badgeClasses(category)
+                  }
                 >
-                  {phone}
-                </a>
-              </>
-            )}
-          </div>
-        </div>
+                  {category}
+                </span>
+              )}
+            </div>
 
-        <div className="flex flex-col items-end text-right">
-          <span className="text-[11px] uppercase tracking-wide text-gray-400">
-            Total Orders
-          </span>
-          <span className="text-lg font-semibold text-gray-900">
-            {total_orders ?? 0}
-          </span>
-        </div>
-      </div>
+            <div className="text-sm text-slate-600">
+              {primary_contact ? (
+                <span>{primary_contact}</span>
+              ) : (
+                <span className="italic text-slate-400">No primary contact</span>
+              )}
+              {phone && (
+                <>
+                  <span aria-hidden="true" className="mx-1 text-slate-300">/</span>
+                  <a
+                    href={`tel:${phone}`}
+                    className="font-medium text-slate-700 underline decoration-dotted underline-offset-2 hover:text-slate-950"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {phone}
+                  </a>
+                </>
+              )}
+            </div>
+          </div>
 
-      {/* KPI strip */}
-      <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-        <div className="rounded-xl bg-slate-50 px-2 py-2">
-          <div className="text-[11px] text-gray-500">Avg Fee</div>
-          <div className="mt-0.5 text-sm font-medium text-gray-900">
-            {money0(avg_fee)}
-          </div>
-        </div>
-        <div className="rounded-xl bg-slate-50 px-2 py-2">
-          <div className="text-[11px] text-gray-500">Last Order</div>
-          <div className="mt-0.5 text-sm font-medium text-gray-900">
-            {fmtDate(last_activity)}
-          </div>
-        </div>
-        <div className="rounded-xl bg-slate-50 px-2 py-2">
-          <div className="text-[11px] text-gray-500">Status</div>
-          <div className="mt-1">
-            <span
-              className={
-                "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium " +
-                statusBadgeClasses(statusLabel)
-              }
-            >
-              {statusLabel}
+          <div className="shrink-0 rounded-lg bg-slate-50 px-3 py-2 text-right">
+            <span className="block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              Orders
+            </span>
+            <span className="mt-0.5 block text-xl font-semibold leading-none text-slate-950">
+              {total_orders ?? 0}
             </span>
           </div>
         </div>
+
+        <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-3">
+          <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              Avg Fee
+            </div>
+            <div className="mt-1 font-medium text-slate-950">
+              {money0(avg_fee)}
+            </div>
+          </div>
+          <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              Last Order
+            </div>
+            <div className="mt-1 font-medium text-slate-950">
+              {fmtDate(last_activity)}
+            </div>
+          </div>
+          <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              Status
+            </div>
+            <div className="mt-1">
+              <span
+                className={
+                  "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium " +
+                  statusBadgeClasses(statusLabel)
+                }
+              >
+                {statusLabel}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Footer */}
-      <div className="mt-3 flex items-center justify-between text-xs">
+      <div className="mt-4 flex flex-col gap-2 border-t border-slate-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
         <Link
           to={`/clients/${id}`}
-          className="font-medium text-blue-600 underline-offset-2 hover:text-blue-700 hover:underline"
+          aria-label={detailLabel}
+          className="inline-flex items-center justify-center rounded-md border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-950"
         >
           View client detail
         </Link>
-        <span className="text-[11px] text-gray-400 group-hover:text-gray-500">
-          {canUpdateAllClients ? "Click to see orders & edit" : "Click to see orders"}
+        <span className="text-xs text-slate-500">
+          {canUpdateAllClients ? "Orders and edit access" : "Orders only"}
         </span>
       </div>
-    </div>
+    </article>
   );
 }
-
-
-

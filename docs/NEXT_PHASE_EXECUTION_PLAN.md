@@ -398,6 +398,89 @@ permission/workflow/lifecycle changes, no shared dashboard behavior changes, no 
 predictive scoring, no new calendar features, and no active-calendar leakage of archived/cancelled/
 voided records.
 
+### Planned Clients Workspace Polish
+
+Clients Workspace Polish Slice 1A creates the governed strategy in
+`docs/CLIENTS_WORKSPACE_POLISH_STRATEGY.md`.
+
+The planned purpose is to make the standalone Clients workspace feel like an operational
+relationship workspace now that Dashboard, Orders, and Calendar first-pass polish foundations are
+locked. The current foundation already has `/clients` for full client readers, `/clients/cards` for
+assigned-client routing, guarded client create/edit/detail routes, RPC-backed client management
+list/detail/create/update wrappers, category/search/sort controls, client cards, and related order
+readback on Client Detail.
+
+Recommended first implementation:
+
+- frontend-only `ClientsIndex` header/control layout polish;
+- preserve all current client data/query/action behavior;
+- keep Clients as internal relationship management, not a Client Portal or CRM expansion;
+- clarify full versus assigned client work-view context where possible from existing state;
+- improve search/category/sort grouping, loading/error/empty states, and mobile stacking;
+- avoid detail-page redesign, new filters, saved views, relationship model work, or data-model
+  changes in the first runtime pass.
+
+Guardrails:
+
+- no backend changes;
+- no Supabase changes;
+- no query behavior changes;
+- no client data model changes;
+- no relationship/company-scoping changes;
+- no permission/workflow/lifecycle changes;
+- no order visibility changes from client surfaces;
+- no fake analytics, predictive scoring, CRM pipeline, Client Portal activation, or new mutation
+  paths.
+
+Deferred Clients workspace work remains client detail layout polish, form shell polish, card/table
+view redesign, URL-backed client filters, saved client views, client duplicate/canonicalization
+model, company-scoped contacts model, client archive/restore doctrine, client relationship graph
+expansion, Client Portal surfaces, client analytics/reporting, server-side search/pagination,
+CRM segmentation/scoring, bulk actions, and imports/exports.
+
+Clients Workspace Polish Slice 1B is complete as the first frontend-only runtime polish pass.
+`ClientsIndex` now has a `Clients Workspace` relationship-management header, compact read-only
+context, grouped `Relationship Controls`, a clearer `Client Directory` body, and calmer loading/
+error/empty states. Tests cover the hierarchy, create-link permission visibility, preserved
+search/category/sort arguments, normalized card data, and empty state. The slice changed no backend
+behavior, Supabase behavior, routes, permissions, RLS/RPCs, client model/API/RPC behavior, query
+semantics, relationship/company-scoping behavior, order visibility, workflow/lifecycle behavior,
+Client Portal behavior, CRM expansion, fake analytics, predictive scoring, card navigation, or
+mutation paths.
+
+Clients Workspace Polish Slice 1C is complete as frontend-only client card/directory presentation
+polish. `ClientCard` now has a cleaner relationship-card hierarchy, compact order count, clearer
+contact presentation, read-only metric tiles, category/status badges, and a stronger detail link.
+Tests cover identity, contact, metrics, status, detail navigation, phone navigation,
+permission-derived helper copy, missing-data placeholders, and absence of new button actions. The
+slice changed no backend behavior, Supabase behavior, routes, permissions, company scoping,
+RLS/RPCs, client model/API/RPC behavior, query/filter/sort semantics, Client Portal behavior, CRM
+feature behavior, new client actions, card navigation, or mutation paths.
+
+Clients Workspace Polish Slice 1D is complete as frontend-only client detail/profile presentation
+polish. `ClientDetail` now has a cleaner `Relationship Detail` header, read-only context tiles,
+clearer edit/back hierarchy, grouped contact fields, a scoped `Related Orders` section, and
+`Visible Order Context` language instead of analytics-heavy KPI framing. The legacy
+`ClientProfile` route received a light read-only shell polish. Tests cover the polished detail
+hierarchy, existing client-detail wrapper call, existing related-order view/query/scoping behavior,
+permission-gated edit form visibility, and absence of edit controls without update permission. The
+slice changed no backend behavior, Supabase behavior, routes, permissions, company scoping,
+RLS/RPCs, client model/API/RPC behavior, displayed data, query semantics, edit submission behavior,
+Client Portal behavior, CRM feature behavior, new actions, new mutations, or order visibility
+behavior.
+
+Clients Workspace Polish Slice 1E is complete as the first-pass consistency, accessibility, and
+responsive cleanup checkpoint. Client cards and the relationship-card grid now have safer
+accessible labels, decorative separators are hidden from assistive technology, Client Detail
+normalizes `AMC` category copy and uses clearer `Active orders` context labeling, and the legacy
+Client Profile order history grid has horizontal overflow protection for small screens. The first
+Clients Workspace polish foundation is now locked across strategy, workspace header/control
+hierarchy, card/directory presentation, detail/profile presentation, and consistency/accessibility/
+responsive cleanup. No backend behavior, Supabase behavior, routes, permissions, company scoping,
+RLS/RPCs, client model/API/RPC behavior, displayed data, query/filter/sort semantics, edit
+submission behavior, Client Portal behavior, CRM feature behavior, new actions, new mutations,
+order visibility behavior, fake analytics, or predictive scoring changed.
+
 ### Completed Orders Filtering/Search Audit
 
 Operational UX Slice B1 inventories the active Orders filtering/search surface in
