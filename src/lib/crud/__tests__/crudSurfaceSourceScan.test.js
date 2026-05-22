@@ -64,6 +64,7 @@ const TABLES = [
   "activity_log",
   "notification_prefs",
   "notification_preferences",
+  "order_saved_views",
   "users",
   "company_memberships",
   "user_role_assignments",
@@ -383,6 +384,25 @@ function orderIncludeRetiredLifecycleReachabilityFindings() {
   return findings;
 }
 
+function directOrderSavedViewsTableAccessFindings() {
+  const findings = [];
+
+  for (const filePath of walkFiles(srcRoot)) {
+    const rel = relative(repoRoot, filePath);
+    const source = readFileSync(filePath, "utf8");
+    const pattern = /\.from\(\s*["']order_saved_views["']\s*\)/g;
+
+    for (const match of source.matchAll(pattern)) {
+      findings.push({
+        file: rel,
+        index: match.index,
+      });
+    }
+  }
+
+  return findings;
+}
+
 describe("CRUD surface source scan", () => {
   it("keeps direct domain table writes confined to the documented compatibility watchlist", () => {
     const unapproved = directWriteFindings().filter((finding) => !WATCHLIST.has(finding.file));
@@ -436,6 +456,10 @@ describe("CRUD surface source scan", () => {
 
   it("keeps includeRetiredLifecycle confined to low-level order read APIs", () => {
     expect(orderIncludeRetiredLifecycleReachabilityFindings()).toEqual([]);
+  });
+
+  it("blocks direct frontend order_saved_views table access", () => {
+    expect(directOrderSavedViewsTableAccessFindings()).toEqual([]);
   });
 
   it("documents the compatibility watchlist in the stabilization matrix", () => {

@@ -9,6 +9,11 @@ import { OPERATIONAL_QUEUE_DEFINITIONS } from "@/features/queues/queueDefinition
 import { orderHasQueue } from "@/features/queues/queueEvaluator";
 import { getQueueSummaryById, summarizeOperationalQueues } from "@/features/queues/queueSummary";
 import { useOrdersSummary } from "@/lib/hooks/useOrders";
+import {
+  createOrderSavedView,
+  deleteOrderSavedView,
+  listOrderSavedViews,
+} from "@/lib/api/orderSavedViews";
 
 function useQuery() {
   const { search } = useLocation();
@@ -48,6 +53,17 @@ function writeFilters(navigate, next) {
   qs.set("pageSize", String(Math.max(10, next.pageSize || 15)));
   navigate({ search: `?${qs.toString()}` }, { replace: true });
 }
+
+const SAVED_VIEW_FILTER_KEYS = new Set([
+  "status",
+  "q",
+  "clientId",
+  "appraiserId",
+  "reviewerId",
+  "due",
+  "queue",
+  "pageSize",
+]);
 
 const QUEUE_LABELS = new Map(OPERATIONAL_QUEUE_DEFINITIONS.map((queue) => [queue.id, queue.label]));
 
@@ -181,6 +197,206 @@ function ActiveFilterChips({ filters, onChange }) {
   );
 }
 
+function buildSavedViewFilters(filters) {
+  const payload = {};
+  const status = filters?.statusIn?.[0] || "";
+
+  if (status) payload.status = status;
+  if (filters?.search) payload.q = filters.search;
+  if (filters?.clientId) payload.clientId = filters.clientId;
+  if (filters?.appraiserId) payload.appraiserId = filters.appraiserId;
+  if (filters?.reviewerId) payload.reviewerId = filters.reviewerId;
+  if (filters?.dueWindow) payload.due = filters.dueWindow;
+  if (filters?.queueId) payload.queue = filters.queueId;
+  if (filters?.pageSize) payload.pageSize = filters.pageSize;
+
+  return payload;
+}
+
+function savedViewFiltersToOrdersFilters(savedFilters, currentFilters) {
+  const filters = savedFilters && typeof savedFilters === "object" && !Array.isArray(savedFilters)
+    ? savedFilters
+    : null;
+
+  if (!filters) {
+    throw new Error("Saved view filters are unavailable.");
+  }
+
+  const unsupportedKeys = Object.keys(filters).filter((key) => !SAVED_VIEW_FILTER_KEYS.has(key));
+  if (unsupportedKeys.length) {
+    throw new Error("Saved view contains unsupported filters.");
+  }
+
+  return {
+    ...currentFilters,
+    statusIn: filters.status ? [filters.status] : [],
+    search: filters.q || "",
+    clientId: filters.clientId || "",
+    appraiserId: filters.appraiserId || "",
+    reviewerId: filters.reviewerId || "",
+    dueWindow: filters.due || "",
+    queueId: filters.queue || "",
+    priority: "",
+    page: 0,
+    pageSize: Math.max(10, parseInt(filters.pageSize || currentFilters?.pageSize || 15, 10)),
+  };
+}
+
+function SavedViewsPanel({ filters, onApply }) {
+  const [open, setOpen] = useState(false);
+  const [views, setViews] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState("");
+  const [name, setName] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadSavedViews() {
+      setLoading(true);
+      setError("");
+      try {
+        const data = await listOrderSavedViews();
+        if (mounted) setViews(Array.isArray(data) ? data : []);
+      } catch (err) {
+        if (mounted) setError(err?.message || "Saved views could not be loaded.");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    loadSavedViews();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  async function handleSave(event) {
+    event.preventDefault();
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      setError("Enter a saved view name.");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    try {
+      const created = await createOrderSavedView(trimmedName, buildSavedViewFilters(filters));
+      setViews((current) => (created ? [...current, created] : current));
+      setName("");
+    } catch (err) {
+      setError(err?.message || "Saved view could not be created.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete(viewId) {
+    setDeletingId(viewId);
+    setError("");
+    try {
+      await deleteOrderSavedView(viewId);
+      setViews((current) => current.filter((view) => view.id !== viewId));
+    } catch (err) {
+      setError(err?.message || "Saved view could not be deleted.");
+    } finally {
+      setDeletingId("");
+    }
+  }
+
+  function handleApply(view) {
+    setError("");
+    try {
+      onApply?.(savedViewFiltersToOrdersFilters(view.filters, filters));
+      setOpen(false);
+    } catch (err) {
+      setError(err?.message || "Saved view could not be applied.");
+    }
+  }
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+        aria-expanded={open}
+        aria-controls="orders-saved-views-panel"
+      >
+        Saved Views
+      </button>
+
+      {open ? (
+        <div
+          id="orders-saved-views-panel"
+          className="absolute right-0 z-20 mt-2 w-[22rem] max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200 bg-white p-3 text-sm shadow-lg"
+        >
+          <div className="mb-2 flex items-start justify-between gap-3">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+                Saved Views
+              </div>
+              <p className="mt-1 text-xs text-slate-500">Personal URL presets for this Orders queue.</p>
+            </div>
+          </div>
+
+          {error ? (
+            <div role="alert" className="mb-2 rounded-lg border border-red-100 bg-red-50 px-2.5 py-2 text-xs text-red-700">
+              {error}
+            </div>
+          ) : null}
+
+          <div className="max-h-44 space-y-1 overflow-auto border-y border-slate-100 py-2">
+            {loading ? <div className="px-2 py-2 text-xs text-slate-500">Loading saved views...</div> : null}
+            {!loading && !views.length ? (
+              <div className="px-2 py-2 text-xs text-slate-500">No saved views yet.</div>
+            ) : null}
+            {views.map((view) => (
+              <div key={view.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-slate-50">
+                <button
+                  type="button"
+                  onClick={() => handleApply(view)}
+                  className="min-w-0 flex-1 truncate text-left text-sm font-medium text-slate-700 hover:text-slate-950"
+                >
+                  {view.name}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(view.id)}
+                  disabled={deletingId === view.id}
+                  className="rounded-md px-2 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {deletingId === view.id ? "Deleting" : "Delete"}
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <form onSubmit={handleSave} className="mt-3 flex gap-2">
+            <input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="Name current view"
+              className="min-w-0 flex-1 rounded-lg border border-slate-200 px-2.5 py-2 text-sm text-slate-700 shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100"
+            />
+            <button
+              type="submit"
+              disabled={saving}
+              className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving ? "Saving" : "Save"}
+            </button>
+          </form>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export default function OrdersPage() {
   const navigate = useNavigate();
   const qs = useQuery();
@@ -218,6 +434,11 @@ export default function OrdersPage() {
     writeFilters(navigate, next);
   }
 
+  function applySavedView(next) {
+    setFilters(next);
+    writeFilters(navigate, next);
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
@@ -229,6 +450,7 @@ export default function OrdersPage() {
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <SavedViewsPanel filters={filters} onApply={applySavedView} />
           <Link
             to="/orders/historical"
             className="rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:border-slate-300 hover:bg-slate-50"
@@ -262,40 +484,3 @@ export default function OrdersPage() {
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

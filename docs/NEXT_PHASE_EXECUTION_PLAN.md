@@ -18,6 +18,7 @@ Baseline references:
 - `docs/HISTORICAL_ADMIN_READBACK_PLAN.md`
 - `docs/DASHBOARD_ANALYTICS_PLAN.md`
 - `docs/WORKLOAD_VISIBILITY_PLAN.md`
+- `docs/SAVED_VIEWS_PLAN.md`
 - `docs/OPERATIONAL_TIMELINE_PLAN.md`
 
 ## Executive Direction
@@ -242,6 +243,38 @@ not surfaced.
 Deferred filter UX work remains reconciling `due=this_week` and `due=next_week`, deciding whether
 `priority` should become a governed active filter, adding richer assignee/client chip labels where
 safe, and separately designing saved views, filter presets, and historical/admin filter chips.
+
+### Completed Saved Views Foundation
+
+Saved Views Slices 1A through 1H complete the first governed Saved Views foundation in
+`docs/SAVED_VIEWS_PLAN.md`.
+
+The completed foundation lets users save and return to common active Orders queues while preserving
+the governed Orders URL/query model. It includes backend user/company-scoped persistence in
+`public.order_saved_views`, RPC-owned saved-view CRUD, strict backend filter allowlist validation,
+frontend RPC wrappers, direct frontend table access source-scan blocking, and a compact secondary
+Orders-page `Saved Views` UI.
+
+The active UI supports:
+
+- list saved views;
+- apply a saved view through Orders URL/query state only;
+- save the current allowlisted filter state as a named view;
+- delete a saved view.
+
+Saved payloads are limited to `status`, `q`, `clientId`, `appraiserId`, `reviewerId`, `due`,
+`queue`, and `pageSize`. `page`, hidden/internal filters, mutation state, raw query fragments,
+unknown keys, and historical/admin flags are excluded or rejected. Unsupported returned filter keys
+are rejected without changing current Orders filters.
+
+The locked guardrails are read-only navigation presets only, no bypass of RLS/permissions/current
+company scope/active-list exclusions, URL/query state remains canonical, backend validation remains
+authoritative, no hidden filters, no localStorage fallback, no order mutation behavior, no activity
+write, no notification fanout, and no historical/admin presets.
+
+Deferred saved-view work remains rename/edit, personal default view, team/shared views,
+admin/global presets, historical/admin saved views, dashboard-linked saved views, ordering/pinning,
+and alerting/subscriptions.
 
 ### Completed Operational Timeline Foundation
 
