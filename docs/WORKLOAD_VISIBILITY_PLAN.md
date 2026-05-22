@@ -238,7 +238,7 @@ UX doctrine:
 
 ## Deferred Items
 
-- Reviewer-specific Orders filter support before reviewer-row drill links.
+- Reviewer filter control UX beyond URL-backed drill links.
 - Overdue-by-assignee workload visibility.
 - Workload aging buckets.
 - Charts/trends.
@@ -357,7 +357,7 @@ Locked guardrails:
 
 Deferred future work:
 
-- Reviewer-specific Orders filter support before reviewer-row drill links.
+- Reviewer filter control UX beyond URL-backed drill links.
 - Overdue-by-assignee workload visibility.
 - Workload aging buckets.
 - Charts and trends.
@@ -372,3 +372,168 @@ Deferred future work:
 - No historical metrics, employee scoring, punitive ranking, cross-company benchmarking, mutation
   behavior, workflow behavior, lifecycle behavior, assignment mutation behavior, activity write,
   notification fanout, document behavior, permission change, or route change.
+
+## Operational UX Slice A1 Reviewer Filter Planning
+
+Reviewer-specific workload drill links need a governed Orders filter before `Review Queue` rows can
+link to reviewer-owned order views.
+
+Current Orders filter support:
+
+- `status`: `src/pages/orders/Orders.jsx` reads `?status=...` into `statusIn`, writes it back to
+  the URL, and `fetchOrdersWithFilters(...)` applies it through `statusIn`.
+- `appraiserId`: `Orders.jsx` reads/writes `?appraiserId=...`, `UnifiedOrdersTable` seeds it into
+  `useOrders(...)`, and `fetchOrdersWithFilters(...)` applies `appraiser_id`.
+- `queue`: `Orders.jsx` reads/writes `?queue=...` and derives queue-filtered rows from
+  `useOrdersSummary(...)` plus `orderHasQueue(...)` without adding backend behavior.
+- `due`: `Orders.jsx` reads/writes `?due=...`, `UnifiedOrdersTable` seeds `dueWindow`, and
+  `fetchOrdersWithFilters(...)` applies active due-window predicates.
+- `reviewerId`: low-level read support already exists in `fetchOrdersWithFilters(...)` through
+  `reviewerId -> reviewer_id`, and reviewer dashboard/table mode can pass a reviewer id through
+  component props. The public Orders URL/filter path does not currently read, write, seed, or
+  preserve `?reviewerId=...`.
+
+Confirmed reviewer source fields:
+
+- `reviewer_id` is selected by `fetchOrdersWithFilters(...)` and mapped onto active order rows.
+- `reviewer_name` is selected by `fetchOrdersWithFilters(...)` and mapped for display/grouping.
+- Dashboard workload grouping currently uses `order.reviewer_id` and `order.reviewer_name` for
+  review queue visibility.
+
+Desired reviewer filter behavior:
+
+- `/orders?reviewerId=<id>` shows active orders assigned to the reviewer.
+- `/orders?status=in_review&reviewerId=<id>` shows the reviewer-owned active review queue.
+- Existing combinations such as appraiser, client, due, search, page, and page size should continue
+  to round-trip normally when present.
+
+Recommended implementation approach:
+
+- Extend the existing Orders filter chain rather than adding a new route, RPC, view, or analytics
+  path.
+- Add `reviewerId` to `Orders.jsx` URL read/write behavior and the `UnifiedOrdersTable` key/filter
+  seed.
+- Add `reviewerId` to the normal `UnifiedOrdersTable` seed and `useOrders(...)` filter payload so
+  non-reviewer dashboard drill links can use the same governed path as other filters.
+- Keep `fetchOrdersWithFilters(...)` as the read authority; it already applies `reviewer_id` and
+  preserves default active-list archived/cancelled/voided exclusions.
+- Optionally add a reviewer filter control later only if product wants manual reviewer filtering in
+  the Orders filter bar. The first requirement is URL support for safe dashboard drill links.
+
+Guardrails:
+
+- Reviewer filters are read-only active Orders filters.
+- Default active-order exclusions must remain intact: no archived, cancelled, voided, or hidden
+  historical leakage.
+- No assignment mutation, workflow transition, lifecycle action, activity write, notification
+  fanout, document action, role/permission change, backend analytics pipeline, RPC, view, migration,
+  materialized view, chart, export, or report should be added for reviewer filtering.
+- Reviewer-specific workload links should remain disabled until the URL filter is implemented and
+  covered by tests end to end.
+
+## Non-Goals For Operational UX Slice A1
+
+- No runtime changes.
+- No reviewer drill-link activation.
+- No new backend API, RPC, view, migration, materialized view, analytics pipeline, chart, export, or
+  report.
+- No mutation behavior, workflow behavior, lifecycle behavior, assignment mutation behavior,
+  activity write, notification fanout, document behavior, permission change, historical metric, or
+  historical readback behavior.
+
+## Operational UX Slice A2 Reviewer Filter Wiring
+
+Operational UX Slice A2 implements the reviewer-specific Orders filter planned in A1 and enables
+governed reviewer workload drill links.
+
+Runtime scope:
+
+- `Orders.jsx` reads and writes `?reviewerId=<id>` alongside existing `status`, `appraiserId`,
+  `clientId`, `due`, `queue`, `q`, page, and page-size query parameters.
+- `/orders?reviewerId=<id>` now filters active Orders by reviewer.
+- `/orders?status=in_review&reviewerId=<id>` now filters active in-review Orders by reviewer.
+- `UnifiedOrdersTable` includes `reviewerId` in normal filter seeding, not only reviewer-role
+  dashboard mode.
+- `useOrders(...)` passes `reviewerId` through to `fetchOrdersWithFilters(...)`.
+- `fetchOrdersWithFilters(...)` remains the read authority and already applies
+  `reviewerId -> reviewer_id`.
+- Dashboard `Review Queue` workload rows now link to
+  `/orders?status=in_review&reviewerId=<reviewer-id>`.
+
+Governance:
+
+- The filter is read-only and uses existing Orders read paths.
+- Default active-list exclusions remain intact: archived, cancelled, and voided rows are excluded
+  unless a separately approved historical/admin readback surface explicitly opts in.
+- Company scope, RLS, and existing order read permissions remain authoritative.
+- The slice adds no backend API, RPC, database view, migration, materialized view, analytics
+  pipeline, charting, workflow/lifecycle behavior, assignment mutation, activity write,
+  notification fanout, historical metric, export, or report.
+- Reviewer workload links remain operational visibility only and must not be described as ranking,
+  scoring, productivity, performance review, or punitive semantics.
+
+Deferred after A2:
+
+- Optional manual reviewer selector in the Orders filter bar if product wants direct reviewer
+  filtering beyond URL-backed dashboard drill links.
+- Overdue-by-assignee workload visibility.
+- Workload aging buckets.
+- Charts/trends.
+- Staffing/forecasting.
+- Server-side analytics views or RPCs only if active-row frontend aggregation becomes insufficient.
+
+## Non-Goals For Operational UX Slice A2
+
+- No new analytics backend, RPC, view, migration, materialized view, chart, export, or report.
+- No historical metrics or historical readback behavior.
+- No mutation behavior, workflow behavior, lifecycle behavior, assignment mutation behavior,
+  activity write, notification fanout, document behavior, permission change, ranking, scoring, or
+  performance semantics.
+
+## Operational UX Slice A3 Workload Drill Link Closeout
+
+Operational UX Slice A3 closes out and locks the completed workload drill-link behavior without
+runtime changes.
+
+Completed drill-link behavior:
+
+- Reviewer-specific Orders URL filtering is supported through `reviewerId`.
+- Reviewer workload rows link to `/orders?status=in_review&reviewerId=<reviewer-id>`.
+- Appraiser workload rows remain linked to `/orders?appraiserId=<appraiser-id>`.
+- Revision follow-up appraiser rows remain linked to
+  `/orders?status=needs_revisions&appraiserId=<appraiser-id>`.
+- The Review Queue card remains linked to `/orders?status=in_review`.
+- The Revision Follow-Up card remains linked to `/orders?status=needs_revisions`.
+- The Unassigned Active card remains linked to `/orders?queue=unassigned_orders`.
+- All drill targets use governed active Orders filters and existing read paths.
+
+Locked guardrails:
+
+- Workload drill links are read-only operational navigation.
+- Active operational rows remain the intended source and destination; no hidden archived,
+  completed, cancelled, voided, or historical leakage is introduced.
+- Company scope, RLS, and existing order read permissions remain authoritative.
+- No backend API, RPC, database view, migration, materialized view, analytics pipeline, chart,
+  export, or report is required for the completed drill-link foundation.
+- No mutation behavior, workflow behavior, lifecycle behavior, assignment mutation behavior,
+  activity write, notification fanout, document behavior, permission change, ranking semantics, or
+  scoring semantics is attached to workload drill links.
+
+Deferred after drill-link closeout:
+
+- Optional manual reviewer selector in the Orders filter bar, if product wants non-dashboard
+  reviewer filtering controls.
+- Overdue-by-assignee workload visibility.
+- Workload aging buckets.
+- Trend charts.
+- Server-side workload analytics views or RPCs only if active-row frontend aggregation and existing
+  Orders filters become insufficient.
+
+## Non-Goals For Operational UX Slice A3
+
+- No runtime changes.
+- No new backend API, RPC, view, migration, materialized view, analytics pipeline, chart, export, or
+  report.
+- No new mutation behavior, workflow behavior, lifecycle behavior, assignment mutation behavior,
+  activity write, notification fanout, document behavior, permission change, historical metric,
+  historical readback behavior, ranking semantics, or scoring semantics.

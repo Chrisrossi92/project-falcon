@@ -97,6 +97,7 @@ export default function UnifiedOrdersTable({
       statusIn: appliedFilters.statusIn || [],
       clientId: appliedFilters.clientId || null,
       appraiserId: appliedFilters.appraiserId || null,
+      reviewerId: appliedFilters.reviewerId || null,
       assignedAppraiserId: appliedFilters.assignedAppraiserId || null,
       inspectedAwaitingReport: appliedFilters.inspectedAwaitingReport || false,
       finalDueWithinDays: appliedFilters.finalDueWithinDays ?? null,
@@ -105,7 +106,7 @@ export default function UnifiedOrdersTable({
       from: appliedFilters.from || "",
       to: appliedFilters.to || "",
     };
-    if (role === "reviewer" && reviewerId) base.reviewerId = reviewerId;
+    if (role === "reviewer" && reviewerId && !base.reviewerId) base.reviewerId = reviewerId;
     return base;
   }, [appliedFilters, pageSize, role, reviewerId]);
 

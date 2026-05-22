@@ -384,7 +384,10 @@ describe("DashboardPage operational polish", () => {
       "/orders?appraiserId=appraiser-2",
       "/orders?status=needs_revisions&appraiserId=appraiser-2",
     ]);
-    expect(within(workload).queryByRole("link", { name: "Reviewer One" })).not.toBeInTheDocument();
+    expect(within(workload).getByRole("link", { name: "Reviewer One" })).toHaveAttribute(
+      "href",
+      "/orders?status=in_review&reviewerId=reviewer-1",
+    );
     expect(within(workload).queryByRole("button")).not.toBeInTheDocument();
   });
 

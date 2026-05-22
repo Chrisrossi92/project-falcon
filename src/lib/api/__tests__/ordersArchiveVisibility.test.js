@@ -123,6 +123,16 @@ describe("fetchOrdersWithFilters archived visibility", () => {
     }
   });
 
+  it("filters active orders by reviewer id while preserving active-list exclusions", async () => {
+    await fetchOrdersWithFilters({ scope: "orders", reviewerId: "reviewer-1" });
+
+    for (const builder of builders) {
+      expect(builder.eq).toHaveBeenCalledWith("reviewer_id", "reviewer-1");
+      expect(builder.or).toHaveBeenCalledWith("is_archived.is.null,is_archived.eq.false");
+      expect(builder.not).toHaveBeenCalledWith("status", "in", "(cancelled,voided)");
+    }
+  });
+
   it("keeps retired lifecycle rows excluded from overdue filters by default", async () => {
     await fetchOrdersWithFilters({ scope: "orders", dueWindow: "overdue" });
 

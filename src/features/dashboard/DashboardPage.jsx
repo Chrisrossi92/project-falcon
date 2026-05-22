@@ -446,6 +446,7 @@ function WorkloadVisibilitySection({ loading, summary }) {
       caption: "Active orders in review",
       to: ordersPath({ status: ORDER_STATUS.IN_REVIEW }),
       items: summary.reviewers,
+      itemTo: (item) => ordersPath({ status: ORDER_STATUS.IN_REVIEW, reviewerId: item.id }),
       empty: "No assigned review work",
     },
     {

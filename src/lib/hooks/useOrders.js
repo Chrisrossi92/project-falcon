@@ -14,6 +14,7 @@ const DEFAULT_FILTERS = {
   statusIn: [],
   clientId: null,
   appraiserId: null,
+  reviewerId: null,
   assignedAppraiserId: null,
   priority: "",
   dueWindow: "",
@@ -74,6 +75,7 @@ export function useOrders(initialSeed = {}, options = {}) {
           statusIn: filters.statusIn?.filter(Boolean) || [],
           clientId: filters.clientId || null,
           appraiserId: filters.appraiserId || null,
+          reviewerId: filters.reviewerId || reviewerId || null,
           assignedAppraiserId: filters.assignedAppraiserId || null,
           inspectedAwaitingReport: filters.inspectedAwaitingReport || false,
           finalDueWithinDays: filters.finalDueWithinDays ?? null,
@@ -86,7 +88,6 @@ export function useOrders(initialSeed = {}, options = {}) {
           orderBy: filters.orderBy || "order_number",
           ascending: filters.ascending ?? false,
           mode,
-          reviewerId,
           scope,
         });
 
@@ -113,7 +114,7 @@ export function useOrders(initialSeed = {}, options = {}) {
     return () => {
       cancelled = true;
     };
-  }, [JSON.stringify(filters), enabled]);
+  }, [JSON.stringify(filters), enabled, mode, reviewerId, scope]);
 
   return {
     data,

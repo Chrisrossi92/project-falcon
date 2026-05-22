@@ -75,6 +75,11 @@ write paths or lifecycle behavior.
   - operational bottleneck visibility;
   - overdue concentration visibility;
   - assignment distribution visibility.
+- Governed Orders filtering/search UX:
+  - active filter chips;
+  - clearer URL persistence;
+  - unified reset;
+  - saved query patterns only after the active filter model is stable.
 
 ### Guardrails
 
@@ -156,7 +161,8 @@ order rows only. It provides:
 - review queue visibility through `Review Queue`;
 - unassigned active order visibility through `Unassigned Active`;
 - revision follow-up visibility through `Revision Follow-Up`;
-- safe drill links where existing Orders filters already support them.
+- safe drill links where existing Orders filters support them, including reviewer-specific review
+  queue links after Operational UX Slice A2.
 
 The section remains active operational visibility only. It respects company scope, RLS, and
 existing order read permissions; excludes archived, completed, cancelled, and voided rows from the
@@ -165,9 +171,71 @@ compensation, punitive, or performance-review semantics. No mutation behavior, w
 behavior, assignment mutation behavior, backend analytics pipeline, new RPC/view, charting,
 historical metric, export, or report was added.
 
-Deferred workload work remains reviewer-specific Orders filter support, overdue-by-assignee,
-workload aging buckets, charts/trends, staffing/forecasting support, and server-side analytics views
-or RPCs only if active-row frontend aggregation becomes insufficient.
+Completed workload drill links now include:
+
+- reviewer rows -> `/orders?status=in_review&reviewerId=<id>`;
+- appraiser rows -> `/orders?appraiserId=<id>`;
+- revision follow-up appraiser rows -> `/orders?status=needs_revisions&appraiserId=<id>`;
+- review queue -> `/orders?status=in_review`;
+- revision follow-up -> `/orders?status=needs_revisions`;
+- unassigned active -> `/orders?queue=unassigned_orders`.
+
+Deferred workload work remains optional reviewer filter control UX, overdue-by-assignee, workload
+aging buckets, charts/trends, staffing/forecasting support, and server-side analytics views or RPCs
+only if active-row frontend aggregation becomes insufficient.
+
+### Completed Orders Filtering/Search Audit
+
+Operational UX Slice B1 inventories the active Orders filtering/search surface in
+`docs/OPERATIONS_FILTERING_AUDIT.md`.
+
+Current fully wired active Orders filters include `status`, `q` search, `clientId`, `appraiserId`,
+`reviewerId`, `due=overdue`, page, and page size. `queue` is a frontend-only operational filter
+over governed active rows. `priority`, `due=this_week`, and `due=next_week` are partial/
+transitional because visible controls or legacy helpers exist without complete current active-table
+predicate support in `fetchOrdersWithFilters(...)`.
+
+Recommended first UX improvements are visible active-filter chips, a unified `Clear filters`
+affordance, and reconciliation of visible controls with implemented predicates before adding saved
+query patterns. The audit makes no runtime change and keeps historical/admin readback flags out of
+active Orders defaults.
+
+### Planned Active Filter Visibility Foundation
+
+Operational UX Slice B2 plans the first governed active-filter visibility system for Orders in
+`docs/OPERATIONS_FILTERING_AUDIT.md` without runtime changes.
+
+The planned UX is a compact chip/token row above the Orders table, generated only from URL/query
+state for active filters such as `status`, `q`, `clientId`, `appraiserId`, `reviewerId`, `due`, and
+`queue`. Chips should make operational drill links understandable after landing, including
+reviewer workload links like `/orders?status=in_review&reviewerId=<id>` and revision follow-up
+links like `/orders?status=needs_revisions&appraiserId=<id>`. Removable chips should clear only
+their own query parameter and reset `page` to `0`; an explicit `Clear filters` affordance should
+clear active URL-backed filters without introducing saved views.
+
+The guardrails remain active Orders only, no local-only hidden filter state, no historical/admin
+leakage into active defaults, no mutation behavior, no workflow/lifecycle/assignment behavior, no
+new backend analytics pipeline, and no new RPC/view. Transitional risks to resolve before
+implementation are `queue` being frontend-only, `due=this_week` / `due=next_week` being visible but
+not fully implemented in the audited active read helper, and `priority` having visible-control
+support without current active-table predicate support.
+
+### Completed Active Filter Chip Foundation
+
+Operational UX Slices B3 and B4 implement and close out the first governed Orders active-filter
+chip foundation in `docs/OPERATIONS_FILTERING_AUDIT.md`.
+
+The completed foundation renders compact chips from existing URL/query-backed Orders filter state
+only. Supported chips are `status`, `q`, `clientId`, `appraiserId`, `reviewerId`, `due`, and
+`queue`. Chip removal updates the existing Orders URL/filter state and resets page position through
+the current filter-change path. `Clear Filters` resets the supported active filter set while
+preserving page size. Queue chips are labeled as derived operational filters, transitional due
+values are labeled transitional, and historical/admin opt-in flags plus hidden/internal filters are
+not surfaced.
+
+Deferred filter UX work remains reconciling `due=this_week` and `due=next_week`, deciding whether
+`priority` should become a governed active filter, adding richer assignee/client chip labels where
+safe, and separately designing saved views, filter presets, and historical/admin filter chips.
 
 ## Track 2: Targeted Backend Ownership Migrations
 
