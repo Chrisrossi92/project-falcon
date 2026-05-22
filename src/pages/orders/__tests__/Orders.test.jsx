@@ -18,7 +18,12 @@ vi.mock("@/components/orders/NewOrderButton", () => ({
 }));
 
 vi.mock("@/features/orders/OrdersFilters", () => ({
-  default: () => <div data-testid="orders-filters" />,
+  default: ({ actions }) => (
+    <div data-testid="orders-filters">
+      <div>Filter Active Orders</div>
+      {actions ? <div data-testid="orders-filter-actions">{actions}</div> : null}
+    </div>
+  ),
 }));
 
 vi.mock("@/features/orders/UnifiedOrdersTable", () => ({
@@ -84,7 +89,30 @@ describe("OrdersPage historical access", () => {
 
     expect(link).toHaveAttribute("href", "/orders/historical");
     expect(link).toHaveClass("border-slate-200", "text-slate-600");
+    expect(screen.getByTestId("orders-filter-actions")).toContainElement(link);
     expect(screen.getByTestId("orders-table")).toBeInTheDocument();
+  });
+
+  it("renders the polished active Orders workspace hierarchy without changing table behavior", () => {
+    renderPage();
+
+    expect(screen.getByRole("heading", { name: "Orders Workspace" })).toBeInTheDocument();
+    expect(screen.getByText("Active workspace")).toBeInTheDocument();
+    expect(screen.getByText("Workflow actions in table")).toBeInTheDocument();
+    expect(screen.getByText("History is read-only")).toBeInTheDocument();
+    expect(screen.getByText("Filter Active Orders")).toBeInTheDocument();
+    expect(screen.getByLabelText("Orders workspace context")).toBeInTheDocument();
+    expect(screen.getByText(/Showing active operational orders/i)).toBeInTheDocument();
+    expect(tableMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        filters: expect.objectContaining({
+          search: "",
+          statusIn: [],
+          queueId: "",
+        }),
+        rowsOverride: null,
+      }),
+    );
   });
 
   it("does not add historical counts or extra historical fetches to the active Orders page", () => {
@@ -138,6 +166,8 @@ describe("OrdersPage historical access", () => {
     expect(screen.getByText("Reviewer: reviewer-1")).toBeInTheDocument();
     expect(screen.getByText("Due: Overdue")).toBeInTheDocument();
     expect(screen.getByText("Queue: Unassigned Orders (derived)")).toBeInTheDocument();
+    expect(screen.getByText("Queue-derived active view: Unassigned Orders.")).toBeInTheDocument();
+    expect(screen.getByText("Search active")).toBeInTheDocument();
   });
 
   it("removes a chip through the governed Orders filter URL path", () => {

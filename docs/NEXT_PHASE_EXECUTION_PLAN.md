@@ -294,6 +294,44 @@ Deferred dashboard work:
 - workload trends, aging buckets, staffing/forecasting, review-cycle analytics, and exports;
 - production/deployment verification remains separate from dashboard polish.
 
+### Planned Orders Workspace Polish
+
+Orders Workspace Polish Slice 1A creates the governed strategy in
+`docs/ORDERS_WORKSPACE_POLISH_STRATEGY.md`.
+
+The planned purpose is to make the active Orders page feel like Falcon's primary operational
+inventory now that the dashboard polish foundation is locked. The current foundation already has
+the active Orders page, explicit Historical Orders secondary surface, URL-backed filters, active
+filter chips, Saved Views, deterministic queue filtering, reviewer/appraiser/client/status/due
+filters, `UnifiedOrdersTable`, governed Smart Actions, lifecycle actions kept out of the table, and
+archived/cancelled/voided rows excluded by default.
+
+Recommended first implementation:
+
+- frontend-only header/filter layout polish;
+- preserve all current data/query/action behavior;
+- no table column redesign yet;
+- clarify active versus historical orders;
+- improve saved-view and active-filter-chip placement;
+- add table support copy and empty-state polish from existing filter state only;
+- improve mobile stacking without changing filter semantics.
+
+Guardrails:
+
+- no backend changes;
+- no query behavior changes;
+- no new filters unless separately designed;
+- no historical leakage into active lists;
+- no lifecycle actions in the table;
+- no mutation behavior changes;
+- no Smart Actions behavior changes;
+- no saved view behavior changes;
+- archived/cancelled/voided records stay out of active Orders by default.
+
+Deferred Orders workspace work remains table column density redesign, bulk actions, advanced saved
+views, owner analytics/reporting, historical admin search, server-side queue filtering,
+configurable table views, shared/team saved views, and table personalization.
+
 ### Completed Orders Filtering/Search Audit
 
 Operational UX Slice B1 inventories the active Orders filtering/search surface in

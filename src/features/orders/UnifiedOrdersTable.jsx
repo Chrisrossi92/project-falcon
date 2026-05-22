@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import useSession from "@/lib/hooks/useSession";
 import { useOrders } from "@/lib/hooks/useOrders";
 import { normalizeOrderStatus, ORDER_STATUS } from "@/lib/constants/orderStatus";
@@ -477,13 +477,48 @@ export default function UnifiedOrdersTable({
 
   const stickyHeader = "bg-slate-50/95 sticky left-0 z-20 pr-4 border-r border-slate-200/70";
   const stickyCell = "bg-white sticky left-0 z-10 pr-4 border-slate-200/70 group-hover:bg-slate-50/80";
+  const tableLabel = activeQueue ? "Queue worklist" : "Active orders";
+  const tableSummary = activeQueue
+    ? "Derived from the current active order set."
+    : "Active operational inventory only.";
 
   return (
     <>
-      <div className={`overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_12px_32px_rgba(15,23,42,0.06)] ring-1 ring-white ${className}`} style={style}>
+      <div
+        aria-label="Orders table"
+        className={`overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_12px_32px_rgba(15,23,42,0.06)] ring-1 ring-white ${className}`}
+        style={style}
+      >
+        <div className="border-b border-slate-200 bg-white px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Orders Table</div>
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <span className="text-sm font-semibold text-slate-950">{tableLabel}</span>
+                <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
+                  {tableCount || 0} total
+                </span>
+                {tableLoading ? (
+                  <span
+                    role="status"
+                    className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-500"
+                  >
+                    Loading
+                  </span>
+                ) : null}
+              </div>
+              <p className="mt-1 text-xs text-slate-500">{tableSummary}</p>
+            </div>
+            <div className="text-xs font-medium text-slate-500">
+              Page {tableFilters.page + 1} of {totalPages}
+            </div>
+          </div>
+        </div>
+
       {tableError && (
-        <div className="border-b border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-          Failed to load orders: {tableError.message}
+        <div role="alert" className="border-b border-rose-100 bg-rose-50 px-4 py-4">
+          <div className="text-sm font-semibold text-rose-800">Orders could not load.</div>
+          <div className="mt-1 text-sm text-rose-700">{tableError.message}</div>
         </div>
       )}
 
@@ -541,16 +576,23 @@ export default function UnifiedOrdersTable({
         <div className="bg-white" style={{ minWidth: tableMinWidth, width: tableWidth }}>
           {tableLoading ? (
             [...Array(tableFilters.pageSize || pageSize)].map((_, i) => (
-              <div key={i} className="border-b border-slate-100/80 px-5 py-4 text-sm text-slate-500">
-                Loading active work...
+              <div key={i} className="border-b border-slate-100/80 px-4 py-3 sm:px-5">
+                <div className="flex animate-pulse items-center gap-3">
+                  <div className="h-8 w-28 rounded-lg bg-slate-100" />
+                  <div className="h-8 min-w-0 flex-1 rounded-lg bg-slate-100" />
+                  <div className="hidden h-8 w-32 rounded-lg bg-slate-100 sm:block" />
+                </div>
               </div>
             ))
           ) : !displayData?.length ? (
             <div className="px-5 py-12 text-center">
-              <div className="text-sm font-medium text-slate-700">
+              <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-500">
+                0
+              </div>
+              <div className="mt-3 text-sm font-semibold text-slate-800">
                 {activeQueue ? "No orders match this operational queue." : "No active orders to show."}
               </div>
-              <div className="mt-1 text-xs text-slate-500">
+              <div className="mx-auto mt-1 max-w-md text-sm text-slate-500">
                 {activeQueue ? "Clear the queue filter to return to the full active worklist." : "The current filters do not have any active work."}
               </div>
             </div>
@@ -571,10 +613,10 @@ export default function UnifiedOrdersTable({
                   order={o}
                   isOpen={expandedId === rowKey}
                   onToggle={() => setExpandedId((x) => (x === rowKey ? null : rowKey))}
-                  className="py-4"
+                  className="py-3.5"
                   renderCells={() => (
                     <div
-                      className="items-start text-sm text-slate-800"
+                      className="items-start text-sm leading-5 text-slate-800"
                       style={{ display: "grid", gridTemplateColumns: template, columnGap: isDashboardWorklist ? ".5rem" : ".25rem" }}
                     >
                       {columns.map((c, cIdx) => {
@@ -615,8 +657,8 @@ export default function UnifiedOrdersTable({
       </div>
 
       {/* footer */}
-      <div className="flex items-center justify-between border-t border-slate-200/80 bg-slate-50/80 px-4 py-3 text-xs text-slate-600">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200/80 bg-slate-50/80 px-4 py-3 text-xs text-slate-600">
+        <div className="font-medium">
           Page {tableFilters.page + 1} / {totalPages} — {tableCount || 0} total
         </div>
         <OrdersTablePagination currentPage={tableFilters.page + 1} totalPages={totalPages} goToPage={(p) => go(p - 1)} />

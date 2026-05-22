@@ -1,5 +1,5 @@
 // src/features/orders/OrdersFilters.jsx
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { listCompanyAssignableAppraisers } from "@/features/company-members/assignableUsersApi";
 import { listOrderFilterClients } from "@/features/orders/orderFilterOptionsApi";
 
@@ -32,7 +32,7 @@ const DUE = [
   ["overdue", "Overdue"],
 ];
 
-export default function OrdersFilters({ value, onChange }) {
+export default function OrdersFilters({ value, onChange, actions = null }) {
   const v = value || {};
   const [users, setUsers] = useState([]);
   const [clients, setClients] = useState([]);
@@ -61,13 +61,19 @@ export default function OrdersFilters({ value, onChange }) {
     <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-3">
         <div className="min-w-0">
-          <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Find Orders</div>
-          <div className="mt-1 text-sm text-slate-500">Filter the full inventory by status, owner, client, and due window.</div>
+          <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Filter Active Orders</div>
+          <div className="mt-1 text-sm text-slate-500">Search active operational orders by status, owner, client, and due window.</div>
         </div>
+        {actions ? (
+          <div aria-label="Orders filter utilities" className="flex shrink-0 flex-wrap items-center gap-2">
+            {actions}
+          </div>
+        ) : null}
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
         <input
+          aria-label="Search active orders"
           className={`${controlClass} w-full md:w-[360px]`}
           placeholder="Order # / Title / Address"
           value={v.search ?? ""}
@@ -75,8 +81,9 @@ export default function OrdersFilters({ value, onChange }) {
         />
 
         <div className="flex min-w-[13rem] items-center gap-2">
-          <label className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Client</label>
+          <label htmlFor="orders-filter-client" className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Client</label>
           <select
+            id="orders-filter-client"
             className={`${controlClass} min-w-[10rem]`}
             value={v.clientId ?? ""}
             onChange={(e) => set({ clientId: e.target.value, page: 0 })}
@@ -91,8 +98,9 @@ export default function OrdersFilters({ value, onChange }) {
         </div>
 
         <div className="flex min-w-[13rem] items-center gap-2">
-          <label className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Appraiser</label>
+          <label htmlFor="orders-filter-appraiser" className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Appraiser</label>
           <select
+            id="orders-filter-appraiser"
             className={`${controlClass} min-w-[10rem]`}
             value={v.appraiserId ?? ""}
             onChange={(e) => set({ appraiserId: e.target.value, page: 0 })}
@@ -108,7 +116,7 @@ export default function OrdersFilters({ value, onChange }) {
       </div>
 
       {/* Status pills (single-select → statusIn[0]) */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div role="group" aria-label="Order status filter" className="flex flex-wrap items-center gap-2">
         <div className="mr-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Status</div>
         {STATUS.map(([key, label]) => {
           const active = isActive(key);
@@ -133,8 +141,9 @@ export default function OrdersFilters({ value, onChange }) {
       {/* Priority + Due */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
-          <label className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Priority</label>
+          <label htmlFor="orders-filter-priority" className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Priority</label>
           <select
+            id="orders-filter-priority"
             className={controlClass}
             value={v.priority ?? ""}
             onChange={(e) => set({ priority: e.target.value, page: 0 })}
@@ -148,8 +157,9 @@ export default function OrdersFilters({ value, onChange }) {
         </div>
 
         <div className="flex items-center gap-2">
-          <label className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Due</label>
+          <label htmlFor="orders-filter-due" className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Due</label>
           <select
+            id="orders-filter-due"
             className={controlClass}
             value={v.dueWindow ?? ""}
             onChange={(e) => set({ dueWindow: e.target.value, page: 0 })}

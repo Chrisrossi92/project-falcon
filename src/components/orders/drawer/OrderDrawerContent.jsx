@@ -1,5 +1,5 @@
 ﻿// src/components/orders/view/OrderDrawerContent.jsx
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import supabase from "@/lib/supabaseClient";
 import ActivityLog from "@/components/activity/ActivityLog";
 import OrderStatusBadge from "@/components/orders/table/OrderStatusBadge";
@@ -185,9 +185,39 @@ export default function OrderDrawerContent({ orderId, order: rowFromTable }) {
     };
   }, [id, rowFromTable]);
 
-  if (!id) return <div className="p-3 text-sm text-muted-foreground">No order selected.</div>;
-  if (loading) return <div className="p-3 text-sm text-muted-foreground">Loading…</div>;
-  if (err) return <div className="p-3 text-sm text-rose-700 bg-rose-50 border rounded">{err}</div>;
+  if (!id) {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm font-medium text-slate-500">
+        No order selected.
+      </div>
+    );
+  }
+  if (loading) {
+    return (
+      <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+        <div role="status" className="text-sm font-medium text-slate-500">Loading order details...</div>
+        <div className="flex animate-pulse items-center justify-between gap-3">
+          <div className="space-y-2">
+            <div className="h-3 w-24 rounded bg-slate-100" />
+            <div className="h-5 w-48 rounded bg-slate-100" />
+          </div>
+          <div className="h-8 w-28 rounded-full bg-slate-100" />
+        </div>
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="h-32 animate-pulse rounded-lg bg-slate-100" />
+          <div className="h-32 animate-pulse rounded-lg bg-slate-100" />
+        </div>
+      </div>
+    );
+  }
+  if (err) {
+    return (
+      <div role="alert" className="rounded-xl border border-rose-100 bg-rose-50 px-4 py-3">
+        <div className="text-sm font-semibold text-rose-800">Order details could not load.</div>
+        <div className="mt-1 text-sm text-rose-700">{err}</div>
+      </div>
+    );
+  }
 
   // Client contact selection is intentionally best-effort until Falcon has a dedicated client/order POC model.
   const clientContactName =
@@ -257,29 +287,34 @@ export default function OrderDrawerContent({ orderId, order: rowFromTable }) {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="text-sm font-semibold text-slate-950">Order {orderNumberOf(row)}</div>
-            <OrderStatusBadge status={row?.status} />
+      <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+              Inline order detail
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="text-lg font-semibold tracking-tight text-slate-950">Order {orderNumberOf(row)}</div>
+              <OrderStatusBadge status={row?.status} />
+            </div>
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+              <span className="font-medium text-slate-700">{row?.client_name || "Client not set"}</span>
+              {row?.appraiser_name && <span>Appraiser: {row.appraiser_name}</span>}
+              {(addressLine || cityLine) && (
+                <span className="max-w-xl truncate">
+                  {[addressLine, cityLine].filter(Boolean).join(", ")}
+                </span>
+              )}
+            </div>
           </div>
-          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
-            <span className="font-medium text-slate-700">{row?.client_name || "Client not set"}</span>
-            {row?.appraiser_name && <span>Appraiser: {row.appraiser_name}</span>}
-            {(addressLine || cityLine) && (
-              <span className="max-w-xl truncate">
-                {[addressLine, cityLine].filter(Boolean).join(", ")}
-              </span>
-            )}
-          </div>
+          <OrderOpenFullLink orderId={id} className="shrink-0" />
         </div>
-        <OrderOpenFullLink orderId={id} className="shrink-0" />
       </div>
 
       <div className="grid grid-cols-12 gap-3">
         <div className="col-span-12 xl:col-span-7">
-          <div className="rounded-xl border border-slate-200/80 bg-white">
-            <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
+          <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm">
+            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 px-3 py-2.5">
               <div>
                 <div className="text-sm font-semibold text-slate-900">Activity</div>
                 <div className="text-xs text-slate-500">Recent timeline and notes</div>
@@ -292,10 +327,13 @@ export default function OrderDrawerContent({ orderId, order: rowFromTable }) {
         </div>
 
         <div className="col-span-12 grid gap-3 md:grid-cols-2 xl:col-span-5 xl:grid-cols-1">
-          <div className="rounded-xl border border-slate-200/80 bg-white p-3">
-            <div className="mb-3 text-sm font-semibold text-slate-900">Order Contacts</div>
+          <div className="rounded-xl border border-slate-200/80 bg-white p-3 shadow-sm">
+            <div className="mb-3">
+              <div className="text-sm font-semibold text-slate-900">Order Contacts</div>
+              <div className="mt-0.5 text-xs text-slate-500">Client and site contact context</div>
+            </div>
             <div className="space-y-3 text-sm">
-              <div className="rounded-lg bg-slate-50/70 px-3 py-2">
+              <div className="rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-2">
                 <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Client Contact</div>
                 {hasClientContact ? (
                   <div className="space-y-1">
@@ -308,7 +346,7 @@ export default function OrderDrawerContent({ orderId, order: rowFromTable }) {
                 )}
               </div>
 
-              <div className="rounded-lg bg-slate-50/70 px-3 py-2">
+              <div className="rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-2">
                 <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Property Contact</div>
                 <div className="space-y-1">
                   <ContactLine label="Name" value={contactName} />
@@ -327,7 +365,7 @@ export default function OrderDrawerContent({ orderId, order: rowFromTable }) {
                 </div>
               </div>
               {row?.access_notes && (
-                <div>
+                <div className="rounded-lg border border-slate-100 bg-white px-3 py-2">
                   <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Access</div>
                   <div className="mt-0.5 line-clamp-2 text-xs leading-5 text-slate-600">{row.access_notes}</div>
                 </div>
@@ -336,9 +374,12 @@ export default function OrderDrawerContent({ orderId, order: rowFromTable }) {
           </div>
 
           {hasLocation && (
-            <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-3">
+            <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-3 shadow-sm">
               <div className="mb-2 flex items-center justify-between gap-2">
-                <div className="text-sm font-semibold text-slate-900">Map / Location Preview</div>
+                <div>
+                  <div className="text-sm font-semibold text-slate-900">Location Preview</div>
+                  <div className="mt-0.5 text-xs text-slate-500">Subject property context</div>
+                </div>
                 {mapsHref ? (
                   <a className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 transition hover:border-slate-300 hover:text-slate-900" href={mapsHref} target="_blank" rel="noreferrer">
                     Open in Maps
@@ -380,10 +421,6 @@ function ContactLine({ label, value }) {
     </div>
   );
 }
-
-
-
-
 
 
 
