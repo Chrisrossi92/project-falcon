@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import {
   formatCalendarEventTime,
   normalizeCalendarEventType,
@@ -59,6 +59,10 @@ function orderLabel(event) {
   return event?.orderNumber || event?.order_number || event?.order_no || event?.orderId || event?.order_id || "";
 }
 
+function totalLabel(total) {
+  return `${total} ${total === 1 ? "event" : "events"}`;
+}
+
 function daySignals(groups) {
   const notes = [];
   if (groups.final.length >= 3) {
@@ -95,25 +99,37 @@ export default function CalendarDayDetailRail({
     final: groups.final.length,
   };
   const total = events.length;
+  const totalText = totalLabel(total);
   const aggregateSignals = daySignals(groups);
 
   return (
-    <aside className="rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm ring-1 ring-slate-100 lg:sticky lg:top-4">
-      <div>
-        <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
-          Day Detail
+    <aside
+      className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ring-1 ring-slate-100 lg:sticky lg:top-6"
+      aria-labelledby="calendar-day-detail-heading"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+            Selected Day
+          </div>
+          <h2 id="calendar-day-detail-heading" className="mt-1 text-base font-semibold text-slate-950">
+            {dateLabel(day)}
+          </h2>
+          <p className="mt-1 text-sm leading-5 text-slate-500">
+            {total === 0
+              ? "No scheduled operational events for this day."
+              : `${total} operational ${total === 1 ? "event" : "events"} scheduled.`}
+          </p>
         </div>
-        <h2 className="mt-1 text-base font-semibold text-slate-950">
-          {dateLabel(day)}
-        </h2>
-        <p className="mt-1 text-sm text-slate-500">
-          {total === 0
-            ? "No scheduled operational events for this day."
-            : `${total} operational ${total === 1 ? "event" : "events"} scheduled.`}
-        </p>
+        <span
+          className="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600"
+          aria-label={`Selected day has ${totalText}`}
+        >
+          {totalText}
+        </span>
       </div>
 
-      <div className="mt-4 grid grid-cols-3 gap-2">
+      <div className="mt-4 grid grid-cols-3 gap-2" aria-label="Selected day event counts">
         {["site", "review", "final"].map((type) => (
           <div key={type} className={`rounded-lg border px-2.5 py-2 ${TYPE_STYLES[type]}`}>
             <div className="text-lg font-semibold leading-none">{counts[type]}</div>
@@ -136,6 +152,17 @@ export default function CalendarDayDetailRail({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {total === 0 && (
+        <div className="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/80 px-3 py-4">
+          <div className="text-sm font-semibold text-slate-800">
+            No events on this day
+          </div>
+          <p className="mt-1 text-sm leading-5 text-slate-500">
+            Select another date or adjust the calendar lens to inspect a different part of the active schedule.
+          </p>
         </div>
       )}
 
@@ -199,6 +226,7 @@ export default function CalendarDayDetailRail({
                             type="button"
                             className="shrink-0 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-white"
                             onClick={() => onOpenOrder?.(event.orderId || event.order_id)}
+                            aria-label={`Open order ${ref}`}
                           >
                             {ref}
                           </button>

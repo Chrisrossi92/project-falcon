@@ -332,6 +332,72 @@ Deferred Orders workspace work remains table column density redesign, bulk actio
 views, owner analytics/reporting, historical admin search, server-side queue filtering,
 configurable table views, shared/team saved views, and table personalization.
 
+### Planned Standalone Calendar Workspace Polish
+
+Standalone Calendar Workspace Polish Slice 1A creates the governed strategy in
+`docs/CALENDAR_WORKSPACE_POLISH_STRATEGY.md`.
+
+The planned purpose is to make `/calendar` feel like a true scheduling and coordination workspace
+now that the operational dashboard and Orders workspace polish foundations are locked. The current
+foundation already has active-order-derived calendar data, role-scoped loading from
+`v_orders_active_frontend_v4`, two-week and month views, Lens filtering, weekend visibility,
+selected-day support rail, grouped Site / Review / Final event context, and order navigation from
+calendar events.
+
+Recommended first implementation:
+
+- frontend-only route-shell and control layout polish;
+- preserve all current data/query/event/filter behavior;
+- keep Calendar as a scheduling workspace, not an analytics surface;
+- clarify dashboard versus standalone calendar hierarchy;
+- improve header, context row, filter grouping, legend/rail placement, loading/error states, and
+  mobile stacking;
+- avoid new views, lenses, data sources, scheduling mutations, or workflow behavior.
+
+Guardrails:
+
+- no backend changes;
+- no Supabase changes;
+- no query semantics changes;
+- no new calendar data source;
+- no scheduling mutation, drag/drop, workflow, lifecycle, or permission behavior changes;
+- no archived/cancelled/voided leakage into active calendar surfaces;
+- no fake analytics, fake KPIs, predictive scoring, unsupported risk language, or cross-company
+  aggregates.
+
+Deferred Calendar workspace work remains shared dashboard/standalone calendar shell extraction,
+backend calendar event source unification, company timezone/working-hours policy, calendar saved
+views, standalone week/day parity, drag/drop scheduling, appointment rescheduling permissions,
+conflict detection, workload/capacity modeling, predictive scheduling risk, unassigned/at-risk
+lenses, external calendar sync, and calendar-specific production smoke.
+
+Calendar Workspace Polish Slice 1B is now complete as the first frontend-only route-shell polish.
+`/calendar` renders a `Calendar Workspace` header, compact company/work-view/loaded-order context,
+a `Scheduling Controls` section around the existing view/range/weekend/Lens controls, a read-only
+current-view summary, supporting legend placement, and calmer loading/error states. The existing
+active-order read path, role-scoped filtering, event normalization, Lens filtering, selected-day
+behavior, event click behavior, Order Detail navigation, shared dashboard calendar behavior,
+permissions, workflow/lifecycle behavior, and scheduling semantics are preserved.
+
+Calendar Workspace Polish Slice 1C is now complete as frontend-only calendar body and selected-day
+rail polish. `/calendar` now frames the primary calendar grid as `Schedule Board`, adds view-derived
+support copy and a board mode badge, protects the calendar grid with small-screen horizontal
+overflow, and refines the selected-day rail with `Selected Day` hierarchy, total badge, accessible
+event counts, a calm no-events state, and accessible order-opening labels. Shared dashboard
+calendar components, event/query semantics, role scoping, date selection, order navigation,
+workflow/lifecycle behavior, permissions, scheduling mutations, backend behavior, and Supabase
+behavior are unchanged.
+
+Calendar Workspace Polish Slice 1D closes the first standalone Calendar Workspace polish
+foundation. The locked foundation includes `Calendar Workspace` header hierarchy, compact
+company/work-view/active-order context, grouped `Scheduling Controls`, current view/Lens/selected
+day summary, `Schedule Board` body framing, selected-day rail hierarchy, accessible count/region
+labels, calmer loading/error/empty states, and responsive grid/rail stacking. Guardrails remain no
+backend changes, no Supabase changes, no event/query semantics changes, no scheduling mutations, no
+permission/workflow/lifecycle changes, no shared dashboard behavior changes, no fake analytics, no
+predictive scoring, no new calendar features, and no active-calendar leakage of archived/cancelled/
+voided records.
+
 ### Completed Orders Filtering/Search Audit
 
 Operational UX Slice B1 inventories the active Orders filtering/search surface in

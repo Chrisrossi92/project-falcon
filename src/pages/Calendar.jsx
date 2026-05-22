@@ -1,5 +1,5 @@
 // src/pages/Calendar.jsx
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import CalendarFiltersBar from "@/components/calendar/CalendarFiltersBar";
 import CalendarLegend from "@/components/calendar/CalendarLegend";
 import TwoWeekCalendar from "@/components/calendar/TwoWeekCalendar";
@@ -17,6 +17,55 @@ import { DEFAULT_CALENDAR_POLICY } from "@/lib/policies/defaultCalendarPolicy";
 function sameId(a, b) {
   if (!a || !b) return false;
   return String(a) === String(b);
+}
+
+const LENS_LABELS = {
+  all: "All schedule",
+  mine: "My work",
+  site: "Site visits",
+  review: "Review handoffs",
+  final: "Client due",
+};
+
+function roleContextLabel({ isAdmin, isReviewer, role }) {
+  if (isAdmin) return "Company schedule";
+  if (isReviewer) return "Review schedule";
+  if (role === "appraiser") return "Assigned schedule";
+  return "Personal schedule";
+}
+
+function dateContextLabel(date) {
+  if (!date) return "No day selected";
+  const value = new Date(date);
+  if (Number.isNaN(value.getTime())) return "Selected day";
+  return value.toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function viewContextLabel(view, weeks) {
+  if (view === "month") return "Month view";
+  return `${weeks || 2}-week view`;
+}
+
+function activeOrdersLabel(count, loading) {
+  if (loading) return "Loading";
+  return `${count} active ${count === 1 ? "order" : "orders"}`;
+}
+
+function ContextChip({ label, value }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-[0_1px_0_rgba(15,23,42,0.03)]">
+      <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+        {label}
+      </div>
+      <div className="mt-1 max-w-[14rem] truncate text-sm font-semibold text-slate-800">
+        {value}
+      </div>
+    </div>
+  );
 }
 
 export default function CalendarPage() {
@@ -162,61 +211,165 @@ export default function CalendarPage() {
     })).sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
   }, [applyCalendarFocus, deriveEvents, selectedDay]);
 
+  const companyLabel = appContext?.company_name || "Current company";
+  const roleLabel = roleContextLabel({ isAdmin, isReviewer, role: calendarRole });
+  const viewLabel = viewContextLabel(view, weeks);
+  const lensLabel = LENS_LABELS[lens] || "All schedule";
+  const selectedDayLabel = dateContextLabel(selectedDay);
+  const loadedOrderCount = orders.length;
+  const activeOrdersContext = activeOrdersLabel(loadedOrderCount, loading);
+  const boardLabel = view === "month" ? "Month calendar" : `${weeks || 2}-week calendar`;
+  const boardDescription = view === "month"
+    ? "Scan active site visits, review handoffs, and client due dates across the selected month."
+    : "Review the near-term schedule across the selected operational range.";
+
   const openOrder = useCallback((orderId) => {
     if (orderId) window.open(`/orders/${orderId}`, "_self");
   }, []);
 
   return (
-    <div className="space-y-4 p-4">
-      <div className="rounded-2xl border border-slate-200 bg-white/90 px-5 py-4 shadow-sm ring-1 ring-slate-100">
-        <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
-          Scheduling Workspace
+    <div className="space-y-4 p-4 lg:p-6">
+      <section
+        className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm ring-1 ring-slate-100 lg:px-6"
+        aria-labelledby="calendar-workspace-heading"
+      >
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-3xl">
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+              Scheduling Coordination
+            </div>
+            <h1
+              id="calendar-workspace-heading"
+              className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-950"
+            >
+              Calendar Workspace
+            </h1>
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-500">
+              Coordinate site visits, review handoffs, and client due dates across active orders.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2" aria-label="Calendar workspace context">
+            <ContextChip label="Company" value={companyLabel} />
+            <ContextChip label="Work view" value={roleLabel} />
+            <ContextChip label="Orders" value={activeOrdersContext} />
+          </div>
         </div>
-        <h1 className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-950">
-          Operational Schedule
-        </h1>
-        <p className="mt-1 max-w-3xl text-sm text-slate-500">
-          Coordinate site visits, review handoffs, and client due dates across the active workload.
-        </p>
-      </div>
+      </section>
 
-      <CalendarFiltersBar
-        view={view} setView={setView}
-        weeks={weeks} setWeeks={setWeeks}
-        showWeekends={showWeekends} setShowWeekends={setShowWeekends}
-        lens={lens}
-        setLens={setLens}
-      />
+      <section
+        className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm ring-1 ring-slate-100"
+        aria-labelledby="calendar-controls-heading"
+      >
+        <div className="mb-3 flex flex-col gap-3 px-1 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h2
+              id="calendar-controls-heading"
+              className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500"
+            >
+              Scheduling Controls
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Adjust the view and lens without changing the underlying active-order schedule.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 text-xs text-slate-500" aria-label="Current calendar view">
+            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 font-medium text-slate-600">
+              {viewLabel}
+            </span>
+            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 font-medium text-slate-600">
+              {lensLabel}
+            </span>
+            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 font-medium text-slate-600">
+              {selectedDayLabel}
+            </span>
+          </div>
+        </div>
 
-      <CalendarLegend />
+        <CalendarFiltersBar
+          view={view} setView={setView}
+          weeks={weeks} setWeeks={setWeeks}
+          showWeekends={showWeekends} setShowWeekends={setShowWeekends}
+          lens={lens}
+          setLens={setLens}
+        />
 
-      {error && <div className="text-sm text-red-600">{error}</div>}
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        <div className="min-w-0">
-          {view === "month" ? (
-            <CalendarGrid
-              anchor={anchor}
-              events={monthEvents}
-              onPrev={() => setAnchor(new Date(anchor.getFullYear(), anchor.getMonth() - 1, 1))}
-              onNext={() => setAnchor(new Date(anchor.getFullYear(), anchor.getMonth() + 1, 1))}
-              onSelectOrder={openOrder}
-              onSelectDay={setSelectedDay}
-              selectedDay={selectedDay}
-              role={calendarRole}
-            />
-          ) : (
-            <TwoWeekCalendar
-              getEvents={async (start, end) => applyCalendarFocus(deriveEvents(start, end))}
-              weeks={weeks}
-              showWeekends={showWeekends}
-              showWeekdayHeader
-              compact
-              role={calendarRole}
-              selectedDay={selectedDay}
-              onSelectDay={setSelectedDay}
-              onEventClick={(ev) => openOrder(ev?.orderId)}
-            />
-          )}
+        <div className="px-1 pt-1">
+          <CalendarLegend />
+        </div>
+      </section>
+
+      {loading && (
+        <div
+          className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600"
+          role="status"
+        >
+          Loading active schedule...
+        </div>
+      )}
+
+      {error && (
+        <div
+          className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+          role="alert"
+        >
+          {error}
+        </div>
+      )}
+
+      <section
+        className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]"
+        aria-label="Calendar schedule board and selected day details"
+      >
+        <div
+          className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm ring-1 ring-slate-100"
+          aria-labelledby="calendar-board-heading"
+        >
+          <div className="mb-3 flex flex-col gap-2 px-1 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2
+                id="calendar-board-heading"
+                className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500"
+              >
+                Schedule Board
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                {boardDescription}
+              </p>
+            </div>
+            <span className="w-fit rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600">
+              {boardLabel}
+            </span>
+          </div>
+
+          <div className="overflow-x-auto pb-1">
+            <div className="min-w-[44rem] lg:min-w-0">
+              {view === "month" ? (
+                <CalendarGrid
+                  anchor={anchor}
+                  events={monthEvents}
+                  onPrev={() => setAnchor(new Date(anchor.getFullYear(), anchor.getMonth() - 1, 1))}
+                  onNext={() => setAnchor(new Date(anchor.getFullYear(), anchor.getMonth() + 1, 1))}
+                  onSelectOrder={openOrder}
+                  onSelectDay={setSelectedDay}
+                  selectedDay={selectedDay}
+                  role={calendarRole}
+                />
+              ) : (
+                <TwoWeekCalendar
+                  getEvents={async (start, end) => applyCalendarFocus(deriveEvents(start, end))}
+                  weeks={weeks}
+                  showWeekends={showWeekends}
+                  showWeekdayHeader
+                  compact
+                  role={calendarRole}
+                  selectedDay={selectedDay}
+                  onSelectDay={setSelectedDay}
+                  onEventClick={(ev) => openOrder(ev?.orderId)}
+                />
+              )}
+            </div>
+          </div>
         </div>
 
         <CalendarDayDetailRail
@@ -224,9 +377,7 @@ export default function CalendarPage() {
           events={selectedDayEvents}
           onOpenOrder={openOrder}
         />
-      </div>
+      </section>
     </div>
   );
 }
-
-
