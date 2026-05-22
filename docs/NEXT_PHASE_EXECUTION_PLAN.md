@@ -22,6 +22,7 @@ Baseline references:
 - `docs/SAVED_VIEWS_PLAN.md`
 - `docs/OPERATIONAL_TIMELINE_PLAN.md`
 - `docs/PRODUCTION_READINESS_AUDIT.md`
+- `docs/ADMIN_ONBOARDING_PLAN.md`
 
 ## Executive Direction
 
@@ -355,6 +356,54 @@ ownership change, and no backend/API/RPC/view/migration changes.
 
 Deferred timeline work remains event-type filters, richer timeline lanes, a dedicated timeline read
 model if needed, printable timeline inclusion, exportable audit trails, and an admin audit console.
+
+### Planned Admin Onboarding / Company Setup UX
+
+Admin Onboarding Slice 1A plans the first governed admin/company onboarding and setup UX
+improvements in `docs/ADMIN_ONBOARDING_PLAN.md` without runtime changes.
+
+The planned purpose is to make first-owner setup smoother, make company and user onboarding easier,
+reduce manual configuration uncertainty, clarify operational readiness, and keep permission/role
+setup safe. The current foundation already includes company-scoped memberships, Team Access,
+permissions, owner/admin hierarchy, invitation infrastructure, current company context, and
+production/bootstrap onboarding documentation.
+
+Candidate surfaces include a first-login owner checklist, company setup checklist, invite-team flow
+polish, missing configuration indicators, role/permission summaries, onboarding progress states,
+and operational readiness checks.
+
+The recommended first implementation is a lightweight owner/admin onboarding/readiness checklist
+using read-only indicators and links to existing governed surfaces. No guided wizard, multi-step
+setup flow, setup automation, permission redesign, or mutation shortcut should be added in the
+first pass.
+
+Admin Onboarding Slice 1B narrows that first implementation target to an operational readiness
+checklist card. Candidate checks are owner account exists, company profile configured, at least one
+appraiser/reviewer/admin added, Team Access reachable, permission seeds verified,
+storage/document system configured, order workflow operational, dashboard metrics operational,
+Saved Views available, Historical Orders accessible, and Print Packet operational.
+
+The MVP remains read-only and non-blocking: informational and warning/attention states only, no
+automated enforcement, no hidden setup actions, no backend onboarding automation, and no permission
+changes. Future extensions include onboarding completion percentage, guided setup flows,
+role-specific onboarding, client onboarding readiness, and AMC/vendor onboarding readiness.
+
+Admin Onboarding Slices 1C through 1E audit, implement, and close out the first Operational
+Readiness card foundation. The completed foundation is an owner/admin-only dashboard card that uses
+existing governed read state only and shows current company context, owner/admin access, Team
+Access, additional-member state, dashboard KPIs, Historical Orders, Saved Views, and Print Packet
+readiness. It is read-only/advisory, keeps unknown and optional states neutral, has no score or
+gamified completion state, has no wizard or automation, has no mutation buttons, and adds no
+backend, permission, RLS, storage, Edge Function, Supabase, or Vercel changes.
+
+Deferred admin onboarding work remains guided onboarding wizard, company setup checklist
+automation, role-specific onboarding, storage/permission/backend validation signals, client/AMC/
+vendor onboarding, setup completion tracking, onboarding emails, setup templates, billing, and
+subscription setup.
+
+Guardrails require onboarding to respect company scope/RLS, avoid hidden permission escalation,
+keep owner/admin authority backend authoritative, keep setup helpers advisory/read-only where
+possible, and avoid any mutation shortcut that bypasses RPC/Edge ownership.
 
 ## Track 2: Targeted Backend Ownership Migrations
 

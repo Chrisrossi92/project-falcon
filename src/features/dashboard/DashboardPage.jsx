@@ -3,10 +3,11 @@ import { Link, useNavigate } from "react-router-dom";
 import { useDashboardSummary } from "@/lib/hooks/useDashboardSummary";
 import UnifiedOrdersTable from "@/features/orders/UnifiedOrdersTable";
 import DashboardCalendarPanel from "@/components/dashboard/DashboardCalendarPanel";
-import { useCan } from "@/lib/hooks/usePermissions";
+import { useCan, useCanAny } from "@/lib/hooks/usePermissions";
 import { PERMISSIONS } from "@/lib/permissions/constants";
 import { ORDER_STATUS, normalizeOrderStatus } from "@/lib/constants/orderStatus";
 import { OPERATIONAL_QUEUE_IDS } from "@/features/queues/queueDefinitions";
+import { useCompanySetupContext } from "@/features/company-setup/useCompanySetupContext";
 import { useMemo, useState } from "react";
 
 const DASHBOARD_CONFIG = {
@@ -152,6 +153,140 @@ function ordersPath(params = {}) {
   return query ? `/orders?${query}` : "/orders";
 }
 
+function readinessState(label, tone = "neutral") {
+  const styles = {
+    ready: "border-emerald-200 bg-emerald-50 text-emerald-800",
+    attention: "border-amber-200 bg-amber-50 text-amber-800",
+    neutral: "border-slate-200 bg-slate-50 text-slate-700",
+    loading: "border-slate-200 bg-white text-slate-500",
+  };
+
+  return {
+    label,
+    className: styles[tone] || styles.neutral,
+  };
+}
+
+function buildOperationalReadinessItems({
+  appContext,
+  isAdmin,
+  setupContext,
+  setupLoading,
+  teamAccess,
+  orderRead,
+  dashboardLoading,
+  ordersRows,
+}) {
+  const companyLoaded = Boolean(
+    appContext?.current_company_id && appContext?.has_current_company_membership,
+  );
+  const setupAvailable = Boolean(setupContext);
+  const memberCount = Number(setupContext?.active_member_count ?? 0);
+  const hasAdditionalMember = setupAvailable && memberCount > 1;
+  const hasAnyOrder = Array.isArray(ordersRows) && ordersRows.length > 0;
+
+  return [
+    {
+      key: "company",
+      label: "Current company",
+      description: companyLoaded
+        ? appContext?.company_name || "Company context is loaded"
+        : "Company context has not resolved yet",
+      state: companyLoaded
+        ? readinessState("Loaded", "ready")
+        : readinessState("Not verified", "neutral"),
+    },
+    {
+      key: "admin",
+      label: "Owner/admin access",
+      description: isAdmin
+        ? "Management dashboard access is active"
+        : "Visible only for owner/admin users",
+      state: isAdmin
+        ? readinessState("Confirmed", "ready")
+        : readinessState("Not shown", "neutral"),
+    },
+    {
+      key: "team",
+      label: "Team Access",
+      description: teamAccess.loading
+        ? "Checking Team Access permission"
+        : teamAccess.allowed
+        ? "Member management route is available"
+        : "Team Access requires users.read",
+      state: teamAccess.loading
+        ? readinessState("Checking", "loading")
+        : teamAccess.allowed
+        ? readinessState("Reachable", "ready")
+        : readinessState("Needs permission", "attention"),
+      to: teamAccess.allowed ? "/users" : null,
+    },
+    {
+      key: "staff",
+      label: "Additional team member",
+      description: setupLoading
+        ? "Checking active member count"
+        : !setupAvailable
+        ? "Member count is not verified"
+        : hasAdditionalMember
+        ? `${memberCount} active members`
+        : "Solo-owner operation is allowed",
+      state: setupLoading
+        ? readinessState("Checking", "loading")
+        : hasAdditionalMember
+        ? readinessState("Present", "ready")
+        : readinessState("Optional", "neutral"),
+    },
+    {
+      key: "dashboard",
+      label: "Dashboard KPIs",
+      description: dashboardLoading
+        ? "Loading active operational metrics"
+        : "Active metrics read path is available",
+      state: dashboardLoading
+        ? readinessState("Checking", "loading")
+        : readinessState("Operational", "ready"),
+    },
+    {
+      key: "history",
+      label: "Historical Orders",
+      description: orderRead.allowed
+        ? "Preserved-history route is available"
+        : "Requires order read permission",
+      state: orderRead.loading
+        ? readinessState("Checking", "loading")
+        : orderRead.allowed
+        ? readinessState("Reachable", "ready")
+        : readinessState("Needs permission", "attention"),
+      to: orderRead.allowed ? "/orders/historical" : null,
+    },
+    {
+      key: "savedViews",
+      label: "Saved Views",
+      description: orderRead.allowed
+        ? "Available from Orders filters"
+        : "Requires order read permission",
+      state: orderRead.loading
+        ? readinessState("Checking", "loading")
+        : orderRead.allowed
+        ? readinessState("Available", "ready")
+        : readinessState("Needs permission", "attention"),
+      to: orderRead.allowed ? "/orders" : null,
+    },
+    {
+      key: "printPacket",
+      label: "Print Packet",
+      description: hasAnyOrder
+        ? "Available from authorized Order Detail"
+        : "Available after an order exists",
+      state: hasAnyOrder
+        ? readinessState("Available", "ready")
+        : readinessState("Neutral", "neutral"),
+      to: hasAnyOrder && ordersRows[0]?.id ? `/orders/${ordersRows[0].id}` : null,
+    },
+  ];
+}
+
 function summarizeWorkloadVisibility(orders = []) {
   const appraisers = new Map();
   const reviewers = new Map();
@@ -195,6 +330,12 @@ function summarizeWorkloadVisibility(orders = []) {
 export default function DashboardPage() {
   const nav = useNavigate();
   const [dashboardRefreshKey, setDashboardRefreshKey] = useState(0);
+  const setupContextState = useCompanySetupContext();
+  const teamAccessPermission = useCan(PERMISSIONS.USERS_READ);
+  const orderReadPermission = useCanAny([
+    PERMISSIONS.ORDERS_READ_ALL,
+    PERMISSIONS.ORDERS_READ_ASSIGNED,
+  ]);
   const summary = useDashboardSummary({ refreshKey: dashboardRefreshKey });
   const {
     role: summaryRole,
@@ -204,6 +345,7 @@ export default function DashboardPage() {
     tableFilters,
     ordersRows,
     userId,
+    appContext,
   } = summary;
   const normalizedRole = summaryRole || "appraiser";
   const isAdmin = summaryIsAdmin;
@@ -270,6 +412,29 @@ export default function DashboardPage() {
     () => summarizeWorkloadVisibility(ordersRows || []),
     [ordersRows],
   );
+  const readinessItems = useMemo(
+    () =>
+      buildOperationalReadinessItems({
+        appContext,
+        isAdmin,
+        setupContext: setupContextState.context,
+        setupLoading: setupContextState.loading,
+        teamAccess: teamAccessPermission,
+        orderRead: orderReadPermission,
+        dashboardLoading: loading,
+        ordersRows: ordersRows || [],
+      }),
+    [
+      appContext,
+      isAdmin,
+      loading,
+      orderReadPermission,
+      ordersRows,
+      setupContextState.context,
+      setupContextState.loading,
+      teamAccessPermission,
+    ],
+  );
 
   const handleOpenOrder = (orderId) => {
     if (!orderId) return;
@@ -301,6 +466,8 @@ export default function DashboardPage() {
       <OperationalKpiCards loading={loading} values={kpiValues} />
 
       <WorkloadVisibilitySection loading={loading} summary={workloadSummary} />
+
+      {isAdmin && <OperationalReadinessCard items={readinessItems} />}
 
       <OwnerSetupDashboardPrompt />
 
@@ -385,6 +552,72 @@ export default function DashboardPage() {
         </section>
       )}
     </div>
+  );
+}
+
+function OperationalReadinessCard({ items }) {
+  return (
+    <section
+      aria-labelledby="operational-readiness-heading"
+      className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2
+            id="operational-readiness-heading"
+            className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500"
+          >
+            Operational Readiness
+          </h2>
+          <p className="mt-1 max-w-2xl text-sm text-slate-600">
+            Advisory setup signals from existing governed reads. Runtime permissions and backend
+            checks remain authoritative.
+          </p>
+        </div>
+        <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600">
+          Read-only
+        </span>
+      </div>
+
+      <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        {items.map((item) => {
+          const body = (
+            <>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 text-sm font-semibold text-slate-950">{item.label}</div>
+                <span
+                  className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium ${item.state.className}`}
+                >
+                  {item.state.label}
+                </span>
+              </div>
+              <p className="mt-1 text-xs leading-5 text-slate-600">{item.description}</p>
+            </>
+          );
+
+          if (item.to) {
+            return (
+              <Link
+                key={item.key}
+                to={item.to}
+                className="block min-h-24 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 transition hover:border-slate-300 hover:bg-white focus:outline-none focus:ring-2 focus:ring-slate-300"
+              >
+                {body}
+              </Link>
+            );
+          }
+
+          return (
+            <div
+              key={item.key}
+              className="min-h-24 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3"
+            >
+              {body}
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 

@@ -10,6 +10,20 @@ const summaryState = vi.hoisted(() => ({
 
 const permissionState = vi.hoisted(() => ({
   settingsView: false,
+  teamAccess: true,
+  orderRead: true,
+}));
+
+const setupContextState = vi.hoisted(() => ({
+  current: {
+    context: {
+      active_member_count: 2,
+    },
+    loading: false,
+    error: null,
+    permissionDenied: false,
+    refetch: vi.fn(),
+  },
 }));
 
 const tableMock = vi.hoisted(() => vi.fn());
@@ -21,13 +35,30 @@ vi.mock("@/lib/hooks/useDashboardSummary", () => ({
 }));
 
 vi.mock("@/lib/hooks/usePermissions", () => ({
-  useCan: () => ({
-    allowed: permissionState.settingsView,
+  useCan: (permissionKey) => {
+    const key = String(permissionKey || "");
+    const allowed =
+      key === "users.read" ? permissionState.teamAccess : permissionState.settingsView;
+
+    return {
+      allowed,
+      loading: false,
+      error: null,
+      permissionKeys: allowed ? [key] : [],
+      reload: vi.fn(),
+    };
+  },
+  useCanAny: () => ({
+    allowed: permissionState.orderRead,
     loading: false,
     error: null,
-    permissionKeys: permissionState.settingsView ? ["settings.view"] : [],
+    permissionKeys: permissionState.orderRead ? ["orders.read.all"] : [],
     reload: vi.fn(),
   }),
+}));
+
+vi.mock("@/features/company-setup/useCompanySetupContext", () => ({
+  useCompanySetupContext: () => setupContextState.current,
 }));
 
 vi.mock("@/features/orders/UnifiedOrdersTable", () => ({
@@ -64,6 +95,13 @@ function buildSummary(overrides = {}) {
     loading: false,
     tableFilters: {},
     userId: "owner-user",
+    appContext: {
+      current_company_id: "company-1",
+      company_name: "Falcon Appraisals",
+      has_current_company_membership: true,
+      is_owner: true,
+      is_admin_role: true,
+    },
     orders: {
       count: 4,
       inProgress: 1,
@@ -138,6 +176,17 @@ describe("DashboardPage operational polish", () => {
   beforeEach(() => {
     summaryState.current = buildSummary();
     permissionState.settingsView = false;
+    permissionState.teamAccess = true;
+    permissionState.orderRead = true;
+    setupContextState.current = {
+      context: {
+        active_member_count: 2,
+      },
+      loading: false,
+      error: null,
+      permissionDenied: false,
+      refetch: vi.fn(),
+    };
     tableMock.mockClear();
     calendarMock.mockClear();
   });
@@ -217,6 +266,37 @@ describe("DashboardPage operational polish", () => {
       "href",
       "/orders?status=needs_revisions",
     );
+    const readiness = screen.getByRole("region", { name: /operational readiness/i });
+    expect(within(readiness).getByText("Operational Readiness")).toBeInTheDocument();
+    expect(within(readiness).getByText("Read-only")).toBeInTheDocument();
+    expect(within(readiness).getByText("Current company")).toBeInTheDocument();
+    expect(within(readiness).getByText("Falcon Appraisals")).toBeInTheDocument();
+    expect(within(readiness).getByText("Owner/admin access")).toBeInTheDocument();
+    expect(within(readiness).getByText("Management dashboard access is active")).toBeInTheDocument();
+    expect(within(readiness).getByText("Team Access")).toBeInTheDocument();
+    expect(within(readiness).getByText("Member management route is available")).toBeInTheDocument();
+    expect(within(readiness).getByText("Additional team member")).toBeInTheDocument();
+    expect(within(readiness).getByText("2 active members")).toBeInTheDocument();
+    expect(within(readiness).getByText("Dashboard KPIs")).toBeInTheDocument();
+    expect(within(readiness).getByText("Active metrics read path is available")).toBeInTheDocument();
+    expect(within(readiness).getByText("Historical Orders")).toBeInTheDocument();
+    expect(within(readiness).getByText("Saved Views")).toBeInTheDocument();
+    expect(within(readiness).getByText("Print Packet")).toBeInTheDocument();
+    expect(within(readiness).getByText("Available from authorized Order Detail")).toBeInTheDocument();
+    expect(within(readiness).queryByRole("button")).not.toBeInTheDocument();
+    expect(within(readiness).queryByText(/100%/i)).not.toBeInTheDocument();
+    expect(within(readiness).getByRole("link", { name: /team access/i })).toHaveAttribute(
+      "href",
+      "/users",
+    );
+    expect(within(readiness).getByRole("link", { name: /historical orders/i })).toHaveAttribute(
+      "href",
+      "/orders/historical",
+    );
+    expect(within(readiness).getByRole("link", { name: /saved views/i })).toHaveAttribute(
+      "href",
+      "/orders",
+    );
 
     expect(calendarMock).toHaveBeenLastCalledWith(
       expect.objectContaining({ orders: summaryState.current.ordersRows }),
@@ -255,6 +335,15 @@ describe("DashboardPage operational polish", () => {
   });
 
   it("renders clean empty states when loaded dashboard rows have no action signals", () => {
+    setupContextState.current = {
+      context: {
+        active_member_count: 1,
+      },
+      loading: false,
+      error: null,
+      permissionDenied: false,
+      refetch: vi.fn(),
+    };
     summaryState.current = buildSummary({
       orders: {
         count: 0,
@@ -281,6 +370,43 @@ describe("DashboardPage operational polish", () => {
     expect(within(workload).getByText("No unassigned active orders")).toBeInTheDocument();
     expect(within(workload).getByText("No revision follow-up")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /view order/i })).not.toBeInTheDocument();
+    const readiness = screen.getByRole("region", { name: /operational readiness/i });
+    expect(within(readiness).getByText("Solo-owner operation is allowed")).toBeInTheDocument();
+    expect(within(readiness).getByText("Available after an order exists")).toBeInTheDocument();
+    expect(within(readiness).getByText("Neutral")).toBeInTheDocument();
+  });
+
+  it("keeps unverified readiness states neutral and avoids mutation controls", () => {
+    permissionState.teamAccess = false;
+    permissionState.orderRead = false;
+    setupContextState.current = {
+      context: null,
+      loading: false,
+      error: null,
+      permissionDenied: false,
+      refetch: vi.fn(),
+    };
+    summaryState.current = buildSummary({
+      appContext: {
+        current_company_id: null,
+        company_name: null,
+        has_current_company_membership: false,
+      },
+      ordersRows: [],
+    });
+
+    renderDashboard();
+
+    const readiness = screen.getByRole("region", { name: /operational readiness/i });
+    expect(within(readiness).getByText("Company context has not resolved yet")).toBeInTheDocument();
+    expect(within(readiness).getByText("Not verified")).toBeInTheDocument();
+    expect(within(readiness).getByText("Team Access requires users.read")).toBeInTheDocument();
+    expect(within(readiness).getAllByText("Needs permission")).toHaveLength(3);
+    expect(within(readiness).getByText("Member count is not verified")).toBeInTheDocument();
+    expect(within(readiness).getByText("Available after an order exists")).toBeInTheDocument();
+    expect(within(readiness).queryByRole("button")).not.toBeInTheDocument();
+    expect(within(readiness).queryByText(/complete/i)).not.toBeInTheDocument();
+    expect(within(readiness).queryByText(/100%/i)).not.toBeInTheDocument();
   });
 
   it("derives workload visibility from active dashboard rows and excludes retired rows", () => {
@@ -413,6 +539,7 @@ describe("DashboardPage operational polish", () => {
 
     expect(screen.getByText("Reviewer Dashboard")).toBeInTheDocument();
     expect(screen.getByText("My Review Work")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: /operational readiness/i })).not.toBeInTheDocument();
     expect(tableMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
         mode: "reviewerQueue",
