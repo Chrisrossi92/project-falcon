@@ -17,6 +17,7 @@ Baseline references:
 - `docs/ORDER_DETAIL_PRINT_PACKET_PLAN.md`
 - `docs/HISTORICAL_ADMIN_READBACK_PLAN.md`
 - `docs/DASHBOARD_ANALYTICS_PLAN.md`
+- `docs/WORKLOAD_VISIBILITY_PLAN.md`
 
 ## Executive Direction
 
@@ -68,6 +69,12 @@ write paths or lifecycle behavior.
   - in-review backlog;
   - appraiser/reviewer workload summaries;
   - historical metrics only when explicitly labeled and sourced.
+- Governed workload visibility planning and future compact workload surfaces:
+  - appraiser workload awareness;
+  - reviewer workload awareness;
+  - operational bottleneck visibility;
+  - overdue concentration visibility;
+  - assignment distribution visibility.
 
 ### Guardrails
 
@@ -136,6 +143,31 @@ aggregate, export, or scheduled reporting was added.
 Deferred dashboard analytics work remains workload cards, reviewer/appraiser queues, trend charts,
 historical metrics, lifecycle analytics, server-side analytics views if needed, and
 exports/reporting.
+
+### Completed Workload Visibility Foundation
+
+Workload Visibility Slices 1A through 1E complete the initial governed workload dashboard section in
+`docs/WORKLOAD_VISIBILITY_PLAN.md`.
+
+The completed foundation is a read-only dashboard section derived from existing active dashboard
+order rows only. It provides:
+
+- appraiser workload awareness through `Assigned Work`;
+- review queue visibility through `Review Queue`;
+- unassigned active order visibility through `Unassigned Active`;
+- revision follow-up visibility through `Revision Follow-Up`;
+- safe drill links where existing Orders filters already support them.
+
+The section remains active operational visibility only. It respects company scope, RLS, and
+existing order read permissions; excludes archived, completed, cancelled, and voided rows from the
+workload derivation; avoids hidden historical leakage; and avoids ranking, scoring, productivity,
+compensation, punitive, or performance-review semantics. No mutation behavior, workflow/lifecycle
+behavior, assignment mutation behavior, backend analytics pipeline, new RPC/view, charting,
+historical metric, export, or report was added.
+
+Deferred workload work remains reviewer-specific Orders filter support, overdue-by-assignee,
+workload aging buckets, charts/trends, staffing/forecasting support, and server-side analytics views
+or RPCs only if active-row frontend aggregation becomes insufficient.
 
 ## Track 2: Targeted Backend Ownership Migrations
 
@@ -233,13 +265,14 @@ Run a production readiness checkpoint:
 1. Completed: start Track 1 with read-only Order Detail Print Packets.
 2. Completed: implement and close out the initial read-only Historical Orders readback surface.
 3. Completed: implement and close out the initial governed Dashboard KPI foundation.
-4. In parallel, run Track 3's production readiness checkpoint.
-5. Before adding new side-effecting features, run Track 2's source-scan hardening slice.
-6. Continue Track 1 with Order Detail/activity read UX improvements.
-7. Design the first Track 2 backend workflow notification migration, but implement only after the
+4. Completed: implement and close out the initial governed Workload Visibility foundation.
+5. In parallel, run Track 3's production readiness checkpoint.
+6. Before adding new side-effecting features, run Track 2's source-scan hardening slice.
+7. Continue Track 1 with Order Detail/activity read UX improvements.
+8. Design the first Track 2 backend workflow notification migration, but implement only after the
    no-duplicate replacement plan is clear.
-8. Resolve client archive semantics before broad client/AMC expansion.
-9. Continue production cutover rehearsals until broader customer rollout is unblocked.
+9. Resolve client archive semantics before broad client/AMC expansion.
+10. Continue production cutover rehearsals until broader customer rollout is unblocked.
 
 ## Explicit Non-Goals For The First Slice
 

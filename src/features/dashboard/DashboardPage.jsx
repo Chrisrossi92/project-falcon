@@ -6,6 +6,7 @@ import DashboardCalendarPanel from "@/components/dashboard/DashboardCalendarPane
 import { useCan } from "@/lib/hooks/usePermissions";
 import { PERMISSIONS } from "@/lib/permissions/constants";
 import { ORDER_STATUS, normalizeOrderStatus } from "@/lib/constants/orderStatus";
+import { OPERATIONAL_QUEUE_IDS } from "@/features/queues/queueDefinitions";
 import { useMemo, useState } from "react";
 
 const DASHBOARD_CONFIG = {
@@ -84,6 +85,113 @@ const OPERATIONAL_KPI_CARDS = Object.freeze([
   },
 ]);
 
+const APPRAISER_WORKLOAD_STATUSES = new Set([
+  ORDER_STATUS.NEW,
+  ORDER_STATUS.IN_PROGRESS,
+  ORDER_STATUS.NEEDS_REVISIONS,
+]);
+
+const RETIRED_WORKLOAD_STATUSES = new Set([
+  ORDER_STATUS.COMPLETED,
+  "cancelled",
+  "canceled",
+  "voided",
+]);
+
+function normalizeWorkloadStatus(order) {
+  return normalizeOrderStatus(order?.status_normalized || order?.status);
+}
+
+function rawWorkloadStatus(order) {
+  return String(order?.status || order?.status_normalized || "").toLowerCase().trim();
+}
+
+function isActiveWorkloadOrder(order) {
+  if (!order || order.is_archived === true) return false;
+  const normalized = normalizeWorkloadStatus(order);
+  const raw = rawWorkloadStatus(order);
+  return !RETIRED_WORKLOAD_STATUSES.has(normalized) && !RETIRED_WORKLOAD_STATUSES.has(raw);
+}
+
+function displayName(value, fallback) {
+  const text = String(value || "").trim();
+  return text || fallback;
+}
+
+function addGroupedCount(map, id, label, fallback) {
+  if (!id) return;
+  const key = String(id);
+  const current = map.get(key) || {
+    id: key,
+    label: displayName(label, fallback),
+    count: 0,
+  };
+  current.count += 1;
+  if (!current.label || current.label === fallback) {
+    current.label = displayName(label, fallback);
+  }
+  map.set(key, current);
+}
+
+function groupedCounts(map, limit = 3) {
+  return [...map.values()]
+    .sort((a, b) => {
+      const countDelta = b.count - a.count;
+      if (countDelta) return countDelta;
+      return a.label.localeCompare(b.label);
+    })
+    .slice(0, limit);
+}
+
+function ordersPath(params = {}) {
+  const qs = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value) qs.set(key, value);
+  });
+  const query = qs.toString();
+  return query ? `/orders?${query}` : "/orders";
+}
+
+function summarizeWorkloadVisibility(orders = []) {
+  const appraisers = new Map();
+  const reviewers = new Map();
+  const revisions = new Map();
+  let unassigned = 0;
+
+  for (const order of orders || []) {
+    if (!isActiveWorkloadOrder(order)) continue;
+
+    const status = normalizeWorkloadStatus(order);
+    const appraiserId = order?.appraiser_id || order?.assigned_to || null;
+    const reviewerId = order?.reviewer_id || null;
+
+    if (APPRAISER_WORKLOAD_STATUSES.has(status)) {
+      addGroupedCount(appraisers, appraiserId, order?.appraiser_name, "Assigned appraiser");
+    }
+
+    if (status === ORDER_STATUS.IN_REVIEW) {
+      addGroupedCount(reviewers, reviewerId, order?.reviewer_name, "Assigned reviewer");
+    }
+
+    if (status === ORDER_STATUS.NEEDS_REVISIONS) {
+      addGroupedCount(revisions, appraiserId, order?.appraiser_name, "Assigned appraiser");
+    }
+
+    const missingAppraiser = APPRAISER_WORKLOAD_STATUSES.has(status) && !appraiserId;
+    const missingReviewer = status === ORDER_STATUS.IN_REVIEW && !reviewerId;
+    if (missingAppraiser || missingReviewer) {
+      unassigned += 1;
+    }
+  }
+
+  return {
+    appraisers: groupedCounts(appraisers),
+    reviewers: groupedCounts(reviewers),
+    revisions: groupedCounts(revisions),
+    unassigned,
+  };
+}
+
 export default function DashboardPage() {
   const nav = useNavigate();
   const [dashboardRefreshKey, setDashboardRefreshKey] = useState(0);
@@ -158,6 +266,10 @@ export default function DashboardPage() {
       (order) => normalizeOrderStatus(order?.status_normalized || order?.status) === statusFilter,
     );
   }, [ordersRows, statusFilter]);
+  const workloadSummary = useMemo(
+    () => summarizeWorkloadVisibility(ordersRows || []),
+    [ordersRows],
+  );
 
   const handleOpenOrder = (orderId) => {
     if (!orderId) return;
@@ -187,6 +299,8 @@ export default function DashboardPage() {
       </section>
 
       <OperationalKpiCards loading={loading} values={kpiValues} />
+
+      <WorkloadVisibilitySection loading={loading} summary={workloadSummary} />
 
       <OwnerSetupDashboardPrompt />
 
@@ -313,6 +427,126 @@ function OperationalKpiCards({ loading, values }) {
         );
       })}
     </section>
+  );
+}
+
+function WorkloadVisibilitySection({ loading, summary }) {
+  const cards = [
+    {
+      key: "appraisers",
+      label: "Assigned Work",
+      caption: "Active appraiser-owned orders",
+      items: summary.appraisers,
+      itemTo: (item) => ordersPath({ appraiserId: item.id }),
+      empty: "No assigned appraiser work",
+    },
+    {
+      key: "reviewers",
+      label: "Review Queue",
+      caption: "Active orders in review",
+      to: ordersPath({ status: ORDER_STATUS.IN_REVIEW }),
+      items: summary.reviewers,
+      empty: "No assigned review work",
+    },
+    {
+      key: "unassigned",
+      label: "Unassigned Active",
+      caption: "Active orders needing ownership",
+      to: ordersPath({ queue: OPERATIONAL_QUEUE_IDS.UNASSIGNED_ORDERS }),
+      count: summary.unassigned,
+      empty: "No unassigned active orders",
+    },
+    {
+      key: "revisions",
+      label: "Revision Follow-Up",
+      caption: "Needs-revisions ownership",
+      to: ordersPath({ status: ORDER_STATUS.NEEDS_REVISIONS }),
+      items: summary.revisions,
+      itemTo: (item) => ordersPath({ status: ORDER_STATUS.NEEDS_REVISIONS, appraiserId: item.id }),
+      empty: "No revision follow-up",
+    },
+  ];
+
+  return (
+    <section
+      aria-label="Workload visibility"
+      className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+    >
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+        <div>
+          <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+            Workload Visibility
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Current active order ownership for coordination.
+          </p>
+        </div>
+      </div>
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {cards.map((card) => (
+          <div
+            key={card.key}
+            className="min-h-32 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
+          >
+            {card.to ? (
+              <Link
+                to={card.to}
+                className="inline-flex text-xs font-semibold uppercase tracking-[0.14em] text-slate-600 underline-offset-4 hover:text-slate-950 hover:underline"
+              >
+                {card.label}
+              </Link>
+            ) : (
+              <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                {card.label}
+              </div>
+            )}
+            <div className="mt-1 text-xs text-slate-500">{card.caption}</div>
+            {loading ? (
+              <div className="mt-4 text-2xl font-semibold text-slate-950">-</div>
+            ) : card.key === "unassigned" ? (
+              <>
+                <div className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 tabular-nums">
+                  {card.count || 0}
+                </div>
+                <div className="mt-1 text-xs text-slate-500">
+                  {card.count ? "Needs assignment review" : card.empty}
+                </div>
+              </>
+            ) : (
+              <WorkloadList items={card.items} itemTo={card.itemTo} empty={card.empty} />
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function WorkloadList({ items, itemTo, empty }) {
+  if (!items?.length) {
+    return <div className="mt-4 text-sm text-slate-500">{empty}</div>;
+  }
+
+  return (
+    <div className="mt-3 space-y-2">
+      {items.map((item) => (
+        <div key={item.id} className="flex items-center justify-between gap-3 text-sm">
+          {itemTo ? (
+            <Link
+              to={itemTo(item)}
+              className="min-w-0 truncate text-slate-700 underline-offset-4 hover:text-slate-950 hover:underline"
+            >
+              {item.label}
+            </Link>
+          ) : (
+            <span className="min-w-0 truncate text-slate-700">{item.label}</span>
+          )}
+          <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold tabular-nums text-slate-900 ring-1 ring-slate-200">
+            {item.count}
+          </span>
+        </div>
+      ))}
+    </div>
   );
 }
 

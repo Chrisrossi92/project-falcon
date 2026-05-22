@@ -197,6 +197,26 @@ describe("DashboardPage operational polish", () => {
     expect(screen.getByRole("button", { name: /new/i })).toHaveClass("bg-blue-50");
     expect(screen.getByRole("button", { name: /in review/i })).toHaveClass("bg-indigo-50");
     expect(screen.queryByText("Operational Attention")).not.toBeInTheDocument();
+    const workload = screen.getByRole("region", { name: /workload visibility/i });
+    expect(within(workload).getByText("Workload Visibility")).toBeInTheDocument();
+    expect(within(workload).getByText("Current active order ownership for coordination.")).toBeInTheDocument();
+    expect(within(workload).getByText("Assigned Work")).toBeInTheDocument();
+    expect(within(workload).getByText("Review Queue")).toBeInTheDocument();
+    expect(within(workload).getByText("Unassigned Active")).toBeInTheDocument();
+    expect(within(workload).getByText("Revision Follow-Up")).toBeInTheDocument();
+    expect(within(workload).queryByRole("button")).not.toBeInTheDocument();
+    expect(within(workload).getByRole("link", { name: "Review Queue" })).toHaveAttribute(
+      "href",
+      "/orders?status=in_review",
+    );
+    expect(within(workload).getByRole("link", { name: "Unassigned Active" })).toHaveAttribute(
+      "href",
+      "/orders?queue=unassigned_orders",
+    );
+    expect(within(workload).getByRole("link", { name: "Revision Follow-Up" })).toHaveAttribute(
+      "href",
+      "/orders?status=needs_revisions",
+    );
 
     expect(calendarMock).toHaveBeenLastCalledWith(
       expect.objectContaining({ orders: summaryState.current.ordersRows }),
@@ -255,7 +275,117 @@ describe("DashboardPage operational polish", () => {
     expect(within(screen.getByRole("button", { name: /ready for client/i })).getByText("0")).toBeInTheDocument();
     const kpiCards = screen.getByRole("region", { name: /operational kpi cards/i });
     expect(within(kpiCards).getAllByText("0")).toHaveLength(4);
+    const workload = screen.getByRole("region", { name: /workload visibility/i });
+    expect(within(workload).getByText("No assigned appraiser work")).toBeInTheDocument();
+    expect(within(workload).getByText("No assigned review work")).toBeInTheDocument();
+    expect(within(workload).getByText("No unassigned active orders")).toBeInTheDocument();
+    expect(within(workload).getByText("No revision follow-up")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /view order/i })).not.toBeInTheDocument();
+  });
+
+  it("derives workload visibility from active dashboard rows and excludes retired rows", () => {
+    summaryState.current = buildSummary({
+      ordersRows: [
+        {
+          id: "active-a1",
+          order_number: "2001",
+          status: "new",
+          appraiser_id: "appraiser-1",
+          appraiser_name: "Appraiser One",
+        },
+        {
+          id: "active-a2",
+          order_number: "2002",
+          status: "in_progress",
+          appraiser_id: "appraiser-1",
+          appraiser_name: "Appraiser One",
+        },
+        {
+          id: "active-a3",
+          order_number: "2003",
+          status: "needs_revisions",
+          appraiser_id: "appraiser-2",
+          appraiser_name: "Appraiser Two",
+        },
+        {
+          id: "review-r1",
+          order_number: "2004",
+          status: "in_review",
+          reviewer_id: "reviewer-1",
+          reviewer_name: "Reviewer One",
+        },
+        {
+          id: "review-r2",
+          order_number: "2005",
+          status: "in_review",
+          reviewer_id: "reviewer-1",
+          reviewer_name: "Reviewer One",
+        },
+        {
+          id: "unassigned-appraiser",
+          order_number: "2006",
+          status: "new",
+        },
+        {
+          id: "unassigned-reviewer",
+          order_number: "2007",
+          status: "in_review",
+        },
+        {
+          id: "archived-row",
+          order_number: "2008",
+          status: "new",
+          is_archived: true,
+          appraiser_id: "retired-appraiser",
+          appraiser_name: "Retired Appraiser",
+        },
+        {
+          id: "cancelled-row",
+          order_number: "2009",
+          status: "cancelled",
+          appraiser_id: "cancelled-appraiser",
+          appraiser_name: "Cancelled Appraiser",
+        },
+        {
+          id: "voided-row",
+          order_number: "2010",
+          status: "voided",
+          reviewer_id: "voided-reviewer",
+          reviewer_name: "Voided Reviewer",
+        },
+        {
+          id: "completed-row",
+          order_number: "2011",
+          status: "completed",
+          appraiser_id: "completed-appraiser",
+          appraiser_name: "Completed Appraiser",
+        },
+      ],
+    });
+
+    renderDashboard();
+
+    const workload = screen.getByRole("region", { name: /workload visibility/i });
+    expect(within(workload).getByText("Appraiser One")).toBeInTheDocument();
+    expect(within(workload).getAllByText("Appraiser Two")).toHaveLength(2);
+    expect(within(workload).getByText("Reviewer One")).toBeInTheDocument();
+    expect(within(workload).getByText("Needs assignment review")).toBeInTheDocument();
+    expect(within(workload).getAllByText("2")).toHaveLength(3);
+    expect(within(workload).getAllByText("1")).toHaveLength(2);
+    expect(within(workload).queryByText("Retired Appraiser")).not.toBeInTheDocument();
+    expect(within(workload).queryByText("Cancelled Appraiser")).not.toBeInTheDocument();
+    expect(within(workload).queryByText("Voided Reviewer")).not.toBeInTheDocument();
+    expect(within(workload).queryByText("Completed Appraiser")).not.toBeInTheDocument();
+    expect(within(workload).getByRole("link", { name: "Appraiser One" })).toHaveAttribute(
+      "href",
+      "/orders?appraiserId=appraiser-1",
+    );
+    expect(within(workload).getAllByRole("link", { name: "Appraiser Two" }).map((link) => link.getAttribute("href"))).toEqual([
+      "/orders?appraiserId=appraiser-2",
+      "/orders?status=needs_revisions&appraiserId=appraiser-2",
+    ]);
+    expect(within(workload).queryByRole("link", { name: "Reviewer One" })).not.toBeInTheDocument();
+    expect(within(workload).queryByRole("button")).not.toBeInTheDocument();
   });
 
   it("uses role-specific worklist copy without changing dashboard gate behavior", () => {
