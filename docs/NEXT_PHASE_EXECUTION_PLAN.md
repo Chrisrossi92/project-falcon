@@ -15,11 +15,13 @@ Baseline references:
 - `docs/OPERATIONAL_GOVERNANCE_SNAPSHOT.md`
 - `docs/GOVERNANCE_RETROSPECTIVE_AND_NEXT_PHASE.md`
 - `docs/ORDER_DETAIL_PRINT_PACKET_PLAN.md`
+- `docs/DOCUMENT_EXPERIENCE_PLAN.md`
 - `docs/HISTORICAL_ADMIN_READBACK_PLAN.md`
 - `docs/DASHBOARD_ANALYTICS_PLAN.md`
 - `docs/WORKLOAD_VISIBILITY_PLAN.md`
 - `docs/SAVED_VIEWS_PLAN.md`
 - `docs/OPERATIONAL_TIMELINE_PLAN.md`
+- `docs/PRODUCTION_READINESS_AUDIT.md`
 
 ## Executive Direction
 
@@ -53,6 +55,11 @@ write paths or lifecycle behavior.
   - `Order Audit`;
   - reuse already authorized order/activity data where practical.
 - Order Detail layout and information architecture improvements.
+- Governed document/files experience improvements:
+  - clearer Order Detail Files card metadata;
+  - document category/type grouping;
+  - uploaded-by/uploaded-at/file-size visibility;
+  - secure preview planning only after separate design.
 - Activity timeline read UX:
   - grouping;
   - filtering;
@@ -114,6 +121,59 @@ inside Order Detail. It includes print isolation, lifecycle notices, and documen
 while excluding signed URLs, downloads, file contents, mutations, new backend/API/RPC work, and new
 routes. Dedicated print routes, PDF export, richer activity summaries, sanitized document metadata
 rows, and client-safe/external packet variants remain deferred future enhancements.
+
+### Planned Document Experience Improvements
+
+Document Experience Slice 1A plans the next governed document/files experience improvements in
+`docs/DOCUMENT_EXPERIENCE_PLAN.md` without runtime changes.
+
+The planned purpose is to make Order Detail files easier to understand and manage, improve
+attachment/document visibility, support appraisal workflow context, and preserve secure document
+governance. The current completed foundation already includes the private bucket, document metadata
+model, signed download path, upload prepare/finalize flow, backend-owned archive, backend document
+activity logging, drag/drop upload UI, Files card inside Order Detail, and Print Packet document
+category counts.
+
+Candidate improvements include document category/type display polish, metadata rows, uploaded-by
+and uploaded-at display, file size display, grouped document sections, document status chips, safer
+file preview planning, missing expected document checklist planning, and packet/report-ready
+document summaries.
+
+The recommended first implementation is read-only metadata display polish in the existing Order
+Detail Files card, using already available metadata where possible and grouping by category/type
+only if that metadata is already available. Secure previews, document checklists, AI extraction,
+packet export attachments, client-safe file sharing, and retention rules remain deferred.
+
+The guardrails remain no raw storage paths, signed downloads only through approved paths, archive
+owned by backend RPCs, no public file URLs, no automatic AI extraction, no content preview without
+separate design, no new mutation paths without backend RPC ownership, no storage policy changes,
+and no signed URL changes.
+
+### Completed Files Card Metadata Polish
+
+Document Experience Slices 1A through 1D plan, audit, implement, and close out the initial governed
+Order Detail Files card metadata polish in `docs/DOCUMENT_EXPERIENCE_PLAN.md`.
+
+The completed foundation keeps the existing document governance intact while making the Files card
+easier to scan:
+
+- grouped rows by already available category/type metadata;
+- safe metadata display only;
+- display name from existing title/file name fields;
+- uploaded date from existing created timestamp metadata;
+- formatted file size when available;
+- archived state when already returned;
+- signed-download action labeled `Download`;
+- existing archive behavior preserved on the approved backend-owned archive path;
+- clearer empty state for orders with no uploaded files.
+
+Locked guardrails remain no raw storage paths, no bucket/object keys, no signed URL internals, no
+file contents or previews, no backend/API/RPC/storage policy changes, no upload flow changes, and
+no mutation expansion.
+
+Deferred document experience work remains secure previews, document checklist, AI extraction/review
+panel, packet export attachments, client-safe file sharing, document retention rules, and richer
+document metadata normalization.
 
 ### Completed Historical Readback MVP
 
@@ -381,11 +441,30 @@ data migration posture, deployment safety, and rollback plan.
 
 ### Recommended First Slice
 
-Run a production readiness checkpoint:
+Completed Production Readiness Slice 1A: run a production readiness checkpoint in
+`docs/PRODUCTION_READINESS_AUDIT.md` before making infrastructure or runtime changes.
 
-- review `STAGING_COMPANY_SCOPE_MIGRATION_PLAN.md` and `FINAL_PRODUCTION_CUTOVER_PLAN.md`;
-- decide whether the next rollout target is modern staging, limited pilot, or final production;
-- produce a short go/no-go checklist for the chosen target.
+The audit confirms the current environment posture:
+
+- modern staging Supabase project `voompccpkjfcsmehdoqu` is the reference company-scoped
+  validation target;
+- legacy hosted project `okwqhkrsjgxrhyisaovc` remains the old non-company production/archive
+  source;
+- modern features should not be retrofitted into the legacy schema;
+- final production should cut over to a clean production project based on the modern staging
+  architecture after replay, bootstrap, parity, and smoke validation.
+
+The first recommended production-readiness track is now:
+
+- migration replay/bootstrap checklist;
+- environment parity checklist;
+- seed/permission verification checklist;
+- storage/function deployment checklist.
+
+Current blockers before production cutover are clean final target decision, migration replay/dry-run
+confidence, production-data count reconciliation, auth/user/company/membership/role mapping,
+permission/grant/RLS verification, private storage/document function smoke tests, and restorable
+backup/recovery posture.
 
 ## Recommended Ordering
 
@@ -393,7 +472,7 @@ Run a production readiness checkpoint:
 2. Completed: implement and close out the initial read-only Historical Orders readback surface.
 3. Completed: implement and close out the initial governed Dashboard KPI foundation.
 4. Completed: implement and close out the initial governed Workload Visibility foundation.
-5. In parallel, run Track 3's production readiness checkpoint.
+5. Completed: run Track 3's production readiness checkpoint.
 6. Before adding new side-effecting features, run Track 2's source-scan hardening slice.
 7. Continue Track 1 with Order Detail/activity read UX improvements.
 8. Design the first Track 2 backend workflow notification migration, but implement only after the

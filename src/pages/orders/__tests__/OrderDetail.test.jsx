@@ -305,21 +305,112 @@ describe("OrderDetail site visit save", () => {
     render(<OrderDetail />);
 
     const files = await screen.findByLabelText("Order files");
+    const engagementGroup = within(files).getByLabelText("Engagement files");
+    const sourceGroup = within(files).getByLabelText("Source Documents files");
 
     expect(listOrderDocumentsMock).toHaveBeenCalledWith("order-1");
     expect(within(files).getByText("Files")).toBeInTheDocument();
-    expect(within(files).getByText("Engagement Letter")).toBeInTheDocument();
-    expect(within(files).getAllByText("Engagement").length).toBeGreaterThan(0);
-    expect(within(files).getByText("2.0 KB")).toBeInTheDocument();
-    expect(within(files).getByText("rent-roll.xlsx")).toBeInTheDocument();
-    expect(within(files).getByText("Archived")).toBeInTheDocument();
+    expect(engagementGroup).toBeInTheDocument();
+    expect(sourceGroup).toBeInTheDocument();
+    expect(within(engagementGroup).getByText("Engagement Letter")).toBeInTheDocument();
+    expect(within(engagementGroup).getAllByText("Engagement").length).toBeGreaterThan(1);
+    expect(within(engagementGroup).getByText("Uploaded 5/20/2026")).toBeInTheDocument();
+    expect(within(engagementGroup).getByText("2.0 KB")).toBeInTheDocument();
+    expect(within(sourceGroup).getByText("rent-roll.xlsx")).toBeInTheDocument();
+    expect(within(sourceGroup).getByText("Archived")).toBeInTheDocument();
+  });
+
+  it("preserves document order within grouped file sections", async () => {
+    listOrderDocumentsMock.mockResolvedValueOnce([
+      {
+        id: "doc-1",
+        order_id: "order-1",
+        category: "engagement",
+        title: "Second Engagement File",
+        file_name: "second.pdf",
+        file_size: 2048,
+        status: "active",
+        created_at: "2026-05-20T12:00:00.000Z",
+      },
+      {
+        id: "doc-2",
+        order_id: "order-1",
+        category: "engagement",
+        title: "First Engagement File",
+        file_name: "first.pdf",
+        file_size: 1024,
+        status: "active",
+        created_at: "2026-05-19T12:00:00.000Z",
+      },
+      {
+        id: "doc-3",
+        order_id: "order-1",
+        category: "source_documents",
+        title: "Source Package",
+        file_name: "source.pdf",
+        file_size: 1024,
+        status: "active",
+        created_at: "2026-05-18T12:00:00.000Z",
+      },
+    ]);
+
+    render(<OrderDetail />);
+
+    const files = await screen.findByLabelText("Order files");
+    const engagementGroup = within(files).getByLabelText("Engagement files");
+    const second = within(engagementGroup).getByText("Second Engagement File");
+    const first = within(engagementGroup).getByText("First Engagement File");
+
+    expect(second.compareDocumentPosition(first)).toBe(DOCUMENT_POSITION_FOLLOWING);
+  });
+
+  it("renders the files empty state when no documents are returned", async () => {
+    listOrderDocumentsMock.mockResolvedValueOnce([]);
+
+    render(<OrderDetail />);
+
+    const files = await screen.findByLabelText("Order files");
+
+    expect(within(files).getByText("No files uploaded yet.")).toBeInTheDocument();
+    expect(within(files).queryByRole("button", { name: "Download" })).not.toBeInTheDocument();
+    expect(within(files).queryByRole("button", { name: "Archive" })).not.toBeInTheDocument();
+  });
+
+  it("does not expose unsafe document storage or signed URL internals", async () => {
+    listOrderDocumentsMock.mockResolvedValueOnce([
+      {
+        id: "doc-unsafe",
+        order_id: "order-1",
+        category: "internal_workfile",
+        title: "Safe Workfile",
+        file_name: "safe-workfile.pdf",
+        file_size: 1024,
+        status: "active",
+        created_at: "2026-05-20T12:00:00.000Z",
+        storage_bucket: "order-documents",
+        storage_path: "private/order-1/safe-workfile.pdf",
+        object_key: "private-object-key",
+        signed_url: "https://example.test/internal-signed-url",
+      },
+    ]);
+
+    render(<OrderDetail />);
+
+    const files = await screen.findByLabelText("Order files");
+
+    expect(within(files).getByText("Safe Workfile")).toBeInTheDocument();
+    expect(within(files).getAllByText("Internal Workfile").length).toBeGreaterThan(1);
+    expect(within(files).queryByText("order-documents")).not.toBeInTheDocument();
+    expect(within(files).queryByText("private/order-1/safe-workfile.pdf")).not.toBeInTheDocument();
+    expect(within(files).queryByText("private-object-key")).not.toBeInTheDocument();
+    expect(screen.queryByText("https://example.test/internal-signed-url")).not.toBeInTheDocument();
   });
 
   it("opens documents through the signed download Edge helper", async () => {
     render(<OrderDetail />);
 
     const files = await screen.findByLabelText("Order files");
-    fireEvent.click(within(files).getByRole("button", { name: "Open" }));
+    fireEvent.click(within(files).getByRole("button", { name: "Download" }));
 
     await waitFor(() => {
       expect(createOrderDocumentDownloadUrlMock).toHaveBeenCalledWith("doc-1");
@@ -431,7 +522,7 @@ describe("OrderDetail site visit save", () => {
     expect(within(packet).queryByText("Archive order")).not.toBeInTheDocument();
     expect(within(packet).queryByText("Cancel order")).not.toBeInTheDocument();
     expect(within(packet).queryByText("Void order")).not.toBeInTheDocument();
-    expect(within(packet).queryByText("Open")).not.toBeInTheDocument();
+    expect(within(packet).queryByText("Download")).not.toBeInTheDocument();
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Print" }));
 
@@ -491,7 +582,7 @@ describe("OrderDetail site visit save", () => {
     expect(categoryCounts).toHaveTextContent("Final Report: 1 file");
     expect(categoryCounts).toHaveTextContent("Uncategorized: 1 file");
     expect(within(packet).queryByRole("link")).not.toBeInTheDocument();
-    expect(within(packet).queryByText("Open")).not.toBeInTheDocument();
+    expect(within(packet).queryByText("Download")).not.toBeInTheDocument();
     expect(within(packet).queryByText("Archive")).not.toBeInTheDocument();
     expect(screen.queryByText("https://example.test/signed-download")).not.toBeInTheDocument();
     expect(createOrderDocumentDownloadUrlMock).not.toHaveBeenCalled();

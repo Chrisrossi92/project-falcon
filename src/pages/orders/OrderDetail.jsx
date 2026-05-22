@@ -119,12 +119,37 @@ const categoryLabel = (value) =>
 const documentCategoryKey = (document) =>
   pick(document?.category, document?.document_type, document?.type) || "uncategorized";
 
+const documentCategoryLabel = (document) => {
+  const key = documentCategoryKey(document);
+  return key === "uncategorized" ? "Uncategorized" : categoryLabel(key);
+};
+
+const groupDocumentsByCategory = (documents) => {
+  const groups = new Map();
+
+  for (const document of documents || []) {
+    const key = documentCategoryKey(document);
+    const label = documentCategoryLabel(document);
+
+    if (!groups.has(key)) {
+      groups.set(key, {
+        key,
+        label,
+        documents: [],
+      });
+    }
+
+    groups.get(key).documents.push(document);
+  }
+
+  return Array.from(groups.values()).sort((a, b) => a.label.localeCompare(b.label));
+};
+
 const buildDocumentCategoryCounts = (documents) => {
   const counts = new Map();
 
   for (const document of documents || []) {
-    const key = documentCategoryKey(document);
-    const label = key === "uncategorized" ? "Uncategorized" : categoryLabel(key);
+    const label = documentCategoryLabel(document);
     counts.set(label, (counts.get(label) || 0) + 1);
   }
 
@@ -227,6 +252,7 @@ function FilesCard({ orderId, canArchive, canUpload, onFilesLoaded }) {
   }, [onFilesLoaded, orderId]);
 
   const latestFiles = files.slice(0, 5);
+  const groupedFiles = groupDocumentsByCategory(latestFiles);
 
   async function handleDownload(document) {
     setBusyId(document.id);
@@ -365,59 +391,85 @@ function FilesCard({ orderId, canArchive, canUpload, onFilesLoaded }) {
       ) : error ? (
         <div className="mt-3 text-sm text-amber-700">Files unavailable.</div>
       ) : latestFiles.length === 0 ? (
-        <div className="mt-3 text-sm text-gray-500">No files yet</div>
+        <div className="mt-3 rounded border border-gray-100 bg-gray-50 px-3 py-3 text-sm text-gray-500">
+          No files uploaded yet.
+        </div>
       ) : (
-        <div className="mt-3 divide-y divide-gray-100">
-          {latestFiles.map((document) => {
-            const label = document.title || document.file_name || "Document";
-            const size = fileSize(document.file_size);
-            const isArchived = document.status === "archived";
-            const isBusy = busyId === document.id;
-
-            return (
-              <div key={document.id} className="py-2 first:pt-0 last:pb-0">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-medium text-gray-900" title={label}>
-                      {label}
-                    </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500">
-                      <span>{categoryLabel(document.category)}</span>
-                      <span>{fmtDate(document.created_at)}</span>
-                      {size && <span>{size}</span>}
-                      {isArchived && (
-                        <span className="rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-amber-700">
-                          Archived
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1">
-                    {!isArchived && (
-                      <button
-                        type="button"
-                        onClick={() => handleDownload(document)}
-                        disabled={isBusy}
-                        className="rounded border px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                      >
-                        Open
-                      </button>
-                    )}
-                    {canArchive && !isArchived && (
-                      <button
-                        type="button"
-                        onClick={() => handleArchive(document)}
-                        disabled={isBusy}
-                        className="rounded border px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                      >
-                        Archive
-                      </button>
-                    )}
-                  </div>
+        <div className="mt-3 space-y-3">
+          {groupedFiles.map((group) => (
+            <section
+              key={group.key}
+              aria-label={`${group.label} files`}
+              className="rounded-md border border-gray-100 bg-white"
+            >
+              <div className="flex items-center justify-between gap-3 border-b border-gray-100 bg-gray-50 px-2.5 py-1.5">
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                  {group.label}
+                </div>
+                <div className="text-[11px] text-gray-500">
+                  {group.documents.length} {group.documents.length === 1 ? "file" : "files"}
                 </div>
               </div>
-            );
-          })}
+              <div className="divide-y divide-gray-100">
+                {group.documents.map((document) => {
+                  const label = document.title || document.file_name || "Document";
+                  const category = documentCategoryLabel(document);
+                  const size = fileSize(document.file_size);
+                  const isArchived = document.status === "archived";
+                  const isBusy = busyId === document.id;
+
+                  return (
+                    <div key={document.id} className="px-2.5 py-2.5">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <div
+                            className="truncate text-sm font-medium text-gray-900"
+                            title={label}
+                          >
+                            {label}
+                          </div>
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-gray-500">
+                            <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 font-medium text-slate-600">
+                              {category}
+                            </span>
+                            <span>Uploaded {fmtDate(document.created_at)}</span>
+                            {size && <span>{size}</span>}
+                            {isArchived && (
+                              <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 font-medium text-amber-700">
+                                Archived
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1">
+                          {!isArchived && (
+                            <button
+                              type="button"
+                              onClick={() => handleDownload(document)}
+                              disabled={isBusy}
+                              className="rounded border px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                            >
+                              Download
+                            </button>
+                          )}
+                          {canArchive && !isArchived && (
+                            <button
+                              type="button"
+                              onClick={() => handleArchive(document)}
+                              disabled={isBusy}
+                              className="rounded border px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                            >
+                              Archive
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
         </div>
       )}
     </div>
