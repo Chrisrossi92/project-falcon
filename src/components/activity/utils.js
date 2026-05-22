@@ -1,5 +1,15 @@
 // utils.js
-import { FileText, Shuffle, CalendarCheck, UserPlus, DollarSign, MessageSquareText } from "lucide-react";
+import {
+  Archive,
+  CalendarCheck,
+  DollarSign,
+  FileArchive,
+  FileText,
+  MessageSquareText,
+  ShieldAlert,
+  Shuffle,
+  UserPlus,
+} from "lucide-react";
 import { formatOrderStatusLabel, normalizeOrderStatus } from "@/lib/constants/orderStatus";
 
 /** Build a "First L." style display name from name or email */
@@ -132,12 +142,28 @@ export const WORKFLOW_EVENT_TYPES = new Set([
   "completed",
 ]);
 
+export const LIFECYCLE_EVENT_TYPES = new Set([
+  "order.archived",
+  "order.cancelled",
+  "order.voided",
+]);
+
+export const ASSIGNMENT_EVENT_TYPES = new Set([
+  "assignee_changed",
+  "assignment",
+]);
+
+export const DOCUMENT_EVENT_TYPES = new Set([
+  "order_document.uploaded",
+  "order_document.archived",
+]);
+
 export const SYSTEM_EVENT_TYPES = new Set([
   "order_created",
-  "status_changed",
   "dates_updated",
-  "assignee_changed",
   "fee_changed",
+  "order_number.manual_override",
+  "site_visit",
 ]);
 
 export function isHumanCommunicationEvent(eventType) {
@@ -149,31 +175,114 @@ export function isWorkflowEvent(eventType) {
 }
 
 export function isSystemEvent(eventType) {
-  return SYSTEM_EVENT_TYPES.has(eventType) || WORKFLOW_EVENT_TYPES.has(eventType);
+  return (
+    SYSTEM_EVENT_TYPES.has(eventType) ||
+    WORKFLOW_EVENT_TYPES.has(eventType) ||
+    LIFECYCLE_EVENT_TYPES.has(eventType) ||
+    ASSIGNMENT_EVENT_TYPES.has(eventType) ||
+    DOCUMENT_EVENT_TYPES.has(eventType)
+  );
 }
 
 export const LABEL = {
   note: "Note",
   note_added: "Note",
   order_created: "Order created",
-  status_changed: "Status",
-  dates_updated: "Dates",
-  assignee_changed: "Assignment",
+  status_changed: "Status changed",
+  dates_updated: "Dates updated",
+  assignee_changed: "Assignment changed",
   fee_changed: "Fee changed",
-  sent_to_review: "Workflow",
-  sent_back_to_appraiser: "Workflow",
-  ready_for_client: "Workflow",
-  completed: "Workflow",
+  sent_to_review: "Sent to review",
+  sent_back_to_appraiser: "Revisions requested",
+  ready_for_client: "Ready for client",
+  completed: "Completed",
+  "order.archived": "Order archived",
+  "order.cancelled": "Order cancelled",
+  "order.voided": "Order voided",
+  "order_document.uploaded": "Document uploaded",
+  "order_document.archived": "Document archived",
+  "order_number.manual_override": "Order number changed",
+  site_visit: "Site visit",
+  assignment: "Assignment",
 };
 
 export const EVENT_ICON = {
+  note: MessageSquareText,
   note_added: MessageSquareText,
   order_created: FileText,
   status_changed: Shuffle,
   dates_updated: CalendarCheck,
   assignee_changed: UserPlus,
   fee_changed: DollarSign,
+  "order.archived": Archive,
+  "order.cancelled": ShieldAlert,
+  "order.voided": ShieldAlert,
+  "order_document.uploaded": FileText,
+  "order_document.archived": FileArchive,
+  "order_number.manual_override": FileText,
+  site_visit: CalendarCheck,
+  assignment: UserPlus,
 };
+
+export const ACTIVITY_CATEGORY = {
+  lifecycle: {
+    label: "Lifecycle",
+    className: "border-amber-200 bg-amber-50 text-amber-800",
+    rowClassName: "border-amber-200 bg-amber-50/40",
+    iconClassName: "border-amber-200 bg-amber-50 text-amber-700",
+  },
+  workflow: {
+    label: "Workflow",
+    className: "border-sky-200 bg-sky-50 text-sky-800",
+    rowClassName: "border-sky-200 bg-sky-50/35",
+    iconClassName: "border-sky-200 bg-sky-50 text-sky-700",
+  },
+  assignment: {
+    label: "Assignment",
+    className: "border-violet-200 bg-violet-50 text-violet-800",
+    rowClassName: "border-violet-200 bg-violet-50/35",
+    iconClassName: "border-violet-200 bg-violet-50 text-violet-700",
+  },
+  document: {
+    label: "Documents",
+    className: "border-emerald-200 bg-emerald-50 text-emerald-800",
+    rowClassName: "border-emerald-200 bg-emerald-50/35",
+    iconClassName: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  },
+  note: {
+    label: "Notes",
+    className: "border-slate-200 bg-white text-slate-700",
+    rowClassName: "border-slate-200 bg-white",
+    iconClassName: "border-slate-200 bg-slate-50 text-slate-500",
+  },
+  system: {
+    label: "System",
+    className: "border-slate-200 bg-slate-100 text-slate-700",
+    rowClassName: "border-slate-200/80 bg-white/80",
+    iconClassName: "border-slate-200 bg-slate-50 text-slate-500",
+  },
+  unknown: {
+    label: "Unknown",
+    className: "border-slate-200 bg-slate-50 text-slate-600",
+    rowClassName: "border-slate-200 bg-white",
+    iconClassName: "border-slate-200 bg-slate-50 text-slate-500",
+  },
+};
+
+export function getActivityCategoryKey(eventType) {
+  if (LIFECYCLE_EVENT_TYPES.has(eventType)) return "lifecycle";
+  if (WORKFLOW_EVENT_TYPES.has(eventType)) return "workflow";
+  if (ASSIGNMENT_EVENT_TYPES.has(eventType)) return "assignment";
+  if (DOCUMENT_EVENT_TYPES.has(eventType)) return "document";
+  if (HUMAN_COMMUNICATION_TYPES.has(eventType)) return "note";
+  if (SYSTEM_EVENT_TYPES.has(eventType)) return "system";
+  return "unknown";
+}
+
+export function getActivityCategory(eventType) {
+  const key = getActivityCategoryKey(eventType);
+  return { key, ...ACTIVITY_CATEGORY[key] };
+}
 
 export function titleCaseLocal(email) {
   const local = String(email || "").split("@")[0];
@@ -229,6 +338,16 @@ function fmtDateLocal(raw) {
   return d.toLocaleDateString();
 }
 
+function firstSafeText(...values) {
+  return values
+    .map((value) => String(value || "").trim())
+    .find(Boolean) || null;
+}
+
+function joinSafeParts(parts) {
+  return parts.filter(Boolean).join(" • ");
+}
+
 export function formatActivity(item = {}) {
   const type = item.event_type || "";
   let parsedBody = null;
@@ -247,7 +366,6 @@ export function formatActivity(item = {}) {
     (typeof item.body === "object" && item.body !== null ? item.body : null) ||
     (parsedBody && typeof parsedBody === "object" ? parsedBody : null) ||
     null;
-  const hasMeta = meta && Object.keys(meta).length > 0;
 
   switch (type) {
     case "status_changed": {
@@ -265,6 +383,47 @@ export function formatActivity(item = {}) {
       return "Marked ready for client";
     case "completed":
       return "Order completed";
+    case "order.archived": {
+      const reason = firstSafeText(meta?.reason);
+      return reason ? `Archived: ${reason}` : "Order archived";
+    }
+    case "order.cancelled": {
+      const reason = firstSafeText(meta?.reason);
+      return reason ? `Cancelled: ${reason}` : "Order cancelled";
+    }
+    case "order.voided": {
+      const reason = firstSafeText(meta?.reason);
+      return reason ? `Voided: ${reason}` : "Order voided";
+    }
+    case "order_document.uploaded":
+    case "order_document.archived": {
+      const title = firstSafeText(meta?.title, meta?.file_name, meta?.name);
+      const category = firstSafeText(meta?.category);
+      const visibility = firstSafeText(meta?.visibility_scope);
+      const reason = type === "order_document.archived" ? firstSafeText(meta?.reason) : null;
+      const prefix = type === "order_document.archived" ? "Document archived" : "Document uploaded";
+      const detailText = joinSafeParts([
+        title,
+        category ? `Category: ${category}` : null,
+        visibility ? `Visibility: ${visibility}` : null,
+        reason ? `Reason: ${reason}` : null,
+      ]);
+      return detailText ? `${prefix}: ${detailText}` : prefix;
+    }
+    case "order_number.manual_override": {
+      const oldNumber = firstSafeText(meta?.old_order_number);
+      const newNumber = firstSafeText(meta?.new_order_number);
+      const reason = firstSafeText(meta?.reason);
+      const changed = oldNumber && newNumber ? `${oldNumber} → ${newNumber}` : newNumber || oldNumber;
+      return joinSafeParts([
+        changed ? `Order number ${changed}` : "Order number changed",
+        reason ? `Reason: ${reason}` : null,
+      ]);
+    }
+    case "site_visit": {
+      const visit = fmtDateLocal(meta?.site_visit_at || meta?.site_visit_date || meta?.date);
+      return visit ? `Site visit ${visit}` : "Site visit updated";
+    }
     case "dates_updated": {
       const parts = [];
       const review = fmtDateLocal(meta?.review_due_at || meta?.review_due_date);
@@ -325,8 +484,5 @@ export function formatActivity(item = {}) {
     return trimmed;
   }
 
-  // If meta is empty and no message, skip rendering
-  if (!hasMeta) return "";
-
-  return "";
+  return "Event recorded";
 }

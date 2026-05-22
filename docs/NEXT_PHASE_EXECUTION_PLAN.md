@@ -18,6 +18,7 @@ Baseline references:
 - `docs/HISTORICAL_ADMIN_READBACK_PLAN.md`
 - `docs/DASHBOARD_ANALYTICS_PLAN.md`
 - `docs/WORKLOAD_VISIBILITY_PLAN.md`
+- `docs/OPERATIONAL_TIMELINE_PLAN.md`
 
 ## Executive Direction
 
@@ -80,6 +81,11 @@ write paths or lifecycle behavior.
   - clearer URL persistence;
   - unified reset;
   - saved query patterns only after the active filter model is stable.
+- Governed operational timeline UX:
+  - Order Detail history grouping;
+  - lifecycle/workflow/assignment/document/note event categories;
+  - safe payload display;
+  - richer read context without mutation behavior.
 
 ### Guardrails
 
@@ -236,6 +242,26 @@ not surfaced.
 Deferred filter UX work remains reconciling `due=this_week` and `due=next_week`, deciding whether
 `priority` should become a governed active filter, adding richer assignee/client chip labels where
 safe, and separately designing saved views, filter presets, and historical/admin filter chips.
+
+### Completed Operational Timeline Foundation
+
+Operational Timeline Slices 1A through 1F plan, implement, and close out the first governed
+Order Detail operational timeline foundation in `docs/OPERATIONAL_TIMELINE_PLAN.md`.
+
+The completed foundation improves the existing Order Detail activity timeline while preserving
+audit integrity and backend activity authority. It locks governed category mapping for
+`Lifecycle`, `Workflow`, `Assignment`, `Documents`, `Notes`, `System`, and conservative `Unknown`
+rows; category chips and category-specific styling; safe event labels and detail snippets; unknown
+event preservation; date/day grouping under `Today`, `Yesterday`, and older calendar dates; and
+deterministic ordering inside each group.
+
+The locked guardrails are read-only presentation only, existing loaded activity data only, backend
+activity remains the source of truth, frontend code only formats/presents activity, no
+filters/hiding yet, no raw payload expansion, no timeline actions or mutations, no activity
+ownership change, and no backend/API/RPC/view/migration changes.
+
+Deferred timeline work remains event-type filters, richer timeline lanes, a dedicated timeline read
+model if needed, printable timeline inclusion, exportable audit trails, and an admin audit console.
 
 ## Track 2: Targeted Backend Ownership Migrations
 

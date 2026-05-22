@@ -1,39 +1,48 @@
 // Row.jsx
-import React from "react";
 import {
   LABEL,
   EVENT_ICON,
   formatWhen,
   formatActivity,
+  getActivityCategory,
   resolveActivityActor,
   colorForActivityActor,
   isHumanCommunicationEvent,
   isSystemEvent,
 } from "./utils";
-import { TypeBadge } from "./Badges";
 
 export default function Row({ item, grouped = false }) {
   const when = formatWhen(item?.created_at);
   const et = item?.event_type || "";
-  const label = LABEL[et] || et || "Event";
+  const label = LABEL[et] || "Activity event";
+  const category = getActivityCategory(et);
 
   const actor = resolveActivityActor(item);
   const actorColor = colorForActivityActor(actor);
 
-  let body = formatActivity(item);
-  if (!body) {
-    return null; // skip empty/robotic entries
-  }
+  const body = formatActivity(item) || "Event recorded";
 
   const Icon = EVENT_ICON[et] || EVENT_ICON.order_created;
   const isSystem = isSystemEvent(et);
   const isHuman = isHumanCommunicationEvent(et) || !isSystem;
+  const categoryChip = (
+    <span
+      className={[
+        "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase",
+        "tracking-wide",
+        category.className,
+      ].join(" ")}
+    >
+      {category.label}
+    </span>
+  );
 
   if (isHuman) {
     return (
       <div
         className={[
-          "rounded-xl border border-slate-200 bg-white p-3",
+          "rounded-xl border p-3",
+          category.rowClassName,
           grouped ? "shadow-none" : "shadow-sm",
         ].join(" ")}
       >
@@ -48,7 +57,8 @@ export default function Row({ item, grouped = false }) {
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <div className="text-sm font-semibold text-slate-950">{actor.fullName}</div>
-              <div className="text-[11px] font-medium text-slate-400">{label}</div>
+              {categoryChip}
+              <div className="text-[11px] font-semibold text-slate-600">{label}</div>
               <time className="text-[11px] text-slate-400" dateTime={item?.created_at || undefined}>
                 {when}
               </time>
@@ -66,19 +76,25 @@ export default function Row({ item, grouped = false }) {
   return (
     <div
       className={[
-        "rounded-lg border border-slate-200/80 bg-white/80 px-3 py-2",
+        "rounded-lg border px-3 py-2",
+        category.rowClassName,
         grouped ? "shadow-none" : "shadow-[0_1px_1px_rgba(15,23,42,0.03)]",
       ].join(" ")}
     >
       <div className="flex items-start gap-2.5">
-        <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-400">
+        <div
+          className={[
+            "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border",
+            category.iconClassName,
+          ].join(" ")}
+        >
           <Icon size={16} />
         </div>
 
         <div className="min-w-0 flex-1 text-sm">
           <div className="flex flex-wrap items-center gap-2">
             <div className="font-semibold text-slate-800">{label}</div>
-            {!isSystem && <TypeBadge type="user" />}
+            {categoryChip}
             <time className="text-[11px] text-slate-400" dateTime={item?.created_at || undefined}>
               {when}
             </time>

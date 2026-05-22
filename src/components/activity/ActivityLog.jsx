@@ -1,5 +1,5 @@
 // ActivityLog.jsx
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { listOrderActivity, subscribeOrderActivity } from "@/lib/services/activityService";
 import ActivityNoteForm from "@/components/activity/ActivityNoteForm";
 import Legend from "./Legend";
@@ -9,17 +9,20 @@ import {
   dayLabel,
   displayNameFrom,
   getActivityActorColorSeed,
+  isSystemEvent,
   resolveActivityActor,
 } from "./utils";
 
-// treat these as system events (no user badge)
-const SYSTEM_TYPES = new Set([
-  "order_created",
-  "status_changed",
-  "dates_updated",
-  "assignee_changed",
-  "fee_changed",
-]);
+function activityTimestampMs(item) {
+  const value = new Date(item?.created_at || "").getTime();
+  return Number.isFinite(value) ? value : Number.POSITIVE_INFINITY;
+}
+
+function compareActivityChronologically(a, b) {
+  const diff = activityTimestampMs(a) - activityTimestampMs(b);
+  if (diff !== 0) return diff;
+  return String(a?.id || "").localeCompare(String(b?.id || ""));
+}
 
 export default function ActivityLog({
   orderId,
@@ -86,7 +89,7 @@ export default function ActivityLog({
   const participants = useMemo(() => {
     const map = new Map();
     for (const it of rows) {
-      if (SYSTEM_TYPES.has(it?.event_type)) continue;
+      if (isSystemEvent(it?.event_type)) continue;
       const actor = resolveActivityActor(it);
       const key = it?.created_by_email || it?.created_by || displayNameFrom(it?.created_by_name, it?.created_by_email, it?.created_by);
       const name = actor.shortName || displayNameFrom(it?.created_by_name, it?.created_by_email, it?.created_by);
@@ -97,40 +100,35 @@ export default function ActivityLog({
   }, [rows]);
 
   // Filter + group by day
-const grouped = useMemo(() => {
-  const includeSystem = showSystem && !activeUserKey; // <-- system only when no user filter
-  const keep = [];
+  const grouped = useMemo(() => {
+    const includeSystem = showSystem && !activeUserKey; // <-- system only when no user filter
+    const keep = [];
 
-  for (const it of rows) {
-    const isSystem = SYSTEM_TYPES.has(it?.event_type);
-    if (isSystem && !includeSystem) continue;
+    for (const it of rows) {
+      const isSystem = isSystemEvent(it?.event_type);
+      if (isSystem && !includeSystem) continue;
 
-    if (!isSystem && activeUserKey) {
-      const key =
-        it?.created_by_email ||
-        it?.created_by ||
-        displayNameFrom(it?.created_by_name, it?.created_by_email, it?.created_by);
-      if (key !== activeUserKey) continue;
+      if (!isSystem && activeUserKey) {
+        const key =
+          it?.created_by_email ||
+          it?.created_by ||
+          displayNameFrom(it?.created_by_name, it?.created_by_email, it?.created_by);
+        if (key !== activeUserKey) continue;
+      }
+      keep.push(it);
     }
-    keep.push(it);
-  }
 
-  const map = new Map();
-  for (const it of keep) {
-    const k = dayKey(it?.created_at);
-    if (!map.has(k)) map.set(k, []);
-    map.get(k).push(it);
-  }
-  for (const [, list] of map) {
-    list.sort(
-      (a, b) =>
-        new Date(a?.created_at || 0).getTime() -
-        new Date(b?.created_at || 0).getTime()
-    );
-  }
-  return Array.from(map.entries()).sort(([a],[b]) => (a < b ? -1 : a > b ? 1 : 0));
-}, [rows, showSystem, activeUserKey]);
-
+    const map = new Map();
+    for (const it of keep) {
+      const k = dayKey(it?.created_at);
+      if (!map.has(k)) map.set(k, []);
+      map.get(k).push(it);
+    }
+    for (const [, list] of map) {
+      list.sort(compareActivityChronologically);
+    }
+    return Array.from(map.entries()).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  }, [rows, showSystem, activeUserKey]);
 
   const content = useMemo(() => {
     if (loading) {
@@ -212,8 +210,5 @@ const grouped = useMemo(() => {
     </div>
   );
 }
-
-
-
 
 
