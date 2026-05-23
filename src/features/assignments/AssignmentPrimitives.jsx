@@ -36,21 +36,75 @@ export function BackLink() {
   return (
     <Link to="/assignments" className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-950">
       <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-      Assignments
+      Back to Assignments Workspace
     </Link>
+  );
+}
+
+export function PacketHeader({
+  eyebrow,
+  title,
+  subtitle,
+  packet,
+  side = "assigned",
+  status,
+  actions,
+  secondaryActions,
+}) {
+  return (
+    <section
+      aria-label={`${eyebrow} detail`}
+      className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm"
+    >
+      <div className="flex flex-col gap-4 bg-slate-50/70 px-5 py-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{eyebrow}</div>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">{title}</h1>
+          {subtitle && <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-500">{subtitle}</p>}
+          <div className="mt-3">
+            <AssignmentMetaChips packet={packet} side={side} />
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <AssignmentStatusBadge status={status} />
+          {secondaryActions}
+        </div>
+      </div>
+      {actions && (
+        <div className="border-t border-slate-200 px-5 py-4" aria-label="Packet actions">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">Packet Actions</div>
+          <div className="mt-2">{actions}</div>
+        </div>
+      )}
+    </section>
   );
 }
 
 export function FieldGrid({ fields }) {
   return (
-    <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {fields.map(([label, value]) => (
-        <div key={label} className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
-          <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">{label}</dt>
-          <dd className="mt-1 text-sm font-medium text-slate-800">{value || "Not set"}</dd>
-        </div>
-      ))}
-    </dl>
+    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <h2 className="text-sm font-semibold text-slate-950">Packet Context</h2>
+      <dl className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {fields.map(([label, value]) => (
+          <div key={label} className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+            <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">{label}</dt>
+            <dd className="mt-1 text-sm font-medium text-slate-800">{value || "Not set"}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
+export function InstructionsSection({ children }) {
+  if (!children) return null;
+  return (
+    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <h2 className="text-sm font-semibold text-slate-950">Instructions</h2>
+      <p className="mt-2 whitespace-pre-wrap rounded-md border border-slate-100 bg-slate-50 px-3 py-2 text-sm leading-6 text-slate-700">
+        {children}
+      </p>
+    </section>
   );
 }
 

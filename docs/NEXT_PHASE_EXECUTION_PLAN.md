@@ -481,6 +481,106 @@ RLS/RPCs, client model/API/RPC behavior, displayed data, query/filter/sort seman
 submission behavior, Client Portal behavior, CRM feature behavior, new actions, new mutations,
 order visibility behavior, fake analytics, or predictive scoring changed.
 
+### Planned Assignments Workspace Polish
+
+Assignments Workspace Polish Slice 1A creates the governed strategy in
+`docs/ASSIGNMENTS_WORKSPACE_POLISH_STRATEGY.md`.
+
+The planned purpose is to make the standalone `/assignments` workspace feel like a clear packet
+coordination surface now that Dashboard, Orders, Calendar, and Clients first-pass polish
+foundations are locked. The current foundation already has `/assignments` and
+`/assignments/:assignmentId` routes guarded by assignment packet read permissions, assigned-company
+and owner-company lanes, assignment status filters, packet detail resolution without canonical
+order fallback, backend-owned `rpc_order_company_assignment_*` lifecycle wrappers,
+assignment-scoped activity, assignment dashboard widgets, and owner-side Order Detail assignment
+panels.
+
+Recommended first implementation:
+
+- frontend-only shell polish for `AssignmentsPage` and lane headers;
+- preserve all current assignment list/detail/action behavior;
+- frame the workspace as packet coordination, not canonical order operations or dispatch;
+- clarify received work versus sent assignments;
+- add compact read-only context from existing lane availability only;
+- improve status/filter/control grouping, loading/error/empty states, and mobile wrapping;
+- avoid packet detail redesign until the list shell hierarchy is stable.
+
+Guardrails:
+
+- no backend changes;
+- no Supabase changes;
+- no assignment query semantics changes;
+- no assignment workflow or state-machine changes;
+- no permission or company-scoping changes;
+- no Smart Action behavior changes;
+- no canonical order/client/relationship visibility broadening;
+- no staffing, dispatch, auto-routing, vendor scoring, ranking, capacity, fake analytics,
+  predictive scoring, or queue semantic changes;
+- no new assignment lifecycle actions, bulk actions, direct table writes, or frontend-authored
+  assignment activity/notification fanout;
+- no Vendor Portal or Client Portal product shell activation.
+
+Deferred Assignments workspace work remains packet detail hierarchy polish, assignment activity
+timeline readability, assignment JSON section readability, saved assignment views, assignment
+history/admin readback, assignment search/pagination, packet messaging, server-side assignment
+analytics if needed, staffing/dispatch recommendations, vendor eligibility/scoring, capacity
+forecasting, Vendor Portal activation, and AMC-native assignment queue command-center behavior.
+
+Assignments Workspace Polish Slice 1B is complete as the first frontend-only runtime polish pass.
+`AssignmentsPage` now frames `/assignments` as `Assignments Workspace` under `Packet Coordination`,
+adds compact read-only context for visible work lanes, packet-scoped access, and packet-only
+navigation, and preserves the existing permission gate. The assigned-company lane is now presented
+as `Received Work`; the owner-company lane is now presented as `Sent Assignments`; both lanes have
+clearer packet-scope support copy, polished header spacing, labeled status filters, and calmer
+loading/empty copy. Tests cover the hierarchy, lane labels, preserved list RPC calls, preserved
+status filter arguments, packet navigation links, and denied access state. The slice changed no
+backend behavior, Supabase behavior, routes, permissions, company scoping, RLS/RPCs, assignment
+query semantics, assignment workflow/state-machine behavior, Smart Actions, staffing/dispatch
+logic, queue semantics, canonical order/client/relationship visibility, fake analytics, predictive
+scoring, dashboard assignment behavior, Order Detail assignment behavior, or mutation paths.
+
+Assignments Workspace Polish Slice 1C is complete as frontend-only packet card/list presentation
+polish. Received Work rows now have clearer `Received Packet` hierarchy, order-number identity,
+status/attention badges, labeled owner/type/location metadata, instruction preview treatment,
+due/expiration dates, and an explicit `Open packet` affordance. Sent Assignments rows now have
+clearer `Sent Packet` hierarchy, assigned-company identity, status/attention badges, labeled
+type/relationship metadata, instruction preview treatment, due/updated dates, and the same explicit
+packet-opening affordance. Tests cover the card labels, accessible packet links, displayed
+metadata, instruction previews, and unchanged list/filter RPC behavior. The slice changed no
+backend behavior, Supabase behavior, routes, permissions, company scoping, RLS/RPCs, assignment
+query semantics, assignment workflow/state-machine behavior, Smart Actions, staffing/dispatch
+logic, queue semantics, canonical order/client/relationship visibility, fake analytics, predictive
+scoring, new packet actions, dashboard assignment behavior, Order Detail assignment behavior, or
+mutation paths.
+
+Assignments Workspace Polish Slice 1D is complete as frontend-only packet detail presentation
+polish. `AssignmentPrimitives` now provides a shared `PacketHeader`, wraps field grids as
+`Packet Context`, and provides a shared instruction display treatment. `AssignedOfferPacket`,
+`AssignedWorkPacket`, and `OwnerAssignmentPacket` now use the same packet detail hierarchy for
+eyebrow, title, subtitle, status, packet meta chips, and action placement. Owner packet `Open
+Order` remains an owner-side secondary action with a descriptive accessible label, and the detail
+back link now reads `Back to Assignments Workspace`. Tests cover assigned offer hierarchy, assigned
+work hierarchy, owner order navigation, packet context rendering, instruction rendering, and
+activity timeline preservation. The slice changed no backend behavior, Supabase behavior, routes,
+permissions, company scoping, RLS/RPCs, packet resolution order, assignment query semantics,
+assignment workflow/state-machine behavior, Smart Actions, staffing/dispatch logic, queue
+semantics, canonical order/client/relationship visibility, fake analytics, predictive scoring, new
+packet actions, dashboard assignment behavior, Order Detail assignment behavior, or mutation paths.
+
+Assignments Workspace Polish Slice 1E is complete as the first-pass consistency, accessibility, and
+responsive cleanup checkpoint. Received Work and Sent Assignments lane sections now expose
+accessible region labels, shared packet detail headers expose accessible detail-region labels, and
+packet action areas expose an accessible `Packet actions` region label. Tests lock the lane region
+labels plus packet detail/action labels. The first Assignments Workspace polish foundation is now
+locked across strategy, packet-coordination shell hierarchy, Received Work and Sent Assignments
+lane polish, packet card/list presentation, packet detail header/context/instruction presentation,
+and consistency/accessibility cleanup. No backend behavior, Supabase behavior, routes, permissions,
+company scoping, RLS/RPCs, packet resolution order, assignment query semantics, assignment
+workflow/state-machine behavior, Smart Actions, staffing/dispatch logic, queue semantics,
+canonical order/client/relationship visibility, fake analytics, predictive scoring, new packet
+actions, dashboard assignment behavior, Order Detail assignment behavior, or mutation paths
+changed.
+
 ### Completed Orders Filtering/Search Audit
 
 Operational UX Slice B1 inventories the active Orders filtering/search surface in
