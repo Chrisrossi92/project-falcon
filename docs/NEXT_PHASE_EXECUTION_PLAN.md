@@ -581,6 +581,182 @@ canonical order/client/relationship visibility, fake analytics, predictive scori
 actions, dashboard assignment behavior, Order Detail assignment behavior, or mutation paths
 changed.
 
+### Completed Falcon Design System Foundation Phase 1A
+
+Falcon Design System Foundation Phase 1A is complete as docs-only codification in
+`docs/FALCON_DESIGN_SYSTEM_FOUNDATION.md`.
+
+The foundation records the reusable operational design language now shared by the polished
+Dashboard, Orders, Calendar, Clients, and Assignments workspaces:
+
+- workspace-first hierarchy;
+- compact workspace headers;
+- read-only context strips;
+- primary work surfaces before support content;
+- section shells and card standards;
+- spacing cadence and typography rhythm;
+- deterministic color, badge, and action hierarchy;
+- control grouping;
+- empty/loading/error state tone;
+- responsive stacking;
+- accessibility expectations;
+- soft reactive motion guidance.
+
+The document separates current standards from future implementation phases and deferred
+experiments. It does not introduce runtime components, component rewrites, Tailwind/global theme
+changes, backend behavior, Supabase behavior, query behavior, permissions, product-mode authority,
+feature expansion, dark-mode overhaul, animation library integration, or design-system abstraction
+implementation.
+
+Recommended next design-system work, when needed:
+
+- inventory duplicated shell/card/context patterns before extracting any primitive;
+- define a Tailwind class recipe map before global token changes;
+- extract one passive presentation primitive at a time behind tests;
+- keep route, permission, query, data, workflow, lifecycle, and mutation authority unchanged.
+
+### Completed Falcon Design System Foundation Phase 1B
+
+Falcon Design System Foundation Phase 1B is complete as docs-only primitive extraction inventory in
+`docs/FALCON_DESIGN_SYSTEM_FOUNDATION.md`.
+
+The inventory finds repeated, now-stable patterns across Dashboard, Orders, Calendar, Clients, and
+Assignments:
+
+- workspace headers;
+- context strips and context tiles;
+- section shells;
+- card shells;
+- loading, empty, and error state blocks;
+- control group wrappers;
+- action regions;
+- badge/status treatments;
+- soft interaction and motion recipes.
+
+Candidates are ranked by safety, reuse value, and implementation risk. The safest first runtime
+implementation slice is a passive `StateBlock` / `LoadingState` / `EmptyState` / `ErrorState`
+primitive family, migrated into one low-risk surface first and covered with focused presentation
+tests. The recommended second slice is a passive `ContextTile` extraction.
+
+Deferred extraction candidates remain `WorkspaceHeader`, `WorkspaceContextStrip`,
+`WorkspaceSection`, `ActionButton`, `StatusBadge`, `CardShell`, `SupportRail`, global motion
+tokens, Tailwind theme token changes, and whole-page `WorkspaceShell` abstraction.
+
+Phase 1B added no runtime code, component rewrites, Tailwind/global theme changes, backend
+behavior, Supabase behavior, query behavior, routes, permissions, workflow/lifecycle/mutation
+behavior, visual redesign, or animation library integration.
+
+### Completed Falcon Design System Foundation Phase 1C
+
+Falcon Design System Foundation Phase 1C is complete as the first safe runtime primitive
+extraction.
+
+Implemented:
+
+- `src/components/workspace/WorkspaceState.jsx`;
+- `WorkspaceState`;
+- `WorkspaceLoadingState`;
+- `WorkspaceErrorState`;
+- `WorkspaceEmptyState`.
+
+Initial migrated surfaces:
+
+- Calendar route loading and error states;
+- Clients directory loading, error, and empty states;
+- Client Detail loading, error, and not-found states.
+
+The migration preserves existing copy, `role="status"` loading semantics, `role="alert"` error
+semantics, non-alerting empty states, visual intent, layout intent, route behavior, query behavior,
+permission behavior, data loading behavior, workflow/lifecycle behavior, and mutation behavior.
+
+Assignment packet states remain on `AssignmentState` because they carry packet-specific safety
+language and action behavior. Orders table state blocks remain local because table skeleton
+loading, queue empty copy, pagination context, and table chrome are more surface-specific.
+
+The next recommended design-system primitive slice is passive context-tile extraction, with layout
+wrappers still owned by each workspace and all values caller-derived/read-only.
+
+Phase 1C added no backend behavior, Supabase behavior, query/filter behavior, workflow/lifecycle
+behavior, permission behavior, visual redesign, Tailwind/global theme rewrite, motion system,
+broad workspace-shell extraction, or large refactor.
+
+### Completed Falcon Design System Foundation Phase 1D
+
+Falcon Design System Foundation Phase 1D is complete as the second safe runtime primitive
+extraction.
+
+Implemented:
+
+- `src/components/workspace/WorkspaceContext.jsx`;
+- `WorkspaceContextStrip`;
+- `WorkspaceContextTile`.
+
+Initial migrated surfaces:
+
+- Calendar workspace header context;
+- Clients workspace header context;
+- Client Detail header context;
+- Assignments workspace context strip and tiles.
+
+The migration preserves existing context labels, values, aria labels, responsive layout ownership,
+caller-derived data, and read-only/non-interactive behavior. The primitive owns only label/value
+presentation and optional wrapper semantics; it does not compute company, permission, filter,
+packet, order, status, count, or query state.
+
+Orders workspace context remains local because it is filter-aware and chip-based. Dashboard header
+context remains local because the dark active-count tile needs a separate count-tile or header
+extraction design.
+
+The next possible design-system primitive slice is a narrow `WorkspaceSection` wrapper if headings,
+ARIA, and layout remain caller-controlled. Workspace headers, action buttons, status badges, card
+shells, support rails, motion tokens, Tailwind theme changes, and whole-page workspace shells
+remain deferred.
+
+Phase 1D added no backend behavior, Supabase behavior, query/filter behavior, workflow/lifecycle
+behavior, permission behavior, visual redesign, Tailwind/global theme rewrite, motion system,
+workspace header extraction, interactive filter/control extraction, or broad refactor.
+
+### Completed Falcon Design System Foundation Phase 1E
+
+Falcon Design System Foundation Phase 1E is complete as the third safe runtime primitive
+extraction.
+
+Implemented:
+
+- `src/components/workspace/WorkspaceSection.jsx`;
+- `WorkspaceSection`;
+- `WorkspaceSectionMeta`.
+
+Initial migrated surfaces:
+
+- Calendar `Schedule Board`;
+- Clients `Client Directory`;
+- Client Detail `Client Contact`;
+- Client Detail `Related Orders`;
+- Client Detail `Visible Order Context`;
+- Client Detail `Relationship Notes`.
+
+The migration preserves existing section titles, support copy, read-only meta text, heading IDs,
+`aria-labelledby` relationships, spacing intent, responsive alignment, data sources, forms, tables,
+and route behavior. The primitive owns only passive section framing; it does not own controls,
+actions, badges, cards, list rendering, table behavior, query state, or mutation state.
+
+Orders table chrome remains local because it is a primary worklist with table-specific density,
+filtering, and Smart Action behavior. Dashboard support areas remain local because dashboard
+widget/KPI semantics need separate design. Assignment lane wrappers remain local because their
+headers contain status filters and refresh actions. Clients `Relationship Controls` remains local
+because it combines an action, search, sort, and filter controls.
+
+The next possible design-system primitive slice should stay narrow: either a read-only card shell
+for stable non-clickable metric/detail cards or a status/badge inventory before any runtime badge
+extraction. Whole-page workspace shells, interactive action regions, Orders table chrome,
+assignment packet lanes, global motion tokens, and Tailwind theme changes remain deferred.
+
+Phase 1E added no backend behavior, Supabase behavior, query/filter behavior, workflow/lifecycle
+behavior, permission behavior, visual redesign, Tailwind/global theme rewrite, motion system,
+card-shell extraction, workspace header extraction, interactive control extraction, or broad
+refactor.
+
 ### Completed Orders Filtering/Search Audit
 
 Operational UX Slice B1 inventories the active Orders filtering/search surface in

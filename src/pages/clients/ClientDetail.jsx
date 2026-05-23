@@ -2,6 +2,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
+import { WorkspaceContextTile } from "@/components/workspace/WorkspaceContext";
+import { WorkspaceSection, WorkspaceSectionMeta } from "@/components/workspace/WorkspaceSection";
+import {
+  WorkspaceEmptyState,
+  WorkspaceErrorState,
+  WorkspaceLoadingState,
+} from "@/components/workspace/WorkspaceState";
 import supabase from "@/lib/supabaseClient";
 import ClientForm from "@/components/clients/ClientForm";
 import {
@@ -257,12 +264,7 @@ export default function ClientDetail() {
   if (loading || appContextLoading) {
     return (
       <div className="p-4 md:p-6">
-        <div
-          role="status"
-          className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600"
-        >
-          Loading client relationship...
-        </div>
+        <WorkspaceLoadingState message="Loading client relationship..." className="rounded-xl" />
       </div>
     );
   }
@@ -284,12 +286,7 @@ export default function ClientDetail() {
             Back to clients
           </Link>
         </div>
-        <div
-          role="alert"
-          className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
-        >
-          {err}
-        </div>
+        <WorkspaceErrorState message={err} />
       </div>
     );
   }
@@ -297,9 +294,9 @@ export default function ClientDetail() {
   if (!client) {
     return (
       <div className="p-4 md:p-6">
-        <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-600">
+        <WorkspaceEmptyState className="text-sm text-slate-600">
           Client not found.
-        </div>
+        </WorkspaceEmptyState>
       </div>
     );
   }
@@ -362,9 +359,9 @@ export default function ClientDetail() {
           </div>
 
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:min-w-[24rem]">
-            <ContextTile label="Visible orders" value={stats.totalOrders} />
-            <ContextTile label="Active orders" value={activeOrders} />
-            <ContextTile label="Last order" value={fmtDate(stats.lastOrderDate || null)} />
+            <WorkspaceContextTile label="Visible orders" value={stats.totalOrders} />
+            <WorkspaceContextTile label="Active orders" value={activeOrders} />
+            <WorkspaceContextTile label="Last order" value={fmtDate(stats.lastOrderDate || null)} />
           </div>
         </div>
 
@@ -390,21 +387,12 @@ export default function ClientDetail() {
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(18rem,0.95fr)]">
         <div className="space-y-4">
-          <section
-            aria-labelledby="client-contact-heading"
+          <WorkspaceSection
+            title="Client Contact"
+            titleId="client-contact-heading"
+            description="Primary contact fields currently stored on this client record."
             className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
           >
-            <div className="mb-4 border-b border-slate-100 pb-3">
-              <h2
-                id="client-contact-heading"
-                className="text-base font-semibold text-slate-950"
-              >
-                Client Contact
-              </h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Primary contact fields currently stored on this client record.
-              </p>
-            </div>
             {editing && canUpdateAllClients ? (
               <ClientForm
                 initial={client}
@@ -437,32 +425,24 @@ export default function ClientDetail() {
                 />
               </div>
             )}
-          </section>
+          </WorkspaceSection>
 
-          <section
-            aria-labelledby="client-orders-heading"
-            className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
-          >
-            <div className="mb-4 flex flex-col gap-2 border-b border-slate-100 pb-3 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <h2
-                  id="client-orders-heading"
-                  className="text-base font-semibold text-slate-950"
-                >
-                  Related Orders
-                </h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  Orders visible to your current company role for this client.
-                </p>
-              </div>
-              {anyOrders && (
-                <span className="text-sm font-medium text-slate-600">
+          <WorkspaceSection
+            title="Related Orders"
+            titleId="client-orders-heading"
+            description="Orders visible to your current company role for this client."
+            meta={
+              anyOrders ? (
+                <WorkspaceSectionMeta>
                   {stats.totalOrders} total / {activeOrders} active /{" "}
                   {completedOrders} completed
-                </span>
-              )}
-            </div>
-
+                </WorkspaceSectionMeta>
+              ) : null
+            }
+            className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+            headerClassName="mb-4 border-b border-slate-100 pb-3"
+            headerContentClassName="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"
+          >
             {!anyOrders ? (
               <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-600">
                 No visible orders for this client.
@@ -488,20 +468,16 @@ export default function ClientDetail() {
                 )}
               </div>
             )}
-          </section>
+          </WorkspaceSection>
         </div>
 
         <aside className="space-y-4">
-          <section
-            aria-labelledby="client-context-heading"
+          <WorkspaceSection
+            title="Visible Order Context"
+            titleId="client-context-heading"
             className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+            headerClassName="mb-3"
           >
-            <h2
-              id="client-context-heading"
-              className="mb-3 text-base font-semibold text-slate-950"
-            >
-              Visible Order Context
-            </h2>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <MetricTile label="Total Orders" value={stats.totalOrders} />
               <MetricTile label="Active Orders" value={activeOrders} />
@@ -513,17 +489,18 @@ export default function ClientDetail() {
                 value={fmtDate(stats.lastOrderDate || null)}
               />
             </div>
-          </section>
+          </WorkspaceSection>
 
-          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="mb-2 text-base font-semibold text-slate-950">
-              Relationship Notes
-            </h2>
+          <WorkspaceSection
+            title="Relationship Notes"
+            className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+            headerClassName="mb-2"
+          >
             <p className="text-sm leading-6 text-slate-500">
               Internal relationship context remains read-only here unless you
               use the existing edit flow for supported client fields.
             </p>
-          </section>
+          </WorkspaceSection>
         </aside>
       </div>
     </div>
@@ -531,19 +508,6 @@ export default function ClientDetail() {
 }
 
 /* ============================== subcomponents ============================== */
-
-function ContextTile({ label, value }) {
-  return (
-    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm">
-      <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-        {label}
-      </div>
-      <div className="mt-1 truncate text-sm font-medium text-slate-950">
-        {value}
-      </div>
-    </div>
-  );
-}
 
 function DetailField({ label, value, className = "" }) {
   return (

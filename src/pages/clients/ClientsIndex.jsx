@@ -2,6 +2,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import ClientCard from "@/components/clients/ClientCard";
+import { WorkspaceContextTile } from "@/components/workspace/WorkspaceContext";
+import { WorkspaceSection, WorkspaceSectionMeta } from "@/components/workspace/WorkspaceSection";
+import {
+  WorkspaceEmptyState,
+  WorkspaceErrorState,
+  WorkspaceLoadingState,
+} from "@/components/workspace/WorkspaceState";
 import { useCan } from "@/lib/hooks/usePermissions";
 import { PERMISSIONS } from "@/lib/permissions/constants";
 import { listClientManagementClients } from "@/features/clients/clientManagementApi";
@@ -27,19 +34,6 @@ const sortLabels = {
   name_asc: "Name (A-Z)",
   name_desc: "Name (Z-A)",
 };
-
-function ContextPill({ label, value }) {
-  return (
-    <div className="min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm">
-      <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-        {label}
-      </div>
-      <div className="mt-0.5 truncate text-sm font-medium text-slate-900">
-        {value}
-      </div>
-    </div>
-  );
-}
 
 export default function ClientsIndex() {
   const canCreateClientsPermission = useCan(PERMISSIONS.CLIENTS_CREATE);
@@ -124,12 +118,21 @@ export default function ClientsIndex() {
             aria-label="Clients workspace context"
             className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:min-w-[32rem]"
           >
-            <ContextPill label="Work view" value="Client relationships" />
-            <ContextPill
+            <WorkspaceContextTile
+              label="Work view"
+              value="Client relationships"
+              valueClassName="mt-0.5 text-slate-900"
+            />
+            <WorkspaceContextTile
               label="Active filter"
               value={categoryLabels[categoryFilter]}
+              valueClassName="mt-0.5 text-slate-900"
             />
-            <ContextPill label="Results" value={resultCountLabel} />
+            <WorkspaceContextTile
+              label="Results"
+              value={resultCountLabel}
+              valueClassName="mt-0.5 text-slate-900"
+            />
           </div>
         </div>
       </header>
@@ -257,52 +260,24 @@ export default function ClientsIndex() {
         </div>
       </section>
 
-      <section
-        aria-labelledby="client-directory-heading"
+      <WorkspaceSection
+        title="Client Directory"
+        titleId="client-directory-heading"
+        description={`${activeSearchLabel} · ${categoryLabels[categoryFilter]} · ${sortLabels[sort]}`}
+        meta={<WorkspaceSectionMeta>{resultCountLabel}</WorkspaceSectionMeta>}
         className="rounded-xl border border-slate-200 bg-white px-4 py-4 shadow-sm md:px-5"
+        headerClassName="mb-4 border-b border-slate-100 pb-4"
+        headerContentClassName="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"
       >
-        <div className="mb-4 flex flex-col gap-2 border-b border-slate-100 pb-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h2
-              id="client-directory-heading"
-              className="text-base font-semibold text-slate-950"
-            >
-              Client Directory
-            </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              {activeSearchLabel} · {categoryLabels[categoryFilter]} ·{" "}
-              {sortLabels[sort]}
-            </p>
-          </div>
-          <div className="text-sm font-medium text-slate-600">
-            {resultCountLabel}
-          </div>
-        </div>
-
         {err ? (
-          <div
-            role="alert"
-            className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
-          >
-            {err}
-          </div>
+          <WorkspaceErrorState message={err} />
         ) : loading ? (
-          <div
-            role="status"
-            className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600"
-          >
-            Loading client relationships...
-          </div>
+          <WorkspaceLoadingState message="Loading client relationships..." />
         ) : gridRows.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center">
-            <h3 className="text-sm font-semibold text-slate-900">
-              No clients match these filters
-            </h3>
-            <p className="mt-1 text-sm text-slate-500">
-              Adjust the search or category filter to broaden the relationship
-              list.
-            </p>
-          </div>
+          <WorkspaceEmptyState
+            title="No clients match these filters"
+            message="Adjust the search or category filter to broaden the relationship list."
+          />
         ) : (
           <div
             aria-label="Client relationship cards"
@@ -328,7 +303,7 @@ export default function ClientsIndex() {
             ))}
           </div>
         )}
-      </section>
+      </WorkspaceSection>
     </div>
   );
 }

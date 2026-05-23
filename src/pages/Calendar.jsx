@@ -5,6 +5,9 @@ import CalendarLegend from "@/components/calendar/CalendarLegend";
 import TwoWeekCalendar from "@/components/calendar/TwoWeekCalendar";
 import CalendarGrid from "@/components/calendar/CalendarGrid";
 import CalendarDayDetailRail from "@/components/calendar/CalendarDayDetailRail";
+import { WorkspaceContextTile } from "@/components/workspace/WorkspaceContext";
+import { WorkspaceSection } from "@/components/workspace/WorkspaceSection";
+import { WorkspaceErrorState, WorkspaceLoadingState } from "@/components/workspace/WorkspaceState";
 import supabase from "@/lib/supabaseClient";
 import { useCurrentUserAppContext } from "@/features/auth/useCurrentUserAppContext";
 import {
@@ -53,19 +56,6 @@ function viewContextLabel(view, weeks) {
 function activeOrdersLabel(count, loading) {
   if (loading) return "Loading";
   return `${count} active ${count === 1 ? "order" : "orders"}`;
-}
-
-function ContextChip({ label, value }) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-[0_1px_0_rgba(15,23,42,0.03)]">
-      <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
-        {label}
-      </div>
-      <div className="mt-1 max-w-[14rem] truncate text-sm font-semibold text-slate-800">
-        {value}
-      </div>
-    </div>
-  );
 }
 
 export default function CalendarPage() {
@@ -250,9 +240,27 @@ export default function CalendarPage() {
           </div>
 
           <div className="flex flex-wrap gap-2" aria-label="Calendar workspace context">
-            <ContextChip label="Company" value={companyLabel} />
-            <ContextChip label="Work view" value={roleLabel} />
-            <ContextChip label="Orders" value={activeOrdersContext} />
+            <WorkspaceContextTile
+              label="Company"
+              value={companyLabel}
+              className="rounded-xl shadow-[0_1px_0_rgba(15,23,42,0.03)]"
+              labelClassName="tracking-[0.12em] text-slate-400"
+              valueClassName="max-w-[14rem] font-semibold text-slate-800"
+            />
+            <WorkspaceContextTile
+              label="Work view"
+              value={roleLabel}
+              className="rounded-xl shadow-[0_1px_0_rgba(15,23,42,0.03)]"
+              labelClassName="tracking-[0.12em] text-slate-400"
+              valueClassName="max-w-[14rem] font-semibold text-slate-800"
+            />
+            <WorkspaceContextTile
+              label="Orders"
+              value={activeOrdersContext}
+              className="rounded-xl shadow-[0_1px_0_rgba(15,23,42,0.03)]"
+              labelClassName="tracking-[0.12em] text-slate-400"
+              valueClassName="max-w-[14rem] font-semibold text-slate-800"
+            />
           </div>
         </div>
       </section>
@@ -300,48 +308,38 @@ export default function CalendarPage() {
       </section>
 
       {loading && (
-        <div
-          className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600"
-          role="status"
-        >
-          Loading active schedule...
-        </div>
+        <WorkspaceLoadingState
+          message="Loading active schedule..."
+          className="rounded-xl"
+        />
       )}
 
       {error && (
-        <div
-          className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-          role="alert"
-        >
-          {error}
-        </div>
+        <WorkspaceErrorState
+          message={error}
+          tone="red"
+          className="rounded-xl"
+        />
       )}
 
       <section
         className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]"
         aria-label="Calendar schedule board and selected day details"
       >
-        <div
+        <WorkspaceSection
+          as="div"
           className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm ring-1 ring-slate-100"
-          aria-labelledby="calendar-board-heading"
-        >
-          <div className="mb-3 flex flex-col gap-2 px-1 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h2
-                id="calendar-board-heading"
-                className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500"
-              >
-                Schedule Board
-              </h2>
-              <p className="mt-1 text-sm text-slate-500">
-                {boardDescription}
-              </p>
-            </div>
+          title="Schedule Board"
+          titleId="calendar-board-heading"
+          description={boardDescription}
+          headerClassName="mb-3 px-1"
+          titleClassName="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500"
+          meta={
             <span className="w-fit rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600">
               {boardLabel}
             </span>
-          </div>
-
+          }
+        >
           <div className="overflow-x-auto pb-1">
             <div className="min-w-[44rem] lg:min-w-0">
               {view === "month" ? (
@@ -370,7 +368,7 @@ export default function CalendarPage() {
               )}
             </div>
           </div>
-        </div>
+        </WorkspaceSection>
 
         <CalendarDayDetailRail
           selectedDay={selectedDay}

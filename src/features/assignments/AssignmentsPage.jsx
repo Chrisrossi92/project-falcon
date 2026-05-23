@@ -1,3 +1,7 @@
+import {
+  WorkspaceContextStrip,
+  WorkspaceContextTile,
+} from "@/components/workspace/WorkspaceContext";
 import { useCanAny, useEffectivePermissions } from "@/lib/hooks/usePermissions";
 import { PERMISSIONS } from "@/lib/permissions/constants";
 import { AssignmentState, LoadingState, PageHeader } from "./AssignmentPrimitives";
@@ -39,23 +43,32 @@ export default function AssignmentsPage() {
         title="Assignments Workspace"
         subtitle="Coordinate scoped assignment packets between companies without expanding order or client visibility."
       />
-      <section
-        aria-label="Assignments workspace context"
+      <WorkspaceContextStrip
+        ariaLabel="Assignments workspace context"
         className="grid gap-2 rounded-lg border border-slate-200 bg-white p-3 shadow-sm sm:grid-cols-3"
       >
-        <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">Work View</div>
-          <div className="mt-1 text-sm font-semibold text-slate-800">{visibleLaneLabel || "Assignment packets"}</div>
-        </div>
-        <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">Access</div>
-          <div className="mt-1 text-sm font-semibold text-slate-800">Packet-scoped</div>
-        </div>
-        <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">Navigation</div>
-          <div className="mt-1 text-sm font-semibold text-slate-800">Open packets only</div>
-        </div>
-      </section>
+        <WorkspaceContextTile
+          label="Work View"
+          value={visibleLaneLabel || "Assignment packets"}
+          className="rounded-md border-slate-100 bg-slate-50 shadow-none"
+          labelClassName="text-[11px] tracking-[0.12em] text-slate-400"
+          valueClassName="font-semibold text-slate-800"
+        />
+        <WorkspaceContextTile
+          label="Access"
+          value="Packet-scoped"
+          className="rounded-md border-slate-100 bg-slate-50 shadow-none"
+          labelClassName="text-[11px] tracking-[0.12em] text-slate-400"
+          valueClassName="font-semibold text-slate-800"
+        />
+        <WorkspaceContextTile
+          label="Navigation"
+          value="Open packets only"
+          className="rounded-md border-slate-100 bg-slate-50 shadow-none"
+          labelClassName="text-[11px] tracking-[0.12em] text-slate-400"
+          valueClassName="font-semibold text-slate-800"
+        />
+      </WorkspaceContextStrip>
       <div className="grid gap-4 xl:grid-cols-2">
         {canReadAssigned && <AssignedAssignmentInbox />}
         {canReadOwner && <OwnerAssignmentManagement />}
