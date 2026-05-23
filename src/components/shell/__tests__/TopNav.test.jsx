@@ -98,7 +98,7 @@ describe("TopNav desktop primary navigation", () => {
       "Relationships",
       "Calendar",
       "Clients",
-      "Users",
+      "Team Access",
     ]);
 
     expect(links.map((link) => link.textContent)).toEqual([
@@ -107,7 +107,7 @@ describe("TopNav desktop primary navigation", () => {
       "Relationships",
       "Calendar",
       "Clients",
-      "Users",
+      "Team Access",
     ]);
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
       "/orders",
@@ -138,7 +138,7 @@ describe("TopNav desktop primary navigation", () => {
     expect(screen.queryByRole("link", { name: "Assignments" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Relationships" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Clients" })).toBeNull();
-    expect(screen.queryByRole("link", { name: "Users" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Team Access" })).toBeNull();
   });
 
   it("preserves exact-path active styling through NavItem", () => {
@@ -170,7 +170,7 @@ describe("TopNav desktop primary navigation", () => {
       "Relationships",
       "Calendar",
       "Clients",
-      "Users",
+      "Team Access",
       "Settings",
     ]);
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
@@ -205,7 +205,7 @@ describe("TopNav desktop primary navigation", () => {
     expect(within(mobileNav).queryByRole("link", { name: "Assignments" })).toBeNull();
     expect(within(mobileNav).queryByRole("link", { name: "Relationships" })).toBeNull();
     expect(within(mobileNav).queryByRole("link", { name: "Clients" })).toBeNull();
-    expect(within(mobileNav).queryByRole("link", { name: "Users" })).toBeNull();
+    expect(within(mobileNav).queryByRole("link", { name: "Team Access" })).toBeNull();
     expect(within(mobileNav).queryByRole("link", { name: "Settings" })).toBeNull();
   });
 

@@ -2640,3 +2640,159 @@ None required unless adding UI for loading/removing sample data.
 11. Phase 10: Seed/reset/demo packaging.
 
 Some phases can overlap in design, but implementation should avoid crossing phase boundaries in a single change unless the dependency is explicit and small.
+
+Falcon Role-Centric Operational Shell Architecture Phase 1A completed docs-first role-centric
+operational shell architecture in `docs/FALCON_ROLE_CENTRIC_OPERATIONAL_SHELL_ARCHITECTURE.md`.
+The plan defines Falcon as one governed platform with multiple role-native operational shells:
+Owner/Admin, Staff Appraiser, Reviewer, Assignment/Vendor Recipient, and future Client Portal user
+at high level only. It separates permission authority from UX visibility: permissions, route
+guards, RLS/RPCs, object visibility, and workflow actions remain canonical, while shell design
+controls first-screen priority, navigation emphasis, terminology, alert style, onboarding, and
+cognitive load. The plan concludes that Owner/Admin should get broad operational oversight without
+alert overload; appraisers should get assigned-work and revision-first language; reviewers should
+get review-queue and decision-first language; assignment/vendor recipients should get received-work
+and work-request language rather than internal owner-company order operations; and future Client
+Portal users should get request/status/document/report language rather than internal workflow,
+assignment, or packet mechanics. It also records that `packet` may remain an internal and
+assignment-scoped architecture term, but should not become universal user-facing product language.
+No runtime behavior, route/permission behavior, shell implementation, backend/Supabase/query/
+workflow behavior, role-authority model, dashboard rewrite, Client Portal implementation, branding,
+or production data changed. The next recommended role-centric slice is Falcon Role-Centric
+Operational Shell Architecture Phase 1B: Current Shell And Navigation Role Audit.
+
+Falcon Role-Centric Operational Shell Architecture Phase 1B completed the docs-only current shell
+and navigation role audit in `docs/FALCON_ROLE_CENTRIC_OPERATIONAL_SHELL_ARCHITECTURE.md`. The
+audit inspected active route guards, `TopNav`, current navigation registry and primary nav
+resolver, command palette registry/resolver, dashboard resolution, `DashboardPage`,
+`AssignmentDashboardPage`, Orders, Calendar, Clients, Assignments, assignment primitives, and the
+appraiser/reviewer dashboard wrappers. It concludes that Falcon's authority foundation is strong:
+route guards remain canonical, `DashboardGate` already separates order-capable and
+assignment-only users, assigned-company assignment access does not grant canonical order/client
+visibility, and Clients has broad versus assigned-safe path resolution. The shell itself remains
+mostly surface-centric, with Dashboard, Orders, Calendar, Clients, Assignments, Users, and Settings
+as the shared frame. Owner/Admin is closest to the current broad shell, while Appraiser and
+Reviewer need dedicated workbench planning. Assignment/Vendor Recipient is the strongest
+role-centric boundary today, but user-facing copy still overuses `packet`; future Client Portal is
+still unimplemented and must not reuse the internal Clients workspace as a trimmed portal. No
+runtime behavior, route/permission behavior, navigation, dashboard, command palette behavior,
+backend/Supabase/query/workflow behavior, role-authority model, shell implementation, Client Portal
+implementation, branding, or production data changed. The next recommended role-centric slice is
+Falcon Role-Centric Operational Shell Architecture Phase 1C: Shell Profile And Navigation
+Vocabulary Plan.
+
+Falcon Role-Centric Operational Shell Architecture Phase 1C completed docs-only shell profile and
+navigation vocabulary planning in `docs/FALCON_ROLE_CENTRIC_OPERATIONAL_SHELL_ARCHITECTURE.md`.
+The plan defines future role-native shell frames before implementation: Owner/Admin uses the
+Operations Shell and Operations Dashboard; Staff Appraiser uses the My Work Shell and assigned-work
+language; Reviewer uses the Review Workbench Shell and Review Queue language; Assignment/Vendor
+Recipient uses the Received Work Shell with work-request and offer language; and future Client
+Portal uses a high-level Client Requests Shell with request/status/document/report language only.
+It records usage rules that `Orders` remains appropriate for owner/admin and broad internal order
+inventory, `My Work` is for assigned internal appraiser execution, `Review Queue` is for review
+decision work, and assignment/vendor recipient surfaces should lead with `Received Work`, `Work
+Request`, `Offer`, `Active Work`, and `Submit Work`. `packet` remains valid internally and in
+selective owner/admin assignment-scoped contexts, but should not be the primary recipient-facing
+noun. Future Client Portal language must not reuse internal Clients Workspace, Orders, Review
+Queue, vendor assignment, or packet terminology. Phase 1C also sets command palette direction
+toward role-native actions such as `Open My Work`, `Open Review Queue`, `Open Received Work`,
+`Open Offers`, `Open Team Access`, and `Open Action Needed`. No runtime behavior,
+route/permission behavior, navigation implementation, dashboard rewrite, command palette behavior,
+backend/Supabase/query/workflow behavior, role-authority model, shell switching, Client Portal
+implementation, branding, or production data changed. The next recommended role-centric slice is
+Falcon Role-Centric Operational Shell Architecture Phase 1D: Shell Resolution And Migration Slice
+Plan.
+
+Falcon Role-Centric Operational Shell Architecture Phase 1D completed docs-only shell resolution
+and migration slice planning in
+`docs/FALCON_ROLE_CENTRIC_OPERATIONAL_SHELL_ARCHITECTURE.md`. The plan defines shell resolution
+inputs, profile records, primary-shell selection rules, multi-role defaults, fallback behavior,
+navigation migration sequence, dashboard/workbench migration sequence, terminology migration
+sequence, command palette and quick-action migration sequence, product-mode/module availability
+rules, and the safest first runtime slice. Shell resolution is explicitly downstream of
+authentication, current-company resolution, permissions, route guards, RLS/RPCs, and object
+visibility; it chooses presentation and priority only. Owner/admin users who also perform
+appraiser or reviewer production work should default to Operations, while future shell switching
+into My Work or Review Queue remains presentation-only and deferred. Assignment-only users should
+bypass Operations and default to Received Work. Appraiser/reviewer hybrids should not get a
+combined workbench by default; use a deterministic production default and expose the other
+workbench secondarily. Safe early migration work is limited to a pure shell-profile resolver and
+tests, followed later by passive metadata, safe label changes such as Users to Team Access, packet
+density reduction in recipient-facing copy, profile-aware command ordering, dashboard/workbench
+heading migration, profile-aware nav grouping, and optional shell switching. No runtime behavior,
+route/permission behavior, navigation implementation, dashboard rewrite, command palette behavior,
+backend/Supabase/query/workflow behavior, role-authority model, shell switching, Client Portal
+implementation, branding, or production data changed. The next recommended role-centric slice is
+Falcon Role-Centric Operational Shell Architecture Phase R1: Pure Shell Profile Resolver And Test
+Plan.
+
+Falcon Role-Centric Operational Shell Architecture Phase R1 completed the first runtime foundation
+for role-centric shells as a pure resolver plus focused tests. `src/lib/shell/resolveShellProfile.js`
+now returns stable presentation profile ids for `operations`, `my_work`, `review_queue`,
+`received_work`, `requests`, `unavailable`, `company_required`, `membership_inactive`,
+`profile_ambiguous`, and `module_unavailable`. The resolver accepts plain data only, normalizes
+permissions and role labels, returns `metadataAuthority: presentation_only`, and does not grant
+access, replace permission checks, inspect routes or objects, call backend services, or connect to
+live UI. `src/lib/shell/__tests__/resolveShellProfile.test.js` covers missing auth, missing current
+company, inactive membership, owner/admin, owner/admin plus appraiser/reviewer production work,
+assignment-only access, mixed internal order plus assignment access, appraiser-only, reviewer-only,
+appraiser/reviewer hybrid default, review-work-waiting hybrid resolution, explicit future requests
+enablement, disabled future requests fallback, explicit ambiguity, capability normalization, and
+deterministic side-effect-free output. No `DashboardGate` behavior, navigation, routes,
+permissions, command palette behavior, backend/Supabase/query/workflow behavior, shell switching,
+Client Portal implementation, branding, or production data changed. The next recommended
+role-centric slice is Falcon Role-Centric Operational Shell Architecture Phase R2: Passive Shell
+Profile Metadata Audit.
+
+Falcon Role-Centric Operational Shell Architecture Phase R2 completed passive shell profile
+metadata for every R1 shell profile id. `src/lib/shell/shellProfiles.js` now provides
+presentation-only metadata for `operations`, `my_work`, `review_queue`, `received_work`,
+`requests`, `unavailable`, `company_required`, `membership_inactive`, `profile_ambiguous`, and
+`module_unavailable`. Each record includes display label, short label, primary daily question,
+default workspace label, navigation vocabulary notes, dashboard/workbench title, empty-state tone,
+notification tone, preferred action language, status, priority, and `metadataAuthority:
+presentation_only`. R2 marks `operations`, `my_work`, `review_queue`, and `received_work` active,
+`requests` future-only, and unavailable/company/membership/ambiguous/module states as fallback
+metadata. `src/lib/shell/__tests__/shellProfiles.test.js` covers id coverage, stable order,
+required fields, presentation-only authority, active profile labels, future requests metadata,
+fallback metadata, unknown-profile lookup behavior, frozen entries/nested arrays, and absence of
+route/permission/component authority fields. No `DashboardGate` behavior, navigation, routes,
+permissions, command palette behavior, backend/Supabase/query/workflow behavior, shell switching,
+Client Portal implementation, branding, or production data changed. The next recommended
+role-centric slice is Falcon Role-Centric Operational Shell Architecture Phase R3: Safe Label
+Migration Plan.
+
+Falcon Role-Centric Operational Shell Architecture Phase R3 completed docs-only safe label
+migration planning in `docs/FALCON_ROLE_CENTRIC_OPERATIONAL_SHELL_ARCHITECTURE.md`. R3 inspected
+current live labels in the navigation registry, primary TopNav helper, desktop/mobile TopNav,
+command palette registry/helper/component, DashboardGate, current dashboard resolution,
+DashboardPage, AssignmentDashboardPage, Assignments workspace, assignment primitives/detail/inbox,
+UsersIndex, and OwnerSetup. The resulting migration matrix classifies labels as safe before shell
+wiring, conditional before shell wiring, wait for shell wiring, or internal only. The safest first
+runtime label migration is Users to Team Access because `/users` already represents guarded Team
+Access invitation/member management and Owner Setup already uses `Open Team Access`; the matching
+command label can move from `Go to Users` to `Open Team Access`, and the broad command placeholder
+can replace `Users` with `Team Access` without changing routes, route guards, permissions, command
+availability, ordering, DashboardGate, backend/Supabase/query/workflow behavior, shell switching,
+Client Portal, branding, or production data. Assignment packet wording can be reduced only in
+clearly recipient-facing lanes before shell wiring; packet precision remains internal and
+owner/admin-safe elsewhere. Global Dashboard, Operations Dashboard, Orders, Assignments,
+role-specific command ordering/search fallback, brand language, assignment detail packet/action
+titles, and future Requests labels must wait for live shell-profile consumption. The next
+recommended role-centric slice is Falcon Role-Centric Operational Shell Architecture Phase R3A:
+Team Access Label Alignment.
+
+Falcon Role-Centric Operational Shell Architecture Phase R3A completed the first safe runtime
+role-language migration for the guarded Team Access surface. `src/lib/navigation/currentNavigationRegistry.js`
+now labels the current live `users` navigation entry as `Team Access`; `src/lib/commandPalette/currentCommandRegistry.js`
+now labels the matching command as `Open Team Access`; and `src/components/nav/CommandPalette.jsx`
+now uses `Team Access` in the broad placeholder. Focused expectations were updated in current
+primary nav, current command palette helper, TopNav, and CommandPalette tests. R3A preserves the
+`/users` route path, `users` route/nav/command ids, `users.read` and `navigation.users.view`
+permission keys, route guards, command availability, command ordering, primary nav order,
+desktop/mobile nav behavior, command filtering, keyboard hints, order-search fallback, UsersIndex
+internals, Owner Setup bridge behavior, backend/Supabase/query/workflow behavior, RLS/RPCs, shell
+switching, Client Portal, branding, and production data. Dashboard, Orders, Assignments,
+shell-level headings, role-native dashboard titles, assignment packet terminology, Client Portal
+labels, routes, permissions, and profile-aware runtime logic were not changed. The next
+recommended role-centric slice is Falcon Role-Centric Operational Shell Architecture Phase R3B:
+Received Work Copy Alignment Plan.

@@ -53,7 +53,7 @@ describe('current command palette commands', () => {
       'Go to Relationships',
       'Go to Calendar',
       'Go to Clients',
-      'Go to Users',
+      'Open Team Access',
       'Open Settings',
       'Notification Settings',
     ]);

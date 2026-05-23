@@ -77,7 +77,7 @@ describe("CommandPalette current registry helper migration", () => {
       "Go to Relationshipsg r",
       "Go to Calendarg c",
       "Go to Clientsg l",
-      "Go to Usersg u",
+      "Open Team Accessg u",
       "Open Settings,",
       "Notification Settings",
     ]);
@@ -95,7 +95,7 @@ describe("CommandPalette current registry helper migration", () => {
     expect(screen.queryByText("Go to Assignments")).toBeNull();
     expect(screen.queryByText("Go to Relationships")).toBeNull();
     expect(screen.queryByText("Go to Clients")).toBeNull();
-    expect(screen.queryByText("Go to Users")).toBeNull();
+    expect(screen.queryByText("Open Team Access")).toBeNull();
   });
 
   it("preserves loading/error legacy fallback commands without future packet concepts", () => {
@@ -106,7 +106,7 @@ describe("CommandPalette current registry helper migration", () => {
       "Go to Ordersg o",
       "Go to Calendarg c",
       "Go to Clientsg l",
-      "Go to Usersg u",
+      "Open Team Accessg u",
       "Open Settings,",
       "Notification Settings",
     ]);
@@ -114,7 +114,7 @@ describe("CommandPalette current registry helper migration", () => {
     expect(screen.queryByText("Go to Relationships")).toBeNull();
     expect(screen.getByRole("textbox")).toHaveAttribute(
       "placeholder",
-      "Search... (Orders, Clients, Users, Settings)",
+      "Search... (Orders, Clients, Team Access, Settings)",
     );
   });
 

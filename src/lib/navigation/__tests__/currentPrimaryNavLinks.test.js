@@ -36,7 +36,7 @@ describe('current primary nav links', () => {
       'Relationships',
       'Calendar',
       'Clients',
-      'Users',
+      'Team Access',
     ]);
     expect(pathsFor(links)).toEqual([
       '/orders',

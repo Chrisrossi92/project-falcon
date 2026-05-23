@@ -120,7 +120,7 @@ export default function CommandPalette({ open, onClose, onNavigate, clientsPath 
             ref={inputRef}
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder={`Search... (Orders${canUseAssignments ? ", Assignments" : ""}${canUseRelationships ? ", Relationships" : ""}, Clients, Users, Settings)`}
+            placeholder={`Search... (Orders${canUseAssignments ? ", Assignments" : ""}${canUseRelationships ? ", Relationships" : ""}, Clients, Team Access, Settings)`}
             className="w-full outline-none text-sm px-1.5 py-1.5"
           />
         </div>

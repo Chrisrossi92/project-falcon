@@ -106,7 +106,7 @@ export const currentLiveCommandEntries = freezeArray([
   }),
   createEntry({
     id: 'users',
-    label: 'Go to Users',
+    label: 'Open Team Access',
     hint: 'g u',
     path: '/users',
     shadowCommandId: 'open-team-access',
@@ -115,7 +115,7 @@ export const currentLiveCommandEntries = freezeArray([
       PERMISSIONS.NAVIGATION_USERS_VIEW,
     ]),
     tags: ['team', 'admin'],
-    notes: ['Current command label is Users while the shadow concept is Team Access.'],
+    notes: ['Current command opens the guarded Team Access surface on /users.'],
   }),
   createEntry({
     id: 'settings',
