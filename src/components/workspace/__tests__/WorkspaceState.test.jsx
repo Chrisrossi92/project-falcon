@@ -18,6 +18,11 @@ describe("WorkspaceState", () => {
     render(<WorkspaceLoadingState message="Loading active schedule..." />);
 
     expect(screen.getByRole("status")).toHaveTextContent("Loading active schedule...");
+    expect(screen.getByRole("status")).toHaveClass(
+      "transition-colors",
+      "duration-150",
+      "motion-reduce:transition-none",
+    );
   });
 
   it("renders error states with alert semantics", () => {

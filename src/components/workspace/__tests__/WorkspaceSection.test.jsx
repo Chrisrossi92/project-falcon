@@ -53,4 +53,34 @@ describe("WorkspaceSection", () => {
     );
     expect(screen.getByText("Context tiles")).toBeInTheDocument();
   });
+
+  it("keeps hover lift opt-in while preserving a shared transition cadence", () => {
+    const { container, rerender } = render(
+      <WorkspaceSection title="Passive Section">
+        <div>Stable content</div>
+      </WorkspaceSection>,
+    );
+
+    const passiveSection = container.querySelector("section");
+    expect(passiveSection).toHaveClass(
+      "transition-[border-color,box-shadow,background-color,transform]",
+      "duration-150",
+      "motion-reduce:transition-none",
+    );
+    expect(passiveSection).not.toHaveClass("hover:shadow-md");
+
+    rerender(
+      <WorkspaceSection title="Interactive Section" interactive>
+        <button type="button">Open</button>
+      </WorkspaceSection>,
+    );
+
+    const interactiveSection = container.querySelector("section");
+    expect(interactiveSection).toHaveClass(
+      "hover:-translate-y-0.5",
+      "hover:shadow-md",
+      "focus-within:ring-2",
+      "motion-reduce:hover:translate-y-0",
+    );
+  });
 });

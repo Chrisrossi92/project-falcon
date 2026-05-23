@@ -2,6 +2,12 @@ function cx(...classes) {
   return classes.filter(Boolean).join(" ");
 }
 
+const tactileTransition =
+  "transition-[border-color,box-shadow,background-color,transform] duration-150 ease-out motion-reduce:transition-none";
+
+const interactiveTactile =
+  "hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md focus-within:border-slate-300 focus-within:ring-2 focus-within:ring-slate-100 motion-reduce:hover:translate-y-0";
+
 export function WorkspaceContextStrip({
   children,
   ariaLabel,
@@ -21,11 +27,14 @@ export function WorkspaceContextTile({
   className = "",
   labelClassName = "",
   valueClassName = "",
+  interactive = false,
 }) {
   return (
     <div
       className={cx(
         "min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm",
+        tactileTransition,
+        interactive && interactiveTactile,
         className,
       )}
     >

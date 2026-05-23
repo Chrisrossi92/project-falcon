@@ -1,9 +1,16 @@
 const variantClasses = {
-  loading: "rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600",
-  error: "rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700",
-  errorRed: "rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700",
-  empty: "rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center",
+  loading:
+    "rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600",
+  error:
+    "rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700",
+  errorRed:
+    "rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700",
+  empty:
+    "rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center",
 };
+
+const stateTransition =
+  "transition-colors duration-150 ease-out motion-reduce:transition-none";
 
 function cx(...classes) {
   return classes.filter(Boolean).join(" ");
@@ -29,7 +36,7 @@ export function WorkspaceState({
   return (
     <div
       role={resolvedRole}
-      className={cx(variantClasses[variant] || variantClasses.empty, className)}
+      className={cx(variantClasses[variant] || variantClasses.empty, stateTransition, className)}
     >
       {title ? (
         <>

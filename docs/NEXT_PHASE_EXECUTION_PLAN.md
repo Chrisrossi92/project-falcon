@@ -757,6 +757,98 @@ behavior, permission behavior, visual redesign, Tailwind/global theme rewrite, m
 card-shell extraction, workspace header extraction, interactive control extraction, or broad
 refactor.
 
+### Completed Falcon Interaction And Motion Foundation Phase 1A
+
+Falcon Interaction and Motion Foundation Phase 1A is complete as docs-only codification in
+`docs/FALCON_INTERACTION_AND_MOTION_FOUNDATION.md`.
+
+The foundation records:
+
+- Falcon's operational interaction philosophy;
+- the current Tailwind-native interaction patterns already present across polished workspaces;
+- soft operational responsiveness principles;
+- hover, press/release, card elevation, modal/drawer, toast, loading, state-change, section
+  expansion/collapse, focus, and reduced-motion standards;
+- documentation-level motion token guidance for duration, easing, elevation, opacity, and spatial
+  movement;
+- safe future implementation categories;
+- deferred experimental ideas.
+
+Current standards remain intentionally restrained: motion is feedback rather than decoration,
+hover/focus states use small background, border, text, ring, shadow, or tiny translate changes,
+loading states are text-first and layout-stable, toasts are short operational acknowledgments, and
+motion never creates product authority, data access, lifecycle behavior, workflow behavior, or
+analytics meaning.
+
+Future implementation should start with interaction inventory/class recipe cleanup or shared
+button/action primitive planning. Animation libraries, spring physics, route transitions,
+drag-and-drop scheduling, animated analytics, global theme rewrites, dark-mode motion variants, and
+personalized density/motion preferences remain deferred.
+
+Phase 1A added no runtime code, component rewrites, animation library integration,
+Tailwind/global theme changes, backend behavior, Supabase behavior, query behavior, permissions,
+workflow/lifecycle behavior, feature expansion, branding overhaul, or visual redesign.
+
+### Completed Falcon Interaction And Motion Foundation Phase 1B
+
+Falcon Interaction and Motion Foundation Phase 1B is complete as the first restrained runtime
+interaction refinement.
+
+Implemented:
+
+- `src/components/feedback/FalconToaster.jsx`;
+- centralized `react-hot-toast` presentation options through `FalconToaster`;
+- refined local `ToastProvider` acknowledgment shell in `src/lib/hooks/useToast.jsx`;
+- focused tests for global toast options and local provider behavior.
+
+The slice establishes Falcon's first runtime motion cadence through passive acknowledgments only:
+soft Tailwind-native entrance motion, `motion-reduce:animate-none`, restrained elevation, compact
+spacing, tone-specific borders/accent rail, clearer success/error emphasis, polite status semantics
+for passive acknowledgments, and alert semantics for errors.
+
+Existing direct `react-hot-toast` call sites and `useToast()` call sites remain unchanged. Existing
+toast message copy, trigger points, mutation flows, stack order, local default `3500ms` dismissal
+timing, notification logic, route behavior, query behavior, and workflow/lifecycle behavior are
+preserved.
+
+Deferred interaction work remains drawer/modal transitions, card hover token extraction, button
+press transforms, global Tailwind motion tokens, route transitions, notification logic rewrites,
+toast trigger/message normalization, and any animation library integration.
+
+Phase 1B added no backend behavior, Supabase behavior, query behavior, workflow/lifecycle behavior,
+permission behavior, feature expansion, global redesign, heavy motion, playful animation,
+notification fanout rewrite, or broad component-system rewrite.
+
+### Completed Falcon Interaction And Motion Foundation Phase 1C
+
+Falcon Interaction and Motion Foundation Phase 1C is complete as a restrained primitive-level
+tactile feedback slice.
+
+Implemented:
+
+- shared transition cadence in `WorkspaceContextTile`;
+- shared transition cadence in `WorkspaceSection`;
+- opt-in `interactive` tactile treatment for context tiles and sections;
+- color-transition cadence in `WorkspaceState`;
+- focused primitive tests for passive defaults, opt-in interactive classes, reduced-motion handling,
+  and state semantics.
+
+The implementation keeps current surfaces passive by default. Hover lift, hover shadow, stronger
+border, and focus-within ring treatment are available only when a caller explicitly passes
+`interactive`. Current Calendar, Clients, Client Detail, and Assignments usages were not migrated to
+interactive treatment, so visible behavior remains stable.
+
+`WorkspaceState` receives only restrained color-transition treatment for mounted state changes. It
+does not receive hover, lift, click affordance, or spatial motion.
+
+Deferred interaction work remains `WorkspaceContextStrip` motion, card-shell extraction, shared
+button/action press treatment, drawer/modal transitions, global motion tokens, Tailwind theme
+changes, and current-surface interactive migrations.
+
+Phase 1C added no backend behavior, Supabase behavior, query behavior, workflow/lifecycle behavior,
+permission behavior, feature expansion, global redesign, animation library integration, Tailwind
+theme rewrite, heavy motion, playful animation, or broad component-system rewrite.
+
 ### Completed Orders Filtering/Search Audit
 
 Operational UX Slice B1 inventories the active Orders filtering/search surface in

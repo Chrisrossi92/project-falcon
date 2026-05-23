@@ -1,7 +1,30 @@
 // src/lib/hooks/useToast.jsx
-import React, { createContext, useContext, useMemo, useState, useCallback } from "react";
+import { createContext, useContext, useMemo, useState, useCallback } from "react";
 
 const ToastCtx = createContext(null);
+
+const toneStyles = {
+  success: {
+    border: "border-emerald-200",
+    accent: "bg-emerald-500",
+    title: "text-emerald-950",
+  },
+  error: {
+    border: "border-rose-200",
+    accent: "bg-rose-500",
+    title: "text-rose-950",
+  },
+  info: {
+    border: "border-blue-200",
+    accent: "bg-blue-500",
+    title: "text-blue-950",
+  },
+  default: {
+    border: "border-slate-200",
+    accent: "bg-slate-500",
+    title: "text-slate-950",
+  },
+};
 
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
@@ -12,7 +35,9 @@ export function ToastProvider({ children }) {
 
   const push = useCallback(
     (t) => {
-      const id = (crypto?.randomUUID && crypto.randomUUID()) || String(Date.now() + Math.random());
+      const id =
+        (globalThis.crypto?.randomUUID && globalThis.crypto.randomUUID()) ||
+        String(Date.now() + Math.random());
       const ttl = t.duration ?? 3500;
       const toast = {
         id,
@@ -40,24 +65,39 @@ export function ToastProvider({ children }) {
   return (
     <ToastCtx.Provider value={api}>
       {children}
-      <div className="fixed right-4 top-4 z-[1000] flex flex-col gap-2">
-        {toasts.map((t) => (
-          <div
-            key={t.id}
-            className={[
-              "min-w-[260px] max-w-[360px] rounded-lg px-3 py-2 shadow-md border text-sm backdrop-blur bg-white/95",
-              t.tone === "success" && "border-green-200",
-              t.tone === "error"   && "border-red-200",
-              t.tone === "info"    && "border-blue-200",
-              t.tone === "default" && "border-slate-200",
-            ]
-              .filter(Boolean)
-              .join(" ")}
-          >
-            {t.title ? <div className="font-medium mb-0.5">{t.title}</div> : null}
-            {t.description ? <div className="text-slate-600">{t.description}</div> : null}
-          </div>
-        ))}
+      <div
+        className="pointer-events-none fixed right-4 top-4 z-[1000] flex w-[calc(100%-2rem)] max-w-sm flex-col gap-2 sm:w-auto"
+        aria-live="polite"
+        aria-relevant="additions"
+      >
+        {toasts.map((t) => {
+          const styles = toneStyles[t.tone] || toneStyles.default;
+          return (
+            <div
+              key={t.id}
+              role={t.tone === "error" ? "alert" : "status"}
+              className={[
+                "pointer-events-auto grid grid-cols-[0.25rem_minmax(0,1fr)] overflow-hidden rounded-xl border bg-white/95 text-sm shadow-xl backdrop-blur",
+                "animate-in fade-in slide-in-from-top-2 zoom-in-95 motion-reduce:animate-none",
+                styles.border,
+              ]
+                .filter(Boolean)
+                .join(" ")}
+            >
+              <div className={styles.accent} aria-hidden="true" />
+              <div className="px-3 py-2.5">
+                {t.title ? (
+                  <div className={`mb-0.5 text-sm font-semibold ${styles.title}`}>
+                    {t.title}
+                  </div>
+                ) : null}
+                {t.description ? (
+                  <div className="leading-5 text-slate-600">{t.description}</div>
+                ) : null}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </ToastCtx.Provider>
   );

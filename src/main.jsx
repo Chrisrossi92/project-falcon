@@ -5,8 +5,8 @@ import { SessionContextProvider } from "@supabase/auth-helpers-react";
 import { supabase } from "@/lib/supabaseClient";
 import App from "./App.jsx";
 import "./index.css"; // keep this
+import { FalconToaster } from "@/components/feedback/FalconToaster";
 import { ToastProvider } from "@/lib/hooks/useToast";
-import { Toaster } from "react-hot-toast";
 
 
 
@@ -16,7 +16,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
       <BrowserRouter>
         <ToastProvider>
           <App />
-          <Toaster position="top-right" gutter={8} />
+          <FalconToaster />
         </ToastProvider>
       </BrowserRouter>
     </SessionContextProvider>
@@ -35,7 +35,6 @@ if (typeof window !== "undefined") {
     return { data, count, error };
   };
 }
-
 
 
 
