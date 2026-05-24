@@ -2,6 +2,7 @@ import AssignmentDashboardPage from "@/features/dashboard/AssignmentDashboardPag
 import DashboardPage from "@/features/dashboard/DashboardPage";
 import { AssignmentState, LoadingState } from "@/features/assignments/AssignmentPrimitives";
 import { useEffectivePermissions } from "@/lib/hooks/usePermissions";
+import { useShellProfile } from "@/lib/shell/useShellProfile";
 import {
   CURRENT_DASHBOARD_RESOLUTION_STATES,
   CURRENT_ORDER_DASHBOARD_PERMISSIONS,
@@ -12,6 +13,7 @@ export const ORDER_DASHBOARD_PERMISSIONS = CURRENT_ORDER_DASHBOARD_PERMISSIONS;
 
 export default function DashboardGate() {
   const permissions = useEffectivePermissions();
+  const shellProfilePresentation = useShellProfile();
   const dashboardResolution = resolveCurrentDashboard({
     loading: permissions.loading,
     error: permissions.error,
@@ -23,10 +25,10 @@ export default function DashboardGate() {
   }
 
   if (dashboardResolution.state === CURRENT_DASHBOARD_RESOLUTION_STATES.ORDER_DASHBOARD) {
-    return <DashboardPage />;
+    return <DashboardPage shellProfilePresentation={shellProfilePresentation} />;
   }
   if (dashboardResolution.state === CURRENT_DASHBOARD_RESOLUTION_STATES.ASSIGNMENT_DASHBOARD) {
-    return <AssignmentDashboardPage />;
+    return <AssignmentDashboardPage shellProfilePresentation={shellProfilePresentation} />;
   }
 
   return (

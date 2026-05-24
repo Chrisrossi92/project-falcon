@@ -334,7 +334,7 @@ function summarizeWorkloadVisibility(orders = []) {
   };
 }
 
-export default function DashboardPage() {
+export default function DashboardPage({ shellProfilePresentation: _shellProfilePresentation } = {}) {
   const nav = useNavigate();
   const [dashboardRefreshKey, setDashboardRefreshKey] = useState(0);
   const setupContextState = useCompanySetupContext();

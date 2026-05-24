@@ -1636,8 +1636,185 @@ Portal behavior changed.
 
 Recommended next role-centric slice:
 
-- **Falcon Role-Centric Operational Shell Architecture Phase R4: Passive Shell Metadata
-  Consumption Plan**.
+- **Falcon Role-Centric Operational Shell Architecture Phase R4: Passive Shell Profile Exposure**.
+
+### Falcon Role-Centric Operational Shell Architecture Phase R4
+
+Completed the first passive runtime shell profile exposure layer.
+
+Runtime files added:
+
+- `src/lib/shell/shellProfileExposure.js`;
+- `src/lib/shell/useShellProfile.js`.
+
+Focused tests added:
+
+- `src/lib/shell/__tests__/shellProfileExposure.test.js`;
+- `src/lib/shell/__tests__/useShellProfile.test.jsx`.
+
+R4 exposes shell profile information without using it to alter live behavior:
+
+- `buildShellProfileInput(...)` maps existing session/current-user context/permission state into
+  the R1 resolver input shape;
+- `resolveShellProfileExposure(...)` returns the resolved profile id, metadata, resolution reason,
+  resolver output, capabilities, and `metadataAuthority: presentation_only`;
+- `getShellProfileExposure(...)` provides a pure helper for diagnostics and tests;
+- `useShellProfile(...)` observes the existing session, current-user app context, and effective
+  permission hooks and returns the same passive metadata plus loading/error state.
+
+Preserved boundaries:
+
+- no route/path changes;
+- no permission or route guard changes;
+- no backend/Supabase/query/workflow/RLS/RPC changes;
+- no DashboardGate decision changes;
+- no navigation filtering, grouping, ordering, or label changes;
+- no command palette ordering, search, route, or fallback behavior changes;
+- no dashboard/workbench heading changes;
+- no assignment lifecycle, packet resolution, or object visibility changes;
+- no shell switching, product-mode authority change, Client Portal implementation, branding, or
+  production data change.
+
+Recommended next role-centric slice:
+
+- **Falcon Role-Centric Operational Shell Architecture Phase R5: DashboardGate Presentation
+  Readiness Plan**.
+
+### Falcon Role-Centric Operational Shell Architecture Phase R5
+
+Completed docs-only DashboardGate presentation readiness planning for passive shell profile
+exposure.
+
+R5 inspected current dashboard behavior in:
+
+- `src/features/dashboard/DashboardGate.jsx`;
+- `src/lib/dashboard/currentDashboardResolution.js`;
+- `src/features/dashboard/DashboardPage.jsx`;
+- `src/features/dashboard/AssignmentDashboardPage.jsx`;
+- `src/features/assignments/components/AssignedWorkDashboard.jsx`;
+- `src/features/assignments/components/OwnerSentAssignmentsDashboard.jsx`;
+- `src/pages/appraisers/AppraiserDashboard.jsx`;
+- `src/pages/reviewers/ReviewerDashboard.jsx`;
+- `src/features/dashboard/__tests__/DashboardGate.test.jsx`.
+
+Current findings:
+
+- `DashboardGate` remains permission-derived through `useEffectivePermissions()` and
+  `resolveCurrentDashboard(...)`;
+- current precedence is loading, order dashboard, assignment dashboard, then unavailable fallback;
+- order-capable and mixed order/assignment users render `DashboardPage`;
+- assignment-only users render `AssignmentDashboardPage`;
+- appraiser and reviewer route wrappers still render the shared `DashboardPage`;
+- assignment dashboard widgets preserve assignment-native data paths and no order dashboard
+  fallback.
+
+R5 plan:
+
+- `DashboardGate` should remain the dashboard selector;
+- shell profile exposure may later be observed only after or alongside current dashboard
+  resolution;
+- the first runtime use should pass shell metadata downward as optional presentation metadata to
+  the already selected dashboard component;
+- shell profile id must not decide whether a user receives `DashboardPage`,
+  `AssignmentDashboardPage`, or the unavailable fallback.
+
+Safe later presentation-only uses:
+
+- dashboard heading support copy;
+- subheading/support copy;
+- empty-state tone;
+- unavailable-state tone;
+- `Work View` context chip wording;
+- role-native intro copy;
+- assignment dashboard eyebrow/title/subtitle copy after the assignment branch is already selected.
+
+Unsafe changes that must wait:
+
+- selecting different dashboard components from shell profile id;
+- replacing dashboard resolution authority with shell profile resolution;
+- route redirects or route guard changes;
+- navigation filtering/grouping;
+- command palette ordering/search/fallback changes;
+- dashboard query/RPC/data-source changes;
+- workflow/action availability changes;
+- shell switching;
+- Client Portal dashboard behavior;
+- product-mode/module authority.
+
+Recommended first runtime slice:
+
+- **R5A DashboardGate Passive Shell Metadata Prop**.
+
+R5A should import `useShellProfile()` in `DashboardGate`, call it only as a passive observer, keep
+the existing `resolveCurrentDashboard(...)` inputs and branch order, pass shell exposure metadata
+as an optional prop to the already selected dashboard component, and add tests proving order,
+assignment-only, mixed, loading, and unavailable branches are unchanged. R5A should not change
+rendered copy, branch selection, routes, permissions, data hooks, queries, workflow behavior,
+navigation, command palette behavior, shell switching, or Client Portal implementation.
+
+Preserved boundaries:
+
+- no runtime code changed in R5;
+- no hook wiring;
+- no DashboardGate change;
+- no route/path change;
+- no permission or route guard change;
+- no backend/Supabase/query/workflow/RLS/RPC change;
+- no navigation or command palette change;
+- no dashboard rewrite;
+- no shell switcher;
+- no Client Portal implementation.
+
+### Falcon Role-Centric Operational Shell Architecture Phase R5A
+
+Completed the first passive runtime connection between shell profile exposure and dashboard
+presentation metadata.
+
+R5A updated:
+
+- `src/features/dashboard/DashboardGate.jsx`;
+- `src/features/dashboard/DashboardPage.jsx`;
+- `src/features/dashboard/AssignmentDashboardPage.jsx`;
+- `src/features/dashboard/__tests__/DashboardGate.test.jsx`.
+
+R5A behavior:
+
+- `DashboardGate` now observes `useShellProfile()` as passive presentation metadata;
+- the existing `resolveCurrentDashboard(...)` inputs remain loading, error, and permission keys;
+- the existing branch order remains loading, order dashboard, assignment dashboard, and
+  unavailable fallback;
+- the selected `DashboardPage` or `AssignmentDashboardPage` receives the optional
+  `shellProfilePresentation` prop;
+- both dashboard components accept and ignore the prop.
+
+R5A deliberately does not pass shell metadata to loading or unavailable fallback states and does
+not change any visible dashboard copy.
+
+Focused tests prove:
+
+- order-capable users still render the existing order dashboard;
+- assignment-only users still render the existing assignment dashboard;
+- mixed order/assignment users still prioritize the order dashboard;
+- loading and unavailable fallback behavior remain unchanged;
+- mismatched shell profile ids cannot select a different dashboard branch;
+- shell metadata reaches only the already selected dashboard component as inert presentation data.
+
+Preserved boundaries:
+
+- no route/path change;
+- no permission or route guard change;
+- no `resolveCurrentDashboard(...)` behavior change;
+- no dashboard heading, subtitle, support copy, or empty-state copy change;
+- no dashboard data hook, query, RPC, assignment widget, or object visibility change;
+- no backend/Supabase/query/workflow/RLS/RPC change;
+- no navigation or command palette change;
+- no shell switching, product-mode authority change, Client Portal implementation, branding, or
+  production data change.
+
+Recommended next role-centric slice:
+
+- **Falcon Role-Centric Operational Shell Architecture Phase R5B: Dashboard Presentation Copy
+  Audit Plan**.
 
 ## Recommended Ordering
 

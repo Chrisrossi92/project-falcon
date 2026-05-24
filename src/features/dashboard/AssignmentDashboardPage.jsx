@@ -9,7 +9,7 @@ export const ASSIGNMENT_DASHBOARD_PERMISSIONS = [
   PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_OWNER,
 ];
 
-export default function AssignmentDashboardPage() {
+export default function AssignmentDashboardPage({ shellProfilePresentation: _shellProfilePresentation } = {}) {
   const permissions = useEffectivePermissions();
   const canReadAssigned = permissions.hasPermission(PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_ASSIGNED);
   const canReadOwner = permissions.hasPermission(PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_OWNER);

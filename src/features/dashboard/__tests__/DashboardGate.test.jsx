@@ -11,6 +11,23 @@ const permissionState = vi.hoisted(() => ({
   permissionKeys: [],
 }));
 
+const shellProfileState = vi.hoisted(() => ({
+  exposure: {
+    id: "operations",
+    metadataAuthority: "presentation_only",
+    shellMetadata: {
+      id: "operations",
+      dashboardTitle: "Operations Dashboard",
+      metadataAuthority: "presentation_only",
+    },
+  },
+}));
+
+const dashboardProps = vi.hoisted(() => ({
+  assignment: [],
+  order: [],
+}));
+
 vi.mock("@/lib/hooks/usePermissions", () => ({
   useEffectivePermissions: () => ({
     error: permissionState.error,
@@ -23,8 +40,15 @@ vi.mock("@/lib/hooks/usePermissions", () => ({
   }),
 }));
 
+vi.mock("@/lib/shell/useShellProfile", () => ({
+  useShellProfile: () => shellProfileState.exposure,
+}));
+
 vi.mock("@/features/dashboard/DashboardPage", () => ({
-  default: () => <div data-testid="order-dashboard">Order dashboard</div>,
+  default: (props) => {
+    dashboardProps.order.push(props);
+    return <div data-testid="order-dashboard">Order dashboard</div>;
+  },
 }));
 
 vi.mock("@/features/dashboard/AssignmentDashboardPage", () => ({
@@ -32,7 +56,10 @@ vi.mock("@/features/dashboard/AssignmentDashboardPage", () => ({
     PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_ASSIGNED,
     PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_OWNER,
   ],
-  default: () => <div data-testid="assignment-dashboard">Assignment dashboard</div>,
+  default: (props) => {
+    dashboardProps.assignment.push(props);
+    return <div data-testid="assignment-dashboard">Assignment dashboard</div>;
+  },
 }));
 
 vi.mock("@/features/assignments/AssignmentPrimitives", () => ({
@@ -52,6 +79,17 @@ describe("DashboardGate current dashboard resolution helper migration", () => {
     permissionState.error = null;
     permissionState.loading = false;
     permissionState.permissionKeys = [];
+    shellProfileState.exposure = {
+      id: "operations",
+      metadataAuthority: "presentation_only",
+      shellMetadata: {
+        id: "operations",
+        dashboardTitle: "Operations Dashboard",
+        metadataAuthority: "presentation_only",
+      },
+    };
+    dashboardProps.assignment = [];
+    dashboardProps.order = [];
   });
 
   afterEach(() => {
@@ -77,6 +115,9 @@ describe("DashboardGate current dashboard resolution helper migration", () => {
     expect(screen.getByTestId("order-dashboard")).toBeInTheDocument();
     expect(screen.queryByTestId("assignment-dashboard")).toBeNull();
     expect(screen.queryByTestId("assignment-state")).toBeNull();
+    expect(dashboardProps.order).toHaveLength(1);
+    expect(dashboardProps.order[0].shellProfilePresentation).toBe(shellProfileState.exposure);
+    expect(dashboardProps.assignment).toHaveLength(0);
   });
 
   it("renders the existing assignment dashboard for assignment-only users", () => {
@@ -87,6 +128,9 @@ describe("DashboardGate current dashboard resolution helper migration", () => {
     expect(screen.getByTestId("assignment-dashboard")).toBeInTheDocument();
     expect(screen.queryByTestId("order-dashboard")).toBeNull();
     expect(screen.queryByTestId("assignment-state")).toBeNull();
+    expect(dashboardProps.assignment).toHaveLength(1);
+    expect(dashboardProps.assignment[0].shellProfilePresentation).toBe(shellProfileState.exposure);
+    expect(dashboardProps.order).toHaveLength(0);
   });
 
   it("preserves mixed-user priority toward the order dashboard", () => {
@@ -100,6 +144,44 @@ describe("DashboardGate current dashboard resolution helper migration", () => {
 
     expect(screen.getByTestId("order-dashboard")).toBeInTheDocument();
     expect(screen.queryByTestId("assignment-dashboard")).toBeNull();
+  });
+
+  it("does not let shell metadata select the assignment dashboard for order-capable users", () => {
+    permissionState.permissionKeys = [PERMISSIONS.ORDERS_READ_ASSIGNED];
+    shellProfileState.exposure = {
+      id: "received_work",
+      metadataAuthority: "presentation_only",
+      shellMetadata: {
+        id: "received_work",
+        dashboardTitle: "Received Work",
+        metadataAuthority: "presentation_only",
+      },
+    };
+
+    render(<DashboardGate />);
+
+    expect(screen.getByTestId("order-dashboard")).toBeInTheDocument();
+    expect(screen.queryByTestId("assignment-dashboard")).toBeNull();
+    expect(dashboardProps.order[0].shellProfilePresentation).toBe(shellProfileState.exposure);
+  });
+
+  it("does not let shell metadata select the order dashboard for assignment-only users", () => {
+    permissionState.permissionKeys = [PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_ASSIGNED];
+    shellProfileState.exposure = {
+      id: "operations",
+      metadataAuthority: "presentation_only",
+      shellMetadata: {
+        id: "operations",
+        dashboardTitle: "Operations Dashboard",
+        metadataAuthority: "presentation_only",
+      },
+    };
+
+    render(<DashboardGate />);
+
+    expect(screen.getByTestId("assignment-dashboard")).toBeInTheDocument();
+    expect(screen.queryByTestId("order-dashboard")).toBeNull();
+    expect(dashboardProps.assignment[0].shellProfilePresentation).toBe(shellProfileState.exposure);
   });
 
   it("preserves no-capability fallback copy", () => {

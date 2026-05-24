@@ -2841,4 +2841,70 @@ labels, Dashboard, Orders, My Work, Review Queue, shell-level workbench headings
 routes, permissions, backend/Supabase/query/workflow behavior, RLS/RPCs, shell switching,
 profile-aware runtime logic, Client Portal, branding, and production data were not changed. The
 next recommended role-centric slice is Falcon Role-Centric Operational Shell Architecture Phase
-R4: Passive Shell Metadata Consumption Plan.
+R4: Passive Shell Profile Exposure.
+
+Falcon Role-Centric Operational Shell Architecture Phase R4 completed the first passive runtime
+shell profile exposure layer. `src/lib/shell/shellProfileExposure.js` now provides
+`buildShellProfileInput(...)`, `resolveShellProfileExposure(...)`, and
+`getShellProfileExposure(...)` for mapping already available session/current-user context/
+permission state into the R1 resolver and returning presentation-only profile metadata.
+`src/lib/shell/useShellProfile.js` observes the existing session, current-user app context, and
+effective permission hooks and returns the resolved profile id, shell metadata, resolution reason,
+resolver output, capabilities, loading/error state, and `metadataAuthority: presentation_only`.
+Focused tests in `src/lib/shell/__tests__/shellProfileExposure.test.js` and
+`src/lib/shell/__tests__/useShellProfile.test.jsx` cover app-context input mapping, owner/admin
+and assignment-only profile exposure, non-leaky fallback profiles, presentation-only metadata, and
+hook observation. R4 does not connect shell profile exposure to active navigation, routes,
+DashboardGate, dashboard/workbench headings, command palette ordering/search/fallback behavior,
+permissions, route guards, assignment lifecycle actions, packet resolution, object visibility,
+backend/Supabase/query/workflow behavior, RLS/RPCs, product-mode authority, shell switching,
+Client Portal implementation, branding, or production data. The next recommended role-centric
+slice is Falcon Role-Centric Operational Shell Architecture Phase R5: DashboardGate Presentation
+Readiness Plan.
+
+Falcon Role-Centric Operational Shell Architecture Phase R5 completed docs-only DashboardGate
+presentation readiness planning for passive shell profile exposure. R5 inspected
+`src/features/dashboard/DashboardGate.jsx`, `src/lib/dashboard/currentDashboardResolution.js`,
+`src/features/dashboard/DashboardPage.jsx`, `src/features/dashboard/AssignmentDashboardPage.jsx`,
+`src/features/assignments/components/AssignedWorkDashboard.jsx`,
+`src/features/assignments/components/OwnerSentAssignmentsDashboard.jsx`,
+`src/pages/appraisers/AppraiserDashboard.jsx`, `src/pages/reviewers/ReviewerDashboard.jsx`, and
+`src/features/dashboard/__tests__/DashboardGate.test.jsx`. The plan records that `DashboardGate`
+must remain the dashboard selector and `resolveCurrentDashboard(...)` must remain the
+permission-derived dashboard-selection helper. Shell profile exposure may later be observed and
+passed downward only as optional presentation metadata after current dashboard resolution has
+already selected `DashboardPage`, `AssignmentDashboardPage`, or the unavailable fallback. Shell
+profile id must not grant dashboard access, choose a different dashboard component, redirect
+routes, change permissions, alter queries/RPCs/data hooks, change workflow/action availability,
+filter navigation, reorder command palette entries, introduce shell switching, or implement Client
+Portal behavior. Safe future uses are limited to wording surfaces such as dashboard support copy,
+subheadings, empty-state tone, unavailable-state tone, context chip wording, role-native intro
+copy, and assignment dashboard title/subtitle copy after the assignment dashboard branch is already
+selected. Appraiser and reviewer heading changes such as `My Work` or `Review Queue` should wait
+until the product distinguishes true workbench behavior from the shared order dashboard. The next
+recommended runtime slice is Falcon Role-Centric Operational Shell Architecture Phase R5A:
+DashboardGate Passive Shell Metadata Prop, which should import `useShellProfile()` in
+`DashboardGate` only as a passive observer, preserve existing dashboard branch order and
+`resolveCurrentDashboard(...)` inputs, pass shell metadata as an optional prop to the already
+selected dashboard component, and test that loading, order-capable, assignment-only, mixed, and
+unavailable branches remain unchanged. R5 changed no runtime code, hook wiring, DashboardGate
+behavior, routes, permissions, backend/Supabase/query/workflow behavior, navigation, command
+palette behavior, dashboard data behavior, shell switching, Client Portal implementation,
+branding, or production data.
+
+Falcon Role-Centric Operational Shell Architecture Phase R5A completed the first passive runtime
+DashboardGate connection to shell profile exposure. `src/features/dashboard/DashboardGate.jsx` now
+observes `useShellProfile()` and passes the returned presentation-only exposure as
+`shellProfilePresentation` to whichever dashboard component the existing permission-derived
+`resolveCurrentDashboard(...)` branch has already selected. `src/features/dashboard/DashboardPage.jsx`
+and `src/features/dashboard/AssignmentDashboardPage.jsx` accept and ignore the optional prop, so no
+visible copy, dashboard data behavior, query behavior, assignment widget behavior, or object
+visibility changes. Focused `DashboardGate` tests now prove loading, order-capable,
+assignment-only, mixed order/assignment, and unavailable branches remain unchanged; shell metadata
+reaches the selected dashboard component; and mismatched shell profile ids cannot select a
+different dashboard branch. R5A preserves `/dashboard` route behavior, route guards, permission
+keys, `resolveCurrentDashboard(...)` inputs and branch order, dashboard headings/subtitles/support
+copy/empty states, navigation, command palette behavior, backend/Supabase/query/workflow behavior,
+RLS/RPCs, product-mode authority, shell switching, Client Portal implementation, branding, and
+production data. The next recommended role-centric slice is Falcon Role-Centric Operational Shell
+Architecture Phase R5B: Dashboard Presentation Copy Audit Plan.
