@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { useDashboardSummary } from "@/lib/hooks/useDashboardSummary";
 import UnifiedOrdersTable from "@/features/orders/UnifiedOrdersTable";
 import DashboardCalendarPanel from "@/components/dashboard/DashboardCalendarPanel";
+import AppraiserWorkbenchPreview from "@/features/dashboard/workbenches/AppraiserWorkbenchPreview";
+import ReviewerWorkbenchPreview from "@/features/dashboard/workbenches/ReviewerWorkbenchPreview";
 import { useCan, useCanAny } from "@/lib/hooks/usePermissions";
 import { PERMISSIONS } from "@/lib/permissions/constants";
 import { ORDER_STATUS, normalizeOrderStatus } from "@/lib/constants/orderStatus";
@@ -129,15 +131,20 @@ function roleContextLabel({ isAdmin, isReviewer, role }) {
 const OPERATIONS_DASHBOARD_SUBTITLE =
   "Track active work, review handoffs, due pressure, and operational readiness.";
 
+function getShellProfilePresentationId(shellProfilePresentation) {
+  return (
+    shellProfilePresentation?.profileId ??
+    shellProfilePresentation?.profile?.id ??
+    shellProfilePresentation?.shellMetadata?.id
+  );
+}
+
 function resolveDashboardPresentation({
   shellProfilePresentation,
   isAdmin,
   isReviewer,
 }) {
-  const profileId =
-    shellProfilePresentation?.profileId ??
-    shellProfilePresentation?.profile?.id ??
-    shellProfilePresentation?.shellMetadata?.id;
+  const profileId = getShellProfilePresentationId(shellProfilePresentation);
   const isOperations = profileId === "operations";
 
   if (isOperations) {
@@ -418,6 +425,9 @@ export default function DashboardPage({ shellProfilePresentation } = {}) {
     isAdmin,
     isReviewer,
   });
+  const shellProfileId = getShellProfilePresentationId(shellProfilePresentation);
+  const showAppraiserWorkbenchPreview = shellProfileId === "my_work" && !isAdmin;
+  const showReviewerWorkbenchPreview = shellProfileId === "review_queue" && !isAdmin;
   const companyLabel = displayName(appContext?.company_name, "Current company");
   const roleLabel = roleContextLabel({ isAdmin, isReviewer, role: normalizedRole });
   const ordersCount = summary.orders.count ?? 0;
@@ -591,6 +601,22 @@ export default function DashboardPage({ shellProfilePresentation } = {}) {
           </section>
         </aside>
       </section>
+
+      {showAppraiserWorkbenchPreview && (
+        <AppraiserWorkbenchPreview
+          rows={ordersRows || []}
+          loading={loading}
+          appraiserLabel={roleLabel}
+        />
+      )}
+
+      {showReviewerWorkbenchPreview && (
+        <ReviewerWorkbenchPreview
+          rows={ordersRows || []}
+          loading={loading}
+          reviewerLabel={roleLabel}
+        />
+      )}
 
       <section
         aria-labelledby="dashboard-support-heading"

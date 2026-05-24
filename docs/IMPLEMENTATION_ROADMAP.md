@@ -2943,4 +2943,122 @@ permission keys, dashboard data hooks, queries, widgets, filters, layout, assign
 behavior, navigation, command palette behavior, backend/Supabase/query/workflow behavior, RLS/RPCs,
 product-mode authority, shell switching, Client Portal implementation, branding, and production
 data. The next recommended role-centric slice is Falcon Role-Centric Operational Shell
-Architecture Phase R6C: Dashboard Fallback Language Plan.
+Architecture Phase R6C: Appraiser And Reviewer Workbench Presentation Plan.
+
+Falcon Role-Centric Operational Shell Architecture Phase R6C completed a documentation-only plan
+for appraiser and reviewer dashboard/workbench presentation before runtime copy or layout changes.
+R6C inspected the shared `DashboardPage`, its tests, `DashboardGate`, current dashboard
+resolution, shell profile metadata/resolution, and the appraiser/reviewer dashboard route wrappers.
+The plan records that appraiser and reviewer pages still render the shared order-capable
+`DashboardPage`, which receives passive shell presentation metadata but currently uses it only for
+the `operations` presentation branch. Because the page still includes calendar context, status
+filters, the Orders table, KPI cards, workload, operational support, and readiness/setup surfaces
+where existing permissions allow, R6C defers heading-level `My Work` and `Review Queue`
+presentation. Those headings would overpromise while the current surface remains a shared
+dashboard rather than dedicated appraiser and reviewer workbench components. Future appraiser and
+reviewer presentation may start with support-copy-only, section-label-only, or scoped empty-state
+refinements after passive tests prove dashboard selection, routes, permissions, data hooks,
+widgets, navigation, and commands remain unchanged. Hybrid behavior remains governed by the R1
+resolver: owner/admin plus production responsibility defaults to `operations`, and appraiser plus
+reviewer users default deterministically to `my_work` unless explicit review work waiting selects
+`review_queue`. R6C preserves all runtime behavior, including `DashboardGate`, route paths, guards,
+permissions, backend/Supabase/query/workflow behavior, navigation, command palette behavior, shell
+switching, Client Portal implementation, branding, and production data. The next recommended
+role-centric slice is Falcon Role-Centric Operational Shell Architecture Phase R6D: DashboardPage
+Appraiser/Reviewer Passive Presentation Tests.
+
+Falcon Role-Centric Operational Shell Architecture Phase R6D completed passive test coverage for
+appraiser and reviewer shell presentation metadata on the shared order-capable `DashboardPage`.
+`src/features/dashboard/__tests__/DashboardPage.test.jsx` now includes `my_work` and
+`review_queue` shell presentation fixtures with future dashboard titles of `My Work` and
+`Review Queue`. The tests prove those passive metadata inputs do not change the shared dashboard
+heading, do not introduce `My Work` or `Review Queue` as page headings, and keep the existing
+appraiser and reviewer support copy in place. The appraiser fixture still renders
+`Operations Dashboard`, `Calendar context, assigned orders, and revision follow-up.`, `Appraiser`,
+and `My Assignments`; the reviewer fixture still renders `Operations Dashboard`,
+`Calendar context and review work assigned to your queue.`, `Reviewer`, and `My Review Work`.
+The tests also prove calendar and Orders table props continue to come from existing dashboard
+summary data and role-derived table modes, while R6B operations presentation coverage remains
+intact. R6D makes no production runtime source change, no visible dashboard copy change, no
+`DashboardGate` or `resolveCurrentDashboard(...)` change, no route/path or permission/guard change,
+no dashboard data/query/widget/table/filter behavior change, no backend/Supabase/query/workflow
+change, no navigation/command palette change, no shell switcher, and no Client Portal
+implementation. The next recommended role-centric slice is Falcon Role-Centric Operational Shell
+Architecture Phase R6E: Appraiser/Reviewer Scoped Dashboard Copy Plan.
+
+Falcon Role-Centric Operational Shell Architecture Phase R6E completed a documentation-only
+workbench surface plan for appraiser and reviewer experiences. R6E inspected the shared
+`DashboardPage`, `DashboardGate`, Orders workspace filtering, `UnifiedOrdersTable`, and
+`DashboardCalendarPanel`. The plan decides not to rename the shared `DashboardPage` to `My Work` or
+`Review Queue`, not to start with route-level alternate views, and not to introduce shell switching.
+The recommended direction is to create passive, unmounted appraiser/reviewer workbench component
+boundaries first, fed by existing dashboard rows and props, then decide later whether proven
+components should mount as scoped panels inside `DashboardPage` or become selected dashboard
+presentation components in a separately approved slice. Safe reusable inputs include dashboard
+summary rows, status counts, due/overdue fields on order rows, existing calendar rows,
+dashboard-scoped `UnifiedOrdersTable` rendering, reviewer queue mode and reviewer id support,
+role-derived appraiser table behavior, workload cards, and existing Orders filter links for
+status, appraiser, reviewer, due, queue, and search. Deferred backend/query/workflow needs include
+explicit assigned-work and reviewer-queue query contracts if dashboard rows are insufficient,
+revision request detail, latest notes, revision-loop counts, file/report readiness, scoped
+notes/activity feeds, report-progress state, and governed submit/resubmit/request-revisions/
+clear-review/ready-for-client action availability inside future workbench components. R6E makes no
+runtime code, dashboard copy, `DashboardGate`, route/path, permission/guard, backend/Supabase/query/
+workflow, dashboard data/widget/table, navigation/command palette, shell switcher, Client Portal,
+branding, or production data change. The next recommended role-centric slice is Falcon
+Role-Centric Operational Shell Architecture Phase R6F: Passive Workbench Component Skeletons.
+
+Falcon Role-Centric Operational Shell Architecture Phase R6F completed passive, unmounted
+appraiser and reviewer workbench component skeletons. `src/features/dashboard/workbenches/AppraiserWorkbenchPreview.jsx`
+renders a presentational `My Work` preview from plain `rows`, `loading`, and `appraiserLabel`
+props, with appraiser-native sections for assigned work, revisions, due soon, site
+visit/calendar context, and files/notes placeholders. `src/features/dashboard/workbenches/ReviewerWorkbenchPreview.jsx`
+renders a presentational `Review Queue` preview from plain `rows`, `loading`, and `reviewerLabel`
+props, with reviewer-native sections for in-review work, resubmissions, due pressure, revision
+follow-up, and review notes/files placeholders. `src/features/dashboard/workbenches/__tests__/WorkbenchPreviews.test.jsx`
+proves the headings, support copy, row-derived sections, empty states, and absence of action
+buttons, and statically scans the preview sources to reject Supabase/API/router/DashboardGate/
+DashboardPage/data-hook/permission-hook/workflow action references. The previews are not imported
+or mounted by live dashboard, route, navigation, command palette, data, permission, or workflow
+surfaces. R6F makes no live UI, dashboard copy, `DashboardGate`, route/path, permission/guard,
+backend/Supabase/query/workflow, dashboard data/widget/table/KPI/workload/Calendar,
+navigation/command palette, shell switcher, Client Portal, branding, or production data change.
+The next recommended role-centric slice is Falcon Role-Centric Operational Shell Architecture
+Phase R6G: Workbench Mount Readiness Plan.
+
+Falcon Role-Centric Operational Shell Architecture Phase R6G completed a documentation-only mount
+readiness plan for the R6F workbench previews. R6G inspected both passive preview components,
+their tests, and the current `DashboardPage` layout. The plan decides that the previews are ready
+only for a limited secondary-panel mount, not for page-level workbench replacement. A future mount
+should keep the shared `Operations Dashboard` heading, avoid dedicated dashboard branch selection,
+and place one scoped role-specific panel after the existing table/status area and before
+`Operational Support`. The mount must be limited to non-admin shell profiles:
+`AppraiserWorkbenchPreview` for `my_work` and `ReviewerWorkbenchPreview` for `review_queue`.
+`DashboardPage` should pass only existing summary props: `rows={ordersRows || []}`,
+`loading={loading}`, and either `appraiserLabel={roleLabel}` or `reviewerLabel={roleLabel}`. R6G
+keeps blocked any heading replacement, `DashboardGate` or `resolveCurrentDashboard(...)` change,
+route/path or permission/guard change, query/hook/Supabase/API/RPC addition, table/status/calendar/
+KPI/workload behavior change, navigation/command change, workflow action button, shell switcher,
+Client Portal behavior, files/notes/report preview, revision history, or activity feed. The next
+recommended role-centric slice is Falcon Role-Centric Operational Shell Architecture Phase R6H:
+DashboardPage Secondary Workbench Preview Mount.
+
+Falcon Role-Centric Operational Shell Architecture Phase R6H completed the first live secondary
+appraiser/reviewer workbench preview mount inside the existing shared `DashboardPage`.
+`src/features/dashboard/DashboardPage.jsx` now imports the passive R6F preview components, derives
+the passive shell profile id from the existing `shellProfilePresentation` prop, renders
+`AppraiserWorkbenchPreview` only for non-admin `my_work` contexts, and renders
+`ReviewerWorkbenchPreview` only for non-admin `review_queue` contexts. The selected panel mounts
+after the current table/status area and before `Operational Support`, and receives only existing
+dashboard props: `ordersRows`, `loading`, and `roleLabel`. Focused
+`src/features/dashboard/__tests__/DashboardPage.test.jsx` coverage proves non-admin appraiser and
+reviewer profiles receive the secondary panels while the page heading remains
+`Operations Dashboard`; owner/admin operations users and owner/admin production-work hybrids do
+not render the panels; calendar and Orders table props still come from existing dashboard summary
+rows and role-derived table modes; and the preview panels render no action buttons. R6H changes no
+`DashboardGate` behavior, dashboard branch selection, routes, permissions, guards, backend/
+Supabase/query/workflow behavior, dashboard data hooks, table/filter/calendar/KPI/workload/setup/
+readiness behavior, navigation, command palette behavior, shell switching, Client Portal
+implementation, branding, or production data. The next recommended role-centric slice is Falcon
+Role-Centric Operational Shell Architecture Phase R6I: Workbench Preview Data Sufficiency And Copy
+Audit.
