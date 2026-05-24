@@ -111,6 +111,24 @@ describe("deriveOrderAttentionSummary", () => {
     });
   });
 
+  it("enriches overdue stale orders with operational status signals", () => {
+    const result = deriveOrderAttentionSummary({
+      order: baseOrder({
+        final_due_at: "2026-05-20T12:00:00.000Z",
+        updated_at: "2026-05-10T12:00:00.000Z",
+      }),
+      now: NOW,
+    });
+
+    expect(result.find((signal) => signal.id === "status_overdue_no_recent_update")).toMatchObject({
+      tone: "critical",
+      label: "Overdue with no recent update",
+      message: "Overdue with no recent update.",
+    });
+    expect(signalIds(result)).not.toContain("status_overdue");
+    expect(signalIds(result)).not.toContain("status_stale_update");
+  });
+
   it("flags active assignment context from loaded assignment status fields", () => {
     const result = deriveOrderAttentionSummary({
       order: baseOrder({ assignment_status: "active" }),
@@ -120,6 +138,37 @@ describe("deriveOrderAttentionSummary", () => {
     expect(result.find((signal) => signal.id === "assignment_active")).toMatchObject({
       message: "Assignment work is still active for this order.",
     });
+  });
+
+  it("uses specific assignment response signals instead of duplicating generic assignment context", () => {
+    const result = deriveOrderAttentionSummary({
+      order: baseOrder({ assignment_status: "offered" }),
+      now: NOW,
+    });
+
+    expect(result.find((signal) => signal.id === "status_assignment_offer_waiting")).toMatchObject({
+      tone: "attention",
+      label: "Assignment response pending",
+      message: "Assignment response is still pending.",
+    });
+    expect(signalIds(result)).not.toContain("assignment_active");
+  });
+
+  it("does not render future intent or automation signals from loaded context", () => {
+    const result = deriveOrderAttentionSummary({
+      order: baseOrder({
+        inspection_complete: true,
+        report_on_track: true,
+        waiting_on_borrower: true,
+        extension_requested: true,
+        automation_suppressed: true,
+      }),
+      now: NOW,
+    });
+
+    expect(signalIds(result).join(" ")).not.toMatch(
+      /inspection_complete|report_on_track|waiting_on_borrower|extension_requested|automation/,
+    );
   });
 
   it("returns a conservative fallback when loaded context has no attention signals", () => {

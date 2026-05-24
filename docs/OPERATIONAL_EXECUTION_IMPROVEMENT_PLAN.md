@@ -898,3 +898,261 @@ Detail, the inline drawer, Orders rows, or appraiser/reviewer workbench row card
 documentation-only and should not mount UI, add queries, change workflow or Smart Actions, trigger
 automation/notifications, alter permissions/routes/navigation, or implement mobile/PWA/native or
 Client Portal behavior.
+
+## Operational Execution Phase 1H Operational Signal Surface Mount Planning
+
+Phase 1H plans how the passive operational status-signal resolver can safely surface in UI without
+becoming workflow, automation, notification, or lifecycle authority.
+
+This phase inspected current mounted execution surfaces:
+
+- `OrderAttentionSummaryPanel` in full Order Detail and inline Order Drawer;
+- `OrderRowNextStep` in Orders table rows;
+- `FileReadinessSummary` in Order Detail Files and inline Order Drawer;
+- `ReviewContextSummary` near Order Detail Activity and inline Order Drawer;
+- `OrderDetail` schedule, files, activity, Smart Actions, lifecycle, assignment, and notes
+  placement;
+- `OrderDrawerContent` summary stack and inline activity/contact/map sections;
+- `OrdersTableRow` row body and existing next-step chip.
+
+### Mount Strategy Decision
+
+Do not add a separate fourth `Status Signals` panel as the first runtime mount.
+
+Recommended first mount path:
+
+- adapt `OrderAttentionSummaryPanel` to consume `deriveOperationalStatusSignals(...)` behind its
+  existing read-only panel boundary;
+- keep the existing `Attention Summary` heading, `Derived` badge, and read-only framing;
+- dedupe or replace overlapping attention signals rather than stacking duplicate due/review/file
+  messages from multiple helpers;
+- keep File Readiness and Review Context as specialized summaries for richer detail, not as
+  competing authority;
+- keep Orders row `OrderRowNextStep` unchanged until a separate row-level rationalization slice.
+
+Reasoning:
+
+- Attention Summary is already the broad operational interpretation surface;
+- the resolver returns multiple signals and matches the existing panel shape;
+- mounting there avoids creating another visual layer in Order Detail and the drawer;
+- it keeps the first mount reversible and testable;
+- users already understand the panel as derived, read-only context.
+
+### Strategies Considered
+
+| Strategy | Decision | Reason |
+|---|---|---|
+| Mount inside `OrderAttentionSummaryPanel` | Recommended first | Reuses the existing broad read-only summary surface and avoids adding clutter. |
+| Add a separate `Status Signals` panel | Defer | Would duplicate Attention Summary and make the drawer/detail stack feel noisy. |
+| Add chips beside File/Review summaries | Defer | Specialized summaries already own file/review detail; generic chips risk repetition. |
+| Replace row-level next-step copy immediately | Defer | Row-level copy is intentionally single-signal and compact; the new resolver returns multiple signals. |
+| Keep resolver unmounted | Acceptable fallback | If duplication cannot be controlled cleanly, keep the resolver passive until a consolidated summary component exists. |
+
+### Signals Safe To Show First
+
+Safe first UI signals in `Attention Summary`:
+
+- `appointment_not_scheduled`;
+- `appointment_scheduled`;
+- `review_pending`;
+- `revisions_open`;
+- `due_soon`;
+- `overdue`;
+- `stale_update`;
+- `overdue_no_recent_update`;
+- `limited_files`;
+- `files_ready_for_review`;
+- `assignment_offer_waiting`;
+- `assignment_review_pending`.
+
+Recommended first visible subset:
+
+- due and overdue signals;
+- overdue with no recent update;
+- stale update;
+- appointment not scheduled / scheduled;
+- review pending;
+- revisions open;
+- assignment offer waiting;
+- assignment review pending.
+
+File signals can appear later or remain in `FileReadinessSummary` to avoid duplicate file messaging.
+`files_ready_for_review` is useful, but should be shown only if duplicate file readiness copy is
+suppressed or clearly secondary.
+
+### Signals To Keep Internal Or Future-Only
+
+Do not show or infer these in UI until explicit input and authority contracts exist:
+
+- inspection complete;
+- report on track;
+- waiting on borrower;
+- waiting on client documents;
+- extension requested;
+- reviewer holding review;
+- appraiser holding revision response;
+- assignment/vendor actively working but not ready to submit;
+- any automation send/suppress/escalation state;
+- any SLA/risk score or required-document completion claim.
+
+### Wording And Severity Rules
+
+Wording rules:
+
+- use `loaded`, `appears`, `may need`, and `pending` language where evidence is derived;
+- do not say a person failed to act;
+- do not say a document set is complete;
+- do not say an appointment does not exist outside Falcon;
+- do not imply reminder suppression, escalation, or workflow state;
+- label all mounted signals as `Derived`.
+
+Severity mapping:
+
+- `critical`: overdue and overdue with no recent update;
+- `attention`: due soon, stale update, review pending, revisions open, appointment not scheduled,
+  assignment response pending, assignment review pending, limited files;
+- `ready`: appointment scheduled and files ready for review;
+- `info`: reserved for future neutral context.
+
+Escalation rule:
+
+- severity is visual priority only. It must not trigger automation, notifications, workflow
+  changes, route access, or Smart Action availability.
+
+### Data And Duplication Rules
+
+The first runtime mount should pass only already loaded props:
+
+- `order`;
+- `documents` only when the current surface already has them loaded;
+- `documentCount` only when already present on the row;
+- `activities` only when a future surface already has them in props;
+- `assignment` / `assignments` only when already present in props.
+
+Duplication rules:
+
+- if `OrderAttentionSummaryPanel` uses the new resolver, it should not also render duplicate
+  `deriveOrderAttentionSummary(...)` output for the same signal ids;
+- file readiness detail should remain in `FileReadinessSummary`;
+- review/revision detail should remain in `ReviewContextSummary`;
+- row-level `OrderRowNextStep` should remain single-signal until separately migrated.
+
+### First Safe Runtime Mount Slice
+
+The safest first runtime mount slice is **Operational Execution Phase 1I: Attention Summary Signal
+Resolver Integration**.
+
+Phase 1I scope:
+
+- update `OrderAttentionSummaryPanel` to derive its broad summary from
+  `deriveOperationalStatusSignals(...)`;
+- keep the existing component name, placement, heading, description, `Derived` badge, and
+  read-only card layout;
+- map resolver `severity` values to the existing panel tone classes;
+- pass only already loaded order/document/document-count props;
+- preserve File Readiness and Review Context specialized panels;
+- keep Orders row `OrderRowNextStep` unchanged;
+- add focused presentation tests for due/overdue/stale/review/revision/appointment/assignment
+  signal rendering and no action controls.
+
+Phase 1I must not:
+
+- add a new panel;
+- change Smart Actions;
+- change workflow/lifecycle behavior;
+- add backend, Supabase, query, RPC, activity, assignment, or document fetches;
+- trigger automation, notifications, reminder suppression, or escalation;
+- change permissions, routes, navigation, command palette, DashboardGate, dashboard data, mobile,
+  shell switching, or Client Portal behavior.
+
+### Phase 1H Conclusions
+
+- Operational status signals should first surface through the existing Attention Summary boundary,
+  not as a separate UI stack.
+- File and review summaries should stay specialized and detailed.
+- Row-level signal usage should wait until the row next-step chip is intentionally consolidated.
+- The next runtime slice should be a narrow Attention Summary resolver integration with tests and
+  no behavior outside presentation.
+
+## Operational Execution Phase 1I Attention Summary Signal Resolver Integration
+
+Phase 1I integrates the passive operational status signal resolver into the existing Attention
+Summary derivation path.
+
+Runtime files updated:
+
+- `src/features/orders/attention/deriveOrderAttentionSummary.js`;
+- `src/features/orders/attention/OrderAttentionSummaryPanel.jsx`.
+
+Focused tests updated:
+
+- `src/features/orders/attention/__tests__/deriveOrderAttentionSummary.test.js`.
+
+Phase 1I changes:
+
+- `deriveOrderAttentionSummary(...)` now calls `deriveOperationalStatusSignals(...)` after the
+  existing attention signals are derived;
+- only approved presentation-safe signal ids are eligible for Attention Summary rendering;
+- resolver `severity` values are mapped to existing Attention Summary tones;
+- overlapping concepts are deduped so due, review, revision, appointment, stale-update, file, and
+  assignment messages are not stacked twice;
+- `overdue_no_recent_update` can enrich overdue stale orders as a higher-signal derived attention
+  message;
+- assignment offer/submitted states can render specific response/review-pending language instead
+  of the older generic assignment-active message;
+- `OrderAttentionSummaryPanel` accepts optional `activities`, `assignment`, and `assignments`
+  props for future already-loaded context, while current mounts continue to pass existing loaded
+  order/document context only.
+
+Safe visible status signal ids:
+
+- `appointment_not_scheduled`;
+- `appointment_scheduled`;
+- `review_pending`;
+- `revisions_open`;
+- `due_soon`;
+- `overdue`;
+- `stale_update`;
+- `overdue_no_recent_update`;
+- `assignment_offer_waiting`;
+- `assignment_review_pending`.
+
+Signals intentionally not surfaced:
+
+- inspection complete;
+- report on track;
+- waiting on borrower;
+- waiting on client documents;
+- extension requested;
+- reviewer/appraiser hold intent;
+- automation suppression/escalation state;
+- SLA/risk scoring;
+- required-document completion claims.
+
+Phase 1I preserves:
+
+- the existing `OrderAttentionSummaryPanel` heading, description, `Derived` badge, placement, and
+  read-only card layout;
+- the existing Order Detail and inline drawer mounts;
+- File Readiness and Review Context as specialized summaries;
+- Orders row `OrderRowNextStep` behavior;
+- dashboard, navigation, command palette, route, permission, backend, Supabase, query, RPC,
+  workflow, Smart Action, lifecycle, automation, notification, mobile/PWA/native, shell switching,
+  Client Portal, branding, and production data behavior.
+
+Phase 1I test coverage proves:
+
+- safe operational status signals enrich the Attention Summary when evidence exists;
+- duplicate due/stale signals are avoided;
+- assignment offer context uses specific response-pending language rather than duplicate generic
+  assignment language;
+- conservative fallback remains available when loaded context shows no attention need;
+- future/internal-only intent and automation fields do not render attention messages.
+
+### Phase 1I Conclusions
+
+- The operational status resolver is now live only inside the existing read-only Attention Summary
+  path.
+- The integration enriches derived presentation copy without creating a new panel, action,
+  workflow state, notification, or authority surface.
+- Row-level signal integration and richer activity/assignment-fed signal mounting remain deferred.

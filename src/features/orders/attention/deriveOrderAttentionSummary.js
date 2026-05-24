@@ -1,4 +1,5 @@
 import { ORDER_STATUS, normalizeOrderStatus } from "@/lib/constants/orderStatus";
+import { deriveOperationalStatusSignals } from "@/features/orders/signals/deriveOperationalStatusSignals";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DUE_SOON_DAYS = 3;
@@ -12,6 +13,66 @@ const ACTIVE_ASSIGNMENT_STATUSES = new Set([
   "offered",
   "submitted",
 ]);
+
+const SAFE_STATUS_SIGNAL_IDS = new Set([
+  "appointment_not_scheduled",
+  "appointment_scheduled",
+  "review_pending",
+  "revisions_open",
+  "due_soon",
+  "overdue",
+  "stale_update",
+  "overdue_no_recent_update",
+  "assignment_offer_waiting",
+  "assignment_review_pending",
+]);
+
+const STATUS_SIGNAL_PRIORITY = new Map([
+  ["overdue_no_recent_update", 0],
+  ["overdue", 1],
+  ["due_soon", 2],
+  ["review_pending", 3],
+  ["revisions_open", 4],
+  ["stale_update", 5],
+  ["assignment_offer_waiting", 6],
+  ["assignment_review_pending", 7],
+  ["appointment_not_scheduled", 8],
+  ["appointment_scheduled", 9],
+]);
+
+const STATUS_SIGNAL_TONES = Object.freeze({
+  critical: "critical",
+  attention: "attention",
+  ready: "positive",
+  info: "neutral",
+});
+
+const ATTENTION_SIGNAL_CONCEPTS = Object.freeze({
+  final_due_overdue: "due",
+  final_due_soon: "due",
+  review_due_overdue: "review",
+  review_pending: "review",
+  revisions_open: "revision",
+  site_visit_missing: "appointment_missing",
+  files_missing: "files",
+  files_present: "files",
+  stale_activity: "stale",
+  assignment_active: "assignment",
+  recent_activity: "recent_activity",
+});
+
+const STATUS_SIGNAL_CONCEPTS = Object.freeze({
+  overdue: "due",
+  due_soon: "due",
+  review_pending: "review",
+  revisions_open: "revision",
+  stale_update: "stale",
+  appointment_not_scheduled: "appointment_missing",
+  appointment_scheduled: "appointment_ready",
+  assignment_offer_waiting: "assignment",
+  assignment_review_pending: "assignment",
+  overdue_no_recent_update: "overdue_stale",
+});
 
 function parseDate(value) {
   if (!value) return null;
@@ -66,10 +127,53 @@ function addSignal(signals, signal) {
   });
 }
 
+function attentionConcept(signal) {
+  return ATTENTION_SIGNAL_CONCEPTS[signal?.id] || signal?.id;
+}
+
+function statusSignalConcept(signal) {
+  return STATUS_SIGNAL_CONCEPTS[signal?.id] || signal?.id;
+}
+
+function normalizeStatusSignal(signal) {
+  return {
+    id: `status_${signal.id}`,
+    tone: STATUS_SIGNAL_TONES[signal.severity] || "neutral",
+    label: signal.label,
+    message: signal.message,
+  };
+}
+
+function mergeOperationalStatusSignals(attentionSignals, statusSignals) {
+  const usedConcepts = new Set(attentionSignals.map(attentionConcept));
+  const mergedSignals = [...attentionSignals];
+
+  const safeSignals = statusSignals
+    .filter((signal) => SAFE_STATUS_SIGNAL_IDS.has(signal.id))
+    .sort((a, b) => {
+      const aPriority = STATUS_SIGNAL_PRIORITY.get(a.id) ?? 100;
+      const bPriority = STATUS_SIGNAL_PRIORITY.get(b.id) ?? 100;
+      return aPriority - bPriority;
+    });
+
+  for (const signal of safeSignals) {
+    const concept = statusSignalConcept(signal);
+    if (usedConcepts.has(concept)) continue;
+
+    mergedSignals.push(normalizeStatusSignal(signal));
+    usedConcepts.add(concept);
+  }
+
+  return mergedSignals;
+}
+
 export function deriveOrderAttentionSummary({
   order,
+  activities = null,
   documents = null,
   documentCount = null,
+  assignment = null,
+  assignments = null,
   now = new Date(),
 } = {}) {
   if (!order) return [];
@@ -191,7 +295,7 @@ export function deriveOrderAttentionSummary({
   }
 
   const assignmentStatus = activeAssignmentStatus(order);
-  if (assignmentStatus) {
+  if (assignmentStatus && !["offered", "submitted"].includes(assignmentStatus)) {
     addSignal(signals, {
       id: "assignment_active",
       tone: "neutral",
@@ -228,5 +332,16 @@ export function deriveOrderAttentionSummary({
     });
   }
 
-  return signals.slice(0, 5);
+  const statusSignals = deriveOperationalStatusSignals({
+    order,
+    activities,
+    documents,
+    documentCount,
+    assignment,
+    assignments,
+    now: currentTime,
+  });
+  const mergedSignals = mergeOperationalStatusSignals(signals, statusSignals);
+
+  return mergedSignals.slice(0, 5);
 }

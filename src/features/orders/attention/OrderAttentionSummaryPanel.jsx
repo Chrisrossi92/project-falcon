@@ -9,14 +9,24 @@ const TONE_CLASSES = Object.freeze({
 
 export default function OrderAttentionSummaryPanel({
   order,
+  activities = null,
   documents = null,
   documentCount = null,
+  assignment = null,
+  assignments = null,
   title = "Attention Summary",
   description = "Read-only signals derived from loaded order context.",
   compact = false,
   className = "",
 } = {}) {
-  const signals = deriveOrderAttentionSummary({ order, documents, documentCount });
+  const signals = deriveOrderAttentionSummary({
+    order,
+    activities,
+    documents,
+    documentCount,
+    assignment,
+    assignments,
+  });
 
   if (!order) return null;
 

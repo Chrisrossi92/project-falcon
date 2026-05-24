@@ -3370,3 +3370,36 @@ behavior, Smart Action behavior, lifecycle behavior, permission behavior, route 
 navigation, command palette, DashboardGate behavior, automation, notifications, mobile/PWA/native
 implementation, shell switching, Client Portal behavior, branding, or production data changed. The
 next safest slice is an operational signal mount-readiness plan.
+
+Operational Execution Phase 1H is complete as documentation-only Operational Signal Surface Mount
+Planning. The plan inspects the current Attention Summary, Orders row next-step chip, File
+Readiness Summary, Review Context Summary, Order Detail, Order Drawer, and Orders table row
+surfaces. It decides that the first signal UI should integrate into the existing
+`OrderAttentionSummaryPanel`, not appear as a separate fourth `Status Signals` panel. File
+Readiness and Review Context remain specialized summaries, and Orders row signal usage waits for a
+separate row-level rationalization slice. Safe first visible signals are due soon, overdue,
+overdue with no recent update, stale update, appointment not scheduled/scheduled, review pending,
+revisions open, assignment offer waiting, and assignment review pending. Intent signals,
+automation state, SLA/risk scores, and required-document completion claims remain blocked. The next
+safe runtime slice is Attention Summary Signal Resolver Integration, with no backend/Supabase/
+query/RPC/workflow/RLS behavior, Smart Action behavior, lifecycle behavior, permission behavior,
+route behavior, navigation, command palette, DashboardGate behavior, automation, notifications,
+mobile/PWA/native implementation, shell switching, Client Portal behavior, branding, or production
+data changes.
+
+Operational Execution Phase 1I is complete as a frontend-only Attention Summary Signal Resolver
+Integration slice. `deriveOrderAttentionSummary(...)` now consumes the passive
+`deriveOperationalStatusSignals(...)` resolver as an allowlisted presentation enrichment source.
+The integration keeps the existing `OrderAttentionSummaryPanel` heading, `Derived` badge,
+placement, and read-only card layout, while deduping overlapping due, stale, review, revision,
+appointment, file, and assignment concepts. The panel can now surface compact status-derived
+attention copy for overdue with no recent update and assignment response/owner-review pending
+context without creating a separate Status Signals panel. File Readiness and Review Context remain
+specialized summaries, and Orders row next-step behavior remains unchanged. Inspection complete,
+report on track, waiting-on-borrower/client/document, extension-requested, hold-intent,
+automation, SLA/risk, and required-document completion signals remain blocked. No backend/
+Supabase/query/RPC/workflow/RLS behavior, Smart Action behavior, lifecycle behavior, permission
+behavior, route behavior, navigation, command palette, DashboardGate behavior, dashboard data,
+automation, notifications, mobile/PWA/native implementation, shell switching, Client Portal
+behavior, branding, or production data changed. The next safest slice is an Activity Freshness
+Evidence Audit before richer stale/update signals or any query/workflow/automation work.

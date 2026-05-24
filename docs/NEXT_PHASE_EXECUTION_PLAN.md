@@ -3175,6 +3175,123 @@ Phase 1H should decide the first safe UI surface for passive status signals, if 
 mounting runtime UI or changing workflow, Smart Actions, queries, automation, notifications,
 permissions, routes, navigation, mobile/PWA/native, or Client Portal behavior.
 
+### Operational Execution Phase 1H
+
+Completed documentation-only operational signal surface mount planning.
+
+Phase 1H inspected current mounted execution surfaces:
+
+- Order Attention Summary in full Order Detail and inline Order Drawer;
+- Orders row Next-Step support copy;
+- File Readiness Summary;
+- Review / Revision Context Summary;
+- Order Detail schedule/files/activity/assignment areas;
+- inline Order Drawer summary stack;
+- Orders table row body.
+
+Mount decision:
+
+- first signal UI should integrate into the existing `OrderAttentionSummaryPanel`;
+- do not add a separate `Status Signals` panel first;
+- do not change Orders row next-step copy yet;
+- keep File Readiness and Review Context as specialized detail summaries;
+- use only already loaded order/document/document-count props;
+- treat severity as visual priority only.
+
+Signals safe to show first:
+
+- due soon;
+- overdue;
+- overdue with no recent update;
+- stale update;
+- appointment not scheduled;
+- appointment scheduled;
+- review pending;
+- revisions open;
+- assignment offer waiting;
+- assignment review pending.
+
+Signals to keep internal/future-only:
+
+- inspection complete;
+- report on track;
+- waiting on borrower/client;
+- waiting on client documents;
+- extension requested;
+- reviewer/appraiser hold intent;
+- automation send/suppress/escalation state;
+- SLA/risk score or required-document completion claims.
+
+Preserved guardrails:
+
+- no runtime UI mount, backend, Supabase, query, RPC, workflow, RLS, permission, route,
+  navigation, command palette, DashboardGate, Smart Action, lifecycle, automation, notification,
+  mobile/PWA/native, shell switching, Client Portal, branding, or production data change.
+
+Recommended next execution slice:
+
+- **Operational Execution Phase 1I: Attention Summary Signal Resolver Integration**.
+
+Phase 1I should update `OrderAttentionSummaryPanel` to use `deriveOperationalStatusSignals(...)`
+for broad summary rendering while preserving the existing component placement, heading, derived
+badge, read-only layout, File Readiness panel, Review Context panel, Orders row next-step behavior,
+queries, Smart Actions, workflow, automation, notifications, permissions, routes, navigation,
+mobile/PWA/native, and Client Portal behavior.
+
+### Operational Execution Phase 1I
+
+Completed Attention Summary Signal Resolver Integration.
+
+Runtime scope completed:
+
+- `deriveOrderAttentionSummary(...)` now consumes `deriveOperationalStatusSignals(...)` as a
+  presentation-only enrichment source;
+- safe operational status signals are allowlisted before they can render in Attention Summary;
+- overlapping due, stale, review, revision, appointment, file, and assignment concepts are deduped;
+- `overdue_no_recent_update` can appear as a compact high-signal attention message;
+- assignment offered/submitted context can use response-pending or owner-review-pending language
+  instead of duplicate generic assignment-active copy;
+- `OrderAttentionSummaryPanel` accepts optional already-loaded activity/assignment props for
+  future use, while current mounts still rely on existing loaded order/document context.
+
+Signals allowed in the attention path:
+
+- due soon;
+- overdue;
+- overdue with no recent update;
+- stale update;
+- appointment not scheduled / scheduled;
+- review pending;
+- revisions open;
+- assignment offer waiting;
+- assignment review pending.
+
+Signals still blocked:
+
+- inspection complete;
+- report on track;
+- waiting on borrower/client documents;
+- extension requested;
+- reviewer/appraiser hold intent;
+- automation suppression/escalation state;
+- SLA/risk scoring;
+- required-document completion claims.
+
+Preserved guardrails:
+
+- no new panel, no Orders row integration, no backend, Supabase, query, RPC, workflow, RLS,
+  permission, route, navigation, command palette, DashboardGate, dashboard data, Smart Action,
+  lifecycle, automation, notification, mobile/PWA/native, shell switching, Client Portal,
+  branding, or production data change.
+
+Recommended next execution slice:
+
+- **Operational Execution Phase 1J: Activity Freshness Evidence Audit**.
+
+Phase 1J should audit whether currently loaded activity/note/document timestamps are sufficient to
+support stronger stale/update signals in Order Detail and drawer contexts before adding new
+queries, workflow actions, notifications, or automation.
+
 ## Recommended Ordering
 
 1. Completed: start Track 1 with read-only Order Detail Print Packets.
@@ -3182,12 +3299,15 @@ permissions, routes, navigation, mobile/PWA/native, or Client Portal behavior.
 3. Completed: implement and close out the initial governed Dashboard KPI foundation.
 4. Completed: implement and close out the initial governed Workload Visibility foundation.
 5. Completed: run Track 3's production readiness checkpoint.
-6. Before adding new side-effecting features, run Track 2's source-scan hardening slice.
-7. Continue Track 1 with Order Detail/activity read UX improvements.
-8. Design the first Track 2 backend workflow notification migration, but implement only after the
+6. Completed: lock role-aware shell, dashboard presentation, navigation, and command palette
+   priority foundations.
+7. Continue operational execution with Phase 1J: Activity Freshness Evidence Audit.
+8. Before adding new side-effecting features, run Track 2's source-scan hardening slice.
+9. Continue Track 1 with Order Detail/activity read UX improvements.
+10. Design the first Track 2 backend workflow notification migration, but implement only after the
    no-duplicate replacement plan is clear.
-9. Resolve client archive semantics before broad client/AMC expansion.
-10. Continue production cutover rehearsals until broader customer rollout is unblocked.
+11. Resolve client archive semantics before broad client/AMC expansion.
+12. Continue production cutover rehearsals until broader customer rollout is unblocked.
 
 ## Explicit Non-Goals For The First Slice
 
