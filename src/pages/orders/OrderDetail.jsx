@@ -5,6 +5,7 @@ import GoogleMapEmbed from "@/components/maps/GoogleMapEmbed";
 import SiteVisitPicker from "@/components/dates/SiteVisitPicker";
 import OrderStatusBadge from "@/components/orders/table/OrderStatusBadge";
 import ActivityLog from "@/components/activity/ActivityLog";
+import OrderAttentionSummaryPanel from "@/features/orders/attention/OrderAttentionSummaryPanel";
 import useOrder from "@/lib/hooks/useOrder";
 import { useEffectivePermissions } from "@/lib/hooks/usePermissions";
 import { useToast } from "@/lib/hooks/useToast";
@@ -495,6 +496,7 @@ export default function OrderDetail() {
   const [lifecycleError, setLifecycleError] = useState("");
   const [printPacketOpen, setPrintPacketOpen] = useState(false);
   const [orderFiles, setOrderFiles] = useState([]);
+  const [orderFilesLoaded, setOrderFilesLoaded] = useState(false);
 
   // Display names
   const [clientName, setClientName] = useState("-");
@@ -525,6 +527,7 @@ export default function OrderDetail() {
   const copyNo = () => navigator.clipboard?.writeText(titleNo).catch(() => {});
   const handleFilesLoaded = React.useCallback((files) => {
     setOrderFiles(Array.isArray(files) ? files : []);
+    setOrderFilesLoaded(true);
   }, []);
   const documentCategoryCounts = useMemo(
     () => buildDocumentCategoryCounts(orderFiles),
@@ -765,6 +768,12 @@ export default function OrderDetail() {
             </OverviewSection>
           </div>
         </div>
+
+        <OrderAttentionSummaryPanel
+          order={order}
+          documents={orderFilesLoaded ? orderFiles : null}
+          className="mt-4"
+        />
         </div>
 
         {/* Detail body */}

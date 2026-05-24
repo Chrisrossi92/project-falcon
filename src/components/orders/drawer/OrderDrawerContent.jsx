@@ -5,6 +5,7 @@ import ActivityLog from "@/components/activity/ActivityLog";
 import OrderStatusBadge from "@/components/orders/table/OrderStatusBadge";
 import OrderOpenFullLink from "@/components/orders/drawer/OrderOpenFullLink";
 import GoogleMapEmbed from "@/components/maps/GoogleMapEmbed";
+import OrderAttentionSummaryPanel from "@/features/orders/attention/OrderAttentionSummaryPanel";
 
 /** Pull from the normalized v4 view (no legacy fallback). */
 async function fetchViewRow(orderId) {
@@ -311,6 +312,13 @@ export default function OrderDrawerContent({ orderId, order: rowFromTable }) {
         </div>
       </div>
 
+      <OrderAttentionSummaryPanel
+        order={row}
+        title="Order Signals"
+        description="Read-only summary from the loaded order row."
+        compact
+      />
+
       <div className="grid grid-cols-12 gap-3">
         <div className="col-span-12 xl:col-span-7">
           <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm">
@@ -421,7 +429,6 @@ function ContactLine({ label, value }) {
     </div>
   );
 }
-
 
 
 

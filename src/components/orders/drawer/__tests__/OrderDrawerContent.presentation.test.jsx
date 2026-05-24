@@ -94,6 +94,8 @@ describe("OrderDrawerContent presentation", () => {
       "href",
       "/orders/order-1",
     );
+    expect(screen.getByLabelText("Order attention summary")).toBeInTheDocument();
+    expect(screen.getByText("Order Signals")).toBeInTheDocument();
     expect(screen.getByText("Order Contacts")).toBeInTheDocument();
     expect(screen.getByText("Client and site contact context")).toBeInTheDocument();
     expect(screen.getByText("Location Preview")).toBeInTheDocument();

@@ -281,6 +281,20 @@ describe("OrderDetail site visit save", () => {
 
     expect(screen.getByText("Activity")).toBeInTheDocument();
     expect(screen.queryByText("Activity / Communication History")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Order attention summary")).toBeInTheDocument();
+    expect(screen.getByText("Attention Summary")).toBeInTheDocument();
+  });
+
+  it("adds document context to the read-only attention summary after files load", async () => {
+    render(<OrderDetail />);
+
+    const attention = screen.getByLabelText("Order attention summary");
+
+    await waitFor(() => {
+      expect(within(attention).getByText("Files present")).toBeInTheDocument();
+    });
+    expect(within(attention).getByText("1 supporting file loaded.")).toBeInTheDocument();
+    expect(within(attention).queryByRole("button")).not.toBeInTheDocument();
   });
 
   it("uses overview first, then map and activity detail cards", () => {

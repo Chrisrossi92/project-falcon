@@ -3265,3 +3265,36 @@ behavior, route paths, route guards, permission keys/checks, navigation, Dashboa
 backend/Supabase/query/workflow behavior, shell switching, Client Portal behavior, branding, or
 production data. The next recommended role-centric slice is Falcon Role-Centric Operational Shell
 Architecture Phase R8E: Command Palette Copy And Alias Readiness Plan.
+
+Operational Execution Phase 1A is complete as documentation in
+`docs/OPERATIONAL_EXECUTION_IMPROVEMENT_PLAN.md`. The audit shifts Falcon from role-shell
+architecture into daily workflow execution after the shell resolver, passive shell metadata,
+dashboard presentation, appraiser/reviewer workbench previews, desktop/mobile profile-aware
+navigation, and profile-aware command palette priority milestones. Phase 1A inspected dashboard
+and workbench surfaces, Orders workspace, Order Detail, the inline order drawer, Smart Actions,
+activity/notes, files/documents, Calendar, Assignments/Received Work, Team Access/readiness, and
+notification center behavior. It identifies the highest-value friction as scattered next-action
+context, due pressure without consistent role-native next steps, review/revision context gaps,
+file readiness not yet operationalized, appointment/status progress signals split across surfaces,
+owner/admin stuck-work visibility that is mostly derived, dense mobile execution, and
+notifications that are not yet role-attention tuned. The ranked runtime path starts with
+Operational Execution Phase 1B: Order Detail Attention Summary Panel. Phase 1B should be
+frontend-only and read-only, derive summary items from already loaded order fields and current
+document count/category metadata, and preserve all route, permission, backend/Supabase/query/
+workflow, Smart Action, lifecycle, automation, mobile/PWA/native, shell switching, and Client
+Portal boundaries.
+
+Operational Execution Phase 1B is complete as the first runtime attention-summary slice. It adds
+`src/features/orders/attention/deriveOrderAttentionSummary.js` and
+`src/features/orders/attention/OrderAttentionSummaryPanel.jsx`, then mounts the read-only panel in
+full Order Detail and the inline order drawer. The panel derives presentation-only signals from
+already loaded frontend context: due soon/overdue dates, review pending/review overdue state, open
+revisions, missing loaded appointment/site visit date, loaded file presence after the existing
+Files card returns metadata, active assignment status when present on the loaded order row, stale
+or recent loaded update context, and a conservative fallback when loaded context shows no
+immediate attention signal. It renders no buttons, links, workflow controls, lifecycle controls,
+notifications, automation, or mutation affordances. Existing Order Detail loading, drawer
+open/close behavior, document upload/download/archive behavior, activity timeline/composer,
+assignment panel, Smart Actions, lifecycle/archive/cancel/void controls, route guards,
+permissions, backend/Supabase/query/RPC/workflow/RLS behavior, DashboardGate, navigation, command
+palette, shell switching, Client Portal, branding, and production data behavior remain unchanged.

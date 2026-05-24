@@ -2834,6 +2834,100 @@ R8E should audit which command labels or aliases can safely become role-native a
 ordering before any command copy or alias runtime changes.
 
 
+### Operational Execution Phase 1A
+
+Completed documentation-only active workflow friction audit in
+`docs/OPERATIONAL_EXECUTION_IMPROVEMENT_PLAN.md`.
+
+Phase 1A shifts focus from role-shell architecture to daily operational execution after the
+role-aware shell, dashboard presentation, workbench preview, navigation, and command palette
+priority milestones.
+
+Phase 1A inspected:
+
+- dashboard/workbench surfaces;
+- Orders workspace and `UnifiedOrdersTable`;
+- Order Detail and inline order drawer;
+- Smart Actions and workflow action control placement;
+- activity and note surfaces;
+- files/document surfaces;
+- Calendar;
+- Assignments/Received Work;
+- Team Access/readiness;
+- notification center behavior.
+
+Top friction points:
+
+- next action is split across table rows, drawer, detail, Smart Actions, files, activity, and
+  assignment panels;
+- due pressure is visible but not consistently paired with a role-native next step;
+- review/revision work lacks nearby submission, revision-loop, note, file, and age context;
+- file readiness exists as governed document metadata but is not yet operationalized;
+- appointment/status progress signals are possible but scattered;
+- owner/admin stuck or silent work visibility is mostly derived rather than explicit;
+- mobile execution still depends on dense desktop-oriented surfaces;
+- notifications are useful but not yet role-attention tuned.
+
+Recommended first runtime slice:
+
+- **Operational Execution Phase 1B: Order Detail Attention Summary Panel**.
+
+Phase 1B should add a frontend-only, read-only attention summary to existing Order Detail using
+already loaded order fields and current document count/category metadata only. It should improve
+next-step readability for owner/admin, appraiser, and reviewer users without moving Smart Actions,
+changing lifecycle controls, adding backend/query/workflow behavior, changing permissions, adding
+automation, adding mobile/PWA/native implementation, or implementing Client Portal behavior.
+
+### Operational Execution Phase 1B
+
+Implemented the first read-only operational Attention Summary Panel for Order Detail surfaces.
+
+Runtime files added:
+
+- `src/features/orders/attention/deriveOrderAttentionSummary.js`;
+- `src/features/orders/attention/OrderAttentionSummaryPanel.jsx`.
+
+Runtime files updated:
+
+- `src/pages/orders/OrderDetail.jsx`;
+- `src/components/orders/drawer/OrderDrawerContent.jsx`.
+
+Focused tests added or updated:
+
+- `src/features/orders/attention/__tests__/deriveOrderAttentionSummary.test.js`;
+- `src/features/orders/attention/__tests__/OrderAttentionSummaryPanel.test.jsx`;
+- `src/pages/orders/__tests__/OrderDetail.test.jsx`;
+- `src/components/orders/drawer/__tests__/OrderDrawerContent.presentation.test.jsx`.
+
+Phase 1B derives only lightweight presentation signals from already loaded frontend data:
+
+- due soon / overdue;
+- review pending / review overdue;
+- open revisions;
+- missing loaded appointment/site visit date;
+- loaded document/file presence after the existing Files card returns metadata;
+- active assignment status when present on the loaded order row;
+- stale or recent loaded update context;
+- conservative fallback when loaded context shows no immediate attention signal.
+
+Preserved guardrails:
+
+- no backend, Supabase, query, RPC, RLS, workflow, lifecycle, Smart Action, permission, route,
+  navigation, command palette, DashboardGate, automation, notification delivery, mobile/PWA/native,
+  shell switching, Client Portal, branding, or production data change;
+- no new API calls;
+- no movement of existing actions;
+- no risk score or authoritative blocker model.
+
+Recommended next execution slice:
+
+- **Operational Execution Phase 1C: Orders Row Next-Step Support Copy Plan**.
+
+Phase 1C should plan how the same conservative attention signals can appear beside order rows
+without changing table columns, Smart Actions, workflow behavior, filters, queries, or route
+authority.
+
+
 ## Recommended Ordering
 
 1. Completed: start Track 1 with read-only Order Detail Print Packets.
