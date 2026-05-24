@@ -261,10 +261,66 @@ describe("TopNav desktop primary navigation", () => {
     expect(screen.queryByText("Management")).toBeNull();
   });
 
-  it("renders mobile primary nav from the current registry helper and preserves Settings placement", () => {
+  it("renders mobile primary nav from visible links with shell priority ordering and preserves Settings placement", () => {
     permissionState.allowed = new Set([
       PERMISSIONS.CLIENTS_READ_ALL,
       PERMISSIONS.CLIENTS_READ_ASSIGNED,
+      PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_OWNER,
+      PERMISSIONS.RELATIONSHIPS_READ,
+      PERMISSIONS.USERS_READ,
+      PERMISSIONS.SETTINGS_VIEW,
+    ]);
+
+    const { container } = renderTopNav();
+    const mobileNav = openMobileNav(container);
+    const links = within(mobileNav).getAllByRole("link");
+
+    expect(links.map((link) => link.textContent)).toEqual([
+      "Orders",
+      "Calendar",
+      "Assignments",
+      "Clients",
+      "Relationships",
+      "Team Access",
+      "Settings",
+    ]);
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "/orders",
+      "/calendar",
+      "/assignments",
+      "/clients",
+      "/relationships",
+      "/users",
+      "/settings",
+    ]);
+  });
+
+  it("keeps the same mobile link set while ordering only visible links for received work", () => {
+    shellProfileState.profileId = "received_work";
+    permissionState.allowed = new Set([PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_ASSIGNED]);
+
+    const { container } = renderTopNav();
+    const mobileNav = openMobileNav(container);
+    const links = within(mobileNav).getAllByRole("link");
+
+    expect(links.map((link) => link.textContent)).toEqual([
+      "Assignments",
+      "Orders",
+      "Calendar",
+    ]);
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "/assignments",
+      "/orders",
+      "/calendar",
+    ]);
+    expect(within(mobileNav).queryByRole("link", { name: "Clients" })).toBeNull();
+    expect(within(mobileNav).queryByRole("link", { name: "Team Access" })).toBeNull();
+  });
+
+  it("preserves current flat mobile order for unknown shell profiles", () => {
+    shellProfileState.profileId = "unknown_profile";
+    permissionState.allowed = new Set([
+      PERMISSIONS.CLIENTS_READ_ALL,
       PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_OWNER,
       PERMISSIONS.RELATIONSHIPS_READ,
       PERMISSIONS.USERS_READ,

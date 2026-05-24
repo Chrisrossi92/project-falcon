@@ -7,6 +7,7 @@ import { getCurrentUserProfile } from "@/lib/services/api";
 import AvatarBadge from "@/components/ui/AvatarBadge";
 import { useCan, useCanAny } from "@/lib/hooks/usePermissions";
 import { getCurrentPrimaryNavLinks } from "@/lib/navigation/currentPrimaryNavLinks";
+import { getCurrentShellMobileNavigationLinks } from "@/lib/navigation/currentShellMobileNavigationLinks";
 import { getCurrentShellNavigationSections } from "@/lib/navigation/currentShellNavigationSections";
 import { avatarSettingsUtilityLinks } from "@/lib/navigation/currentSettingsUtilityLinks";
 import { PERMISSIONS } from "@/lib/permissions/constants";
@@ -148,9 +149,14 @@ export default function TopNav() {
     canReadRelationships: showRelationshipsNav,
     canReadUsers: showUsersNav,
   });
+  const shellProfileId = shellProfilePresentation?.profileId ?? shellProfilePresentation?.id;
   const desktopNavSections = getCurrentShellNavigationSections(
     primaryNavLinks,
-    shellProfilePresentation?.profileId ?? shellProfilePresentation?.id,
+    shellProfileId,
+  );
+  const mobileNavLinks = getCurrentShellMobileNavigationLinks(
+    primaryNavLinks,
+    shellProfileId,
   );
 
   useEffect(() => {
@@ -210,7 +216,7 @@ export default function TopNav() {
         {open && (
           <div className="md:hidden border-t border-slate-200 bg-white/95 shadow-lg backdrop-blur-xl">
             <nav className="px-3 py-3 flex flex-col gap-1">
-              {primaryNavLinks.map((link) => (
+              {mobileNavLinks.map((link) => (
                 <NavItem key={link.id} to={link.path} onClick={() => setOpen(false)}>
                   {link.label}
                 </NavItem>

@@ -2525,6 +2525,89 @@ R7E should evaluate whether mobile nav should adopt grouping, priority ordering,
 for usability before any mobile runtime change.
 
 
+### Falcon Role-Centric Operational Shell Architecture Phase R7E
+
+Completed documentation-only mobile navigation grouping readiness planning after desktop
+profile-aware grouping. R7E inspected `TopNav`, current primary nav link derivation, desktop shell
+navigation section derivation, and passive shell navigation grouping metadata. Current mobile nav
+still maps the already permission-filtered `primaryNavLinks` flat, closes the drawer on link
+selection, and renders `Settings` separately after a divider when settings access is allowed.
+Desktop R7D grouping remains separate and mission-control oriented, while mobile should follow the
+Mobile = Operational Execution doctrine by favoring direct access over extra section chrome.
+
+Render decision:
+
+- do not render mobile group labels as the first mobile slice;
+- do not add mobile accordions;
+- do not introduce quick actions from navigation metadata;
+- do not rename global mobile nav labels yet;
+- keep fallback, unknown, and future profiles on the current flat mobile order;
+- use profile-aware priority ordering as the safest first mobile runtime direction.
+
+Recommended next runtime slice:
+
+- **Falcon Role-Centric Operational Shell Architecture Phase R7F: Mobile Navigation Priority
+  Ordering From Visible Links**.
+
+R7F should add a pure helper that accepts already visible mobile links and a shell profile id,
+returns the same links in profile-prioritized order for active profiles, appends ungrouped visible
+links in their existing relative order, and preserves fallback/unknown/future profiles in current
+flat order. It should apply only to the mobile drawer, keep mobile `Settings` placement unchanged,
+keep desktop grouping unchanged, keep command palette behavior unchanged, and prove the mobile
+visible link id set, labels, paths, drawer close behavior, routes, permissions, guards,
+DashboardGate, dashboards, backend/Supabase/query/workflow behavior, shell switching, and Client
+Portal behavior remain unchanged.
+
+### Falcon Role-Centric Operational Shell Architecture Phase R7F
+
+Implemented mobile navigation priority ordering from already visible permission-filtered links.
+
+Runtime files added:
+
+- `src/lib/navigation/currentShellMobileNavigationLinks.js`.
+
+Runtime files updated:
+
+- `src/components/shell/TopNav.jsx`.
+
+Focused tests added or updated:
+
+- `src/lib/navigation/__tests__/currentShellMobileNavigationLinks.test.js`;
+- `src/components/shell/__tests__/TopNav.test.jsx`.
+
+R7F behavior:
+
+- mobile nav remains a flat list with no group labels or accordions;
+- `TopNav` keeps `getCurrentPrimaryNavLinks(...)` as the source of visible links;
+- active shell profiles reorder only those visible links through
+  `getCurrentShellMobileNavigationLinks(...)`;
+- metadata-only nav ids do not create links;
+- ungrouped visible links remain available in current relative order;
+- fallback, future, and unknown profiles keep the current flat mobile order;
+- mobile `Settings` remains after the existing divider when settings access is allowed;
+- desktop R7D grouping remains unchanged;
+- command palette behavior remains unchanged.
+
+Preserved guardrails:
+
+- no route/path changes;
+- no permission/guard changes;
+- no visible link removal or synthetic inaccessible links;
+- no nav label changes;
+- no mobile group labels, accordions, hidden links, or de-emphasis behavior;
+- no command palette changes;
+- no DashboardGate, dashboard/data, backend/Supabase/query/workflow, shell switching, or Client
+  Portal changes.
+
+Recommended next role-centric slice:
+
+- **Falcon Role-Centric Operational Shell Architecture Phase R7G: Mobile Navigation Copy And
+  Density Audit**.
+
+R7G should audit whether mobile nav labels, spacing, and Settings/support placement remain clear
+after profile-priority ordering before any additional mobile runtime changes.
+
+
 ## Recommended Ordering
 
 1. Completed: start Track 1 with read-only Order Detail Print Packets.

@@ -5064,3 +5064,341 @@ R7E should audit whether mobile nav should receive profile-aware grouping, prior
 remain flat for usability. It should not change routes, permissions, command palette behavior,
 DashboardGate, dashboards, backend/Supabase/query/workflow behavior, shell switching, or Client
 Portal implementation.
+
+## Shell Resolution Phase R7E Mobile Navigation Grouping Readiness Plan
+
+Phase R7E plans mobile navigation grouping after the R7D desktop grouping render. This phase is
+documentation and planning only.
+
+### R7E Sources Inspected
+
+R7E inspected:
+
+- `src/components/shell/TopNav.jsx`;
+- `src/lib/navigation/currentPrimaryNavLinks.js`;
+- `src/lib/navigation/currentShellNavigationSections.js`;
+- `src/lib/navigation/shellNavigationGroups.js`.
+
+### Current Mobile Navigation Behavior
+
+Current mobile navigation remains flat and permission-derived:
+
+- `TopNav` derives `primaryNavLinks` from `getCurrentPrimaryNavLinks(...)`;
+- the mobile drawer maps `primaryNavLinks` directly in current helper order;
+- the mobile drawer closes when a nav link is selected;
+- mobile `Settings` is rendered separately after a divider when `settings.view` allows it;
+- mobile nav does not consume `currentShellNavigationSections`;
+- mobile nav does not render group labels, accordions, or de-emphasis;
+- command palette behavior remains independent from mobile nav.
+
+This means R7D desktop grouping did not change mobile link availability, mobile link order, mobile
+settings placement, command palette behavior, route paths, or permission checks.
+
+### Desktop Versus Mobile
+
+Desktop is Falcon's mission-control surface. It can tolerate visible section labels because owner
+and admin users need broad scanability across daily operations, management, and setup/support.
+
+Mobile is Falcon's operational-execution surface. It should help users reach the next work surface
+quickly with minimal tap depth and minimal vertical noise. Mobile should not automatically mirror
+desktop grouping because section labels increase drawer height and can slow action-oriented use.
+
+### Mobile Strategies Considered
+
+#### Grouped Sections
+
+Grouped sections would reuse the R7D desktop pattern inside the mobile drawer.
+
+Decision:
+
+- do not use grouped mobile sections as the first mobile runtime slice.
+
+Reasoning:
+
+- group labels add vertical height to a compact surface;
+- owner/admin grouping may be useful later, but appraiser, reviewer, and assignment-recipient
+  mobile flows should emphasize direct work access;
+- grouping can make permissioned secondary links feel unavailable or less important if not tested
+  carefully.
+
+#### Role-Priority Ordering Only
+
+Role-priority ordering would keep the drawer as a flat list but sort already visible links by the
+resolved shell profile's mobile priority.
+
+Decision:
+
+- this is the recommended first mobile runtime direction.
+
+Rules:
+
+- start from `getCurrentPrimaryNavLinks(...)`;
+- keep the same visible link set;
+- keep the same labels and paths;
+- intersect only with passive shell navigation metadata;
+- move role-primary visible links earlier;
+- append any visible links not represented by profile metadata in their existing relative order;
+- keep mobile `Settings` behavior separate unless a later slice explicitly folds settings into
+  mobile ordering.
+
+#### Accordions
+
+Accordions would collapse groups inside the mobile drawer.
+
+Decision:
+
+- defer accordions.
+
+Reasoning:
+
+- accordions add interaction cost before navigation;
+- they can hide permissioned links behind a second tap;
+- they are better suited to a larger mobile information architecture after real usage patterns are
+  known.
+
+#### Quick-Action-First Layout
+
+A quick-action-first mobile drawer would place governed workflow actions ahead of navigation.
+
+Decision:
+
+- keep this future-only.
+
+Reasoning:
+
+- quick actions require explicit governed action availability, workflow state, object context, and
+  audit behavior;
+- nav grouping metadata is not workflow authority;
+- adding actions to mobile nav would exceed the current navigation-only scope.
+
+#### Flat Nav With Role-Native Labels
+
+Flat nav with role-native labels would rename visible links such as `Orders` to `My Work` or
+`Assignments` to `Received Work` in mobile contexts.
+
+Decision:
+
+- defer global mobile label changes.
+
+Reasoning:
+
+- global `Orders`, `Assignments`, and dashboard wording still depend on broader shell-aware
+  presentation decisions;
+- owner/admin assignment oversight and assignment-recipient received work need different language;
+- label changes can overpromise route behavior if the underlying route still serves a broader
+  workspace.
+
+### Recommended Mobile Direction
+
+Mobile should remain flat in the first mobile runtime slice, but the flat list may become
+profile-prioritized.
+
+Recommended profile behavior:
+
+- `operations`: keep broad operational visibility, but prioritize visible daily operations links
+  before management/support links;
+- `my_work`: prioritize visible work and calendar links before permissioned admin or management
+  links;
+- `review_queue`: prioritize visible review/order/calendar links before permissioned support links;
+- `received_work`: prioritize visible assignment/received-work links and do not create internal
+  order, client, calendar, team, or owner setup links;
+- fallback, unknown, and future profiles: keep current flat mobile order.
+
+This ordering must preserve every currently visible permission-filtered link. Appraisers,
+reviewers, or hybrid users must not lose access to permissioned admin, assignment, client, or
+relationship links merely because their primary shell is `my_work` or `review_queue`.
+
+### Owner/Admin Hybrids
+
+Owner/admin plus production-work users should continue to resolve to `operations`.
+
+Mobile implications:
+
+- do not hide company-wide risk behind a production-work mobile default;
+- keep any currently visible production or assignment links available;
+- prioritize operational triage links first, then management/support links;
+- do not introduce a shell switcher in the mobile nav slice.
+
+### Assignment-Only Users
+
+Assignment-only users should remain assignment-native without gaining internal routes.
+
+Mobile implications:
+
+- prioritize visible assignment/received-work surfaces;
+- do not create `Orders`, `Clients`, `Calendar`, `Team Access`, or owner setup links from metadata;
+- preserve assignment-scoped safety underneath the existing route and permission model;
+- keep `Received Work` terminology for later label-specific slices rather than renaming global
+  mobile nav in the first ordering slice.
+
+### Fallback And Unknown Profiles
+
+Fallback and unknown profiles should keep the current flat mobile nav.
+
+Rules:
+
+- no profile-specific labels;
+- no group headings;
+- no role-priority reordering;
+- no future `Requests` links;
+- no hidden-record or disabled-module implication.
+
+### Safest First Mobile Runtime Slice
+
+The safest first mobile runtime slice is **R7F Mobile Navigation Priority Ordering From Visible
+Links**.
+
+R7F scope:
+
+- add a small pure helper that accepts already visible mobile nav links and a shell profile id;
+- return the same link objects with profile-prioritized ordering for active profiles;
+- preserve the visible link id set exactly;
+- preserve link labels and paths exactly;
+- append ungrouped visible links in current relative order;
+- keep unknown, fallback, and future profiles in the current flat order;
+- apply the helper only to the mobile drawer;
+- keep mobile `Settings` placement unchanged after the divider unless separately approved;
+- keep desktop R7D grouping unchanged;
+- keep command palette unchanged.
+
+R7F tests should prove:
+
+- active profiles reorder only already visible mobile links;
+- no metadata-only nav ids create links;
+- the mobile visible link id set is unchanged for operations, my_work, review_queue,
+  received_work, and fallback cases;
+- unknown/fallback profiles preserve current mobile order;
+- mobile Settings remains after the divider and keeps current behavior;
+- selecting a mobile link still closes the drawer;
+- command palette labels, ordering, availability, and fallback search remain unchanged.
+
+R7F must not:
+
+- render mobile group labels;
+- add mobile accordions;
+- hide or de-emphasize links;
+- rename nav labels;
+- change route paths or route guards;
+- change permission keys or permission filtering;
+- change command palette behavior;
+- change DashboardGate, dashboards, queries, backend/Supabase/workflow behavior, shell switching,
+  Client Portal behavior, branding, or production data.
+
+### R7E Conclusions
+
+- Desktop grouping can support mission-control scanability, but mobile should optimize for
+  operational execution.
+- The first mobile change should not render section labels or accordions.
+- The safest mobile runtime direction is flat, profile-prioritized ordering from already visible
+  permission-filtered links.
+- Mobile grouping metadata must remain presentation-only and downstream of existing permission
+  visibility.
+- Unknown, fallback, and future profiles should keep current flat mobile behavior.
+
+## Recommended Next Slice
+
+Proceed with **Falcon Role-Centric Operational Shell Architecture Phase R7F: Mobile Navigation
+Priority Ordering From Visible Links**.
+
+R7F should keep mobile nav flat while ordering already visible links by shell profile priority. It
+should preserve link availability, labels, paths, mobile Settings placement, command palette
+behavior, routes, permissions, guards, DashboardGate, dashboards, backend/Supabase/query/workflow
+behavior, shell switching, and Client Portal behavior.
+
+## Shell Resolution Phase R7F Mobile Navigation Priority Ordering From Visible Links
+
+Phase R7F applies the first role-aware mobile navigation presentation change while keeping mobile
+navigation flat.
+
+Runtime files added:
+
+- `src/lib/navigation/currentShellMobileNavigationLinks.js`.
+
+Runtime files updated:
+
+- `src/components/shell/TopNav.jsx`.
+
+Focused tests added or updated:
+
+- `src/lib/navigation/__tests__/currentShellMobileNavigationLinks.test.js`;
+- `src/components/shell/__tests__/TopNav.test.jsx`.
+
+R7F changes:
+
+- `TopNav` derives a single passive shell profile id from existing shell profile presentation
+  metadata;
+- desktop nav continues to use `getCurrentShellNavigationSections(...)` from R7D;
+- mobile nav now uses `getCurrentShellMobileNavigationLinks(...)`;
+- the mobile helper accepts already visible links from `getCurrentPrimaryNavLinks(...)`;
+- active shell profiles reorder visible mobile links by shell navigation metadata priority;
+- metadata-only nav ids are ignored when they are not already visible;
+- visible links not represented by profile metadata are appended in their current relative order;
+- unknown, fallback, and future profiles keep the current flat mobile order;
+- mobile `Settings` remains rendered separately after the existing divider when allowed.
+
+R7F mobile ordering behavior:
+
+- `operations` prioritizes visible daily operation links before management links;
+- `my_work` prioritizes visible work/calendar/client-context links and keeps permissioned
+  assignment, relationship, and Team Access links available after those primary links;
+- `review_queue` follows the same visible-link-only priority model for review work;
+- `received_work` prioritizes visible assignment links without creating Orders, Clients, Calendar,
+  Team Access, or owner setup links from metadata;
+- fallback, future, unresolved, and unknown shell profiles keep current mobile order.
+
+R7F preserves:
+
+- the exact permission-filtered mobile link set;
+- mobile link labels;
+- mobile link paths;
+- mobile link click/close behavior;
+- mobile Settings placement after the divider;
+- desktop grouped navigation behavior from R7D;
+- command palette registry, helper, rendering, labels, ordering, filtering, and order-search
+  fallback;
+- all route paths, route guards, permission keys, permission checks, `DashboardGate`, dashboards,
+  backend/Supabase/query/workflow behavior, RLS/RPCs, object visibility, shell switching, Client
+  Portal behavior, branding, and production data.
+
+R7F deliberately does not:
+
+- render mobile group labels;
+- add mobile accordions;
+- hide links;
+- de-emphasize links;
+- rename mobile nav labels;
+- change route access;
+- change command palette behavior;
+- introduce quick actions;
+- introduce a shell switcher;
+- implement Client Portal navigation.
+
+R7F test coverage proves:
+
+- operations-profile mobile nav keeps the same visible links while applying shell priority order;
+- mobile Settings remains after the nav links and keeps its existing path;
+- received-work ordering uses only visible links and does not create inaccessible links from
+  metadata;
+- unknown profiles preserve the current flat mobile order;
+- assigned-only client routing remains unchanged;
+- mobile link selection still closes the drawer;
+- desktop grouping tests continue to prove R7D desktop behavior remains intact;
+- shell navigation group metadata remains passive, frozen, and aligned with current nav ids.
+
+### R7F Conclusions
+
+- Falcon now has profile-aware mobile nav ordering without mobile group labels.
+- The ordering is applied after permission-filtered link derivation and never grants, removes, or
+  hides access.
+- Mobile remains an operational-execution flat list.
+- Desktop grouping and command palette behavior remain unchanged.
+
+## Recommended Next Slice
+
+Proceed with **Falcon Role-Centric Operational Shell Architecture Phase R7G: Mobile Navigation
+Copy And Density Audit**.
+
+R7G should audit whether mobile nav labels, spacing, and Settings/support placement remain clear
+after profile-priority ordering. It should not change route access, permissions, command palette
+behavior, DashboardGate, dashboards, backend/Supabase/query/workflow behavior, shell switching, or
+Client Portal implementation.

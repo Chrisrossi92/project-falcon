@@ -3143,3 +3143,37 @@ selection, backend/Supabase/query/workflow behavior, RLS/RPCs, object visibility
 Client Portal behavior, branding, or production data. The next recommended role-centric slice is
 Falcon Role-Centric Operational Shell Architecture Phase R7E: Mobile Navigation Grouping Readiness
 Plan.
+
+Falcon Role-Centric Operational Shell Architecture Phase R7E completed documentation-only mobile
+navigation grouping readiness planning. R7E inspected the current mobile drawer in `TopNav`,
+current primary nav link derivation, the R7D desktop section helper, and passive shell navigation
+group metadata. The plan records that mobile nav remains a flat drawer from already
+permission-filtered `primaryNavLinks`, closes on link selection, and renders Settings separately
+after a divider when allowed. Because desktop is Falcon's mission-control surface and mobile is
+the operational-execution surface, R7E does not recommend copying desktop group labels into mobile
+as the first mobile slice. It also defers mobile accordions, quick-action-first layout, and
+role-native global label changes. The recommended runtime direction is flat mobile
+profile-priority ordering from already visible links only: keep the same visible link set, labels,
+paths, and Settings placement; reorder active-profile links by shell priority; append ungrouped
+visible links in current relative order; and keep fallback, unknown, and future profiles in the
+current flat order. The next recommended role-centric slice is Falcon Role-Centric Operational
+Shell Architecture Phase R7F: Mobile Navigation Priority Ordering From Visible Links. R7F should
+change only mobile ordering from visible links and must not change routes, permissions, guards,
+command palette behavior, desktop grouping, DashboardGate, dashboards, backend/Supabase/query/
+workflow behavior, shell switching, Client Portal behavior, branding, or production data.
+
+Falcon Role-Centric Operational Shell Architecture Phase R7F implemented mobile navigation
+priority ordering from already visible permission-filtered links. R7F added
+`src/lib/navigation/currentShellMobileNavigationLinks.js`, updated `TopNav`, and added focused
+mobile ordering and TopNav tests. Mobile nav remains a flat list with no group labels,
+accordions, hidden links, de-emphasis behavior, quick actions, or label changes. `TopNav` still
+uses `getCurrentPrimaryNavLinks(...)` as the source of visible links, then
+`getCurrentShellMobileNavigationLinks(...)` reorders active-profile links by passive shell
+navigation metadata. Metadata-only ids do not create links, ungrouped visible links remain
+available in current relative order, and fallback/future/unknown profiles keep current flat mobile
+order. Mobile Settings remains after the existing divider when allowed. Desktop R7D grouping and
+command palette behavior remain unchanged. R7F changes no route paths, route guards, permission
+keys/checks, visible link availability, nav labels, DashboardGate behavior, dashboard selection,
+backend/Supabase/query/workflow behavior, RLS/RPCs, object visibility, shell switching, Client
+Portal behavior, branding, or production data. The next recommended role-centric slice is Falcon
+Role-Centric Operational Shell Architecture Phase R7G: Mobile Navigation Copy And Density Audit.
