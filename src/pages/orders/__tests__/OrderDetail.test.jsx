@@ -295,6 +295,11 @@ describe("OrderDetail site visit save", () => {
     });
     expect(within(attention).getByText("1 supporting file loaded.")).toBeInTheDocument();
     expect(within(attention).queryByRole("button")).not.toBeInTheDocument();
+
+    const readiness = screen.getByLabelText("File readiness summary");
+    expect(within(readiness).getByText("Limited files")).toBeInTheDocument();
+    expect(within(readiness).getByText("Limited supporting files uploaded so far.")).toBeInTheDocument();
+    expect(within(readiness).queryByRole("button")).not.toBeInTheDocument();
   });
 
   it("uses overview first, then map and activity detail cards", () => {

@@ -71,6 +71,7 @@ describe("OrderDrawerContent presentation", () => {
           zip: "30301",
           client_contact_email: "client@example.com",
           access_notes: "Use side entrance.",
+          document_count: 0,
         },
         error: null,
       });
@@ -96,6 +97,8 @@ describe("OrderDrawerContent presentation", () => {
     );
     expect(screen.getByLabelText("Order attention summary")).toBeInTheDocument();
     expect(screen.getByText("Order Signals")).toBeInTheDocument();
+    expect(screen.getByLabelText("File readiness summary")).toBeInTheDocument();
+    expect(screen.getByText("No files loaded")).toBeInTheDocument();
     expect(screen.getByText("Order Contacts")).toBeInTheDocument();
     expect(screen.getByText("Client and site contact context")).toBeInTheDocument();
     expect(screen.getByText("Location Preview")).toBeInTheDocument();

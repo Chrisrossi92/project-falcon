@@ -2971,6 +2971,53 @@ Recommended next execution slice:
 Phase 1D should decide how appraiser/reviewer dashboard workbench previews can move from counts to
 row cards using existing dashboard rows only.
 
+### Operational Execution Phase 1D
+
+Implemented a lightweight read-only File Readiness Summary derived from already loaded document
+metadata and existing order context.
+
+Runtime files added:
+
+- `src/features/orders/readiness/deriveFileReadinessSummary.js`;
+- `src/features/orders/readiness/FileReadinessSummary.jsx`.
+
+Runtime files updated:
+
+- `src/pages/orders/OrderDetail.jsx`;
+- `src/components/orders/drawer/OrderDrawerContent.jsx`.
+
+Focused tests added or updated:
+
+- `src/features/orders/readiness/__tests__/deriveFileReadinessSummary.test.js`;
+- `src/features/orders/readiness/__tests__/FileReadinessSummary.test.jsx`;
+- `src/pages/orders/__tests__/OrderDetail.test.jsx`;
+- `src/components/orders/drawer/__tests__/OrderDrawerContent.presentation.test.jsx`.
+
+Phase 1D behavior:
+
+- renders a compact derived summary in the full Order Detail Files area after the existing document
+  metadata load completes;
+- renders the same read-only summary in the inline drawer only when the already fetched row has an
+  explicit document/file count;
+- identifies no files loaded, limited file coverage, multiple supporting documents, recent uploads,
+  documents available for review, and loaded category mix where conservative metadata supports it;
+- avoids required-document enforcement, completion percentages, readiness scoring, or file-set
+  completeness claims.
+
+Preserved guardrails:
+
+- no backend, Supabase, query, RPC, workflow, RLS, permission, route, navigation, command palette,
+  DashboardGate, Smart Action, lifecycle, automation, notification delivery, mobile/PWA/native,
+  shell switching, Client Portal, branding, or production data change;
+- no document upload, download, archive, or existing Files card behavior change.
+
+Recommended next execution slice:
+
+- **Operational Execution Phase 1E: Workbench Row-Card Readiness Plan**.
+
+Phase 1E should decide how appraiser/reviewer dashboard workbench previews can move from counts to
+row cards using existing dashboard rows only.
+
 ## Recommended Ordering
 
 1. Completed: start Track 1 with read-only Order Detail Print Packets.

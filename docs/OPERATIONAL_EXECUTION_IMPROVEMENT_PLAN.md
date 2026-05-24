@@ -504,3 +504,62 @@ Phase 1C preserves:
 - The chip is not a workflow action, not a lifecycle control, and not an authority signal.
 - The next safest execution slice is an appraiser/reviewer workbench row-card plan or a received
   work next-action copy plan, using the same "visible data only" doctrine.
+
+## Operational Execution Phase 1D File Readiness Summary
+
+Phase 1D implements a lightweight read-only File Readiness Summary derived from already loaded
+document metadata and existing order context.
+
+Runtime files added:
+
+- `src/features/orders/readiness/deriveFileReadinessSummary.js`;
+- `src/features/orders/readiness/FileReadinessSummary.jsx`.
+
+Runtime files updated:
+
+- `src/pages/orders/OrderDetail.jsx`;
+- `src/components/orders/drawer/OrderDrawerContent.jsx`.
+
+Focused tests added or updated:
+
+- `src/features/orders/readiness/__tests__/deriveFileReadinessSummary.test.js`;
+- `src/features/orders/readiness/__tests__/FileReadinessSummary.test.jsx`;
+- `src/pages/orders/__tests__/OrderDetail.test.jsx`;
+- `src/components/orders/drawer/__tests__/OrderDrawerContent.presentation.test.jsx`.
+
+Phase 1D derives conservative file-readiness presentation from loaded metadata:
+
+- no supporting files loaded;
+- limited supporting files uploaded so far;
+- multiple supporting documents available;
+- recent document uploads detected;
+- documents available for review when the loaded order status is in review;
+- simple document category mix summary when categories are loaded.
+
+Phase 1D intentionally avoids:
+
+- required-document enforcement;
+- completion percentages or scoring;
+- claims that a file set is complete;
+- new document queries or background checks;
+- upload/download/archive behavior changes.
+
+Phase 1D preserves:
+
+- existing Order Detail document loading;
+- existing document upload, download, archive, and error behavior;
+- existing inline drawer fetch behavior;
+- Smart Actions and lifecycle controls;
+- route guards and permission checks;
+- backend, Supabase, query, RPC, workflow, RLS, notification, automation, mobile/PWA/native, shell
+  switching, DashboardGate, navigation, command palette, Client Portal, branding, and production
+  data behavior.
+
+### Phase 1D Conclusions
+
+- Order Detail now gives users a compact, non-authoritative read on file readiness beside the
+  existing Files area.
+- Inline drawer rows can show file readiness only when the already fetched row includes explicit
+  document/file count metadata.
+- The next safest execution slice remains a workbench row-card readiness plan or received-work
+  next-action copy audit using already loaded data only.

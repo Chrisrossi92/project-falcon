@@ -6,6 +6,7 @@ import SiteVisitPicker from "@/components/dates/SiteVisitPicker";
 import OrderStatusBadge from "@/components/orders/table/OrderStatusBadge";
 import ActivityLog from "@/components/activity/ActivityLog";
 import OrderAttentionSummaryPanel from "@/features/orders/attention/OrderAttentionSummaryPanel";
+import FileReadinessSummary from "@/features/orders/readiness/FileReadinessSummary";
 import useOrder from "@/lib/hooks/useOrder";
 import { useEffectivePermissions } from "@/lib/hooks/usePermissions";
 import { useToast } from "@/lib/hooks/useToast";
@@ -187,7 +188,7 @@ function OverviewSection({ title, children, className = "" }) {
   );
 }
 
-function FilesCard({ orderId, canArchive, canUpload, onFilesLoaded }) {
+function FilesCard({ order, orderId, canArchive, canUpload, onFilesLoaded }) {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -334,6 +335,10 @@ function FilesCard({ orderId, canArchive, canUpload, onFilesLoaded }) {
           </div>
         )}
       </div>
+
+      {!loading && !error && (
+        <FileReadinessSummary order={order} documents={files} className="mt-3" />
+      )}
 
       {canUpload && (
         <div className="mt-3 rounded border border-dashed border-gray-200 bg-gray-50/70 p-2">
@@ -801,6 +806,7 @@ export default function OrderDetail() {
           </div>
 
           <FilesCard
+            order={order}
             orderId={order.id}
             canArchive={canArchiveDocuments}
             canUpload={canUploadDocuments}
