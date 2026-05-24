@@ -1811,10 +1811,99 @@ Preserved boundaries:
 - no shell switching, product-mode authority change, Client Portal implementation, branding, or
   production data change.
 
+### Falcon Role-Centric Operational Shell Architecture Phase R6A
+
+Completed the first visible shell-aware dashboard presentation change in the isolated assignment
+dashboard branch.
+
+R6A updated:
+
+- `src/features/dashboard/AssignmentDashboardPage.jsx`;
+- `src/features/dashboard/__tests__/AssignmentDashboardPage.test.jsx`.
+
+R6A behavior:
+
+- `AssignmentDashboardPage` reads `shellProfilePresentation` only for presentation copy;
+- when the passive shell profile is `received_work`, the dashboard heading is `Received Work`;
+- received-work support copy focuses on assigned work requests, due dates, assignment status, and
+  owner review after submission;
+- received-work dashboard copy avoids universal `packet` terminology;
+- non-received assignment dashboard contexts keep the existing `Assignment Dashboard` frame.
+
+Focused tests prove:
+
+- received-work shell presentation renders the new heading and support copy;
+- received-work dashboard support copy does not introduce packet wording;
+- generic non-received assignment presentation is unchanged;
+- assigned-work and owner-sent assignment widgets still render from the same permission checks;
+- loading behavior remains unchanged;
+- `DashboardGate` tests still prove assignment-only, order-capable, mixed, loading, and fallback
+  dashboard selection remains permission-derived and unchanged.
+
+Preserved boundaries:
+
+- no `DashboardGate` branch selection change;
+- no route/path change;
+- no permission or route guard change;
+- no dashboard data hook, query, RPC, assignment widget, or object visibility change;
+- no assignment list/detail/workflow/lifecycle behavior change;
+- no order-capable dashboard change;
+- no backend/Supabase/query/workflow/RLS/RPC change;
+- no navigation or command palette change;
+- no shell switching, product-mode authority change, Client Portal implementation, branding, or
+  production data change.
+
 Recommended next role-centric slice:
 
-- **Falcon Role-Centric Operational Shell Architecture Phase R5B: Dashboard Presentation Copy
-  Audit Plan**.
+- **Falcon Role-Centric Operational Shell Architecture Phase R6B: Owner/Admin Operations Dashboard
+  Presentation**.
+
+### Falcon Role-Centric Operational Shell Architecture Phase R6B
+
+Completed shell-aware presentation copy for the owner/admin order-capable dashboard.
+
+R6B updated:
+
+- `src/features/dashboard/DashboardPage.jsx`;
+- `src/features/dashboard/__tests__/DashboardPage.test.jsx`.
+
+R6B behavior:
+
+- `DashboardPage` reads `shellProfilePresentation` only for presentation copy;
+- when the passive shell profile is `operations`, the dashboard keeps the `Operations Dashboard`
+  heading;
+- operations support copy now says `Track active work, review handoffs, due pressure, and
+  operational readiness.`;
+- non-operations dashboard contexts keep the existing role-derived support copy;
+- setup/readiness remains secondary inside the existing operational support area.
+
+Focused tests prove:
+
+- operations shell presentation renders the owner/admin-native support copy;
+- non-operations dashboard presentation preserves the previous owner/admin fallback copy;
+- existing dashboard sections, widgets, links, filtering, table props, and readiness surfaces still
+  render from the same summary data and permission checks;
+- `DashboardGate` tests still prove assignment-only, order-capable, mixed, loading, and fallback
+  dashboard selection remains permission-derived and unchanged;
+- `AssignmentDashboardPage` tests still prove R6A received-work presentation remains isolated.
+
+Preserved boundaries:
+
+- no `DashboardGate` branch selection change;
+- no `resolveCurrentDashboard(...)` change;
+- no route/path change;
+- no permission or route guard change;
+- no dashboard data hook, query, RPC, widget, filter, table, link, or object visibility change;
+- no assignment dashboard change;
+- no backend/Supabase/query/workflow/RLS/RPC change;
+- no navigation or command palette change;
+- no shell switching, product-mode authority change, Client Portal implementation, branding, or
+  production data change.
+
+Recommended next role-centric slice:
+
+- **Falcon Role-Centric Operational Shell Architecture Phase R6C: Dashboard Fallback Language
+  Plan**.
 
 ## Recommended Ordering
 

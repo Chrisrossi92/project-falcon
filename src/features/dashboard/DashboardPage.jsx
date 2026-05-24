@@ -126,6 +126,40 @@ function roleContextLabel({ isAdmin, isReviewer, role }) {
   return displayName(role, "Operational");
 }
 
+const OPERATIONS_DASHBOARD_SUBTITLE =
+  "Track active work, review handoffs, due pressure, and operational readiness.";
+
+function resolveDashboardPresentation({
+  shellProfilePresentation,
+  isAdmin,
+  isReviewer,
+}) {
+  const profileId =
+    shellProfilePresentation?.profileId ??
+    shellProfilePresentation?.profile?.id ??
+    shellProfilePresentation?.shellMetadata?.id;
+  const isOperations = profileId === "operations";
+
+  if (isOperations) {
+    return {
+      title:
+        shellProfilePresentation?.profile?.dashboardTitle ??
+        shellProfilePresentation?.shellMetadata?.dashboardTitle ??
+        "Operations Dashboard",
+      subtitle: OPERATIONS_DASHBOARD_SUBTITLE,
+    };
+  }
+
+  return {
+    title: "Operations Dashboard",
+    subtitle: isAdmin
+      ? "Calendar, active orders, and workflow handoffs for the current company."
+      : isReviewer
+      ? "Calendar context and review work assigned to your queue."
+      : "Calendar context, assigned orders, and revision follow-up.",
+  };
+}
+
 function addGroupedCount(map, id, label, fallback) {
   if (!id) return;
   const key = String(id);
@@ -334,7 +368,7 @@ function summarizeWorkloadVisibility(orders = []) {
   };
 }
 
-export default function DashboardPage({ shellProfilePresentation: _shellProfilePresentation } = {}) {
+export default function DashboardPage({ shellProfilePresentation } = {}) {
   const nav = useNavigate();
   const [dashboardRefreshKey, setDashboardRefreshKey] = useState(0);
   const setupContextState = useCompanySetupContext();
@@ -379,12 +413,11 @@ export default function DashboardPage({ shellProfilePresentation: _shellProfileP
     setStatusFilter((curr) => (curr === val ? "" : val));
   };
 
-  const title = "Operations Dashboard";
-  const subtitle = isAdmin
-    ? "Calendar, active orders, and workflow handoffs for the current company."
-    : isReviewer
-    ? "Calendar context and review work assigned to your queue."
-    : "Calendar context, assigned orders, and revision follow-up.";
+  const { title, subtitle } = resolveDashboardPresentation({
+    shellProfilePresentation,
+    isAdmin,
+    isReviewer,
+  });
   const companyLabel = displayName(appContext?.company_name, "Current company");
   const roleLabel = roleContextLabel({ isAdmin, isReviewer, role: normalizedRole });
   const ordersCount = summary.orders.count ?? 0;

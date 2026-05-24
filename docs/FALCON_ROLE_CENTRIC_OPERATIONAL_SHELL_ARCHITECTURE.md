@@ -3333,12 +3333,126 @@ R5A test coverage proves:
 - Appraiser, reviewer, assignment-recipient, and fallback copy changes still require separate
   presentation-only slices.
 
+## Shell Resolution Phase R6A Assignment Dashboard Received Work Presentation
+
+Phase R6A implements the first visible shell-aware dashboard presentation change in the safest
+isolated dashboard surface: the assignment dashboard branch that is already selected by
+permission-derived `DashboardGate` behavior.
+
+Runtime files updated:
+
+- `src/features/dashboard/AssignmentDashboardPage.jsx`.
+
+Focused tests added:
+
+- `src/features/dashboard/__tests__/AssignmentDashboardPage.test.jsx`.
+
+R6A changes:
+
+- `AssignmentDashboardPage` now derives presentation copy from `shellProfilePresentation` only
+  when the passive shell profile is `received_work`;
+- the received-work shell heading is `Received Work`;
+- received-work support copy focuses on work requests assigned to the user's company, due dates,
+  assignment status, and owner review after submission;
+- received-work dashboard copy avoids universal `packet` terminology;
+- non-`received_work` assignment dashboard contexts keep the existing `Assignment Dashboard`
+  heading and generic assignment support copy.
+
+R6A preserves:
+
+- `DashboardGate` branch selection and branch order;
+- `resolveCurrentDashboard(...)` inputs and behavior;
+- `/dashboard`, `/assignments`, and assignment detail route paths;
+- route guards and permission keys;
+- assignment-only dashboard isolation;
+- assignment dashboard loading, unavailable, assigned-work widget, and owner-sent widget behavior;
+- assignment list/detail APIs, packet resolution, lifecycle actions, and object visibility;
+- order-capable dashboard headings, copy, data hooks, and rendering behavior;
+- navigation and command palette behavior;
+- backend, Supabase, query, workflow, RLS/RPC, product-mode authority, shell switching, Client
+  Portal, branding, and production data behavior.
+
+R6A test coverage proves:
+
+- the `received_work` shell renders `Received Work` dashboard copy;
+- received-work dashboard support copy avoids `packet` wording;
+- non-received assignment contexts retain the existing generic assignment dashboard frame;
+- assigned and owner assignment widgets still render from the same permission checks;
+- assignment dashboard loading behavior is unchanged;
+- `DashboardGate` tests still prove assignment-only and order-capable dashboard selection remains
+  permission-derived and unchanged.
+
+### R6A Conclusions
+
+- Falcon now has its first visible shell-aware dashboard wording change.
+- The change is limited to assignment dashboard presentation after the existing assignment
+  dashboard branch has already been selected.
+- Shell metadata still does not grant dashboard access, choose dashboard components, alter
+  permissions, change queries, or change assignment workflows.
+
+## Shell Resolution Phase R6B Owner/Admin Operations Dashboard Presentation
+
+Phase R6B applies shell-aware presentation copy to the owner/admin order-capable dashboard while
+preserving the current dashboard selection, data loading, permission, navigation, and workflow
+behavior.
+
+Runtime files updated:
+
+- `src/features/dashboard/DashboardPage.jsx`.
+
+Focused tests updated:
+
+- `src/features/dashboard/__tests__/DashboardPage.test.jsx`.
+
+R6B changes:
+
+- `DashboardPage` now derives presentation copy from `shellProfilePresentation` only when the
+  passive shell profile is `operations`;
+- the operations shell keeps the `Operations Dashboard` heading;
+- operations support copy now says `Track active work, review handoffs, due pressure, and
+  operational readiness.`;
+- non-`operations` dashboard contexts keep the existing role-derived support copy;
+- setup/readiness remains secondary inside the existing operational support area.
+
+R6B preserves:
+
+- `DashboardGate` branch selection and branch order;
+- `resolveCurrentDashboard(...)` inputs and behavior;
+- `/dashboard`, `/orders`, `/calendar`, `/clients`, `/assignments`, `/users`, and settings route
+  paths;
+- route guards and permission keys;
+- dashboard summary loading, table filters, status filters, calendar panel, order table, KPI cards,
+  workload visibility, owner setup prompt, and operational readiness behavior;
+- assignment dashboard presentation and data behavior;
+- navigation and command palette behavior;
+- backend, Supabase, query, workflow, RLS/RPC, product-mode authority, shell switching, Client
+  Portal, branding, and production data behavior.
+
+R6B test coverage proves:
+
+- the `operations` shell renders owner/admin-native operations support copy;
+- non-operations dashboard contexts retain the previous role-derived support copy;
+- existing dashboard sections, widgets, links, filtering, table props, and readiness surfaces still
+  render from the same data and permission checks;
+- `DashboardGate` tests still prove assignment-only, order-capable, mixed, loading, and fallback
+  dashboard selection remains permission-derived and unchanged;
+- `AssignmentDashboardPage` tests still prove the R6A received-work presentation remains isolated.
+
+### R6B Conclusions
+
+- Falcon now has shell-aware presentation copy in both currently selected dashboard surfaces:
+  owner/admin operations and assignment-recipient received work.
+- The operations change is limited to heading/support presentation after the existing order-capable
+  dashboard branch has already been selected.
+- Shell metadata still does not grant dashboard access, choose dashboard components, alter
+  permissions, change queries, or change workflow behavior.
+
 ## Recommended Next Slice
 
-Proceed with **Falcon Role-Centric Operational Shell Architecture Phase R5B: Dashboard
-Presentation Copy Audit Plan**.
+Proceed with **Falcon Role-Centric Operational Shell Architecture Phase R6C: Dashboard Fallback
+Language Plan**.
 
-R5B should plan the first visible dashboard wording changes that can safely consume
-`shellProfilePresentation`. It should not change dashboard branch selection, route behavior,
+R6C should plan non-leaky dashboard fallback and unavailable-state wording that can safely consume
+shell profile fallback metadata. It should not change dashboard branch selection, route behavior,
 permissions, data hooks, queries, workflow behavior, navigation, command palette behavior, shell
 switching, or Client Portal implementation.

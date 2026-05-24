@@ -81,6 +81,16 @@ vi.mock("@/components/dashboard/DashboardCalendarPanel", () => ({
 
 const { default: DashboardPage } = await import("../DashboardPage.jsx");
 
+const operationsShell = Object.freeze({
+  profileId: "operations",
+  metadataAuthority: "presentation_only",
+  profile: Object.freeze({
+    id: "operations",
+    dashboardTitle: "Operations Dashboard",
+    metadataAuthority: "presentation_only",
+  }),
+});
+
 function dueDate(daysFromNow) {
   const date = new Date();
   date.setDate(date.getDate() + daysFromNow);
@@ -164,10 +174,10 @@ function buildSummary(overrides = {}) {
   };
 }
 
-function renderDashboard() {
+function renderDashboard(shellProfilePresentation) {
   return render(
     <MemoryRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
-      <DashboardPage />
+      <DashboardPage shellProfilePresentation={shellProfilePresentation} />
     </MemoryRouter>,
   );
 }
@@ -196,11 +206,11 @@ describe("DashboardPage operational polish", () => {
   });
 
   it("renders the polished operational sections from existing summary data", () => {
-    renderDashboard();
+    renderDashboard(operationsShell);
 
     expect(screen.getByText("Operations Dashboard")).toBeInTheDocument();
     expect(
-      screen.getByText("Calendar, active orders, and workflow handoffs for the current company."),
+      screen.getByText("Track active work, review handoffs, due pressure, and operational readiness."),
     ).toBeInTheDocument();
     expect(screen.getByText("Company")).toBeInTheDocument();
     expect(screen.getAllByText("Falcon Appraisals")).toHaveLength(2);
@@ -241,7 +251,6 @@ describe("DashboardPage operational polish", () => {
     expect(screen.queryByText("Schedule")).not.toBeInTheDocument();
     expect(screen.queryByText("Schedule pressure")).not.toBeInTheDocument();
     expect(screen.queryByText("Due dates and site visits.")).not.toBeInTheDocument();
-    expect(screen.queryByText(/pressure/i)).not.toBeInTheDocument();
     expect(calendarHeading.compareDocumentPosition(ordersHeading)).toBe(DOCUMENT_POSITION_FOLLOWING);
     expect(calendarHeading.compareDocumentPosition(statusHeading)).toBe(DOCUMENT_POSITION_FOLLOWING);
     expect(ordersHeading.compareDocumentPosition(statusHeading)).toBe(DOCUMENT_POSITION_FOLLOWING);
@@ -318,6 +327,22 @@ describe("DashboardPage operational polish", () => {
         scope: "dashboard",
       }),
     );
+  });
+
+  it("keeps the current owner/admin dashboard support copy outside operations shell presentation", () => {
+    renderDashboard({
+      profileId: "my_work",
+      metadataAuthority: "presentation_only",
+      profile: { id: "my_work", dashboardTitle: "My Work" },
+    });
+
+    expect(screen.getByText("Operations Dashboard")).toBeInTheDocument();
+    expect(
+      screen.getByText("Calendar, active orders, and workflow handoffs for the current company."),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Track active work, review handoffs, due pressure, and operational readiness."),
+    ).not.toBeInTheDocument();
   });
 
   it("filters the existing dashboard rows when a status card is selected and cleared", () => {
