@@ -3337,3 +3337,36 @@ request-revisions/clear-review/resubmit action changes, Smart Action behavior, l
 permission behavior, route behavior, navigation, command palette, DashboardGate behavior,
 backend/Supabase/query/RPC/workflow/RLS behavior, automation, notifications, mobile/PWA/native,
 shell switching, Client Portal behavior, branding, or production data changes.
+
+Operational Execution Phase 1F is complete as documentation-only Appointment And Status Signal
+Planning. It defines operational status signals as interpretation and attention aids, not lifecycle
+states. The plan separates derived-only signals, explicit user-input signals, future automation
+suppression/escalation signals, and signals unsafe without backend/RPC/audit authority. Safe
+derived-only first signals include appointment not scheduled, appointment scheduled, waiting in
+review, revisions open, due soon/overdue, stale/no loaded update, overdue with no recent loaded
+update, limited/no files loaded, files available for review, assignment offer awaiting response,
+and submitted assignment awaiting owner review. Explicit future input is required for inspection
+complete, waiting on borrower/client, work on track, extension requested/approved, reviewer hold,
+and assignment/vendor active-work confirmations. The next safest runtime slice is a passive pure
+operational status-signal resolver with tests and no UI mount. No runtime code, backend/Supabase/
+query/RPC/workflow/RLS behavior, Smart Action behavior, lifecycle behavior, permission behavior,
+route behavior, navigation, command palette, DashboardGate behavior, automation, notifications,
+mobile/PWA/native implementation, shell switching, Client Portal behavior, branding, or production
+data changed.
+
+Operational Execution Phase 1G is complete as a passive pure operational status-signal resolver
+and tests. It adds `src/features/orders/signals/deriveOperationalStatusSignals.js` and
+`src/features/orders/signals/__tests__/deriveOperationalStatusSignals.test.js`. The resolver
+accepts supplied loaded order, activity, document, document-count, assignment, and assignment-list
+metadata and returns presentation-only signal records with stable ids, severity, labels,
+conservative messages, and source hints. Supported ids are `appointment_not_scheduled`,
+`appointment_scheduled`, `review_pending`, `revisions_open`, `due_soon`, `overdue`,
+`stale_update`, `overdue_no_recent_update`, `limited_files`, `files_ready_for_review`,
+`assignment_offer_waiting`, and `assignment_review_pending`. Tests also
+prove explicit-intent states such as `inspection_complete`, `report_on_track`,
+`waiting_on_borrower`, `waiting_on_client_documents`, `extension_requested`, and
+`reviewer_holding_review` are not inferred. No UI mount, backend/Supabase/query/RPC/workflow/RLS
+behavior, Smart Action behavior, lifecycle behavior, permission behavior, route behavior,
+navigation, command palette, DashboardGate behavior, automation, notifications, mobile/PWA/native
+implementation, shell switching, Client Portal behavior, branding, or production data changed. The
+next safest slice is an operational signal mount-readiness plan.

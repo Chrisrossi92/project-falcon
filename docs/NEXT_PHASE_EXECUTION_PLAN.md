@@ -3058,10 +3058,122 @@ Preserved guardrails:
 
 Recommended next execution slice:
 
-- **Operational Execution Phase 1F: Workbench Row-Card Readiness Plan**.
+- **Operational Execution Phase 1F: Appointment And Status Signal Planning**.
 
-Phase 1F should decide how appraiser/reviewer dashboard workbench previews can move from counts to
-row cards using existing dashboard rows only.
+Phase 1F should define the operational status-signal model before any runtime workflow,
+automation, notification, lifecycle, Smart Action, backend, query, permission, mobile, or Client
+Portal implementation.
+
+### Operational Execution Phase 1F
+
+Completed documentation-only appointment and operational status-signal planning in
+`docs/OPERATIONAL_EXECUTION_IMPROVEMENT_PLAN.md`, with mobile/automation implications added to
+`docs/FALCON_MOBILE_NATIVE_AND_COMMUNICATION_AUTOMATION_STRATEGY.md`.
+
+Phase 1F decisions:
+
+- operational status signals are interpretation and attention aids, not lifecycle states;
+- the first safe signal layer is derived-only and read-only;
+- derived signals can safely start from existing appointment, due, updated/activity, review,
+  revision, file, and assignment facts;
+- explicit user input is required for inspection complete, waiting on borrower/client, work on
+  track, extension-needed intent, and active-work confirmations;
+- future automation should use auditable signal evidence for suppression/escalation, not infer
+  intent from silence;
+- mobile quick confirmations should distinguish operational signals from governed workflow
+  actions.
+
+Signals safe as derived-only first:
+
+- appointment not scheduled;
+- appointment scheduled;
+- waiting in review;
+- revisions open / waiting on appraiser follow-up;
+- due soon or overdue;
+- stale/no loaded update;
+- overdue with no recent loaded update;
+- limited/no supporting files loaded;
+- files available for review;
+- assignment offer awaiting response;
+- submitted assignment awaiting owner review.
+
+Signals requiring explicit future input:
+
+- inspection complete;
+- borrower/client contacted;
+- waiting on borrower/client;
+- waiting on client documents;
+- report writing on track;
+- extension requested or approved;
+- reviewer intentionally holding review;
+- assignment/vendor actively working but not ready to submit.
+
+Preserved guardrails:
+
+- no runtime code, backend, Supabase, query, RPC, workflow, RLS, permission, route, navigation,
+  command palette, DashboardGate, Smart Action, lifecycle, automation, notification delivery,
+  mobile/PWA/native, shell switching, Client Portal, branding, or production data change.
+
+Recommended next execution slice:
+
+- **Operational Execution Phase 1G: Passive Operational Status Signal Resolver And Tests**.
+
+Phase 1G should add a pure presentation-only resolver and tests for supplied order/document/
+activity/assignment-like props. It should not mount UI, add queries, change workflow or Smart
+Actions, trigger automation/notifications, alter permissions/routes/navigation, or implement
+mobile/PWA/native or Client Portal behavior.
+
+### Operational Execution Phase 1G
+
+Implemented a pure, passive operational status-signal resolver with focused tests.
+
+Runtime files added:
+
+- `src/features/orders/signals/deriveOperationalStatusSignals.js`;
+- `src/features/orders/signals/__tests__/deriveOperationalStatusSignals.test.js`.
+
+Phase 1G behavior:
+
+- derives presentation-only operational signals from supplied loaded order, activity, document,
+  document-count, assignment, and assignment-list metadata;
+- returns stable signal ids, severity, labels, conservative messages, and source hints;
+- remains deterministic and side-effect free;
+- is not mounted in live UI.
+
+Supported signal ids:
+
+- `appointment_not_scheduled`;
+- `appointment_scheduled`;
+- `review_pending`;
+- `revisions_open`;
+- `due_soon`;
+- `overdue`;
+- `stale_update`;
+- `overdue_no_recent_update`;
+- `limited_files`;
+- `files_ready_for_review`;
+- `assignment_offer_waiting`;
+- `assignment_review_pending`.
+
+Tested explicit-intent boundary:
+
+- `inspection_complete`, `report_on_track`, `waiting_on_borrower`,
+  `waiting_on_client_documents`, `extension_requested`, `reviewer_holding_review`, and similar
+  intent states are not inferred from loaded metadata.
+
+Preserved guardrails:
+
+- no backend, Supabase, query, RPC, workflow, RLS, permission, route, navigation, command palette,
+  DashboardGate, Smart Action, lifecycle, automation, notification delivery, UI mount,
+  mobile/PWA/native, shell switching, Client Portal, branding, or production data change.
+
+Recommended next execution slice:
+
+- **Operational Execution Phase 1H: Operational Signal Mount Readiness Plan**.
+
+Phase 1H should decide the first safe UI surface for passive status signals, if any, without
+mounting runtime UI or changing workflow, Smart Actions, queries, automation, notifications,
+permissions, routes, navigation, mobile/PWA/native, or Client Portal behavior.
 
 ## Recommended Ordering
 

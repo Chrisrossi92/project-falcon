@@ -620,3 +620,281 @@ Phase 1E preserves:
   activity rows when a future surface already has them in props.
 - The next safest execution slice is a workbench row-card readiness plan using existing dashboard
   rows only.
+
+## Operational Execution Phase 1F Appointment And Status Signal Planning
+
+Phase 1F defines the future operational status-signal model before any runtime workflow,
+automation, notification, lifecycle, Smart Action, backend, query, permission, mobile, or Client
+Portal implementation.
+
+This phase inspected the current execution context:
+
+- canonical order lifecycle statuses in `src/lib/constants/orderStatus.js`;
+- governed workflow transitions in `src/lib/workflow/orderWorkflow.js`;
+- site visit, review due, final due, updated, document, lifecycle, and Activity surfaces in
+  `src/pages/orders/OrderDetail.jsx`;
+- Orders table Smart Action and site-visit handling in `src/features/orders/UnifiedOrdersTable.jsx`;
+- existing derived summaries in `src/features/orders/attention`,
+  `src/features/orders/readiness`, and `src/features/orders/review`;
+- assignment packet status, due, expiration, submitted, and owner-review signals in
+  `src/features/assignments`.
+
+### Signal Doctrine
+
+Operational status signals are interpretation and attention aids. They are not lifecycle states,
+permission authority, assignment authority, workflow authority, or notification authority.
+
+Rules:
+
+- derive signals from already authoritative facts where possible;
+- keep lifecycle status changes inside existing governed workflow paths;
+- do not use a signal to grant route, object, file, assignment, or action access;
+- do not use a signal as proof that required work is complete unless a future authoritative
+  contract records that fact;
+- distinguish "loaded data suggests" from "the system knows";
+- prefer conservative wording such as `may need attention`, `appears active`, `no recent update
+  loaded`, and `waiting in review`;
+- suppress future reminder pressure only when the suppressing evidence is auditable and tied to the
+  responsible object.
+
+### Proposed Signal Categories
+
+| Signal | First source | Category | Primary audience | Notes |
+|---|---|---|---|---|
+| `appointment_not_scheduled` | missing loaded `site_visit_at`/appointment date on active order | Derived-only first | Appraiser, owner/admin | Advisory only. Missing loaded date does not prove no appointment exists outside Falcon. |
+| `appointment_scheduled` | loaded appointment/site visit date | Derived-only first | Appraiser, owner/admin | Safe as read-only context and future reminder suppression evidence. |
+| `inspection_complete` | future explicit confirmation or workflow event | Explicit input required | Appraiser, owner/admin | Unsafe to infer from appointment date alone. |
+| `report_on_track` | recent note/activity, files present, due not urgent, no blocking status | Derived-only weak signal first | Appraiser, owner/admin | Must remain phrased as `appears on track`; should not suppress reminders without audit rules. |
+| `waiting_on_borrower_or_client` | future explicit user status signal or client-safe request state | Explicit input required | Appraiser, owner/admin, future client-safe projection | Unsafe to infer from silence. |
+| `waiting_on_reviewer` | in-review status, reviewer assignment, review due/activity timestamps | Derived-only first | Reviewer, owner/admin, appraiser context | Safe as `waiting in review`; not proof of reviewer fault. |
+| `waiting_on_appraiser` | needs-revisions status or appraiser-assigned active order | Derived-only first | Appraiser, reviewer, owner/admin | Safe when lifecycle status already indicates revisions. |
+| `extension_may_be_needed` | overdue/due-soon plus stale or blocking signal | Derived-only advisory first, explicit later | Owner/admin, appraiser | Should not auto-change due dates. |
+| `stale_no_update` | loaded `last_activity_at`/`updated_at` age | Derived-only first | Owner/admin, appraiser/reviewer where scoped | Use `no recent loaded update`, not `no one worked`. |
+| `overdue_no_recent_signal` | due date past plus stale update/activity | Derived-only first | Owner/admin, responsible role | High owner/admin attention signal; not an escalation engine yet. |
+| `active_review_revision_loop` | in-review/needs-revisions status plus loaded revision activity | Derived-only first | Reviewer, appraiser, owner/admin | Needs stronger activity contracts before loop counts become authoritative. |
+| `awaiting_assignment_response` | assignment status `offered` and expiration/due context | Derived-only first | Assignment recipient, owner/admin | Packet-scoped; no canonical order visibility expansion. |
+| `awaiting_assignment_submission` | assignment status `accepted`/`in_progress` and due context | Derived-only first | Assignment recipient, owner/admin | Advisory until vendor status updates exist. |
+| `awaiting_owner_assignment_review` | assignment status `submitted` | Derived-only first | Owner/admin, assignment recipient | Safe as owner-review context inside assignment-scoped surfaces. |
+
+### Derived-Only Signals Safe First
+
+These signals can safely begin as read-only helpers because current loaded data already supports
+conservative wording:
+
+- appointment not scheduled;
+- appointment scheduled;
+- waiting in review;
+- revisions open / waiting on appraiser follow-up;
+- due soon or overdue;
+- stale/no loaded update;
+- overdue with no recent loaded update;
+- limited/no supporting files loaded;
+- files available for review;
+- assignment offer awaiting response;
+- assignment submitted awaiting owner review.
+
+Derived-only signals may affect presentation priority later, but they should not trigger workflow,
+email, push, escalation, or reminder suppression until audit, ownership, rate-limit, and owner/admin
+configuration rules exist.
+
+### Signals Requiring Explicit User Input
+
+These should not be inferred from current timestamps or lifecycle status alone:
+
+- inspection complete;
+- borrower/client contacted;
+- waiting on borrower;
+- waiting on client documents;
+- report writing on track;
+- extension requested;
+- extension approved;
+- reviewer intentionally holding review;
+- appraiser intentionally holding revision response;
+- assignment/vendor actively working but not ready to submit.
+
+Future input surfaces should be quick, role-scoped, and auditable. The first version should record
+status-signal events, not mutate canonical lifecycle status unless the user chooses a governed
+workflow action.
+
+### Future Automation Relationship
+
+Operational signals may eventually drive reminder suppression or escalation, but only after an
+automation contract exists.
+
+Signals that may suppress reminder pressure later:
+
+- appointment scheduled after an appointment reminder;
+- recent appraiser note or explicit `work on track` confirmation;
+- submit/resubmit to review;
+- reviewer note, request revisions, or clear review;
+- document upload for a document-readiness reminder;
+- assignment accept/decline/submit;
+- owner/admin manual acknowledgement or exclusion.
+
+Signals that may increase owner/admin attention later:
+
+- overdue with no recent loaded update;
+- due soon with appointment not scheduled;
+- needs revisions with no recent appraiser response;
+- in review with stale review activity;
+- assignment offer expiring soon without response;
+- submitted assignment awaiting owner review past review due;
+- repeated revision-loop evidence after stronger activity contracts exist.
+
+Anti-spam rules:
+
+- never alert every owner/admin for every visible event;
+- suppress duplicate reminders across email, in-app, and future push for the same object/event;
+- require quiet hours, rate limits, and owner/admin thresholds before escalation;
+- require object visibility and responsibility checks before recipient selection;
+- expose why a reminder was sent, skipped, suppressed, or escalated.
+
+### Role And Visibility Guidance
+
+Appraisers should eventually be able to set quick operational signals such as appointment
+scheduled, inspection complete, waiting on borrower/client, work on track, extension may be needed,
+and revision response in progress. These inputs should sit near Order Detail, mobile assigned-work
+cards, or a future appraiser workbench, but must not bypass submit/resubmit workflow actions.
+
+Reviewers should see waiting-in-review, stale review activity, resubmission, revision loop, file
+readiness, and due pressure signals. Future reviewer quick inputs should focus on review note
+added, review actively in progress, request revisions, and clear review. Only governed review
+workflow actions should change lifecycle status.
+
+Owner/admin users should see the broadest signal set: overdue/silent work, missing appointment,
+stale review/revision loops, unassigned work, assignment response state, and submitted assignment
+owner-review state. Owner/admin signals should be exception-oriented and digest-friendly rather
+than a feed of all visible events.
+
+Assignment recipients should see only assignment-scoped signals: offer awaiting response, offer
+expiring, active work due soon, submitted awaiting owner review, correction requested where the
+assignment contract supports it, and completed/terminal state. These signals must not imply
+canonical order/client access.
+
+Future client portal users should see only client-safe projections: action needed, document
+requested, request in progress, report available, message received, or completed request. Internal
+review, appraiser, vendor, packet, and workflow signals should stay hidden unless explicitly
+designed as client-safe status milestones.
+
+### Mobile Execution Implications
+
+Mobile should prioritize quick operational confirmation rather than dense status editing.
+
+Future mobile-safe placements:
+
+- appraiser assigned-work card: appointment scheduled, inspection complete, work on track, needs
+  help/extension;
+- reviewer queue card: review active, request revisions, clear review where safe;
+- owner/admin exception card: acknowledge, open order, reassign, or defer follow-up;
+- assignment recipient card: accept/decline offer, active work update, submit work.
+
+Mobile quick signals should be thumb-safe, explicit, reversible where possible, and clear about
+whether they are a note/status signal or a lifecycle workflow action.
+
+### Unsafe Without Backend Authority
+
+These must wait for backend/RPC, audit, permission, and data contracts:
+
+- authoritative `inspection complete` state;
+- authoritative `work on track` status used for suppression;
+- client-safe request status projection;
+- automation send/suppress/escalation state;
+- owner/admin configurable reminder rules;
+- status-signal event tables;
+- quick-action links from email or push;
+- notification delivery triggered by signals;
+- SLA or risk scoring;
+- required-document completion enforcement.
+
+### Phase 1F Conclusions
+
+- Falcon should add an operational signal layer, but keep it separate from lifecycle status.
+- The first safe signal layer is derived-only and read-only, using existing appointment, due,
+  update, review, file, and assignment facts.
+- Explicit user input is required before Falcon can know why work is waiting, whether inspection is
+  complete, whether a borrower/client is blocking progress, or whether reminder pressure should be
+  suppressed.
+- Future automation should consume auditable status-signal evidence, not infer intent from silence.
+- The safest first runtime slice is a pure operational status-signal resolver with tests and no UI
+  mount.
+
+## Recommended Next Slice
+
+Proceed with **Operational Execution Phase 1G: Passive Operational Status Signal Resolver And
+Tests**.
+
+Phase 1G should add a pure helper that derives presentation-only operational signals from supplied
+order, document, activity, and assignment-like props. It should not mount UI, add queries, change
+workflow or Smart Actions, trigger automation/notifications, alter permissions/routes/navigation,
+or implement mobile/PWA/native or Client Portal behavior.
+
+## Operational Execution Phase 1G Passive Operational Status Signal Resolver And Tests
+
+Phase 1G adds the first passive operational status-signal runtime foundation as a pure,
+presentation-only resolver plus focused tests.
+
+Runtime files added:
+
+- `src/features/orders/signals/deriveOperationalStatusSignals.js`;
+- `src/features/orders/signals/__tests__/deriveOperationalStatusSignals.test.js`.
+
+Phase 1G behavior:
+
+- accepts plain loaded order, activity, document, document-count, assignment, and assignment-list
+  metadata;
+- returns stable derived signal records with `id`, `severity`, `label`, `message`, `source`, and
+  `sourceHints`;
+- remains deterministic and side-effect free;
+- does not mount UI or connect to live dashboard, Orders table, Order Detail, drawer, navigation,
+  command palette, workflow, automation, notifications, or backend behavior.
+
+Supported derived signal ids:
+
+- `appointment_not_scheduled`;
+- `appointment_scheduled`;
+- `review_pending`;
+- `revisions_open`;
+- `due_soon`;
+- `overdue`;
+- `stale_update`;
+- `overdue_no_recent_update`;
+- `limited_files`;
+- `files_ready_for_review`;
+- `assignment_offer_waiting`;
+- `assignment_review_pending`.
+
+Explicit-intent signals intentionally not inferred:
+
+- `inspection_complete`;
+- `report_on_track`;
+- `waiting_on_borrower`;
+- `waiting_on_client_documents`;
+- `extension_requested`;
+- `reviewer_holding_review`;
+- similar borrower/client, extension, hold, or active-work intent states.
+
+Phase 1G preserves:
+
+- no backend, Supabase, query, RPC, workflow, RLS, permission, route, navigation, command palette,
+  DashboardGate, Smart Action, lifecycle, automation, notification delivery, UI mount,
+  mobile/PWA/native, shell switching, Client Portal, branding, or production data change;
+- no new activity, document, assignment, review, or order query;
+- no reminder suppression or escalation behavior.
+
+### Phase 1G Conclusions
+
+- Falcon now has a tested pure helper for conservative operational status signals.
+- The resolver can support future UI surfaces, but it is not connected to live runtime behavior.
+- Explicit user-intent states remain blocked until auditable input and authority contracts exist.
+- The next safest slice is a mount-readiness plan that decides where, if anywhere, these signals
+  should appear first without changing workflow or automation behavior.
+
+## Recommended Next Slice
+
+Proceed with **Operational Execution Phase 1H: Operational Signal Mount Readiness Plan**.
+
+Phase 1H should decide whether the passive operational status signals should first appear in Order
+Detail, the inline drawer, Orders rows, or appraiser/reviewer workbench row cards. It should remain
+documentation-only and should not mount UI, add queries, change workflow or Smart Actions, trigger
+automation/notifications, alter permissions/routes/navigation, or implement mobile/PWA/native or
+Client Portal behavior.
