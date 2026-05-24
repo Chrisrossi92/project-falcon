@@ -244,7 +244,7 @@ export default function TopNav() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-slate-300 bg-slate-100/90 shadow-md shadow-slate-900/5 backdrop-blur-xl">
+      <header className="sticky top-0 z-40 border-b border-slate-400/70 bg-slate-100/95 shadow-lg shadow-slate-900/10 backdrop-blur-xl">
         <div aria-hidden className="h-1 bg-slate-950" />
         <div className="mx-auto flex min-h-16 max-w-[1500px] items-center gap-3 px-3 py-2 sm:px-4">
           <Brand />

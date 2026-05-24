@@ -496,3 +496,36 @@ A2.1 preserves:
 
 The next safe phase is **A2.2 Shell Framing / Elevation Implementation** only if further shell
 containment work is needed after visual review.
+
+## A2.2 Implementation Record
+
+Phase A2.2 implements the first shell framing and elevation pass as presentation-only runtime work.
+
+Runtime files updated:
+
+- `src/layout/Layout.jsx`;
+- `src/components/shell/TopNav.jsx`.
+
+A2.2 changes:
+
+- deepens the neutral slate app environment behind the active workspace;
+- reduces background image intensity so it supports containment without becoming decorative;
+- adds a stronger outer workspace frame with restrained border, ring, and shadow hierarchy;
+- keeps routed page content inside a lighter inner work surface;
+- slightly strengthens top-shell border and shadow so navigation sits above the workspace shell;
+- preserves Phase A2.1 navigation grouping, active lane treatment, and mobile nav behavior.
+
+A2.2 preserves:
+
+- all route paths;
+- all permission checks and route guards;
+- all nav link availability;
+- command palette behavior;
+- dashboard data behavior;
+- workflow/lifecycle behavior;
+- Smart Actions;
+- backend, Supabase, schema, automation, notifications, AMC, Client Portal, mobile/native, AI, and
+  production data behavior.
+
+The next safe phase is **A2.3 Role-Aware Shell Polish** only after visual review confirms the shell
+containment direction is stable.
