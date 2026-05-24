@@ -3177,3 +3177,91 @@ keys/checks, visible link availability, nav labels, DashboardGate behavior, dash
 backend/Supabase/query/workflow behavior, RLS/RPCs, object visibility, shell switching, Client
 Portal behavior, branding, or production data. The next recommended role-centric slice is Falcon
 Role-Centric Operational Shell Architecture Phase R7G: Mobile Navigation Copy And Density Audit.
+
+Falcon Role-Centric Operational Shell Architecture Phase R8A completed documentation-only command
+palette role-priority planning. R8A inspected the current command registry, command palette helper,
+CommandPalette UI, and command helper tests. The current command palette remains flat and
+permission-filtered, with command order Orders, Assignments, Relationships, Calendar, Clients,
+Team Access, Account Settings, and Notification Settings; loading/error legacy fallback behavior;
+label-only filtering; keyboard selection; selected-command navigation; and Orders search fallback
+when no command matches and order search is allowed. R8A records that command palette priority is
+presentation/discoverability only: command availability, route guards, permission checks, search
+fallback, keyboard behavior, and command execution remain authority-safe. The planned direction is
+to keep the command palette broader than navigation while eventually prioritizing role-relevant
+commands first: operations should prioritize Orders/Calendar/Assignments before management and
+settings; my_work and review_queue should prioritize Orders/Calendar/Clients before secondary
+permissioned commands; received_work should prioritize Assignments first without creating internal
+access; fallback, unknown, loading, error, and future profiles should keep current order; requests
+remains future-only. Role-native labels and aliases such as Open My Work, Open Review Queue, Open
+Received Work, Open Due Soon, Open Offers, or Open Active Work must wait for explicit
+route/filter/workbench targets, and workflow action commands must wait for governed action
+contracts and object context. The next recommended role-centric slice is Falcon Role-Centric
+Operational Shell Architecture Phase R8B: Passive Command Priority Metadata And Tests. R8B should
+add inert profile-aware command priority metadata for existing command ids only and must not change
+live command ordering, labels, availability, filtering, search fallback, keyboard behavior,
+execution, routes, permissions, navigation, DashboardGate, dashboards, backend/Supabase/query/
+workflow behavior, shell switching, Client Portal behavior, branding, or production data.
+
+Falcon Role-Centric Operational Shell Architecture Phase R8B completed passive profile-aware
+command priority metadata and tests. `src/lib/commandPalette/shellCommandPriority.js` now exports a
+frozen `presentation_only` metadata registry keyed by shell profile id, plus
+`getShellCommandPriority(...)`, `shellCommandPriorityByProfileId`, and stable profile id ordering.
+The registry references existing current command palette ids only and defines ordered command ids,
+optional non-runtime groups, future alias notes, status, and fallback/future posture without
+permission keys, route guards, visibility gates, workflow action ids, route authority, query
+contracts, or command execution behavior. `operations` prioritizes Orders, Calendar, Assignments,
+Clients, Relationships, Team Access, Account Settings, and Notification Settings; `my_work` and
+`review_queue` prioritize Orders, Calendar, Clients, Account Settings, and Notification Settings
+before secondary permissioned commands; `received_work` prioritizes Assignments, Account Settings,
+and Notification Settings before any other commands that are already visible from existing
+permission checks; fallback profiles keep current command order; and `requests` remains
+future-only with no Client Portal command assumptions. Focused
+`src/lib/commandPalette/__tests__/shellCommandPriority.test.js` coverage proves every shell
+profile metadata id has exactly one command priority record, every referenced command id exists in
+the current live command palette ids, metadata is frozen/read-only and presentation-only, future
+`requests` invents no Client Portal command ids, and workflow/action command ids plus
+`orders.search` are not visible priority ids. R8B changes no `currentCommandRegistry` behavior,
+`getCurrentCommandPaletteCommands(...)` output, `getCurrentOrderSearchFallback(...)` behavior,
+`CommandPalette` rendering/filtering/keyboard/execution behavior, command labels/hints/paths/
+availability, navigation, routes, permissions, DashboardGate, dashboards,
+backend/Supabase/query/workflow behavior, shell switching, Client Portal behavior, branding, or
+production data. The next recommended role-centric slice is Falcon Role-Centric Operational Shell
+Architecture Phase R8C: Command Priority Consumption Readiness Plan.
+
+Falcon Role-Centric Operational Shell Architecture Phase R8C completed documentation-only command
+palette priority render readiness planning. R8C inspected `CommandPalette`, the current command
+palette helper, current command registry, and passive shell command priority metadata. The plan
+decides that future live priority ordering must happen after existing command availability,
+permission filtering, and loading/error fallback behavior resolve. The ordering step should
+intersect passive metadata with already available command ids, append unprioritized visible
+commands in current relative order, and keep unknown, fallback, future, loading, error, and
+unresolved profiles in current command order. Role priority should primarily affect the default
+empty-query command list; active search should keep current label filtering, no-result behavior,
+and Orders search fallback without fuzzy ranking, aliases, hidden keywords, or profile-specific
+relevance. A future live slice may let `CommandPalette` observe `useShellProfile()` directly as
+passive presentation metadata, but `getCurrentCommandPaletteCommands(...)` and
+`getCurrentOrderSearchFallback(...)` should remain unchanged. The next recommended role-centric
+slice is Falcon Role-Centric Operational Shell Architecture Phase R8D: Command Palette Priority
+Ordering From Visible Commands. R8D should add a pure helper that returns the same available
+command objects in profile priority order and must not change command availability, labels, paths,
+hints, filtering, placeholder/no-result copy, keyboard behavior, execution, order-search fallback,
+routes, permissions, navigation, DashboardGate, dashboards, backend/Supabase/query/workflow
+behavior, shell switching, Client Portal behavior, branding, or production data.
+
+Falcon Role-Centric Operational Shell Architecture Phase R8D implemented command palette priority
+ordering from already visible commands. R8D added
+`src/lib/commandPalette/currentShellCommandPaletteCommands.js`, updated `CommandPalette`, and added
+focused helper and CommandPalette tests. `CommandPalette` still uses
+`getCurrentCommandPaletteCommands(...)` as the source of available commands and still uses
+`getCurrentOrderSearchFallback(...)` for Orders search fallback. It observes `useShellProfile()`
+only as passive presentation metadata, applies shell priority ordering only to the empty-query
+default list, and keeps active search queries filtering the original current-order command list by
+label. Unknown, fallback, future, loading, error, and unresolved profile states keep current
+command order. Received-work priority starts with Assignments only when that command is already
+visible, and commands outside priority metadata remain available after prioritized commands in
+current relative order. R8D changes no command availability, command labels, paths, hints,
+execution behavior, command registry behavior, search matching, order-search fallback, keyboard
+behavior, route paths, route guards, permission keys/checks, navigation, DashboardGate, dashboards,
+backend/Supabase/query/workflow behavior, shell switching, Client Portal behavior, branding, or
+production data. The next recommended role-centric slice is Falcon Role-Centric Operational Shell
+Architecture Phase R8E: Command Palette Copy And Alias Readiness Plan.

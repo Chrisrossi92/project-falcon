@@ -3,8 +3,10 @@ import {
   getCurrentCommandPaletteCommands,
   getCurrentOrderSearchFallback,
 } from "@/lib/commandPalette/currentCommandPaletteCommands";
+import { getCurrentShellCommandPaletteCommands } from "@/lib/commandPalette/currentShellCommandPaletteCommands";
 import { useEffectivePermissions } from "@/lib/hooks/usePermissions";
 import { PERMISSIONS } from "@/lib/permissions/constants";
+import { useShellProfile } from "@/lib/shell/useShellProfile";
 
 const COMMAND_PERMISSION_KEYS = Object.freeze([
   PERMISSIONS.NAVIGATION_ORDERS_VIEW,
@@ -24,6 +26,7 @@ export default function CommandPalette({ open, onClose, onNavigate, clientsPath 
   const [idx, setI] = useState(0);
   const inputRef    = useRef(null);
   const { loading, error, hasPermission } = useEffectivePermissions();
+  const shellProfilePresentation = useShellProfile();
 
   const commandPermissions = useMemo(
     () =>
@@ -46,6 +49,13 @@ export default function CommandPalette({ open, onClose, onNavigate, clientsPath 
       }),
     [clientsPath, commandPermissions, error, loading],
   );
+  const shellProfileId = !loading && !error
+    ? shellProfilePresentation?.profileId ?? shellProfilePresentation?.id
+    : null;
+  const orderedCommands = useMemo(
+    () => getCurrentShellCommandPaletteCommands(commands, shellProfileId),
+    [commands, shellProfileId],
+  );
 
   const orderSearchFallback = useMemo(
     () =>
@@ -63,9 +73,9 @@ export default function CommandPalette({ open, onClose, onNavigate, clientsPath 
   // Filter first so effects can depend on it safely
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    if (!needle) return commands;
+    if (!needle) return orderedCommands;
     return commands.filter((it) => it.label.toLowerCase().includes(needle));
-  }, [commands, q]);
+  }, [commands, orderedCommands, q]);
 
   const canSearchOrders = orderSearchFallback.canSearchOrders;
 

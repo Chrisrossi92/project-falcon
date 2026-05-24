@@ -12,6 +12,11 @@ const permissionState = vi.hoisted(() => ({
   loading: false,
 }));
 
+const shellProfileState = vi.hoisted(() => ({
+  profileId: "operations",
+  exposure: undefined,
+}));
+
 vi.mock("@/lib/hooks/usePermissions", () => ({
   useEffectivePermissions: () => ({
     error: permissionState.error,
@@ -20,6 +25,17 @@ vi.mock("@/lib/hooks/usePermissions", () => ({
     hasAnyPermission: (permissionKeys) =>
       permissionKeys.some((permissionKey) => permissionState.allowed.has(permissionKey)),
   }),
+}));
+
+vi.mock("@/lib/shell/useShellProfile", () => ({
+  useShellProfile: () =>
+    shellProfileState.exposure === undefined
+      ? {
+          profileId: shellProfileState.profileId,
+          metadataAuthority: "presentation_only",
+          isPresentationOnly: true,
+        }
+      : shellProfileState.exposure,
 }));
 
 const allCommandPermissions = [
@@ -61,6 +77,8 @@ describe("CommandPalette current registry helper migration", () => {
     permissionState.allowed = new Set();
     permissionState.error = null;
     permissionState.loading = false;
+    shellProfileState.profileId = "operations";
+    shellProfileState.exposure = undefined;
   });
 
   afterEach(() => {
@@ -73,10 +91,10 @@ describe("CommandPalette current registry helper migration", () => {
 
     expect(commandLabels()).toEqual([
       "Go to Ordersg o",
-      "Go to Assignmentsg a",
-      "Go to Relationshipsg r",
       "Go to Calendarg c",
+      "Go to Assignmentsg a",
       "Go to Clientsg l",
+      "Go to Relationshipsg r",
       "Open Team Accessg u",
       "Open Account Settings,",
       "Open Notification Settings",
@@ -85,6 +103,44 @@ describe("CommandPalette current registry helper migration", () => {
     fireEvent.click(screen.getByText("Go to Clients"));
 
     expect(onNavigate).toHaveBeenCalledWith("/clients/cards");
+  });
+
+  it("preserves current flat command order for unknown shell profiles", () => {
+    shellProfileState.profileId = "unknown_profile";
+    permissionState.allowed = new Set(allCommandPermissions);
+
+    renderPalette({ clientsPath: "/clients/cards" });
+
+    expect(commandLabels()).toEqual([
+      "Go to Ordersg o",
+      "Go to Assignmentsg a",
+      "Go to Relationshipsg r",
+      "Go to Calendarg c",
+      "Go to Clientsg l",
+      "Open Team Accessg u",
+      "Open Account Settings,",
+      "Open Notification Settings",
+    ]);
+  });
+
+  it("prioritizes received-work assignments only when the command is visible", () => {
+    shellProfileState.profileId = "received_work";
+    permissionState.allowed = new Set([
+      PERMISSIONS.NAVIGATION_ORDERS_VIEW,
+      PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_ASSIGNED,
+      PERMISSIONS.SETTINGS_VIEW,
+      PERMISSIONS.NOTIFICATIONS_PREFERENCES_MANAGE_OWN,
+    ]);
+
+    renderPalette();
+
+    expect(commandLabels()).toEqual([
+      "Go to Assignmentsg a",
+      "Open Account Settings,",
+      "Open Notification Settings",
+      "Go to Ordersg o",
+      "Go to Calendarg c",
+    ]);
   });
 
   it("hides permissioned commands when permission inputs are false", () => {
@@ -130,6 +186,22 @@ describe("CommandPalette current registry helper migration", () => {
     fireEvent.keyDown(window, { key: "Enter" });
 
     expect(onNavigate).toHaveBeenCalledWith("/orders?q=123%20Main%20%234");
+  });
+
+  it("preserves active search filtering in current command order", () => {
+    permissionState.allowed = new Set(allCommandPermissions);
+    renderPalette();
+    const input = screen.getByRole("textbox");
+
+    fireEvent.change(input, { target: { value: "Go to" } });
+
+    expect(commandLabels()).toEqual([
+      "Go to Ordersg o",
+      "Go to Assignmentsg a",
+      "Go to Relationshipsg r",
+      "Go to Calendarg c",
+      "Go to Clientsg l",
+    ]);
   });
 
   it("does not expose future Vendor or Client portal commands", () => {
