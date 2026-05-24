@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink, Link, useNavigate, useLocation } from "react-router-dom";
 import supabase from "@/lib/supabaseClient";
 import NotificationBell from "@/components/notifications/NotificationBell";
@@ -7,8 +7,10 @@ import { getCurrentUserProfile } from "@/lib/services/api";
 import AvatarBadge from "@/components/ui/AvatarBadge";
 import { useCan, useCanAny } from "@/lib/hooks/usePermissions";
 import { getCurrentPrimaryNavLinks } from "@/lib/navigation/currentPrimaryNavLinks";
+import { getCurrentShellNavigationSections } from "@/lib/navigation/currentShellNavigationSections";
 import { avatarSettingsUtilityLinks } from "@/lib/navigation/currentSettingsUtilityLinks";
 import { PERMISSIONS } from "@/lib/permissions/constants";
+import { useShellProfile } from "@/lib/shell/useShellProfile";
 import { Menu, Search } from "lucide-react";
 
 function Brand() {
@@ -38,6 +40,23 @@ function NavItem({ to, children, onClick }) {
     >
       {children}
     </NavLink>
+  );
+}
+
+function DesktopNavSection({ section }) {
+  const showLabel = section.grouped && section.label;
+
+  return (
+    <div className="flex items-center gap-1">
+      {showLabel && (
+        <span className="pl-2 pr-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+          {section.label}
+        </span>
+      )}
+      {section.links.map((link) => (
+        <NavItem key={link.id} to={link.path}>{link.label}</NavItem>
+      ))}
+    </div>
   );
 }
 
@@ -107,6 +126,7 @@ export default function TopNav() {
   const [me, setMe]      = useState(null);
   const [open, setOpen]  = useState(false); // mobile sheet
   const [pal, setPal]    = useState(false); // command palette
+  const shellProfilePresentation = useShellProfile();
   const canReadAllClients = useCan(PERMISSIONS.CLIENTS_READ_ALL);
   const canReadAssignedClients = useCan(PERMISSIONS.CLIENTS_READ_ASSIGNED);
   const canReadAssignments = useCanAny([
@@ -128,6 +148,10 @@ export default function TopNav() {
     canReadRelationships: showRelationshipsNav,
     canReadUsers: showUsersNav,
   });
+  const desktopNavSections = getCurrentShellNavigationSections(
+    primaryNavLinks,
+    shellProfilePresentation?.profileId ?? shellProfilePresentation?.id,
+  );
 
   useEffect(() => {
     (async () => {
@@ -156,8 +180,8 @@ export default function TopNav() {
           <Brand />
 
           <nav className="hidden items-center gap-1 rounded-xl border border-slate-200 bg-slate-100/80 p-1 md:flex">
-            {primaryNavLinks.map((link) => (
-              <NavItem key={link.id} to={link.path}>{link.label}</NavItem>
+            {desktopNavSections.map((section) => (
+              <DesktopNavSection key={section.id} section={section} />
             ))}
           </nav>
 

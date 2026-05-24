@@ -10,6 +10,10 @@ const permissionState = vi.hoisted(() => ({
   allowed: new Set(),
 }));
 
+const shellProfileState = vi.hoisted(() => ({
+  profileId: "operations",
+}));
+
 vi.mock("@/lib/hooks/usePermissions", () => ({
   useCan: (permissionKey) => ({
     allowed: permissionState.allowed.has(permissionKey),
@@ -24,6 +28,14 @@ vi.mock("@/lib/hooks/usePermissions", () => ({
     error: null,
     permissionKeys: [...permissionState.allowed],
     reload: vi.fn(),
+  }),
+}));
+
+vi.mock("@/lib/shell/useShellProfile", () => ({
+  useShellProfile: () => ({
+    profileId: shellProfileState.profileId,
+    metadataAuthority: "presentation_only",
+    isPresentationOnly: true,
   }),
 }));
 
@@ -63,7 +75,9 @@ const renderTopNav = (initialPath = "/dashboard") =>
     </MemoryRouter>,
   );
 
-const linksForLabels = (labels) => labels.map((label) => screen.getByRole("link", { name: label }));
+const getDesktopPrimaryNav = (container) => container.querySelector("nav");
+
+const desktopLinks = (container) => within(getDesktopPrimaryNav(container)).getAllByRole("link");
 
 const openMobileNav = (container) => {
   fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
@@ -76,6 +90,7 @@ const openMobileNav = (container) => {
 describe("TopNav desktop primary navigation", () => {
   beforeEach(() => {
     permissionState.allowed = new Set();
+    shellProfileState.profileId = "operations";
   });
 
   afterEach(() => {
@@ -91,16 +106,57 @@ describe("TopNav desktop primary navigation", () => {
       PERMISSIONS.USERS_READ,
     ]);
 
-    renderTopNav();
-    const links = linksForLabels([
+    const { container } = renderTopNav();
+    const desktopNav = getDesktopPrimaryNav(container);
+    const links = desktopLinks(container);
+
+    expect(within(desktopNav).getByText("Operations")).toBeInTheDocument();
+    expect(within(desktopNav).getByText("Management")).toBeInTheDocument();
+    expect(links.map((link) => link.textContent)).toEqual([
       "Orders",
-      "Assignments",
-      "Relationships",
       "Calendar",
+      "Assignments",
       "Clients",
+      "Relationships",
       "Team Access",
     ]);
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "/orders",
+      "/calendar",
+      "/assignments",
+      "/clients",
+      "/relationships",
+      "/users",
+    ]);
+  });
 
+  it("groups only currently visible desktop links and skips empty groups", () => {
+    renderTopNav();
+
+    expect(screen.getByText("Operations")).toBeInTheDocument();
+    expect(screen.queryByText("Management")).toBeNull();
+    expect(screen.queryByRole("link", { name: "Assignments" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Relationships" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Clients" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Team Access" })).toBeNull();
+  });
+
+  it("preserves the current flat desktop nav for unknown shell profiles", () => {
+    shellProfileState.profileId = "unknown_profile";
+    permissionState.allowed = new Set([
+      PERMISSIONS.CLIENTS_READ_ALL,
+      PERMISSIONS.CLIENTS_READ_ASSIGNED,
+      PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_ASSIGNED,
+      PERMISSIONS.RELATIONSHIPS_READ,
+      PERMISSIONS.USERS_READ,
+    ]);
+
+    const { container } = renderTopNav();
+    const desktopNav = getDesktopPrimaryNav(container);
+    const links = desktopLinks(container);
+
+    expect(within(desktopNav).queryByText("Operations")).toBeNull();
+    expect(within(desktopNav).queryByText("Management")).toBeNull();
     expect(links.map((link) => link.textContent)).toEqual([
       "Orders",
       "Assignments",
@@ -116,6 +172,32 @@ describe("TopNav desktop primary navigation", () => {
       "/calendar",
       "/clients",
       "/users",
+    ]);
+  });
+
+  it("keeps permissioned links visible in a non-authoritative More group when metadata does not group them", () => {
+    shellProfileState.profileId = "my_work";
+    permissionState.allowed = new Set([
+      PERMISSIONS.CLIENTS_READ_ALL,
+      PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_ASSIGNED,
+      PERMISSIONS.RELATIONSHIPS_READ,
+      PERMISSIONS.USERS_READ,
+    ]);
+
+    const { container } = renderTopNav();
+    const desktopNav = getDesktopPrimaryNav(container);
+    const links = desktopLinks(container);
+
+    expect(within(desktopNav).getByText("Work")).toBeInTheDocument();
+    expect(within(desktopNav).getByText("Support")).toBeInTheDocument();
+    expect(within(desktopNav).getByText("More")).toBeInTheDocument();
+    expect(links.map((link) => link.textContent)).toEqual([
+      "Orders",
+      "Calendar",
+      "Clients",
+      "Assignments",
+      "Relationships",
+      "Team Access",
     ]);
   });
 

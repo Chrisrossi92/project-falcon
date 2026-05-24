@@ -1,0 +1,96 @@
+import { describe, expect, it } from 'vitest';
+
+import { SHELL_PROFILE_IDS } from '../../shell/resolveShellProfile.js';
+import { getCurrentPrimaryNavLinks } from '../currentPrimaryNavLinks.js';
+import { getCurrentShellNavigationSections } from '../currentShellNavigationSections.js';
+
+const fullyVisibleLinks = () =>
+  getCurrentPrimaryNavLinks({
+    canReadAllClients: true,
+    canReadAssignedClients: true,
+    canReadAssignments: true,
+    canReadRelationships: true,
+    canReadUsers: true,
+  });
+
+describe('current shell navigation sections', () => {
+  it('groups active profile links by passive metadata after visible links are resolved', () => {
+    const sections = getCurrentShellNavigationSections(
+      fullyVisibleLinks(),
+      SHELL_PROFILE_IDS.OPERATIONS,
+    );
+
+    expect(sections.map(({ id, label }) => [id, label])).toEqual([
+      ['operations', 'Operations'],
+      ['management', 'Management'],
+    ]);
+    expect(sections.flatMap((section) => section.links.map((link) => link.id))).toEqual([
+      'orders',
+      'calendar',
+      'assignments',
+      'clients.primary',
+      'relationships',
+      'users',
+    ]);
+  });
+
+  it('does not create links for metadata ids that are not visible', () => {
+    const links = getCurrentPrimaryNavLinks();
+    const sections = getCurrentShellNavigationSections(links, SHELL_PROFILE_IDS.RECEIVED_WORK);
+
+    expect(sections.map(({ id }) => id)).toEqual(['other_visible_links']);
+    expect(sections.flatMap((section) => section.links.map((link) => link.id))).toEqual([
+      'orders',
+      'calendar',
+    ]);
+  });
+
+  it('keeps ungrouped visible links available in a non-authoritative More section', () => {
+    const sections = getCurrentShellNavigationSections(fullyVisibleLinks(), SHELL_PROFILE_IDS.MY_WORK);
+
+    expect(sections.map(({ id, label }) => [id, label])).toEqual([
+      ['work', 'Work'],
+      ['support', 'Support'],
+      ['other_visible_links', 'More'],
+    ]);
+    expect(sections.at(-1).links.map((link) => link.id)).toEqual([
+      'assignments',
+      'relationships',
+      'users',
+    ]);
+  });
+
+  it('falls back to current flat nav for unknown and fallback profiles', () => {
+    [SHELL_PROFILE_IDS.UNAVAILABLE, 'unknown_profile'].forEach((profileId) => {
+      const sections = getCurrentShellNavigationSections(fullyVisibleLinks(), profileId);
+
+      expect(sections).toHaveLength(1);
+      expect(sections[0]).toMatchObject({
+        id: 'current_primary_nav',
+        label: null,
+        grouped: false,
+      });
+      expect(sections[0].links.map((link) => link.id)).toEqual([
+        'orders',
+        'assignments',
+        'relationships',
+        'calendar',
+        'clients.primary',
+        'users',
+      ]);
+    });
+  });
+
+  it('returns frozen section records and arrays', () => {
+    const sections = getCurrentShellNavigationSections(
+      fullyVisibleLinks(),
+      SHELL_PROFILE_IDS.OPERATIONS,
+    );
+
+    expect(Object.isFrozen(sections)).toBe(true);
+    sections.forEach((section) => {
+      expect(Object.isFrozen(section)).toBe(true);
+      expect(Object.isFrozen(section.links)).toBe(true);
+    });
+  });
+});

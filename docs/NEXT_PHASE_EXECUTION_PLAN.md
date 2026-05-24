@@ -2267,6 +2267,263 @@ Recommended next role-centric slice:
 
 - **Falcon Role-Centric Operational Shell Architecture Phase R6I: Workbench Preview Data
   Sufficiency And Copy Audit**.
+### Falcon Role-Centric Operational Shell Architecture Phase R7A
+
+Completed documentation-only profile-aware navigation grouping planning before any runtime
+navigation changes.
+
+R7A inspected:
+
+- `src/lib/navigation/currentNavigationRegistry.js`;
+- `src/lib/navigation/currentPrimaryNavLinks.js`;
+- `src/components/shell/TopNav.jsx`;
+- `src/lib/commandPalette/currentCommandRegistry.js`;
+- `src/lib/commandPalette/currentCommandPaletteCommands.js`;
+- `src/components/nav/CommandPalette.jsx`;
+- `src/routes/index.jsx`;
+- `src/lib/shell/resolveShellProfile.js`;
+- `src/lib/shell/shellProfiles.js`;
+- `src/features/dashboard/DashboardGate.jsx`.
+
+Current navigation reality:
+
+- primary desktop/mobile nav still comes from `getCurrentPrimaryNavLinks(...)`;
+- current primary nav order remains `Orders`, `Assignments`, `Relationships`, `Calendar`,
+  `Clients`, and `Team Access`;
+- mobile nav mirrors primary links and adds `Settings` when settings access is allowed;
+- command palette uses a separate permission-filtered registry and remains broader than primary
+  nav;
+- `DashboardGate` remains permission-derived and only passes shell metadata as presentation data;
+- route guards remain the authority for `/orders`, `/calendar`, `/assignments`, `/relationships`,
+  `/clients`, `/users`, and settings routes.
+
+Navigation grouping doctrine:
+
+- grouping is presentation and discoverability only;
+- showing a nav item cannot grant access;
+- hiding or de-emphasizing a nav item cannot deny access;
+- shell profile id may affect grouping/order/labels only after permission visibility has already
+  determined available surfaces;
+- route guards, permissions, RLS/RPCs, object visibility, and workflow contracts remain canonical.
+
+Profile grouping decisions:
+
+- `operations`: keep broad owner/admin nav, grouped into Operations, Management, and Setup /
+  Support instead of one flat route list;
+- `my_work`: emphasize My Work, assigned order work, revision/due lanes, and Calendar, while
+  deferring global `Orders` to `My Orders` renames until shell-aware nav is live;
+- `review_queue`: emphasize Review Queue, in-review/resubmitted/revision lanes, and review
+  Calendar without creating a new review route or dashboard branch yet;
+- `received_work`: emphasize Received Work / Assignments, Offers, Active Work, and Submitted Work
+  for assignment-only users, while preserving owner/admin assignment packet precision elsewhere;
+- `requests`: keep Client Requests navigation future-only until Client Portal authority, routes,
+  data projections, and client-safe status language exist;
+- fallback profiles: render only minimal company/account recovery affordances where safe and avoid
+  operational work claims.
+
+Mobile grouping direction:
+
+- mobile should collapse by shell priority rather than list every authorized desktop surface;
+- owner/admin mobile should prioritize exception triage and daily operations;
+- appraiser mobile should prioritize assigned work, due/revision pressure, and calendar context;
+- reviewer mobile should prioritize review decisions and review due pressure;
+- assignment-recipient mobile should prioritize Received Work, Offers, Active Work, and Submitted
+  Work;
+- future client mobile should prioritize Requests, Action Needed, Documents, Reports, and Messages.
+
+Command palette relationship:
+
+- commands should remain permission-derived and broader than primary navigation;
+- later shell metadata may affect command grouping, order, aliases, and placeholder copy;
+- order-search fallback should remain unchanged until a separate command-palette slice designs
+  profile-aware search fallback behavior.
+
+Recommended next runtime slice:
+
+- **Falcon Role-Centric Operational Shell Architecture Phase R7B: Passive Navigation Group
+  Metadata And Tests**.
+
+R7B should add inert profile-aware navigation grouping metadata for existing live nav ids, with
+tests proving metadata references known nav entries and is `presentation_only`. It should also
+prove current primary nav links, labels, order, mobile settings behavior, command palette labels/
+order, and route paths remain unchanged. R7B should not call `useShellProfile()` from `TopNav`,
+render grouped navigation, rename global nav labels, change command palette behavior, change
+routes/guards/permissions, change `DashboardGate`, change dashboards, add shell switching, or
+implement Client Portal behavior.
+
+### Falcon Role-Centric Operational Shell Architecture Phase R7B
+
+Completed passive profile-aware navigation grouping metadata and tests.
+
+R7B added:
+
+- `src/lib/navigation/shellNavigationGroups.js`;
+- `src/lib/navigation/__tests__/shellNavigationGroups.test.js`.
+
+The new metadata registry:
+
+- is keyed by shell profile id;
+- is frozen/read-only;
+- uses `metadataAuthority: presentation_only`;
+- references existing current live navigation ids only;
+- includes group ids, group labels, ordered existing nav ids, notes, deemphasized ids, and
+  future/fallback status;
+- exports `getShellNavigationGroups(...)`, `shellNavigationGroupsByProfileId`, and stable profile
+  id ordering for tests and future passive consumers.
+
+Grouping coverage:
+
+- `operations`: `Operations`, `Management`, and `Setup / Support`;
+- `my_work`: `Work` and `Support`, with admin/setup surfaces deemphasized as metadata only;
+- `review_queue`: `Review Work` and `Support`, without creating a Review Queue route;
+- `received_work`: `Received Work` and `Account`, without granting canonical order/client/team
+  access;
+- `requests`: future-only metadata with no live Client Portal route assumptions;
+- fallback profiles: minimal workspace/account recovery grouping using existing `dashboard` and
+  `settings` ids.
+
+Focused tests prove:
+
+- every shell profile metadata id has exactly one navigation grouping record;
+- every referenced nav id exists in the current live navigation registry;
+- metadata records do not contain permission keys, route guards, visibility gates, or permission
+  decision inputs;
+- future `requests` metadata does not invent Client Portal, Documents, Reports, Messages, or
+  Requests route ids;
+- current primary nav ids, labels, order, and route paths remain unchanged;
+- existing `Orders`, `Assignments`, `Team Access`, and `Owner Setup` labels/paths remain unchanged;
+- all metadata entries, groups, and arrays are frozen/read-only.
+
+R7B preserves:
+
+- `currentNavigationRegistry` behavior;
+- `getCurrentPrimaryNavLinks(...)` output;
+- `TopNav` desktop and mobile rendering;
+- mobile Settings behavior;
+- command palette registry, helper, rendering, labels, ordering, and order-search fallback;
+- all route paths, route guards, permission keys, permission checks, `DashboardGate`, dashboards,
+  backend/Supabase/query/workflow behavior, RLS/RPCs, shell switching, Client Portal behavior,
+  branding, and production data.
+
+Recommended next role-centric slice:
+
+- **Falcon Role-Centric Operational Shell Architecture Phase R7C: Navigation Grouping Render
+  Readiness Plan**.
+
+R7C should plan how `TopNav` could safely consume the passive grouping metadata later. It should
+not render grouped navigation, call `useShellProfile()` from `TopNav`, change current nav labels/
+order, change mobile nav behavior, change command palette behavior, alter routes, permissions,
+guards, DashboardGate, dashboards, backend/Supabase/query/workflow behavior, add shell switching,
+or implement Client Portal.
+
+### Falcon Role-Centric Operational Shell Architecture Phase R7C
+
+Completed documentation-only navigation grouping render readiness planning.
+
+R7C inspected:
+
+- `src/components/shell/TopNav.jsx`;
+- `src/lib/navigation/currentPrimaryNavLinks.js`;
+- `src/lib/navigation/shellNavigationGroups.js`.
+
+Current render findings:
+
+- `TopNav` currently derives permission booleans, calls `getCurrentPrimaryNavLinks(...)`, and maps
+  the returned links directly in desktop and mobile nav;
+- mobile nav uses the same primary links and adds `Settings` separately when allowed;
+- `TopNav` does not call `useShellProfile()` and does not import `shellNavigationGroups`;
+- command palette rendering remains independent from nav rendering;
+- `getCurrentPrimaryNavLinks(...)` remains the permission-filtered source of visible nav links.
+
+Render decision:
+
+- the first live render should be **desktop-only group labels/separators over already visible
+  links**;
+- grouping must be applied after existing permission-filtered nav link derivation;
+- grouping must intersect passive metadata with the current visible link ids;
+- empty groups should not render;
+- unknown and fallback profiles should fall back to the current flat nav;
+- mobile grouping should wait for a separate mobile-specific slice;
+- `deemphasizedNavEntryIds` should remain metadata only in the first render slice.
+
+Allowed future grouping changes:
+
+- visual grouping around already visible links;
+- section labels for non-empty groups;
+- ordering of currently visible links;
+- visual emphasis or de-emphasis after separate approval.
+
+Blocked changes:
+
+- changing route access;
+- changing permission filtering;
+- adding or removing visible links;
+- changing URL paths or nav labels;
+- changing command palette availability, labels, order, filtering, or order-search fallback;
+- changing DashboardGate, dashboard selection, backend/Supabase/query/workflow behavior, shell
+  switching, or Client Portal behavior.
+
+Recommended next runtime slice:
+
+- **Falcon Role-Centric Operational Shell Architecture Phase R7D: Desktop Navigation Group Labels
+  From Visible Links**.
+
+R7D should call passive shell profile exposure in `TopNav` only as presentation metadata, keep
+`getCurrentPrimaryNavLinks(...)` as the source of visible links, derive desktop groups by
+intersecting visible links with `getShellNavigationGroups(profileId)`, and render group labels only
+for non-empty desktop groups. It should keep mobile nav flat and unchanged, keep command palette
+unchanged, and add tests proving the visible link id set, labels, paths, active/click behavior,
+routes, permissions, guards, DashboardGate, dashboards, backend/Supabase/query/workflow behavior,
+shell switching, and Client Portal behavior remain unchanged.
+
+### Falcon Role-Centric Operational Shell Architecture Phase R7D
+
+Implemented desktop-only navigation group labels from already visible permission-filtered links.
+
+Runtime files added:
+
+- `src/lib/navigation/currentShellNavigationSections.js`.
+
+Runtime files updated:
+
+- `src/components/shell/TopNav.jsx`.
+
+Focused tests added or updated:
+
+- `src/lib/navigation/__tests__/currentShellNavigationSections.test.js`;
+- `src/components/shell/__tests__/TopNav.test.jsx`.
+
+R7D behavior:
+
+- `TopNav` observes `useShellProfile()` only as presentation metadata;
+- desktop nav groups visible links through `getCurrentShellNavigationSections(...)`;
+- grouping is applied after `getCurrentPrimaryNavLinks(...)`;
+- active profile groups render labels only when they contain visible links;
+- fallback, future, and unknown profiles keep flat desktop nav;
+- metadata-only ids do not create links;
+- ungrouped visible links stay reachable in `More`;
+- mobile nav remains flat and unchanged;
+- command palette remains unchanged.
+
+Preserved guardrails:
+
+- no route/path changes;
+- no permission/guard changes;
+- no visible link removal or synthetic inaccessible links;
+- no nav label changes;
+- no mobile nav behavior changes;
+- no command palette changes;
+- no DashboardGate, dashboard/data, backend/Supabase/query/workflow, shell switching, or Client
+  Portal changes.
+
+Recommended next role-centric slice:
+
+- **Falcon Role-Centric Operational Shell Architecture Phase R7E: Mobile Navigation Grouping
+  Readiness Plan**.
+
+R7E should evaluate whether mobile nav should adopt grouping, priority ordering, or remain flat
+for usability before any mobile runtime change.
+
 
 ## Recommended Ordering
 

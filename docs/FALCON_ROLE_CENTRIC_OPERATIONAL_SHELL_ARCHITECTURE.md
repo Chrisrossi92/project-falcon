@@ -4349,3 +4349,718 @@ copy, and empty states are accurate enough for appraiser/reviewer daily work bef
 workbench behavior. It should not add queries, workflow actions, files, notes, report preview,
 revision history, new routes, navigation or command palette changes, shell switching, or Client
 Portal implementation.
+
+## Shell Resolution Phase R7A Profile-Aware Navigation Grouping Plan
+
+Phase R7A plans profile-aware navigation grouping, emphasis, ordering, and de-emphasis before any
+runtime navigation implementation.
+
+This phase is documentation and planning only.
+
+### R7A Sources Inspected
+
+R7A inspected:
+
+- `src/lib/navigation/currentNavigationRegistry.js`;
+- `src/lib/navigation/currentPrimaryNavLinks.js`;
+- `src/components/shell/TopNav.jsx`;
+- `src/lib/commandPalette/currentCommandRegistry.js`;
+- `src/lib/commandPalette/currentCommandPaletteCommands.js`;
+- `src/components/nav/CommandPalette.jsx`;
+- `src/routes/index.jsx`;
+- `src/lib/shell/resolveShellProfile.js`;
+- `src/lib/shell/shellProfiles.js`;
+- `src/features/dashboard/DashboardGate.jsx`.
+
+### Current Navigation Reality
+
+Current runtime navigation is still mostly flat and surface-centric:
+
+- `TopNav` brand routes to `/dashboard` and still presents `Falcon Operations` /
+  `Operations Console`;
+- desktop and mobile primary nav are built from `getCurrentPrimaryNavLinks(...)`;
+- current primary nav order is `Orders`, `Assignments`, `Relationships`, `Calendar`, `Clients`,
+  and `Team Access`;
+- mobile nav renders the same primary links and adds `Settings` when settings access is allowed;
+- `Orders` and `Calendar` remain broadly visible in primary nav while route guards remain
+  authority;
+- `Assignments`, `Relationships`, `Clients`, and `Team Access` are permission-aware in primary nav;
+- `Clients` resolves to `/clients` or `/clients/cards` from current client permissions;
+- `Team Access` is the visible label for the guarded `/users` surface after R3A;
+- account/settings command copy is aligned after R3B, but mobile nav still uses the broad
+  `Settings` label;
+- global `Assignments` nav and command labels remain stable after R3C, while recipient-facing
+  assignment pages now lead with received-work/work-request language;
+- the command palette is related to navigation but uses a separate command registry and helper;
+- command palette entries remain permission-filtered and flat: Orders, Assignments,
+  Relationships, Calendar, Clients, Team Access, Account Settings, and Notification Settings;
+- the command palette can expose broader discoverability than primary nav, and its order-search
+  fallback still assumes Orders when order navigation permission is present.
+
+Current route authority remains separate:
+
+- `/orders` is guarded by order read permissions;
+- `/calendar` is guarded by order navigation/read permissions;
+- `/assignments` and assignment detail are guarded by assignment read permissions;
+- `/relationships` is guarded by relationship read permission;
+- `/clients` and `/clients/cards` are guarded by client read permissions;
+- `/users` is guarded by `users.read`;
+- settings routes remain settings/notification permission guarded;
+- `/dashboard` still uses `DashboardGate`, which selects dashboard surfaces from current dashboard
+  permissions and only passes shell profile exposure as presentation metadata.
+
+### Navigation Grouping Doctrine
+
+Profile-aware navigation grouping is presentation and discoverability only.
+
+Rules:
+
+- route guards, permissions, RLS/RPCs, object visibility, and workflow contracts remain authority;
+- showing a nav item must never grant route, data, or action access;
+- hiding or de-emphasizing a nav item must never be treated as access denial;
+- route paths and route ids should remain stable through the first grouping slices;
+- shell profile id may influence nav grouping, labels, and order only after permission visibility
+  has already determined which surfaces are available;
+- navigation should be allowed to show fewer daily-work surfaces than the user can technically
+  access;
+- the command palette may remain broader than primary nav, but it must still be permission-gated;
+- future-only surfaces such as Client Portal Requests must not appear in live nav before portal
+  authority and routes exist.
+
+Recommended grouping tiers:
+
+| Tier | Meaning |
+|---|---|
+| Primary | Daily work lanes that answer the profile's first question. |
+| Secondary | Useful work context that should remain discoverable but not first in the shell. |
+| Management | Owner/admin operational management surfaces. |
+| Setup / Support | Team access, account settings, owner setup, diagnostics, and readiness utilities. |
+| De-emphasized | Permissioned surfaces that should not drive daily attention for the profile. |
+| Future / Blocked | Planned surfaces that must not render until authority and routes exist. |
+
+### Profile Navigation Grouping Plan
+
+| Shell profile | Primary navigation emphasis | Secondary / support | De-emphasized or hidden by default |
+|---|---|---|---|
+| `operations` | Operations Dashboard, Orders / Active Orders, Review Queue as an operational lane, Calendar. | Clients, Relationships, Assignments / Sent Assignments, Team Access, Owner Setup, Account Settings, Historical Orders. | Future Requests and any disabled module labels. |
+| `my_work` | My Work, assigned order work, due/revision lanes, Calendar. | Assigned-safe client context, personal Account Settings, Files/Notes only inside order context when later designed. | Team Access, Owner Setup, broad Clients, Relationships, sent-assignment management, broad analytics. |
+| `review_queue` | Review Queue, in-review work, resubmitted/revision follow-up lanes, review Calendar. | Orders as review-scoped context, personal Account Settings, review notes/activity only when later designed. | Team Access, Owner Setup, broad client management, assignment/vendor management, broad operations analytics. |
+| `received_work` | Received Work / Assignments, Offers, Active Work, Submitted Work. | Account Settings and future profile/availability if a vendor shell is enabled. | Orders, Clients, Calendar, Team Access, Owner Setup, internal review/appraiser lanes. |
+| `requests` | Future Requests, Action Needed, Documents, Reports, Messages. | Account / Team only after Client Portal authority exists. | All internal Orders, Assignments, Team Access, review, vendor, packet, and workflow-management surfaces. |
+| fallback profiles | Minimal current-company/account/help affordances only where safe. | Account settings only if already permissioned and useful. | Work surfaces, future modules, hidden-record hints, and profile-specific claims. |
+
+### Operations Navigation Plan
+
+Owner/admin users should keep broad navigation, but it should be grouped instead of remaining one
+flat row.
+
+Recommended future operations grouping:
+
+- **Operations:** Dashboard, Active Orders, Review Queue, Due Soon / Overdue where implemented,
+  Calendar.
+- **Management:** Clients, Relationships, Assignments / Sent Assignments, Historical Orders.
+- **Setup / Support:** Team Access, Owner Setup, Account Settings, Notification Settings, Product
+  Metadata Diagnostics only where diagnostic access is intentionally exposed.
+
+Owner/admin grouping should not hide operational responsibility merely to simplify the page. It
+should separate daily triage from setup/admin support so the shell feels like mission-control
+software rather than a raw route list.
+
+### My Work Navigation Plan
+
+Appraiser users should eventually see an assigned-work-first shell, but global `Orders` should not
+be renamed to `My Orders` until shell-aware navigation can prove context safely.
+
+Recommended future appraiser grouping:
+
+- **My Work:** My Work, My Assigned Orders, Needs Revisions, Due Soon.
+- **Schedule:** Calendar / My Calendar.
+- **Support:** Account Settings; assigned-safe client context only where permissioned and
+  role-relevant.
+
+Blocked until later shell maturity:
+
+- replacing global `Orders` with `My Orders`;
+- adding Files, Notes, or Submit/Resubmit nav entries before those surfaces and workflow contracts
+  are designed;
+- hiding Team Access as security when the user still has route authority.
+
+### Review Queue Navigation Plan
+
+Reviewer users should get review-first grouping before any route-level dashboard replacement, but
+`Review Queue` should initially be a grouping/emphasis concept, not proof of a new route.
+
+Recommended future reviewer grouping:
+
+- **Review Queue:** Review Queue, In Review, Resubmitted Work, Needs Revisions / Revision
+  Follow-Up.
+- **Schedule:** Review Calendar.
+- **Support:** Orders as review-scoped context, Account Settings, review notes/activity only after
+  data contracts exist.
+
+Blocked until later shell maturity:
+
+- replacing the shared dashboard heading or dashboard component from navigation metadata;
+- creating a global `Review Queue` route without dashboard/Orders selection design;
+- adding clear-review/request-revisions/ready-for-client action entries to nav or commands before
+  governed workflow action availability is exposed safely.
+
+### Received Work Navigation Plan
+
+Assignment-only users should see an assignment-native shell and should not be pushed through
+internal Operations navigation.
+
+Recommended future received-work grouping:
+
+- **Received Work:** Received Work, Offers, Active Work, Submitted Work, Completed Work.
+- **Support:** Account Settings; profile/availability only if a vendor portal surface is later
+  enabled.
+
+Current `Assignments` can remain the stable route/nav label until profile-aware nav rendering can
+show `Received Work` only for the assignment-recipient context. Owner/admin assignment oversight
+may continue to use `Assignments`, `Sent Assignments`, or `Assignment Packet` where packet-scoped
+precision prevents confusion with canonical order access.
+
+### Future Requests Navigation Plan
+
+The `requests` shell remains future-only.
+
+Recommended future client portal grouping after portal authority exists:
+
+- **Requests:** Requests, Action Needed, In Progress, Completed Requests.
+- **Documents:** Requested Documents, Uploaded Documents.
+- **Reports:** Available Reports.
+- **Messages:** Client-safe messages.
+- **Account:** Account / Team only if explicitly designed.
+
+Do not introduce Requests navigation in the live internal shell before Client Portal routes,
+authority, data projections, and client-safe status language exist.
+
+### Hybrid User Behavior
+
+Hybrid users should follow the existing shell resolver defaults before navigation grouping:
+
+- owner/admin plus appraiser or reviewer responsibility defaults to `operations`;
+- owner/admin production work may later appear as a secondary `My Work` or `Review Queue` lane,
+  but the primary nav should not hide company-wide risk;
+- appraiser plus reviewer users default to `my_work` unless explicit review work waiting selects
+  `review_queue`;
+- the non-selected production lane may become a secondary group after profile-aware metadata is
+  proven;
+- mixed internal order plus assignment access should not be treated as assignment-only received
+  work;
+- no hybrid case should require a shell switcher in the first navigation grouping slice.
+
+### Mobile Navigation Grouping
+
+Mobile nav should collapse by shell priority rather than mirror every authorized desktop route.
+
+Recommended mobile direction:
+
+- `operations`: Dashboard, Orders, Review Queue/Due Soon where implemented, Calendar, then Team
+  Access and Settings in support/overflow;
+- `my_work`: My Work, Needs Revisions/Due Soon where implemented, Calendar, then Account Settings;
+- `review_queue`: Review Queue, In Review/Due Soon where implemented, Review Calendar, then
+  Account Settings;
+- `received_work`: Received Work, Offers, Active Work, Submitted Work, then Account Settings;
+- `requests`: Requests, Action Needed, Documents, Reports, Messages, Account after portal launch;
+- fallback profiles: company/account recovery only, with no operational work claims.
+
+The first mobile grouping implementation should not add new routes. It should reorder and group
+already available links from permission-filtered inputs.
+
+### Command Palette Relationship
+
+Command palette should remain broader than primary navigation, but later become role-prioritized.
+
+Rules:
+
+- command availability remains permission-derived;
+- shell profile may later affect command grouping, order, aliases, and placeholder copy;
+- command palette should include de-emphasized but permissioned destinations that are intentionally
+  absent from compact nav;
+- profile-aware command placeholders should wait until navigation grouping metadata is stable;
+- order-search fallback should remain unchanged until a separate command-palette slice designs
+  profile-aware search fallback behavior.
+
+Recommended later command priority:
+
+- `operations`: Operations Dashboard, Orders, Review Queue, Team Access, Owner Setup;
+- `my_work`: My Work, My Assigned Orders, Needs Revisions, Due Soon, My Calendar;
+- `review_queue`: Review Queue, In Review, Resubmitted Work, Review Calendar;
+- `received_work`: Received Work, Offers, Active Work, Submitted Work;
+- `requests`: Requests, Action Needed, Documents, Reports, Messages, only after Client Portal
+  authority exists.
+
+### Safe First Navigation Runtime Slice
+
+The safest first runtime navigation slice is **R7B Passive Navigation Group Metadata And Tests**.
+
+R7B scope:
+
+- add inert profile-aware navigation grouping metadata for existing live nav entry ids;
+- define group ids, group labels, profile priorities, and de-emphasis notes as data only;
+- keep current `getCurrentPrimaryNavLinks(...)` output unchanged;
+- keep `TopNav` rendering unchanged;
+- keep mobile nav rendering unchanged;
+- keep command palette output unchanged;
+- add tests proving every metadata entry references known nav ids and every profile grouping is
+  `presentation_only`;
+- add regression tests proving current primary nav links, labels, order, mobile settings behavior,
+  command palette labels/order, and route paths are unchanged.
+
+R7B must not:
+
+- call `useShellProfile()` from `TopNav`;
+- render grouped navigation;
+- rename `Orders`, `Assignments`, `Calendar`, `Clients`, or brand copy;
+- change command palette behavior;
+- change route paths, guards, or permission keys;
+- change `DashboardGate`, dashboards, queries, workflows, backend/Supabase behavior, shell
+  switching, or Client Portal behavior.
+
+### R7A Conclusions
+
+- Navigation can become role-aware through grouping and emphasis without becoming authority.
+- Owner/admin should keep broad navigation, but grouped into daily Operations, Management, and
+  Setup / Support.
+- Appraiser and reviewer shells should receive `My Work` and `Review Queue` grouping before global
+  route labels or dashboard branches change.
+- Assignment-only users should eventually see Received Work-first navigation, while owner/admin
+  assignment oversight may keep assignment/packet precision.
+- Client Requests navigation remains future-only and blocked until Client Portal authority exists.
+- Command palette should remain broader than primary nav and become role-prioritized only after
+  navigation grouping metadata is proven.
+
+## Recommended Next Slice
+
+Proceed with **Falcon Role-Centric Operational Shell Architecture Phase R7B: Passive Navigation
+Group Metadata And Tests**.
+
+R7B should add inert, tested profile-aware navigation grouping metadata without changing live
+`TopNav`, mobile nav, command palette, routes, permissions, guards, DashboardGate, dashboards,
+backend/Supabase/query/workflow behavior, shell switching, or Client Portal implementation.
+
+## Shell Resolution Phase R7B Passive Navigation Group Metadata And Tests
+
+Phase R7B adds inert profile-aware navigation grouping metadata for existing navigation item ids
+only.
+
+Runtime files added:
+
+- `src/lib/navigation/shellNavigationGroups.js`.
+
+Focused tests added:
+
+- `src/lib/navigation/__tests__/shellNavigationGroups.test.js`.
+
+R7B changes:
+
+- adds a passive `shellNavigationGroups` metadata registry keyed by shell profile id;
+- defines group ids, group labels, ordered existing nav entry ids, notes, deemphasized ids, and
+  future/fallback status;
+- covers active profiles `operations`, `my_work`, `review_queue`, and `received_work`;
+- covers fallback profiles `unavailable`, `company_required`, `membership_inactive`,
+  `profile_ambiguous`, and `module_unavailable`;
+- includes `requests` as future-only metadata with no live Client Portal route assumptions;
+- exports `getShellNavigationGroups(...)`, `shellNavigationGroupsByProfileId`, and stable profile
+  id ordering for tests and future passive consumers;
+- freezes entries, groups, and arrays in the same read-only style as other shell metadata.
+
+R7B grouping metadata:
+
+- `operations` groups existing ids into `Operations`, `Management`, and `Setup / Support`;
+- `my_work` groups existing ids into `Work` and `Support`, with admin/setup surfaces
+  deemphasized as metadata only;
+- `review_queue` groups existing ids into `Review Work` and `Support`, without creating a
+  Review Queue route;
+- `received_work` groups existing ids into `Received Work` and `Account`, without granting
+  canonical order/client/team access;
+- `requests` remains future-only and references no live Client Portal, Documents, Reports,
+  Messages, or Requests route ids;
+- fallback profiles expose only minimal `dashboard` and `settings` grouping as workspace/account
+  recovery metadata.
+
+R7B preserves:
+
+- `currentNavigationRegistry` behavior;
+- `getCurrentPrimaryNavLinks(...)` output;
+- `TopNav` desktop rendering;
+- `TopNav` mobile rendering and mobile Settings behavior;
+- command palette registry, helper, rendering, labels, ordering, and order-search fallback;
+- all route paths and route guards;
+- all permission keys and permission checks;
+- `DashboardGate` branch selection and shell metadata passing behavior;
+- dashboard, assignment, Orders, Calendar, Clients, Team Access, Settings, backend, Supabase,
+  query, workflow, RLS/RPC, product-mode authority, shell switching, Client Portal, branding, and
+  production data behavior.
+
+R7B test coverage proves:
+
+- every shell navigation grouping record is `presentation_only`;
+- records do not include permission keys, permission decision inputs, route guards, or visibility
+  gates;
+- every referenced nav id exists in the current live navigation registry;
+- every shell profile metadata id has exactly one navigation grouping record;
+- `requests` metadata is future-only and does not invent Client Portal route ids;
+- operations, appraiser, reviewer, received-work, and fallback grouping shapes match the R7A plan;
+- current primary nav ids, labels, order, and route paths remain unchanged;
+- existing `Orders`, `Assignments`, `Team Access`, and `Owner Setup` labels/paths remain unchanged;
+- all metadata entries, groups, and arrays are frozen/read-only;
+- unknown profile lookup returns `null`.
+
+### R7B Conclusions
+
+- Falcon now has passive profile-aware navigation grouping metadata without rendering grouped nav.
+- The metadata is suitable for future presentation planning and tests, not runtime authority.
+- No live navigation, mobile navigation, command palette, route, permission, dashboard, backend, or
+  workflow behavior changed.
+- The next navigation step should decide how to consume this metadata in the smallest live surface
+  without changing route authority.
+
+## Recommended Next Slice
+
+Proceed with **Falcon Role-Centric Operational Shell Architecture Phase R7C: Navigation Grouping
+Render Readiness Plan**.
+
+R7C should plan how `TopNav` could safely consume passive navigation grouping metadata later. It
+should not render grouped navigation, call `useShellProfile()` from `TopNav`, change current nav
+labels/order, change mobile nav behavior, change command palette behavior, alter routes,
+permissions, guards, DashboardGate, dashboards, backend/Supabase/query/workflow behavior, add shell
+switching, or implement Client Portal.
+
+## Shell Resolution Phase R7C Navigation Grouping Render Readiness Plan
+
+Phase R7C plans how profile-aware navigation grouping can be rendered safely later without changing
+route access, permission authority, command palette behavior, or mobile usability unexpectedly.
+
+This phase is documentation and planning only.
+
+### R7C Sources Inspected
+
+R7C inspected:
+
+- `src/components/shell/TopNav.jsx`;
+- `src/lib/navigation/currentPrimaryNavLinks.js`;
+- `src/lib/navigation/shellNavigationGroups.js`.
+
+### Current Render Path
+
+Current `TopNav` behavior:
+
+- derives permission booleans through existing permission hooks;
+- calls `getCurrentPrimaryNavLinks(...)`;
+- renders desktop primary nav by mapping over `primaryNavLinks`;
+- renders mobile nav by mapping over the same `primaryNavLinks`;
+- adds mobile `Settings` separately when settings access is allowed;
+- opens `CommandPalette` independently from nav rendering;
+- does not call `useShellProfile()`;
+- does not import `shellNavigationGroups`;
+- does not render group labels, grouped sections, or shell-specific ordering.
+
+Current primary nav derivation:
+
+- produces visible links from existing nav ids and permission booleans;
+- keeps `Orders` and `Calendar` broadly present;
+- conditionally includes `Assignments`, `Relationships`, `Clients`, and `Team Access`;
+- resolves assigned-client versus all-client paths before rendering;
+- returns frozen link records with existing labels, paths, route gates, visibility gates, and
+  `sourceSurface`.
+
+Current R7B grouping metadata:
+
+- is passive and frozen;
+- references existing live navigation ids only;
+- includes groups and deemphasized ids by shell profile;
+- includes `requests` as future-only metadata with no live route assumptions;
+- is not consumed by `TopNav`, mobile nav, command palette, routes, or guards.
+
+### Render Strategy Options
+
+#### 1. Desktop Grouped Sections Only
+
+This is the recommended first live render strategy.
+
+Shape:
+
+- keep `getCurrentPrimaryNavLinks(...)` as the permission-filtered source of visible links;
+- resolve shell profile presentation separately;
+- look up passive grouping metadata by profile id;
+- group only links already present in `primaryNavLinks`;
+- render compact desktop group labels or separators around visible links;
+- preserve existing link labels and paths;
+- do not render metadata-only ids that are not currently visible links.
+
+Reasoning:
+
+- desktop has enough horizontal/contextual space to test grouping without disrupting mobile;
+- owner/admin broad navigation benefits most from separating Operations, Management, and Setup;
+- keeping grouping after permission-filtered link derivation prevents metadata from becoming
+  authority.
+
+#### 2. Mobile Grouped Sections Only
+
+This is not recommended as the first live slice.
+
+Reasoning:
+
+- mobile nav is more sensitive to height, tap target density, and cognitive load;
+- adding group labels to mobile first could bury the few important actions behind headings;
+- mobile also has the separate Settings affordance that needs careful treatment.
+
+Mobile grouping should follow desktop proof, or remain a separate slice with mobile-specific tests.
+
+#### 3. Group Labels As Visual Separators
+
+This is safe if labels are small and non-interactive.
+
+Rules:
+
+- group labels must not be links;
+- group labels must not imply access to hidden routes;
+- empty groups should not render;
+- one-link groups may render without a label if the label adds clutter;
+- labels should use metadata group labels only after the group contains at least one currently
+  visible link.
+
+#### 4. Prioritize / Reorder Without Hiding
+
+This is acceptable only after R7D proves grouping can preserve the same visible link set.
+
+Rules:
+
+- reorder links only inside the visible permission-filtered set;
+- do not remove links because they are listed in `deemphasizedNavEntryIds`;
+- do not add metadata-only links to the visible set;
+- keep all currently visible links reachable in both desktop and mobile;
+- add tests that compare visible link id sets before and after grouping.
+
+#### 5. Grouping Disabled For Fallback Profiles
+
+This is recommended.
+
+Fallback profile behavior:
+
+- unknown profile id, `unavailable`, `company_required`, `membership_inactive`,
+  `profile_ambiguous`, and `module_unavailable` should keep current flat nav until a fallback
+  navigation UX is separately designed;
+- fallback grouping metadata should remain available for tests and future planning;
+- no fallback profile should render operational group labels that imply hidden work exists.
+
+#### 6. Dev/Test-Only Grouping First
+
+This is not recommended inside live `TopNav`.
+
+Reasoning:
+
+- environment-only branches create a UI that differs from production;
+- R7B already provides passive metadata tests;
+- a preview harness could be useful later, but it should sit outside live routing if introduced.
+
+### What Grouping May Change Later
+
+After a runtime slice is approved, grouping may change:
+
+- visual grouping around already visible links;
+- section labels for groups that contain visible links;
+- order of currently visible links;
+- visual emphasis or de-emphasis of currently visible links;
+- desktop grouping before mobile grouping;
+- eventually mobile grouping after separate mobile tests.
+
+### What Grouping Must Not Change
+
+Grouping must not change:
+
+- route access;
+- permission filtering;
+- available link set;
+- URL paths;
+- command palette availability, labels, order, filtering, or fallback search;
+- `DashboardGate` branch selection;
+- dashboard selection or dashboard headings;
+- backend, Supabase, query, RLS/RPC, workflow, or object visibility behavior;
+- shell switching;
+- Client Portal behavior.
+
+### Required Runtime Consumption Order
+
+The future runtime consumption order should be:
+
+1. Resolve the current visible nav links through existing permission-derived inputs.
+2. Resolve passive shell profile presentation metadata.
+3. Look up passive navigation grouping metadata for that profile.
+4. Intersect grouping metadata with the already visible link ids.
+5. Render non-empty groups or fall back to the current flat list.
+
+The grouping step must not call route guards, inspect permission keys, fetch data, execute queries,
+or decide whether a link is allowed.
+
+### Hybrid User Behavior
+
+Owner/admin hybrids:
+
+- should use the `operations` grouping by default;
+- should keep all currently visible owner/admin links in the visible set;
+- should not lose access to permissioned production work or admin surfaces because grouping says
+  those links are secondary.
+
+Appraiser/reviewer hybrids:
+
+- should follow the already resolved shell profile;
+- should group around the selected profile only after current visible links exist;
+- should not hide the non-primary work lane in the first render slice.
+
+Assignment plus internal-order users:
+
+- should not use `received_work` grouping unless the resolver has selected assignment-only
+  `received_work`;
+- should keep assignment links as visible secondary context when permissions expose them.
+
+### Assignment-Only Behavior
+
+Assignment-only users can eventually receive `Received Work` grouping, but only over the existing
+visible assignment dashboard/nav surfaces.
+
+Rules:
+
+- do not add Orders, Clients, Calendar, Team Access, or owner setup from grouping metadata;
+- do not remove the assignment route link if the current permission-derived helper includes it;
+- do not imply canonical order access through group labels.
+
+### Safest First Runtime Render Slice
+
+The safest first runtime render slice is **R7D Desktop Navigation Group Labels From Visible Links**.
+
+R7D scope:
+
+- call passive shell profile exposure in `TopNav` only for presentation metadata;
+- keep `getCurrentPrimaryNavLinks(...)` as the source of visible links;
+- derive grouped desktop nav sections by intersecting `primaryNavLinks` with
+  `getShellNavigationGroups(profileId)`;
+- render desktop group labels/separators only when a group has visible links;
+- keep the same link labels, paths, active behavior, and click behavior;
+- keep mobile nav flat and unchanged;
+- keep command palette unchanged;
+- add tests proving the visible desktop nav link id set is unchanged for fully permissioned,
+  appraiser-like, reviewer-like, assignment-only, and fallback/unknown profile cases;
+- add tests proving no metadata-only ids are rendered;
+- add tests proving unknown/fallback profiles fall back to current flat nav.
+
+R7D must not:
+
+- hide links;
+- add links;
+- change route paths;
+- change nav labels;
+- change command palette behavior;
+- change mobile nav;
+- change DashboardGate or dashboard selection;
+- change permissions, guards, backend/Supabase/query/workflow behavior, shell switching, or Client
+  Portal behavior.
+
+### R7C Conclusions
+
+- Grouping should be applied after existing permission-filtered nav link derivation.
+- The first live render should be desktop-only group labels/separators over the current visible
+  links.
+- Mobile grouping should wait for a separate mobile-specific slice.
+- `deemphasizedNavEntryIds` should remain metadata only during the first render slice.
+- Unknown and fallback profiles should keep flat current nav until fallback-specific UX is
+  designed.
+- Command palette should remain unchanged and broader than nav.
+
+## Recommended Next Slice
+
+Proceed with **Falcon Role-Centric Operational Shell Architecture Phase R7D: Desktop Navigation
+Group Labels From Visible Links**.
+
+R7D should render desktop-only group labels from passive grouping metadata after existing
+permission-filtered nav links are derived. It should preserve the visible link set, labels, paths,
+mobile nav, command palette, routes, permissions, guards, DashboardGate, dashboards,
+backend/Supabase/query/workflow behavior, shell switching, and Client Portal behavior.
+
+## Shell Resolution Phase R7D Desktop Navigation Group Labels From Visible Links
+
+Phase R7D renders the first live profile-aware navigation grouping, limited to desktop primary
+navigation presentation.
+
+Runtime files added:
+
+- `src/lib/navigation/currentShellNavigationSections.js`.
+
+Runtime files updated:
+
+- `src/components/shell/TopNav.jsx`.
+
+Focused tests added or updated:
+
+- `src/lib/navigation/__tests__/currentShellNavigationSections.test.js`;
+- `src/components/shell/__tests__/TopNav.test.jsx`.
+
+R7D changes:
+
+- `TopNav` now observes `useShellProfile()` only as presentation metadata;
+- desktop primary navigation derives grouped sections from `getCurrentShellNavigationSections(...)`;
+- the grouping helper accepts already visible links from `getCurrentPrimaryNavLinks(...)`;
+- active shell profiles render desktop group labels only for groups with visible links;
+- unknown, fallback, and future profiles keep the current flat desktop nav;
+- metadata-only ids are ignored when they are not already visible links;
+- visible links not covered by active profile grouping metadata remain visible in a non-authority
+  `More` group;
+- desktop group labels are visual only and are not links, access indicators, route guards, or
+  permission decisions.
+
+R7D desktop grouping behavior:
+
+- `operations` can render `Operations` and `Management` groups from currently visible links;
+- `my_work` can render `Work`, `Support`, and `More` when the user also has permissioned surfaces
+  outside the appraiser grouping metadata;
+- `review_queue` follows the same visible-link-only grouping rule;
+- `received_work` groups only visible assignment/dashboard surfaces and does not create canonical
+  order, client, calendar, team, or owner setup links;
+- fallback and unknown profiles preserve the current flat primary nav order.
+
+R7D preserves:
+
+- existing `getCurrentPrimaryNavLinks(...)` permission-filtered link derivation;
+- visible link availability;
+- link labels;
+- link paths;
+- active-link behavior;
+- mobile nav rendering, order, and mobile Settings placement;
+- command palette registry, helper, rendering, labels, ordering, filtering, and order-search
+  fallback;
+- all route paths, route guards, permission keys, permission checks, `DashboardGate`, dashboards,
+  backend/Supabase/query/workflow behavior, RLS/RPCs, object visibility, shell switching, Client
+  Portal behavior, branding, and production data.
+
+R7D test coverage proves:
+
+- operations-profile desktop nav renders group labels when visible links exist;
+- grouping uses only already visible links and does not create inaccessible links from metadata;
+- empty groups are skipped;
+- unknown profiles preserve the current flat desktop nav;
+- visible links outside profile grouping metadata remain reachable in `More`;
+- mobile nav remains flat and keeps the current order and Settings placement;
+- active-link styling still comes from `NavItem`;
+- shell navigation group metadata remains passive, frozen, and aligned with current nav ids.
+
+### R7D Conclusions
+
+- Falcon now renders passive shell navigation grouping in desktop primary nav only.
+- The grouping is applied after permission-filtered link derivation and never grants or removes
+  access.
+- Mobile nav and command palette behavior remain unchanged.
+- The next navigation slice should evaluate mobile grouping separately before changing compact
+  navigation behavior.
+
+## Recommended Next Slice
+
+Proceed with **Falcon Role-Centric Operational Shell Architecture Phase R7E: Mobile Navigation
+Grouping Readiness Plan**.
+
+R7E should audit whether mobile nav should receive profile-aware grouping, priority ordering, or
+remain flat for usability. It should not change routes, permissions, command palette behavior,
+DashboardGate, dashboards, backend/Supabase/query/workflow behavior, shell switching, or Client
+Portal implementation.
