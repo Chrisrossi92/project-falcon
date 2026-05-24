@@ -14,10 +14,64 @@ import { PERMISSIONS } from "@/lib/permissions/constants";
 import { useShellProfile } from "@/lib/shell/useShellProfile";
 import { Menu, Search } from "lucide-react";
 
+const DESKTOP_SECTION_STYLES = Object.freeze({
+  operations: {
+    shell: "border-slate-300 bg-white shadow-sm",
+    label: "text-slate-700",
+    item: "operational",
+  },
+  work: {
+    shell: "border-slate-300 bg-white shadow-sm",
+    label: "text-slate-700",
+    item: "operational",
+  },
+  review_work: {
+    shell: "border-slate-300 bg-white shadow-sm",
+    label: "text-slate-700",
+    item: "operational",
+  },
+  received_work: {
+    shell: "border-slate-300 bg-white shadow-sm",
+    label: "text-slate-700",
+    item: "operational",
+  },
+  management: {
+    shell: "border-slate-200 bg-slate-50/80",
+    label: "text-slate-500",
+    item: "secondary",
+  },
+  support: {
+    shell: "border-slate-200 bg-slate-50/80",
+    label: "text-slate-500",
+    item: "secondary",
+  },
+  setup_support: {
+    shell: "border-slate-200 bg-slate-50/80",
+    label: "text-slate-500",
+    item: "secondary",
+  },
+  account: {
+    shell: "border-slate-200 bg-slate-50/80",
+    label: "text-slate-500",
+    item: "secondary",
+  },
+  other_visible_links: {
+    shell: "border-slate-200 bg-slate-50/70",
+    label: "text-slate-400",
+    item: "quiet",
+  },
+});
+
+const DEFAULT_DESKTOP_SECTION_STYLE = Object.freeze({
+  shell: "border-transparent bg-transparent",
+  label: "text-slate-500",
+  item: "operational",
+});
+
 function Brand() {
   return (
-    <Link to="/dashboard" className="group flex items-center gap-3 rounded-xl px-1.5 py-1 transition hover:bg-slate-100">
-      <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-slate-950 to-slate-700 text-sm font-semibold text-white shadow-sm ring-1 ring-slate-900/10">
+    <Link to="/dashboard" className="group flex shrink-0 items-center gap-3 rounded-xl px-1.5 py-1 transition hover:bg-slate-100">
+      <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-950 text-sm font-semibold text-white shadow-sm ring-1 ring-slate-900/10">
         F
       </span>
       <span className="hidden leading-tight sm:block">
@@ -28,14 +82,23 @@ function Brand() {
   );
 }
 
-function NavItem({ to, children, onClick }) {
+function NavItem({ to, children, onClick, tone = "operational" }) {
+  const inactiveClass =
+    tone === "secondary"
+      ? "text-slate-500 hover:bg-white hover:text-slate-900"
+      : tone === "quiet"
+      ? "text-slate-500 hover:bg-white hover:text-slate-800"
+      : "text-slate-700 hover:bg-slate-50 hover:text-slate-950";
+
   return (
     <NavLink
       to={to}
       onClick={onClick}
       className={({ isActive }) =>
-        "px-4 py-2 rounded-lg text-base font-semibold transition " +
-        (isActive ? "bg-slate-950 text-white shadow-sm" : "text-slate-600 hover:bg-white hover:text-slate-950")
+        "relative whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 " +
+        (isActive
+          ? "bg-slate-950 text-white shadow-md ring-1 ring-slate-900/10 after:absolute after:inset-x-3 after:-bottom-1 after:h-0.5 after:rounded-full after:bg-white/80"
+          : inactiveClass)
       }
       end
     >
@@ -46,16 +109,17 @@ function NavItem({ to, children, onClick }) {
 
 function DesktopNavSection({ section }) {
   const showLabel = section.grouped && section.label;
+  const styles = DESKTOP_SECTION_STYLES[section.id] ?? DEFAULT_DESKTOP_SECTION_STYLE;
 
   return (
-    <div className="flex items-center gap-1">
+    <div className={`flex shrink-0 items-center gap-1 rounded-xl border px-1.5 py-1 ${styles.shell}`}>
       {showLabel && (
-        <span className="pl-2 pr-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+        <span className={`hidden pl-2 pr-1 text-[10px] font-semibold uppercase tracking-[0.14em] xl:inline ${styles.label}`}>
           {section.label}
         </span>
       )}
       {section.links.map((link) => (
-        <NavItem key={link.id} to={link.path}>{link.label}</NavItem>
+        <NavItem key={link.id} to={link.path} tone={styles.item}>{link.label}</NavItem>
       ))}
     </div>
   );
@@ -180,18 +244,21 @@ export default function TopNav() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/90 shadow-sm backdrop-blur-xl">
-        <div aria-hidden className="h-1 bg-gradient-to-r from-slate-950 via-slate-700 to-slate-950" />
-        <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-3 sm:px-4">
+      <header className="sticky top-0 z-40 border-b border-slate-300 bg-slate-100/90 shadow-md shadow-slate-900/5 backdrop-blur-xl">
+        <div aria-hidden className="h-1 bg-slate-950" />
+        <div className="mx-auto flex min-h-16 max-w-[1500px] items-center gap-3 px-3 py-2 sm:px-4">
           <Brand />
 
-          <nav className="hidden items-center gap-1 rounded-xl border border-slate-200 bg-slate-100/80 p-1 md:flex">
+          <nav
+            aria-label="Primary workspace navigation"
+            className="hidden min-w-0 flex-1 items-center gap-2 overflow-x-auto rounded-2xl border border-slate-300 bg-slate-200/70 p-1.5 shadow-inner md:flex"
+          >
             {desktopNavSections.map((section) => (
               <DesktopNavSection key={section.id} section={section} />
             ))}
           </nav>
 
-          <div className="ml-auto flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-1 shadow-sm">
+          <div className="ml-auto flex min-w-0 max-w-[calc(100vw-5rem)] items-center justify-end gap-1 rounded-2xl border border-slate-300 bg-white/90 p-1 shadow-sm sm:gap-2 md:max-w-none md:shrink-0">
             <button
               className="hidden min-w-[260px] items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-500 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 xl:flex"
               onClick={() => setPal(true)}
@@ -201,14 +268,18 @@ export default function TopNav() {
               <span className="truncate">Search...</span>
               <span className="ml-auto rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-medium text-slate-400">⌘K</span>
             </button>
-            <button className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50 md:hidden" onClick={() => setPal(true)} title="Search">
+            <button className="hidden rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50 sm:inline-flex md:hidden" onClick={() => setPal(true)} title="Search">
               ⌘K
             </button>
-            <NotificationBell />
-            <AvatarMenu me={me} />
             <button className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50 md:hidden" onClick={() => setOpen((v) => !v)} aria-label="Open menu">
               <Menu className="h-4 w-4" aria-hidden="true" />
             </button>
+            <div className="hidden sm:block">
+              <NotificationBell />
+            </div>
+            <div className="hidden sm:block">
+              <AvatarMenu me={me} />
+            </div>
           </div>
         </div>
 

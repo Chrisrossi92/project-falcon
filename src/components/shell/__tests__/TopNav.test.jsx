@@ -234,7 +234,8 @@ describe("TopNav desktop primary navigation", () => {
     const ordersLink = screen.getByRole("link", { name: "Orders" });
 
     expect(ordersLink).toHaveAttribute("aria-current", "page");
-    expect(ordersLink).toHaveClass("bg-slate-950", "text-white", "shadow-sm");
+    expect(ordersLink).toHaveClass("bg-slate-950", "text-white", "shadow-md");
+    expect(ordersLink.className).toContain("after:bg-white/80");
   });
 
   it("renders desktop nav without crashing while shell profile exposure is unresolved", () => {
