@@ -7,6 +7,7 @@ import OrderStatusBadge from "@/components/orders/table/OrderStatusBadge";
 import ActivityLog from "@/components/activity/ActivityLog";
 import OrderAttentionSummaryPanel from "@/features/orders/attention/OrderAttentionSummaryPanel";
 import FileReadinessSummary from "@/features/orders/readiness/FileReadinessSummary";
+import ReviewContextSummary from "@/features/orders/review/ReviewContextSummary";
 import useOrder from "@/lib/hooks/useOrder";
 import { useEffectivePermissions } from "@/lib/hooks/usePermissions";
 import { useToast } from "@/lib/hooks/useToast";
@@ -819,6 +820,11 @@ export default function OrderDetail() {
             <div className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-2">
               Activity
             </div>
+            <ReviewContextSummary
+              order={order}
+              documents={orderFilesLoaded ? orderFiles : null}
+              className="mb-3"
+            />
             <ActivityLog orderId={order.id} order={order} showComposer height={420} />
           </div>
         </div>

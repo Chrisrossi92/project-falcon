@@ -143,6 +143,7 @@ describe("OrderDetail site visit save", () => {
       updated_at: "2026-05-20T12:00:00.000Z",
       site_visit_at: null,
       review_due_at: "2026-05-22T12:00:00.000Z",
+      last_review_activity_at: null,
       final_due_at: "2026-05-29T12:00:00.000Z",
       due_date: null,
     });
@@ -300,6 +301,18 @@ describe("OrderDetail site visit save", () => {
     expect(within(readiness).getByText("Limited files")).toBeInTheDocument();
     expect(within(readiness).getByText("Limited supporting files uploaded so far.")).toBeInTheDocument();
     expect(within(readiness).queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("renders read-only review context when order status supports it", () => {
+    orderMock.status = "in_review";
+    orderMock.last_review_activity_at = "2026-05-23T12:00:00.000Z";
+
+    render(<OrderDetail />);
+
+    const reviewContext = screen.getByLabelText("Review context summary");
+    expect(within(reviewContext).getByText("Review / Revision Context")).toBeInTheDocument();
+    expect(within(reviewContext).getByText("Derived")).toBeInTheDocument();
+    expect(within(reviewContext).queryByRole("button")).not.toBeInTheDocument();
   });
 
   it("uses overview first, then map and activity detail cards", () => {

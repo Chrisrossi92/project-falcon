@@ -563,3 +563,60 @@ Phase 1D preserves:
   document/file count metadata.
 - The next safest execution slice remains a workbench row-card readiness plan or received-work
   next-action copy audit using already loaded data only.
+
+## Operational Execution Phase 1E Review / Revision Context Summary
+
+Phase 1E implements a lightweight read-only Review / Revision Context Summary derived from already
+loaded order status, review timestamps, optional activity rows, and document metadata.
+
+Runtime files added:
+
+- `src/features/orders/review/deriveReviewContextSummary.js`;
+- `src/features/orders/review/ReviewContextSummary.jsx`.
+
+Runtime files updated:
+
+- `src/pages/orders/OrderDetail.jsx`;
+- `src/components/orders/drawer/OrderDrawerContent.jsx`.
+
+Focused tests added or updated:
+
+- `src/features/orders/review/__tests__/deriveReviewContextSummary.test.js`;
+- `src/features/orders/review/__tests__/ReviewContextSummary.test.jsx`;
+- `src/pages/orders/__tests__/OrderDetail.test.jsx`;
+- `src/components/orders/drawer/__tests__/OrderDrawerContent.presentation.test.jsx`.
+
+Phase 1E derives conservative review/revision context:
+
+- review pending from loaded in-review status;
+- revisions open from loaded needs-revisions status;
+- recent resubmission when supplied activity rows indicate resubmission;
+- stale review activity from loaded review timestamps;
+- recent review notes when supplied activity rows indicate review notes;
+- loaded revision-loop and document-count detail chips when safe.
+
+Phase 1E intentionally does not expose reviewer workflow enforcement:
+
+- no request-revisions, clear-review, ready-for-client, or resubmit action changes;
+- no authoritative review-state model;
+- no new activity, document, or review queries;
+- no risk score, SLA scoring, or blame language.
+
+Phase 1E preserves:
+
+- existing ActivityLog loading and composer behavior;
+- existing Order Detail and inline drawer data loading;
+- Smart Actions and lifecycle controls;
+- route guards and permission checks;
+- backend, Supabase, query, RPC, workflow, RLS, notification, automation, mobile/PWA/native, shell
+  switching, DashboardGate, navigation, command palette, Client Portal, branding, and production
+  data behavior.
+
+### Phase 1E Conclusions
+
+- Order Detail and the inline drawer now have a compact, non-authoritative review/revision context
+  summary where loaded order data supports it.
+- The live mounts use already available order/document context; the pure helper also supports
+  activity rows when a future surface already has them in props.
+- The next safest execution slice is a workbench row-card readiness plan using existing dashboard
+  rows only.

@@ -3018,6 +3018,51 @@ Recommended next execution slice:
 Phase 1E should decide how appraiser/reviewer dashboard workbench previews can move from counts to
 row cards using existing dashboard rows only.
 
+### Operational Execution Phase 1E
+
+Implemented a lightweight read-only Review / Revision Context Summary derived from already loaded
+order status, review timestamps, optional activity rows, and document metadata.
+
+Runtime files added:
+
+- `src/features/orders/review/deriveReviewContextSummary.js`;
+- `src/features/orders/review/ReviewContextSummary.jsx`.
+
+Runtime files updated:
+
+- `src/pages/orders/OrderDetail.jsx`;
+- `src/components/orders/drawer/OrderDrawerContent.jsx`.
+
+Focused tests added or updated:
+
+- `src/features/orders/review/__tests__/deriveReviewContextSummary.test.js`;
+- `src/features/orders/review/__tests__/ReviewContextSummary.test.jsx`;
+- `src/pages/orders/__tests__/OrderDetail.test.jsx`;
+- `src/components/orders/drawer/__tests__/OrderDrawerContent.presentation.test.jsx`.
+
+Phase 1E behavior:
+
+- renders compact derived review/revision context near Activity on full Order Detail;
+- renders the same read-only summary in the inline drawer when loaded order status/timestamps
+  support it;
+- identifies review pending, revisions open, recent resubmission, stale review activity, recent
+  review notes, and loaded revision/document context where conservative metadata supports it;
+- avoids reviewer workflow enforcement, risk scoring, blame language, or completeness claims.
+
+Preserved guardrails:
+
+- no backend, Supabase, query, RPC, workflow, RLS, permission, route, navigation, command palette,
+  DashboardGate, Smart Action, lifecycle, automation, notification delivery, mobile/PWA/native,
+  shell switching, Client Portal, branding, or production data change;
+- no ActivityLog fetch, composer, subscription, or event rendering behavior change.
+
+Recommended next execution slice:
+
+- **Operational Execution Phase 1F: Workbench Row-Card Readiness Plan**.
+
+Phase 1F should decide how appraiser/reviewer dashboard workbench previews can move from counts to
+row cards using existing dashboard rows only.
+
 ## Recommended Ordering
 
 1. Completed: start Track 1 with read-only Order Detail Print Packets.

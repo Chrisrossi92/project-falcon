@@ -46,7 +46,7 @@ describe("OrderDrawerContent presentation", () => {
         data: {
           id: "order-1",
           order_number: "2026001",
-          status: "new",
+          status: "in_review",
           client_name: "Acme Lending",
           appraiser_name: "Avery Appraiser",
           address: "123 Main St",
@@ -62,7 +62,7 @@ describe("OrderDrawerContent presentation", () => {
         data: {
           id: "order-1",
           order_number: "2026001",
-          status: "new",
+          status: "in_review",
           client_name: "Acme Lending",
           appraiser_name: "Avery Appraiser",
           address: "123 Main St",
@@ -99,6 +99,8 @@ describe("OrderDrawerContent presentation", () => {
     expect(screen.getByText("Order Signals")).toBeInTheDocument();
     expect(screen.getByLabelText("File readiness summary")).toBeInTheDocument();
     expect(screen.getByText("No files loaded")).toBeInTheDocument();
+    expect(screen.getByLabelText("Review context summary")).toBeInTheDocument();
+    expect(screen.getByText("Review / Revision Context")).toBeInTheDocument();
     expect(screen.getByText("Order Contacts")).toBeInTheDocument();
     expect(screen.getByText("Client and site contact context")).toBeInTheDocument();
     expect(screen.getByText("Location Preview")).toBeInTheDocument();

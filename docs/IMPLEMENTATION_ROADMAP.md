@@ -3325,3 +3325,15 @@ document queries, upload/download/archive behavior, Smart Action behavior, lifec
 permission behavior, route behavior, navigation, command palette, DashboardGate behavior,
 backend/Supabase/query/RPC/workflow/RLS behavior, automation, notifications, mobile/PWA/native,
 shell switching, Client Portal behavior, branding, or production data changes.
+
+Operational Execution Phase 1E is complete as a frontend-only Review / Revision Context Summary
+slice. It adds `src/features/orders/review/deriveReviewContextSummary.js` and
+`src/features/orders/review/ReviewContextSummary.jsx`, then mounts the read-only summary near the
+Activity section in full Order Detail and in the inline drawer where loaded order status/timestamps
+support it. The summary derives conservative signals for review pending, revisions open, recent
+resubmission, stale review activity, recent review notes, and loaded revision/document context. It
+does not add reviewer workflow enforcement, new activity/document/review queries, risk scoring,
+request-revisions/clear-review/resubmit action changes, Smart Action behavior, lifecycle behavior,
+permission behavior, route behavior, navigation, command palette, DashboardGate behavior,
+backend/Supabase/query/RPC/workflow/RLS behavior, automation, notifications, mobile/PWA/native,
+shell switching, Client Portal behavior, branding, or production data changes.
