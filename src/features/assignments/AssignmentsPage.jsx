@@ -22,6 +22,7 @@ export default function AssignmentsPage() {
     canReadAssigned ? "Received work" : null,
     canReadOwner ? "Sent assignments" : null,
   ].filter(Boolean).join(" + ");
+  const assignedOnly = canReadAssigned && !canReadOwner;
 
   if (canViewAssignments.loading || permissions.loading) {
     return <LoadingState message="Loading assignments..." />;
@@ -56,14 +57,14 @@ export default function AssignmentsPage() {
         />
         <WorkspaceContextTile
           label="Access"
-          value="Packet-scoped"
+          value={assignedOnly ? "Assignment-scoped" : "Packet-scoped"}
           className="rounded-md border-slate-100 bg-slate-50 shadow-none"
           labelClassName="text-[11px] tracking-[0.12em] text-slate-400"
           valueClassName="font-semibold text-slate-800"
         />
         <WorkspaceContextTile
           label="Navigation"
-          value="Open packets only"
+          value={assignedOnly ? "Open received work only" : "Open packets only"}
           className="rounded-md border-slate-100 bg-slate-50 shadow-none"
           labelClassName="text-[11px] tracking-[0.12em] text-slate-400"
           valueClassName="font-semibold text-slate-800"

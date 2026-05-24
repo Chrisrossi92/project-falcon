@@ -25,12 +25,14 @@ export default function AssignedOfferPacket({ packet, onChanged }) {
   return (
     <div className="space-y-4">
       <PacketHeader
-        eyebrow="Offer Packet"
+        eyebrow="Work Request"
         title={assignmentTitle(packet)}
         subtitle={`Offer from ${packet.owner_company_name || "owner company"} · ${locationLabel(packet)}`}
         packet={packet}
         side="assigned"
         status={packet.assignment_status}
+        actionsLabel="Work Request Actions"
+        actionsAriaLabel="Work Request Actions"
         actions={
           <AssignedOfferActions assignmentId={packet.assignment_id} onChanged={onChanged} />
         }
@@ -39,6 +41,7 @@ export default function AssignedOfferPacket({ packet, onChanged }) {
       <TerminalState status={packet.assignment_status} />
 
       <FieldGrid
+        title="Work Request Details"
         fields={[
           ["Assignment Type", humanize(packet.assignment_type)],
           ["Report Type", packet.report_type],

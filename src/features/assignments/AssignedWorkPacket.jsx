@@ -25,12 +25,14 @@ export default function AssignedWorkPacket({ packet, onChanged }) {
   return (
     <div className="space-y-4">
       <PacketHeader
-        eyebrow="Assigned Work Packet"
+        eyebrow="Active Work"
         title={assignmentTitle(packet)}
         subtitle={`Assigned to your company by ${packet.owner_company_name || "owner company"} · ${locationLabel(packet)}`}
         packet={packet}
         side="assigned"
         status={packet.assignment_status}
+        actionsLabel="Assignment Actions"
+        actionsAriaLabel="Assignment Actions"
         actions={
           <AssignedWorkActions
             assignmentId={packet.assignment_id}
@@ -43,6 +45,7 @@ export default function AssignedWorkPacket({ packet, onChanged }) {
       <TerminalState status={packet.assignment_status} />
 
       <FieldGrid
+        title="Assignment Details"
         fields={[
           ["Assignment Type", humanize(packet.assignment_type)],
           ["Report Type", packet.report_type],

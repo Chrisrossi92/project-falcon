@@ -468,11 +468,11 @@ export const currentLiveNavigationEntries = freezeArray([
     surfaceLabels: {
       [CURRENT_NAV_SURFACES.AVATAR_MENU]: 'Account settings',
       [CURRENT_NAV_SURFACES.MOBILE]: 'Settings',
-      [CURRENT_NAV_SURFACES.COMMAND]: 'Open Settings',
+      [CURRENT_NAV_SURFACES.COMMAND]: 'Open Account Settings',
     },
     command: {
       id: 'settings',
-      label: 'Open Settings',
+      label: 'Open Account Settings',
       hint: ',',
       path: '/settings',
       gate: gate(CURRENT_NAV_GATE_TYPES.ANY_PERMISSION, [
@@ -481,7 +481,7 @@ export const currentLiveNavigationEntries = freezeArray([
       ]),
     },
     notes: [
-      'Avatar menu copy is Account settings, while mobile nav copy is Settings and command copy is Open Settings.',
+      'Avatar menu copy is Account settings, while mobile nav copy remains Settings and command copy is Open Account Settings.',
       'The /settings route remains settings.view gated.',
     ],
   }),
@@ -504,11 +504,11 @@ export const currentLiveNavigationEntries = freezeArray([
     ]),
     surfaceLabels: {
       [CURRENT_NAV_SURFACES.SETTINGS]: 'Notification Settings →',
-      [CURRENT_NAV_SURFACES.COMMAND]: 'Notification Settings',
+      [CURRENT_NAV_SURFACES.COMMAND]: 'Open Notification Settings',
     },
     command: {
       id: 'notif',
-      label: 'Notification Settings',
+      label: 'Open Notification Settings',
       path: '/settings/notifications',
       gate: gate(CURRENT_NAV_GATE_TYPES.PERMISSION, [
         PERMISSIONS.NOTIFICATIONS_PREFERENCES_MANAGE_OWN,

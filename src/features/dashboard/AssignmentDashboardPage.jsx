@@ -22,7 +22,7 @@ export default function AssignmentDashboardPage() {
     return (
       <AssignmentState
         title="Assignment dashboard unavailable"
-        message="Assignment dashboard access requires assignment packet read permission for the current company."
+        message="Assignment dashboard access is not available for your current company role."
       />
     );
   }

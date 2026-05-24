@@ -119,7 +119,7 @@ export const currentLiveCommandEntries = freezeArray([
   }),
   createEntry({
     id: 'settings',
-    label: 'Open Settings',
+    label: 'Open Account Settings',
     hint: ',',
     path: '/settings',
     shadowCommandId: 'open-settings',
@@ -128,11 +128,11 @@ export const currentLiveCommandEntries = freezeArray([
       PERMISSIONS.NAVIGATION_SETTINGS_VIEW,
     ]),
     tags: ['settings'],
-    notes: ['Current hardcoded command palette item.'],
+    notes: ['Current command opens the personal Account Settings surface.'],
   }),
   createEntry({
     id: 'notif',
-    label: 'Notification Settings',
+    label: 'Open Notification Settings',
     path: '/settings/notifications',
     shadowCommandId: 'open-notifications',
     gate: gate(CURRENT_COMMAND_GATE_TYPES.PERMISSION, [

@@ -82,7 +82,7 @@ export default function AssignmentDetail() {
   }, [load]);
 
   if (loading || permissions.loading) {
-    return <LoadingState message="Resolving assignment packet..." />;
+    return <LoadingState message="Resolving assignment..." />;
   }
 
   return (
@@ -94,8 +94,8 @@ export default function AssignmentDetail() {
       {resolved.kind === "denied" && (
         diagnostics.length > 0 ? (
           <ErrorState
-            title="Assignment packet unavailable"
-            message="Falcon could not resolve this assignment packet for your current company role. No order fallback was attempted."
+            title="Assignment unavailable"
+            message="Falcon could not resolve this assignment for your current company role."
             onRetry={load}
           />
         ) : (

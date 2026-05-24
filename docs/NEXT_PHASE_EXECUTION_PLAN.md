@@ -1528,9 +1528,116 @@ logic changed.
 
 Recommended next role-centric slice:
 
-- **Falcon Role-Centric Operational Shell Architecture Phase R3B: Received Work Copy Alignment
-  Plan**.
+- **Falcon Role-Centric Operational Shell Architecture Phase R3B: Owner Setup And Settings Label
+  Alignment**.
 
+### Falcon Role-Centric Operational Shell Architecture Phase R3B
+
+Completed the next safe runtime owner/admin setup and settings terminology alignment.
+
+Runtime files updated:
+
+- `src/lib/navigation/currentNavigationRegistry.js`;
+- `src/lib/commandPalette/currentCommandRegistry.js`;
+- `src/pages/Settings.jsx`;
+- `src/pages/admin/OwnerSetup.jsx`;
+- `src/features/dashboard/DashboardPage.jsx`.
+
+Focused tests updated:
+
+- `src/lib/navigation/__tests__/currentNavigationRegistry.test.js`;
+- `src/lib/commandPalette/__tests__/currentCommandPaletteCommands.test.js`;
+- `src/components/nav/__tests__/CommandPalette.test.jsx`;
+- `src/pages/admin/__tests__/OwnerSetup.test.jsx`;
+- `src/features/dashboard/__tests__/OwnerSetupDashboardPrompt.test.jsx`.
+
+Visible wording changed:
+
+- `Open Settings` -> `Open Account Settings` in command-facing copy;
+- `Notification Settings` -> `Open Notification Settings` in command-facing copy;
+- `/settings` page heading `Settings` -> `Account Settings`;
+- Owner Setup guidance now emphasizes company setup and operational readiness;
+- generic setup labels now use `Company Setup`, `Operational Setup`, `Workspace Defaults`,
+  `Workflow Settings`, `Team Access`, `Company Notification Settings`, and `Operational Readiness
+  Checklist`;
+- the dashboard setup prompt now says `Owner Setup Guidance`, `Review operational setup
+  readiness`, and `Review Owner Setup`.
+
+Preserved boundaries:
+
+- `/settings`, `/settings/notifications`, `/settings/owner-setup`, and `/users` route paths;
+- existing route/nav/command ids and permission keys;
+- settings utility link order, mobile nav placement, command availability, command ordering,
+  keyboard hints, filtering, and order-search fallback;
+- Owner Setup advisory/read-only setup context behavior and narrow guarded company-profile save
+  path;
+- DashboardGate behavior, route guards, permissions, backend/Supabase/query/workflow behavior,
+  RLS/RPCs, shell switching, Client Portal, branding, and production data.
+
+No Dashboard, Orders, Assignments, workbench heading, My Work, Review Queue, assignment packet,
+Client Portal, route, permission, backend, Supabase, query, workflow, or shell-profile runtime
+logic changed.
+
+Recommended next role-centric slice:
+
+- **Falcon Role-Centric Operational Shell Architecture Phase R3C: Assignment Recipient Copy Audit
+  And Packet Density Reduction**.
+
+### Falcon Role-Centric Operational Shell Architecture Phase R3C
+
+Completed the next safe runtime assignment-recipient copy alignment for clearly received-work and
+assigned-company-facing surfaces.
+
+Runtime files updated:
+
+- `src/features/assignments/AssignmentsPage.jsx`;
+- `src/features/assignments/AssignedAssignmentInbox.jsx`;
+- `src/features/assignments/AssignedOfferPacket.jsx`;
+- `src/features/assignments/AssignedWorkPacket.jsx`;
+- `src/features/assignments/AssignmentDetail.jsx`;
+- `src/features/assignments/AssignmentPrimitives.jsx`;
+- `src/features/assignments/components/AssignedWorkDashboard.jsx`;
+- `src/features/dashboard/AssignmentDashboardPage.jsx`.
+
+Focused tests updated:
+
+- `src/features/assignments/__tests__/AssignmentsPage.test.jsx`;
+- `src/features/assignments/__tests__/AssignmentPacketPresentation.test.jsx`.
+
+Visible wording changed:
+
+- received-work lane copy now says `Work requests assigned to your company`, `Work Request`,
+  `Open work request`, and `received work`;
+- assigned-only workspace context now says `Assignment-scoped` and `Open received work only`;
+- assigned offer detail now says `Work Request`, `Work Request Actions`, and `Work Request
+  Details`;
+- assigned active-work detail now says `Active Work`, `Assignment Actions`, and `Assignment
+  Details`;
+- assignment recipient dashboard rows now say `Open Assignment` and `Received assignment work`;
+- generic recipient-facing assignment loading, unavailable, terminal, and error support copy now
+  avoids unnecessary `packet` wording.
+
+Preserved boundaries:
+
+- `/assignments` and `/assignments/:assignmentId` route paths;
+- assignment route ids, component/file/internal names, permission keys, route guards, list/detail
+  API calls, packet resolution order, lifecycle actions, and dashboard data sources;
+- owner/admin sent-assignment and order assignment panel packet language;
+- owner assignment detail labels such as `Owner Packet`, `Packet Actions`, and `Packet Context`;
+- internal architecture, diagnostics, tests, and docs that use packet language to explain scoped
+  assignment visibility;
+- command and navigation structure/order, DashboardGate behavior, backend/Supabase/query/workflow
+  behavior, RLS/RPCs, shell switching, profile-aware runtime logic, Client Portal, branding, and
+  production data.
+
+No global `Assignments` navigation/command label, Dashboard, Orders, My Work, Review Queue,
+shell-level workbench heading, route, permission, backend, Supabase, query, workflow, or Client
+Portal behavior changed.
+
+Recommended next role-centric slice:
+
+- **Falcon Role-Centric Operational Shell Architecture Phase R4: Passive Shell Metadata
+  Consumption Plan**.
 
 ## Recommended Ordering
 

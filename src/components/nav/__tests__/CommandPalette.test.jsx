@@ -78,8 +78,8 @@ describe("CommandPalette current registry helper migration", () => {
       "Go to Calendarg c",
       "Go to Clientsg l",
       "Open Team Accessg u",
-      "Open Settings,",
-      "Notification Settings",
+      "Open Account Settings,",
+      "Open Notification Settings",
     ]);
 
     fireEvent.click(screen.getByText("Go to Clients"));
@@ -107,8 +107,8 @@ describe("CommandPalette current registry helper migration", () => {
       "Go to Calendarg c",
       "Go to Clientsg l",
       "Open Team Accessg u",
-      "Open Settings,",
-      "Notification Settings",
+      "Open Account Settings,",
+      "Open Notification Settings",
     ]);
     expect(screen.queryByText("Go to Assignments")).toBeNull();
     expect(screen.queryByText("Go to Relationships")).toBeNull();

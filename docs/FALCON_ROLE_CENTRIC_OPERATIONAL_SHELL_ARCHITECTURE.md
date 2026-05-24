@@ -2781,13 +2781,191 @@ R3A validation should include:
 - Remaining role-native wording work should stay narrow and context-specific until live shell
   profile consumption exists.
 
+## Shell Resolution Phase R3B Owner Setup And Settings Label Alignment
+
+Phase R3B implements the next safe runtime role-language migration for owner/admin setup and
+settings surfaces.
+
+Runtime files updated:
+
+- `src/lib/navigation/currentNavigationRegistry.js`;
+- `src/lib/commandPalette/currentCommandRegistry.js`;
+- `src/pages/Settings.jsx`;
+- `src/pages/admin/OwnerSetup.jsx`;
+- `src/features/dashboard/DashboardPage.jsx`.
+
+Focused tests updated:
+
+- `src/lib/navigation/__tests__/currentNavigationRegistry.test.js`;
+- `src/lib/commandPalette/__tests__/currentCommandPaletteCommands.test.js`;
+- `src/components/nav/__tests__/CommandPalette.test.jsx`;
+- `src/pages/admin/__tests__/OwnerSetup.test.jsx`;
+- `src/features/dashboard/__tests__/OwnerSetupDashboardPrompt.test.jsx`.
+
+R3B changes only visible setup/settings wording:
+
+- `Open Settings` command copy is now `Open Account Settings`;
+- `Notification Settings` command copy is now `Open Notification Settings`;
+- the `/settings` page heading is now `Account Settings`;
+- Owner Setup guidance now emphasizes company setup and operational readiness;
+- generic Owner Setup card labels now use `Company Setup`, `Operational Setup`, `Workspace
+  Defaults`, `Workflow Settings`, `Team Access`, `Company Notification Settings`, and
+  `Operational Readiness Checklist`;
+- the dashboard setup prompt now says `Owner Setup Guidance`, `Review operational setup readiness`,
+  and `Review Owner Setup`.
+
+R3B preserves:
+
+- `/settings`, `/settings/notifications`, `/settings/owner-setup`, and `/users` route paths;
+- `settings`, `settings.notifications`, `settings.ownerSetup`, and `users` internal ids;
+- `settings.view`, `navigation.settings.view`, `notifications.preferences.manage_own`,
+  `users.read`, and `navigation.users.view` permission keys;
+- settings utility link order and mobile nav placement;
+- command availability, command ids, command ordering, keyboard hints, filtering, and order-search
+  fallback;
+- Owner Setup's advisory/read-only setup context behavior and narrow guarded company-profile save
+  path;
+- backend, Supabase, query, workflow, RLS/RPC, and production data behavior.
+
+R3B deliberately does not change:
+
+- Dashboard labels outside the existing Owner Setup prompt;
+- Orders labels;
+- Assignments labels;
+- shell-level workbench headings;
+- `My Work` or `Review Queue` live headings;
+- assignment packet terminology;
+- route paths or route guards;
+- permissions;
+- DashboardGate behavior;
+- shell switching or profile-aware runtime logic;
+- Client Portal labels or implementation.
+
+### R3B Validation
+
+R3B validation should include:
+
+- targeted current navigation registry tests;
+- targeted current command palette helper tests;
+- targeted CommandPalette tests;
+- targeted Owner Setup tests;
+- targeted Owner Setup dashboard prompt tests;
+- lint;
+- build;
+- `git diff --check`;
+- whitespace scan for touched docs and files.
+
+### R3B Conclusions
+
+- Owner/admin setup language is clearer without changing authority or route structure.
+- Personal settings are now framed as Account Settings where the surface is personal rather than
+  operational setup.
+- Owner Setup remains advisory and settings-gated, with no shell-profile runtime dependency.
+- Remaining role-native wording work should stay context-specific until live shell-profile
+  consumption exists.
+
 ## Recommended Next Slice
 
-Proceed with **Falcon Role-Centric Operational Shell Architecture Phase R3B: Received Work Copy
-Alignment Plan**.
+Proceed with **Falcon Role-Centric Operational Shell Architecture Phase R3C: Assignment Recipient
+Copy Audit And Packet Density Reduction**.
 
-R3B should plan the next narrow assignment-recipient wording slice for clearly recipient-facing
-received-work lanes only. It should not globally rename `Assignments`, remove internal packet
-precision, change assignment detail authority, alter routes, change permissions, wire shell
-profiles into UI, change backend/Supabase/query/workflow behavior, add shell switching, or
-implement Client Portal.
+R3C should reduce recipient-facing `packet` density only where the surface is clearly received-work
+or assigned-company facing. It should not globally rename `Assignments`, remove internal packet
+precision, change owner/admin assignment-scope language, change assignment detail authority, alter
+routes, change permissions, wire shell profiles into UI, change backend/Supabase/query/workflow
+behavior, add shell switching, or implement Client Portal.
+
+## Shell Resolution Phase R3C Assignment Recipient Copy Audit And Packet Density Reduction
+
+Phase R3C implements the next safe runtime role-language migration for assignment-recipient and
+vendor-facing received-work surfaces.
+
+Runtime files updated:
+
+- `src/features/assignments/AssignmentsPage.jsx`;
+- `src/features/assignments/AssignedAssignmentInbox.jsx`;
+- `src/features/assignments/AssignedOfferPacket.jsx`;
+- `src/features/assignments/AssignedWorkPacket.jsx`;
+- `src/features/assignments/AssignmentDetail.jsx`;
+- `src/features/assignments/AssignmentPrimitives.jsx`;
+- `src/features/assignments/components/AssignedWorkDashboard.jsx`;
+- `src/features/dashboard/AssignmentDashboardPage.jsx`.
+
+Focused tests updated:
+
+- `src/features/assignments/__tests__/AssignmentsPage.test.jsx`;
+- `src/features/assignments/__tests__/AssignmentPacketPresentation.test.jsx`.
+
+R3C changes only recipient-facing assignment wording:
+
+- received-work lane region copy now uses `Received Work`, `Work requests assigned to your
+  company`, `Work Request`, `Open work request`, and `received work`;
+- assigned-only workspace context now says `Assignment-scoped` and `Open received work only`;
+- assigned offer detail now uses `Work Request`, `Work Request Actions`, and `Work Request
+  Details`;
+- assigned active-work detail now uses `Active Work`, `Assignment Actions`, and `Assignment
+  Details`;
+- assignment recipient dashboard rows now use `Open Assignment` and `Received assignment work`;
+- generic assignment loading/denied/error support copy avoids unnecessary `packet` wording while
+  preserving assignment-scoped safety language.
+
+R3C intentionally preserves `packet` language where it protects assignment-scope clarity:
+
+- internal file, component, loader, API, variable, and test names;
+- owner/admin sent-assignment management and order assignment panels;
+- owner assignment detail copy such as `Owner Packet`, `Packet Actions`, and `Packet Context`;
+- owner-side links such as `Open assignment packet`;
+- route ids, route paths, permission keys, and assignment packet resolution diagnostics;
+- architecture, safety, and developer-facing wording that explains packet-scoped isolation.
+
+R3C preserves:
+
+- `/assignments` and `/assignments/:assignmentId` route paths;
+- assignment route ids and internal component names;
+- assignment read permissions and guards;
+- assignment list/detail API calls and packet resolution order;
+- assignment lifecycle actions;
+- dashboard assignment data sources;
+- command and navigation structure/order;
+- backend, Supabase, query, workflow, RLS/RPC, and production data behavior.
+
+R3C deliberately does not change:
+
+- global `Assignments` navigation or command labels;
+- Dashboard, Orders, My Work, Review Queue, or shell-level workbench headings;
+- owner/admin assignment-scope packet language;
+- route paths or route guards;
+- permissions;
+- DashboardGate behavior;
+- shell switching or profile-aware runtime logic;
+- Client Portal labels or implementation.
+
+### R3C Validation
+
+R3C validation should include:
+
+- targeted AssignmentsPage tests;
+- targeted assignment packet presentation tests;
+- targeted assignment API tests where practical;
+- lint;
+- build;
+- `git diff --check`;
+- whitespace scan for touched docs and files.
+
+### R3C Conclusions
+
+- Assignment-recipient surfaces now lead with received-work, work-request, offer, active-work, and
+  assignment language.
+- Packet terminology remains intact where it is internal, owner/admin-facing, or needed to explain
+  scoped assignment visibility.
+- R3C remains copy-only and does not introduce shell-profile consumption.
+
+## Recommended Next Slice
+
+Proceed with **Falcon Role-Centric Operational Shell Architecture Phase R4: Passive Shell Metadata
+Consumption Plan**.
+
+R4 should plan the first passive, read-only consumption of R1/R2 shell profile metadata in
+diagnostics or tests before live shell-aware navigation, dashboard/workbench rendering, command
+ordering, route behavior, permissions, backend/Supabase/query/workflow behavior, shell switching,
+or Client Portal implementation.

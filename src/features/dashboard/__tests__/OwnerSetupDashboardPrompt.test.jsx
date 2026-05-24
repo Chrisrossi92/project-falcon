@@ -43,9 +43,9 @@ describe("OwnerSetupDashboardPrompt", () => {
 
     renderPrompt();
 
-    expect(screen.getByText("Setup Guidance")).toBeInTheDocument();
-    expect(screen.getByText("Review owner setup readiness")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Review setup readiness" })).toHaveAttribute(
+    expect(screen.getByText("Owner Setup Guidance")).toBeInTheDocument();
+    expect(screen.getByText("Review operational setup readiness")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Review Owner Setup" })).toHaveAttribute(
       "href",
       "/settings/owner-setup",
     );
@@ -59,7 +59,7 @@ describe("OwnerSetupDashboardPrompt", () => {
   it("hides prompt when settings view permission is absent", () => {
     renderPrompt();
 
-    expect(screen.queryByText("Review owner setup readiness")).toBeNull();
-    expect(screen.queryByRole("link", { name: "Review setup readiness" })).toBeNull();
+    expect(screen.queryByText("Review operational setup readiness")).toBeNull();
+    expect(screen.queryByRole("link", { name: "Review Owner Setup" })).toBeNull();
   });
 });

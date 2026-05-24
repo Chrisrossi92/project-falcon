@@ -54,8 +54,8 @@ describe('current command palette commands', () => {
       'Go to Calendar',
       'Go to Clients',
       'Open Team Access',
-      'Open Settings',
-      'Notification Settings',
+      'Open Account Settings',
+      'Open Notification Settings',
     ]);
     expect(pathsFor(commands)).toEqual([
       '/orders',

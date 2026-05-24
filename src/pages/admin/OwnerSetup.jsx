@@ -51,8 +51,8 @@ const STATUS_STYLES = Object.freeze({
 
 const SETUP_CARD_GROUPS = Object.freeze([
   {
-    title: "Core Setup",
-    description: "Confirm company identity and first-owner basics without adding setup authority.",
+    title: "Company Setup",
+    description: "Confirm company identity and first-owner basics without changing authority.",
     cards: Object.freeze([
       {
         title: "Company Profile",
@@ -69,7 +69,7 @@ const SETUP_CARD_GROUPS = Object.freeze([
         attentionStatus: "Needs attention",
       },
       {
-        title: "Basic Settings",
+        title: "Workspace Defaults",
         description:
           "Workspace defaults remain deferred until narrow guarded settings contracts exist.",
         status: "Deferred",
@@ -79,7 +79,7 @@ const SETUP_CARD_GROUPS = Object.freeze([
     ]),
   },
   {
-    title: "Operations Setup",
+    title: "Operational Setup",
     description: "Review operational assumptions while backend workflow authority remains separate.",
     cards: Object.freeze([
       {
@@ -91,12 +91,12 @@ const SETUP_CARD_GROUPS = Object.freeze([
           "Planned later after company-safe numbering configuration is ready for owners.",
       },
       {
-        title: "Workflow Assumptions",
+        title: "Workflow Settings",
         description: "Review lifecycle assumptions without changing workflow authority.",
         status: "Diagnostic only",
       },
       {
-        title: "Team / Staff Invitations",
+        title: "Team Access",
         description:
           "Open Team Access to manage company members and invitations through the existing guarded team workflow.",
         status: "Coming later",
@@ -116,11 +116,11 @@ const SETUP_CARD_GROUPS = Object.freeze([
     ]),
   },
   {
-    title: "Communication / Branding",
+    title: "Company Communication & Branding",
     description: "Keep communication defaults and branding behind future company-safe contracts.",
     cards: Object.freeze([
       {
-        title: "Notification Preferences",
+        title: "Company Notification Settings",
         description:
           "Personal notification preferences are separate; company defaults remain deferred.",
         status: "Deferred",
@@ -138,11 +138,11 @@ const SETUP_CARD_GROUPS = Object.freeze([
     ]),
   },
   {
-    title: "Readiness",
+    title: "Operational Readiness",
     description: "Use setup diagnostics for orientation only; runtime guards remain authoritative.",
     cards: Object.freeze([
       {
-        title: "Readiness Checklist",
+        title: "Operational Readiness Checklist",
         description:
           "Review live setup guidance. Permissions and RPC/RLS checks remain the source of truth.",
         status: "Diagnostic only",
@@ -261,7 +261,7 @@ function SetupCard({ card, readiness, canOpenTeamAccess = false }) {
         <p className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-600">
           <span className="font-medium text-slate-800">Planned later:</span>{" "}
           {card.deferredReason ||
-            "This card is intentionally waiting on a backend, storage, or security model."}
+            "This card is intentionally waiting on a governed backend, storage, or security model."}
         </p>
       ) : null}
     </article>
@@ -346,7 +346,7 @@ function ReadinessSummary({ readiness, heading, label, description, emptyBlockin
           value={readiness.blockingItems.length}
           helper={
             readiness.blockingItems.length
-              ? "Review before relying on setup guidance."
+              ? "Review before relying on operational setup guidance."
               : "No blocker reported by this diagnostic."
           }
         />
@@ -355,7 +355,7 @@ function ReadinessSummary({ readiness, heading, label, description, emptyBlockin
           value={warningItems.length}
           helper={
             warningItems.length
-              ? "Non-blocking items need review."
+              ? "Non-blocking setup items need review."
               : "No warning reported by this diagnostic."
           }
         />
@@ -567,33 +567,33 @@ export default function OwnerSetup() {
     ? resolveCompanyReadiness(setupContextState.data)
     : null;
   const liveSetupStatusMessage = setupContextState.loading
-    ? "Loading guarded setup context..."
+    ? "Loading guarded operational setup context..."
     : setupContextState.permissionDenied
-      ? "Setup context is unavailable for this current-company user. Static sample fallback remains available below."
+      ? "Operational setup context is unavailable for this current-company user. Static sample fallback remains available below."
       : setupContextState.error
-        ? "Falcon could not load live setup context. Static sample fallback remains available below."
+        ? "Falcon could not load live operational setup context. Static sample fallback remains available below."
         : liveReadiness
-          ? "Live setup context loaded through the guarded read-only RPC."
-          : "No live setup context is available. Static sample fallback remains below.";
+          ? "Live operational setup context loaded through the guarded read-only RPC."
+          : "No live operational setup context is available. Static sample fallback remains below.";
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-4 lg:p-6">
       <section className="rounded-lg border border-amber-200 bg-amber-50 p-5 text-amber-950">
-        <div className="text-xs font-semibold uppercase tracking-wide">Setup guidance</div>
+        <div className="text-xs font-semibold uppercase tracking-wide">Owner Setup Guidance</div>
         <h1 className="mt-1 text-2xl font-semibold text-slate-950">Owner Setup</h1>
         <p className="mt-2 max-w-4xl text-sm leading-6">
-          This page helps orient the current workspace setup. Live setup context is read-only
-          guidance, and only the Company Profile card has a narrow guarded save path. The page does
-          not run bootstrap, persist onboarding, save broad settings, or change route, permission,
-          RLS, workflow, assignment, product-mode, or module behavior.
+          This page helps orient company setup and operational readiness. Live setup context is
+          read-only guidance, and only the Company Profile card has a narrow guarded save path. The
+          page does not run bootstrap, persist onboarding, save broad settings, or change route,
+          permission, RLS, workflow, assignment, product-mode, or module behavior.
         </p>
       </section>
 
       <section className="rounded-lg border border-slate-200 bg-white p-5">
         <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Live read-only setup context
+          Live operational setup context
         </div>
-        <h2 className="mt-1 text-base font-semibold text-slate-950">Setup Context Status</h2>
+        <h2 className="mt-1 text-base font-semibold text-slate-950">Operational Setup Context</h2>
         <p className="mt-2 text-sm leading-6 text-slate-600">{liveSetupStatusMessage}</p>
         {liveReadiness ? (
           <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -609,17 +609,17 @@ export default function OwnerSetup() {
           </p>
         ) : null}
         <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-          Readiness on this page is diagnostic guidance only. It does not grant access, deny access,
-          bypass permissions/RLS/RPCs, turn on product modes/modules, or expose Vendor/Client live
-          shells.
+          Operational readiness on this page is diagnostic guidance only. It does not grant access,
+          deny access, bypass permissions/RLS/RPCs, turn on product modes/modules, or expose
+          Vendor/Client live shells.
         </p>
       </section>
 
       {liveReadiness ? (
         <ReadinessSummary
           readiness={liveReadiness}
-          label="Live readiness diagnostic"
-          heading="Live Readiness Guidance"
+          label="Live operational readiness diagnostic"
+          heading="Live Operational Readiness Guidance"
           description="This uses guarded current-company setup context with the pure readiness resolver. It is not onboarding state and not permission authority."
           emptyBlockingLabel="No blocking items in the live read-only setup context."
         />
@@ -651,8 +651,8 @@ export default function OwnerSetup() {
       <ReadinessSummary
         readiness={SAMPLE_READINESS}
         label="Static sample fallback"
-        heading="Sample Readiness Checklist"
-        description="This uses a local fixture with the pure readiness resolver. It is not live setup context, not onboarding state, and not permission authority."
+        heading="Sample Operational Readiness Checklist"
+        description="This uses a local fixture with the pure readiness resolver. It is not live operational setup context, not onboarding state, and not permission authority."
         emptyBlockingLabel="None in this sample fixture"
       />
     </div>

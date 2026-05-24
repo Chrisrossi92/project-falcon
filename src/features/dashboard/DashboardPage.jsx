@@ -872,10 +872,10 @@ export function OwnerSetupDashboardPrompt() {
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="min-w-0">
           <div className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">
-            Setup Guidance
+            Owner Setup Guidance
           </div>
           <h2 className="mt-0.5 text-sm font-semibold text-slate-950">
-            Review owner setup readiness
+            Review operational setup readiness
           </h2>
           <p className="mt-1 max-w-3xl text-sm leading-5 text-amber-900">
             Diagnostic guidance only. This does not change permissions, workflow, route access, or
@@ -886,7 +886,7 @@ export function OwnerSetupDashboardPrompt() {
           to="/settings/owner-setup"
           className="inline-flex shrink-0 items-center justify-center rounded-md border border-amber-300 bg-white px-3 py-2 text-sm font-semibold text-amber-900 shadow-sm hover:bg-amber-100"
         >
-          Review setup readiness
+          Review Owner Setup
         </Link>
       </div>
     </section>

@@ -178,7 +178,7 @@ describe('current live navigation registry', () => {
     });
     expect(notificationSettings.surfaceLabels).toMatchObject({
       [CURRENT_NAV_SURFACES.SETTINGS]: 'Notification Settings →',
-      [CURRENT_NAV_SURFACES.COMMAND]: 'Notification Settings',
+      [CURRENT_NAV_SURFACES.COMMAND]: 'Open Notification Settings',
     });
 
     expect(ownerSetup).toMatchObject({
@@ -215,7 +215,7 @@ describe('current live navigation registry', () => {
     expect(getCurrentLiveNavigationEntry('settings').surfaceLabels).toMatchObject({
       [CURRENT_NAV_SURFACES.AVATAR_MENU]: 'Account settings',
       [CURRENT_NAV_SURFACES.MOBILE]: 'Settings',
-      [CURRENT_NAV_SURFACES.COMMAND]: 'Open Settings',
+      [CURRENT_NAV_SURFACES.COMMAND]: 'Open Account Settings',
     });
   });
 

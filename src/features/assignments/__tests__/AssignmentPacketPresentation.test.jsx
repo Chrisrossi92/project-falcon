@@ -59,15 +59,15 @@ describe("assignment packet detail presentation", () => {
       />,
     );
 
-    expect(screen.getByText("Offer Packet")).toBeInTheDocument();
-    expect(screen.getByLabelText("Offer Packet detail")).toBeInTheDocument();
+    expect(screen.getByText("Work Request")).toBeInTheDocument();
+    expect(screen.getByLabelText("Work Request detail")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "#26001 · Vendor Appraisal" })).toBeInTheDocument();
     expect(screen.getByText(/Offer from Owner AMC/)).toBeInTheDocument();
-    expect(screen.getByText("Packet Actions")).toBeInTheDocument();
-    expect(screen.getByLabelText("Packet actions")).toBeInTheDocument();
+    expect(screen.getByText("Work Request Actions")).toBeInTheDocument();
+    expect(screen.getByLabelText("Work Request Actions")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Accept" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Decline" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Packet Context" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Work Request Details" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Instructions" })).toBeInTheDocument();
     expect(screen.getByText("Confirm access before inspection.")).toBeInTheDocument();
     expect(screen.getByTestId("assignment-activity")).toHaveTextContent("assignment-1");
@@ -76,12 +76,12 @@ describe("assignment packet detail presentation", () => {
   it("renders assigned work packets without adding owner order navigation", () => {
     renderPacket(<AssignedWorkPacket packet={basePacket} />);
 
-    expect(screen.getByText("Assigned Work Packet")).toBeInTheDocument();
-    expect(screen.getByLabelText("Assigned Work Packet detail")).toBeInTheDocument();
+    expect(screen.getByText("Active Work")).toBeInTheDocument();
+    expect(screen.getByLabelText("Active Work detail")).toBeInTheDocument();
     expect(screen.getByText(/Assigned to your company by Owner AMC/)).toBeInTheDocument();
-    expect(screen.getByText("Packet Actions")).toBeInTheDocument();
+    expect(screen.getByText("Assignment Actions")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Open order/i })).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Packet Context" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Assignment Details" })).toBeInTheDocument();
     expect(screen.getByText("Interior inspection")).toBeInTheDocument();
   });
 

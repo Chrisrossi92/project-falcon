@@ -102,12 +102,12 @@ describe("OwnerSetup", () => {
     const html = renderOwnerSetupToStaticMarkup();
 
     expect(html).toContain("Owner Setup");
-    expect(html).toContain("Setup guidance");
-    expect(html).toContain("current workspace setup");
+    expect(html).toContain("Owner Setup Guidance");
+    expect(html).toContain("company setup and operational readiness");
     expect(html).toContain("Company Profile");
     expect(html).toContain("Save Profile");
-    expect(html).toContain("Live read-only setup context");
-    expect(html).toContain("Sample Readiness Checklist");
+    expect(html).toContain("Live operational setup context");
+    expect(html).toContain("Sample Operational Readiness Checklist");
     expect(html).toContain("Static sample fallback");
     expect(html).toContain("not permission authority");
     expect(html).not.toMatch(/access granted/i);
@@ -116,7 +116,7 @@ describe("OwnerSetup", () => {
   it("renders grouped setup sections and the expected future setup cards", () => {
     const html = renderOwnerSetupToStaticMarkup();
 
-    ["Core Setup", "Operations Setup", "Communication / Branding", "Readiness"].forEach(
+    ["Company Setup", "Operational Setup", "Company Communication", "Operational Readiness"].forEach(
       (heading) => {
         expect(html).toContain(heading);
       },
@@ -125,14 +125,14 @@ describe("OwnerSetup", () => {
     [
       "Company Profile",
       "Owner Profile",
-      "Basic Settings",
+      "Workspace Defaults",
       "Branding",
       "Order Numbering",
-      "Workflow Assumptions",
-      "Team / Staff Invitations",
+      "Workflow Settings",
+      "Team Access",
       "Role Review",
-      "Notification Preferences",
-      "Readiness Checklist",
+      "Company Notification Settings",
+      "Operational Readiness Checklist",
     ].forEach((step) => {
       expect(html).toContain(step);
     });
@@ -154,9 +154,9 @@ describe("OwnerSetup", () => {
     renderOwnerSetup();
 
     [
-      "Basic Settings setup card",
+      "Workspace Defaults setup card",
       "Order Numbering setup card",
-      "Notification Preferences setup card",
+      "Company Notification Settings setup card",
       "Branding setup card",
     ].forEach((label) => {
       const card = screen.getByLabelText(label);
@@ -183,7 +183,7 @@ describe("OwnerSetup", () => {
 
     renderOwnerSetup();
 
-    const card = screen.getByLabelText("Team / Staff Invitations setup card");
+    const card = screen.getByLabelText("Team Access setup card");
     const link = within(card).getByRole("link", { name: "Open Team Access" });
 
     expect(link).toHaveAttribute("href", "/users");
@@ -197,7 +197,7 @@ describe("OwnerSetup", () => {
   it("keeps the Team Access bridge informational when users.read visibility is unavailable", () => {
     renderOwnerSetup();
 
-    const card = screen.getByLabelText("Team / Staff Invitations setup card");
+    const card = screen.getByLabelText("Team Access setup card");
 
     expect(within(card).queryByRole("link", { name: "Open Team Access" })).not.toBeInTheDocument();
     expect(within(card).queryByRole("button")).not.toBeInTheDocument();
@@ -228,7 +228,7 @@ describe("OwnerSetup", () => {
 
     const html = renderOwnerSetupToStaticMarkup();
 
-    expect(html).toContain("Loading guarded setup context");
+    expect(html).toContain("Loading guarded operational setup context");
     expect(html).toContain("Static sample fallback");
     expect(html).not.toMatch(/access granted/i);
   });
@@ -258,9 +258,9 @@ describe("OwnerSetup", () => {
 
     const html = renderOwnerSetupToStaticMarkup();
 
-    expect(html).toContain("Live setup context loaded through the guarded read-only RPC");
-    expect(html).toContain("Live Readiness Guidance");
-    expect(html).toContain("Live readiness diagnostic");
+    expect(html).toContain("Live operational setup context loaded through the guarded read-only RPC");
+    expect(html).toContain("Live Operational Readiness Guidance");
+    expect(html).toContain("Live operational readiness diagnostic");
     expect(html).toContain("Diagnostic only");
     expect(html).toContain("Blockers");
     expect(html).toContain("Warnings");
@@ -303,7 +303,7 @@ describe("OwnerSetup", () => {
       .toBeInTheDocument();
     expect(within(screen.getByLabelText("Order Numbering setup card")).getByText("Deferred"))
       .toBeInTheDocument();
-    expect(within(screen.getByLabelText("Notification Preferences setup card")).getByText("Deferred"))
+    expect(within(screen.getByLabelText("Company Notification Settings setup card")).getByText("Deferred"))
       .toBeInTheDocument();
     expect(within(screen.getByLabelText("Branding setup card")).getByText("Deferred"))
       .toBeInTheDocument();
@@ -340,7 +340,7 @@ describe("OwnerSetup", () => {
     expect(
       within(screen.getByLabelText("Role Review setup card")).getByText("Needs attention"),
     ).toBeInTheDocument();
-    expect(within(screen.getByLabelText("Readiness Checklist setup card")).getByText(
+    expect(within(screen.getByLabelText("Operational Readiness Checklist setup card")).getByText(
       "Diagnostic only",
     )).toBeInTheDocument();
     expect(screen.queryByText(/access granted/i)).not.toBeInTheDocument();
@@ -472,7 +472,7 @@ describe("OwnerSetup", () => {
 
     const html = renderOwnerSetupToStaticMarkup();
 
-    expect(html).toContain("Setup context is unavailable for this current-company user");
+    expect(html).toContain("Operational setup context is unavailable for this current-company user");
     expect(html).toContain("setup_read_permission_missing");
     expect(html).toContain("Static sample fallback");
     expect(html).toContain("profile edits are disabled");

@@ -43,15 +43,15 @@ export default function AssignedAssignmentInbox() {
 
   return (
     <section
-      aria-label="Received assignment packets"
+      aria-label="Received work"
       className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm"
     >
       <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50/70 px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">Received Work</div>
-          <h2 className="mt-1 text-base font-semibold text-slate-950">Assignment packets assigned to your company</h2>
+          <h2 className="mt-1 text-base font-semibold text-slate-950">Work requests assigned to your company</h2>
           <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-500">
-            Offers and active work packets stay assignment-scoped and do not open full order operations.
+            Offers and active assignments stay assignment-scoped and do not open full order operations.
           </p>
           {visibleItems.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1.5">
@@ -81,15 +81,15 @@ export default function AssignedAssignmentInbox() {
         </div>
       </div>
 
-      {loading && <div className="p-4 text-sm text-slate-500">Loading received assignment packets...</div>}
+      {loading && <div className="p-4 text-sm text-slate-500">Loading received work...</div>}
       {!loading && error && (
         <div className="p-4">
-          <ErrorState message="Falcon could not load assigned-company packets." onRetry={load} />
+          <ErrorState message="Falcon could not load received work for this company." onRetry={load} />
         </div>
       )}
       {!loading && !error && visibleItems.length === 0 && (
         <div className="p-4">
-          <EmptyState title="No received work" message="No assignment offers or active work packets are currently available for your company." />
+          <EmptyState title="No received work" message="No offers or active assignments are currently available for your company." />
         </div>
       )}
       {!loading && !error && visibleItems.length > 0 && (
@@ -98,21 +98,21 @@ export default function AssignedAssignmentInbox() {
             const expiredOffer = item.assignment_status === "offered" && isPastDate(item.expires_at);
             const submitted = item.assignment_status === "submitted";
             const pastDue = !["completed", "declined", "cancelled", "revoked"].includes(item.assignment_status) && isPastDate(item.due_at);
-            const packetLabel = item.order_number ? `#${item.order_number}` : "Assignment packet";
+            const workRequestLabel = item.order_number ? `#${item.order_number}` : "Work request";
             const ownerCompany = item.owner_company_name || "Owner company";
             const location = locationLabel(item);
             return (
               <Link
                 key={item.assignment_id}
                 to={`/assignments/${item.assignment_id}`}
-                aria-label={`Open received assignment packet ${packetLabel}`}
+                aria-label={`Open received work request ${workRequestLabel}`}
                 className="group grid gap-3 px-4 py-3 transition hover:bg-slate-50 lg:grid-cols-[1fr_auto]"
               >
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">Received Packet</div>
-                      <div className="mt-0.5 truncate text-base font-semibold text-slate-950">{packetLabel}</div>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">Work Request</div>
+                      <div className="mt-0.5 truncate text-base font-semibold text-slate-950">{workRequestLabel}</div>
                     </div>
                     <div className="flex flex-wrap items-center gap-1.5">
                       <AssignmentStatusBadge status={item.assignment_status} />
@@ -147,7 +147,7 @@ export default function AssignedAssignmentInbox() {
                     {item.expires_at && <div className={expiredOffer ? "font-semibold text-rose-700" : ""}>Expires {formatDateTime(item.expires_at)}</div>}
                   </div>
                   <span className="inline-flex font-semibold text-slate-700 group-hover:text-slate-950 lg:mt-2">
-                    Open packet
+                    Open work request
                   </span>
                 </div>
               </Link>

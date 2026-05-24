@@ -49,6 +49,8 @@ export function PacketHeader({
   side = "assigned",
   status,
   actions,
+  actionsLabel = "Packet Actions",
+  actionsAriaLabel = "Packet actions",
   secondaryActions,
 }) {
   return (
@@ -71,8 +73,8 @@ export function PacketHeader({
         </div>
       </div>
       {actions && (
-        <div className="border-t border-slate-200 px-5 py-4" aria-label="Packet actions">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">Packet Actions</div>
+        <div className="border-t border-slate-200 px-5 py-4" aria-label={actionsAriaLabel}>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">{actionsLabel}</div>
           <div className="mt-2">{actions}</div>
         </div>
       )}
@@ -80,10 +82,10 @@ export function PacketHeader({
   );
 }
 
-export function FieldGrid({ fields }) {
+export function FieldGrid({ fields, title = "Packet Context" }) {
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <h2 className="text-sm font-semibold text-slate-950">Packet Context</h2>
+      <h2 className="text-sm font-semibold text-slate-950">{title}</h2>
       <dl className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {fields.map(([label, value]) => (
           <div key={label} className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
@@ -127,7 +129,7 @@ export function LoadingState({ message = "Loading assignment..." }) {
   return (
     <AssignmentState
       title={message}
-      message="This view only uses assignment packet access."
+      message="This view only uses assignment-scoped access."
       action={<div className="h-1.5 w-28 overflow-hidden rounded-full bg-slate-100"><div className="h-full w-1/2 animate-pulse rounded-full bg-slate-400" /></div>}
     />
   );
@@ -142,7 +144,7 @@ export function ErrorState({ title = "Assignment load failed", message, onRetry 
     <AssignmentState
       tone="error"
       title={title}
-      message={message || "Falcon could not load this assignment packet. No order fallback was attempted."}
+      message={message || "Falcon could not load this assignment. No order fallback was attempted."}
       action={onRetry ? <ActionButton variant="secondary" onClick={onRetry}>Retry</ActionButton> : null}
     />
   );
@@ -152,7 +154,7 @@ export function DeniedState() {
   return (
     <AssignmentState
       title="Assignment not found"
-      message="This assignment is not available to your current company role, or it no longer has an assignment packet for this route."
+      message="This assignment is not available to your current company role, or it is no longer available for this route."
     />
   );
 }
@@ -163,7 +165,7 @@ export function TerminalState({ status }) {
     <AssignmentState
       tone="neutral"
       title={`${humanize(status)} assignment`}
-      message="This assignment is in a terminal state. No further assignment action is available from this packet."
+      message="This assignment is in a terminal state. No further assignment action is available."
     />
   );
 }

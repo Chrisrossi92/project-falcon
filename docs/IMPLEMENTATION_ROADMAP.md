@@ -2795,4 +2795,50 @@ switching, Client Portal, branding, and production data. Dashboard, Orders, Assi
 shell-level headings, role-native dashboard titles, assignment packet terminology, Client Portal
 labels, routes, permissions, and profile-aware runtime logic were not changed. The next
 recommended role-centric slice is Falcon Role-Centric Operational Shell Architecture Phase R3B:
-Received Work Copy Alignment Plan.
+Owner Setup And Settings Label Alignment.
+
+Falcon Role-Centric Operational Shell Architecture Phase R3B completed the next safe runtime
+owner/admin setup and settings terminology alignment. `src/lib/navigation/currentNavigationRegistry.js`
+and `src/lib/commandPalette/currentCommandRegistry.js` now use `Open Account Settings` for the
+personal settings command and `Open Notification Settings` for the notification settings command.
+`src/pages/Settings.jsx` now frames the route as `Account Settings`, while `src/pages/admin/OwnerSetup.jsx`
+uses clearer operational setup language: `Company Setup`, `Operational Setup`, `Workspace
+Defaults`, `Workflow Settings`, `Team Access`, `Company Notification Settings`, and `Operational
+Readiness Checklist`. The dashboard setup prompt in `src/features/dashboard/DashboardPage.jsx` now
+uses `Owner Setup Guidance`, `Review operational setup readiness`, and `Review Owner Setup`.
+Focused expectations were updated in current navigation registry, current command palette,
+CommandPalette, OwnerSetup, and OwnerSetupDashboardPrompt tests. R3B preserves `/settings`,
+`/settings/notifications`, `/settings/owner-setup`, and `/users` route paths; existing route/nav/
+command ids and permission keys; settings utility link order; mobile nav placement; command
+availability and ordering; keyboard hints; filtering; order-search fallback; Owner Setup's
+advisory/read-only context behavior; and the narrow guarded company-profile save path. Dashboard,
+Orders, Assignments, workbench headings, My Work, Review Queue, assignment packet terminology,
+Client Portal labels, routes, permissions, DashboardGate behavior, backend/Supabase/query/workflow
+behavior, RLS/RPCs, shell switching, profile-aware runtime logic, branding, and production data
+were not changed. The next recommended role-centric slice is Falcon Role-Centric Operational Shell
+Architecture Phase R3C: Assignment Recipient Copy Audit And Packet Density Reduction.
+
+Falcon Role-Centric Operational Shell Architecture Phase R3C completed the next safe runtime
+assignment-recipient copy alignment for clearly received-work and assigned-company-facing surfaces.
+`src/features/assignments/AssignedAssignmentInbox.jsx` now leads with `Work requests assigned to
+your company`, `Work Request`, `Open work request`, and received-work language instead of making
+packet the dominant recipient noun. `src/features/assignments/AssignmentsPage.jsx` now uses
+`Assignment-scoped` and `Open received work only` for assigned-only workspace context while
+preserving packet-scoped language when owner/admin sent-assignment context is also present.
+`src/features/assignments/AssignedOfferPacket.jsx` and `src/features/assignments/AssignedWorkPacket.jsx`
+now render recipient detail headings and sections as `Work Request`, `Work Request Actions`, `Work
+Request Details`, `Active Work`, `Assignment Actions`, and `Assignment Details`. `src/features/assignments/components/AssignedWorkDashboard.jsx`
+now says `Open Assignment` and `Received assignment work`, while generic assignment loading,
+unavailable, terminal, and error support copy avoids unnecessary packet wording. Focused
+expectations were updated in `src/features/assignments/__tests__/AssignmentsPage.test.jsx` and
+`src/features/assignments/__tests__/AssignmentPacketPresentation.test.jsx`. R3C preserves
+`/assignments` and `/assignments/:assignmentId` routes, route ids, component/file/internal names,
+permission keys, guards, list/detail API calls, packet resolution order, lifecycle actions,
+dashboard data sources, owner/admin sent-assignment packet language, owner detail labels such as
+`Owner Packet`, `Packet Actions`, and `Packet Context`, and internal architecture/diagnostic/test
+wording where packet precision protects scoped visibility. Global `Assignments` nav/command
+labels, Dashboard, Orders, My Work, Review Queue, shell-level workbench headings, DashboardGate,
+routes, permissions, backend/Supabase/query/workflow behavior, RLS/RPCs, shell switching,
+profile-aware runtime logic, Client Portal, branding, and production data were not changed. The
+next recommended role-centric slice is Falcon Role-Centric Operational Shell Architecture Phase
+R4: Passive Shell Metadata Consumption Plan.

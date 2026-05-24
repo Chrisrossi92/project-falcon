@@ -59,7 +59,7 @@ function AssignedWorkRow({ item }) {
     <Link
       to={`/assignments/${assignmentId}`}
       className="grid gap-3 px-4 py-3 transition hover:bg-slate-50 sm:grid-cols-[1fr_auto]"
-      aria-label={`Open assignment packet for ${assignmentCompanyName(item, "assigned")}`}
+      aria-label={`Open assigned work for ${assignmentCompanyName(item, "assigned")}`}
     >
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
@@ -80,7 +80,7 @@ function AssignedWorkRow({ item }) {
           {item.expires_at && <div>Expires {formatDateTime(item.expires_at)}</div>}
         </div>
         <span className="inline-flex items-center gap-1 font-semibold text-slate-700 sm:mt-2">
-          Open Packet <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+          Open Assignment <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
         </span>
       </div>
     </Link>
@@ -118,7 +118,7 @@ export default function AssignedWorkDashboard() {
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
         <div>
           <h2 className="text-sm font-semibold text-slate-950">Assigned Work</h2>
-          <p className="text-xs text-slate-500">Assignment packet work for your active company.</p>
+          <p className="text-xs text-slate-500">Received assignment work for your active company.</p>
         </div>
         <ActionButton variant="secondary" icon={RefreshCw} disabled={loading} onClick={load}>
           Refresh

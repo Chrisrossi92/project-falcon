@@ -94,8 +94,8 @@ describe("AssignmentsPage workspace polish", () => {
     expect(screen.getByLabelText("Assignments workspace context")).toHaveTextContent("Received work + Sent assignments");
 
     expect(screen.getByText("Received Work")).toBeInTheDocument();
-    expect(screen.getByLabelText("Received assignment packets")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Assignment packets assigned to your company" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Received work")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Work requests assigned to your company" })).toBeInTheDocument();
     expect(screen.getByText("Sent Assignments")).toBeInTheDocument();
     expect(screen.getByLabelText("Sent assignment packets")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Assignment packets offered by your company" })).toBeInTheDocument();
@@ -105,11 +105,11 @@ describe("AssignmentsPage workspace polish", () => {
       expect(listOwnerAssignmentsMock).toHaveBeenCalledWith({ status: "" });
     });
 
-    expect(await screen.findByRole("link", { name: "Open received assignment packet #26001" })).toHaveAttribute(
+    expect(await screen.findByRole("link", { name: "Open received work request #26001" })).toHaveAttribute(
       "href",
       "/assignments/assignment-received-1",
     );
-    expect(screen.getByText("Received Packet")).toBeInTheDocument();
+    expect(screen.getByText("Work Request")).toBeInTheDocument();
     expect(screen.getByText("Owner AMC")).toBeInTheDocument();
     expect(screen.getByText("Denver, CO")).toBeInTheDocument();
     expect(screen.getByText("Inspect the property and confirm access notes.")).toBeInTheDocument();
@@ -121,7 +121,8 @@ describe("AssignmentsPage workspace polish", () => {
     expect(screen.getByText("Sent Packet")).toBeInTheDocument();
     expect(screen.getByText("Mountain Appraisals")).toBeInTheDocument();
     expect(screen.getByText("Complete the field assignment packet.")).toBeInTheDocument();
-    expect(screen.getAllByText("Open packet")).toHaveLength(2);
+    expect(screen.getByText("Open work request")).toBeInTheDocument();
+    expect(screen.getByText("Open packet")).toBeInTheDocument();
   });
 
   it("preserves assigned and owner status filter semantics", async () => {
@@ -143,6 +144,22 @@ describe("AssignmentsPage workspace polish", () => {
       expect(listAssignedAssignmentsMock).toHaveBeenLastCalledWith({ status: "accepted" });
       expect(listOwnerAssignmentsMock).toHaveBeenLastCalledWith({ status: "submitted" });
     });
+  });
+
+  it("uses received-work navigation language for assigned-only access", async () => {
+    permissionState.allowed = new Set(["order_company_assignments.read_assigned"]);
+
+    renderAssignments();
+
+    expect(screen.getByLabelText("Assignments workspace context")).toHaveTextContent("Assignment-scoped");
+    expect(screen.getByLabelText("Assignments workspace context")).toHaveTextContent("Open received work only");
+    expect(screen.getByLabelText("Received work")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Sent assignment packets")).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(listAssignedAssignmentsMock).toHaveBeenCalledWith({ status: "" });
+    });
+    expect(listOwnerAssignmentsMock).not.toHaveBeenCalled();
   });
 
   it("keeps unavailable assignment access in a packet-specific empty state", () => {
