@@ -1,5 +1,6 @@
 // src/components/orders/table/OrdersTableRow.jsx
 import React from "react";
+import OrderRowNextStep from "@/features/orders/attention/OrderRowNextStep";
 
 const INTERACTIVE_TAGS = new Set([
   "A", "BUTTON", "SELECT", "INPUT", "TEXTAREA", "LABEL", "svg", "path",
@@ -150,6 +151,7 @@ export default function OrdersTableRow({
         ].join(" ")}
       >
         {renderCells ? renderCells(order) : <DefaultCells order={order} />}
+        <OrderRowNextStep order={order} />
       </div>
 
       {isOpen && (
@@ -169,7 +171,6 @@ export default function OrdersTableRow({
     </>
   );
 }
-
 
 
 

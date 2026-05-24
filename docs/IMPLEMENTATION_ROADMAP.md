@@ -3298,3 +3298,17 @@ open/close behavior, document upload/download/archive behavior, activity timelin
 assignment panel, Smart Actions, lifecycle/archive/cancel/void controls, route guards,
 permissions, backend/Supabase/query/RPC/workflow/RLS behavior, DashboardGate, navigation, command
 palette, shell switching, Client Portal, branding, and production data behavior remain unchanged.
+
+Operational Execution Phase 1C is complete as a frontend-only Orders row next-step support copy
+slice. It adds `src/features/orders/attention/deriveOrderRowNextStep.js` and
+`src/features/orders/attention/OrderRowNextStep.jsx`, then mounts a read-only support chip in
+`OrdersTableRow` under the existing row cells. The chip derives at most one conservative signal
+from already visible row data: final due overdue, final due soon, open revisions, review pending
+or overdue, missing loaded appointment/site visit date, missing supporting files only when a row
+already includes an explicit zero file/document count, or stale loaded update from existing
+timestamp fields. Rows with weak evidence render no fallback chip. Existing table columns,
+`UnifiedOrdersTable` query/filter/saved-view/pagination/queue behavior, Smart Actions, workflow
+and lifecycle action behavior, inline drawer behavior, route guards, permissions, backend/
+Supabase/query/RPC/workflow/RLS behavior, DashboardGate, navigation, command palette, automation,
+notification delivery, mobile/PWA/native, shell switching, Client Portal, branding, and production
+data behavior remain unchanged.

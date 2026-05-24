@@ -451,3 +451,56 @@ Phase 1B preserves:
   workflow state.
 - The next safest execution slice is row-level next-step support copy or workbench row cards, but
   both should reuse the same conservative derivation doctrine.
+
+## Operational Execution Phase 1C Orders Row Next-Step Support Copy
+
+Phase 1C implements lightweight read-only next-step support copy in Orders table rows.
+
+Runtime files added:
+
+- `src/features/orders/attention/deriveOrderRowNextStep.js`;
+- `src/features/orders/attention/OrderRowNextStep.jsx`.
+
+Runtime files updated:
+
+- `src/components/orders/table/OrdersTableRow.jsx`.
+
+Focused tests added or updated:
+
+- `src/features/orders/attention/__tests__/deriveOrderRowNextStep.test.js`;
+- `src/features/orders/attention/__tests__/OrderRowNextStep.test.jsx`;
+- `src/features/orders/__tests__/UnifiedOrdersTable.presentation.test.jsx`.
+
+Phase 1C derives one conservative row-level support signal from already loaded row data:
+
+- final due overdue;
+- final due soon;
+- open revisions;
+- review pending or review overdue;
+- missing loaded appointment/site visit date;
+- missing supporting files only when a row already includes an explicit loaded file/document count
+  of zero;
+- stale loaded update from existing timestamp fields.
+
+Phase 1C intentionally does not show fallback/on-track copy in every row. If the loaded row does
+not contain enough evidence for a conservative support signal, the row renders no next-step chip.
+
+Phase 1C preserves:
+
+- `UnifiedOrdersTable` query behavior;
+- Orders filters, saved views, pagination, queue filters, and rowsOverride behavior;
+- existing table columns and Smart Actions;
+- workflow/lifecycle action behavior and placement;
+- inline drawer open/close behavior;
+- route guards and permission checks;
+- backend, Supabase, query, RPC, workflow, RLS, notification, automation, mobile/PWA/native, shell
+  switching, DashboardGate, navigation, command palette, Client Portal, branding, and production
+  data behavior.
+
+### Phase 1C Conclusions
+
+- Orders rows now have a small presentation-only support chip when existing row data clearly
+  indicates due, review, revision, appointment, file, or stale-update attention.
+- The chip is not a workflow action, not a lifecycle control, and not an authority signal.
+- The next safest execution slice is an appraiser/reviewer workbench row-card plan or a received
+  work next-action copy plan, using the same "visible data only" doctrine.

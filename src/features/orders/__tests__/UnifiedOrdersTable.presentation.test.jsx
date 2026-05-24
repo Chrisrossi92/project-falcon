@@ -58,12 +58,14 @@ const rows = [
     order_number: "2026001",
     client_name: "Acme Lending",
     status: "new",
+    site_visit_at: "2099-05-20T12:00:00.000Z",
   },
   {
     id: "order-2",
     order_number: "2026002",
     client_name: "North Bank",
     status: "in_review",
+    review_due_at: "2099-05-20T12:00:00.000Z",
   },
 ];
 
@@ -118,6 +120,15 @@ describe("UnifiedOrdersTable presentation", () => {
     expect(screen.getAllByText("2 total")[0]).toBeInTheDocument();
     expect(screen.getByText("2026001")).toBeInTheDocument();
     expect(screen.getByText("Acme Lending")).toBeInTheDocument();
+  });
+
+  it("renders read-only next-step support copy from visible row data", () => {
+    renderTable();
+
+    expect(screen.getAllByLabelText("Order row next step").length).toBeGreaterThan(0);
+    expect(screen.getByText("Review pending")).toBeInTheDocument();
+    expect(screen.getByText(/Review due in/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Review pending|Due soon|Needs revisions/i })).not.toBeInTheDocument();
   });
 
   it("renders queue worklist context from existing activeQueue and rowsOverride inputs", () => {

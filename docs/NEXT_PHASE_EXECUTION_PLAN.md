@@ -2927,6 +2927,49 @@ Phase 1C should plan how the same conservative attention signals can appear besi
 without changing table columns, Smart Actions, workflow behavior, filters, queries, or route
 authority.
 
+### Operational Execution Phase 1C
+
+Implemented lightweight read-only next-step support copy in Orders table rows.
+
+Runtime files added:
+
+- `src/features/orders/attention/deriveOrderRowNextStep.js`;
+- `src/features/orders/attention/OrderRowNextStep.jsx`.
+
+Runtime files updated:
+
+- `src/components/orders/table/OrdersTableRow.jsx`.
+
+Focused tests added or updated:
+
+- `src/features/orders/attention/__tests__/deriveOrderRowNextStep.test.js`;
+- `src/features/orders/attention/__tests__/OrderRowNextStep.test.jsx`;
+- `src/features/orders/__tests__/UnifiedOrdersTable.presentation.test.jsx`.
+
+Phase 1C behavior:
+
+- derives one conservative support signal from each already visible order row;
+- renders a small read-only support chip under the existing row cells only when row data clearly
+  supports a due, review, revision, appointment, file, or stale-update hint;
+- renders no fallback chip when evidence is weak;
+- preserves the existing clickable row and inline drawer behavior.
+
+Preserved guardrails:
+
+- no table column redesign;
+- no Smart Action change;
+- no lifecycle/workflow behavior or action placement change;
+- no filter, query, saved-view, pagination, or queue behavior change;
+- no backend, Supabase, RPC, RLS, permission, route, navigation, command palette, DashboardGate,
+  automation, notification delivery, mobile/PWA/native, shell switching, Client Portal, branding,
+  or production data change.
+
+Recommended next execution slice:
+
+- **Operational Execution Phase 1D: Workbench Row-Card Readiness Plan**.
+
+Phase 1D should decide how appraiser/reviewer dashboard workbench previews can move from counts to
+row cards using existing dashboard rows only.
 
 ## Recommended Ordering
 
