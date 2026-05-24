@@ -8,7 +8,11 @@ security definer
 set search_path = public
 as $$
   with jwt_claims as (
-    select coalesce(auth.jwt(), '{}'::jsonb) as claims
+    select case
+      when nullif(current_setting('request.jwt.claims', true), '') is null
+        then '{}'::jsonb
+      else current_setting('request.jwt.claims', true)::jsonb
+    end as claims
   ),
   raw_claim as (
     select coalesce(
@@ -80,7 +84,11 @@ security definer
 set search_path = public
 as $$
   with jwt_claims as (
-    select coalesce(auth.jwt(), '{}'::jsonb) as claims
+    select case
+      when nullif(current_setting('request.jwt.claims', true), '') is null
+        then '{}'::jsonb
+      else current_setting('request.jwt.claims', true)::jsonb
+    end as claims
   ),
   raw_claim as (
     select coalesce(

@@ -7,6 +7,8 @@ import OrderStatusBadge from "@/components/orders/table/OrderStatusBadge";
 import ActivityLog from "@/components/activity/ActivityLog";
 import OrderAttentionSummaryPanel from "@/features/orders/attention/OrderAttentionSummaryPanel";
 import FileReadinessSummary from "@/features/orders/readiness/FileReadinessSummary";
+import OperationalInputsReadOnly from "@/features/orders/operational-inputs/OperationalInputsReadOnly";
+import useOrderOperationalInputs from "@/features/orders/operational-inputs/useOrderOperationalInputs";
 import ReviewContextSummary from "@/features/orders/review/ReviewContextSummary";
 import useOrder from "@/lib/hooks/useOrder";
 import { useEffectivePermissions } from "@/lib/hooks/usePermissions";
@@ -503,6 +505,11 @@ export default function OrderDetail() {
   const [printPacketOpen, setPrintPacketOpen] = useState(false);
   const [orderFiles, setOrderFiles] = useState([]);
   const [orderFilesLoaded, setOrderFilesLoaded] = useState(false);
+  const {
+    inputs: operationalInputs,
+    loading: operationalInputsLoading,
+    error: operationalInputsError,
+  } = useOrderOperationalInputs(id);
 
   // Display names
   const [clientName, setClientName] = useState("-");
@@ -779,6 +786,12 @@ export default function OrderDetail() {
           order={order}
           documents={orderFilesLoaded ? orderFiles : null}
           className="mt-4"
+        />
+        <OperationalInputsReadOnly
+          inputs={operationalInputs}
+          loading={operationalInputsLoading}
+          error={operationalInputsError}
+          className="mt-3"
         />
         </div>
 

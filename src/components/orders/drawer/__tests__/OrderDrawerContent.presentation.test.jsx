@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import OrderDrawerContent from "../OrderDrawerContent";
 
 const supabaseMaybeSingleMock = vi.hoisted(() => vi.fn());
+const operationalInputsMock = vi.hoisted(() => []);
 
 vi.mock("@/lib/supabaseClient", () => ({
   default: {
@@ -31,6 +32,14 @@ vi.mock("@/components/maps/GoogleMapEmbed", () => ({
   default: () => <div data-testid="google-map" />,
 }));
 
+vi.mock("@/features/orders/operational-inputs/useOrderOperationalInputs", () => ({
+  default: () => ({
+    inputs: operationalInputsMock,
+    loading: false,
+    error: null,
+  }),
+}));
+
 function renderDrawer(props) {
   return render(
     <MemoryRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
@@ -41,6 +50,7 @@ function renderDrawer(props) {
 
 describe("OrderDrawerContent presentation", () => {
   beforeEach(() => {
+    operationalInputsMock.splice(0, operationalInputsMock.length);
     supabaseMaybeSingleMock
       .mockResolvedValueOnce({
         data: {
@@ -101,11 +111,32 @@ describe("OrderDrawerContent presentation", () => {
     expect(screen.getByText("No files loaded")).toBeInTheDocument();
     expect(screen.getByLabelText("Review context summary")).toBeInTheDocument();
     expect(screen.getByText("Review / Revision Context")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Operational status evidence")).not.toBeInTheDocument();
     expect(screen.getByText("Order Contacts")).toBeInTheDocument();
     expect(screen.getByText("Client and site contact context")).toBeInTheDocument();
     expect(screen.getByText("Location Preview")).toBeInTheDocument();
     expect(screen.getByText("Subject property context")).toBeInTheDocument();
     expect(screen.getByTestId("activity-log")).toHaveTextContent("Activity for order-1 with composer");
+  });
+
+  it("renders active operational evidence as read-only drawer context", async () => {
+    operationalInputsMock.push({
+      id: "input-1",
+      input_type: "waiting_on_client",
+      actor_role: "Admin",
+      note: "Client is gathering the missing lease.",
+      created_at: "2026-05-24T13:00:00.000Z",
+      expires_at: "2026-05-27T13:00:00.000Z",
+    });
+
+    renderDrawer({ orderId: "order-1" });
+
+    const evidence = await screen.findByLabelText("Operational status evidence");
+    expect(within(evidence).getByText("Operational Context")).toBeInTheDocument();
+    expect(within(evidence).getByText("Waiting on client")).toBeInTheDocument();
+    expect(within(evidence).getByText("Admin")).toBeInTheDocument();
+    expect(within(evidence).getByText("Client is gathering the missing lease.")).toBeInTheDocument();
+    expect(within(evidence).queryByRole("button")).not.toBeInTheDocument();
   });
 
   it("renders a polished no-selection state without action controls", () => {

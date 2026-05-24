@@ -26,7 +26,12 @@ as $$
 declare
   v_actor_user_id uuid := public.current_app_user_id();
   v_actor_auth_id uuid := auth.uid();
-  v_auth_email text := lower(trim(coalesce(auth.jwt() ->> 'email', '')));
+  v_auth_claims jsonb := case
+    when nullif(current_setting('request.jwt.claims', true), '') is null
+      then '{}'::jsonb
+    else current_setting('request.jwt.claims', true)::jsonb
+  end;
+  v_auth_email text := lower(trim(coalesce(v_auth_claims ->> 'email', '')));
   v_invitation public.company_member_invitations%rowtype;
   v_company_slug text;
   v_company_name text;

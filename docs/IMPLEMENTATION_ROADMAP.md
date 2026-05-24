@@ -3403,3 +3403,106 @@ behavior, route behavior, navigation, command palette, DashboardGate behavior, d
 automation, notifications, mobile/PWA/native implementation, shell switching, Client Portal
 behavior, branding, or production data changed. The next safest slice is an Activity Freshness
 Evidence Audit before richer stale/update signals or any query/workflow/automation work.
+Operational Execution Phase 2A is complete as docs-first Operational Status Input Architecture in
+`docs/OPERATIONAL_STATUS_INPUT_ARCHITECTURE.md`. The architecture defines explicit human
+operational inputs as non-authoritative, auditable, time-sensitive context that remains separate
+from lifecycle/workflow state. First-wave inputs are `inspection_scheduled`, `report_on_track`,
+and `waiting_on_client`. The doctrine records lifecycle state versus operational context
+boundaries, explicit input categories, freshness/expiration expectations, suppression hierarchy,
+activity logging expectations, mobile interaction doctrine, future automation compatibility, and
+non-goals. Lifecycle states remain workflow authority; operational inputs may later shape or
+suppress derived attention only while fresh and only after separate runtime/data contracts exist.
+No runtime UI, schema, migration, Supabase, RLS/RPC, query, backend, Smart Action, lifecycle,
+workflow, notification, automation, route, navigation, dashboard, command palette, mobile/PWA/
+native, Client Portal, AI inference, branding, or production data changed. The next constrained
+planning slice is Operational Execution Phase 2B: Operational Status Input Data Contract Plan.
+
+Operational Execution Phase 2B is complete as docs-only Operational Status Input Data Contract
+Planning in `docs/OPERATIONAL_STATUS_INPUT_DATA_CONTRACT_PLAN.md`. The plan models explicit
+operational inputs as lightweight, append-friendly, auditable, freshness-aware, non-authoritative
+evidence records rather than a single current operational status. It defines first-wave contracts
+for `inspection_scheduled`, `report_on_track`, and `waiting_on_client`; suggested future fields
+including `order_id`, `input_type`, actor identity/context, timestamps, optional note/context,
+manual source, and JSON payload; expiration behavior; suppression resolver hierarchy; activity
+logging/audit expectations; permission/RLS planning; mobile implications; and future automation
+compatibility. Lifecycle/workflow state remains authority, expired inputs stop suppressing passive
+signals, and future writes should use controlled backend paths rather than direct public mutation.
+No runtime code, schema, Supabase migration, UI, automation, notifications, lifecycle mutation,
+Smart Action behavior, route/navigation/dashboard/command palette behavior, mobile/PWA/native,
+Client Portal, AI inference, branding, or production data changed. The next constrained planning
+slice is Operational Execution Phase 2C: Operational Status Input Authorization And Activity Plan.
+
+Operational Execution Phase 2C is complete as docs-only Operational Status Input Authorization And
+Activity Planning in `docs/OPERATIONAL_STATUS_INPUT_AUTHORIZATION_AND_ACTIVITY_PLAN.md`. The plan
+defines operational inputs as permission-scoped, company-scoped, auditable, non-authoritative
+human evidence records. It recommends first-wave create, clear, view, and audit posture for
+appraisers, reviewers, admins, and owners across `inspection_scheduled`, `report_on_track`, and
+`waiting_on_client`; requires future mutations to use narrow governed RPCs or equivalent server
+actions instead of direct public table writes; defines clear behavior as audit-preserving
+`cleared_at` evidence; ties view behavior to order visibility; and records activity copy examples
+such as `Inspection scheduled.`, `Report marked on track.`, `Waiting on client response.`, and
+`Operational status cleared: Waiting on client response.` Abuse/staleness protection keeps expired
+or cleared inputs from suppressing passive signals and prevents stale inputs from hiding overdue
+work indefinitely. No runtime code, schema, Supabase migration, UI, activity writes, automation,
+notifications, lifecycle mutation, Smart Action behavior, route/navigation/dashboard/command
+palette behavior, mobile/PWA/native, Client Portal, AI inference, branding, or production data
+changed. The next constrained planning slice is Operational Execution Phase 2D: Operational Status
+Input Runtime Slice Readiness Plan.
+
+Operational Execution Phase 2D is complete as docs-only Operational Status Input Runtime Slice
+Readiness Planning in `docs/OPERATIONAL_STATUS_INPUT_RUNTIME_SLICE_READINESS_PLAN.md`. The plan
+defines the first possible runtime slice as Operational Execution Phase 2E: Operational Status
+Input Schema/RPC Foundation. Phase 2E is constrained to an operational evidence record persistence
+foundation, narrow controlled create/clear RPCs, server-side audit/activity behavior where
+feasible, RLS policies/grants needed for the persistence foundation, and SQL/RPC safety
+verification. It explicitly excludes UI, dashboard changes, Attention Summary changes, signal
+suppression integration, automation, notifications, lifecycle/status mutation, Client Portal,
+mobile app work, and AI inference. The plan proposes `rpc_order_operational_input_create(...)` and
+`rpc_order_operational_input_clear(...)`, a freshness-aware evidence record table concept, and a
+stop condition requiring schema/RLS/RPC/activity/source-scan review before any UI or signal
+integration. No runtime code, schema, Supabase migration, UI, activity writes, automation,
+notifications, lifecycle mutation, Smart Action behavior, route/navigation/dashboard/command
+palette behavior, mobile/PWA/native, Client Portal, AI inference, branding, or production data
+changed.
+
+Operational Execution Phase 2E is complete as the first runtime/backend Operational Status Input
+Schema/RPC Foundation in `supabase/migrations/20260524090000_order_operational_inputs.sql`. The
+migration adds `public.order_operational_inputs` as a non-authoritative, append-friendly
+operational evidence table for `inspection_scheduled`, `report_on_track`, and
+`waiting_on_client`; manual source only; server-calculated freshness windows; active/history
+indexes; RLS read scope through existing current-company/order-read helpers; blocked direct client
+insert/update/delete policies; and controlled create/clear RPCs with server-side activity events
+where feasible. Phase 2E does not add UI, dashboard behavior, Orders page behavior, Attention
+Summary integration, signal suppression, lifecycle/status mutation, Smart Action behavior,
+automation, notifications, route/navigation/command palette changes, mobile/PWA/native work,
+Client Portal implementation, AI inference, branding, or production data changes. The required
+stop condition remains active: review schema, RLS, RPC behavior, activity output, source scans, and
+MVP blocker need before any UI or signal integration slice begins.
+
+Operational Execution Phase 2H is complete as docs-only Operational Status Input Read-Only Surface
+Planning in `docs/OPERATIONAL_STATUS_INPUT_READ_ONLY_SURFACE_PLAN.md`. The plan defines the
+smallest safe frontend/read layer for Phase 2E evidence: active/fresh operational inputs only by
+default, small read-only chips or rows on Order Detail or the order drawer, first-wave labels for
+`inspection_scheduled`, `report_on_track`, and `waiting_on_client`, optional actor/timestamp/
+freshness/safe-note metadata, and a read path that uses existing RLS-backed reads only if safe or a
+separate read-only RPC/view if needed. It explicitly blocks create/clear controls, forms, direct
+writes, signal suppression, dashboard integration, automation, notifications, lifecycle mutation,
+mobile-specific build, Client Portal exposure, AI inference, branding, and production data
+changes. The next recommended runtime slice is Operational Execution Phase 2I: Read-Only
+Operational Input Display, followed by a pause before create/clear UI or Attention Summary
+suppression integration.
+
+Operational Execution Phase 2I is complete as a frontend-only Read-Only Operational Input Display
+slice. `src/features/orders/operational-inputs/orderOperationalInputsApi.js` reads active/fresh
+`order_operational_inputs` rows for the current order through existing Supabase client access and
+Phase 2E RLS, `useOrderOperationalInputs.js` provides the passive read hook, and
+`OperationalInputsReadOnly.jsx` renders a calm secondary `Operational Context` evidence surface.
+The surface is mounted in `src/pages/orders/OrderDetail.jsx` and
+`src/components/orders/drawer/OrderDrawerContent.jsx` after existing attention/context summaries.
+It displays only first-wave labels for `inspection_scheduled`, `report_on_track`, and
+`waiting_on_client`, with optional actor role, created timestamp, freshness timestamp, and note
+metadata when present. It adds no create/clear controls, forms, direct writes, create/clear RPC
+calls, signal suppression, lifecycle/status mutation, Smart Action changes, Orders table behavior,
+dashboard integration, route/navigation/command palette changes, mobile/PWA/native work, Client
+Portal behavior, automation, notifications, AI inference, branding, or production data changes.
+Pause before any create/clear UI or Attention Summary suppression integration.

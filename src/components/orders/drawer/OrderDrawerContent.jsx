@@ -7,6 +7,8 @@ import OrderOpenFullLink from "@/components/orders/drawer/OrderOpenFullLink";
 import GoogleMapEmbed from "@/components/maps/GoogleMapEmbed";
 import OrderAttentionSummaryPanel from "@/features/orders/attention/OrderAttentionSummaryPanel";
 import FileReadinessSummary from "@/features/orders/readiness/FileReadinessSummary";
+import OperationalInputsReadOnly from "@/features/orders/operational-inputs/OperationalInputsReadOnly";
+import useOrderOperationalInputs from "@/features/orders/operational-inputs/useOrderOperationalInputs";
 import ReviewContextSummary from "@/features/orders/review/ReviewContextSummary";
 
 /** Pull from the normalized v4 view (no legacy fallback). */
@@ -157,6 +159,11 @@ export default function OrderDrawerContent({ orderId, order: rowFromTable }) {
   const [row, setRow] = useState(rowFromTable || null);
   const [loading, setLoading] = useState(!rowFromTable);
   const [err, setErr] = useState("");
+  const {
+    inputs: operationalInputs,
+    loading: operationalInputsLoading,
+    error: operationalInputsError,
+  } = useOrderOperationalInputs(id);
 
   useEffect(() => {
     let mounted = true;
@@ -323,6 +330,12 @@ export default function OrderDrawerContent({ orderId, order: rowFromTable }) {
 
       <FileReadinessSummary order={row} compact />
       <ReviewContextSummary order={row} compact />
+      <OperationalInputsReadOnly
+        inputs={operationalInputs}
+        loading={operationalInputsLoading}
+        error={operationalInputsError}
+        compact
+      />
 
       <div className="grid grid-cols-12 gap-3">
         <div className="col-span-12 xl:col-span-7">
@@ -434,7 +447,6 @@ function ContactLine({ label, value }) {
     </div>
   );
 }
-
 
 
 

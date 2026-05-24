@@ -12,6 +12,7 @@ const listOrderDocumentsMock = vi.hoisted(() => vi.fn());
 const createOrderDocumentDownloadUrlMock = vi.hoisted(() => vi.fn());
 const archiveOrderDocumentMock = vi.hoisted(() => vi.fn());
 const uploadOrderDocumentMock = vi.hoisted(() => vi.fn());
+const operationalInputsMock = vi.hoisted(() => []);
 const permissionKeysMock = vi.hoisted(() => []);
 const toastSuccessMock = vi.hoisted(() => vi.fn());
 const toastErrorMock = vi.hoisted(() => vi.fn());
@@ -83,6 +84,14 @@ vi.mock("@/features/order-documents/api", () => ({
   createOrderDocumentDownloadUrl: createOrderDocumentDownloadUrlMock,
   archiveOrderDocument: archiveOrderDocumentMock,
   uploadOrderDocument: uploadOrderDocumentMock,
+}));
+
+vi.mock("@/features/orders/operational-inputs/useOrderOperationalInputs", () => ({
+  default: () => ({
+    inputs: operationalInputsMock,
+    loading: false,
+    error: null,
+  }),
 }));
 
 vi.mock("@/lib/hooks/useToast", () => ({
@@ -215,6 +224,7 @@ describe("OrderDetail site visit save", () => {
     archiveOrderDocumentMock.mockResolvedValue({ id: "doc-1", status: "archived" });
     uploadOrderDocumentMock.mockReset();
     uploadOrderDocumentMock.mockResolvedValue({ id: "doc-3", status: "active" });
+    operationalInputsMock.splice(0, operationalInputsMock.length);
     Object.defineProperty(window, "print", {
       configurable: true,
       value: vi.fn(),
@@ -313,6 +323,30 @@ describe("OrderDetail site visit save", () => {
     expect(within(reviewContext).getByText("Review / Revision Context")).toBeInTheDocument();
     expect(within(reviewContext).getByText("Derived")).toBeInTheDocument();
     expect(within(reviewContext).queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("renders active operational input evidence without mutation controls", () => {
+    operationalInputsMock.push({
+      id: "input-1",
+      input_type: "inspection_scheduled",
+      actor_role: "Appraiser",
+      note: "Inspection window confirmed with the property contact.",
+      created_at: "2026-05-24T13:00:00.000Z",
+      expires_at: "2026-05-31T13:00:00.000Z",
+    });
+
+    render(<OrderDetail />);
+
+    const evidence = screen.getByLabelText("Operational status evidence");
+    expect(within(evidence).getByText("Operational Context")).toBeInTheDocument();
+    expect(within(evidence).getByText("Inspection scheduled")).toBeInTheDocument();
+    expect(within(evidence).getByText("Evidence")).toBeInTheDocument();
+    expect(within(evidence).getByText("Appraiser")).toBeInTheDocument();
+    expect(
+      within(evidence).getByText("Inspection window confirmed with the property contact."),
+    ).toBeInTheDocument();
+    expect(within(evidence).queryByRole("button")).not.toBeInTheDocument();
+    expect(within(evidence).queryByRole("textbox")).not.toBeInTheDocument();
   });
 
   it("uses overview first, then map and activity detail cards", () => {
