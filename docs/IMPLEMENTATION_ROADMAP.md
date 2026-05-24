@@ -3506,3 +3506,28 @@ calls, signal suppression, lifecycle/status mutation, Smart Action changes, Orde
 dashboard integration, route/navigation/command palette changes, mobile/PWA/native work, Client
 Portal behavior, automation, notifications, AI inference, branding, or production data changes.
 Pause before any create/clear UI or Attention Summary suppression integration.
+
+Operational Execution Phase 2J is complete as docs-only Minimal Create/Clear UI Planning in
+`docs/OPERATIONAL_STATUS_INPUT_CREATE_CLEAR_UI_PLAN.md`. The plan defines the smallest safe
+interaction model for first-wave operational inputs: Order Detail first, drawer controls
+optional/later, compact secondary controls for `inspection_scheduled`, `report_on_track`, and
+`waiting_on_client`, lightweight clear behavior, optional notes only where useful, graceful RPC
+denial handling, and server-side activity/audit as the source of truth. It explicitly blocks
+dashboard controls, Orders table controls, bulk controls, mobile-specific controls, signal
+suppression, lifecycle/status mutation, Smart Action changes, automation, notifications, Client
+Portal exposure, AI inference, and new input types. The next recommended runtime slice is
+Operational Execution Phase 2K: Minimal Create/Clear UI Implementation, only after Phase 2J review.
+
+Operational Execution Phase 2K is complete as the smallest safe Minimal Create/Clear UI
+Implementation for operational inputs. `OperationalInputsCreateClearControls.jsx` mounts compact
+secondary controls on Order Detail only, near the read-only `Operational Context` evidence surface.
+The UI creates only `inspection_scheduled`, `report_on_track`, and `waiting_on_client`; clears
+active supported operational evidence; calls only the Phase 2E create/clear RPCs; relies on
+server-side activity/audit writes; refreshes the read-only evidence surface after successful
+mutation; and handles RPC denial with safe operational copy. Phase 2K adds no drawer controls,
+dashboard controls, Orders table controls, direct table writes, frontend activity writes, signal
+suppression, lifecycle/status mutation, Smart Action changes, route/navigation/command palette
+changes, mobile/PWA/native work, Client Portal behavior, automation, notifications, AI inference,
+branding, or production data changes. Pause before signal suppression integration, mobile quick
+actions, dashboard/table controls, notification behavior, automation, or new operational input
+types.

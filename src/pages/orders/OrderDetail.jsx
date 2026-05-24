@@ -7,6 +7,7 @@ import OrderStatusBadge from "@/components/orders/table/OrderStatusBadge";
 import ActivityLog from "@/components/activity/ActivityLog";
 import OrderAttentionSummaryPanel from "@/features/orders/attention/OrderAttentionSummaryPanel";
 import FileReadinessSummary from "@/features/orders/readiness/FileReadinessSummary";
+import OperationalInputsCreateClearControls from "@/features/orders/operational-inputs/OperationalInputsCreateClearControls";
 import OperationalInputsReadOnly from "@/features/orders/operational-inputs/OperationalInputsReadOnly";
 import useOrderOperationalInputs from "@/features/orders/operational-inputs/useOrderOperationalInputs";
 import ReviewContextSummary from "@/features/orders/review/ReviewContextSummary";
@@ -509,6 +510,7 @@ export default function OrderDetail() {
     inputs: operationalInputs,
     loading: operationalInputsLoading,
     error: operationalInputsError,
+    refresh: refreshOperationalInputs,
   } = useOrderOperationalInputs(id);
 
   // Display names
@@ -786,6 +788,12 @@ export default function OrderDetail() {
           order={order}
           documents={orderFilesLoaded ? orderFiles : null}
           className="mt-4"
+        />
+        <OperationalInputsCreateClearControls
+          orderId={order.id}
+          inputs={operationalInputs}
+          onChanged={refreshOperationalInputs}
+          className="mt-3"
         />
         <OperationalInputsReadOnly
           inputs={operationalInputs}

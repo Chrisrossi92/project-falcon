@@ -12,7 +12,10 @@ const listOrderDocumentsMock = vi.hoisted(() => vi.fn());
 const createOrderDocumentDownloadUrlMock = vi.hoisted(() => vi.fn());
 const archiveOrderDocumentMock = vi.hoisted(() => vi.fn());
 const uploadOrderDocumentMock = vi.hoisted(() => vi.fn());
+const createOrderOperationalInputMock = vi.hoisted(() => vi.fn());
+const clearOrderOperationalInputMock = vi.hoisted(() => vi.fn());
 const operationalInputsMock = vi.hoisted(() => []);
+const refreshOperationalInputsMock = vi.hoisted(() => vi.fn());
 const permissionKeysMock = vi.hoisted(() => []);
 const toastSuccessMock = vi.hoisted(() => vi.fn());
 const toastErrorMock = vi.hoisted(() => vi.fn());
@@ -91,7 +94,13 @@ vi.mock("@/features/orders/operational-inputs/useOrderOperationalInputs", () => 
     inputs: operationalInputsMock,
     loading: false,
     error: null,
+    refresh: refreshOperationalInputsMock,
   }),
+}));
+
+vi.mock("@/features/orders/operational-inputs/orderOperationalInputsApi", () => ({
+  createOrderOperationalInput: createOrderOperationalInputMock,
+  clearOrderOperationalInput: clearOrderOperationalInputMock,
 }));
 
 vi.mock("@/lib/hooks/useToast", () => ({
@@ -224,7 +233,13 @@ describe("OrderDetail site visit save", () => {
     archiveOrderDocumentMock.mockResolvedValue({ id: "doc-1", status: "archived" });
     uploadOrderDocumentMock.mockReset();
     uploadOrderDocumentMock.mockResolvedValue({ id: "doc-3", status: "active" });
+    createOrderOperationalInputMock.mockReset();
+    createOrderOperationalInputMock.mockResolvedValue({ id: "input-new" });
+    clearOrderOperationalInputMock.mockReset();
+    clearOrderOperationalInputMock.mockResolvedValue({ id: "input-1", cleared_at: "2026-05-24T12:00:00.000Z" });
     operationalInputsMock.splice(0, operationalInputsMock.length);
+    refreshOperationalInputsMock.mockReset();
+    refreshOperationalInputsMock.mockResolvedValue([]);
     Object.defineProperty(window, "print", {
       configurable: true,
       value: vi.fn(),
@@ -325,7 +340,7 @@ describe("OrderDetail site visit save", () => {
     expect(within(reviewContext).queryByRole("button")).not.toBeInTheDocument();
   });
 
-  it("renders active operational input evidence without mutation controls", () => {
+  it("renders active operational input evidence with Order Detail-only mutation controls", async () => {
     operationalInputsMock.push({
       id: "input-1",
       input_type: "inspection_scheduled",
@@ -347,6 +362,19 @@ describe("OrderDetail site visit save", () => {
     ).toBeInTheDocument();
     expect(within(evidence).queryByRole("button")).not.toBeInTheDocument();
     expect(within(evidence).queryByRole("textbox")).not.toBeInTheDocument();
+
+    const controls = screen.getByLabelText("Operational context controls");
+    expect(
+      within(controls).getByText("Adds temporary context. This does not change lifecycle status."),
+    ).toBeInTheDocument();
+    fireEvent.click(within(controls).getByRole("button", { name: "Update context" }));
+    fireEvent.click(screen.getByRole("button", { name: "Mark report on track" }));
+
+    await waitFor(() => {
+      expect(createOrderOperationalInputMock).toHaveBeenCalledWith("order-1", "report_on_track");
+    });
+    expect(refreshOperationalInputsMock).toHaveBeenCalledTimes(1);
+    expect(clearOrderOperationalInputMock).not.toHaveBeenCalled();
   });
 
   it("uses overview first, then map and activity detail cards", () => {

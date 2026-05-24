@@ -1446,3 +1446,85 @@ Recommended next step:
 
 - pause and review read-only display behavior before any create/clear UI or Attention Summary
   suppression integration.
+
+## Operational Execution Phase 2J Minimal Create/Clear UI Plan
+
+Phase 2J adds the docs-only plan for the smallest safe create/clear interaction model for
+first-wave operational inputs.
+
+New planning document:
+
+- `docs/OPERATIONAL_STATUS_INPUT_CREATE_CLEAR_UI_PLAN.md`.
+
+Phase 2J defines:
+
+- supported create actions for `inspection_scheduled`, `report_on_track`, and
+  `waiting_on_client`;
+- clear behavior for active operational input evidence;
+- Order Detail as the first placement;
+- order drawer controls as optional/later;
+- no dashboard controls, Orders table controls, bulk controls, or mobile-specific controls in the
+  first UI slice;
+- compact secondary controls with copy such as `Mark inspection scheduled`, `Mark report on
+  track`, `Mark waiting on client`, and `Clear operational context`;
+- graceful RPC denial handling without implying lifecycle authority;
+- server-side activity/audit as the source of truth for create and clear events;
+- temporary freshness behavior without `extend forever` affordances.
+
+Phase 2J preserves:
+
+- no runtime code;
+- no create/clear UI implementation;
+- no forms;
+- no direct writes;
+- no lifecycle/status mutation;
+- no Smart Action changes;
+- no signal suppression integration;
+- no dashboard, Orders table, route, navigation, command palette, mobile/PWA/native, Client
+  Portal, automation, notification, AI, branding, or production data behavior change.
+
+Recommended next runtime slice:
+
+- **Operational Execution Phase 2K: Minimal Create/Clear UI Implementation**.
+
+Phase 2K should happen only after the 2J plan is reviewed.
+
+## Operational Execution Phase 2K Minimal Create/Clear UI Implementation
+
+Phase 2K adds Order Detail-only create/clear controls for first-wave operational inputs.
+
+Runtime files added or updated:
+
+- `src/features/orders/operational-inputs/OperationalInputsCreateClearControls.jsx`;
+- `src/features/orders/operational-inputs/orderOperationalInputsApi.js`;
+- `src/features/orders/operational-inputs/useOrderOperationalInputs.js`;
+- `src/pages/orders/OrderDetail.jsx`;
+- focused operational input and Order Detail tests.
+
+Phase 2K behavior:
+
+- adds compact secondary `Operational Context` controls on Order Detail only;
+- creates only `inspection_scheduled`, `report_on_track`, and `waiting_on_client`;
+- clears active supported operational context evidence;
+- calls only the Phase 2E create/clear RPCs;
+- refreshes the read-only evidence surface after successful mutation;
+- relies on server-side activity/audit behavior;
+- handles RPC denial with safe UI copy.
+
+Phase 2K preserves:
+
+- no drawer create/clear controls;
+- no dashboard controls;
+- no Orders table controls;
+- no direct table writes;
+- no frontend activity writes;
+- no signal suppression integration;
+- no lifecycle/status mutation;
+- no Smart Action changes;
+- no route, navigation, command palette, mobile/PWA/native, Client Portal, automation,
+  notification, AI, branding, or production data behavior change.
+
+Recommended next step:
+
+- pause before any signal suppression integration, mobile quick action, dashboard/table control,
+  notification, automation, or new operational input type.
