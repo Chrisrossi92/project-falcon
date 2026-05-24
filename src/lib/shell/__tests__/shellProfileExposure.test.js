@@ -113,6 +113,28 @@ describe('shell profile exposure', () => {
     ).toBe(SHELL_PROFILE_IDS.MEMBERSHIP_INACTIVE);
   });
 
+  it('builds null app context into a safe unresolved-company fallback input', () => {
+    const input = buildShellProfileInput({
+      appContext: null,
+      session: { user: { id: 'user-1' } },
+      permissions: { permissionKeys: [PERMISSIONS.ORDERS_READ_ALL] },
+    });
+
+    expect(input).toMatchObject({
+      authenticated: true,
+      userId: 'user-1',
+      currentCompanyId: null,
+      membershipActive: undefined,
+      hasOwnerAdminAuthority: undefined,
+      hasAppraiserResponsibilities: undefined,
+      hasReviewerResponsibilities: undefined,
+    });
+    expect(input.roleLabels).toEqual([]);
+    expect(Object.isFrozen(input.roleLabels)).toBe(true);
+
+    expect(resolveShellProfileExposure(input).profileId).toBe(SHELL_PROFILE_IDS.COMPANY_REQUIRED);
+  });
+
   it('does not expose route, navigation, command, workflow, or permission authority fields', () => {
     const exposure = resolveShellProfileExposure({
       authenticated: true,

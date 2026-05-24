@@ -6,10 +6,11 @@ const normalizeArray = (items) => (Array.isArray(items) ? items : []);
 const normalizeToken = (value) => String(value || '').trim();
 
 const roleLabelsFromContext = (appContext = {}) => {
+  const context = appContext || {};
   const labels = [
-    appContext.primary_role_key,
-    ...normalizeArray(appContext.role_keys),
-    ...normalizeArray(appContext.role_assignments).flatMap((role) => [
+    context.primary_role_key,
+    ...normalizeArray(context.role_keys),
+    ...normalizeArray(context.role_assignments).flatMap((role) => [
       role.role_key,
       role.role_name,
       role.display_name,

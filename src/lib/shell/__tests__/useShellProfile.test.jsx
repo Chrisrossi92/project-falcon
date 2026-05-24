@@ -148,4 +148,16 @@ describe("useShellProfile", () => {
     expect(screen.getByText(SHELL_PROFILE_IDS.MY_WORK)).toBeInTheDocument();
     expect(screen.getAllByText("true")).toHaveLength(2);
   });
+
+  it("returns a stable fallback while app context is unresolved", () => {
+    appContextState.context = null;
+    appContextState.loading = true;
+
+    render(<ShellProfileProbe />);
+
+    expect(screen.getByText(SHELL_PROFILE_IDS.COMPANY_REQUIRED)).toBeInTheDocument();
+    expect(screen.getByText("Company required")).toBeInTheDocument();
+    expect(screen.getByText("current_company_required")).toBeInTheDocument();
+    expect(screen.getAllByText("true")).toHaveLength(2);
+  });
 });

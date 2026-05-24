@@ -12,6 +12,7 @@ const permissionState = vi.hoisted(() => ({
 
 const shellProfileState = vi.hoisted(() => ({
   profileId: "operations",
+  exposure: undefined,
 }));
 
 vi.mock("@/lib/hooks/usePermissions", () => ({
@@ -32,11 +33,14 @@ vi.mock("@/lib/hooks/usePermissions", () => ({
 }));
 
 vi.mock("@/lib/shell/useShellProfile", () => ({
-  useShellProfile: () => ({
-    profileId: shellProfileState.profileId,
-    metadataAuthority: "presentation_only",
-    isPresentationOnly: true,
-  }),
+  useShellProfile: () =>
+    shellProfileState.exposure === undefined
+      ? {
+          profileId: shellProfileState.profileId,
+          metadataAuthority: "presentation_only",
+          isPresentationOnly: true,
+        }
+      : shellProfileState.exposure,
 }));
 
 vi.mock("@/lib/supabaseClient", () => ({
@@ -91,6 +95,7 @@ describe("TopNav desktop primary navigation", () => {
   beforeEach(() => {
     permissionState.allowed = new Set();
     shellProfileState.profileId = "operations";
+    shellProfileState.exposure = undefined;
   });
 
   afterEach(() => {
@@ -230,6 +235,30 @@ describe("TopNav desktop primary navigation", () => {
 
     expect(ordersLink).toHaveAttribute("aria-current", "page");
     expect(ordersLink).toHaveClass("bg-slate-950", "text-white", "shadow-sm");
+  });
+
+  it("renders desktop nav without crashing while shell profile exposure is unresolved", () => {
+    shellProfileState.exposure = null;
+    permissionState.allowed = new Set([
+      PERMISSIONS.CLIENTS_READ_ALL,
+      PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_ASSIGNED,
+      PERMISSIONS.RELATIONSHIPS_READ,
+      PERMISSIONS.USERS_READ,
+    ]);
+
+    const { container } = renderTopNav();
+    const links = desktopLinks(container);
+
+    expect(links.map((link) => link.textContent)).toEqual([
+      "Orders",
+      "Assignments",
+      "Relationships",
+      "Calendar",
+      "Clients",
+      "Team Access",
+    ]);
+    expect(screen.queryByText("Operations")).toBeNull();
+    expect(screen.queryByText("Management")).toBeNull();
   });
 
   it("renders mobile primary nav from the current registry helper and preserves Settings placement", () => {
