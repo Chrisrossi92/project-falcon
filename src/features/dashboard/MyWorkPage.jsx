@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import DashboardCalendarPanel from "@/components/dashboard/DashboardCalendarPanel";
@@ -26,6 +27,20 @@ function possessiveName(name) {
   return `${name}'s Work`;
 }
 
+function orderIdOf(order) {
+  return order?.id || order?.order_id || null;
+}
+
+function updateOrderInRows(rows, updatedOrder) {
+  const updatedOrderId = orderIdOf(updatedOrder);
+  if (!updatedOrderId) return rows;
+
+  return (rows || []).map((row) => {
+    const rowId = orderIdOf(row);
+    return rowId === updatedOrderId ? { ...row, ...updatedOrder } : row;
+  });
+}
+
 export default function MyWorkPage() {
   const navigate = useNavigate();
   const summary = useDashboardSummary();
@@ -40,6 +55,16 @@ export default function MyWorkPage() {
   const canUseAppraiserWorkspace = Boolean(isAppraiser && !isAdmin && !isReviewer);
   const companyLabel = displayName(appContext?.company_name, "Current company");
   const appraiserWorkTitle = possessiveName(firstNameFromIdentity(appContext));
+  const [localOrdersRows, setLocalOrdersRows] = useState(() => ordersRows || []);
+
+  useEffect(() => {
+    setLocalOrdersRows(ordersRows || []);
+  }, [ordersRows]);
+
+  const displayOrdersRows = localOrdersRows || [];
+  const handleOrderDatesChanged = useCallback((updatedOrder) => {
+    setLocalOrdersRows((current) => updateOrderInRows(current, updatedOrder));
+  }, []);
 
   if (!canUseAppraiserWorkspace && !loading) {
     return (
@@ -109,7 +134,7 @@ export default function MyWorkPage() {
                 Active Orders
               </div>
               <div className="mt-1 text-2xl font-semibold leading-none tracking-tight tabular-nums">
-                {loading ? "-" : ordersRows?.length ?? 0}
+                {loading ? "-" : displayOrdersRows.length}
               </div>
             </div>
           </div>
@@ -133,7 +158,7 @@ export default function MyWorkPage() {
           </p>
         </div>
         <DashboardCalendarPanel
-          orders={ordersRows || []}
+          orders={displayOrdersRows}
           role="appraiser"
           mode="appraiser"
           fixedHeader={false}
@@ -160,7 +185,7 @@ export default function MyWorkPage() {
             </p>
           </div>
           <span className="mt-2 inline-flex w-fit rounded bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700 sm:mt-0">
-            {loading ? "-" : ordersRows?.length ?? 0}
+            {loading ? "-" : displayOrdersRows.length}
           </span>
         </div>
         {loading ? (
@@ -170,9 +195,10 @@ export default function MyWorkPage() {
         ) : (
           <UnifiedOrdersTable
             role="appraiser"
-            rowsOverride={ordersRows || []}
+            rowsOverride={displayOrdersRows}
             pageSize={10}
             scope="dashboard"
+            onOrderDatesChanged={handleOrderDatesChanged}
             tableEyebrow="Active Orders"
             tableLabel="Assigned work"
             tableSummary="Assigned orders from My Work."

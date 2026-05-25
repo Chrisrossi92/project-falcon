@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import useSession from "@/lib/hooks/useSession";
 import { useOrders } from "@/lib/hooks/useOrders";
 import { normalizeOrderStatus, ORDER_STATUS } from "@/lib/constants/orderStatus";
@@ -43,6 +43,15 @@ const orderNumberOf = (row) => {
 
 function orderPkOf(o) {
   return o?.id || o?.order_id || null;
+}
+
+function withSiteVisit(order, siteVisitAt, serverPatch = {}) {
+  return {
+    ...order,
+    ...serverPatch,
+    site_visit_at: serverPatch.site_visit_at ?? siteVisitAt,
+    site_visit_date: serverPatch.site_visit_date ?? serverPatch.site_visit_at ?? siteVisitAt,
+  };
 }
 
 const APPRAISER_DASHBOARD_STATUSES = [
@@ -134,6 +143,7 @@ export default function UnifiedOrdersTable({
   const [refreshTick, setRefreshTick] = useState(0);
   const [workflowModal, setWorkflowModal] = useState(null);
   const [workflowBusy, setWorkflowBusy] = useState(false);
+  const [optimisticOrderPatches, setOptimisticOrderPatches] = useState({});
   const hasRowsOverride = Array.isArray(rowsOverride);
 
   const {
@@ -153,7 +163,21 @@ export default function UnifiedOrdersTable({
     }
   );
 
-  const tableData = hasRowsOverride ? rowsOverride : data;
+  useEffect(() => {
+    setOptimisticOrderPatches({});
+  }, [data, rowsOverride]);
+
+  const sourceData = hasRowsOverride ? rowsOverride : data;
+  const tableData = useMemo(
+    () =>
+      (sourceData || []).map((row) => {
+        const orderPk = orderPkOf(row);
+        return orderPk && optimisticOrderPatches[orderPk]
+          ? { ...row, ...optimisticOrderPatches[orderPk] }
+          : row;
+      }),
+    [optimisticOrderPatches, sourceData],
+  );
   const tableCount = hasRowsOverride ? rowsOverride.length : count;
   const tableLoading = hasRowsOverride ? false : loading;
   const tableError = hasRowsOverride ? null : error;
@@ -415,20 +439,54 @@ export default function UnifiedOrdersTable({
       const orderPk = orderPkOf(order);
       if (!orderPk || !iso) return;
 
+      const optimisticOrder = withSiteVisit(order, iso);
+      setOptimisticOrderPatches((current) => ({
+        ...current,
+        [orderPk]: {
+          site_visit_at: optimisticOrder.site_visit_at,
+          site_visit_date: optimisticOrder.site_visit_date,
+        },
+      }));
+      onOrderDatesChanged?.(optimisticOrder, {
+        status: "optimistic",
+        previousOrder: order,
+      });
+
       try {
         const updated = await updateSiteVisitAt(orderPk, iso, {
           address: order?.address || order?.address_line1 || "",
           appraiserId: order?.appraiser_id || order?.assigned_to || null,
         });
         if (!updated) throw new Error("Site visit was not updated.");
+        const savedOrder = withSiteVisit(optimisticOrder, updated.site_visit_at ?? iso, updated);
+        setOptimisticOrderPatches((current) => ({
+          ...current,
+          [orderPk]: {
+            site_visit_at: savedOrder.site_visit_at,
+            site_visit_date: savedOrder.site_visit_date,
+          },
+        }));
         refresh();
-        onOrderDatesChanged?.(updated);
+        onOrderDatesChanged?.(savedOrder, {
+          status: "success",
+          previousOrder: order,
+        });
         toast({
           title: "Site visit set",
           description: `Order ${order.order_number || orderPk} site visit was updated.`,
           tone: "success",
         });
       } catch (err) {
+        setOptimisticOrderPatches((current) => {
+          const next = { ...current };
+          delete next[orderPk];
+          return next;
+        });
+        onOrderDatesChanged?.(order, {
+          status: "error",
+          previousOrder: order,
+          attemptedSiteVisitAt: iso,
+        });
         console.error("Failed to set site visit", err);
         toast({
           title: "Error",

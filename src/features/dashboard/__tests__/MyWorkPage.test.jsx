@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -15,9 +15,14 @@ vi.mock("@/lib/hooks/useDashboardSummary", () => ({
 
 vi.mock("@/components/dashboard/DashboardCalendarPanel", () => ({
   default: (props) => (
-    <div data-testid="my-work-calendar">
-      calendar orders: {props.orders?.length ?? 0}; fallback: {String(props.useFallbackLoader)}
-    </div>
+    <>
+      <div data-testid="my-work-calendar">
+        calendar orders: {props.orders?.length ?? 0}; fallback: {String(props.useFallbackLoader)}
+      </div>
+      <div data-testid="my-work-calendar-first-site">
+        first site: {props.orders?.[0]?.site_visit_at || "none"}
+      </div>
+    </>
   ),
 }));
 
@@ -27,6 +32,15 @@ vi.mock("@/features/orders/UnifiedOrdersTable", () => ({
     return (
       <div data-testid="unified-orders-table">
         orders table rows: {props.rowsOverride?.length ?? 0}
+        <button
+          type="button"
+          onClick={() => props.onOrderDatesChanged?.({
+            ...props.rowsOverride?.[0],
+            site_visit_at: "2026-05-20T09:15:00",
+          })}
+        >
+          Apply site visit update
+        </button>
       </div>
     );
   },
@@ -151,5 +165,48 @@ describe("MyWorkPage", () => {
       "/dashboard",
     );
     expect(screen.getByRole("link", { name: "Open Orders" })).toHaveAttribute("href", "/orders");
+  });
+
+  it("syncs table site visit updates into the My Work calendar rows", () => {
+    summaryState.current = {
+      role: "appraiser",
+      isAdmin: false,
+      isReviewer: false,
+      isAppraiser: true,
+      loading: false,
+      appContext: {
+        company_name: "Continental",
+        display_name: "Chris Rossi",
+      },
+      ordersRows: [
+        {
+          id: "assigned-1",
+          order_number: "CF-1001",
+          status: "in_progress",
+          final_due_date: dateFromToday(2),
+          site_visit_at: null,
+        },
+      ],
+    };
+
+    renderMyWorkPage();
+
+    expect(screen.getByTestId("my-work-calendar-first-site")).toHaveTextContent("first site: none");
+
+    fireEvent.click(screen.getByRole("button", { name: "Apply site visit update" }));
+
+    expect(screen.getByTestId("my-work-calendar-first-site")).toHaveTextContent(
+      "first site: 2026-05-20T09:15:00",
+    );
+    expect(unifiedOrdersTableMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        rowsOverride: [
+          expect.objectContaining({
+            id: "assigned-1",
+            site_visit_at: "2026-05-20T09:15:00",
+          }),
+        ],
+      }),
+    );
   });
 });

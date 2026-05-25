@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import UnifiedOrdersTable from "../UnifiedOrdersTable";
 
 const useOrdersMock = vi.hoisted(() => vi.fn());
 const useColumnsConfigMock = vi.hoisted(() => vi.fn());
+const updateSiteVisitAtMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/hooks/useSession", () => ({
   default: () => ({ user: { id: "auth-user-1" } }),
@@ -26,6 +27,10 @@ vi.mock("@/lib/hooks/usePermissions", () => ({
 
 vi.mock("@/lib/hooks/useToast", () => ({
   useToast: () => ({ toast: vi.fn() }),
+}));
+
+vi.mock("@/lib/api/orders", () => ({
+  updateSiteVisitAt: updateSiteVisitAtMock,
 }));
 
 vi.mock("@/features/auth/useCurrentUserAppContext", () => ({
@@ -108,6 +113,7 @@ describe("UnifiedOrdersTable presentation", () => {
     cleanup();
     useOrdersMock.mockReset();
     useColumnsConfigMock.mockReset();
+    updateSiteVisitAtMock.mockReset();
   });
 
   it("renders the active table chrome without changing loaded rows", () => {
@@ -201,5 +207,102 @@ describe("UnifiedOrdersTable presentation", () => {
 
     expect(screen.getByText("Loading")).toBeInTheDocument();
     expect(container.querySelectorAll(".animate-pulse")).toHaveLength(2);
+  });
+
+  it("shows a saved site visit optimistically and keeps the server-confirmed date", async () => {
+    updateSiteVisitAtMock.mockResolvedValue({
+      id: "order-2",
+      site_visit_at: "2026-05-20T09:15:00",
+    });
+    const onOrderDatesChanged = vi.fn();
+    useColumnsConfigMock.mockImplementation((_role, actions) => [
+      {
+        key: "dates",
+        width: "minmax(180px,1fr)",
+        header: () => "Dates",
+        cell: (order) => (
+          <div>
+            <span>{order.site_visit_at || "Site: Not set"}</span>
+            <button
+              type="button"
+              onClick={() => actions.onSetSiteVisit(order, "2026-05-20T09:15:00")}
+            >
+              Set table site visit
+            </button>
+          </div>
+        ),
+      },
+    ]);
+
+    renderTable({
+      rowsOverride: [rows[1]],
+      onOrderDatesChanged,
+    });
+
+    expect(screen.getByText("Site: Not set")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Set table site visit" }));
+
+    expect(screen.getByText("2026-05-20T09:15:00")).toBeInTheDocument();
+    expect(onOrderDatesChanged).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "order-2",
+        site_visit_at: "2026-05-20T09:15:00",
+      }),
+      expect.objectContaining({ status: "optimistic" }),
+    );
+
+    await waitFor(() => expect(updateSiteVisitAtMock).toHaveBeenCalledWith(
+      "order-2",
+      "2026-05-20T09:15:00",
+      expect.any(Object),
+    ));
+    await waitFor(() => expect(onOrderDatesChanged).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "order-2",
+        site_visit_at: "2026-05-20T09:15:00",
+      }),
+      expect.objectContaining({ status: "success" }),
+    ));
+  });
+
+  it("reverts the optimistic site visit when save fails", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    updateSiteVisitAtMock.mockRejectedValue(new Error("save failed"));
+    const onOrderDatesChanged = vi.fn();
+    useColumnsConfigMock.mockImplementation((_role, actions) => [
+      {
+        key: "dates",
+        width: "minmax(180px,1fr)",
+        header: () => "Dates",
+        cell: (order) => (
+          <div>
+            <span>{order.site_visit_at || "Site: Not set"}</span>
+            <button
+              type="button"
+              onClick={() => actions.onSetSiteVisit(order, "2026-05-20T09:15:00")}
+            >
+              Set table site visit
+            </button>
+          </div>
+        ),
+      },
+    ]);
+
+    renderTable({
+      rowsOverride: [rows[1]],
+      onOrderDatesChanged,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Set table site visit" }));
+
+    expect(screen.getByText("2026-05-20T09:15:00")).toBeInTheDocument();
+
+    await waitFor(() => expect(screen.getByText("Site: Not set")).toBeInTheDocument());
+    expect(onOrderDatesChanged).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "order-2" }),
+      expect.objectContaining({ status: "error" }),
+    );
+    consoleErrorSpy.mockRestore();
   });
 });

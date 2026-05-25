@@ -7,6 +7,14 @@ import { getSmartOrderActions } from "@/features/orders/smartActions";
 const fmtDate = (d) =>
   !d ? "-" : isNaN(new Date(d)) ? "-" : new Date(d).toLocaleDateString();
 
+const formatCompactSiteVisit = (date) =>
+  date.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
 const dueDateTone = (d) => {
   if (!d || isNaN(new Date(d))) return "text-slate-500";
   const today = new Date();
@@ -136,15 +144,21 @@ const datesColumnBase = {
       <div className="space-y-1.5 text-[12px] leading-tight">
         <div className="flex items-center justify-between gap-2 whitespace-nowrap rounded-lg bg-slate-50/70 px-2 py-1" title={site || ""}>
           <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Site</span>
-          {site ? (
-            <span className="text-[12px] font-semibold text-slate-700 tabular-nums">{fmtDate(site)}</span>
-          ) : isAppraiser && onSetSiteVisit ? (
+          {isAppraiser && onSetSiteVisit ? (
             <SiteVisitPicker
               value={site}
               emptyLabel="Site: Not set"
-              buttonClassName="h-6 rounded-full px-2 text-[12px] font-medium"
+              triggerVariant={site ? "ghost" : "outline"}
+              displayFormatter={site ? formatCompactSiteVisit : undefined}
+              buttonClassName={
+                site
+                  ? "h-6 rounded-full px-2 text-[12px] font-semibold tabular-nums text-slate-700 underline-offset-2 hover:bg-slate-100 hover:underline focus-visible:ring-slate-300"
+                  : "h-6 rounded-full px-2 text-[12px] font-medium"
+              }
               onChange={(iso) => onSetSiteVisit(order, iso)}
             />
+          ) : site ? (
+            <span className="text-[12px] font-semibold text-slate-700 tabular-nums">{fmtDate(site)}</span>
           ) : (
             <span className="text-[12px] font-semibold text-slate-500">Not set</span>
           )}
