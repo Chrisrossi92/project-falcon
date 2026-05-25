@@ -409,3 +409,19 @@ B1.2.2 remains presentation-only. It uses existing governed assigned order rows 
 grouping from available row fields. It does not add workflow logic, permissions, route authority,
 backend/schema/Supabase behavior, new queries, Smart Action behavior, automation, notifications,
 AI, AMC, Client Portal, or production data behavior.
+
+## B1.2.3 Read-Only Context Integration Record
+
+Phase B1.2.3 integrates read-only operational context into My Work order items.
+
+B1.2.3 changes:
+
+- attaches context chips to relevant work items instead of adding separate dashboard widgets;
+- uses only fields already present on the provided row object;
+- shows revision, operational input, waiting/blocker, inspection, file-count, and loaded
+  activity/update context when available;
+- leaves absent context hidden rather than triggering additional reads.
+
+B1.2.3 does not add workflow logic, permissions, route authority, backend/schema/Supabase behavior,
+new queries, Smart Action behavior, automation, notifications, AI, AMC, Client Portal, or
+production data behavior.

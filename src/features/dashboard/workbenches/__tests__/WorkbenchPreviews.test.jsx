@@ -31,6 +31,9 @@ describe("passive workbench previews", () => {
             status: "in_progress",
             final_due_date: dateFromToday(2),
             site_visit_at: dateFromToday(1),
+            active_document_count: 2,
+            input_type: "inspection_scheduled",
+            updated_at: dateFromToday(-1),
           },
           {
             id: "assigned-2",
@@ -38,6 +41,7 @@ describe("passive workbench previews", () => {
             property_address: "200 Revision Ave",
             status: "needs_revisions",
             final_due_date: dateFromToday(-1),
+            document_count: 0,
           },
         ]}
       />,
@@ -61,6 +65,10 @@ describe("passive workbench previews", () => {
       "href",
       "/orders/assigned-2",
     );
+    expect(screen.getAllByText("Operational input: inspection scheduled").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("2 supporting files loaded.").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Reviewer revisions are open.").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("No supporting files loaded.").length).toBeGreaterThan(0);
 
     const revisions = screen.getByRole("region", { name: "Revisions Required" });
     expect(within(revisions).getByText("1")).toBeInTheDocument();

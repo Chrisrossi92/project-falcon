@@ -3941,3 +3941,11 @@ than immediate execution pressure. The grouping remains client-side and explaina
 governed row fields. No route guard, permission, workflow/action, Smart Action, backend/schema,
 Supabase, data/query authority, automation, notification, AI, AMC, Client Portal, or production
 data behavior was added or changed.
+
+Falcon v1 Phase B1.2.3 is complete as a read-only operational context pass for My Work.
+`AppraiserWorkbenchPreview` now attaches low-weight context chips to individual work items when the
+existing governed row already contains evidence such as revision state, operational input type,
+waiting/blocker context, inspection date, file count, or loaded update timestamps. Unavailable
+context stays hidden; no additional order detail reads are introduced. No route guard, permission,
+workflow/lifecycle behavior, Smart Action, backend/schema, Supabase, data/query authority,
+automation, notification, AI, AMC, Client Portal, or production data behavior was added or changed.

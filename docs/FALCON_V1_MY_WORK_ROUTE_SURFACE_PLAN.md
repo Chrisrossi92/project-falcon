@@ -302,3 +302,38 @@ Implementation assessment:
 - revisions read as active appraiser work, while waiting/blocker context remains contextual rather
   than a failure state;
 - B1.2.3 should add operational context only if existing governed reads safely support it.
+
+## B1.2.3 Read-Only Context Integration Record
+
+Phase B1.2.3 adds item-level read-only context to My Work using only data already present on the
+existing governed row objects.
+
+Runtime files updated:
+
+- `src/features/dashboard/workbenches/AppraiserWorkbenchPreview.jsx`;
+- `src/features/dashboard/workbenches/__tests__/WorkbenchPreviews.test.jsx`.
+
+B1.2.3 changes:
+
+- adds compact context chips directly inside My Work order items;
+- surfaces revision, operational input, waiting/blocker, inspection, file-count, and loaded
+  activity/update evidence when those fields are already present on the row;
+- keeps context lower in visual weight than priority, due, revision, inspection, and
+  waiting/blocker lane structure;
+- avoids rendering unavailable context instead of fetching additional order detail data.
+
+B1.2.3 intentionally does not:
+
+- mount Order Detail context components that require documents, activities, or operational-input
+  arrays that My Work does not currently load;
+- add queries, RPCs, views, schema objects, Supabase policies, or backend behavior;
+- change route guards, permissions, workflow/lifecycle behavior, Smart Actions, data/query
+  authority, automation, notifications, AI, AMC, Client Portal, or production data behavior.
+
+Implementation assessment:
+
+- My Work now gives appraisers a clearer read-only reason for why a row is urgent, revision-bound,
+  inspection-bound, waiting, or file-sensitive when row evidence exists;
+- context remains attached to the relevant work item rather than becoming a dashboard module;
+- B1.2.4 should verify scan quality across real appraiser scenarios before any deeper context
+  enrichment is considered.

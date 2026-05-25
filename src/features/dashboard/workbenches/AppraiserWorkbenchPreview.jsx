@@ -22,6 +22,13 @@ const sectionToneClasses = {
   quiet: "border-slate-200 bg-slate-50/85",
 };
 
+const contextToneClasses = {
+  attention: "border-amber-200 bg-amber-50 text-amber-900",
+  info: "border-slate-200 bg-slate-50 text-slate-700",
+  ready: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  revision: "border-blue-200 bg-blue-50 text-blue-900",
+};
+
 function normalizeStatus(status) {
   return String(status || "").trim().toLowerCase();
 }
@@ -40,6 +47,35 @@ function getDueDate(row) {
 
   const dueDate = new Date(rawDate);
   return Number.isNaN(dueDate.getTime()) ? null : dueDate;
+}
+
+function getFirstDate(row, keys) {
+  for (const key of keys) {
+    const rawDate = row?.[key];
+    if (!rawDate) continue;
+    const date = new Date(rawDate);
+    if (!Number.isNaN(date.getTime())) return date;
+  }
+  return null;
+}
+
+function getFirstNumber(row, keys) {
+  for (const key of keys) {
+    const value = row?.[key];
+    if (value == null || value === "") continue;
+    const number = Number(value);
+    if (Number.isFinite(number)) return number;
+  }
+  return null;
+}
+
+function formatShortDate(date) {
+  if (!date) return null;
+
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+  }).format(date);
 }
 
 function getDuePressure(row) {
@@ -144,6 +180,94 @@ function getWorkReason(row) {
   return "Assigned work";
 }
 
+function getOperationalInputLabel(row) {
+  const input = normalizeStatus(row.input_type || row.operational_input_type);
+  const labels = {
+    inspection_scheduled: "Operational input: inspection scheduled",
+    report_on_track: "Operational input: report on track",
+    waiting_on_client: "Operational input: waiting on client",
+  };
+
+  return labels[input] || null;
+}
+
+function getWaitingContext(row) {
+  const context =
+    row.operational_context || row.context || row.blocker || row.next_step || row.status_label;
+
+  if (typeof context === "string" && context.trim()) return context.trim();
+  if (row.access_notes && isWaitingOrBlocked(row)) return "Access notes may explain the wait.";
+  if (isWaitingOrBlocked(row)) return "Waiting/blocker evidence is present on the row.";
+  return null;
+}
+
+function getFileReadinessContext(row) {
+  const fileCount = getFirstNumber(row, [
+    "active_document_count",
+    "document_count",
+    "file_count",
+    "files_count",
+  ]);
+
+  if (fileCount == null) return null;
+  if (fileCount === 0) return "No supporting files loaded.";
+  if (fileCount === 1) return "1 supporting file loaded.";
+  return `${fileCount} supporting files loaded.`;
+}
+
+function getReviewContext(row) {
+  const status = normalizeStatus(row.status);
+  const reviewDue = getFirstDate(row, ["review_due_at", "review_due_date"]);
+
+  if (isRevision(row)) return "Reviewer revisions are open.";
+  if (status === "in_review") {
+    return reviewDue ? `Review due ${formatShortDate(reviewDue)}.` : "Order is waiting in review.";
+  }
+  return null;
+}
+
+function getActivityContext(row) {
+  const activityDate = getFirstDate(row, [
+    "last_activity_at",
+    "last_note_at",
+    "updated_at",
+    "created_at",
+  ]);
+
+  if (!activityDate) return null;
+  return `Last loaded update ${formatShortDate(activityDate)}.`;
+}
+
+function getInspectionContext(row) {
+  const inspectionDate = getFirstDate(row, [
+    "site_visit_at",
+    "site_visit_date",
+    "inspection_at",
+    "inspection_date",
+    "appointment_at",
+    "scheduled_at",
+  ]);
+
+  return inspectionDate ? `Inspection ${formatShortDate(inspectionDate)}.` : null;
+}
+
+function getOrderContextChips(row) {
+  const chips = [];
+  const addChip = (id, label, tone = "info") => {
+    if (!label) return;
+    chips.push({ id, label, tone });
+  };
+
+  addChip("review", getReviewContext(row), isRevision(row) ? "revision" : "info");
+  addChip("operational-input", getOperationalInputLabel(row), "ready");
+  addChip("waiting", getWaitingContext(row), "attention");
+  addChip("inspection", getInspectionContext(row), "ready");
+  addChip("files", getFileReadinessContext(row), "info");
+  addChip("activity", getActivityContext(row), "info");
+
+  return chips;
+}
+
 function dedupeRows(rows) {
   const seen = new Set();
 
@@ -194,6 +318,7 @@ function OrderWorkItem({ row, compact = false, subdued = false }) {
   const orderId = getOrderId(row);
   const label = getOrderLabel(row);
   const href = orderId ? `/orders/${orderId}` : "/orders";
+  const contextChips = getOrderContextChips(row).slice(0, compact ? 3 : 4);
 
   return (
     <article
@@ -219,6 +344,20 @@ function OrderWorkItem({ row, compact = false, subdued = false }) {
         <p className="mt-2 text-xs font-semibold uppercase text-slate-500">
           Due {formatDueDate(row)}
         </p>
+      )}
+      {contextChips.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5" aria-label={`${label} read-only context`}>
+          {contextChips.map((chip) => (
+            <span
+              key={chip.id}
+              className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${
+                contextToneClasses[chip.tone] || contextToneClasses.info
+              }`}
+            >
+              {chip.label}
+            </span>
+          ))}
+        </div>
       )}
     </article>
   );
