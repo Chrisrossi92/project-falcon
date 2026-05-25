@@ -83,6 +83,55 @@ Avoid:
 - One-off palettes that make a workspace feel unrelated to Falcon's operational language.
 - Disabled future modules as clutter.
 
+## Falcon v1 Brand / Layout Direction
+
+`docs/FALCON_V1_OPERATIONAL_COMPLETION_STRATEGY.md` locks Falcon v1 as Continental's Internal Staff
+Appraiser Platform.
+
+`docs/FALCON_V1_BRAND_SHELL_LAYOUT_AUDIT.md` extends that lock with the Phase A1 visual/shell/layout
+audit before implementation.
+
+`docs/FALCON_V1_SHELL_NAV_REFACTOR_PLAN.md` extends Phase A1 with the Phase A2 shell/navigation
+planning direction.
+
+Design-system work for v1 should support that direction by making Falcon feel like a premium
+operational console:
+
+- stronger contrast than the early prototype surfaces;
+- defined borders around operational zones;
+- framed work areas that make the current task obvious;
+- layered surfaces with purposeful depth;
+- accent-wall style visual anchors where they create operational orientation;
+- restrained shadow hierarchy;
+- calm but structured interface rhythm;
+- low cognitive load for repeated daily use.
+
+This direction does not authorize decorative redesign or feature expansion. Visual richness must
+serve the internal operational loop for appraisers, reviewers, owners, and admins.
+
+Phase A1 identifies the first visual completion priorities as shell hierarchy, workspace
+containment, navigation hierarchy, surface layering, role/work anchors, and density/elevation
+consistency.
+
+Phase A2 refines the shell/navigation side of that work: daily operational lanes should visually
+lead, management/support should be secondary, active workspace identity should be stronger, and
+shell containment should connect navigation, workspace headers, and primary work surfaces.
+
+`docs/FALCON_V1_SURFACE_ELEVATION_SYSTEM_PLAN.md` extends the v1 visual direction with Phase A3
+surface/elevation planning. It defines repeatable recipes for app background, workspace shell,
+primary operational panels, secondary context panels, action/decision surfaces, read-only evidence
+surfaces, high-priority states, and table/list surfaces before broad workspace polish.
+
+Phase A3 does not authorize runtime implementation, CSS refactors, broad component rewrites, route
+or permission changes, workflow changes, dashboard data rewrites, backend/Supabase changes, AMC
+features, Client Portal work, automation, notifications, mobile/native implementation, or AI work.
+
+Phase A3.1 adds the first runtime surface recipe foundation in
+`src/components/workspace/WorkspaceSurface.jsx`. It is a passive helper layer only: recipes and a
+small wrapper for primary, secondary, action, evidence, priority, and table/list surfaces. Existing
+Dashboard, Orders, and Order Detail surfaces are not migrated by A3.1; later workspace passes
+should opt into the helper one surface family at a time.
+
 ## Workspace Shell Standard
 
 A Falcon workspace should generally use this hierarchy:
