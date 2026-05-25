@@ -14,6 +14,7 @@ import Login from "@/pages/auth/Login";
 import AcceptCompanyInvitePage from "@/features/company-invitations/AcceptCompanyInvitePage";
 import Settings from "@/pages/Settings";
 import DashboardGate from "@/features/dashboard/DashboardGate";
+import MyWorkPage from "@/features/dashboard/MyWorkPage";
 import Orders from "@/pages/orders/Orders";
 import HistoricalOrders from "@/pages/orders/HistoricalOrders";
 import NewOrder from "@/pages/NewOrder";
@@ -57,6 +58,19 @@ export default function AppRoutes() {
           element={
             <ProtectedRoute>
               <DashboardGate />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/my-work"
+          element={
+            <ProtectedRoute
+              requiredAnyPermissions={[
+                PERMISSIONS.ORDERS_READ_ALL,
+                PERMISSIONS.ORDERS_READ_ASSIGNED,
+              ]}
+            >
+              <MyWorkPage />
             </ProtectedRoute>
           }
         />

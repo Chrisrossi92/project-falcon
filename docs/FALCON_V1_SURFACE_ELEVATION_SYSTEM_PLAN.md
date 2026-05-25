@@ -380,18 +380,19 @@ Possible scope:
 - file/readiness panel treatment;
 - activity/evidence density cleanup.
 
-### A3.5 Role Surfaces Polish Later
+### A3.5 Surface / Elevation QA Review
 
 Purpose:
 
-- apply refined surface hierarchy to Appraiser `My Work`, Reviewer `Review Queue`, and Owner/Admin
-  `Operations Command` after shared recipes and core workspaces are stable.
+- review Dashboard / Operations Command, Orders Workspace, and Order Detail together before
+  freezing Phase A3.
 
 Possible scope:
 
-- role-native empty states;
-- role-specific primary/support panel balance;
-- hybrid user clarity.
+- cross-page consistency checklist;
+- manual browser review checklist;
+- acceptable small-fix criteria;
+- stop condition before Phase B Role-Tailored Operational Surfaces.
 
 ## Explicit Non-Goals
 
@@ -561,3 +562,38 @@ A3.4 preserves:
 - all permission checks and route guards;
 - all backend, Supabase, schema, dashboard data, automation, notification, AMC, Client Portal,
   mobile/native, AI, and production data behavior.
+
+## A3.5 QA Review Record
+
+Phase A3.5 adds a docs-only cross-page surface/elevation QA review in
+`docs/FALCON_V1_SURFACE_ELEVATION_QA_REVIEW.md`.
+
+The review evaluates whether Dashboard / Operations Command, Orders Workspace, and Order Detail now
+share a consistent premium operational-console hierarchy after A3.1 through A3.4. It defines the
+checklist for app background, shell, workspace frame, primary operational panels, secondary context
+panels, action/decision surfaces, read-only evidence, table/list containment, borders, shadows,
+density, spacing, and active work-mode/header relationships.
+
+A3.5 stop condition:
+
+- if the three reviewed surfaces are consistent enough, freeze Phase A3 and move to Phase B:
+  Role-Tailored Operational Surfaces;
+- if not, run one small A3.6 visual correction pass only, then freeze Phase A3 before Phase B.
+
+A3.5 adds no runtime implementation, route changes, permission changes, workflow/lifecycle changes,
+dashboard data changes, backend, Supabase, schema, automation, notification, AMC, Client Portal,
+mobile/native, AI, or production data behavior.
+
+## Phase A4 Forward Link
+
+The next environment-level planning layer is documented in
+`docs/FALCON_V1_OPERATIONAL_ENVIRONMENT_IDENTITY_SYSTEM.md`.
+
+Phase A4 defines Falcon's operational atmosphere above the individual A3 surface recipes. It
+establishes the Executive Operational Command Console identity, operational spine, tonal hierarchy,
+signature elements, typography/density philosophy, and page consistency rules before further runtime
+visual changes.
+
+Phase A4 remains docs/planning only and does not add runtime code, CSS changes, component changes,
+route changes, permission changes, workflow changes, data changes, backend, Supabase, schema, AMC,
+Client Portal, automation, notification, mobile-native, AI, or production data behavior.

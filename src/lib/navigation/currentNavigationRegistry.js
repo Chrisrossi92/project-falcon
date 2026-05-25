@@ -102,6 +102,27 @@ export const currentLiveNavigationEntries = freezeArray([
   }),
 
   createEntry({
+    id: 'my_work',
+    label: 'My Work',
+    path: '/my-work',
+    order: 11,
+    surfaces: [
+      CURRENT_NAV_SURFACES.DESKTOP,
+      CURRENT_NAV_SURFACES.MOBILE,
+      CURRENT_NAV_SURFACES.ROUTE,
+    ],
+    visibilityGate: gate(CURRENT_NAV_GATE_TYPES.PERMISSION, [PERMISSIONS.ORDERS_READ_ASSIGNED]),
+    routeGate: gate(CURRENT_NAV_GATE_TYPES.ANY_PERMISSION, [
+      PERMISSIONS.ORDERS_READ_ALL,
+      PERMISSIONS.ORDERS_READ_ASSIGNED,
+    ]),
+    notes: [
+      'Dedicated staff appraiser execution surface introduced after the dashboard-fed My Work preview.',
+      'TopNav exposes this link only for the resolved my_work shell profile; route guard remains order-read based.',
+    ],
+  }),
+
+  createEntry({
     id: 'orders',
     label: 'Orders',
     path: '/orders',

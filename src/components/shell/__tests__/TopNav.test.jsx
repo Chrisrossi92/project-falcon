@@ -79,9 +79,12 @@ const renderTopNav = (initialPath = "/dashboard") =>
     </MemoryRouter>,
   );
 
-const getDesktopPrimaryNav = (container) => container.querySelector("nav");
+const getDesktopPrimaryNav = (container) =>
+  container.querySelector('nav[aria-label="Operational spine navigation"]');
 
 const desktopLinks = (container) => within(getDesktopPrimaryNav(container)).getAllByRole("link");
+
+const shellWorkModeCues = () => screen.getAllByTestId("shell-work-mode");
 
 const openMobileNav = (container) => {
   fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
@@ -91,7 +94,7 @@ const openMobileNav = (container) => {
   return navs[navs.length - 1];
 };
 
-describe("TopNav desktop primary navigation", () => {
+describe("TopNav desktop operational spine navigation", () => {
   beforeEach(() => {
     permissionState.allowed = new Set();
     shellProfileState.profileId = "operations";
@@ -102,7 +105,7 @@ describe("TopNav desktop primary navigation", () => {
     cleanup();
   });
 
-  it("renders desktop primary nav from the current registry helper with current order and paths", () => {
+  it("renders desktop operational spine nav from the current registry helper with current order and paths", () => {
     permissionState.allowed = new Set([
       PERMISSIONS.CLIENTS_READ_ALL,
       PERMISSIONS.CLIENTS_READ_ASSIGNED,
@@ -115,9 +118,11 @@ describe("TopNav desktop primary navigation", () => {
     const desktopNav = getDesktopPrimaryNav(container);
     const links = desktopLinks(container);
 
-    expect(within(desktopNav).getByText("Operations")).toBeInTheDocument();
+    expect(desktopNav).toBeInTheDocument();
+    expect(within(desktopNav).getAllByText("Operations")).toHaveLength(2);
     expect(within(desktopNav).getByText("Management")).toBeInTheDocument();
     expect(links.map((link) => link.textContent)).toEqual([
+      "Operations",
       "Orders",
       "Calendar",
       "Assignments",
@@ -126,6 +131,7 @@ describe("TopNav desktop primary navigation", () => {
       "Team Access",
     ]);
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "/dashboard",
       "/orders",
       "/calendar",
       "/assignments",
@@ -136,20 +142,38 @@ describe("TopNav desktop primary navigation", () => {
   });
 
   it("groups only currently visible desktop links and skips empty groups", () => {
-    renderTopNav();
+    const { container } = renderTopNav();
+    const desktopNav = getDesktopPrimaryNav(container);
+    const links = desktopLinks(container);
 
-    expect(screen.getByText("Operations")).toBeInTheDocument();
-    expect(screen.queryByText("Management")).toBeNull();
-    expect(screen.queryByRole("link", { name: "Assignments" })).toBeNull();
-    expect(screen.queryByRole("link", { name: "Relationships" })).toBeNull();
-    expect(screen.queryByRole("link", { name: "Clients" })).toBeNull();
-    expect(screen.queryByRole("link", { name: "Team Access" })).toBeNull();
+    expect(within(desktopNav).getAllByText("Operations")).toHaveLength(2);
+    expect(within(desktopNav).queryByText("Management")).toBeNull();
+    expect(links.map((link) => link.textContent)).toEqual(["Operations", "Orders", "Calendar"]);
+    expect(within(desktopNav).queryByRole("link", { name: "Assignments" })).toBeNull();
+    expect(within(desktopNav).queryByRole("link", { name: "Relationships" })).toBeNull();
+    expect(within(desktopNav).queryByRole("link", { name: "Clients" })).toBeNull();
+    expect(within(desktopNav).queryByRole("link", { name: "Team Access" })).toBeNull();
+  });
+
+  it("keeps desktop primary navigation out of the utility top bar", () => {
+    const { container } = renderTopNav();
+
+    expect(container.querySelector('nav[aria-label="Primary workspace navigation"]')).toBeNull();
+    expect(container.querySelector('nav[aria-label="Operational spine navigation"]')).toBeInTheDocument();
+    expect(screen.queryByText("Utility / Context")).toBeNull();
+    expect(screen.getByRole("button", { name: "Open menu" })).toBeInTheDocument();
   });
 
   it("shows the resolved shell work mode in the brand cue", () => {
     renderTopNav();
 
-    expect(screen.getByTestId("shell-work-mode")).toHaveTextContent("Operations Command");
+    expect(screen.getAllByRole("img", { name: "Falcon" })).toHaveLength(1);
+    expect(screen.getAllByRole("link", { name: "Falcon dashboard" })).toHaveLength(1);
+    expect(screen.getByText("Staff Appraiser Operations")).toBeInTheDocument();
+    expect(screen.queryByText("Spine")).toBeNull();
+    expect(screen.queryByText("Internal Ops")).toBeNull();
+    expect(screen.queryByText("Falcon Operations")).toBeNull();
+    expect(shellWorkModeCues()[0]).toHaveTextContent("Operations Command");
   });
 
   it("keeps fallback profiles on a neutral shell cue", () => {
@@ -166,12 +190,13 @@ describe("TopNav desktop primary navigation", () => {
 
     renderTopNav();
 
-    expect(screen.getByTestId("shell-work-mode")).toHaveTextContent("Operations Console");
+    expect(shellWorkModeCues()[0]).toHaveTextContent("Operations Console");
   });
 
   it("emphasizes the resolved profile group without changing visible links", () => {
     shellProfileState.profileId = "my_work";
     permissionState.allowed = new Set([
+      PERMISSIONS.ORDERS_READ_ASSIGNED,
       PERMISSIONS.CLIENTS_READ_ASSIGNED,
       PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_ASSIGNED,
     ]);
@@ -181,18 +206,28 @@ describe("TopNav desktop primary navigation", () => {
     const activeProfileSection = container.querySelector('[data-shell-profile-section="active"]');
     const links = desktopLinks(container);
 
-    expect(screen.getByTestId("shell-work-mode")).toHaveTextContent("My Work");
+    expect(shellWorkModeCues()[0]).toHaveTextContent("My Work");
     expect(within(activeProfileSection).getByText("Work")).toBeInTheDocument();
     expect(within(desktopNav).getByText("Support")).toBeInTheDocument();
     expect(links.map((link) => link.textContent)).toEqual([
+      "My Work",
+      "Operations",
       "Orders",
       "Calendar",
       "Clients",
       "Assignments",
     ]);
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "/my-work",
+      "/dashboard",
+      "/orders",
+      "/calendar",
+      "/clients/cards",
+      "/assignments",
+    ]);
   });
 
-  it("preserves the current flat desktop nav for unknown shell profiles", () => {
+  it("preserves the current flat desktop nav plus Operations entry for unknown shell profiles", () => {
     shellProfileState.profileId = "unknown_profile";
     permissionState.allowed = new Set([
       PERMISSIONS.CLIENTS_READ_ALL,
@@ -206,9 +241,9 @@ describe("TopNav desktop primary navigation", () => {
     const desktopNav = getDesktopPrimaryNav(container);
     const links = desktopLinks(container);
 
-    expect(within(desktopNav).queryByText("Operations")).toBeNull();
     expect(within(desktopNav).queryByText("Management")).toBeNull();
     expect(links.map((link) => link.textContent)).toEqual([
+      "Operations",
       "Orders",
       "Assignments",
       "Relationships",
@@ -217,6 +252,7 @@ describe("TopNav desktop primary navigation", () => {
       "Team Access",
     ]);
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "/dashboard",
       "/orders",
       "/assignments",
       "/relationships",
@@ -229,6 +265,7 @@ describe("TopNav desktop primary navigation", () => {
   it("keeps permissioned links visible in a non-authoritative More group when metadata does not group them", () => {
     shellProfileState.profileId = "my_work";
     permissionState.allowed = new Set([
+      PERMISSIONS.ORDERS_READ_ASSIGNED,
       PERMISSIONS.CLIENTS_READ_ALL,
       PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_ASSIGNED,
       PERMISSIONS.RELATIONSHIPS_READ,
@@ -243,6 +280,8 @@ describe("TopNav desktop primary navigation", () => {
     expect(within(desktopNav).getByText("Support")).toBeInTheDocument();
     expect(within(desktopNav).getByText("More")).toBeInTheDocument();
     expect(links.map((link) => link.textContent)).toEqual([
+      "My Work",
+      "Operations",
       "Orders",
       "Calendar",
       "Clients",
@@ -274,14 +313,14 @@ describe("TopNav desktop primary navigation", () => {
     expect(screen.queryByRole("link", { name: "Team Access" })).toBeNull();
   });
 
-  it("preserves exact-path active styling through NavItem", () => {
+  it("preserves exact-path active styling through the operational spine NavItem", () => {
     renderTopNav("/orders");
 
     const ordersLink = screen.getByRole("link", { name: "Orders" });
 
     expect(ordersLink).toHaveAttribute("aria-current", "page");
-    expect(ordersLink).toHaveClass("bg-slate-950", "text-white", "shadow-md");
-    expect(ordersLink.className).toContain("after:bg-white/80");
+    expect(ordersLink).toHaveClass("bg-white", "text-slate-950", "shadow-md");
+    expect(ordersLink.className).toContain("after:bg-slate-900/80");
   });
 
   it("renders desktop nav without crashing while shell profile exposure is unresolved", () => {
@@ -297,6 +336,7 @@ describe("TopNav desktop primary navigation", () => {
     const links = desktopLinks(container);
 
     expect(links.map((link) => link.textContent)).toEqual([
+      "Operations",
       "Orders",
       "Assignments",
       "Relationships",
@@ -304,8 +344,7 @@ describe("TopNav desktop primary navigation", () => {
       "Clients",
       "Team Access",
     ]);
-    expect(screen.queryByText("Operations")).toBeNull();
-    expect(screen.queryByText("Management")).toBeNull();
+    expect(within(getDesktopPrimaryNav(container)).queryByText("Management")).toBeNull();
   });
 
   it("renders mobile primary nav from visible links with shell priority ordering and preserves Settings placement", () => {
@@ -339,6 +378,31 @@ describe("TopNav desktop primary navigation", () => {
       "/relationships",
       "/users",
       "/settings",
+    ]);
+  });
+
+  it("adds the dedicated My Work route to appraiser mobile navigation only for the my_work shell", () => {
+    shellProfileState.profileId = "my_work";
+    permissionState.allowed = new Set([
+      PERMISSIONS.ORDERS_READ_ASSIGNED,
+      PERMISSIONS.CLIENTS_READ_ASSIGNED,
+    ]);
+
+    const { container } = renderTopNav();
+    const mobileNav = openMobileNav(container);
+    const links = within(mobileNav).getAllByRole("link");
+
+    expect(links.map((link) => link.textContent)).toEqual([
+      "My Work",
+      "Orders",
+      "Calendar",
+      "Clients",
+    ]);
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "/my-work",
+      "/orders",
+      "/calendar",
+      "/clients/cards",
     ]);
   });
 

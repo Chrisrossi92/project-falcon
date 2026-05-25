@@ -115,7 +115,7 @@ describe('passive shell navigation groups', () => {
     expect(getShellNavigationGroups(SHELL_PROFILE_IDS.MY_WORK).groups).toMatchObject([
       {
         id: 'work',
-        navEntryIds: ['dashboard', 'orders', 'calendar'],
+        navEntryIds: ['my_work', 'dashboard', 'orders', 'calendar'],
       },
       {
         id: 'support',
@@ -194,6 +194,10 @@ describe('passive shell navigation groups', () => {
   });
 
   it('does not rename existing navigation labels or paths', () => {
+    expect(getCurrentLiveNavigationEntry('my_work')).toMatchObject({
+      label: 'My Work',
+      path: '/my-work',
+    });
     expect(getCurrentLiveNavigationEntry('orders')).toMatchObject({
       label: 'Orders',
       path: '/orders',

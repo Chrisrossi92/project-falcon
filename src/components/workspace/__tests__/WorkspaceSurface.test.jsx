@@ -10,11 +10,11 @@ import {
 
 describe("WorkspaceSurface", () => {
   it("defines the A3.1 operational surface recipes", () => {
-    expect(workspaceSurfaceRecipes.primary).toContain("border-slate-200");
-    expect(workspaceSurfaceRecipes.secondary).toContain("bg-slate-50/80");
-    expect(workspaceSurfaceRecipes.action).toContain("border-slate-300");
-    expect(workspaceSurfaceRecipes.evidence).toContain("bg-slate-50");
-    expect(workspaceSurfaceRecipes.priority).toContain("border-amber-200");
+    expect(workspaceSurfaceRecipes.primary).toContain("border-slate-300");
+    expect(workspaceSurfaceRecipes.secondary).toContain("bg-slate-100/75");
+    expect(workspaceSurfaceRecipes.action).toContain("border-slate-400");
+    expect(workspaceSurfaceRecipes.evidence).toContain("bg-slate-100/80");
+    expect(workspaceSurfaceRecipes.priority).toContain("border-amber-300");
     expect(workspaceSurfaceRecipes.table).toContain("overflow-hidden");
   });
 
@@ -29,9 +29,8 @@ describe("WorkspaceSurface", () => {
     expect(surface).toHaveTextContent("Active orders");
     expect(surface).toHaveClass(
       "rounded-2xl",
-      "border-slate-200",
+      "border-slate-300",
       "bg-white",
-      "shadow-sm",
       "ring-1",
       "transition-[border-color,box-shadow,background-color,transform]",
       "motion-reduce:transition-none",
@@ -68,7 +67,7 @@ describe("WorkspaceSurface", () => {
 
     const surface = screen.getByLabelText("Order evidence");
     expect(surface.tagName).toBe("ASIDE");
-    expect(surface).toHaveClass("rounded-xl", "bg-slate-50/80", "custom-evidence-surface");
+    expect(surface).toHaveClass("rounded-xl", "bg-slate-100/75", "custom-evidence-surface");
   });
 
   it("composes classes for non-component callers", () => {

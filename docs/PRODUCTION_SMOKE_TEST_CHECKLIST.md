@@ -48,6 +48,61 @@ Related doctrine:
 - Representative appraiser/reviewer user:
 - Cross-company denial fixture, if available:
 
+## Preview Evidence Gate
+
+Before this checklist is used for production cutover, run a preview evidence gate against the
+selected Supabase target.
+
+Preview target classification:
+
+- Preview deployment URL/domain:
+- Preview deployment id:
+- Git commit / release tag:
+- Preview Supabase project ref:
+- Target classification:
+  - `modern-staging`;
+  - `disposable-rehearsal`;
+  - `final-candidate`;
+  - `legacy-production`;
+  - `unknown`.
+- Data classification:
+  - staging fixture;
+  - disposable rehearsal;
+  - final-candidate rehearsal;
+  - legacy production compatibility;
+  - unknown.
+
+Preview CSP / bundle evidence:
+
+- Preview CSP `connect-src` host(s):
+- Expected Supabase host:
+- Deployed bundle Supabase host evidence:
+- Mixed legacy/modern host evidence:
+- Browser console CSP/CORS errors:
+
+Preview smoke requirements:
+
+- unauthenticated app boot and protected-route handling;
+- authenticated login/session smoke with approved smoke user;
+- owner/admin current-company context and dashboard smoke;
+- Orders, Clients, Calendar, Assignments, and representative detail route smoke;
+- Team Access / Owner Setup smoke where safe fixture data exists;
+- document upload/download/archive smoke only when storage/function evidence is approved for the
+  selected target;
+- browser network host review confirming no unexpected mixed legacy/modern Supabase calls.
+
+Preview no-promotion criteria:
+
+- preview target is `unknown`;
+- preview `VITE_SUPABASE_URL` target cannot be classified by safe project ref;
+- preview CSP does not allow the selected Supabase host;
+- preview CSP allows unrelated Supabase hosts without documented reason;
+- deployed bundle contains an unexpected Supabase host;
+- owner/admin cannot authenticate or resolve current company;
+- core route failures are not explained by known fixture gaps;
+- storage/function smoke fails where document flows are in production scope;
+- rollback/deployment history and env restoration remain unproven.
+
 ## Smoke Sections
 
 ### Login / Auth

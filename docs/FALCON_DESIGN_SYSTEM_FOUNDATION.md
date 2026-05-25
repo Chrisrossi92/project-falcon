@@ -132,6 +132,31 @@ small wrapper for primary, secondary, action, evidence, priority, and table/list
 Dashboard, Orders, and Order Detail surfaces are not migrated by A3.1; later workspace passes
 should opt into the helper one surface family at a time.
 
+`docs/FALCON_V1_OPERATIONAL_ENVIRONMENT_IDENTITY_SYSTEM.md` adds the Phase A4 environment identity
+system. It defines Falcon's visual world above individual surface recipes: Executive Operational
+Command Console identity, operational spine, tonal hierarchy, signature structural elements,
+typography/density philosophy, and page consistency rules. A4 is docs/planning only and does not
+authorize runtime code, CSS changes, component changes, route or permission changes, workflow
+changes, data changes, AMC work, Client Portal work, automation, AI UI, backend/Supabase changes, or
+production data changes.
+
+Phase A4.1 is the first controlled runtime experiment for that identity. It updates only the shared
+environment/shell layer and `WorkspaceSurface` recipes: deeper slate app background, stronger
+workstation perimeter, darker TopNav operational spine, stronger active lane treatment, and tuned
+surface containment. It does not change routes, permissions, workflow/lifecycle behavior, data
+queries, backend/Supabase behavior, AMC, Client Portal, automation, AI UI, or production data.
+
+`docs/FALCON_V1_LOGO_IMPLEMENTATION_STRATEGY.md` governs Falcon v1 logo usage. Design-system work
+should treat the top shell as the current full wordmark anchor, keep the left rail focused on
+operational mode/context and movement, reserve mark-only assets for collapsed rail and compact
+mobile contexts, keep light-surface wordmarks separate from dark-shell wordmarks, and avoid
+duplicate full-brand treatment.
+
+`docs/FALCON_V1_LOGIN_ENVIRONMENT_BRANDING_PLAN.md` governs login/auth environment branding.
+Login work should present Falcon as the platform environment and Continental or another tenant logo
+as workspace identity, using a calm dark/slate operational backdrop and centered auth card without
+changing auth logic, routes, permissions, Supabase behavior, workflow, or data/query authority.
+
 ## Workspace Shell Standard
 
 A Falcon workspace should generally use this hierarchy:

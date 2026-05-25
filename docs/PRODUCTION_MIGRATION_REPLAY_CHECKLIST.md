@@ -33,6 +33,49 @@ that does not replace full reset/replay validation. Before production cutover, F
 true clean replay path in local Docker or a disposable Supabase project, including storage/function
 dependencies where applicable.
 
+## Schema Head Evidence Plan
+
+Supabase Environment Architecture & Migration Planning Phase 1C records the current repository
+migration-head evidence before any migration execution.
+
+Current file-system evidence:
+
+- active migration directory: `supabase/migrations`;
+- expected active SQL migration count: `79`;
+- first active migration:
+  `20260518000000_baseline_extensions_and_schema.sql`;
+- current active migration head:
+  `20260522090000_order_saved_views.sql`;
+- archived migrations are excluded from active replay and remain under `supabase/migrations_archive`;
+- legacy remote dumps are evidence/source material only and remain under `supabase/schema_dumps`.
+
+This evidence proves the repository's intended active head only. It does not prove any Supabase
+project has applied that head.
+
+Target schema-head expectations:
+
+| Target | Expected Modern Head | Expected Count | Verification Status | Notes |
+|---|---|---:|---|---|
+| Legacy production/archive | Not expected to match | Not applicable | Legacy source only | Use legacy dumps for inventory and mapping. Do not retrofit. |
+| Modern staging/reference | `20260522090000_order_saved_views.sql` | 79 | Unknown | Requires read-only project evidence before cutover use. |
+| Local/disposable replay | `20260522090000_order_saved_views.sql` | 79 | Unknown / previously blocked | Requires successful full reset or disposable replay. |
+| Future clean production | `20260522090000_order_saved_views.sql` or current audited head at cutover | 79 at this checkpoint | Blocked | Project not identified/provisioned. |
+
+Required read-only verification approach for a modern target:
+
+- confirm `supabase_migrations.schema_migrations` exists;
+- confirm the applied migration count matches the active file count;
+- confirm the first applied version is `20260518000000`;
+- confirm the current applied head is `20260522090000`;
+- confirm no archived migration versions are present as active applied migrations;
+- confirm no active migration version is missing or out of order;
+- capture object inventory for high-risk surfaces: companies, current-company helpers, canonical
+  order/client views, document RPCs, lifecycle RPCs, saved-view tables/RPCs, RLS policies, and
+  explicit grants.
+
+Do not run these verification queries against legacy production as proof of modern readiness. Legacy
+production is expected to differ from the modern active head.
+
 ## Local Replay Status Log
 
 ### 2026-05-22 Local Reset Attempt

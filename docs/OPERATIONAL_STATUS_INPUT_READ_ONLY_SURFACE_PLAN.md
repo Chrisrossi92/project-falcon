@@ -236,3 +236,27 @@ Phase 2I preserves:
   production data behavior change.
 
 Pause after Phase 2I before any create/clear UI or signal-suppression integration.
+
+## Phase 2J Minimal Create/Clear UI Plan
+
+Phase 2J adds the docs-only create/clear UI plan for first-wave operational inputs.
+
+New planning document:
+
+- `docs/OPERATIONAL_STATUS_INPUT_CREATE_CLEAR_UI_PLAN.md`.
+
+Phase 2J defines:
+
+- Order Detail as the first recommended placement for create/clear controls;
+- order drawer controls as optional/later;
+- no dashboard, table-row, bulk, or mobile-specific controls in the first UI slice;
+- compact secondary controls for `inspection_scheduled`, `report_on_track`, and
+  `waiting_on_client`;
+- clear behavior as deliberate but lightweight;
+- optional notes only where useful;
+- UI calls to controlled RPCs only, with server-side activity/audit remaining authoritative;
+- no lifecycle/status mutation, Smart Action changes, signal suppression, automation,
+  notifications, Client Portal exposure, or AI inference.
+
+The next possible runtime slice is **Operational Execution Phase 2K: Minimal Create/Clear UI
+Implementation**, only after the 2J plan is reviewed.

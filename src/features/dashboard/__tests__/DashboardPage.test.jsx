@@ -599,14 +599,13 @@ describe("DashboardPage operational polish", () => {
     expect(screen.getByText("Calendar context, assigned orders, and revision follow-up.")).toBeInTheDocument();
     expect(screen.getAllByText("Appraiser")).toHaveLength(2);
     expect(screen.getByText("My Assignments")).toBeInTheDocument();
-    const myWorkPreview = screen.getByRole("region", { name: "My Work preview" });
+    const myWorkPreview = screen.getByRole("region", { name: "My Work summary" });
     expect(within(myWorkPreview).getByRole("heading", { name: "My Work" })).toBeInTheDocument();
-    expect(
-      within(myWorkPreview).getByRole("region", { name: "Assigned Work" }),
-    ).toBeInTheDocument();
-    expect(
-      within(myWorkPreview).getByRole("region", { name: "Needs Revisions" }),
-    ).toBeInTheDocument();
+    expect(within(myWorkPreview).getByRole("link", { name: "Open My Work" })).toHaveAttribute(
+      "href",
+      "/my-work",
+    );
+    expect(within(myWorkPreview).queryByRole("region", { name: "Priority Work" })).toBeNull();
     expect(within(myWorkPreview).queryByRole("button")).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Review Queue preview" })).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: /operational readiness/i })).not.toBeInTheDocument();

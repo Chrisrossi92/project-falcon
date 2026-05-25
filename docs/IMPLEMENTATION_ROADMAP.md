@@ -801,6 +801,26 @@ Production Verification Slice 2D verifies the local runtime environment without 
 
 Production Verification Slice 2E defines the exact Vercel dashboard verification checklist before touching deployed settings. The checklist covers project link/name, production deployment commit SHA, production branch, production domain, preview domain behavior, production and preview env var names only, production Supabase target classification, preview Supabase target classification, deployed custom headers/CSP behavior, and rollback/deployment history availability. It locks the evidence format as checked item, observed safe summary, status (`verified`, `mismatch`, or `needs decision`), and required follow-up. It explicitly forbids recording secret values, anon key values, service-role values, full env var values, or screenshots containing secrets/env values. The proposed next step is manual Vercel dashboard inspection and evidence capture only; do not change env vars, update CSP, change domains/settings, promote deployments, change Supabase settings/projects, or edit runtime code yet. This slice updates `docs/ENVIRONMENT_PARITY_CHECKLIST.md` and `docs/PRODUCTION_READINESS_AUDIT.md` and makes no Vercel, env var, Supabase, CSP, runtime, schema, storage, Edge Function, migration, or production project change.
 
+Production Hardening & Runtime Confidence Phase 1A is complete as docs-only inventory and sequencing in `docs/PRODUCTION_HARDENING_RUNTIME_CONFIDENCE.md`. The plan consolidates the existing production readiness, environment parity, migration replay, bootstrap, smoke-test, Vercel config, Supabase env, and CSP evidence into a safe hardening path. It records confirmed evidence that local runtime previously resolved to modern staging `voompccpkjfcsmehdoqu` with no observed local runtime calls to legacy `okwqhkrsjgxrhyisaovc`; records the current risk that `vercel.json` CSP `connect-src` still references the legacy hosted Supabase project; and separates Vercel linkage/config, Supabase environment parity, CSP/security headers, migration replay/bootstrap, storage/Edge/CORS, smoke testing, role visibility, runtime diagnostics, mobile checks, build warnings, monitoring, and rollback into ordered hardening categories. The recommended next slice is Vercel dashboard evidence capture only: inspect project/deployment/domain/env-name/CSP/rollback evidence without changing env vars, CSP, domains, deployments, Supabase settings, Edge Functions, runtime code, migrations, or production data.
+
+Production Hardening & Runtime Confidence Phase 1B is complete as Vercel evidence capture from available local metadata and read-only CLI attempts. The local workspace remains unlinked to Vercel: no repo-local `.vercel` project metadata exists, no user-level `.vercel` directory was present, and `vercel env ls` could not run because the codebase is not linked to a project. Read-only Vercel project/deployment CLI commands did not return usable project-specific evidence. Confirmed local evidence is limited to Vercel CLI `47.0.6`, Git remote `https://github.com/Chrisrossi92/project-falcon.git`, current local commit `a0508b3115a41138bbee0e90463c5360e0f64a73`, Vite build command `vite build`, default `dist` output, repo `vercel.json` SPA rewrite/security headers, and the known legacy Supabase CSP `connect-src` mismatch. Production project name/link, connected Git branch, deployment SHA/tag, production/preview domains, env var names, Supabase target classification, deployment protection, deployed CSP/header behavior, and rollback history remain unresolved dashboard evidence gaps. The recommended next slice is manual Vercel dashboard evidence completion only, still with no env var edits, CSP edits, Supabase changes, runtime code changes, deployment promotions, or production data changes.
+
+Production Hardening & Runtime Confidence Phase 1C is complete as a dashboard evidence-capture attempt with an access blocker. The current agent session had no repo-local `.vercel` link, no sufficient CLI project context, no installed `agent-browser` command, and no authenticated Vercel dashboard session or connector available for private dashboard inspection. No new Vercel dashboard evidence was captured, so project name, connected repository, production branch, deployment SHA/date, production domains, preview behavior, framework/build/output/install/runtime settings, env var names, deployment protection, deployed CSP/header behavior, and rollback history remain unverified. The known local risk remains unchanged: `vercel.json` still references legacy Supabase project `okwqhkrsjgxrhyisaovc` in CSP `connect-src`. The recommended next slice is Vercel dashboard evidence handoff from a human dashboard review or explicitly authorized read-only Vercel tool, still with no Vercel changes, env var edits, CSP edits, Supabase changes, runtime code changes, deployment promotions, build setting changes, domain changes, migrations, or production data changes.
+
+Production Hardening & Runtime Confidence Phase 1D is complete as a user-executable manual Vercel evidence handoff checklist in `docs/VERCEL_MANUAL_EVIDENCE_CHECKLIST.md`, with summary links in `docs/PRODUCTION_HARDENING_RUNTIME_CONFIDENCE.md`. The checklist gives Chris exact Vercel dashboard areas to inspect: Project Overview, Git settings, Domains, Environment Variables, Build & Development Settings, Deployment history, latest deployment details, Protection/Security settings, and deployed headers/CSP evidence. It provides safe evidence tables for project name, connected repo, production branch, latest production SHA/date, domains, env var names only, framework/build/output/install/runtime settings, protection settings, rollback availability, and CSP/header observations. It includes strict warnings not to reveal env values, anon keys, service-role keys, or screenshots containing secrets; not to change settings; not to redeploy; not to link the local repo yet; and not to edit CSP, env vars, Supabase, domains, branches, or build settings. The recommended next slice is Vercel evidence review and CSP decision planning after Chris pastes back the completed safe evidence summary.
+
+Production Hardening & Runtime Confidence Phase 1F is complete as live production runtime network evidence and CSP decision documentation. `https://continentalres.com` was inspected with read-only HTTP and headless Chrome route checks, recording only hostnames/categories and no headers containing secrets, cookies, authorization values, request payloads, env values, anon keys, or service-role values. Production response headers still allow legacy Supabase host `okwqhkrsjgxrhyisaovc.supabase.co` in CSP `connect-src`; the deployed JavaScript bundle also contains the legacy Supabase host; and modern staging host `voompccpkjfcsmehdoqu.supabase.co` was not observed in deployed CSP or deployed bundle evidence. Unauthenticated `/orders` route checks loaded the app/sign-in/session-checking surfaces but did not complete authenticated Dashboard, Orders, Assignments, Calendar, or Clients data loading. Google hostnames and Google Maps URL references were observed only as host/category evidence, with key-like query values intentionally excluded from docs. Decision: CSP cleanup is unsafe as a direct legacy-host removal right now; production Supabase target intent must be decided and verified before env/CSP changes. Recommended next slice is a production Supabase target decision plan, still with no Vercel changes, env var edits, CSP edits, Supabase changes, runtime code changes, deployment promotions, migrations, or production data changes.
+
+Production Hardening & Runtime Confidence Phase 1G is complete as a docs-only production Supabase target decision plan in `docs/PRODUCTION_HARDENING_RUNTIME_CONFIDENCE.md`. Local runtime config remains env-driven through `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`; `src/pages/Dashboard.jsx` still has a direct env-driven Supabase client initialization but no hardcoded alternate target; `.env.local` exists locally while no env example/template was found in the inspected repo depth; and Vercel evidence tracking remains limited to env variable names only. The decision record answers that `okwqhkrsjgxrhyisaovc` is strongly indicated as the current deployed production runtime target because production CSP and bundle evidence reference it, though authenticated API-call and Vercel env proof remain required; `voompccpkjfcsmehdoqu` remains modern staging/reference validation rather than automatic final production; and a separate clean final production Supabase project remains the preferred cutover direction unless explicitly rejected. The locked decision tree is: keep production on legacy temporarily, prepare migration to modern Supabase, create/identify separate production Supabase, or block until data/parity evidence is collected. Required pre-change evidence now includes Vercel env target classification, selected project approval, schema/data/auth/company/permission/storage/function/CORS parity, preview smoke, production smoke plan, and rollback procedure. CSP cleanup remains blocked until the selected runtime target is proven and the deployed bundle no longer requires the legacy host. No Vercel changes, env var edits, CSP edits, Supabase changes, deployments, migrations, runtime code changes, backend/query/workflow/permission changes, or production data changes were made.
+
+Supabase Environment Architecture & Migration Planning Phase 1A is complete as docs-only architecture and migration planning in `docs/SUPABASE_ENVIRONMENT_ARCHITECTURE_AND_MIGRATION_PLAN.md`. The plan inspects current Supabase config, active and archived migration structure, Edge Functions, local env assumptions, frontend Supabase client setup, Vercel CSP posture, and production hardening docs. It defines the target environment architecture for production, staging, local development, and preview deployments; records `okwqhkrsjgxrhyisaovc` as likely current deployed production/legacy archive source, `voompccpkjfcsmehdoqu` as modern staging/reference, and final production as TBD; and keeps the preferred direction as stable legacy production temporarily plus a separate clean final production Supabase project before cutover. It defines required evidence categories for schema parity, migration replay, RLS/grant parity, auth/user migration, storage buckets/files, Edge Functions, secrets, Realtime/subscription dependency review, seed/bootstrap data, production smoke tests, and rollback. It also locks safe decision paths: keep production on legacy temporarily, promote modern staging only after proof, create/identify separate clean production, or block until parity evidence is gathered. Recommended next slice is a Supabase target evidence matrix. No Supabase changes, Vercel changes, env var edits, CSP edits, deployments, migration executions, runtime code changes, backend/query/workflow/permission changes, or production data changes were made.
+
+Supabase Environment Architecture & Migration Planning Phase 1B is complete as a docs-only Supabase target evidence matrix in `docs/SUPABASE_ENVIRONMENT_ARCHITECTURE_AND_MIGRATION_PLAN.md`. The matrix covers legacy production/archive `okwqhkrsjgxrhyisaovc`, modern staging/reference `voompccpkjfcsmehdoqu`, local development, preview deployment, and future clean production. For each target, it records project ref, intended role, evidence source, schema head status, migration replay confidence, RLS/RPC confidence, auth/user parity, storage readiness, Edge Function readiness, secret-name readiness, CSP/env status, smoke-test status, rollback readiness, blocking gaps, and next evidence needed. The key conclusions are that production remains likely legacy-backed but still needs Vercel env and authenticated API proof; modern staging is confirmed as reference/staging only; local development is env-driven and must be checked per task; preview deployment behavior is unknown pending Vercel dashboard evidence; future clean production remains preferred but not identified/provisioned; and CSP cleanup plus `VITE_SUPABASE_URL` changes remain blocked. Recommended next slice is a schema head and migration replay evidence plan. No Supabase changes, Vercel changes, env var edits, CSP edits, deployments, migration executions, runtime code changes, backend/query/workflow/permission changes, or production data changes were made.
+
+Supabase Environment Architecture & Migration Planning Phase 1C is complete as docs-only schema head and migration replay evidence planning in `docs/SUPABASE_ENVIRONMENT_ARCHITECTURE_AND_MIGRATION_PLAN.md`, with supporting updates in `docs/PRODUCTION_MIGRATION_REPLAY_CHECKLIST.md`. The active migration chain is identified as 79 SQL migrations under `supabase/migrations`, starting with `20260518000000_baseline_extensions_and_schema.sql` and currently ending at `20260522090000_order_saved_views.sql`. The plan records that this is file-system evidence only and does not prove any Supabase project has applied the same head. It defines verification expectations for `supabase_migrations.schema_migrations`, archived migration exclusion, legacy schema dump comparison, local/disposable replay proof, production-safe read-only verification, replay blockers, and rollback/non-destructive proof. Legacy production is expected not to match the modern head and is disqualified as a direct retrofit target if modernization would require skipped migrations, weakened RLS, broadened grants, hand-edited current-company helpers, or adapted document security. The unresolved blocker remains the prior full local `supabase db reset` storage image pull failure. Recommended next slice is an auth, app-user, and company parity evidence plan. No Supabase changes, Vercel changes, env var edits, CSP edits, deployments, migration executions, database connections, runtime code changes, backend/query/workflow/permission changes, or production data changes were made.
+
+Supabase Environment Architecture & Migration Planning Phase 1D is complete as docs-only auth, app-user, and company parity evidence planning in `docs/SUPABASE_ENVIRONMENT_ARCHITECTURE_AND_MIGRATION_PLAN.md`, with supporting owner/bootstrap evidence gates added to `docs/PRODUCTION_BOOTSTRAP_PLAN.md`. The plan records the authority model that `auth.users.id` is authentication identity, `public.users.id` is Falcon's canonical app-user identity, `public.users.auth_id` bridges Auth to app users, `company_memberships` provides company membership state, `user_role_assignments` provides company-scoped role state, and permissions/RLS/security-definer RPCs remain runtime authority. It defines read-only and migration/cutover evidence for auth user presence, app-user mapping, owner/admin/appraiser/reviewer mappings, active company membership, active role assignments, owner invariant, permission catalog/template role readiness, active-company resolution, `rpc_current_user_app_context()`, `rpc_company_setup_context()`, invitation prepare/finalize/accept lifecycle, login/session smoke, and rollback/reconciliation. Cutover remains blocked if Auth-to-app-user mappings are missing, owner/admin lacks active membership, a company has zero active owners, role assignments are missing/inactive/expired, permission catalogs are incomplete, current-company resolution masks missing membership, invitation acceptance activates the wrong identity or role state, login/session smoke fails, or auth rollback is unproven. Recommended next slice is storage, Edge Function, CORS, and secret-name evidence planning. No Supabase changes, auth exports/imports, user data changes, Vercel changes, env var edits, CSP edits, deployments, migration executions, runtime code changes, backend/query/workflow/permission changes, or production data changes were made.
+
 Admin Onboarding Slice 1A plans the first governed admin/company onboarding and setup UX improvements in `docs/ADMIN_ONBOARDING_PLAN.md`. The plan defines goals for smoother first-owner setup, easier company/user onboarding, reduced manual configuration, clearer operational readiness, and safer permission/role setup. It reviews the current foundation of company-scoped memberships, Team Access, permissions, owner/admin hierarchy, invitation infrastructure, current company context, and onboarding/bootstrap docs. Candidate surfaces include a first-login owner checklist, company setup checklist, invite-team flow polish, missing configuration indicators, role/permission summaries, onboarding progress states, and operational readiness checks. The recommended first implementation is a lightweight owner/admin onboarding/readiness checklist with read-only indicators, no guided wizard, no multi-step setup flow, no setup automation, no permission redesign, and no mutation shortcuts that bypass RPC/Edge ownership. This slice is docs-only and adds no runtime behavior, backend change, permission/RLS change, route/UI change, invitation behavior change, onboarding automation, Supabase/Vercel/env change, or production data mutation.
 
 Admin Onboarding Slice 1B designs the first lightweight operational readiness/onboarding checklist in `docs/ADMIN_ONBOARDING_PLAN.md` before implementation. Candidate checks are owner account exists, company profile configured, at least one appraiser/reviewer/admin added, Team Access reachable, permission seeds verified, storage/document system configured, order workflow operational, dashboard metrics operational, Saved Views available, Historical Orders accessible, and Print Packet operational. Checks are categorized as read-only informational, warning/attention state, future automated validation, or future onboarding automation. The recommended MVP is a lightweight read-only checklist card with no blocking wizard, no automated enforcement, no hidden setup actions, no backend onboarding automation, and no permission changes. Governance requires the checklist to reflect actual governed system state only, avoid fake readiness assumptions, avoid hidden permission escalation, and produce no mutation side effects from viewing the checklist. Future extensions include onboarding completion percentage, guided setup flows, role-specific onboarding, client onboarding readiness, and AMC/vendor onboarding readiness. This slice is docs-only and adds no runtime behavior, backend change, onboarding automation, permission/RLS change, route/UI change, Supabase/Vercel/env change, or production data mutation.
@@ -2641,6 +2661,62 @@ None required unless adding UI for loading/removing sample data.
 
 Some phases can overlap in design, but implementation should avoid crossing phase boundaries in a single change unless the dependency is explicit and small.
 
+Supabase Environment Architecture & Migration Planning Phase 1E completed a docs-only storage,
+Edge Function, CORS, and secret-name evidence plan. The plan records the private `order-documents`
+bucket, document metadata/RPC authority, Edge-mediated signed upload/download functions, soft
+archive boundary, invite/resend and active-company function readiness, optional email worker/sender
+readiness, `verify_jwt` review, CORS/app-origin expectations, secret-name inventories, safe function
+log review, smoke requirements, failure modes, and rollback/reconciliation requirements. No
+Supabase, Vercel, env var, CSP, deployment, Edge Function, storage, migration, runtime code,
+backend/query/workflow/permission, or production data changes were made. The next recommended
+evidence slice is Supabase Environment Architecture & Migration Planning Phase 1F: Preview
+Deployment Target, CSP, And Smoke Evidence Plan.
+
+Supabase Environment Architecture & Migration Planning Phase 1F completed a docs-only preview
+deployment target, CSP, and smoke evidence plan. The plan defines preview deployments as the first
+hosted validation boundary before any production Supabase target, env var, CSP, deployment,
+storage, function, or cutover change. It requires preview target classification, preview URL/domain
+and commit evidence, preview `VITE_SUPABASE_URL` target by project ref only, preview CSP
+`connect-src` evidence, deployed preview bundle Supabase host evidence, unauthenticated app boot,
+authenticated login/session smoke, owner/admin current-company smoke, core operational route smoke,
+Team Access / Owner Setup smoke where safe, storage/function smoke where supported, browser
+console/CSP review, network host review for mixed legacy/modern calls, and no-promotion criteria.
+No Vercel, Supabase, env var, CSP, deployment, preview promotion, Edge Function, storage, migration,
+runtime code, backend/query/workflow/permission, or production data changes were made. The next
+recommended evidence slice is Supabase Environment Architecture & Migration Planning Phase 1G:
+Preview Deployment Evidence Capture.
+
+Supabase Environment Architecture & Migration Planning Phase 1G completed evidence-only preview
+deployment capture. Vercel CLI evidence shows project `chris-projects-e06c973e/project-falcon` has
+Preview deployments, with latest listed preview
+`https://project-falcon-n440jf7ix-chris-projects-e06c973e.vercel.app`, deployment id
+`dpl_3DHd33U5jGCWYwzZNr99JiTXwzDh`, target `preview`, Ready status, created timestamp
+`Mon Apr 13 2026 12:31:00 GMT-0400`, and branch-style alias
+`https://project-falcon-git-runtime-stabi-c53f53-chris-projects-e06c973e.vercel.app`. The
+classification is **preview evidence incomplete** because Vercel Authentication blocks unauthenticated
+access to the preview app shell, app CSP, static assets, deployed bundle, and runtime network calls;
+preview `VITE_SUPABASE_URL` remains unclassified; authenticated preview smoke was unavailable; and
+the newest listed preview deployment is 40 days old relative to the evidence capture. No Vercel
+settings, Supabase settings, env vars, CSP, deployments, preview promotions, migrations, runtime
+code, backend/query/workflow/permission behavior, or production data changed. The next recommended
+evidence slice is Supabase Environment Architecture & Migration Planning Phase 1H: Current Preview
+Access And Target Classification.
+
+Supabase Environment Architecture & Migration Planning Phase 1H completed the docs-only current
+preview access and target-classification plan. Preview remains blocked as the hosted validation
+boundary until Falcon can prove a current preview for the intended `main` commit or candidate
+branch, record deployment id/commit SHA/branch/created time/target/status, determine Vercel
+Authentication status, choose an approved inspection path, classify preview `VITE_SUPABASE_URL` by
+Supabase project ref only, and capture preview CSP, deployed bundle host, browser console, and
+mixed-host network evidence before smoke. Allowed access paths are an approved authenticated
+browser session, a safe Vercel-provided preview access path if explicitly approved, or dashboard /
+deployment evidence where app-shell access is unavailable. Preview protection changes, env var
+edits, CSP edits, deployments, preview promotions, Supabase changes, migrations, runtime code
+changes, backend/query/workflow/permission changes, production data changes, and secret recording
+remain disallowed. The classification remains **preview evidence incomplete**. The next recommended
+evidence slice is Supabase Environment Architecture & Migration Planning Phase 1I: Current Preview
+Access And Target Classification Evidence Capture.
+
 Falcon Role-Centric Operational Shell Architecture Phase 1A completed docs-first role-centric
 operational shell architecture in `docs/FALCON_ROLE_CENTRIC_OPERATIONAL_SHELL_ARCHITECTURE.md`.
 The plan defines Falcon as one governed platform with multiple role-native operational shells:
@@ -3266,6 +3342,22 @@ backend/Supabase/query/workflow behavior, shell switching, Client Portal behavio
 production data. The next recommended role-centric slice is Falcon Role-Centric Operational Shell
 Architecture Phase R8E: Command Palette Copy And Alias Readiness Plan.
 
+Falcon Mobile, Native, And Communication Automation Strategy is locked as long-term planning
+documentation in `docs/FALCON_MOBILE_NATIVE_AND_COMMUNICATION_AUTOMATION_STRATEGY.md`. The addendum
+keeps Falcon web-first for MVP, requires active development to remain mobile-safe, treats PWA as
+the likely intermediate path, and keeps native applications future/post-MVP while preserving
+architecture compatibility through governed API/RPC-first contracts and UI/business-logic
+separation. It records Desktop as Mission Control and Mobile as Operational Execution, with future
+role-native mobile surfaces for appraiser assigned work, reviewer review queues, assignment/vendor
+received work, owner/admin exception triage, and client-safe request/status/document/report
+surfaces. It also records future communication automation doctrine: smart reminder suppression when
+work is current, owner/admin-configurable timing/escalation/recipients/templates/exclusions,
+editable email templates with approved placeholders, role-aware quick status confirmations, and
+automation that remains permission-governed, auditable, logged, rate-limited, and non-spammy. No
+runtime code, routes, shells, permissions, backend/Supabase/Vercel behavior, env vars, CSP,
+workflow behavior, email automation, PWA/native implementation, notification delivery, or
+production data changed.
+
 Operational Execution Phase 1A is complete as documentation in
 `docs/OPERATIONAL_EXECUTION_IMPROVEMENT_PLAN.md`. The audit shifts Falcon from role-shell
 architecture into daily workflow execution after the shell resolver, passive shell metadata,
@@ -3403,6 +3495,24 @@ behavior, route behavior, navigation, command palette, DashboardGate behavior, d
 automation, notifications, mobile/PWA/native implementation, shell switching, Client Portal
 behavior, branding, or production data changed. The next safest slice is an Activity Freshness
 Evidence Audit before richer stale/update signals or any query/workflow/automation work.
+
+Falcon MVP Stop-Line Definition is now documented in `docs/FALCON_MVP_STOP_LINE.md`. The stop-line
+defines MVP ready as the point where a small internal operations team can run the core
+appraisal/order workflow in production with governed access, coherent owner/admin, appraiser,
+reviewer, and assignment-recipient work surfaces, private document handling, operational attention
+context, and minimum production readiness evidence. The central rule is that Falcon should not add
+a new feature class before MVP unless it fixes a verified blocker. Required pre-MVP capabilities
+cover platform access, Orders and daily work, documents/files, review/revision context,
+assignment/received-work isolation, role-aware shell/navigation, and production environment
+readiness. The explicit post-MVP backlog includes Client Portal, native apps, full PWA
+implementation, communication automation, AI features, advanced analytics/reporting, shell
+switching, required-document enforcement, exports, billing, and public integrations. The roadmap
+posture is now to classify remaining work as MVP blocker fix, MVP hardening, MVP smoke-test
+repair, MVP launch support, or post-MVP backlog. This is docs-only and makes no runtime,
+backend/Supabase/query/RPC/workflow/RLS, Smart Action, lifecycle, permission, route, navigation,
+command palette, DashboardGate, dashboard data, automation, notification, mobile/PWA/native,
+Client Portal, branding, or production data change.
+
 Operational Execution Phase 2A is complete as docs-first Operational Status Input Architecture in
 `docs/OPERATIONAL_STATUS_INPUT_ARCHITECTURE.md`. The architecture defines explicit human
 operational inputs as non-authoritative, auditable, time-sensitive context that remains separate
@@ -3531,3 +3641,294 @@ changes, mobile/PWA/native work, Client Portal behavior, automation, notificatio
 branding, or production data changes. Pause before signal suppression integration, mobile quick
 actions, dashboard/table controls, notification behavior, automation, or new operational input
 types.
+
+Falcon v1 Operational Completion Strategy is locked in
+`docs/FALCON_V1_OPERATIONAL_COMPLETION_STRATEGY.md`. Falcon v1 is now defined as the Internal Staff
+Appraiser Platform for Continental's daily appraisal operations, focused on staff appraisers,
+reviewers, owners/admins, internal order operations, assignment/review/revision/completion, and
+operational clarity/confidence. v2+ deferred scope includes AMC workflow expansion, external vendor
+panel expansion, Client Portal, advanced automation, automated email systems, advanced
+notifications, marketplace/multi-tenant commercialization, and AI appraisal writing/orchestration.
+The roadmap now uses the anti-scope-creep rule that every v1 feature must help complete the
+internal operational loop or be deferred unless it fixes a verified MVP blocker. Completion phases
+are Brand / Shell / Layout Lock, Role-Tailored Operational Surfaces, CRUD / Workflow Completion,
+Operational Confidence Pass, and MVP Freeze / Internal Rollout. This is docs-only and makes no
+frontend, backend, schema, Supabase migration, UI, navigation, automation, notification,
+workflow/lifecycle, AMC feature, Client Portal, mobile/native, AI, branding runtime, or production
+data change.
+
+Falcon v1 Phase A1 is complete as docs-only Brand / Shell / Layout Audit in
+`docs/FALCON_V1_BRAND_SHELL_LAYOUT_AUDIT.md`. The audit evaluates current top nav hierarchy, shell
+structure, workspace containment, surface layering, border/shadow/elevation consistency, spacing,
+operational framing, active-state visibility, visual anchors, section separation, role-aware
+hierarchy, and dashboard/workspace density balance. It records the main v1 presentation problems:
+white-on-white blending, weak section containment, insufficient contrast hierarchy, flat
+operational presentation, stretched/cluttered nav, management/admin surfaces visually competing
+with operational workflow, and insufficient workstation-style framing. The next recommended v1
+presentation phases are A2 Shell / Nav Refactor, A3 Surface / Elevation System, A4 Operational
+Environment Identity System, and Phase B Role-Tailored Operational Surfaces. This is
+analysis/planning only and makes no frontend,
+backend, CSS, component, schema, Supabase migration, workflow, navigation, automation,
+notification, AMC, Client Portal, mobile/native, AI, branding runtime, or production data change.
+
+Falcon v1 Phase A2 is complete as docs-only Shell / Navigation Refactor Planning in
+`docs/FALCON_V1_SHELL_NAV_REFACTOR_PLAN.md`. The plan defines the shell as an operational
+environment rather than a page collection, separates daily operational lanes from
+management/support surfaces, and sets role-aware expectations for Appraiser `My Work`, Reviewer
+`Review Queue`, and Owner/Admin `Operations Command`. It recommends operational, management,
+support/setup, and future/deferred nav groups; stronger active workspace treatment; clearer
+workspace shell containment; desktop command-shell hierarchy; and mobile task-first continuity. The
+suggested implementation path is A2.1 Nav Hierarchy Implementation, A2.2 Shell Framing / Elevation
+Implementation, A2.3 Role-Aware Shell Polish, and A2.4 Workspace Header / Context Pass. This is
+planning only and makes no runtime, CSS, route, permission, backend, Supabase, workflow, dashboard
+data, AMC, Client Portal, automation, notification, mobile/native, AI, branding runtime, or
+production data change.
+
+Falcon v1 Phase A2.1 is complete as the first runtime Shell / Navigation Hierarchy
+Implementation. `src/components/shell/TopNav.jsx` now presents stronger desktop navigation group
+containment, operational group emphasis, quieter management/support group treatment, stronger
+active lane styling, horizontal overflow protection, and stronger top-shell/utility containment.
+`src/layout/Layout.jsx` now frames routed pages inside a subtle operational workstation shell with
+a calmer slate environment. The implementation keeps all nav links sourced from already-visible
+permission-filtered links, preserves mobile nav ordering/behavior, and changes no route paths,
+route guards, permissions, command palette behavior, dashboard data, workflow/lifecycle behavior,
+Smart Actions, backend, Supabase, schema, automation, notifications, AMC scope, Client Portal,
+mobile/native behavior, AI, branding runtime authority, or production data.
+
+Falcon v1 Phase A3 is complete as docs-only Surface / Elevation System Planning in
+`docs/FALCON_V1_SURFACE_ELEVATION_SYSTEM_PLAN.md`. The plan defines repeatable surface, border,
+shadow, contrast, and depth recipes before broad workspace polish, including tiers for app
+background, workspace shell, primary operational panels, secondary context panels, action/decision
+surfaces, read-only evidence, high-priority states, and table/list surfaces. It records border,
+shadow/elevation, contrast, operational panel, and table/list density guidance, then recommends
+A3.1 shared surface recipes/helpers, A3.2 Orders workspace surface pass, A3.3 Dashboard/Operations
+Command surface pass, A3.4 Order Detail surface pass, and A3.5 surface/elevation QA review before
+Phase B Role-Tailored Operational Surfaces. This is planning only and makes no runtime, CSS,
+component, route, permission, workflow, dashboard data, backend, Supabase, schema, AMC, Client
+Portal, automation, notification, mobile/native, AI, or production data change.
+
+Falcon v1 Phase A3.1 is complete as the smallest shared Surface / Elevation Recipe Foundation.
+`src/components/workspace/WorkspaceSurface.jsx` adds passive recipe helpers for primary
+operational panels, secondary context panels, action/decision surfaces, evidence/read-only
+surfaces, high-priority states, and table/list surfaces, plus `WorkspaceSurface` for future
+opt-in presentational wrappers. Dashboard, Orders, and Order Detail surfaces were intentionally
+not migrated in A3.1; those remain separate A3.2, A3.3, and A3.4 workspace passes. No route,
+permission, workflow/lifecycle, dashboard data, backend, Supabase, schema, automation,
+notification, AMC, Client Portal, mobile/native, AI, or production data behavior changed.
+
+Falcon v1 Phase A3.5 is complete as docs-only Surface / Elevation QA Review in
+`docs/FALCON_V1_SURFACE_ELEVATION_QA_REVIEW.md`. After A3.1 shared recipes, A3.2 Orders surface
+pass, A3.3 Dashboard / Operations Command surface pass, and A3.4 Order Detail surface pass, the
+review defines a cross-page consistency checklist for Dashboard, Orders, and Order Detail covering
+app background, shell, workspace frames, primary and secondary panels, action/decision surfaces,
+read-only evidence, table/list containment, borders, shadows, density, spacing, and active
+work-mode/header relationships. The stop condition is to freeze Phase A3 and move to Phase B:
+Role-Tailored Operational Surfaces if the reviewed surfaces are consistent enough, or run one small
+A3.6 visual correction pass only if needed. This is docs-only and makes no route, permission,
+workflow/lifecycle, dashboard data, backend, Supabase, schema, automation, notification, AMC,
+Client Portal, mobile/native, AI, or production data behavior change.
+
+Falcon v1 Phase A4 is complete as docs-only Operational Environment Identity System planning in
+`docs/FALCON_V1_OPERATIONAL_ENVIRONMENT_IDENTITY_SYSTEM.md`. A4 defines Falcon's shared operational
+atmosphere after A2 shell/navigation work and A3 surface/elevation work: Executive Operational
+Command Console identity, environment-not-page philosophy, operational spine, tonal hierarchy,
+contrast/depth rules, signature structural elements, typography/density philosophy, page
+consistency rules for Dashboard / Operations Command, Orders Workspace, Order Detail, future My
+Work, and future Review Queue, and an implementation roadmap for A4.1 through A4.5. This is
+docs-only and makes no runtime code, CSS, component, route, permission, workflow, data, dashboard
+data, backend, Supabase, schema, AMC, Client Portal, automation, notification, mobile-native, AI UI,
+or production data behavior change.
+
+Falcon v1 Phase A4.1 is complete as the controlled runtime Operational Environment Identity
+experiment. `src/layout/Layout.jsx` now gives Falcon a deeper slate app environment and stronger
+workspace perimeter; `src/components/shell/TopNav.jsx` now reads as the operational spine with a
+deeper structural anchor, darker grouped navigation, stronger active lane treatment, and grounded
+utility controls; and `src/components/workspace/WorkspaceSurface.jsx` tunes shared primary,
+secondary, action, evidence, priority, and table/list recipes for stronger tonal separation. The
+experiment intentionally leaves Dashboard, Orders, and Order Detail page logic and structure
+untouched beyond inherited shared shell/surface treatment. No route paths, route guards,
+permission checks, visible-link filtering, shell profile resolution, command palette behavior,
+dashboard data, Orders data/filter/table behavior, Order Detail data, workflow/lifecycle behavior,
+Smart Actions, backend, Supabase, schema, automation, notification, AMC, Client Portal,
+mobile-native, AI UI, or production data behavior changed.
+
+Falcon v1 Phase A4.2 is complete as docs-only Operational Spine Composition Planning in
+`docs/FALCON_V1_OPERATIONAL_SPINE_COMPOSITION_PLAN.md`. The plan defines Falcon's next shell
+information architecture before runtime implementation: left rail as primary operational movement,
+top bar as compact utility/context, and center workspace as active work. It proposes primary
+operational lanes for Dashboard / Operations, Orders, My Work, Review Queue, and Calendar;
+secondary management/support grouping for Clients, Assignments, Team, Reports, Settings, and
+admin/support utilities; search as compact utility rather than shell-dominant element; desktop and
+mobile responsive philosophy; collapsed rail guardrails; Falcon shell identity direction; and an
+A4.2.1 through A4.2.5 runtime roadmap. This is planning only and makes no runtime code, route
+removal, permission, workflow, data/query, dashboard data, backend, Supabase, schema, AMC, Client
+Portal, automation, AI, mobile-native, or production data behavior change.
+
+Falcon v1 Phase A4.2.1 is complete as the first Operational Spine runtime experiment.
+`src/components/shell/TopNav.jsx` now renders a persistent desktop left operational rail sourced
+from existing visible permission-filtered navigation links and shell grouping metadata, adds the
+existing Dashboard / Operations route to the rail, and moves the desktop top bar toward compact
+utility/context only. `src/layout/Layout.jsx` offsets the workstation frame and footer beside the
+persistent rail. `src/components/shell/__tests__/TopNav.test.jsx` now verifies rail ordering,
+grouping, active styling, utility top-bar separation, permission filtering, existing paths, and
+mobile menu behavior. No route removals, route guard changes, permission changes, visible-link
+filtering changes, workflow/lifecycle changes, dashboard data changes, Orders data/filter/table
+changes, Order Detail data changes, backend changes, Supabase changes, schema changes, automation,
+notification, AMC, Client Portal, mobile-native, AI UI, or production data behavior changed.
+
+Falcon v1 Phase A4.2.1a is complete as a focused utility-bar weight reduction and shell hierarchy
+refinement pass. `src/components/shell/TopNav.jsx` keeps the operational spine structure intact
+while quieting the desktop top utility layer, reducing header shadow/border dominance, compressing
+the command/search/profile cluster, and removing excess boxed utility chrome. The left rail remains
+the darkest structural operational anchor, the top bar reads as utility/context, and the center
+workspace remains active work. No route paths, route guards, permission checks, visible-link
+filtering, workflow/lifecycle behavior, dashboard data, Orders data/filter/table behavior, Order
+Detail data, backend, Supabase, schema, automation, notification, AMC, Client Portal,
+mobile-native, AI UI, or production data behavior changed.
+
+Falcon v1 Phase A4.2.1b is complete as a stronger top utility secondary-hierarchy correction.
+`src/components/shell/TopNav.jsx` now removes the desktop top-left work-mode block, makes the
+desktop header transparent and shadowless, and keeps command/search, notifications, and profile
+inside a compact right-side utility island. The left rail remains the primary dark operational
+anchor and the top area no longer reads as a competing full-width dark nav bar on desktop.
+`src/components/shell/__tests__/TopNav.test.jsx` confirms the top bar still has no primary route
+inventory. No route paths, route guards, permission checks, visible-link filtering,
+workflow/lifecycle behavior, dashboard data, Orders data/filter/table behavior, Order Detail data,
+backend, Supabase, schema, automation, notification, AMC, Client Portal, mobile-native, AI UI, or
+production data behavior changed.
+
+Falcon v1 Phase A4.2.2 is complete as the shell wordmark brand-anchor integration.
+`src/components/shell/TopNav.jsx` now imports `src/assets/branding/falcon-wordmark-transparent.png`
+and uses it as the global brand anchor in the left operational rail, replacing the plain
+`Falcon Operations` text/F-mark block. Work-mode labels such as `Operations Command` remain in the
+current-mode rail card as operational context, not duplicate branding. The compact right-side
+utility island remains unchanged in function and no top-nav route duplication was reintroduced.
+`src/components/shell/__tests__/TopNav.test.jsx` verifies the wordmark renders and the redundant
+text brand is absent. No route paths, route guards, permission checks, visible-link filtering,
+workflow/lifecycle behavior, dashboard data, Orders data/filter/table behavior, Order Detail data,
+backend, Supabase, schema, automation, notification, AMC, Client Portal, mobile-native, AI UI, or
+production data behavior changed.
+
+Falcon v1 Logo Implementation Strategy is complete as docs-only brand asset planning in
+`docs/FALCON_V1_LOGO_IMPLEMENTATION_STRATEGY.md`. The strategy defines required dark-shell
+wordmark, light-surface wordmark, mark-only, and app-icon derivative variants; placement rules for
+left rail, top utility, mobile, and collapsed shell contexts; accessibility and alt-text
+expectations; and naming conventions for governed logo assets. This is docs-only and makes no
+runtime code, CSS, component, route, permission, workflow, data/query, backend, Supabase, schema,
+AMC, Client Portal, automation, AI UI, mobile-native, or production data behavior change.
+
+Falcon v1 Logo Implementation Strategy Revision is complete as docs-only placement doctrine. The
+updated doctrine makes the top-left utility/context zone the home for the full `FALCON` wordmark,
+places work-mode/platform selector context near that wordmark, reserves the left operational rail
+for mark-only spine identity, keeps the top-right as utility controls only, avoids duplicate full
+wordmarks, and preserves the top bar as utility/context rather than route navigation. This is
+docs-only and makes no runtime code, CSS, component, route, permission, workflow, data/query,
+backend, Supabase, schema, AMC, Client Portal, automation, AI UI, mobile-native, or production data
+behavior change.
+
+Falcon v1 Phase A4.2.3 is complete as the runtime wordmark and operational mode shell integration.
+`src/components/shell/TopNav.jsx` now places the full Falcon wordmark in the top-left
+utility/context zone, moves `Operations Command` mode context beside it under the
+`Staff Appraiser Operations` platform label, converts the left operational rail to a compact
+mark-only identity stamp, and keeps the top-right as command/search, notification, and profile
+utilities only. `src/components/shell/__tests__/TopNav.test.jsx` confirms a single full wordmark,
+the mark/wordmark dashboard anchors, and the mode context contract. No route paths, route guards,
+permission checks, visible-link filtering, workflow/lifecycle behavior, dashboard data, Orders
+data/filter/table behavior, Order Detail data, backend, Supabase, schema, automation,
+notification, AMC, Client Portal, mobile-native, AI UI, or production data behavior changed.
+
+Falcon v1 Phase A4.2.3b is complete as a shell brand/context composition correction.
+`src/components/shell/TopNav.jsx` now places `Staff Appraiser Operations` and
+`Operations Command` at the top of the left rail, removes the standalone mark-only `F`, removes
+the transitional `Spine / Internal Ops` copy, keeps the single full Falcon wordmark in the top
+shell immediately right of the rail, and leaves the top-right as utility-only command/search,
+notification, and profile controls. No top route navigation was reintroduced and no duplicate full
+wordmark was added. No route paths, route guards, permission checks, visible-link filtering,
+workflow/lifecycle behavior, dashboard data, Orders data/filter/table behavior, Order Detail data,
+backend, Supabase, schema, automation, notification, AMC, Client Portal, mobile-native, AI UI, or
+production data behavior changed.
+
+Falcon v1 Phase A4.2.3d is complete as a tiny environmental depth pass on the left operational
+rail. `src/components/shell/TopNav.jsx` replaces the rail's flat dark slab with a restrained dark
+tonal background that adds subtle top-left atmospheric softening and vertical near-black depth while
+preserving the rail's premium operational anchor role. Navigation structure, spacing, active
+states, top wordmark placement, and the top-right utility cluster remain unchanged. No route paths,
+route guards, permission checks, visible-link filtering, workflow/lifecycle behavior, dashboard
+data, Orders data/filter/table behavior, Order Detail data, backend, Supabase, schema, automation,
+notification, AMC, Client Portal, mobile-native, AI UI, or production data behavior changed.
+
+Falcon v1 Phase A4.2.3e is complete as a left rail gradient direction refinement.
+`src/components/shell/TopNav.jsx` now makes the top of the left rail the darkest/deepest point and
+lets the rail become subtly softer and slightly lighter downward. The depth treatment is more
+noticeable than A4.2.3d but remains restrained, non-decorative, and aligned with the executive
+operational console direction. Navigation structure, spacing, active states, top wordmark
+placement, and the top-right utility cluster remain unchanged. No route paths, route guards,
+permission checks, visible-link filtering, workflow/lifecycle behavior, dashboard data, Orders
+data/filter/table behavior, Order Detail data, backend, Supabase, schema, automation,
+notification, AMC, Client Portal, mobile-native, AI UI, or production data behavior changed.
+
+Falcon v1 Login Environment Branding Plan is complete as docs-only auth-entry visual planning in
+`docs/FALCON_V1_LOGIN_ENVIRONMENT_BRANDING_PLAN.md`. The plan defines the login screen as the entry
+point into Falcon's Executive Operational Command Console identity: a simple cinematic dark/slate
+environment, Falcon wordmark as platform identity, Continental or future tenant logo as workspace
+identity, centered auth card, clear `Sign in to Falcon` title, and quiet footer treatment. It
+separates Falcon platform branding from tenant/company branding, recommends use of
+`src/assets/branding/falcon-wordmark-dark-shell.png` plus the existing tenant logo asset, and
+sequences Login A1 visual shell/background, Login A2 brand hierarchy, Login A3 responsive polish,
+and Login A4 auth-state/error/loading QA. This is docs-only and makes no runtime code, auth logic,
+Supabase, route, permission, workflow, data/query, backend/schema, tenant-switching, signup-flow,
+AMC, Client Portal, automation, AI UI, or production data change.
+
+Falcon Login A1 is complete as the first auth environment runtime pass. `src/pages/auth/Login.jsx`
+now replaces the generic light auth background with a restrained dark/slate operational environment,
+adds the Falcon dark-shell wordmark as the platform/environment anchor, keeps the centered auth card,
+and preserves the Continental logo inside the card as tenant/workspace identity. The Supabase Auth
+UI component configuration, providers, session redirect, return-path handling, routes,
+permissions, workflow behavior, data/query behavior, backend/schema behavior, tenant switching,
+signup-flow logic, AMC, Client Portal, automation, AI UI, and production data behavior remain
+unchanged.
+
+Falcon v1 Phase B1 is complete as docs-only My Work Surface Strategy planning in
+`docs/FALCON_V1_MY_WORK_SURFACE_STRATEGY.md`. The strategy defines My Work as the staff
+appraiser's task-first daily execution surface answering "What do I need to do today?" It covers
+appraiser mental model, priority work, due soon, revisions required, upcoming inspections,
+operational inputs/context, workload overview, secondary recently-completed/passive-reference
+zones, priority visual hierarchy, operational context integration, action philosophy, visual
+philosophy, shell relationship, future hooks, and B1.1 through B1.5 implementation sequencing. This
+is planning only and makes no runtime implementation, workflow logic, permission, backend/schema,
+Supabase, AMC implementation, AI workflow, notification system, route, data/query, or production
+data change.
+
+Falcon v1 Phase B1.1 is complete as the first My Work layout/runtime foundation. The existing
+dashboard-fed `AppraiserWorkbenchPreview` now presents an appraiser-native daily workstation using
+only the assigned order rows already provided to the dashboard surface. It groups those rows into
+Priority Work, Due Soon / Overdue, Revisions Required, Upcoming Inspections, Waiting / Blocked
+Context, and Lower-Priority Work, with existing order-detail links where row ids are present. The
+pass remains presentation-only: no new route, dashboard query, permission rule, workflow action,
+Smart Action behavior, backend/schema/Supabase behavior, automation, notification, AI, AMC, Client
+Portal, or production data behavior was added or changed.
+
+Falcon v1 Phase B1.2 is complete as docs-only dedicated My Work route/surface planning in
+`docs/FALCON_V1_MY_WORK_ROUTE_SURFACE_PLAN.md`. The plan records the current B1.1 dashboard-fed
+preview state, defines the required v1 behavior for a standalone staff appraiser execution
+surface, keeps the data strategy limited to existing governed assigned order rows, and separates
+`My Work` from `Dashboard / Operations` as appraiser daily execution rather than owner/admin
+operational overview. It also defines route/nav expectations, appraiser-first layout requirements,
+and implementation phases B1.2.1 route/page foundation, B1.2.2 priority grouping expansion,
+B1.2.3 context integration, and B1.2.4 appraiser QA. This is planning only and makes no runtime
+route/page, navigation, route guard, permission, workflow/action, Smart Action, data/query,
+backend/schema/Supabase, AMC, Client Portal, automation, notification, AI, or production data
+change.
+
+Falcon v1 Phase B1.2.1 is complete as the first dedicated My Work route/page foundation.
+`src/features/dashboard/MyWorkPage.jsx` adds a staff appraiser execution page at `/my-work`, using
+the existing `useDashboardSummary()` governed row source and the B1.1 My Work grouping/presentation.
+`src/routes/index.jsx` registers the route behind the existing order-read permission gate, and
+`src/components/shell/TopNav.jsx` exposes the My Work rail/mobile link only for the resolved
+`my_work` shell profile when existing order-read permission is present. The dashboard-fed My Work
+presence is now a compact summary/entry point so Dashboard / Operations does not duplicate the full
+dedicated My Work surface. Non-appraiser direct route contexts do not present broad visible rows as
+staff appraiser work. No backend endpoint, RPC, schema/view/policy, permission seed, workflow
+action, Smart Action behavior, dashboard query authority, order data authority, operational input
+query, file readiness query, review feedback query, activity query, automation, notification, AI,
+AMC, Client Portal, or production data behavior was added or changed.

@@ -849,6 +849,430 @@ Phase 1C added no backend behavior, Supabase behavior, query behavior, workflow/
 permission behavior, feature expansion, global redesign, animation library integration, Tailwind
 theme rewrite, heavy motion, playful animation, or broad component-system rewrite.
 
+### Completed Production Hardening And Runtime Confidence Phase 1A
+
+Production Hardening and Runtime Confidence Phase 1A is complete as docs-only production hardening
+inventory and sequencing in `docs/PRODUCTION_HARDENING_RUNTIME_CONFIDENCE.md`.
+
+The plan consolidates the existing production readiness and verification record after the workspace,
+design-system, and interaction/motion checkpoints. It records known-good evidence, known risks, and
+ordered verification categories before any deployed setting changes.
+
+Confirmed evidence recorded:
+
+- modern staging Supabase project ref remains `voompccpkjfcsmehdoqu`;
+- legacy hosted Supabase project ref remains `okwqhkrsjgxrhyisaovc`;
+- previous local runtime verification resolved the served Vite app to modern staging;
+- previous local browser network verification found no runtime calls to the legacy hosted project;
+- active Supabase client configuration is environment-driven through Vite env vars;
+- recent operational/design/motion checkpoints are tagged.
+
+Known risks recorded:
+
+- `vercel.json` CSP `connect-src` still references the legacy hosted Supabase project;
+- Vercel dashboard project/deployment/env/domain/header evidence is not captured yet;
+- final production Supabase project remains TBD;
+- full migration replay confidence remains blocked by the local Supabase storage image issue;
+- authenticated deployed runtime smoke and Edge Function/storage/CORS smoke remain incomplete;
+- monitoring and rollback operating procedures remain planning items.
+
+The hardening categories are Vercel linkage/config, Supabase environment parity, CSP/security
+headers, migration replay/bootstrap, storage/Edge Functions/CORS, smoke testing, role/permission
+visibility, runtime diagnostics, mobile/responsive production checks, build warning cleanup,
+monitoring/instrumentation planning, and rollback/recovery.
+
+Recommended next slice:
+
+- Production Hardening and Runtime Confidence Phase 1B: Vercel dashboard evidence capture.
+
+Phase 1B should inspect and record safe evidence only: project/deployment/domain/env-var names,
+Supabase target classification, deployed CSP/header behavior, and rollback history availability. It
+must not change env vars, CSP, domains, deployments, Supabase settings, Edge Functions, runtime
+code, migrations, or production data.
+
+### Completed Production Hardening And Runtime Confidence Phase 1B
+
+Production Hardening and Runtime Confidence Phase 1B is complete as local metadata and read-only
+Vercel CLI evidence capture in `docs/PRODUCTION_HARDENING_RUNTIME_CONFIDENCE.md`.
+
+Confirmed local evidence:
+
+- Vercel CLI version is `47.0.6`;
+- no repo-local `.vercel` project-link metadata exists;
+- no user-level `/Users/christopherrossi/.vercel` directory was present;
+- `vercel env ls` could not run because the codebase is not linked to a Vercel project;
+- Git remote is `https://github.com/Chrisrossi92/project-falcon.git`;
+- current local commit is `a0508b3115a41138bbee0e90463c5360e0f64a73`;
+- local framework/build assumption is Vite React with `vite build` and default `dist` output;
+- repo `vercel.json` contains the SPA rewrite and security headers;
+- repo CSP still references the legacy hosted Supabase project in `connect-src`.
+
+Unresolved dashboard evidence:
+
+- Vercel project name/link;
+- connected GitHub repo/branch;
+- production deployment commit/tag;
+- production and preview domains;
+- production and preview env var names;
+- production and preview Supabase target classification;
+- deployment protection/settings;
+- deployed custom headers/CSP behavior;
+- rollback/deployment history availability.
+
+Recommended next slice:
+
+- Production Hardening and Runtime Confidence Phase 1C: manual Vercel dashboard evidence
+  completion.
+
+Phase 1C should fill the unresolved evidence table directly from the Vercel dashboard or an
+explicitly authorized read-only Vercel tool. It must still make no Vercel changes, env var edits,
+CSP edits, Supabase changes, runtime code changes, deployment promotions, migrations, or
+production data changes.
+
+### Completed Production Hardening And Runtime Confidence Phase 1C
+
+Production Hardening and Runtime Confidence Phase 1C is complete as a manual Vercel dashboard
+evidence-capture attempt with an access blocker, documented in
+`docs/PRODUCTION_HARDENING_RUNTIME_CONFIDENCE.md`.
+
+Dashboard evidence was not completed because:
+
+- the workspace still has no repo-local `.vercel` project-link metadata;
+- local CLI evidence remains insufficient for dashboard-only proof;
+- the `agent-browser` command is not installed in the current agent session;
+- no authenticated Vercel dashboard session or read-only dashboard connector was available.
+
+No new Vercel dashboard facts were captured. These items remain unresolved:
+
+- project name;
+- connected GitHub repository;
+- production branch;
+- latest production deployment commit SHA;
+- latest production deployment date/time;
+- production domain(s);
+- preview/deployment domain behavior;
+- framework preset;
+- build command;
+- output directory;
+- install command customization;
+- Node/runtime version;
+- production env var names;
+- preview/development env var names;
+- deployment protection/auth settings;
+- rollback/deployment history availability.
+
+The known local risk remains unchanged: `vercel.json` still references legacy Supabase project
+`okwqhkrsjgxrhyisaovc` in CSP `connect-src`.
+
+Recommended next slice:
+
+- Production Hardening and Runtime Confidence Phase 1D: Vercel dashboard evidence handoff.
+
+Phase 1D should fill the unresolved evidence table from a human dashboard review or an explicitly
+authorized read-only Vercel tool. It must still make no Vercel changes, env var edits, CSP edits,
+Supabase changes, runtime code changes, deployment promotions, build setting changes, domain
+changes, migrations, or production data changes.
+
+### Completed Production Hardening And Runtime Confidence Phase 1D
+
+Production Hardening and Runtime Confidence Phase 1D is complete as a user-executable manual Vercel
+evidence handoff checklist in `docs/VERCEL_MANUAL_EVIDENCE_CHECKLIST.md`.
+
+The checklist tells Chris exactly where to inspect in Vercel:
+
+- Project Overview;
+- Git settings;
+- Domains;
+- Environment Variables;
+- Build & Development Settings;
+- Deployment history;
+- latest production deployment details;
+- Protection / Security settings;
+- deployed headers and CSP evidence.
+
+It provides paste-back tables for:
+
+- Vercel project name;
+- connected repository;
+- production branch;
+- latest production deployment SHA and date/time;
+- production domains;
+- preview/deployment domain behavior;
+- framework preset;
+- build command;
+- output directory;
+- install command customization;
+- Node/runtime version;
+- production env var names only;
+- preview/development env var names only;
+- deployment protection/auth settings;
+- deployed header/CSP observations;
+- rollback/deployment history availability.
+
+Strict evidence rules remain locked: do not reveal env values, anon keys, service-role keys, or
+screenshots containing secrets; do not change settings; do not redeploy; do not link the local repo
+yet; and do not edit CSP, env vars, Supabase settings, domains, branches, build settings, or
+deployment settings.
+
+Recommended next slice:
+
+- Production Hardening and Runtime Confidence Phase 1E: Vercel evidence review and CSP decision
+  plan after Chris pastes back the completed safe evidence summary.
+
+### Completed Production Hardening And Runtime Confidence Phase 1F
+
+Production Hardening and Runtime Confidence Phase 1F is complete as live production runtime network
+evidence and CSP decision documentation in `docs/PRODUCTION_HARDENING_RUNTIME_CONFIDENCE.md`.
+
+Evidence captured:
+
+- `https://continentalres.com` app shell and `/orders` route were inspected with read-only HTTP and
+  headless Chrome route checks;
+- production response headers still allow legacy Supabase host
+  `okwqhkrsjgxrhyisaovc.supabase.co` in CSP `connect-src`;
+- deployed JavaScript bundle contains the same legacy Supabase host;
+- modern staging host `voompccpkjfcsmehdoqu.supabase.co` was not observed in deployed CSP or
+  deployed bundle evidence;
+- unauthenticated route checks reached sign-in/session-checking surfaces but did not complete
+  authenticated route data loading;
+- Google hostnames and Google Maps URL references were observed only as host/category evidence, and
+  key-like query values were not recorded in docs.
+
+Decision:
+
+- CSP cleanup is unsafe as a direct removal of the legacy Supabase host right now.
+
+Reason:
+
+- deployed production still references/allows the legacy Supabase project;
+- authenticated modern-target runtime calls were not observed;
+- removing the legacy host from CSP before production env/runtime target correction could break the
+  current deployed app.
+
+Recommended next slice:
+
+- Production Hardening and Runtime Confidence Phase 1G: production Supabase target decision plan.
+
+Phase 1G should decide whether production remains temporarily legacy-backed or moves toward modern
+staging/future production, and it should sequence env/CSP/deployment verification before any
+changes. It must still make no Vercel changes, env var edits, CSP edits, Supabase changes, runtime
+code changes, deployment promotions, migrations, or production data changes unless an explicit
+implementation slice is approved.
+
+### Completed Production Hardening And Runtime Confidence Phase 1G
+
+Production Hardening and Runtime Confidence Phase 1G is complete as a docs-only Supabase target
+decision plan in `docs/PRODUCTION_HARDENING_RUNTIME_CONFIDENCE.md`.
+
+Evidence recorded:
+
+- local runtime configuration is environment-driven through `VITE_SUPABASE_URL` and
+  `VITE_SUPABASE_ANON_KEY`;
+- `src/pages/Dashboard.jsx` still creates a direct env-driven Supabase client, but it does not
+  hardcode a separate project target;
+- `.env.local` exists locally, while no `.env.example` or `.env.template` was found in the
+  inspected repo depth;
+- the manual Vercel checklist tracks `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and
+  `VITE_GOOGLE_MAPS_API_KEY` by name only;
+- Phase 1F deployed evidence still shows production CSP and bundle references to legacy Supabase
+  host `okwqhkrsjgxrhyisaovc.supabase.co`;
+- modern staging host `voompccpkjfcsmehdoqu.supabase.co` remains absent from deployed CSP/bundle
+  evidence.
+
+Decision posture:
+
+- `okwqhkrsjgxrhyisaovc` is strongly indicated as the current deployed production runtime target,
+  pending Vercel env classification and authenticated API-call proof;
+- `voompccpkjfcsmehdoqu` remains the modern staging/reference validation target, not automatically
+  final production;
+- a clean final production Supabase project remains the preferred cutover direction unless the team
+  explicitly chooses another target;
+- recent polished production deploys are likely served against legacy-backed runtime data while the
+  deployed bundle remains legacy-targeted, pending authenticated confirmation.
+
+The Phase 1G decision tree has four paths:
+
+- keep production on legacy temporarily;
+- prepare migration to modern Supabase;
+- create or identify a separate production Supabase project;
+- block until data/parity evidence is collected.
+
+Required pre-change evidence now includes Vercel env target classification, selected project
+approval, schema/migration replay, data reconciliation, auth/app-user/company membership parity,
+permission/RPC grant verification, storage/function/CORS readiness, preview smoke, production smoke
+plan, and rollback procedure.
+
+Recommended next slice:
+
+- Production Hardening and Runtime Confidence Phase 1H: Supabase target evidence matrix and cutover
+  preconditions.
+
+Phase 1H should remain docs/evidence-only and should not change Vercel settings, env vars, CSP,
+Supabase projects, deployments, migrations, runtime code, backend/query/workflow/permission
+behavior, or production data.
+
+### Completed Supabase Environment Architecture And Migration Planning Phase 1A
+
+Supabase Environment Architecture and Migration Planning Phase 1A is complete as docs-only
+architecture and migration planning in
+`docs/SUPABASE_ENVIRONMENT_ARCHITECTURE_AND_MIGRATION_PLAN.md`.
+
+The plan records the current Supabase environment posture:
+
+- `okwqhkrsjgxrhyisaovc` is likely the current deployed production runtime target and legacy
+  production/archive source;
+- `voompccpkjfcsmehdoqu` is the modern staging/reference validation project, not confirmed final
+  production;
+- final production remains TBD and should preferably be a separate clean, intentionally
+  provisioned Supabase project;
+- local development is env-driven through `.env.local` and Vite env vars;
+- preview deployments should become the first hosted validation boundary for future target/CSP/env
+  changes.
+
+The plan defines target environment expectations for production, staging, local development, and
+preview deployments, then breaks cutover readiness into schema parity, migration replay, RLS/grant
+parity, auth/user migration, storage buckets/files, Edge Functions, secrets, Realtime/subscription
+review, seed/bootstrap data, production smoke tests, and rollback planning.
+
+Safe decision paths are now documented:
+
+- keep production on legacy temporarily;
+- promote modern staging to production after proof;
+- create or identify a separate clean production Supabase project;
+- block until parity evidence is gathered.
+
+Preferred direction:
+
+- keep production stable on legacy temporarily;
+- continue modern staging validation;
+- create or identify a separate clean final production Supabase project before cutover.
+
+Recommended next slice:
+
+- Supabase Environment Architecture and Migration Planning Phase 1B: Supabase target evidence
+  matrix.
+
+Phase 1B should remain docs/evidence-only and should not change Supabase projects, Vercel settings,
+env vars, CSP, deployments, execute migrations, runtime code, backend/query/workflow/permission
+behavior, or production data.
+
+### Completed Supabase Environment Architecture And Migration Planning Phase 1B
+
+Supabase Environment Architecture and Migration Planning Phase 1B is complete as a docs-only target
+evidence matrix in `docs/SUPABASE_ENVIRONMENT_ARCHITECTURE_AND_MIGRATION_PLAN.md`.
+
+The matrix covers:
+
+- legacy production/archive project `okwqhkrsjgxrhyisaovc`;
+- modern staging/reference project `voompccpkjfcsmehdoqu`;
+- local development;
+- preview deployment;
+- future clean production.
+
+For each target, it records project ref, intended role, current evidence source, schema head status,
+migration replay confidence, RLS/RPC confidence, auth/user parity, storage readiness, Edge Function
+readiness, secret-name readiness, CSP/env status, smoke-test status, rollback readiness, blocking
+gaps, and next evidence needed.
+
+Conclusions:
+
+- production remains likely legacy-backed based on deployed CSP/bundle evidence, but Vercel env and
+  authenticated API-call proof are still required;
+- modern staging remains reference/staging only and is not confirmed production;
+- local development is env-driven and must be checked per task;
+- preview deployment target behavior is unknown until Vercel dashboard evidence is captured;
+- future clean production remains preferred but not identified or provisioned;
+- CSP cleanup and `VITE_SUPABASE_URL` changes remain blocked.
+
+Recommended next slice:
+
+- Supabase Environment Architecture and Migration Planning Phase 1C: schema head and migration
+  replay evidence plan.
+
+Phase 1C should remain docs/evidence-only and should not change Supabase projects, Vercel settings,
+env vars, CSP, deployments, execute migrations, runtime code, backend/query/workflow/permission
+behavior, or production data.
+
+### Completed Supabase Environment Architecture And Migration Planning Phase 1C
+
+Supabase Environment Architecture and Migration Planning Phase 1C is complete as docs-only schema
+head and migration replay evidence planning in
+`docs/SUPABASE_ENVIRONMENT_ARCHITECTURE_AND_MIGRATION_PLAN.md`, with supporting updates in
+`docs/PRODUCTION_MIGRATION_REPLAY_CHECKLIST.md`.
+
+Repository migration-head evidence:
+
+- active migration directory is `supabase/migrations`;
+- active SQL migration count is `79`;
+- first active migration is `20260518000000_baseline_extensions_and_schema.sql`;
+- current active migration head is `20260522090000_order_saved_views.sql`;
+- archived migrations remain excluded from active replay;
+- legacy schema/data/role dumps remain evidence/source material only.
+
+The plan defines how to prove schema head parity for:
+
+- legacy production/archive, which is expected not to match the modern head and must not be
+  retrofitted;
+- modern staging/reference, which needs read-only migration-history and object-inventory evidence;
+- local/disposable replay targets, where full replay remains the correct proof path;
+- future clean production, which remains blocked until identified/provisioned.
+
+Known unresolved blocker:
+
+- prior full local `supabase db reset` remains blocked by the recorded Supabase storage image pull
+  failure, so targeted migration checks still do not replace full replay.
+
+Recommended next slice:
+
+- Supabase Environment Architecture and Migration Planning Phase 1D: auth, app user, and company
+  parity evidence plan.
+
+Phase 1D should remain docs/evidence-only and should not change Supabase projects, Vercel settings,
+env vars, CSP, deployments, execute migrations, runtime code, backend/query/workflow/permission
+behavior, or production data.
+
+### Completed Supabase Environment Architecture And Migration Planning Phase 1D
+
+Supabase Environment Architecture and Migration Planning Phase 1D is complete as docs-only auth,
+app-user, and company parity evidence planning in
+`docs/SUPABASE_ENVIRONMENT_ARCHITECTURE_AND_MIGRATION_PLAN.md`, with supporting owner/bootstrap
+evidence gates added to `docs/PRODUCTION_BOOTSTRAP_PLAN.md`.
+
+The plan records the authority model:
+
+- `auth.users.id` is authentication identity;
+- `public.users.id` is Falcon's canonical app-user identity;
+- `public.users.auth_id` bridges Auth to app users;
+- `company_memberships` provides company membership state;
+- `user_role_assignments` provides company-scoped role state;
+- permissions, RLS, and security-definer RPCs remain runtime authority.
+
+The evidence plan covers:
+
+- auth user identity presence;
+- `public.users.auth_id` mapping;
+- owner/admin/appraiser/reviewer account mapping;
+- active company membership and active company resolution;
+- active role assignment and owner invariant proof;
+- permission catalog/template role readiness;
+- invite prepare/finalize/accept lifecycle readiness;
+- login/session smoke requirements;
+- rollback/reconciliation requirements for users and invitations.
+
+Cutover blockers now include missing Auth-to-app-user mappings, missing owner/admin active
+membership, zero active owners, missing or expired role assignments, incomplete permission catalogs,
+unexpected current-company fallback, unsafe invitation activation, failed login/session smoke, and
+unproven auth rollback.
+
+Recommended next slice:
+
+- Supabase Environment Architecture and Migration Planning Phase 1E: storage, Edge Function, CORS,
+  and secret-name evidence plan.
+
+Phase 1E should remain docs/evidence-only and should not change Supabase projects, Vercel settings,
+env vars, CSP, deployments, execute migrations, runtime code, backend/query/workflow/permission
+behavior, or production data.
+
 ### Completed Orders Filtering/Search Audit
 
 Operational UX Slice B1 inventories the active Orders filtering/search surface in
@@ -1168,6 +1592,112 @@ Current blockers before production cutover are clean final target decision, migr
 confidence, production-data count reconciliation, auth/user/company/membership/role mapping,
 permission/grant/RLS verification, private storage/document function smoke tests, and restorable
 backup/recovery posture.
+
+### Supabase Environment Architecture Phase 1E
+
+Completed docs-only storage, Edge Function, CORS, and secret-name evidence planning in
+`docs/SUPABASE_ENVIRONMENT_ARCHITECTURE_AND_MIGRATION_PLAN.md`.
+
+The plan confirms that Order Documents readiness depends on a private `order-documents` bucket,
+metadata/RPC authorization, Edge-mediated signed upload/download URLs, soft archive boundaries,
+function deployment evidence, configured app origins, secret-name inventories, safe function log
+review, and rollback/reconciliation rules. It also records function surfaces for document
+upload/download, invite/resend, active-company switching, and optional email worker/sender rollout.
+
+No Supabase, Vercel, env var, CSP, deployment, Edge Function, storage, migration, runtime code,
+backend/query/workflow/permission, or production data changes were made.
+
+Recommended next Supabase-specific slice:
+
+- **Supabase Environment Architecture & Migration Planning Phase 1F: Preview Deployment Target,
+  CSP, And Smoke Evidence Plan**.
+
+### Supabase Environment Architecture Phase 1F
+
+Completed docs-only preview deployment target, CSP, and smoke evidence planning in
+`docs/SUPABASE_ENVIRONMENT_ARCHITECTURE_AND_MIGRATION_PLAN.md`, with preview smoke gates added to
+`docs/PRODUCTION_SMOKE_TEST_CHECKLIST.md`.
+
+The plan defines preview deployments as the first hosted validation boundary before any production
+Supabase target, env var, CSP, deployment, storage, function, or cutover change. It requires preview
+target classification, preview URL/domain evidence, preview `VITE_SUPABASE_URL` target by project
+ref only, preview CSP `connect-src` evidence, deployed preview bundle host evidence,
+unauthenticated app boot, authenticated session smoke, owner/admin current-company smoke,
+operational route smoke, Team Access / Owner Setup smoke where applicable, storage/function smoke
+where supported, browser console/CSP review, network host review, and no-promotion criteria.
+
+No Vercel, Supabase, env var, CSP, deployment, preview promotion, Edge Function, storage, migration,
+runtime code, backend/query/workflow/permission, or production data changes were made.
+
+Recommended next Supabase-specific slice:
+
+- **Supabase Environment Architecture & Migration Planning Phase 1G: Preview Deployment Evidence
+  Capture**.
+
+### Supabase Environment Architecture Phase 1G
+
+Completed evidence-only preview deployment capture in
+`docs/SUPABASE_ENVIRONMENT_ARCHITECTURE_AND_MIGRATION_PLAN.md`.
+
+Evidence captured:
+
+- Vercel CLI authenticated as `chrisrossi92`;
+- Vercel project visible as `chris-projects-e06c973e/project-falcon`;
+- preview deployments exist;
+- latest listed preview deployment is
+  `https://project-falcon-n440jf7ix-chris-projects-e06c973e.vercel.app`;
+- latest listed preview deployment id is `dpl_3DHd33U5jGCWYwzZNr99JiTXwzDh`;
+- target is `preview`, status is Ready, and created timestamp is
+  `Mon Apr 13 2026 12:31:00 GMT-0400`;
+- branch-style alias is
+  `https://project-falcon-git-runtime-stabi-c53f53-chris-projects-e06c973e.vercel.app`.
+
+Classification result:
+
+- **preview evidence incomplete**.
+
+The preview app shell, CSP, static assets, deployed bundle, and runtime network calls were blocked
+by Vercel Authentication. Preview `VITE_SUPABASE_URL` target classification remains unknown,
+authenticated preview smoke was not available, and the newest listed preview deployment is 40 days
+old relative to this evidence capture.
+
+No Vercel settings, Supabase settings, env vars, CSP, deployments, preview promotions, migrations,
+runtime code, backend/query/workflow/permission behavior, or production data changed.
+
+Recommended next Supabase-specific slice:
+
+- **Supabase Environment Architecture & Migration Planning Phase 1H: Current Preview Access And
+  Target Classification**.
+
+### Supabase Environment Architecture Phase 1H
+
+Completed docs-only current preview access and target-classification plan in
+`docs/SUPABASE_ENVIRONMENT_ARCHITECTURE_AND_MIGRATION_PLAN.md`.
+
+Phase 1H defines the decision path before preview can become Falcon's hosted validation boundary:
+
+- prove a current preview URL/alias for the intended `main` commit or candidate branch;
+- record deployment id, commit SHA, branch/source ref, created time, target, and Ready status;
+- determine Vercel Authentication/protection status;
+- choose an approved app-shell inspection path, such as authenticated browser session, safe
+  Vercel-provided preview access path, or dashboard/deployment evidence;
+- classify preview `VITE_SUPABASE_URL` by Supabase project ref only;
+- capture preview CSP `connect-src`, deployed bundle Supabase host, browser console baseline, and
+  mixed-host network evidence before smoke;
+- keep preview blocked if safe access or target classification evidence is unavailable.
+
+Phase 1H explicitly does not allow Vercel changes, preview protection changes, env var edits, CSP
+edits, deployments, preview promotions, Supabase changes, migrations, runtime code changes,
+backend/query/workflow/permission changes, production data changes, or secret-value recording.
+
+Preview classification remains:
+
+- **preview evidence incomplete**.
+
+Recommended next Supabase-specific slice:
+
+- **Supabase Environment Architecture & Migration Planning Phase 1I: Current Preview Access And
+  Target Classification Evidence Capture**.
 
 ### Falcon Role-Centric Operational Shell Architecture Phase 1A
 
@@ -2267,6 +2797,7 @@ Recommended next role-centric slice:
 
 - **Falcon Role-Centric Operational Shell Architecture Phase R6I: Workbench Preview Data
   Sufficiency And Copy Audit**.
+
 ### Falcon Role-Centric Operational Shell Architecture Phase R7A
 
 Completed documentation-only profile-aware navigation grouping planning before any runtime
@@ -2524,7 +3055,6 @@ Recommended next role-centric slice:
 R7E should evaluate whether mobile nav should adopt grouping, priority ordering, or remain flat
 for usability before any mobile runtime change.
 
-
 ### Falcon Role-Centric Operational Shell Architecture Phase R7E
 
 Completed documentation-only mobile navigation grouping readiness planning after desktop
@@ -2606,7 +3136,6 @@ Recommended next role-centric slice:
 
 R7G should audit whether mobile nav labels, spacing, and Settings/support placement remain clear
 after profile-priority ordering before any additional mobile runtime changes.
-
 
 ### Falcon Role-Centric Operational Shell Architecture Phase R8A
 
@@ -2833,6 +3362,37 @@ Recommended next role-centric slice:
 R8E should audit which command labels or aliases can safely become role-native after priority
 ordering before any command copy or alias runtime changes.
 
+### Falcon Mobile, Native, And Communication Automation Strategy
+
+Locked long-term mobile, native, PWA, and communication automation doctrine in
+`docs/FALCON_MOBILE_NATIVE_AND_COMMUNICATION_AUTOMATION_STRATEGY.md`.
+
+This addendum preserves MVP focus while recording Falcon's future surface strategy:
+
+- Falcon remains web-first during MVP;
+- active work should stay mobile-safe;
+- PWA compatibility is the likely intermediate direction;
+- native apps are future/post-MVP and should be enabled by architecture, not treated as an MVP
+  blocker;
+- Desktop is Falcon's mission-control surface;
+- Mobile is Falcon's operational-execution surface;
+- future mobile/PWA/native clients must reuse governed API/RPC contracts rather than fork workflow,
+  permission, storage, or assignment authority.
+
+It also records the future communication automation engine doctrine:
+
+- automation is a future platform capability, not immediate scope;
+- reminders should be smartly suppressed when users keep orders, reviews, assignments, documents,
+  or statuses current;
+- owners/admins should eventually configure timing, escalation, recipients, exclusions, channels,
+  and templates;
+- editable email templates should use approved variables/placeholders and audit history;
+- quick status confirmation actions must remain permission-checked, object-scoped, governed,
+  logged, rate-limited, and non-spammy.
+
+No runtime behavior, route/permission behavior, shell implementation, PWA/native implementation,
+email automation, backend/Supabase/Vercel behavior, env vars, CSP, workflow behavior,
+notification delivery, or production data changed.
 
 ### Operational Execution Phase 1A
 
@@ -3292,6 +3852,36 @@ Phase 1J should audit whether currently loaded activity/note/document timestamps
 support stronger stale/update signals in Order Detail and drawer contexts before adding new
 queries, workflow actions, notifications, or automation.
 
+### Falcon MVP Stop-Line Definition
+
+Added `docs/FALCON_MVP_STOP_LINE.md` as the stop-line for MVP scope control.
+
+The stop-line defines MVP ready as the point where a small internal operations team can run the
+core appraisal/order workflow in production with governed access, coherent role-aware daily work
+surfaces, private document handling, operational context, and minimum production readiness.
+
+The central rule is:
+
+- no new feature class before MVP unless it fixes a verified blocker.
+
+Allowed pre-MVP work after the stop-line is limited to blocker fixes, test fixes, accessibility and
+responsive polish, copy clarifications, production hardening, smoke-test repair,
+security/permission defects, data/environment readiness, and small read-only operational
+improvements that directly unblock acceptance.
+
+Explicit post-MVP backlog includes Client Portal, native apps, full PWA implementation,
+communication automation, AI features, advanced analytics/reporting, shell switching, configurable
+terminology, required-document enforcement, exports, billing, and public integrations.
+
+Recommended execution posture:
+
+- complete only MVP blocker fixes, MVP hardening, MVP smoke-test repair, MVP launch support, or
+  accepted post-MVP backlog documentation.
+
+This stop-line adds no runtime behavior, backend, Supabase, query, workflow, Smart Action,
+permission, route, navigation, command palette, dashboard, automation, notification, mobile/PWA/
+native, Client Portal, branding, or production data change.
+
 ## Recommended Ordering
 
 1. Completed: start Track 1 with read-only Order Detail Print Packets.
@@ -3301,13 +3891,14 @@ queries, workflow actions, notifications, or automation.
 5. Completed: run Track 3's production readiness checkpoint.
 6. Completed: lock role-aware shell, dashboard presentation, navigation, and command palette
    priority foundations.
-7. Continue operational execution with Phase 1J: Activity Freshness Evidence Audit.
-8. Before adding new side-effecting features, run Track 2's source-scan hardening slice.
-9. Continue Track 1 with Order Detail/activity read UX improvements.
-10. Design the first Track 2 backend workflow notification migration, but implement only after the
-   no-duplicate replacement plan is clear.
-11. Resolve client archive semantics before broad client/AMC expansion.
-12. Continue production cutover rehearsals until broader customer rollout is unblocked.
+7. Use `docs/FALCON_MVP_STOP_LINE.md` to classify remaining work before adding new feature classes.
+8. Continue operational execution with Phase 1J only if it fixes or clarifies an MVP blocker.
+9. Before adding new side-effecting features, run Track 2's source-scan hardening slice.
+10. Continue Track 1 with Order Detail/activity read UX improvements only where MVP-blocking.
+11. Design the first Track 2 backend workflow notification migration only after the stop-line
+   allows it and the no-duplicate replacement plan is clear.
+12. Resolve client archive semantics before broad client/AMC expansion.
+13. Continue production cutover rehearsals until broader customer rollout is unblocked.
 
 ## Explicit Non-Goals For The First Slice
 

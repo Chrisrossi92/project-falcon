@@ -1528,3 +1528,33 @@ Recommended next step:
 
 - pause before any signal suppression integration, mobile quick action, dashboard/table control,
   notification, automation, or new operational input type.
+
+## Falcon v1 Operational Completion Strategy Lock
+
+Falcon v1 direction is now locked in `docs/FALCON_V1_OPERATIONAL_COMPLETION_STRATEGY.md`.
+
+The v1 mission is the Internal Staff Appraiser Platform for Continental's daily appraisal
+operations. v1 scope is the internal operational loop for staff appraisers, reviewers,
+owners/admins, order operations, assignment/review/revision/completion, files/context, and
+operational clarity.
+
+Deferred v2+ scope includes AMC workflow expansion, Client Portal, external vendor panel expansion,
+advanced automation, automated email systems, advanced notifications, marketplace or multi-tenant
+commercialization, and AI appraisal writing/orchestration.
+
+The operational execution rule is now:
+
+- every v1 feature must help complete the internal operational loop;
+- if it does not, defer it to v2+ unless it fixes a verified MVP blocker.
+
+Next operational work should map to the v1 completion phases:
+
+- Phase A: Brand / Shell / Layout Lock;
+- Phase B: Role-Tailored Operational Surfaces;
+- Phase C: CRUD / Workflow Completion;
+- Phase D: Operational Confidence Pass;
+- Phase E: MVP Freeze / Internal Rollout.
+
+This strategy lock is documentation only and makes no runtime, backend, schema, Supabase,
+workflow/lifecycle, Smart Action, permission, route, navigation, automation, notification, Client
+Portal, mobile/native, AI, branding runtime, or production data change.

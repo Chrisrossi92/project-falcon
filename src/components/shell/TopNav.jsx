@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { NavLink, Link, useNavigate, useLocation } from "react-router-dom";
+import falconWordmark from "@/assets/branding/falcon-wordmark-dark-shell.png";
 import supabase from "@/lib/supabaseClient";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import CommandPalette from "@/components/nav/CommandPalette";
@@ -17,96 +18,116 @@ import { Menu, Search } from "lucide-react";
 
 const DESKTOP_SECTION_STYLES = Object.freeze({
   operations: {
-    shell: "border-slate-300 bg-white shadow-sm",
-    label: "text-slate-700",
+    shell: "border-slate-600 bg-slate-900 shadow-sm shadow-slate-950/25",
+    label: "text-slate-300",
     item: "operational",
   },
   work: {
-    shell: "border-slate-300 bg-white shadow-sm",
-    label: "text-slate-700",
+    shell: "border-slate-600 bg-slate-900 shadow-sm shadow-slate-950/25",
+    label: "text-slate-300",
     item: "operational",
   },
   review_work: {
-    shell: "border-slate-300 bg-white shadow-sm",
-    label: "text-slate-700",
+    shell: "border-slate-600 bg-slate-900 shadow-sm shadow-slate-950/25",
+    label: "text-slate-300",
     item: "operational",
   },
   received_work: {
-    shell: "border-slate-300 bg-white shadow-sm",
-    label: "text-slate-700",
+    shell: "border-slate-600 bg-slate-900 shadow-sm shadow-slate-950/25",
+    label: "text-slate-300",
     item: "operational",
   },
   management: {
-    shell: "border-slate-200 bg-slate-50/80",
-    label: "text-slate-500",
+    shell: "border-slate-700 bg-slate-950/50",
+    label: "text-slate-400",
     item: "secondary",
   },
   support: {
-    shell: "border-slate-200 bg-slate-50/80",
-    label: "text-slate-500",
+    shell: "border-slate-700 bg-slate-950/50",
+    label: "text-slate-400",
     item: "secondary",
   },
   setup_support: {
-    shell: "border-slate-200 bg-slate-50/80",
-    label: "text-slate-500",
+    shell: "border-slate-700 bg-slate-950/50",
+    label: "text-slate-400",
     item: "secondary",
   },
   account: {
-    shell: "border-slate-200 bg-slate-50/80",
-    label: "text-slate-500",
+    shell: "border-slate-700 bg-slate-950/50",
+    label: "text-slate-400",
     item: "secondary",
   },
   other_visible_links: {
-    shell: "border-slate-200 bg-slate-50/70",
-    label: "text-slate-400",
+    shell: "border-slate-700 bg-slate-950/40",
+    label: "text-slate-500",
     item: "quiet",
   },
 });
 
 const DEFAULT_DESKTOP_SECTION_STYLE = Object.freeze({
   shell: "border-transparent bg-transparent",
-  label: "text-slate-500",
+  label: "text-slate-400",
   item: "operational",
 });
 
-function Brand({ shellModeCue }) {
-  const modeLabel = shellModeCue?.label ?? "Operations Console";
-
+function BrandWordmark({ shellModeCue, className = "" }) {
   return (
-    <Link to="/dashboard" className="group flex shrink-0 items-center gap-3 rounded-xl px-1.5 py-1 transition hover:bg-slate-100">
-      <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-950 text-sm font-semibold text-white shadow-sm ring-1 ring-slate-900/10">
-        F
-      </span>
-      <span className="hidden leading-tight sm:block">
-        <span className="block text-sm font-semibold tracking-tight text-slate-950">Falcon Operations</span>
-        <span
-          className="block max-w-48 truncate text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500"
-          data-testid="shell-work-mode"
-          title={shellModeCue?.context}
-        >
-          {modeLabel}
-        </span>
-      </span>
+    <Link
+      to="/dashboard"
+      className={`group block w-64 shrink-0 rounded-lg transition opacity-95 hover:opacity-100 sm:w-80 ${className}`}
+      aria-label="Falcon dashboard"
+      title={shellModeCue?.context}
+    >
+      <img
+        src={falconWordmark}
+        alt="Falcon"
+        className="-my-3 h-14 w-full translate-y-2 object-cover object-center sm:-my-4 sm:h-16 sm:translate-y-3"
+      />
     </Link>
   );
 }
 
-function NavItem({ to, children, onClick, tone = "operational" }) {
+function OperationalModeContext({ shellModeCue, placement = "rail" }) {
+  const placementClass =
+    placement === "rail"
+      ? "rounded-2xl border border-slate-800 bg-slate-900/80 px-3 py-3"
+      : "hidden min-w-0 border-l border-slate-800/80 pl-3 md:block";
+
+  return (
+    <div
+      className={placementClass}
+      aria-label="Operational mode"
+    >
+      <div className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+        Staff Appraiser Operations
+      </div>
+      <div
+        className="mt-0.5 truncate text-sm font-semibold text-slate-100"
+        data-testid="shell-work-mode"
+        title={shellModeCue.context}
+      >
+        {shellModeCue.label}
+      </div>
+    </div>
+  );
+}
+
+function NavItem({ to, children, onClick, tone = "operational", className = "" }) {
   const inactiveClass =
     tone === "secondary"
-      ? "text-slate-500 hover:bg-white hover:text-slate-900"
+      ? "text-slate-300 hover:bg-white/10 hover:text-white"
       : tone === "quiet"
-      ? "text-slate-500 hover:bg-white hover:text-slate-800"
-      : "text-slate-700 hover:bg-slate-50 hover:text-slate-950";
+      ? "text-slate-400 hover:bg-white/10 hover:text-slate-100"
+      : "text-slate-100 hover:bg-white/10 hover:text-white";
 
   return (
     <NavLink
       to={to}
       onClick={onClick}
       className={({ isActive }) =>
-        "relative whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 " +
+        `relative whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 ${className} ` +
         (isActive
-          ? "bg-slate-950 text-white shadow-md ring-1 ring-slate-900/10 after:absolute after:inset-x-3 after:-bottom-1 after:h-0.5 after:rounded-full after:bg-white/80"
+          ? "bg-white text-slate-950 shadow-md shadow-slate-950/20 ring-1 ring-white/30 after:absolute after:inset-x-3 after:-bottom-1 after:h-0.5 after:rounded-full after:bg-slate-900/80"
           : inactiveClass)
       }
       end
@@ -116,29 +137,62 @@ function NavItem({ to, children, onClick, tone = "operational" }) {
   );
 }
 
-function DesktopNavSection({ section, emphasizedSectionId }) {
+function DesktopNavSection({ section, emphasizedSectionId, orientation = "horizontal" }) {
   const showLabel = section.grouped && section.label;
   const styles = DESKTOP_SECTION_STYLES[section.id] ?? DEFAULT_DESKTOP_SECTION_STYLE;
   const isProfileSection = section.id === emphasizedSectionId;
   const sectionEmphasisClass = isProfileSection
-    ? "ring-1 ring-slate-500/30 shadow-md shadow-slate-900/5"
+    ? "ring-1 ring-white/20 shadow-md shadow-slate-950/30"
     : "";
+  const shellClass =
+    orientation === "vertical"
+      ? `flex flex-col gap-1 rounded-2xl border p-2 ${styles.shell} ${sectionEmphasisClass}`
+      : `flex shrink-0 items-center gap-1 rounded-xl border px-1.5 py-1 ${styles.shell} ${sectionEmphasisClass}`;
+  const labelClass =
+    orientation === "vertical"
+      ? `px-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${styles.label}`
+      : `hidden pl-2 pr-1 text-[10px] font-semibold uppercase tracking-[0.14em] xl:inline ${styles.label}`;
 
   return (
     <div
-      className={`flex shrink-0 items-center gap-1 rounded-xl border px-1.5 py-1 ${styles.shell} ${sectionEmphasisClass}`}
+      className={shellClass}
       data-shell-profile-section={isProfileSection ? "active" : undefined}
     >
       {showLabel && (
-        <span className={`hidden pl-2 pr-1 text-[10px] font-semibold uppercase tracking-[0.14em] xl:inline ${styles.label}`}>
+        <span className={labelClass}>
           {section.label}
         </span>
       )}
       {section.links.map((link) => (
-        <NavItem key={link.id} to={link.path} tone={styles.item}>{link.label}</NavItem>
+        <NavItem
+          key={link.id}
+          to={link.path}
+          tone={styles.item}
+          className={orientation === "vertical" ? "block w-full text-left" : ""}
+        >
+          {link.label}
+        </NavItem>
       ))}
     </div>
   );
+}
+
+function createDashboardLink() {
+  return Object.freeze({
+    id: "dashboard",
+    label: "Operations",
+    path: "/dashboard",
+    sourceSurface: "operational_spine",
+  });
+}
+
+function createMyWorkLink() {
+  return Object.freeze({
+    id: "my_work",
+    label: "My Work",
+    path: "/my-work",
+    sourceSurface: "operational_spine",
+  });
 }
 
 function AvatarMenu({ me }) {
@@ -165,7 +219,7 @@ function AvatarMenu({ me }) {
   return (
     <div className="relative">
       <button
-        className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-2 py-1 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+        className="flex items-center gap-2 rounded-lg border border-transparent bg-transparent px-1.5 py-1 transition hover:border-slate-700 hover:bg-slate-900/70"
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open ? "true" : "false"}
@@ -179,7 +233,7 @@ function AvatarMenu({ me }) {
           size={28}
           ring
         />
-        <span className="hidden sm:block text-sm font-medium text-slate-800">{display}</span>
+        <span className="hidden max-w-32 truncate text-sm font-medium text-slate-200 sm:block">{display}</span>
       </button>
 
       {open && (
@@ -214,6 +268,10 @@ export default function TopNav() {
     PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_ASSIGNED,
     PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_OWNER,
   ]);
+  const canReadOrders = useCanAny([
+    PERMISSIONS.ORDERS_READ_ALL,
+    PERMISSIONS.ORDERS_READ_ASSIGNED,
+  ]);
   const canReadRelationships = useCan(PERMISSIONS.RELATIONSHIPS_READ);
   const canReadUsers = useCan(PERMISSIONS.USERS_READ);
   const canViewSettings = useCan(PERMISSIONS.SETTINGS_VIEW);
@@ -222,6 +280,8 @@ export default function TopNav() {
   const showAssignmentsNav = canReadAssignments.allowed;
   const showRelationshipsNav = canReadRelationships.allowed;
   const showSettingsNav = canViewSettings.allowed;
+  const shellProfileId = shellProfilePresentation?.profileId ?? shellProfilePresentation?.id;
+  const showMyWorkNav = shellProfileId === "my_work" && canReadOrders.allowed;
   const primaryNavLinks = getCurrentPrimaryNavLinks({
     canReadAllClients: canReadAllClients.allowed,
     canReadAssignedClients: canReadAssignedClients.allowed,
@@ -229,13 +289,14 @@ export default function TopNav() {
     canReadRelationships: showRelationshipsNav,
     canReadUsers: showUsersNav,
   });
-  const shellProfileId = shellProfilePresentation?.profileId ?? shellProfilePresentation?.id;
-  const desktopNavSections = getCurrentShellNavigationSections(
-    primaryNavLinks,
+  const myWorkNavLinks = showMyWorkNav ? [createMyWorkLink()] : [];
+  const mobileNavLinks = getCurrentShellMobileNavigationLinks(
+    [...myWorkNavLinks, ...primaryNavLinks],
     shellProfileId,
   );
-  const mobileNavLinks = getCurrentShellMobileNavigationLinks(
-    primaryNavLinks,
+  const railNavLinks = [createDashboardLink(), ...myWorkNavLinks, ...primaryNavLinks];
+  const railNavSections = getCurrentShellNavigationSections(
+    railNavLinks,
     shellProfileId,
   );
   const shellModeCue = getShellWorkModeCue(shellProfilePresentation);
@@ -261,38 +322,44 @@ export default function TopNav() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-slate-400/70 bg-slate-100/95 shadow-lg shadow-slate-900/10 backdrop-blur-xl">
-        <div aria-hidden className="h-1 bg-slate-950" />
-        <div className="mx-auto flex min-h-16 max-w-[1500px] items-center gap-3 px-3 py-2 sm:px-4">
-          <Brand shellModeCue={shellModeCue} />
+      <aside className="fixed inset-y-0 left-0 z-50 hidden w-[17rem] flex-col border-r border-slate-800 bg-[radial-gradient(circle_at_18%_100%,rgba(51,65,85,0.32),transparent_40%),linear-gradient(180deg,#020617_0%,#07111f_36%,#111827_100%)] px-3 py-3 shadow-[18px_0_48px_rgba(2,6,23,0.36)] md:flex">
+        <OperationalModeContext shellModeCue={shellModeCue} />
+        <nav
+          aria-label="Operational spine navigation"
+          className="mt-5 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pb-3"
+        >
+          {railNavSections.map((section) => (
+            <DesktopNavSection
+              key={section.id}
+              section={section}
+              emphasizedSectionId={shellModeCue.sectionId}
+              orientation="vertical"
+            />
+          ))}
+        </nav>
+      </aside>
 
-          <nav
-            aria-label="Primary workspace navigation"
-            className="hidden min-w-0 flex-1 items-center gap-2 overflow-x-auto rounded-2xl border border-slate-300 bg-slate-200/70 p-1.5 shadow-inner md:flex"
-          >
-            {desktopNavSections.map((section) => (
-              <DesktopNavSection
-                key={section.id}
-                section={section}
-                emphasizedSectionId={shellModeCue.sectionId}
-              />
-            ))}
-          </nav>
+      <header className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/95 shadow-[0_10px_28px_rgba(2,6,23,0.18)] backdrop-blur-xl md:border-b-0 md:bg-transparent md:pl-[17rem] md:shadow-none">
+        <div aria-hidden className="h-px bg-slate-700/50 md:hidden" />
+        <div className="mx-auto flex min-h-14 max-w-[1500px] items-center justify-between gap-4 px-3 py-1.5 sm:px-4 md:min-h-12 md:py-2">
+          <div className="flex min-w-0 items-center gap-3">
+            <BrandWordmark shellModeCue={shellModeCue} />
+          </div>
 
-          <div className="ml-auto flex min-w-0 max-w-[calc(100vw-5rem)] items-center justify-end gap-1 rounded-2xl border border-slate-300 bg-white/90 p-1 shadow-sm sm:gap-2 md:max-w-none md:shrink-0">
+          <div className="ml-auto flex min-w-0 max-w-[calc(100vw-5rem)] items-center justify-end gap-1.5 rounded-xl border border-slate-800 bg-slate-950/82 px-1.5 py-1 shadow-sm shadow-slate-950/20 sm:gap-2 md:ml-0 md:max-w-none md:shrink-0 md:border-slate-700/70 md:bg-slate-950/64 md:shadow-none">
             <button
-              className="hidden min-w-[260px] items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-500 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 xl:flex"
+              className="hidden items-center gap-2 rounded-lg border border-transparent bg-transparent px-2.5 py-1.5 text-sm text-slate-400 transition hover:border-slate-700 hover:bg-slate-900/70 hover:text-slate-200 lg:flex"
               onClick={() => setPal(true)}
               title="Search (⌘K)"
             >
-              <Search className="h-4 w-4 text-slate-400" aria-hidden="true" />
-              <span className="truncate">Search...</span>
-              <span className="ml-auto rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-medium text-slate-400">⌘K</span>
+              <Search className="h-4 w-4 text-slate-500" aria-hidden="true" />
+              <span className="truncate">Command</span>
+              <span className="rounded-md border border-slate-700/70 bg-slate-900/60 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">⌘K</span>
             </button>
-            <button className="hidden rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50 sm:inline-flex md:hidden" onClick={() => setPal(true)} title="Search">
+            <button className="hidden rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-sm font-medium text-slate-300 transition hover:border-slate-700 hover:bg-slate-900/70 sm:inline-flex lg:hidden" onClick={() => setPal(true)} title="Search">
               ⌘K
             </button>
-            <button className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50 md:hidden" onClick={() => setOpen((v) => !v)} aria-label="Open menu">
+            <button className="rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-sm font-medium text-slate-300 transition hover:border-slate-700 hover:bg-slate-900/70 md:hidden" onClick={() => setOpen((v) => !v)} aria-label="Open menu">
               <Menu className="h-4 w-4" aria-hidden="true" />
             </button>
             <div className="hidden sm:block">
@@ -306,8 +373,8 @@ export default function TopNav() {
 
         {/* mobile nav */}
         {open && (
-          <div className="md:hidden border-t border-slate-200 bg-white/95 shadow-lg backdrop-blur-xl">
-            <nav className="px-3 py-3 flex flex-col gap-1">
+          <div className="border-t border-slate-800 bg-slate-950/95 shadow-lg backdrop-blur-xl md:hidden">
+            <nav aria-label="Mobile operational navigation" className="px-3 py-3 flex flex-col gap-1">
               {mobileNavLinks.map((link) => (
                 <NavItem key={link.id} to={link.path} onClick={() => setOpen(false)}>
                   {link.label}

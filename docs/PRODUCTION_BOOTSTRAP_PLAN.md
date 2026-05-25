@@ -145,6 +145,35 @@ Exit gate:
 - required functions deploy and invoke against the production target without CORS, secret, or RPC
   errors.
 
+### 6A. Storage / Function Evidence Gate
+
+Goal: prove document storage, function deployment, CORS, and secret-name readiness before hosted
+browser smoke or production cutover.
+
+Checklist:
+
+- verify `order-documents` exists and remains private;
+- verify document metadata RPCs exist before document Edge Function smoke:
+  `rpc_order_documents_list(...)`, `rpc_order_document_prepare_upload(...)`,
+  `rpc_order_document_finalize_upload(...)`, `rpc_order_document_authorize_download(...)`, and
+  `rpc_order_document_archive(...)`;
+- verify document list responses do not expose `storage_bucket`, `storage_path`, object keys,
+  upload tokens, or signed URLs;
+- verify upload/download functions use service-role storage access only after caller bearer-token
+  authorization and backend RPC authorization pass;
+- verify archive remains metadata soft-archive behavior and does not hard-delete storage objects;
+- record required secret names only, never values;
+- review `verify_jwt` settings for every function in scope;
+- verify configured app origins and preview domains before relying on browser function calls;
+- review function logs using status categories only, without headers, payloads, tokens, invite
+  links, or signed URLs.
+
+Exit gate:
+
+- private storage, metadata authority, function deployment, CORS/origin alignment, secret-name
+  presence, and safe failure behavior are proven before document, invitation, active-company, or
+  email smoke is treated as production-ready.
+
 ### 7. Configure Auth / Redirects
 
 Goal: make login and invite acceptance work only for intended production/preview/local origins.
@@ -178,6 +207,36 @@ Checklist:
 Exit gate:
 
 - owner/admin can sign in, resolve current company, and load Owner Setup/Team Access context.
+
+### 8A. Auth / App-User / Company Parity Evidence
+
+Supabase Environment Architecture & Migration Planning Phase 1D defines the identity and
+company-access evidence required before production cutover.
+
+Required proof before this bootstrap stage can be considered production-ready:
+
+- the owner/admin Auth identity exists in the target;
+- the owner/admin `public.users` row exists and maps through `public.users.auth_id`;
+- `public.users.id` remains the canonical app-user id for operational records;
+- owner/admin has an active `company_memberships` row for the production company;
+- owner/admin has an active, non-expired Owner role assignment in `user_role_assignments`;
+- `company_active_owner_count(company_id)` returns at least one active owner;
+- role presets, permission catalog rows, and role permission mappings exist;
+- `current_company_id()` resolves the intended company for owner/admin;
+- `current_app_user_has_current_company()` returns true for owner/admin;
+- `rpc_current_user_app_context()` returns safe company and role context;
+- `rpc_company_setup_context()` returns setup context where `company.setup.read` is expected;
+- pending invitations are not counted as active access;
+- invite acceptance activates only the matching authenticated user/email, membership, and
+  invitation-scoped role assignments.
+
+Evidence boundaries:
+
+- record counts, project refs, role names, status labels, and safe IDs only where needed;
+- do not record passwords, tokens, cookies, authorization headers, service-role keys, anon key
+  values, invite tokens, or raw Auth provider internals;
+- do not manually repair user, membership, or role rows during evidence gathering;
+- any mismatch must become repeatable bootstrap/migration logic before cutover.
 
 ### 9. Verify Admin Bootstrap
 

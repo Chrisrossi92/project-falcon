@@ -620,6 +620,7 @@ export default function DashboardPage({ shellProfilePresentation } = {}) {
           rows={ordersRows || []}
           loading={loading}
           appraiserLabel={roleLabel}
+          compact
         />
       )}
 

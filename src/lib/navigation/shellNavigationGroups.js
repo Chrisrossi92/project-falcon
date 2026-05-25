@@ -104,9 +104,9 @@ export const shellNavigationGroupEntries = freezeArray([
       {
         id: 'work',
         label: 'Work',
-        navEntryIds: ['dashboard', 'orders', 'calendar'],
+        navEntryIds: ['my_work', 'dashboard', 'orders', 'calendar'],
         notes: [
-          'Assigned internal work remains backed by the existing dashboard, Orders, and Calendar surfaces.',
+          'Assigned internal work uses the dedicated My Work surface when visible, with Operations, Orders, and Calendar nearby.',
         ],
       },
       {

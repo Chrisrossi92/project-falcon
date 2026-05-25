@@ -41,6 +41,7 @@ describe('current live navigation registry', () => {
     expect(ids).toEqual(
       expect.arrayContaining([
         'dashboard',
+        'my_work',
         'orders',
         'calendar',
         'clients.primary',
@@ -57,6 +58,7 @@ describe('current live navigation registry', () => {
 
   it('matches current route paths and dynamic client behavior', () => {
     expect(getCurrentLiveNavigationEntry('dashboard').path).toBe('/dashboard');
+    expect(getCurrentLiveNavigationEntry('my_work').path).toBe('/my-work');
     expect(getCurrentLiveNavigationEntry('orders').path).toBe('/orders');
     expect(getCurrentLiveNavigationEntry('orders.new').path).toBe('/orders/new');
     expect(getCurrentLiveNavigationEntry('orders.detail').path).toBe('/orders/:id');
@@ -91,6 +93,14 @@ describe('current live navigation registry', () => {
     expect(getCurrentLiveNavigationEntry('orders').routeGate).toMatchObject({
       type: CURRENT_NAV_GATE_TYPES.ANY_PERMISSION,
       permissions: [PERMISSIONS.ORDERS_READ_ALL, PERMISSIONS.ORDERS_READ_ASSIGNED],
+    });
+    expect(getCurrentLiveNavigationEntry('my_work').routeGate).toMatchObject({
+      type: CURRENT_NAV_GATE_TYPES.ANY_PERMISSION,
+      permissions: [PERMISSIONS.ORDERS_READ_ALL, PERMISSIONS.ORDERS_READ_ASSIGNED],
+    });
+    expect(getCurrentLiveNavigationEntry('my_work').visibilityGate).toMatchObject({
+      type: CURRENT_NAV_GATE_TYPES.PERMISSION,
+      permissions: [PERMISSIONS.ORDERS_READ_ASSIGNED],
     });
     expect(getCurrentLiveNavigationEntry('orders').command.gate).toMatchObject({
       type: CURRENT_NAV_GATE_TYPES.PERMISSION,
@@ -133,6 +143,7 @@ describe('current live navigation registry', () => {
     );
     expect(mobileIds).toEqual(
       expect.arrayContaining([
+        'my_work',
         'orders',
         'assignments',
         'relationships',

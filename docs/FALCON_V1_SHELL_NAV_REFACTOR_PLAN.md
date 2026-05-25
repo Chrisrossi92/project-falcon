@@ -603,3 +603,26 @@ A2.4 preserves:
 
 The next safe phase is **A3 Surface / Elevation System** only if visual review confirms shell,
 workspace, and page-context identity are now stable enough for broader surface recipes.
+
+## A4.2 Operational Spine Composition Forward Plan
+
+Phase A4.2 is documented in `docs/FALCON_V1_OPERATIONAL_SPINE_COMPOSITION_PLAN.md`.
+
+The A2 shell/navigation work strengthened the existing top-nav shell without changing route,
+permission, or workflow behavior. A4.2 plans the next information-architecture step before runtime
+implementation: Falcon should move from a top-nav-centered route inventory toward a persistent left
+operational rail and compact top utility/context bar.
+
+A4.2 direction:
+
+- left rail owns operational movement;
+- top bar owns utility/context;
+- center workspace owns active work;
+- primary operational lanes lead;
+- management/support remains accessible but visually secondary;
+- search stays fast but compact;
+- mobile remains task-first rather than a dense desktop clone.
+
+A4.2 remains planning only. It adds no runtime shell code, route removals, permission changes,
+workflow changes, dashboard data changes, backend/Supabase changes, AMC work, Client Portal work,
+automation, AI work, or production data changes.

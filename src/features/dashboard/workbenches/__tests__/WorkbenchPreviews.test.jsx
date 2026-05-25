@@ -26,12 +26,16 @@ describe("passive workbench previews", () => {
         rows={[
           {
             id: "assigned-1",
+            order_number: "CF-1001",
+            client_name: "Continental",
             status: "in_progress",
             final_due_date: dateFromToday(2),
             site_visit_at: dateFromToday(1),
           },
           {
             id: "assigned-2",
+            order_number: "CF-1002",
+            property_address: "200 Revision Ave",
             status: "needs_revisions",
             final_due_date: dateFromToday(-1),
           },
@@ -43,18 +47,29 @@ describe("passive workbench previews", () => {
     expect(screen.getByText("Staff Appraiser")).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Review assigned orders, revision requests, due dates, site visit context, files, notes, and submit/resubmit readiness from provided order rows.",
+        "Start with the assigned orders that need attention today: revisions, due pressure, inspection context, and waiting or blocked work derived from the current order rows.",
       ),
     ).toBeInTheDocument();
 
-    const assignedWork = screen.getByRole("region", { name: "Assigned Work" });
-    expect(within(assignedWork).getByText("2")).toBeInTheDocument();
-    const revisions = screen.getByRole("region", { name: "Needs Revisions" });
+    const priorityWork = screen.getByRole("region", { name: "Priority Work" });
+    expect(within(priorityWork).getByText("2")).toBeInTheDocument();
+    expect(within(priorityWork).getByRole("link", { name: "CF-1001" })).toHaveAttribute(
+      "href",
+      "/orders/assigned-1",
+    );
+    expect(within(priorityWork).getByRole("link", { name: "CF-1002" })).toHaveAttribute(
+      "href",
+      "/orders/assigned-2",
+    );
+
+    const revisions = screen.getByRole("region", { name: "Revisions Required" });
     expect(within(revisions).getByText("1")).toBeInTheDocument();
-    const dueSoon = screen.getByRole("region", { name: "Due Soon" });
+    const dueSoon = screen.getByRole("region", { name: "Due Soon / Overdue" });
     expect(within(dueSoon).getByText("2")).toBeInTheDocument();
-    const siteVisit = screen.getByRole("region", { name: "Site Visit / Calendar Context" });
+    const siteVisit = screen.getByRole("region", { name: "Upcoming Inspections" });
     expect(within(siteVisit).getByText("1")).toBeInTheDocument();
+    const waiting = screen.getByRole("region", { name: "Waiting / Blocked Context" });
+    expect(within(waiting).getByText("0")).toBeInTheDocument();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
@@ -62,13 +77,44 @@ describe("passive workbench previews", () => {
     render(<AppraiserWorkbenchPreview rows={[]} />);
 
     expect(screen.getByRole("heading", { name: "My Work" })).toBeInTheDocument();
-    expect(screen.getByText("No assigned work rows were provided.")).toBeInTheDocument();
-    expect(screen.getByText("No revision requests are represented in these rows.")).toBeInTheDocument();
-    expect(screen.getByText("No due-soon assigned work is represented in these rows.")).toBeInTheDocument();
-    expect(screen.getByText("No site visit context is represented in these rows.")).toBeInTheDocument();
     expect(
-      screen.getByText("Files and notes remain order-scoped and are not loaded in this passive preview."),
+      screen.getByText("No assigned order rows need priority placement from the provided data."),
     ).toBeInTheDocument();
+    expect(
+      screen.getByText("No due-soon or overdue assigned work is represented in these rows."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("No revision requests are represented in these rows.")).toBeInTheDocument();
+    expect(screen.getByText("No upcoming inspection context is represented in these rows.")).toBeInTheDocument();
+    expect(screen.getByText("No waiting or blocked context is represented in these rows.")).toBeInTheDocument();
+    expect(
+      screen.getByText("No lower-priority assigned work remains outside today's priority grouping."),
+    ).toBeInTheDocument();
+  });
+
+  it("renders the compact My Work dashboard entry without duplicating full lane sections", () => {
+    render(
+      <AppraiserWorkbenchPreview
+        compact
+        rows={[
+          {
+            id: "assigned-1",
+            order_number: "CF-1001",
+            status: "in_progress",
+            final_due_date: dateFromToday(2),
+          },
+        ]}
+      />,
+    );
+
+    const summary = screen.getByRole("region", { name: "My Work summary" });
+
+    expect(within(summary).getByRole("heading", { name: "My Work" })).toBeInTheDocument();
+    expect(within(summary).getByRole("link", { name: "Open My Work" })).toHaveAttribute(
+      "href",
+      "/my-work",
+    );
+    expect(within(summary).queryByRole("region", { name: "Priority Work" })).toBeNull();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
   it("renders reviewer-native Review Queue copy from provided rows", () => {

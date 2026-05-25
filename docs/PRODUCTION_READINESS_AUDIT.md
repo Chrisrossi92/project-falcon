@@ -18,6 +18,7 @@ Related doctrine:
 - `docs/ENVIRONMENT_PARITY_CHECKLIST.md`
 - `docs/PRODUCTION_BOOTSTRAP_PLAN.md`
 - `docs/PRODUCTION_SMOKE_TEST_CHECKLIST.md`
+- `docs/PRODUCTION_HARDENING_RUNTIME_CONFIDENCE.md`
 - `docs/OPERATIONAL_GOVERNANCE_SNAPSHOT.md`
 - `docs/NEXT_PHASE_EXECUTION_PLAN.md`
 - `docs/IMPLEMENTATION_ROADMAP.md`
@@ -113,6 +114,42 @@ The checklist covers local development, modern staging project `voompccpkjfcsmeh
 production Supabase project, legacy hosted project `okwqhkrsjgxrhyisaovc` as non-retrofit
 reference only, GitHub `main`, Vercel deployment settings, baseline tags, branch/deployment
 expectations, and rollback references.
+
+### Live Production Runtime Evidence Status
+
+Production Hardening & Runtime Confidence Phase 1F inspected `https://continentalres.com` using
+read-only HTTP and headless Chrome route checks. The deployed production response headers still
+allow only legacy Supabase host `okwqhkrsjgxrhyisaovc.supabase.co` in CSP `connect-src`, and the
+deployed JavaScript bundle contains the same legacy Supabase host. The modern staging host
+`voompccpkjfcsmehdoqu.supabase.co` was not observed in deployed CSP or deployed bundle evidence.
+
+Authenticated production route data loading was not completed, so API-call evidence remains
+incomplete. The safe decision is that CSP cleanup is unsafe as a direct removal of the legacy host
+until production Supabase target intent is decided and verified. See
+`docs/PRODUCTION_HARDENING_RUNTIME_CONFIDENCE.md` for the Phase 1F evidence and decision.
+
+### Production Supabase Target Decision Status
+
+Production Hardening & Runtime Confidence Phase 1G defines the target decision plan before any
+Vercel env, CSP, deployment, or Supabase project change. Current evidence strongly indicates that
+deployed production is still legacy-targeted because production CSP allows
+`okwqhkrsjgxrhyisaovc.supabase.co` and the deployed bundle contains that same host. This is not yet
+complete authenticated API proof, so Vercel env classification and authenticated network evidence
+remain required.
+
+Current target posture:
+
+- `okwqhkrsjgxrhyisaovc` is the likely current production runtime Supabase target and should be
+  treated as a temporary legacy-backed state unless dashboard/authenticated evidence proves
+  otherwise.
+- `voompccpkjfcsmehdoqu` remains the modern staging/reference validation project, not automatically
+  final production.
+- a separate clean final production Supabase project remains the preferred direction unless the
+  team explicitly chooses a different target.
+- changing `VITE_SUPABASE_URL` requires target approval, schema/data/auth/company/permission/storage
+  parity evidence, preview smoke, production smoke plan, and rollback procedure.
+- CSP cleanup remains blocked until the selected runtime target is proven and the deployed bundle
+  no longer requires the legacy host.
 
 ### 3. Seed / Permission Verification Checklist
 
