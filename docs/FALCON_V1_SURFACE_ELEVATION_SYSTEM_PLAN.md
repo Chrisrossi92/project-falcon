@@ -468,3 +468,33 @@ A3.1 preserves:
 - all dashboard data behavior;
 - all backend, Supabase, schema, automation, notification, AMC, Client Portal, mobile/native, AI,
   and production data behavior.
+
+## A3.2 Implementation Record
+
+Phase A3.2 applies shared surface recipes to the Orders workspace as a presentation-only surface
+pass.
+
+Runtime files updated:
+
+- `src/pages/orders/Orders.jsx`;
+- `src/features/orders/OrdersFilters.jsx`;
+- `src/features/orders/UnifiedOrdersTable.jsx`.
+
+A3.2 changes:
+
+- frames the Orders workspace header with the shared primary operational panel recipe;
+- frames the active filter chip row and Orders workspace context strip with the shared evidence
+  recipe;
+- frames the Orders filter panel with the shared secondary context recipe;
+- composes the Orders table root from the shared table/list surface recipe while preserving its
+  existing table chrome and active order behavior.
+
+A3.2 preserves:
+
+- all Orders route paths and URL filter semantics;
+- all saved-view behavior;
+- all Orders table data loading and row rendering behavior;
+- all Smart Action and workflow/lifecycle behavior;
+- all permission checks and route guards;
+- all backend, Supabase, schema, dashboard data, automation, notification, AMC, Client Portal,
+  mobile/native, AI, and production data behavior.

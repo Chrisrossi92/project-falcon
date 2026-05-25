@@ -1,5 +1,6 @@
 // src/features/orders/OrdersFilters.jsx
 import { useEffect, useState } from "react";
+import { WorkspaceSurface } from "@/components/workspace/WorkspaceSurface";
 import { listCompanyAssignableAppraisers } from "@/features/company-members/assignableUsersApi";
 import { listOrderFilterClients } from "@/features/orders/orderFilterOptionsApi";
 
@@ -58,7 +59,7 @@ export default function OrdersFilters({ value, onChange, actions = null }) {
     "h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 shadow-sm transition focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100";
 
   return (
-    <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+    <WorkspaceSurface as="div" variant="secondary" className="space-y-3 rounded-2xl p-3">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-3">
         <div className="min-w-0">
           <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Filter Active Orders</div>
@@ -172,6 +173,6 @@ export default function OrdersFilters({ value, onChange, actions = null }) {
           </select>
         </div>
       </div>
-    </div>
+    </WorkspaceSurface>
   );
 }

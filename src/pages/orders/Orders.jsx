@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import OrdersFilters from "@/features/orders/OrdersFilters";
 import UnifiedOrdersTable from "@/features/orders/UnifiedOrdersTable";
 import NewOrderButton from "@/components/orders/NewOrderButton";
+import { WorkspaceSurface } from "@/components/workspace/WorkspaceSurface";
 import { labelForStatus } from "@/lib/constants/orderStatus";
 import { OPERATIONAL_QUEUE_DEFINITIONS } from "@/features/queues/queueDefinitions";
 import { orderHasQueue } from "@/features/queues/queueEvaluator";
@@ -167,9 +168,11 @@ function ActiveFilterChips({ filters, onChange }) {
     });
 
   return (
-    <div
+    <WorkspaceSurface
+      as="div"
+      variant="evidence"
       aria-label="Active order filters"
-      className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm"
+      className="flex flex-wrap items-center gap-2 bg-white px-3 py-2"
     >
       <span className="mr-1 shrink-0 text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
         Active filters
@@ -195,7 +198,7 @@ function ActiveFilterChips({ filters, onChange }) {
       >
         Clear Filters
       </button>
-    </div>
+    </WorkspaceSurface>
   );
 }
 
@@ -226,7 +229,12 @@ function OrdersWorkspaceContext({ filters, activeQueue }) {
   }
 
   return (
-    <div aria-label="Orders workspace context" className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+    <WorkspaceSurface
+      as="div"
+      variant="evidence"
+      aria-label="Orders workspace context"
+      className="px-3 py-2"
+    >
       <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
         <span className="rounded-full bg-white px-2.5 py-1 font-semibold text-slate-700 shadow-sm">
           Active Orders
@@ -248,7 +256,7 @@ function OrdersWorkspaceContext({ filters, activeQueue }) {
         ) : null}
         <span className="min-w-0 flex-1 text-sm text-slate-500">{summary}</span>
       </div>
-    </div>
+    </WorkspaceSurface>
   );
 }
 
@@ -498,7 +506,11 @@ export default function OrdersPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+      <WorkspaceSurface
+        as="header"
+        variant="primary"
+        className="flex flex-wrap items-end justify-between gap-4 px-5 py-4"
+      >
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em]">
             <span className="text-slate-400">Active Operations</span>
@@ -519,7 +531,7 @@ export default function OrdersPage() {
         <div className="flex shrink-0 flex-wrap items-center justify-start gap-2 sm:justify-end">
           <NewOrderButton show className="shrink-0" />
         </div>
-      </div>
+      </WorkspaceSurface>
 
       <OrdersFilters
         value={filters}

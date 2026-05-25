@@ -9,6 +9,7 @@ import OrdersTableRow from "@/components/orders/table/OrdersTableRow";
 import OrdersTablePagination from "@/components/orders/table/OrdersTablePagination";
 import OrderStatusBadge from "@/components/orders/table/OrderStatusBadge";
 import OrderDrawerContent from "@/components/orders/drawer/OrderDrawerContent";
+import { workspaceSurfaceClassNames } from "@/components/workspace/WorkspaceSurface";
 import { updateSiteVisitAt } from "@/lib/api/orders";
 import {
   sendOrderToReview,
@@ -486,7 +487,10 @@ export default function UnifiedOrdersTable({
     <>
       <div
         aria-label="Orders table"
-        className={`overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_12px_32px_rgba(15,23,42,0.06)] ring-1 ring-white ${className}`}
+        className={workspaceSurfaceClassNames(
+          "table",
+          `rounded-2xl border-slate-200/80 shadow-[0_12px_32px_rgba(15,23,42,0.06)] ring-1 ring-white ${className}`,
+        )}
         style={style}
       >
         <div className="border-b border-slate-200 bg-white px-4 py-3">
