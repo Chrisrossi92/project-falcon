@@ -3932,3 +3932,12 @@ staff appraiser work. No backend endpoint, RPC, schema/view/policy, permission s
 action, Smart Action behavior, dashboard query authority, order data authority, operational input
 query, file readiness query, review feedback query, activity query, automation, notification, AI,
 AMC, Client Portal, or production data behavior was added or changed.
+
+Falcon v1 Phase B1.2.2 is complete as a presentation-only priority grouping expansion for the
+dedicated My Work surface. `AppraiserWorkbenchPreview` now separates urgent overdue work from
+due-soon work, preserves distinct lanes for revisions required, upcoming inspections, waiting /
+blocked context, and lower-priority work, and makes lower-priority assigned work visually quieter
+than immediate execution pressure. The grouping remains client-side and explainable from existing
+governed row fields. No route guard, permission, workflow/action, Smart Action, backend/schema,
+Supabase, data/query authority, automation, notification, AI, AMC, Client Portal, or production
+data behavior was added or changed.

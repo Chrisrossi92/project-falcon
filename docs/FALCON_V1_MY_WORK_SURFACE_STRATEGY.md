@@ -392,3 +392,20 @@ Implementation assessment:
 - the route remains behavior-preserving because it uses existing governed rows and client-side
   presentation grouping only;
 - B1.2.2 should focus on clearer priority grouping and route-level scan quality, not new authority.
+
+## B1.2.2 Priority Grouping Expansion Record
+
+Phase B1.2.2 expands My Work's execution hierarchy inside the existing dedicated route foundation.
+
+B1.2.2 changes:
+
+- separates urgent overdue work from due-soon work;
+- keeps revisions required as an active appraiser execution lane;
+- keeps upcoming inspections time-anchored from existing schedule/site-visit fields;
+- keeps waiting or blocked context as evidence/context rather than workflow authority;
+- makes lower-priority assigned work visually recede below immediate pressure lanes.
+
+B1.2.2 remains presentation-only. It uses existing governed assigned order rows and client-side
+grouping from available row fields. It does not add workflow logic, permissions, route authority,
+backend/schema/Supabase behavior, new queries, Smart Action behavior, automation, notifications,
+AI, AMC, Client Portal, or production data behavior.

@@ -2,7 +2,25 @@ import { WorkspaceSurface } from "@/components/workspace/WorkspaceSurface";
 
 const EMPTY_ROWS = Object.freeze([]);
 const DUE_SOON_DAYS = 7;
-const MAX_PRIMARY_ITEMS = 4;
+const MAX_PRIMARY_ITEMS = 5;
+
+const metricToneClasses = {
+  urgent: "border-slate-400 bg-slate-950 text-white ring-1 ring-slate-800",
+  due: "border-amber-200 bg-amber-50 text-amber-950",
+  revision: "border-blue-200 bg-blue-50 text-blue-950",
+  inspection: "border-emerald-200 bg-emerald-50 text-emerald-950",
+  waiting: "border-slate-300 bg-slate-100 text-slate-900",
+};
+
+const sectionToneClasses = {
+  priority: "border-slate-400 bg-slate-950 text-white shadow-[0_18px_42px_rgba(15,23,42,0.16)]",
+  urgent: "border-slate-300 bg-white",
+  due: "border-amber-200 bg-amber-50/80",
+  revision: "border-blue-200 bg-blue-50/75",
+  inspection: "border-emerald-200 bg-emerald-50/70",
+  waiting: "border-slate-300 bg-slate-100/90",
+  quiet: "border-slate-200 bg-slate-50/85",
+};
 
 function normalizeStatus(status) {
   return String(status || "").trim().toLowerCase();
@@ -37,8 +55,12 @@ function getDuePressure(row) {
   return "none";
 }
 
-function isDueSoonOrOverdue(row) {
-  return getDuePressure(row) !== "none";
+function isOverdue(row) {
+  return getDuePressure(row) === "overdue";
+}
+
+function isDueSoon(row) {
+  return getDuePressure(row) === "due soon";
 }
 
 function isRevision(row) {
@@ -115,8 +137,8 @@ function formatDueDate(row) {
 
 function getWorkReason(row) {
   if (isRevision(row)) return "Revision follow-up";
-  if (getDuePressure(row) === "overdue") return "Overdue";
-  if (getDuePressure(row) === "due soon") return "Due soon";
+  if (isOverdue(row)) return "Overdue";
+  if (isDueSoon(row)) return "Due soon";
   if (isWaitingOrBlocked(row)) return "Waiting / blocked";
   if (hasSiteVisitContext(row)) return "Inspection context";
   return "Assigned work";
@@ -135,32 +157,50 @@ function dedupeRows(rows) {
 
 function getPriorityRows(rows) {
   return dedupeRows([
+    ...rows.filter(isOverdue),
     ...rows.filter(isRevision),
-    ...rows.filter((row) => getDuePressure(row) === "overdue"),
-    ...rows.filter((row) => getDuePressure(row) === "due soon"),
+    ...rows.filter(isDueSoon),
     ...rows.filter(isWaitingOrBlocked),
     ...rows.filter(hasSiteVisitContext),
     ...rows,
   ]).slice(0, MAX_PRIMARY_ITEMS);
 }
 
-function WorkbenchMetric({ label, value, caption }) {
+function getPressureRows(rows) {
+  return dedupeRows([
+    ...rows.filter(isOverdue),
+    ...rows.filter(isDueSoon),
+    ...rows.filter(isRevision),
+    ...rows.filter(hasSiteVisitContext),
+    ...rows.filter(isWaitingOrBlocked),
+  ]);
+}
+
+function WorkbenchMetric({ label, value, caption, tone = "waiting" }) {
   return (
-    <WorkspaceSurface as="div" variant="evidence" className="bg-white p-3 shadow-sm">
-      <p className="text-xs font-semibold uppercase text-slate-500">{label}</p>
-      <p className="mt-1 text-2xl font-semibold text-slate-900">{value}</p>
-      <p className="mt-1 text-sm text-slate-600">{caption}</p>
+    <WorkspaceSurface
+      as="div"
+      variant="evidence"
+      className={`${metricToneClasses[tone] || metricToneClasses.waiting} p-3 shadow-sm`}
+    >
+      <p className="text-xs font-semibold uppercase opacity-70">{label}</p>
+      <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>
+      <p className="mt-1 text-sm opacity-75">{caption}</p>
     </WorkspaceSurface>
   );
 }
 
-function OrderWorkItem({ row, compact = false }) {
+function OrderWorkItem({ row, compact = false, subdued = false }) {
   const orderId = getOrderId(row);
   const label = getOrderLabel(row);
   const href = orderId ? `/orders/${orderId}` : "/orders";
 
   return (
-    <article className="rounded-lg border border-slate-200 bg-white px-3 py-3">
+    <article
+      className={`rounded-lg border px-3 py-3 ${
+        subdued ? "border-slate-200 bg-white/70" : "border-slate-200 bg-white"
+      }`}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <a
@@ -184,23 +224,23 @@ function OrderWorkItem({ row, compact = false }) {
   );
 }
 
-function WorkbenchSection({ title, count, emptyCopy, children, className = "" }) {
+function WorkbenchSection({ title, count, emptyCopy, children, className = "", tone = "urgent" }) {
   return (
     <WorkspaceSurface
       variant="evidence"
-      className={`bg-white p-4 shadow-sm ${className}`}
+      className={`${sectionToneClasses[tone] || sectionToneClasses.urgent} p-4 shadow-sm ${className}`}
       aria-label={title}
     >
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-sm font-semibold">{title}</h3>
           {count > 0 ? (
             <div className="mt-3 space-y-2">{children}</div>
           ) : (
-            <p className="mt-1 text-sm text-slate-600">{emptyCopy}</p>
+            <p className="mt-1 text-sm opacity-75">{emptyCopy}</p>
           )}
         </div>
-        <span className="rounded bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
+        <span className="rounded bg-white/80 px-2 py-1 text-xs font-semibold text-slate-700 shadow-sm">
           {count}
         </span>
       </div>
@@ -216,11 +256,13 @@ export default function AppraiserWorkbenchPreview({
 } = {}) {
   const orderRows = normalizeRows(rows);
   const priorityRows = getPriorityRows(orderRows);
+  const overdueRows = orderRows.filter(isOverdue);
+  const dueSoonRows = orderRows.filter(isDueSoon);
   const revisionRows = orderRows.filter(isRevision);
-  const dueSoonRows = orderRows.filter(isDueSoonOrOverdue);
   const siteVisitRows = orderRows.filter(hasSiteVisitContext);
   const waitingRows = orderRows.filter(isWaitingOrBlocked);
-  const lowerPriorityRows = orderRows.filter((row) => !priorityRows.includes(row)).slice(0, 3);
+  const pressureRows = getPressureRows(orderRows);
+  const lowerPriorityRows = orderRows.filter((row) => !pressureRows.includes(row)).slice(0, 4);
 
   if (compact) {
     return (
@@ -249,24 +291,28 @@ export default function AppraiserWorkbenchPreview({
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <WorkbenchMetric
-              label="Priority Work"
+              label="Urgent Work"
               value={priorityRows.length}
-              caption="Rows surfaced first from today's pressure"
+              caption="Rows surfaced first from overdue and active pressure"
+              tone="urgent"
             />
             <WorkbenchMetric
-              label="Due / Overdue"
-              value={dueSoonRows.length}
-              caption="Rows due within seven days or already overdue"
+              label="Due Soon"
+              value={dueSoonRows.length + overdueRows.length}
+              caption="Rows overdue or due within seven days"
+              tone="due"
             />
             <WorkbenchMetric
               label="Revisions"
               value={revisionRows.length}
               caption="Rows marked for appraiser revision follow-up"
+              tone="revision"
             />
             <WorkbenchMetric
               label="Inspections"
               value={siteVisitRows.length}
               caption="Rows with site visit or schedule context"
+              tone="inspection"
             />
           </div>
         )}
@@ -293,24 +339,28 @@ export default function AppraiserWorkbenchPreview({
         <>
           <div className="grid gap-3 md:grid-cols-4">
             <WorkbenchMetric
-              label="Priority Work"
+              label="Urgent Work"
               value={priorityRows.length}
-              caption="Rows surfaced first from today's pressure"
+              caption="Rows surfaced first from overdue and active pressure"
+              tone="urgent"
             />
             <WorkbenchMetric
-              label="Due / Overdue"
-              value={dueSoonRows.length}
-              caption="Rows due within seven days or already overdue"
+              label="Due Soon"
+              value={dueSoonRows.length + overdueRows.length}
+              caption="Rows overdue or due within seven days"
+              tone="due"
             />
             <WorkbenchMetric
               label="Revisions"
               value={revisionRows.length}
               caption="Rows marked for appraiser revision follow-up"
+              tone="revision"
             />
             <WorkbenchMetric
               label="Inspections"
               value={siteVisitRows.length}
               caption="Rows with site visit or schedule context"
+              tone="inspection"
             />
           </div>
 
@@ -318,7 +368,7 @@ export default function AppraiserWorkbenchPreview({
             title="Priority Work"
             count={priorityRows.length}
             emptyCopy="No assigned order rows need priority placement from the provided data."
-            className="border-slate-300"
+            tone="priority"
           >
             {priorityRows.map((row, index) => (
               <OrderWorkItem key={getOrderKey(row, index)} row={row} />
@@ -327,9 +377,20 @@ export default function AppraiserWorkbenchPreview({
 
           <div className="grid gap-3 xl:grid-cols-2">
             <WorkbenchSection
-              title="Due Soon / Overdue"
+              title="Urgent / Overdue"
+              count={overdueRows.length}
+              emptyCopy="No overdue assigned work is represented in these rows."
+              tone="urgent"
+            >
+              {overdueRows.map((row, index) => (
+                <OrderWorkItem key={getOrderKey(row, index)} row={row} compact />
+              ))}
+            </WorkbenchSection>
+            <WorkbenchSection
+              title="Due Soon"
               count={dueSoonRows.length}
-              emptyCopy="No due-soon or overdue assigned work is represented in these rows."
+              emptyCopy="No due-soon assigned work is represented in these rows."
+              tone="due"
             >
               {dueSoonRows.map((row, index) => (
                 <OrderWorkItem key={getOrderKey(row, index)} row={row} compact />
@@ -339,6 +400,7 @@ export default function AppraiserWorkbenchPreview({
               title="Revisions Required"
               count={revisionRows.length}
               emptyCopy="No revision requests are represented in these rows."
+              tone="revision"
             >
               {revisionRows.map((row, index) => (
                 <OrderWorkItem key={getOrderKey(row, index)} row={row} compact />
@@ -348,6 +410,7 @@ export default function AppraiserWorkbenchPreview({
               title="Upcoming Inspections"
               count={siteVisitRows.length}
               emptyCopy="No upcoming inspection context is represented in these rows."
+              tone="inspection"
             >
               {siteVisitRows.map((row, index) => (
                 <OrderWorkItem key={getOrderKey(row, index)} row={row} compact />
@@ -357,6 +420,7 @@ export default function AppraiserWorkbenchPreview({
               title="Waiting / Blocked Context"
               count={waitingRows.length}
               emptyCopy="No waiting or blocked context is represented in these rows."
+              tone="waiting"
             >
               {waitingRows.map((row, index) => (
                 <OrderWorkItem key={getOrderKey(row, index)} row={row} compact />
@@ -366,9 +430,10 @@ export default function AppraiserWorkbenchPreview({
               title="Lower-Priority Work"
               count={lowerPriorityRows.length}
               emptyCopy="No lower-priority assigned work remains outside today's priority grouping."
+              tone="quiet"
             >
               {lowerPriorityRows.map((row, index) => (
-                <OrderWorkItem key={getOrderKey(row, index)} row={row} compact />
+                <OrderWorkItem key={getOrderKey(row, index)} row={row} compact subdued />
               ))}
             </WorkbenchSection>
           </div>

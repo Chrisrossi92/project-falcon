@@ -64,8 +64,10 @@ describe("passive workbench previews", () => {
 
     const revisions = screen.getByRole("region", { name: "Revisions Required" });
     expect(within(revisions).getByText("1")).toBeInTheDocument();
-    const dueSoon = screen.getByRole("region", { name: "Due Soon / Overdue" });
-    expect(within(dueSoon).getByText("2")).toBeInTheDocument();
+    const urgent = screen.getByRole("region", { name: "Urgent / Overdue" });
+    expect(within(urgent).getByText("1")).toBeInTheDocument();
+    const dueSoon = screen.getByRole("region", { name: "Due Soon" });
+    expect(within(dueSoon).getByText("1")).toBeInTheDocument();
     const siteVisit = screen.getByRole("region", { name: "Upcoming Inspections" });
     expect(within(siteVisit).getByText("1")).toBeInTheDocument();
     const waiting = screen.getByRole("region", { name: "Waiting / Blocked Context" });
@@ -81,7 +83,10 @@ describe("passive workbench previews", () => {
       screen.getByText("No assigned order rows need priority placement from the provided data."),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("No due-soon or overdue assigned work is represented in these rows."),
+      screen.getByText("No overdue assigned work is represented in these rows."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("No due-soon assigned work is represented in these rows."),
     ).toBeInTheDocument();
     expect(screen.getByText("No revision requests are represented in these rows.")).toBeInTheDocument();
     expect(screen.getByText("No upcoming inspection context is represented in these rows.")).toBeInTheDocument();

@@ -68,9 +68,8 @@ describe("MyWorkPage", () => {
 
     const workSurface = screen.getByRole("region", { name: "My Work preview" });
     expect(within(workSurface).getByRole("region", { name: "Priority Work" })).toBeInTheDocument();
-    expect(
-      within(workSurface).getByRole("region", { name: "Due Soon / Overdue" }),
-    ).toBeInTheDocument();
+    expect(within(workSurface).getByRole("region", { name: "Urgent / Overdue" })).toBeInTheDocument();
+    expect(within(workSurface).getByRole("region", { name: "Due Soon" })).toBeInTheDocument();
     expect(
       within(workSurface).getByRole("region", { name: "Revisions Required" }),
     ).toBeInTheDocument();

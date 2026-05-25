@@ -266,3 +266,39 @@ Implementation assessment:
   presentation-only grouping;
 - B1.2.2 should refine priority grouping only after route-level appraiser QA confirms the
   dedicated surface answers today's work question clearly.
+
+## B1.2.2 Priority Grouping Expansion Record
+
+Phase B1.2.2 refines the dedicated My Work priority hierarchy without changing data authority.
+
+Runtime files updated:
+
+- `src/features/dashboard/workbenches/AppraiserWorkbenchPreview.jsx`;
+- `src/features/dashboard/workbenches/__tests__/WorkbenchPreviews.test.jsx`;
+- `src/features/dashboard/__tests__/MyWorkPage.test.jsx`.
+
+B1.2.2 changes:
+
+- splits due pressure into separate `Urgent / Overdue` and `Due Soon` lanes;
+- keeps `Revisions Required`, `Upcoming Inspections`, `Waiting / Blocked Context`, and
+  `Lower-Priority Work` as distinct scan lanes;
+- strengthens the top priority area as a route-level execution pressure summary;
+- makes lower-priority work visually quieter so it does not compete with overdue, due-soon,
+  revision, inspection, or waiting/blocker lanes;
+- continues deriving all groups client-side from existing row fields such as status, due date,
+  inspection context, and waiting/blocker context.
+
+B1.2.2 intentionally does not:
+
+- add new queries, RPCs, views, schema objects, Supabase policies, or backend behavior;
+- change route guards, permission seeds, workflow actions, Smart Action behavior, dashboard query
+  authority, or order data authority;
+- add AI prioritization, hidden ranking authority, automation, notifications, AMC, Client Portal,
+  or production data behavior.
+
+Implementation assessment:
+
+- My Work now separates urgent overdue work from due-soon work at first scan;
+- revisions read as active appraiser work, while waiting/blocker context remains contextual rather
+  than a failure state;
+- B1.2.3 should add operational context only if existing governed reads safely support it.
