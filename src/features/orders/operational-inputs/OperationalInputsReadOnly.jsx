@@ -1,3 +1,5 @@
+import { WorkspaceSurface } from "@/components/workspace/WorkspaceSurface";
+
 const INPUT_LABELS = Object.freeze({
   inspection_scheduled: "Inspection scheduled",
   report_on_track: "Report on track",
@@ -42,9 +44,10 @@ export default function OperationalInputsReadOnly({
   if (loading || error || rows.length === 0) return null;
 
   return (
-    <section
+    <WorkspaceSurface
+      variant="evidence"
       aria-label="Operational status evidence"
-      className={`rounded-xl border border-slate-200 bg-white p-3 shadow-sm ${className}`.trim()}
+      className={`bg-white p-3 ${className}`.trim()}
     >
       <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
         <div>
@@ -82,6 +85,6 @@ export default function OperationalInputsReadOnly({
           </div>
         ))}
       </div>
-    </section>
+    </WorkspaceSurface>
   );
 }

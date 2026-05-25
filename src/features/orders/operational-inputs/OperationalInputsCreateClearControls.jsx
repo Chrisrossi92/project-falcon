@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { WorkspaceSurface } from "@/components/workspace/WorkspaceSurface";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -87,9 +88,10 @@ export default function OperationalInputsCreateClearControls({
   if (!orderId) return null;
 
   return (
-    <section
+    <WorkspaceSurface
+      variant="action"
       aria-label="Operational context controls"
-      className={`rounded-xl border border-slate-200 bg-slate-50/70 p-3 ${className}`.trim()}
+      className={`bg-white p-3 ${className}`.trim()}
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
@@ -150,6 +152,6 @@ export default function OperationalInputsCreateClearControls({
           {errorMessage}
         </div>
       )}
-    </section>
+    </WorkspaceSurface>
   );
 }

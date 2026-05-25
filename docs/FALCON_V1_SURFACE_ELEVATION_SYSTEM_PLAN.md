@@ -529,3 +529,35 @@ A3.3 preserves:
 - all permission checks and route guards;
 - all backend, Supabase, schema, automation, notification, AMC, Client Portal, mobile/native, AI,
   and production data behavior.
+
+## A3.4 Implementation Record
+
+Phase A3.4 applies shared surface recipes to Order Detail as a presentation-only workstation
+surface pass.
+
+Runtime files updated:
+
+- `src/pages/orders/OrderDetail.jsx`;
+- `src/features/orders/operational-inputs/OperationalInputsCreateClearControls.jsx`;
+- `src/features/orders/operational-inputs/OperationalInputsReadOnly.jsx`.
+
+A3.4 changes:
+
+- frames the Order Detail header and operational overview with the shared primary operational
+  panel recipe;
+- visually separates the header action cluster from read-only order context;
+- frames overview sections, notes, and operational input evidence with the shared evidence recipe;
+- frames files and property/map context with the shared secondary context recipe;
+- frames operational input create/clear controls with the shared action/decision recipe;
+- frames the activity/review context area as a primary detail work surface.
+
+A3.4 preserves:
+
+- all Order Detail route paths and navigation links;
+- all lifecycle/status and Smart Action behavior;
+- all operational input create, clear, read, and refresh behavior;
+- all file upload, download, archive, readiness, and print-packet behavior;
+- all review/revision context and activity behavior;
+- all permission checks and route guards;
+- all backend, Supabase, schema, dashboard data, automation, notification, AMC, Client Portal,
+  mobile/native, AI, and production data behavior.

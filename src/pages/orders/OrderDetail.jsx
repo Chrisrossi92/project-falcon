@@ -11,6 +11,7 @@ import OperationalInputsCreateClearControls from "@/features/orders/operational-
 import OperationalInputsReadOnly from "@/features/orders/operational-inputs/OperationalInputsReadOnly";
 import useOrderOperationalInputs from "@/features/orders/operational-inputs/useOrderOperationalInputs";
 import ReviewContextSummary from "@/features/orders/review/ReviewContextSummary";
+import { WorkspaceSurface } from "@/components/workspace/WorkspaceSurface";
 import useOrder from "@/lib/hooks/useOrder";
 import { useEffectivePermissions } from "@/lib/hooks/usePermissions";
 import { useToast } from "@/lib/hooks/useToast";
@@ -183,12 +184,12 @@ function SummaryField({ label, value, children }) {
 
 function OverviewSection({ title, children, className = "" }) {
   return (
-    <section className={`rounded-lg border border-gray-100 bg-gray-50/60 p-3 ${className}`}>
+    <WorkspaceSurface variant="evidence" className={`bg-white p-3 ${className}`}>
       <div className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
         {title}
       </div>
       <div className="grid gap-3 sm:grid-cols-2">{children}</div>
-    </section>
+    </WorkspaceSurface>
   );
 }
 
@@ -328,7 +329,12 @@ function FilesCard({ order, orderId, canArchive, canUpload, onFilesLoaded }) {
   }
 
   return (
-    <div className="mt-4 rounded-md bg-white p-3 border" aria-label="Order files">
+    <WorkspaceSurface
+      as="div"
+      variant="secondary"
+      className="mt-4 bg-white p-3"
+      aria-label="Order files"
+    >
       <div className="flex items-center justify-between gap-3">
         <div className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold">
           Files
@@ -482,7 +488,7 @@ function FilesCard({ order, orderId, canArchive, canUpload, onFilesLoaded }) {
           ))}
         </div>
       )}
-    </div>
+    </WorkspaceSurface>
   );
 }
 
@@ -651,7 +657,7 @@ export default function OrderDetail() {
     <div className="p-4 space-y-4 print:p-0">
       <div className="space-y-4 print:hidden">
         {/* Operational overview */}
-        <div className="rounded-xl border bg-white p-4">
+        <WorkspaceSurface variant="primary" className="p-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0">
             <div className="text-lg font-semibold flex items-center gap-3">
@@ -668,7 +674,7 @@ export default function OrderDetail() {
             </div>
             <div className="text-xs text-gray-500">Created {fmtDateTime(order.created_at)}</div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-2">
             {canOfferAssignment && (
               <button
                 type="button"
@@ -801,12 +807,12 @@ export default function OrderDetail() {
           error={operationalInputsError}
           className="mt-3"
         />
-        </div>
+        </WorkspaceSurface>
 
         {/* Detail body */}
         <div className="grid grid-cols-12 gap-4 items-start" aria-label="Order detail body">
         <div className="col-span-12 lg:col-span-5">
-          <div className="rounded-md bg-white p-3 border">
+          <WorkspaceSurface variant="secondary" className="bg-white p-3">
             <div className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-2">Property / Map</div>
 
             <div className="mb-3 text-sm">
@@ -825,7 +831,7 @@ export default function OrderDetail() {
                 zoom={13}
               />
             </div>
-          </div>
+          </WorkspaceSurface>
 
           <FilesCard
             order={order}
@@ -837,7 +843,7 @@ export default function OrderDetail() {
         </div>
 
         <div className="col-span-12 lg:col-span-7">
-          <div className="rounded-md bg-white p-3 border">
+          <WorkspaceSurface variant="primary" className="p-3">
             <div className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-2">
               Activity
             </div>
@@ -847,7 +853,7 @@ export default function OrderDetail() {
               className="mb-3"
             />
             <ActivityLog orderId={order.id} order={order} showComposer height={420} />
-          </div>
+          </WorkspaceSurface>
         </div>
         </div>
 
@@ -858,10 +864,10 @@ export default function OrderDetail() {
         />
 
         {/* Notes */}
-        <div className="rounded-md bg-white p-3 border">
+        <WorkspaceSurface variant="evidence" className="bg-white p-3">
           <div className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-2">Notes</div>
           <div className="text-sm text-gray-800 whitespace-pre-wrap">{order.access_notes || order.notes || "-"}</div>
-        </div>
+        </WorkspaceSurface>
 
         <OfferAssignmentModal
           open={offerAssignmentOpen}
