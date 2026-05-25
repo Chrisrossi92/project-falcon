@@ -498,3 +498,34 @@ A3.2 preserves:
 - all permission checks and route guards;
 - all backend, Supabase, schema, dashboard data, automation, notification, AMC, Client Portal,
   mobile/native, AI, and production data behavior.
+
+## A3.3 Implementation Record
+
+Phase A3.3 applies shared surface recipes to the Dashboard / Operations Command surface as a
+presentation-only command-surface pass.
+
+Runtime files updated:
+
+- `src/features/dashboard/DashboardPage.jsx`;
+- `src/features/dashboard/workbenches/AppraiserWorkbenchPreview.jsx`;
+- `src/features/dashboard/workbenches/ReviewerWorkbenchPreview.jsx`.
+
+A3.3 changes:
+
+- frames the Dashboard command header with the shared primary operational panel recipe;
+- frames calendar, status, workload, readiness, and support areas with shared secondary/evidence
+  recipes;
+- frames the active worklist area as the primary operational dashboard surface while preserving the
+  existing dashboard table integration;
+- frames passive appraiser and reviewer workbench previews with shared secondary/evidence recipes;
+- keeps status/KPI colors deterministic and tied to existing dashboard state.
+
+A3.3 preserves:
+
+- all dashboard data hooks, queries, summaries, and row filtering behavior;
+- all Dashboard route paths and link targets;
+- all Orders table integration behavior from the dashboard;
+- all workflow/lifecycle behavior;
+- all permission checks and route guards;
+- all backend, Supabase, schema, automation, notification, AMC, Client Portal, mobile/native, AI,
+  and production data behavior.

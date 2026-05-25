@@ -1,3 +1,5 @@
+import { WorkspaceSurface } from "@/components/workspace/WorkspaceSurface";
+
 const EMPTY_ROWS = Object.freeze([]);
 const DUE_SOON_DAYS = 7;
 
@@ -40,17 +42,17 @@ function countRows(rows, predicate) {
 
 function WorkbenchMetric({ label, value, caption }) {
   return (
-    <div className="rounded border border-slate-200 bg-white p-3">
+    <WorkspaceSurface as="div" variant="evidence" className="bg-white p-3">
       <p className="text-xs font-semibold uppercase text-slate-500">{label}</p>
       <p className="mt-1 text-2xl font-semibold text-slate-900">{value}</p>
       <p className="mt-1 text-sm text-slate-600">{caption}</p>
-    </div>
+    </WorkspaceSurface>
   );
 }
 
 function WorkbenchSection({ title, count, emptyCopy, children }) {
   return (
-    <section className="rounded border border-slate-200 bg-white p-4" aria-label={title}>
+    <WorkspaceSurface variant="evidence" className="bg-white p-4" aria-label={title}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
@@ -60,7 +62,7 @@ function WorkbenchSection({ title, count, emptyCopy, children }) {
           {count}
         </span>
       </div>
-    </section>
+    </WorkspaceSurface>
   );
 }
 
@@ -82,7 +84,11 @@ export default function ReviewerWorkbenchPreview({
   const revisionFollowUpCount = countRows(orderRows, hasRevisionLoop);
 
   return (
-    <section className="space-y-4" aria-label="Review Queue preview">
+    <WorkspaceSurface
+      variant="secondary"
+      className="space-y-4 p-4"
+      aria-label="Review Queue preview"
+    >
       <header className="space-y-2">
         <p className="text-xs font-semibold uppercase text-slate-500">{reviewerLabel}</p>
         <h2 className="text-2xl font-semibold text-slate-950">Review Queue</h2>
@@ -93,7 +99,7 @@ export default function ReviewerWorkbenchPreview({
       </header>
 
       {loading ? (
-        <p className="rounded border border-slate-200 bg-white p-4 text-sm text-slate-600">
+        <p className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
           Loading review queue preview...
         </p>
       ) : (
@@ -155,6 +161,6 @@ export default function ReviewerWorkbenchPreview({
           </div>
         </>
       )}
-    </section>
+    </WorkspaceSurface>
   );
 }

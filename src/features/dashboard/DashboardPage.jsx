@@ -5,6 +5,10 @@ import UnifiedOrdersTable from "@/features/orders/UnifiedOrdersTable";
 import DashboardCalendarPanel from "@/components/dashboard/DashboardCalendarPanel";
 import AppraiserWorkbenchPreview from "@/features/dashboard/workbenches/AppraiserWorkbenchPreview";
 import ReviewerWorkbenchPreview from "@/features/dashboard/workbenches/ReviewerWorkbenchPreview";
+import {
+  WorkspaceSurface,
+  workspaceSurfaceClassNames,
+} from "@/components/workspace/WorkspaceSurface";
 import { useCan, useCanAny } from "@/lib/hooks/usePermissions";
 import { PERMISSIONS } from "@/lib/permissions/constants";
 import { ORDER_STATUS, normalizeOrderStatus } from "@/lib/constants/orderStatus";
@@ -493,7 +497,10 @@ export default function DashboardPage({ shellProfilePresentation } = {}) {
 
   return (
     <div className="space-y-5">
-      <section className="rounded-2xl border border-slate-200 bg-white/95 px-4 py-4 shadow-sm ring-1 ring-slate-100 sm:px-5">
+      <WorkspaceSurface
+        variant="primary"
+        className="bg-white/95 px-4 py-4 shadow-[0_16px_36px_rgba(15,23,42,0.07)] sm:px-5"
+      >
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="min-w-0">
             <div
@@ -534,12 +541,13 @@ export default function DashboardPage({ shellProfilePresentation } = {}) {
             </div>
           </div>
         </div>
-      </section>
+      </WorkspaceSurface>
 
       <OwnerSetupDashboardPrompt />
 
-      <section
-        className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm ring-1 ring-slate-100"
+      <WorkspaceSurface
+        variant="secondary"
+        className="bg-white p-3"
         aria-labelledby="dashboard-calendar-heading"
       >
         <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2 px-1">
@@ -560,12 +568,12 @@ export default function DashboardPage({ shellProfilePresentation } = {}) {
           mode={isReviewer ? "reviewerQueue" : undefined}
           reviewerId={isReviewer ? reviewerId : undefined}
         />
-      </section>
+      </WorkspaceSurface>
 
       <section className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_12rem]">
         {/* Orders section */}
         {cfg.showOrdersTable && (
-          <div className="space-y-2">
+          <WorkspaceSurface variant="primary" className="space-y-3 p-3">
             <div className="flex items-baseline justify-between gap-2">
               <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
                 {isAdmin ? "Active Worklist" : isReviewer ? "My Review Work" : "My Assignments"}
@@ -584,11 +592,11 @@ export default function DashboardPage({ shellProfilePresentation } = {}) {
               scope="dashboard"
               onOrderDatesChanged={() => setDashboardRefreshKey((key) => key + 1)}
             />
-          </div>
+          </WorkspaceSurface>
         )}
 
         <aside className="space-y-3 lg:sticky lg:top-20 lg:self-start">
-          <section className="space-y-3">
+          <WorkspaceSurface variant="secondary" className="space-y-3 p-3">
             <div className="flex items-baseline justify-between gap-2">
               <div>
                 <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
@@ -603,7 +611,7 @@ export default function DashboardPage({ shellProfilePresentation } = {}) {
               onClear={() => setStatusFilter("")}
               onSelect={toggleStatus}
             />
-          </section>
+          </WorkspaceSurface>
         </aside>
       </section>
 
@@ -623,9 +631,10 @@ export default function DashboardPage({ shellProfilePresentation } = {}) {
         />
       )}
 
-      <section
+      <WorkspaceSurface
+        variant="secondary"
         aria-labelledby="dashboard-support-heading"
-        className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-3 shadow-sm ring-1 ring-slate-100 sm:p-4"
+        className="space-y-4 bg-slate-50/70 p-3 sm:p-4"
       >
         <div>
           <h2
@@ -641,7 +650,7 @@ export default function DashboardPage({ shellProfilePresentation } = {}) {
         <OperationalKpiCards loading={loading} values={kpiValues} />
         <WorkloadVisibilitySection loading={loading} summary={workloadSummary} />
         {isAdmin && <OperationalReadinessCard items={readinessItems} />}
-      </section>
+      </WorkspaceSurface>
 
       {/* Placeholder for future review queue */}
       {cfg.showReviewQueue && (
@@ -660,9 +669,10 @@ export default function DashboardPage({ shellProfilePresentation } = {}) {
 
 function OperationalReadinessCard({ items }) {
   return (
-    <section
+    <WorkspaceSurface
+      variant="evidence"
       aria-labelledby="operational-readiness-heading"
-      className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+      className="bg-white p-4"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -720,7 +730,7 @@ function OperationalReadinessCard({ items }) {
           );
         })}
       </div>
-    </section>
+    </WorkspaceSurface>
   );
 }
 
@@ -742,7 +752,7 @@ function OperationalKpiCards({ loading, values }) {
             <div className="mt-1 text-xs leading-snug opacity-80">{card.caption}</div>
           </>
         );
-        const className = `block min-h-28 rounded-xl border px-4 py-3 shadow-sm ${card.tone}`;
+        const className = `block min-h-28 rounded-xl border px-4 py-3 shadow-sm ring-1 ring-white ${card.tone}`;
 
         if (card.to) {
           return (
@@ -805,9 +815,10 @@ function WorkloadVisibilitySection({ loading, summary }) {
   ];
 
   return (
-    <section
+    <WorkspaceSurface
+      variant="secondary"
       aria-label="Workload visibility"
-      className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+      className="bg-white p-4"
     >
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
         <div>
@@ -855,7 +866,7 @@ function WorkloadVisibilitySection({ loading, summary }) {
           </div>
         ))}
       </div>
-    </section>
+    </WorkspaceSurface>
   );
 }
 
@@ -889,7 +900,7 @@ function WorkloadList({ items, itemTo, empty }) {
 
 function StatusTimelineRail({ counts, onClear, onSelect, selectedStatus }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+    <div className={workspaceSurfaceClassNames("evidence", "bg-white p-3")}>
       <div role="group" aria-label="Status filters" className="grid grid-cols-1 gap-2">
         {STATUS_TIMELINE.map((status) => {
           const selected = selectedStatus === status.value;
@@ -932,7 +943,7 @@ export function OwnerSetupDashboardPrompt() {
   if (!canViewSettings.allowed) return null;
 
   return (
-    <section className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950 shadow-sm">
+    <WorkspaceSurface variant="priority" className="px-4 py-3">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="min-w-0">
           <div className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">
@@ -953,6 +964,6 @@ export function OwnerSetupDashboardPrompt() {
           Review Owner Setup
         </Link>
       </div>
-    </section>
+    </WorkspaceSurface>
   );
 }
