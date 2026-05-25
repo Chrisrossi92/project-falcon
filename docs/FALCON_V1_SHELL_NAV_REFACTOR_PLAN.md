@@ -529,3 +529,38 @@ A2.2 preserves:
 
 The next safe phase is **A2.3 Role-Aware Shell Polish** only after visual review confirms the shell
 containment direction is stable.
+
+## A2.3 Implementation Record
+
+Phase A2.3 polishes the shell's role/work-mode presentation as presentation-only runtime work.
+
+Runtime files updated:
+
+- `src/components/shell/TopNav.jsx`;
+- `src/components/shell/__tests__/TopNav.test.jsx`.
+
+A2.3 changes:
+
+- reuses existing presentation-only shell profile exposure;
+- changes the brand sublabel into a current work-mode cue;
+- presents `Operations Command`, `My Work`, `Review Queue`, or `Received Work` based on the
+  resolved shell profile;
+- lightly emphasizes the matching desktop navigation group;
+- keeps the cue subtle so it does not create a new switcher, route, badge system, or workflow
+  surface;
+- keeps mobile nav ordering and behavior unchanged.
+
+A2.3 preserves:
+
+- all route paths;
+- all permission checks and route guards;
+- all nav link availability;
+- command palette behavior;
+- dashboard data behavior;
+- workflow/lifecycle behavior;
+- Smart Actions;
+- backend, Supabase, schema, automation, notifications, AMC, Client Portal, mobile/native, AI, and
+  production data behavior.
+
+The next safe phase is **A2.4 Workspace Header / Context Pass** only if role/work identity still
+needs clearer page-level reinforcement after visual review.

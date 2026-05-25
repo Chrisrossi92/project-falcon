@@ -146,6 +146,52 @@ describe("TopNav desktop primary navigation", () => {
     expect(screen.queryByRole("link", { name: "Team Access" })).toBeNull();
   });
 
+  it("shows the resolved shell work mode in the brand cue", () => {
+    renderTopNav();
+
+    expect(screen.getByTestId("shell-work-mode")).toHaveTextContent("Operations Command");
+  });
+
+  it("keeps fallback profiles on a neutral shell cue", () => {
+    shellProfileState.exposure = {
+      profileId: "unavailable",
+      profile: {
+        status: "fallback",
+        defaultWorkspaceLabel: "Workspace unavailable",
+        primaryDailyQuestion: "What workspace is available?",
+      },
+      metadataAuthority: "presentation_only",
+      isPresentationOnly: true,
+    };
+
+    renderTopNav();
+
+    expect(screen.getByTestId("shell-work-mode")).toHaveTextContent("Operations Console");
+  });
+
+  it("emphasizes the resolved profile group without changing visible links", () => {
+    shellProfileState.profileId = "my_work";
+    permissionState.allowed = new Set([
+      PERMISSIONS.CLIENTS_READ_ASSIGNED,
+      PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_ASSIGNED,
+    ]);
+
+    const { container } = renderTopNav();
+    const desktopNav = getDesktopPrimaryNav(container);
+    const activeProfileSection = container.querySelector('[data-shell-profile-section="active"]');
+    const links = desktopLinks(container);
+
+    expect(screen.getByTestId("shell-work-mode")).toHaveTextContent("My Work");
+    expect(within(activeProfileSection).getByText("Work")).toBeInTheDocument();
+    expect(within(desktopNav).getByText("Support")).toBeInTheDocument();
+    expect(links.map((link) => link.textContent)).toEqual([
+      "Orders",
+      "Calendar",
+      "Clients",
+      "Assignments",
+    ]);
+  });
+
   it("preserves the current flat desktop nav for unknown shell profiles", () => {
     shellProfileState.profileId = "unknown_profile";
     permissionState.allowed = new Set([

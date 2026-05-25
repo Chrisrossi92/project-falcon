@@ -68,7 +68,52 @@ const DEFAULT_DESKTOP_SECTION_STYLE = Object.freeze({
   item: "operational",
 });
 
-function Brand() {
+const SHELL_MODE_CUES = Object.freeze({
+  operations: {
+    label: "Operations Command",
+    context: "Owner/admin oversight",
+    sectionId: "operations",
+  },
+  my_work: {
+    label: "My Work",
+    context: "Appraiser workflow",
+    sectionId: "work",
+  },
+  review_queue: {
+    label: "Review Queue",
+    context: "Reviewer workflow",
+    sectionId: "review_work",
+  },
+  received_work: {
+    label: "Received Work",
+    context: "Assignment workflow",
+    sectionId: "received_work",
+  },
+});
+
+function getShellModeCue(shellProfilePresentation) {
+  const profileId = shellProfilePresentation?.profileId ?? shellProfilePresentation?.id;
+  const profile = shellProfilePresentation?.profile;
+  const explicitCue = SHELL_MODE_CUES[profileId];
+  const useProfileMetadata = profile?.status === "active";
+
+  return {
+    profileId,
+    label:
+      explicitCue?.label ??
+      (useProfileMetadata ? profile?.defaultWorkspaceLabel ?? profile?.displayLabel : null) ??
+      "Operations Console",
+    context:
+      explicitCue?.context ??
+      (useProfileMetadata ? profile?.primaryDailyQuestion : null) ??
+      "Operational workspace",
+    sectionId: explicitCue?.sectionId ?? null,
+  };
+}
+
+function Brand({ shellModeCue }) {
+  const modeLabel = shellModeCue?.label ?? "Operations Console";
+
   return (
     <Link to="/dashboard" className="group flex shrink-0 items-center gap-3 rounded-xl px-1.5 py-1 transition hover:bg-slate-100">
       <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-950 text-sm font-semibold text-white shadow-sm ring-1 ring-slate-900/10">
@@ -76,7 +121,13 @@ function Brand() {
       </span>
       <span className="hidden leading-tight sm:block">
         <span className="block text-sm font-semibold tracking-tight text-slate-950">Falcon Operations</span>
-        <span className="block text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">Operations Console</span>
+        <span
+          className="block max-w-48 truncate text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500"
+          data-testid="shell-work-mode"
+          title={shellModeCue?.context}
+        >
+          {modeLabel}
+        </span>
       </span>
     </Link>
   );
@@ -107,12 +158,19 @@ function NavItem({ to, children, onClick, tone = "operational" }) {
   );
 }
 
-function DesktopNavSection({ section }) {
+function DesktopNavSection({ section, emphasizedSectionId }) {
   const showLabel = section.grouped && section.label;
   const styles = DESKTOP_SECTION_STYLES[section.id] ?? DEFAULT_DESKTOP_SECTION_STYLE;
+  const isProfileSection = section.id === emphasizedSectionId;
+  const sectionEmphasisClass = isProfileSection
+    ? "ring-1 ring-slate-500/30 shadow-md shadow-slate-900/5"
+    : "";
 
   return (
-    <div className={`flex shrink-0 items-center gap-1 rounded-xl border px-1.5 py-1 ${styles.shell}`}>
+    <div
+      className={`flex shrink-0 items-center gap-1 rounded-xl border px-1.5 py-1 ${styles.shell} ${sectionEmphasisClass}`}
+      data-shell-profile-section={isProfileSection ? "active" : undefined}
+    >
       {showLabel && (
         <span className={`hidden pl-2 pr-1 text-[10px] font-semibold uppercase tracking-[0.14em] xl:inline ${styles.label}`}>
           {section.label}
@@ -222,6 +280,7 @@ export default function TopNav() {
     primaryNavLinks,
     shellProfileId,
   );
+  const shellModeCue = getShellModeCue(shellProfilePresentation);
 
   useEffect(() => {
     (async () => {
@@ -247,14 +306,18 @@ export default function TopNav() {
       <header className="sticky top-0 z-40 border-b border-slate-400/70 bg-slate-100/95 shadow-lg shadow-slate-900/10 backdrop-blur-xl">
         <div aria-hidden className="h-1 bg-slate-950" />
         <div className="mx-auto flex min-h-16 max-w-[1500px] items-center gap-3 px-3 py-2 sm:px-4">
-          <Brand />
+          <Brand shellModeCue={shellModeCue} />
 
           <nav
             aria-label="Primary workspace navigation"
             className="hidden min-w-0 flex-1 items-center gap-2 overflow-x-auto rounded-2xl border border-slate-300 bg-slate-200/70 p-1.5 shadow-inner md:flex"
           >
             {desktopNavSections.map((section) => (
-              <DesktopNavSection key={section.id} section={section} />
+              <DesktopNavSection
+                key={section.id}
+                section={section}
+                emphasizedSectionId={shellModeCue.sectionId}
+              />
             ))}
           </nav>
 
