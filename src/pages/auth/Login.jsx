@@ -22,7 +22,7 @@ export default function Login() {
   const returnTo =
     safeReturnPath(location.state?.returnTo) ||
     safeReturnPath(new URLSearchParams(location.search).get("returnTo")) ||
-    "/dashboard";
+    "/";
 
   // If already signed in, go to the requested internal return path.
   useEffect(() => {
@@ -118,5 +118,4 @@ export default function Login() {
     </div>
   );
 }
-
 

@@ -1,3 +1,5 @@
+import { Navigate } from "react-router-dom";
+
 import AssignmentDashboardPage from "@/features/dashboard/AssignmentDashboardPage";
 import DashboardPage from "@/features/dashboard/DashboardPage";
 import { AssignmentState, LoadingState } from "@/features/assignments/AssignmentPrimitives";
@@ -25,6 +27,12 @@ export default function DashboardGate() {
   }
 
   if (dashboardResolution.state === CURRENT_DASHBOARD_RESOLUTION_STATES.ORDER_DASHBOARD) {
+    const shellProfileId = shellProfilePresentation?.profileId ?? shellProfilePresentation?.id;
+
+    if (shellProfileId === "my_work") {
+      return <Navigate to="/my-work" replace />;
+    }
+
     return <DashboardPage shellProfilePresentation={shellProfilePresentation} />;
   }
   if (dashboardResolution.state === CURRENT_DASHBOARD_RESOLUTION_STATES.ASSIGNMENT_DASHBOARD) {

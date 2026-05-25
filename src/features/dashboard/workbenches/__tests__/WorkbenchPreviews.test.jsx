@@ -19,7 +19,7 @@ describe("passive workbench previews", () => {
     cleanup();
   });
 
-  it("renders appraiser-native My Work copy from provided rows", () => {
+  it("renders appraiser-native My Work copy from provided orders", () => {
     render(
       <AppraiserWorkbenchPreview
         appraiserLabel="Staff Appraiser"
@@ -51,17 +51,21 @@ describe("passive workbench previews", () => {
     expect(screen.getByText("Staff Appraiser")).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Start with the assigned orders that need attention today: revisions, due pressure, inspection context, and waiting or blocked work derived from the current order rows.",
+        "Start with the assigned orders that need attention today: revisions, due pressure, inspection context, and waiting or blocked work derived from current assigned orders.",
       ),
     ).toBeInTheDocument();
 
-    const priorityWork = screen.getByRole("region", { name: "Priority Work" });
-    expect(within(priorityWork).getByText("2")).toBeInTheDocument();
-    expect(within(priorityWork).getByRole("link", { name: "CF-1001" })).toHaveAttribute(
+    const activeOrders = screen.getByRole("region", { name: "Active Orders" });
+    expect(within(activeOrders).getByText("2")).toBeInTheDocument();
+    expect(within(activeOrders).getByRole("link", { name: "CF-1001" })).toHaveAttribute(
       "href",
       "/orders/assigned-1",
     );
-    expect(within(priorityWork).getByRole("link", { name: "CF-1002" })).toHaveAttribute(
+    expect(within(activeOrders).getByText("Status")).toBeInTheDocument();
+    expect(within(activeOrders).getByText("Due")).toBeInTheDocument();
+    expect(within(activeOrders).getByText("Inspection")).toBeInTheDocument();
+    expect(within(activeOrders).getByText("200 Revision Ave")).toBeInTheDocument();
+    expect(within(activeOrders).getByRole("link", { name: "CF-1002" })).toHaveAttribute(
       "href",
       "/orders/assigned-2",
     );
@@ -87,18 +91,19 @@ describe("passive workbench previews", () => {
     render(<AppraiserWorkbenchPreview rows={[]} />);
 
     expect(screen.getByRole("heading", { name: "My Work" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Active Orders" })).toBeInTheDocument();
     expect(
-      screen.getByText("No assigned order rows need priority placement from the provided data."),
+      screen.getByText("No active assigned orders are currently available from My Work data."),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("No overdue assigned work is represented in these rows."),
+      screen.getByText("No overdue assigned work is represented in the current orders."),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("No due-soon assigned work is represented in these rows."),
+      screen.getByText("No due-soon assigned work is represented in the current orders."),
     ).toBeInTheDocument();
-    expect(screen.getByText("No revision requests are represented in these rows.")).toBeInTheDocument();
-    expect(screen.getByText("No upcoming inspection context is represented in these rows.")).toBeInTheDocument();
-    expect(screen.getByText("No waiting or blocked context is represented in these rows.")).toBeInTheDocument();
+    expect(screen.getByText("No revision requests are represented in the current orders.")).toBeInTheDocument();
+    expect(screen.getByText("No upcoming inspection context is represented in the current orders.")).toBeInTheDocument();
+    expect(screen.getByText("No waiting or blocked context is represented in the current orders.")).toBeInTheDocument();
     expect(
       screen.getByText("No lower-priority assigned work remains outside today's priority grouping."),
     ).toBeInTheDocument();

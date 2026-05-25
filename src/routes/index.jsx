@@ -1,9 +1,9 @@
-import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 
 import Layout from "@/layout/Layout";
 import ProtectedRoute from "@/lib/hooks/ProtectedRoute";
 import { PERMISSIONS } from "@/lib/permissions/constants";
+import DefaultWorkspaceRedirect from "@/routes/DefaultWorkspaceRedirect";
 import {
   notificationSettingsRoute,
   productMetadataDiagnosticsRoute,
@@ -53,6 +53,14 @@ export default function AppRoutes() {
 
       {/* Authenticated area */}
       <Route element={<Layout />}>
+        <Route
+          index
+          element={
+            <ProtectedRoute>
+              <DefaultWorkspaceRedirect />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/dashboard"
           element={
@@ -316,7 +324,14 @@ export default function AppRoutes() {
         />
 
         {/* Default */}
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route
+          path="*"
+          element={
+            <ProtectedRoute>
+              <DefaultWorkspaceRedirect />
+            </ProtectedRoute>
+          }
+        />
       </Route>
 
       {/* Fallback */}

@@ -3949,3 +3949,94 @@ waiting/blocker context, inspection date, file count, or loaded update timestamp
 context stays hidden; no additional order detail reads are introduced. No route guard, permission,
 workflow/lifecycle behavior, Smart Action, backend/schema, Supabase, data/query authority,
 automation, notification, AI, AMC, Client Portal, or production data behavior was added or changed.
+
+Falcon v1 Phase B1.2.4 is complete as an appraiser workflow QA and visual review record for the
+dedicated My Work surface. The review finds the B1 foundation ready to lock: My Work now has a
+dedicated route, an appraiser-first execution hierarchy, distinct urgent/due/revision/inspection/
+waiting/lower-priority lanes, item-attached read-only context chips, and correct shell placement as
+a left-rail operational lane. No B1.2.4a runtime refinement is required. A live responsive browser
+review remains a follow-up when an authenticated appraiser test session is available. This QA pass
+adds no runtime code, route/navigation authority, permission, workflow/action, Smart Action,
+backend/schema/Supabase, data/query authority, automation, notification, AI, AMC, Client Portal, or
+production data behavior.
+
+Falcon Permission-Scoped Surface Doctrine is complete as docs-only surface authority planning in
+`docs/FALCON_PERMISSION_SCOPED_SURFACE_DOCTRINE.md`. It records the rule that role defines default
+persona, permissions define actual allowed actions, module/product scope defines accessible
+operational worlds, and owners control grants. It explicitly keeps Internal Staff Appraiser
+Platform as the v1 default, keeps AMC Operations as v2+ requiring explicit module scope and
+permissions, and defines navigation/dashboard/default-route anti-patterns such as role-only UI
+decisions, disabled-control clutter, appraisers seeing setup diagnostics, and admins
+automatically seeing AMC operations. No runtime code, route/navigation behavior, permission seeds,
+module settings, backend/schema/Supabase behavior, workflow/action behavior, AMC, Client Portal,
+automation, AI, or production data behavior was added or changed.
+
+Falcon v1 Phase B1.3 is complete as appraiser worldview tightening for the dedicated My Work
+foundation. Appraiser default routing now resolves to `/my-work` through the `my_work` shell
+profile and existing order-read permissions; Setup Readiness / Owner Setup dashboard guidance is
+hidden from appraiser-only contexts; Assignments navigation and command-palette entries are hidden
+from internal appraiser shells until AMC/module scope exists; and Team Access becomes a read-only
+staff directory for appraisers while preserving owner/admin management views. The pass changes
+surface composition only. It does not change route guards, permission seeds, owner/admin
+authority, reviewer pathing, workflow/action behavior, Smart Actions, backend/schema/Supabase
+behavior, data/query authority, automation, notifications, AMC, Client Portal, AI, or production
+data behavior.
+
+Falcon v1 Phase B1.3a is complete as a live appraiser route/nav correction after Chris's role test
+showed appraiser sessions still resolving into operations. Shell profile exposure now lets explicit
+app-context role booleans win over broad read permissions, `/dashboard` redirects `my_work` users
+to `/my-work`, login and wordmark fallback use the default workspace resolver, appraiser shells
+hide Assignments and Relationships until module scope exists, and My Work uses personalized
+execution language such as `Chris's Work`. The correction remains frontend presentation/routing
+composition only. It does not change route guards, permission seeds, permission authority,
+workflow/action behavior, Smart Actions, backend/schema/Supabase behavior, data/query authority,
+automation, notifications, AMC, Client Portal, AI, or production data behavior.
+
+Falcon v1 Phase B1.3b is complete as appraiser navigation and My Work language polish. The
+appraiser Work group now contains My Work, Operations, Orders, and Calendar, while Support contains
+Clients and read-only Team Access when existing permissions expose those links. This removes the
+appraiser-only More group when it only held Team Access, keeps Calendar visible without broadening
+route authority, and renames the My Work count label from developer-facing Assigned Rows to Active
+Orders. The polish remains frontend presentation/navigation grouping only and does not change
+route guards, permission seeds, permission authority, workflow/action behavior, Smart Actions,
+backend/schema/Supabase behavior, data/query authority, automation, notifications, AMC, Client
+Portal, AI, or production data behavior.
+
+Falcon v1 Phase B1.3c is complete as appraiser navigation and schedule-pressure correction.
+Operations is removed from the appraiser rail because `/dashboard` redirects appraiser shells back
+to `/my-work`, leaving the Work group as My Work, Orders, and Calendar and Support as Clients plus
+read-only Team Access when permissioned. My Work now includes a Site Visits & Due Dates schedule
+section using the existing dashboard calendar panel with already-loaded assigned order data and
+fallback calendar reads disabled. The correction remains frontend presentation/navigation grouping
+only and does not change route guards, permission seeds, permission authority, workflow/action
+behavior, Smart Actions, backend/schema/Supabase behavior, data/query authority, automation,
+notifications, AMC, Client Portal, AI, or production data behavior.
+
+Falcon v1 Phase B1.3d is complete as Active Orders workstation restoration on My Work. The
+dedicated My Work page now keeps a compact pressure/KPI row, restores an Active Orders list from
+existing governed assigned order data, shows order link, property/address, status, due date,
+inspection date, and loaded context chips, and links each item to existing Order Detail. The larger
+duplicated pressure-lane table is suppressed on the dedicated My Work page so the active order list
+is the primary work surface while Site Visits & Due Dates remains visible. This remains frontend
+presentation only and does not add backend queries, route guards, permission seeds, permission
+authority, workflow/action behavior, Smart Actions, backend/schema/Supabase behavior, data/query
+authority, automation, notifications, AMC, Client Portal, AI, or production data behavior.
+
+Falcon v1 Phase B1.3e is complete as schedule-first My Work ordering. The dedicated My Work page
+now keeps the header and compact KPI row first, places Site Visits & Due Dates immediately below
+that context, and keeps Active Orders as the actionable assigned-order queue underneath. Existing
+governed My Work rows, Order Detail links, context chips, and appraiser-facing order language are
+preserved. This remains frontend presentation only and does not add backend queries, route guards,
+permission seeds, permission authority, workflow/action behavior, Smart Actions,
+backend/schema/Supabase behavior, data/query authority, automation, notifications, AMC, Client
+Portal, AI, or production data behavior.
+
+Falcon v1 Phase B1.3f is complete as clean My Work workstation composition. The dedicated My Work
+page now resolves to compact KPI context, Site Visits & Due Dates, then Active Orders through the
+established `UnifiedOrdersTable` using existing governed My Work rows as `rowsOverride`. This
+reuses the Orders worklist columns, row drawer behavior, and Smart Action presentation instead of
+maintaining a parallel My Work order table, and removes duplicated pressure-lane lists from the
+dedicated page. This remains frontend presentation/composition only and does not redesign the main
+Orders page, add backend queries, change route guards, permission seeds, permission authority,
+workflow/action behavior, Smart Actions, backend/schema/Supabase behavior, data/query authority,
+automation, notifications, AMC, Client Portal, AI, or production data behavior.

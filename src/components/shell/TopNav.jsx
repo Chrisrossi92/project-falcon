@@ -73,9 +73,9 @@ const DEFAULT_DESKTOP_SECTION_STYLE = Object.freeze({
 function BrandWordmark({ shellModeCue, className = "" }) {
   return (
     <Link
-      to="/dashboard"
+      to="/"
       className={`group block w-64 shrink-0 rounded-lg transition opacity-95 hover:opacity-100 sm:w-80 ${className}`}
-      aria-label="Falcon dashboard"
+      aria-label="Falcon workspace"
       title={shellModeCue?.context}
     >
       <img
@@ -87,11 +87,21 @@ function BrandWordmark({ shellModeCue, className = "" }) {
   );
 }
 
-function OperationalModeContext({ shellModeCue, placement = "rail" }) {
+function workspaceContextLabel(appContext) {
+  return identityValue(
+    appContext?.company_name,
+    appContext?.company_display_name,
+    appContext?.company_slug,
+    "Falcon",
+  );
+}
+
+function OperationalModeContext({ shellModeCue, appContext, placement = "rail" }) {
   const placementClass =
     placement === "rail"
       ? "rounded-2xl border border-slate-800 bg-slate-900/80 px-3 py-3"
       : "hidden min-w-0 border-l border-slate-800/80 pl-3 md:block";
+  const contextLabel = workspaceContextLabel(appContext);
 
   return (
     <div
@@ -99,7 +109,7 @@ function OperationalModeContext({ shellModeCue, placement = "rail" }) {
       aria-label="Operational mode"
     >
       <div className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-        Staff Appraiser Operations
+        {contextLabel}
       </div>
       <div
         className="mt-0.5 truncate text-sm font-semibold text-slate-100"
@@ -195,10 +205,38 @@ function createMyWorkLink() {
   });
 }
 
-function AvatarMenu({ me }) {
+function identityValue(...values) {
+  return values
+    .map((value) => String(value || "").trim())
+    .find(Boolean) || "";
+}
+
+function resolveShellUserIdentity(appContext, profile) {
+  const displayName = identityValue(
+    appContext?.display_name,
+    appContext?.name,
+    appContext?.full_name,
+    appContext?.email,
+    profile?.display_name,
+    profile?.name,
+    profile?.full_name,
+    profile?.email,
+    "User",
+  );
+  const email = identityValue(appContext?.email, profile?.email);
+
+  return {
+    id: appContext?.user_id || profile?.id || null,
+    displayName,
+    email,
+    avatarUrl: appContext?.avatar_url || profile?.avatar_url || null,
+    displayColor: appContext?.display_color || profile?.display_color || null,
+  };
+}
+
+function AvatarMenu({ identity }) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const display = me?.display_name || me?.full_name || me?.name || me?.email || "User";
   const [accountSettingsLink] = avatarSettingsUtilityLinks;
 
   async function logout() {
@@ -225,22 +263,22 @@ function AvatarMenu({ me }) {
         aria-expanded={open ? "true" : "false"}
       >
         <AvatarBadge
-          name={display}
-          email={me?.email}
-          id={me?.id}
-          color={me?.display_color}
-          src={me?.avatar_url}
+          name={identity.displayName}
+          email={identity.email}
+          id={identity.id}
+          color={identity.displayColor}
+          src={identity.avatarUrl}
           size={28}
           ring
         />
-        <span className="hidden max-w-32 truncate text-sm font-medium text-slate-200 sm:block">{display}</span>
+        <span className="hidden max-w-32 truncate text-sm font-medium text-slate-200 sm:block">{identity.displayName}</span>
       </button>
 
       {open && (
         <div id="avatar-menu" className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-200 bg-white shadow-xl z-50">
           <div className="px-3 py-2">
-            <div className="text-sm font-medium truncate">{display}</div>
-            <div className="text-xs text-gray-500 truncate">{me?.email || "Account"}</div>
+            <div className="text-sm font-medium truncate">{identity.displayName}</div>
+            <div className="text-xs text-gray-500 truncate">{identity.email || "Account"}</div>
           </div>
           <div className="h-px bg-gray-200" />
           <Link to={accountSettingsLink.path} className="block px-3 py-2 text-sm hover:bg-gray-50" onClick={() => setOpen(false)}>
@@ -277,16 +315,18 @@ export default function TopNav() {
   const canViewSettings = useCan(PERMISSIONS.SETTINGS_VIEW);
   const clientsPath = canReadAllClients.allowed ? "/clients" : "/clients/cards";
   const showUsersNav = canReadUsers.allowed;
-  const showAssignmentsNav = canReadAssignments.allowed;
   const showRelationshipsNav = canReadRelationships.allowed;
   const showSettingsNav = canViewSettings.allowed;
   const shellProfileId = shellProfilePresentation?.profileId ?? shellProfilePresentation?.id;
+  const isInternalAppraiserShell = shellProfileId === "my_work";
+  const showAssignmentsNav = canReadAssignments.allowed && !isInternalAppraiserShell;
+  const showScopedRelationshipsNav = showRelationshipsNav && !isInternalAppraiserShell;
   const showMyWorkNav = shellProfileId === "my_work" && canReadOrders.allowed;
   const primaryNavLinks = getCurrentPrimaryNavLinks({
     canReadAllClients: canReadAllClients.allowed,
     canReadAssignedClients: canReadAssignedClients.allowed,
     canReadAssignments: showAssignmentsNav,
-    canReadRelationships: showRelationshipsNav,
+    canReadRelationships: showScopedRelationshipsNav,
     canReadUsers: showUsersNav,
   });
   const myWorkNavLinks = showMyWorkNav ? [createMyWorkLink()] : [];
@@ -294,12 +334,15 @@ export default function TopNav() {
     [...myWorkNavLinks, ...primaryNavLinks],
     shellProfileId,
   );
-  const railNavLinks = [createDashboardLink(), ...myWorkNavLinks, ...primaryNavLinks];
+  const railNavLinks = isInternalAppraiserShell
+    ? [...myWorkNavLinks, ...primaryNavLinks]
+    : [createDashboardLink(), ...myWorkNavLinks, ...primaryNavLinks];
   const railNavSections = getCurrentShellNavigationSections(
     railNavLinks,
     shellProfileId,
   );
   const shellModeCue = getShellWorkModeCue(shellProfilePresentation);
+  const userIdentity = resolveShellUserIdentity(shellProfilePresentation?.appContext, me);
 
   useEffect(() => {
     (async () => {
@@ -323,7 +366,10 @@ export default function TopNav() {
   return (
     <>
       <aside className="fixed inset-y-0 left-0 z-50 hidden w-[17rem] flex-col border-r border-slate-800 bg-[radial-gradient(circle_at_18%_100%,rgba(51,65,85,0.32),transparent_40%),linear-gradient(180deg,#020617_0%,#07111f_36%,#111827_100%)] px-3 py-3 shadow-[18px_0_48px_rgba(2,6,23,0.36)] md:flex">
-        <OperationalModeContext shellModeCue={shellModeCue} />
+        <OperationalModeContext
+          shellModeCue={shellModeCue}
+          appContext={shellProfilePresentation?.appContext}
+        />
         <nav
           aria-label="Operational spine navigation"
           className="mt-5 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pb-3"
@@ -366,7 +412,7 @@ export default function TopNav() {
               <NotificationBell />
             </div>
             <div className="hidden sm:block">
-              <AvatarMenu me={me} />
+              <AvatarMenu identity={userIdentity} />
             </div>
           </div>
         </div>

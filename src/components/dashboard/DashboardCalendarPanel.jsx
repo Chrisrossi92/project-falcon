@@ -9,7 +9,15 @@ import {
   normalizeCalendarEvent,
 } from "@/lib/calendar/normalizeCalendarEvent";
 
-export default function DashboardCalendarPanel({ orders = [], role = "appraiser", onOpenOrder, fixedHeader = true, mode = null, reviewerId = null }) {
+export default function DashboardCalendarPanel({
+  orders = [],
+  role = "appraiser",
+  onOpenOrder,
+  fixedHeader = true,
+  mode = null,
+  reviewerId = null,
+  useFallbackLoader = true,
+}) {
   const hasOrders = Array.isArray(orders) && orders.length > 0;
   const baseLoader = useCalendarEventLoader({ mode, reviewerId }); // fallback when no orders provided
 
@@ -26,11 +34,15 @@ export default function DashboardCalendarPanel({ orders = [], role = "appraiser"
         return filterCalendarEventsByRange(events, start, end);
       }
 
+      if (!useFallbackLoader) {
+        return [];
+      }
+
       // fallback to backend loader if no orders supplied
       const rows = await baseLoader(start, end);
       return (rows || []).map((r) => normalizeCalendarEvent(r, { includePostal: false }));
     },
-    [baseLoader, hasOrders, orders]
+    [baseLoader, hasOrders, orders, useFallbackLoader]
   );
 
   const tabs = useMemo(

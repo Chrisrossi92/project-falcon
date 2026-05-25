@@ -13,6 +13,11 @@ const permissionState = vi.hoisted(() => ({
 const shellProfileState = vi.hoisted(() => ({
   profileId: "operations",
   exposure: undefined,
+  appContext: null,
+}));
+
+const profileApiMock = vi.hoisted(() => ({
+  getCurrentUserProfile: vi.fn(async () => null),
 }));
 
 vi.mock("@/lib/hooks/usePermissions", () => ({
@@ -39,6 +44,7 @@ vi.mock("@/lib/shell/useShellProfile", () => ({
           profileId: shellProfileState.profileId,
           metadataAuthority: "presentation_only",
           isPresentationOnly: true,
+          appContext: shellProfileState.appContext,
         }
       : shellProfileState.exposure,
 }));
@@ -52,7 +58,7 @@ vi.mock("@/lib/supabaseClient", () => ({
 }));
 
 vi.mock("@/lib/services/api", () => ({
-  getCurrentUserProfile: vi.fn(async () => null),
+  getCurrentUserProfile: profileApiMock.getCurrentUserProfile,
 }));
 
 vi.mock("@/components/notifications/NotificationBell", () => ({
@@ -64,7 +70,11 @@ vi.mock("@/components/nav/CommandPalette", () => ({
 }));
 
 vi.mock("@/components/ui/AvatarBadge", () => ({
-  default: () => <span data-testid="avatar-badge" />,
+  default: ({ name, email }) => (
+    <span data-testid="avatar-badge" data-name={name} data-email={email}>
+      {name}
+    </span>
+  ),
 }));
 
 const { default: TopNav } = await import("../TopNav.jsx");
@@ -99,6 +109,9 @@ describe("TopNav desktop operational spine navigation", () => {
     permissionState.allowed = new Set();
     shellProfileState.profileId = "operations";
     shellProfileState.exposure = undefined;
+    shellProfileState.appContext = null;
+    profileApiMock.getCurrentUserProfile.mockReset();
+    profileApiMock.getCurrentUserProfile.mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -168,8 +181,8 @@ describe("TopNav desktop operational spine navigation", () => {
     renderTopNav();
 
     expect(screen.getAllByRole("img", { name: "Falcon" })).toHaveLength(1);
-    expect(screen.getAllByRole("link", { name: "Falcon dashboard" })).toHaveLength(1);
-    expect(screen.getByText("Staff Appraiser Operations")).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "Falcon workspace" })).toHaveLength(1);
+    expect(screen.getByText("Falcon")).toBeInTheDocument();
     expect(screen.queryByText("Spine")).toBeNull();
     expect(screen.queryByText("Internal Ops")).toBeNull();
     expect(screen.queryByText("Falcon Operations")).toBeNull();
@@ -199,6 +212,7 @@ describe("TopNav desktop operational spine navigation", () => {
       PERMISSIONS.ORDERS_READ_ASSIGNED,
       PERMISSIONS.CLIENTS_READ_ASSIGNED,
       PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_ASSIGNED,
+      PERMISSIONS.USERS_READ,
     ]);
 
     const { container } = renderTopNav();
@@ -211,20 +225,20 @@ describe("TopNav desktop operational spine navigation", () => {
     expect(within(desktopNav).getByText("Support")).toBeInTheDocument();
     expect(links.map((link) => link.textContent)).toEqual([
       "My Work",
-      "Operations",
       "Orders",
       "Calendar",
       "Clients",
-      "Assignments",
+      "Team Access",
     ]);
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
       "/my-work",
-      "/dashboard",
       "/orders",
       "/calendar",
       "/clients/cards",
-      "/assignments",
+      "/users",
     ]);
+    expect(within(desktopNav).queryByText("More")).toBeNull();
+    expect(within(desktopNav).queryByRole("link", { name: "Assignments" })).toBeNull();
   });
 
   it("preserves the current flat desktop nav plus Operations entry for unknown shell profiles", () => {
@@ -262,7 +276,7 @@ describe("TopNav desktop operational spine navigation", () => {
     ]);
   });
 
-  it("keeps permissioned links visible in a non-authoritative More group when metadata does not group them", () => {
+  it("keeps appraiser Team Access under Support without creating a More group", () => {
     shellProfileState.profileId = "my_work";
     permissionState.allowed = new Set([
       PERMISSIONS.ORDERS_READ_ASSIGNED,
@@ -278,17 +292,16 @@ describe("TopNav desktop operational spine navigation", () => {
 
     expect(within(desktopNav).getByText("Work")).toBeInTheDocument();
     expect(within(desktopNav).getByText("Support")).toBeInTheDocument();
-    expect(within(desktopNav).getByText("More")).toBeInTheDocument();
+    expect(within(desktopNav).queryByText("More")).toBeNull();
     expect(links.map((link) => link.textContent)).toEqual([
       "My Work",
-      "Operations",
       "Orders",
       "Calendar",
       "Clients",
-      "Assignments",
-      "Relationships",
       "Team Access",
     ]);
+    expect(within(desktopNav).queryByRole("link", { name: "Assignments" })).toBeNull();
+    expect(within(desktopNav).queryByRole("link", { name: "Relationships" })).toBeNull();
   });
 
   it("preserves assigned-only Clients routing", () => {
@@ -485,6 +498,43 @@ describe("TopNav desktop operational spine navigation", () => {
     expect(within(mobileNav).queryByRole("link", { name: "Clients" })).toBeNull();
     expect(within(mobileNav).queryByRole("link", { name: "Team Access" })).toBeNull();
     expect(within(mobileNav).queryByRole("link", { name: "Settings" })).toBeNull();
+  });
+
+  it("uses app-context identity for the avatar menu before falling back to generic User", () => {
+    shellProfileState.appContext = {
+      user_id: "app-user-1",
+      display_name: "Abby Rossi",
+      name: "Abby",
+      email: "arossi@continentalres.net",
+      avatar_url: null,
+      display_color: "#334155",
+    };
+    profileApiMock.getCurrentUserProfile.mockResolvedValue({
+      display_name: "User",
+      email: "legacy@example.test",
+    });
+
+    renderTopNav();
+
+    expect(screen.getAllByText("Abby Rossi").length).toBeGreaterThan(0);
+    const avatar = screen.getByTestId("avatar-badge");
+    expect(avatar).toHaveAttribute("data-name", "Abby Rossi");
+    expect(avatar).toHaveAttribute("data-email", "arossi@continentalres.net");
+    expect(screen.queryByText(/^User$/)).toBeNull();
+  });
+
+  it("falls back from display name to name for shell identity", () => {
+    shellProfileState.appContext = {
+      user_id: "app-user-2",
+      display_name: "",
+      name: "Pam",
+      email: "pcasper@continentalres.net",
+    };
+
+    renderTopNav();
+
+    expect(screen.getAllByText("Pam").length).toBeGreaterThan(0);
+    expect(screen.getByTestId("avatar-badge")).toHaveAttribute("data-name", "Pam");
   });
 
   it("preserves mobile menu close behavior when a mobile link is selected", () => {

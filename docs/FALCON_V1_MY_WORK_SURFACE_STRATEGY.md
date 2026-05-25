@@ -203,6 +203,25 @@ Shell relationship:
 The shell should communicate that My Work is one station inside the same Falcon environment, not a
 separate app.
 
+## Permission-Scoped Surface Relationship
+
+My Work should follow the permission-scoped surface doctrine in
+`docs/FALCON_PERMISSION_SCOPED_SURFACE_DOCTRINE.md`.
+
+Rules:
+
+- appraiser role defines the default My Work persona;
+- assigned-order read permissions and governed row visibility define what work appears;
+- workflow/action permissions define which actions may appear;
+- Internal Staff Appraiser Platform scope defines the v1 operational world;
+- AMC, Vendor Portal, and Client Portal concepts must remain hidden unless explicitly scoped and
+  permissioned in future phases.
+
+My Work should not appear just because a user has an appraiser-like label if the required active
+membership, readable assigned work scope, and route/surface permissions are absent. Likewise,
+management or setup diagnostics should not appear inside My Work unless an explicit future
+permission/module-scope contract supports them.
+
 ## Future Integration Hooks
 
 Future-ready concepts may be acknowledged only as hooks.
@@ -425,3 +444,162 @@ B1.2.3 changes:
 B1.2.3 does not add workflow logic, permissions, route authority, backend/schema/Supabase behavior,
 new queries, Smart Action behavior, automation, notifications, AI, AMC, Client Portal, or
 production data behavior.
+
+## B1.2.4 Appraiser Workflow QA Record
+
+Phase B1.2.4 reviews the dedicated My Work surface against the appraiser workstation goal.
+
+QA outcome:
+
+- My Work answers the daily execution question clearly enough to lock the B1 foundation;
+- overdue, due-soon, revision, inspection, waiting/blocker, and lower-priority work have distinct
+  scan roles;
+- revisions are visible as active appraiser execution rather than passive review/admin context;
+- read-only context chips explain row evidence without creating workflow authority;
+- shell placement supports role-native work through the left operational rail;
+- no B1.2.4a refinement pass is required before moving toward future B1.3 planning.
+
+Live responsive browser review remains a follow-up when an authenticated appraiser test session is
+available. B1.2.4 does not add runtime code, workflow logic, permissions, route authority,
+backend/schema/Supabase behavior, new queries, Smart Action behavior, automation, notifications,
+AI, AMC, Client Portal, or production data behavior.
+
+## B1.3 Appraiser Worldview Tightening Record
+
+Phase B1.3 tightens the appraiser operational worldview around My Work.
+
+B1.3 changes:
+
+- appraiser default workspace routing now resolves to `/my-work` when the user is in the `my_work`
+  shell profile and already has existing order-read visibility;
+- Setup Readiness / Owner Setup dashboard guidance is hidden from appraiser-only contexts;
+- Assignments navigation and command entries are hidden for internal appraiser shells until AMC
+  module scope exists;
+- Team Access renders as a read-only staff directory for appraiser shells, keeping teammate name,
+  role, status, email, and contact context while hiding invitation and membership-management
+  affordances.
+
+B1.3 intentionally does not change workflow logic, permissions, permission seeds, route guards,
+backend/schema/Supabase behavior, data/query authority, Smart Actions, automation, notifications,
+AMC, Client Portal, AI, or production data behavior.
+
+## B1.3a Live Appraiser Route / Nav Correction Record
+
+Phase B1.3a fixes live appraiser route and navigation behavior after role testing showed an
+appraiser still landing in the operations worldview.
+
+B1.3a changes:
+
+- shell profile resolution now treats explicit app-context role booleans as authoritative
+  presentation input, so appraiser users do not become `operations` merely because they have broad
+  read-only permissions;
+- `/dashboard`, login fallback, and the Falcon wordmark all resolve appraiser default workspace
+  behavior through `/my-work`;
+- appraiser navigation hides Assignments and Relationships until module scope contracts exist;
+- My Work uses personalized execution language such as `Chris's Work` and keeps company/workspace
+  context quieter.
+
+B1.3a remains frontend presentation/routing composition only. It does not change workflow logic,
+permissions, permission seeds, route guards, backend/schema/Supabase behavior, data/query
+authority, Smart Actions, automation, notifications, AMC, Client Portal, AI, or production data
+behavior.
+
+## B1.3b Appraiser Nav / KPI Polish Record
+
+Phase B1.3b polishes appraiser navigation grouping and My Work summary language after live
+appraiser review.
+
+B1.3b changes:
+
+- keeps the appraiser Work group focused on `My Work`, `Operations`, `Orders`, and `Calendar`;
+- keeps appraiser Support focused on `Clients` and read-only `Team Access` when existing
+  permissions expose those links;
+- removes the appraiser-only `More` group when Team Access is the only leftover visible link;
+- keeps Calendar visible for appraisers through existing route/permission authority;
+- renames the My Work count from developer-facing `Assigned Rows` to appraiser-facing
+  `Active Orders`.
+
+B1.3b remains frontend presentation/navigation grouping only. It does not change workflow logic,
+permissions, permission seeds, route guards, backend/schema/Supabase behavior, data/query
+authority, Smart Actions, automation, notifications, AMC, Client Portal, AI, or production data
+behavior.
+
+## B1.3c Appraiser Nav / Schedule Correction Record
+
+Phase B1.3c removes fake appraiser navigation and restores useful schedule pressure inside My
+Work.
+
+B1.3c changes:
+
+- removes `Operations` from appraiser navigation because `/dashboard` redirects appraiser shells
+  back to `/my-work`;
+- keeps the appraiser Work group focused on `My Work`, `Orders`, and `Calendar`;
+- keeps Support focused on `Clients` and read-only `Team Access` when existing permissions expose
+  those links;
+- adds a `Site Visits & Due Dates` schedule-pressure section to My Work;
+- reuses the existing dashboard calendar panel with already-loaded assigned order data and disables
+  fallback calendar reads on My Work;
+- keeps appraiser-facing language on orders, assigned work, site visits, and due dates instead of
+  developer-facing row copy.
+
+B1.3c remains frontend presentation/navigation grouping only. It does not change workflow logic,
+permissions, permission seeds, route guards, backend/schema/Supabase behavior, data/query
+authority, Smart Actions, automation, notifications, AMC, Client Portal, AI, or production data
+behavior.
+
+## B1.3d Active Orders Workstation Record
+
+Phase B1.3d restores the active assigned order list as the primary My Work operational surface.
+
+B1.3d changes:
+
+- adds an `Active Orders` section that lists assigned orders from existing My Work data;
+- shows order link, property/address, status, due date, inspection date, and read-only context
+  chips when those fields are already loaded;
+- links each order to the existing Order Detail route;
+- keeps the KPI row compact and preserves the `Site Visits & Due Dates` schedule section;
+- removes the large duplicated pressure-section table from the dedicated My Work page while
+  leaving pressure counts available for scan context;
+- keeps a clean Active Orders empty state when no assigned orders are loaded.
+
+B1.3d remains frontend presentation only. It does not add backend queries, workflow logic,
+permissions, permission seeds, route guards, backend/schema/Supabase behavior, data/query
+authority, Smart Actions, automation, notifications, AMC, Client Portal, AI, or production data
+behavior.
+
+## B1.3e Schedule-First My Work Ordering Record
+
+Phase B1.3e places schedule pressure before the actionable order queue on the dedicated My Work
+surface.
+
+B1.3e changes:
+
+- keeps the My Work header and compact KPI row first;
+- moves `Site Visits & Due Dates` above `Active Orders`;
+- keeps `Active Orders` as the actionable work queue immediately under schedule context;
+- preserves existing assigned-order data, Order Detail links, and item-level context chips;
+- avoids developer-facing row language in appraiser-facing copy.
+
+B1.3e remains frontend presentation only. It does not add backend queries, workflow logic,
+permissions, permission seeds, route guards, backend/schema/Supabase behavior, data/query
+authority, Smart Actions, automation, notifications, AMC, Client Portal, AI, or production data
+behavior.
+
+## B1.3f Clean Workstation Structure Record
+
+Phase B1.3f simplifies My Work into the appraiser workstation structure: compact KPI context,
+schedule context, then the active order worklist.
+
+B1.3f changes:
+
+- keeps the compact KPI row as the first operational scan point;
+- keeps `Site Visits & Due Dates` before the order queue;
+- reuses the established `UnifiedOrdersTable` for `Active Orders` with `rowsOverride` from the
+  existing governed My Work row source;
+- preserves existing Orders worklist columns, row drawer behavior, and Smart Action presentation;
+- removes the duplicated urgent/due/revision/inspection lane list from the dedicated My Work page.
+
+B1.3f remains frontend presentation/composition only. It does not redesign the main Orders page,
+add backend queries, change workflow logic, permissions, permission seeds, route guards,
+backend/schema/Supabase behavior, data/query authority, Smart Actions, automation, notifications,
+AMC, Client Portal, AI, or production data behavior.

@@ -543,7 +543,7 @@ export default function DashboardPage({ shellProfilePresentation } = {}) {
         </div>
       </WorkspaceSurface>
 
-      <OwnerSetupDashboardPrompt />
+      <OwnerSetupDashboardPrompt appContext={appContext} />
 
       <WorkspaceSurface
         variant="secondary"
@@ -938,31 +938,41 @@ function StatusTimelineRail({ counts, onClear, onSelect, selectedStatus }) {
   );
 }
 
-export function OwnerSetupDashboardPrompt() {
+export function OwnerSetupDashboardPrompt({ appContext } = {}) {
   const canViewSettings = useCan(PERMISSIONS.SETTINGS_VIEW);
 
   if (!canViewSettings.allowed) return null;
+
+  const isOwner = appContext?.is_owner === true;
+  const canSeeSetupGuidance = isOwner || appContext?.is_admin_role === true;
+
+  if (!canSeeSetupGuidance) return null;
+
+  const guidanceLabel = isOwner ? "Owner Setup Guidance" : "Setup Readiness Guidance";
+  const actionLabel = isOwner ? "Review Owner Setup" : "Review Setup Readiness";
+  const description = isOwner
+    ? "Diagnostic guidance only. This does not change permissions, workflow, route access, or operational visibility."
+    : "Diagnostic setup readiness only. This does not grant owner authority or change permissions, workflow, route access, or operational visibility.";
 
   return (
     <WorkspaceSurface variant="priority" className="px-4 py-3">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="min-w-0">
           <div className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">
-            Owner Setup Guidance
+            {guidanceLabel}
           </div>
           <h2 className="mt-0.5 text-sm font-semibold text-slate-950">
             Review operational setup readiness
           </h2>
           <p className="mt-1 max-w-3xl text-sm leading-5 text-amber-900">
-            Diagnostic guidance only. This does not change permissions, workflow, route access, or
-            operational visibility.
+            {description}
           </p>
         </div>
         <Link
           to="/settings/owner-setup"
           className="inline-flex shrink-0 items-center justify-center rounded-md border border-amber-300 bg-white px-3 py-2 text-sm font-semibold text-amber-900 shadow-sm hover:bg-amber-100"
         >
-          Review Owner Setup
+          {actionLabel}
         </Link>
       </div>
     </WorkspaceSurface>

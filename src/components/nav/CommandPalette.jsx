@@ -52,9 +52,16 @@ export default function CommandPalette({ open, onClose, onNavigate, clientsPath 
   const shellProfileId = !loading && !error
     ? shellProfilePresentation?.profileId ?? shellProfilePresentation?.id
     : null;
-  const orderedCommands = useMemo(
-    () => getCurrentShellCommandPaletteCommands(commands, shellProfileId),
+  const visibleCommands = useMemo(
+    () =>
+      shellProfileId === "my_work"
+        ? commands.filter((command) => !["assignments", "relationships"].includes(command.id))
+        : commands,
     [commands, shellProfileId],
+  );
+  const orderedCommands = useMemo(
+    () => getCurrentShellCommandPaletteCommands(visibleCommands, shellProfileId),
+    [visibleCommands, shellProfileId],
   );
 
   const orderSearchFallback = useMemo(
@@ -67,15 +74,15 @@ export default function CommandPalette({ open, onClose, onNavigate, clientsPath 
     [commandPermissions, error, loading],
   );
 
-  const canUseAssignments = commands.some((command) => command.id === "assignments");
-  const canUseRelationships = commands.some((command) => command.id === "relationships");
+  const canUseAssignments = visibleCommands.some((command) => command.id === "assignments");
+  const canUseRelationships = visibleCommands.some((command) => command.id === "relationships");
 
   // Filter first so effects can depend on it safely
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
     if (!needle) return orderedCommands;
-    return commands.filter((it) => it.label.toLowerCase().includes(needle));
-  }, [commands, orderedCommands, q]);
+    return visibleCommands.filter((it) => it.label.toLowerCase().includes(needle));
+  }, [orderedCommands, q, visibleCommands]);
 
   const canSearchOrders = orderSearchFallback.canSearchOrders;
 

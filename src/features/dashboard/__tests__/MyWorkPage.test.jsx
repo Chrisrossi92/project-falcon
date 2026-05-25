@@ -1,15 +1,35 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const summaryState = vi.hoisted(() => ({
   current: null,
 }));
+const unifiedOrdersTableMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/hooks/useDashboardSummary", () => ({
   useDashboardSummary: () => summaryState.current,
+}));
+
+vi.mock("@/components/dashboard/DashboardCalendarPanel", () => ({
+  default: (props) => (
+    <div data-testid="my-work-calendar">
+      calendar orders: {props.orders?.length ?? 0}; fallback: {String(props.useFallbackLoader)}
+    </div>
+  ),
+}));
+
+vi.mock("@/features/orders/UnifiedOrdersTable", () => ({
+  default: (props) => {
+    unifiedOrdersTableMock(props);
+    return (
+      <div data-testid="unified-orders-table">
+        orders table rows: {props.rowsOverride?.length ?? 0}
+      </div>
+    );
+  },
 }));
 
 const { default: MyWorkPage } = await import("../MyWorkPage.jsx");
@@ -31,9 +51,10 @@ function renderMyWorkPage() {
 describe("MyWorkPage", () => {
   afterEach(() => {
     cleanup();
+    unifiedOrdersTableMock.mockClear();
   });
 
-  it("renders a dedicated appraiser execution surface from existing dashboard rows", () => {
+  it("renders a dedicated appraiser execution surface from existing dashboard orders", () => {
     summaryState.current = {
       role: "appraiser",
       isAdmin: false,
@@ -42,6 +63,7 @@ describe("MyWorkPage", () => {
       loading: false,
       appContext: {
         company_name: "Continental",
+        display_name: "Chris Rossi",
       },
       ordersRows: [
         {
@@ -62,22 +84,34 @@ describe("MyWorkPage", () => {
 
     renderMyWorkPage();
 
-    expect(screen.getByRole("heading", { name: "My Work", level: 1 })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Chris's Work", level: 1 })).toBeInTheDocument();
     expect(screen.getByText("Continental")).toBeInTheDocument();
-    expect(screen.getByText("Assigned Rows")).toBeInTheDocument();
+    expect(screen.getByText("Work View")).toBeInTheDocument();
+    expect(screen.getAllByText("Staff Appraiser").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Active Orders").length).toBeGreaterThan(0);
+    expect(screen.getByRole("region", { name: "My Work schedule pressure" })).toBeInTheDocument();
+    expect(screen.getByText("Site Visits & Due Dates")).toBeInTheDocument();
+    expect(screen.getByText("calendar orders: 2; fallback: false")).toBeInTheDocument();
 
-    const workSurface = screen.getByRole("region", { name: "My Work preview" });
-    expect(within(workSurface).getByRole("region", { name: "Priority Work" })).toBeInTheDocument();
-    expect(within(workSurface).getByRole("region", { name: "Urgent / Overdue" })).toBeInTheDocument();
-    expect(within(workSurface).getByRole("region", { name: "Due Soon" })).toBeInTheDocument();
+    const activeOrdersSurface = screen.getByRole("region", { name: "My Work active orders" });
+    const schedulePressure = screen.getByRole("region", { name: "My Work schedule pressure" });
     expect(
-      within(workSurface).getByRole("region", { name: "Revisions Required" }),
-    ).toBeInTheDocument();
-    expect(within(workSurface).getAllByRole("link", { name: "CF-1001" })[0]).toHaveAttribute(
-      "href",
-      "/orders/assigned-1",
+      schedulePressure.compareDocumentPosition(activeOrdersSurface) &
+        schedulePressure.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(screen.getByTestId("unified-orders-table")).toHaveTextContent("orders table rows: 2");
+    expect(unifiedOrdersTableMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        role: "appraiser",
+        rowsOverride: summaryState.current.ordersRows,
+        pageSize: 10,
+        scope: "dashboard",
+      }),
     );
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "My Work preview" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Urgent / Overdue" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Due Soon" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Revisions Required" })).not.toBeInTheDocument();
   });
 
   it("does not present assigned rows as My Work for non-appraiser role context", () => {
@@ -104,7 +138,9 @@ describe("MyWorkPage", () => {
     expect(
       screen.getByRole("heading", { name: "Staff appraiser workspace" }),
     ).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "My Work schedule pressure" })).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "My Work preview" })).not.toBeInTheDocument();
+    expect(unifiedOrdersTableMock).not.toHaveBeenCalled();
     expect(screen.getByRole("link", { name: "Open Operations Dashboard" })).toHaveAttribute(
       "href",
       "/dashboard",

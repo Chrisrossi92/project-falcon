@@ -143,6 +143,33 @@ describe("CommandPalette current registry helper migration", () => {
     ]);
   });
 
+  it("hides assignment commands for internal appraiser shells without AMC scope", () => {
+    shellProfileState.profileId = "my_work";
+    permissionState.allowed = new Set([
+      PERMISSIONS.NAVIGATION_ORDERS_VIEW,
+      PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_ASSIGNED,
+      PERMISSIONS.RELATIONSHIPS_READ,
+      PERMISSIONS.NAVIGATION_CLIENTS_VIEW,
+      PERMISSIONS.USERS_READ,
+      PERMISSIONS.NAVIGATION_USERS_VIEW,
+    ]);
+
+    renderPalette({ clientsPath: "/clients/cards" });
+
+    expect(commandLabels()).toEqual([
+      "Go to Ordersg o",
+      "Go to Calendarg c",
+      "Go to Clientsg l",
+      "Open Team Accessg u",
+    ]);
+    expect(screen.queryByText("Go to Assignments")).toBeNull();
+    expect(screen.queryByText("Go to Relationships")).toBeNull();
+    expect(screen.getByRole("textbox")).toHaveAttribute(
+      "placeholder",
+      "Search... (Orders, Clients, Team Access, Settings)",
+    );
+  });
+
   it("hides permissioned commands when permission inputs are false", () => {
     renderPalette();
 

@@ -45,7 +45,7 @@ describe('current shell navigation sections', () => {
     ]);
   });
 
-  it('keeps ungrouped visible links available in a non-authoritative More section', () => {
+  it('groups appraiser Team Access with Support while unrelated visible links fall through to More', () => {
     const sections = getCurrentShellNavigationSections(fullyVisibleLinks(), SHELL_PROFILE_IDS.MY_WORK);
 
     expect(sections.map(({ id, label }) => [id, label])).toEqual([
@@ -53,10 +53,13 @@ describe('current shell navigation sections', () => {
       ['support', 'Support'],
       ['other_visible_links', 'More'],
     ]);
+    expect(sections.find((section) => section.id === 'support').links.map((link) => link.id)).toEqual([
+      'clients.primary',
+      'users',
+    ]);
     expect(sections.at(-1).links.map((link) => link.id)).toEqual([
       'assignments',
       'relationships',
-      'users',
     ]);
   });
 

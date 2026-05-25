@@ -8,6 +8,7 @@ import { listCompanyRolePresets } from "@/features/company-invitations/api";
 import { listCompanyMembers, setCompanyMemberStatus, updateCompanyMemberRoles } from "@/features/company-members/api";
 import { useCan } from "@/lib/hooks/usePermissions";
 import { PERMISSIONS } from "@/lib/permissions/constants";
+import { useShellProfile } from "@/lib/shell/useShellProfile";
 
 const DEFAULT_COLOR = "#6B82A7";
 
@@ -305,7 +306,7 @@ function EditRolePresetsModal({ member, open, onClose, onSaved }) {
   );
 }
 
-function MemberCard({ member, busy, onEditRoles, onSetStatus }) {
+function MemberCard({ member, busy, readOnly = false, onEditRoles, onSetStatus }) {
   const name = getMemberName(member);
   const color = getMemberColor(member);
   const roles = roleLabels(member);
@@ -389,7 +390,7 @@ function MemberCard({ member, busy, onEditRoles, onSetStatus }) {
         <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
           Profile fields are read-only here while team access is managed through company membership RPCs.
         </div>
-        {(member.can_update_roles || member.can_deactivate || member.can_reactivate) && (
+        {!readOnly && (member.can_update_roles || member.can_deactivate || member.can_reactivate) && (
           <div className="mt-3 flex flex-wrap gap-2">
             {member.can_update_roles && (
               <button
@@ -429,6 +430,7 @@ function MemberCard({ member, busy, onEditRoles, onSetStatus }) {
 }
 
 export default function UsersIndex() {
+  const shellProfilePresentation = useShellProfile();
   const canReadUsersPermission = useCan(PERMISSIONS.USERS_READ);
   const canInviteUsersPermission = useCan(PERMISSIONS.USERS_INVITE);
   const canManageCompanyAccessPermission = useCan(PERMISSIONS.USERS_MANAGE_COMPANY_ACCESS);
@@ -443,11 +445,17 @@ export default function UsersIndex() {
   const [busyMemberId, setBusyMemberId] = useState(null);
   const [invitationRefreshKey, setInvitationRefreshKey] = useState(0);
 
+  const shellProfileId = shellProfilePresentation?.profileId ?? shellProfilePresentation?.id;
+  const isAppraiserDirectoryMode = shellProfileId === "my_work";
   const canListMembers = canReadUsersPermission.allowed;
   const canManageInvitations =
-    canInviteUsersPermission.allowed && canManageCompanyAccessPermission.allowed;
-  const canSendInvitations = canManageInvitations && canAssignRolesPermission.allowed;
-  const canListInvitations = canReadUsersPermission.allowed || canManageInvitations;
+    !isAppraiserDirectoryMode &&
+    canInviteUsersPermission.allowed &&
+    canManageCompanyAccessPermission.allowed;
+  const canSendInvitations =
+    !isAppraiserDirectoryMode && canManageInvitations && canAssignRolesPermission.allowed;
+  const canListInvitations =
+    !isAppraiserDirectoryMode && (canReadUsersPermission.allowed || canManageInvitations);
 
   const activeCount = useMemo(
     () => members.filter((member) => String(member.membership_status || "").toLowerCase() === "active").length,
@@ -526,19 +534,23 @@ export default function UsersIndex() {
         <div>
           <h1 className="text-2xl font-semibold text-slate-950">Team Access</h1>
           <p className="mt-1 max-w-3xl text-sm text-slate-500">
-            Manage company membership and invitations. New access starts with an invite; direct user creation is no longer available here.
+            {isAppraiserDirectoryMode
+              ? "View current-company teammates and contact context. Access changes remain with authorized owner/admin users."
+              : "Manage company membership and invitations. New access starts with an invite; direct user creation is no longer available here."}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-2 text-sm text-slate-700">
-            <input
-              type="checkbox"
-              className="rounded border-slate-300"
-              checked={showInactive}
-              onChange={(event) => setShowInactive(event.target.checked)}
-            />
-            Show inactive
-          </label>
+          {!isAppraiserDirectoryMode && (
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                className="rounded border-slate-300"
+                checked={showInactive}
+                onChange={(event) => setShowInactive(event.target.checked)}
+              />
+              Show inactive
+            </label>
+          )}
           {canSendInvitations && (
             <button
               type="button"
@@ -583,6 +595,9 @@ export default function UsersIndex() {
             Access Model
           </div>
           <p className="mt-2 text-sm text-slate-500">Roles are company-scoped presets. Legacy profile role editing is disabled on this page.</p>
+          {isAppraiserDirectoryMode && (
+            <p className="mt-1 text-xs text-slate-500">Read-only directory mode.</p>
+          )}
         </div>
       </div>
 
@@ -629,6 +644,7 @@ export default function UsersIndex() {
                       key={member.membership_id || member.user_id}
                       member={member}
                       busy={busyMemberId === member.user_id}
+                      readOnly={isAppraiserDirectoryMode}
                       onEditRoles={setRoleEditorMember}
                       onSetStatus={handleSetStatus}
                     />
@@ -655,13 +671,14 @@ export default function UsersIndex() {
                 ) : (
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                     {inactiveOrInvitedMembers.map((member) => (
-                      <MemberCard
-                        key={member.membership_id || member.user_id}
-                        member={member}
-                        busy={busyMemberId === member.user_id}
-                        onEditRoles={setRoleEditorMember}
-                        onSetStatus={handleSetStatus}
-                      />
+                    <MemberCard
+                      key={member.membership_id || member.user_id}
+                      member={member}
+                      busy={busyMemberId === member.user_id}
+                      readOnly={isAppraiserDirectoryMode}
+                      onEditRoles={setRoleEditorMember}
+                      onSetStatus={handleSetStatus}
+                    />
                     ))}
                   </div>
                 )}
@@ -671,12 +688,14 @@ export default function UsersIndex() {
         )}
       </section>
 
-      <CompanyInvitationsPanel
-        canList={canListInvitations}
-        canInvite={canSendInvitations}
-        onOpenInvite={() => setInviteOpen(true)}
-        refreshToken={invitationRefreshKey}
-      />
+      {!isAppraiserDirectoryMode && (
+        <CompanyInvitationsPanel
+          canList={canListInvitations}
+          canInvite={canSendInvitations}
+          onOpenInvite={() => setInviteOpen(true)}
+          refreshToken={invitationRefreshKey}
+        />
+      )}
 
       <InviteCompanyMemberModal
         open={canSendInvitations && inviteOpen}

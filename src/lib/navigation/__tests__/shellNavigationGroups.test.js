@@ -115,11 +115,11 @@ describe('passive shell navigation groups', () => {
     expect(getShellNavigationGroups(SHELL_PROFILE_IDS.MY_WORK).groups).toMatchObject([
       {
         id: 'work',
-        navEntryIds: ['my_work', 'dashboard', 'orders', 'calendar'],
+        navEntryIds: ['my_work', 'orders', 'calendar'],
       },
       {
         id: 'support',
-        navEntryIds: ['clients.primary', 'settings'],
+        navEntryIds: ['clients.primary', 'users', 'settings'],
       },
     ]);
 

@@ -22,7 +22,18 @@ const roleLabelsFromContext = (appContext = {}) => {
   return Object.freeze([...new Set(labels)]);
 };
 
-const explicitTrue = (value) => (value === true ? true : undefined);
+const hasOwn = (value, key) => Object.prototype.hasOwnProperty.call(value || {}, key);
+
+const explicitContextBoolean = (context, key) =>
+  hasOwn(context, key) ? context?.[key] === true : undefined;
+
+const explicitOwnerAdminAuthority = (context) => {
+  if (!hasOwn(context, 'is_owner') && !hasOwn(context, 'is_admin_role')) {
+    return undefined;
+  }
+
+  return context?.is_owner === true || context?.is_admin_role === true;
+};
 
 export function buildShellProfileInput({ appContext, permissions, session, userId, authenticated } = {}) {
   const permissionKeys = normalizeArray(permissions?.permissionKeys ?? permissions?.permissions)
@@ -44,9 +55,9 @@ export function buildShellProfileInput({ appContext, permissions, session, userI
       : undefined,
     permissionKeys: Object.freeze([...new Set(permissionKeys)]),
     roleLabels: roleLabelsFromContext(appContext),
-    hasOwnerAdminAuthority: explicitTrue(Boolean(appContext?.is_owner || appContext?.is_admin_role)),
-    hasAppraiserResponsibilities: explicitTrue(appContext?.is_appraiser_role),
-    hasReviewerResponsibilities: explicitTrue(appContext?.is_reviewer_role),
+    hasOwnerAdminAuthority: explicitOwnerAdminAuthority(appContext),
+    hasAppraiserResponsibilities: explicitContextBoolean(appContext, 'is_appraiser_role'),
+    hasReviewerResponsibilities: explicitContextBoolean(appContext, 'is_reviewer_role'),
   });
 }
 

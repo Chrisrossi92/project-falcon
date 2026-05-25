@@ -57,6 +57,12 @@ v1 work should improve the ability to answer:
 - what operational evidence says the work is moving;
 - what the owner/admin needs to watch.
 
+v1 surfaces should follow the permission-scoped surface doctrine in
+`docs/FALCON_PERMISSION_SCOPED_SURFACE_DOCTRINE.md`: role defines default persona, permissions
+define allowed actions, and module/product scope defines which operational worlds a user can
+access. Internal Staff Appraiser Platform remains the v1 default; AMC Operations, Vendor Portal,
+and Client Portal remain v2+ unless explicitly scoped and implemented.
+
 ## Explicit v2+ Deferred Scope
 
 The following are deferred beyond Falcon v1 unless a specific item is required to fix a verified
@@ -190,6 +196,10 @@ Finish the daily role surfaces around three primary mental models:
 
 Each role surface should present the right work first, keep support context nearby, and avoid
 forcing users through a generic admin vocabulary.
+
+Phase B surfaces should not be role-label-only. Navigation, dashboards, setup guidance, and action
+surfaces should be composed from active membership, module scope, effective permissions, and then
+role/persona defaults.
 
 ### Phase C: CRUD / Workflow Completion
 

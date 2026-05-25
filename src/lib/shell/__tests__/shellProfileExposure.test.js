@@ -135,6 +135,27 @@ describe('shell profile exposure', () => {
     expect(resolveShellProfileExposure(input).profileId).toBe(SHELL_PROFILE_IDS.COMPANY_REQUIRED);
   });
 
+  it('lets explicit appraiser context win over broad read permissions', () => {
+    const exposure = getShellProfileExposure({
+      appContext: activeAppContext,
+      permissions: {
+        permissionKeys: [
+          PERMISSIONS.ORDERS_READ_ASSIGNED,
+          PERMISSIONS.USERS_READ,
+          PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_ASSIGNED,
+          PERMISSIONS.RELATIONSHIPS_READ,
+        ],
+      },
+    });
+
+    expect(exposure).toMatchObject({
+      profileId: SHELL_PROFILE_IDS.MY_WORK,
+      resolutionReason: 'appraiser_work',
+    });
+    expect(exposure.capabilities.hasOwnerAdminAuthority).toBe(false);
+    expect(exposure.capabilities.hasAppraiserResponsibility).toBe(true);
+  });
+
   it('does not expose route, navigation, command, workflow, or permission authority fields', () => {
     const exposure = resolveShellProfileExposure({
       authenticated: true,

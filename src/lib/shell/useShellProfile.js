@@ -25,10 +25,11 @@ export function useShellProfile() {
     () =>
       Object.freeze({
         ...exposure,
+        appContext: appContext.context,
         loading: Boolean(session.isLoading || appContext.loading || permissions.loading),
         error: appContext.error || permissions.error || null,
       }),
-    [appContext.error, appContext.loading, exposure, permissions.error, permissions.loading, session.isLoading],
+    [appContext.context, appContext.error, appContext.loading, exposure, permissions.error, permissions.loading, session.isLoading],
   );
 }
 

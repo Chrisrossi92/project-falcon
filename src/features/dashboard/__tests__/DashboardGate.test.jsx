@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
 import { cleanup, render, screen } from "@testing-library/react";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PERMISSIONS } from "@/lib/permissions/constants";
@@ -73,6 +74,25 @@ vi.mock("@/features/assignments/AssignmentPrimitives", () => ({
 }));
 
 const { default: DashboardGate } = await import("../DashboardGate.jsx");
+
+function LocationProbe() {
+  const location = useLocation();
+  return <div data-testid="location">{location.pathname}</div>;
+}
+
+function renderDashboardGateInRouter() {
+  return render(
+    <MemoryRouter
+      initialEntries={["/dashboard"]}
+      future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
+    >
+      <Routes>
+        <Route path="/dashboard" element={<DashboardGate />} />
+        <Route path="/my-work" element={<LocationProbe />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
 
 describe("DashboardGate current dashboard resolution helper migration", () => {
   beforeEach(() => {
@@ -163,6 +183,26 @@ describe("DashboardGate current dashboard resolution helper migration", () => {
     expect(screen.getByTestId("order-dashboard")).toBeInTheDocument();
     expect(screen.queryByTestId("assignment-dashboard")).toBeNull();
     expect(dashboardProps.order[0].shellProfilePresentation).toBe(shellProfileState.exposure);
+  });
+
+  it("redirects appraiser My Work shell users away from Operations Dashboard", () => {
+    permissionState.permissionKeys = [PERMISSIONS.ORDERS_READ_ASSIGNED];
+    shellProfileState.exposure = {
+      id: "my_work",
+      profileId: "my_work",
+      metadataAuthority: "presentation_only",
+      shellMetadata: {
+        id: "my_work",
+        dashboardTitle: "My Work",
+        metadataAuthority: "presentation_only",
+      },
+    };
+
+    renderDashboardGateInRouter();
+
+    expect(screen.getByTestId("location")).toHaveTextContent("/my-work");
+    expect(screen.queryByTestId("order-dashboard")).toBeNull();
+    expect(dashboardProps.order).toHaveLength(0);
   });
 
   it("does not let shell metadata select the order dashboard for assignment-only users", () => {

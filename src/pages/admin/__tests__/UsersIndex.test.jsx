@@ -7,6 +7,10 @@ const permissionsState = vi.hoisted(() => ({
   allowed: true,
 }));
 
+const shellProfileState = vi.hoisted(() => ({
+  profileId: "operations",
+}));
+
 const membersApiMock = vi.hoisted(() => ({
   listCompanyMembers: vi.fn(),
   setCompanyMemberStatus: vi.fn(),
@@ -31,6 +35,14 @@ vi.mock("@/lib/hooks/usePermissions", () => ({
     allowed: permissionsState.allowed,
     loading: false,
     error: null,
+  }),
+}));
+
+vi.mock("@/lib/shell/useShellProfile", () => ({
+  useShellProfile: () => ({
+    profileId: shellProfileState.profileId,
+    metadataAuthority: "presentation_only",
+    isPresentationOnly: true,
   }),
 }));
 
@@ -146,6 +158,7 @@ function memberArticle(name) {
 describe("UsersIndex Team Access readability", () => {
   beforeEach(() => {
     permissionsState.allowed = true;
+    shellProfileState.profileId = "operations";
     membersApiMock.listCompanyMembers.mockResolvedValue([
       ownerMember,
       appraiserMember,
@@ -154,6 +167,7 @@ describe("UsersIndex Team Access readability", () => {
     membersApiMock.setCompanyMemberStatus.mockReset();
     membersApiMock.updateCompanyMemberRoles.mockReset();
     invitationsApiMock.cancelCompanyInvitation.mockReset();
+    invitationsApiMock.listCompanyInvitations.mockReset();
     invitationsApiMock.listCompanyInvitations.mockResolvedValue([pendingInvitation]);
     invitationsApiMock.listCompanyRolePresets.mockResolvedValue([]);
     invitationsApiMock.resendCompanyInvitation.mockReset();
@@ -275,5 +289,28 @@ describe("UsersIndex Team Access readability", () => {
     expect(invitationsApiMock.cancelCompanyInvitation).not.toHaveBeenCalled();
     expect(invitationsApiMock.resendCompanyInvitation).not.toHaveBeenCalled();
     expect(invitationsApiMock.sendCompanyInvitation).not.toHaveBeenCalled();
+  });
+
+  it("renders appraiser Team Access as a read-only staff directory", async () => {
+    shellProfileState.profileId = "my_work";
+
+    renderUsersIndex();
+
+    await screen.findByText("Active Team Members");
+
+    expect(screen.getByText(/View current-company teammates and contact context/)).toBeInTheDocument();
+    expect(screen.getByText("Read-only directory mode.")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Show inactive")).toBeNull();
+    expect(screen.queryByText("Pending Invitations")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Invite Member" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Edit roles" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Deactivate" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Reactivate" })).toBeNull();
+    expect(screen.getByText("Olivia Owner")).toBeInTheDocument();
+    expect(screen.getByText("Alex Appraiser")).toBeInTheDocument();
+    expect(screen.queryByText("Inactive Irene")).toBeNull();
+    expect(invitationsApiMock.listCompanyInvitations).not.toHaveBeenCalled();
+    expect(membersApiMock.setCompanyMemberStatus).not.toHaveBeenCalled();
+    expect(membersApiMock.updateCompanyMemberRoles).not.toHaveBeenCalled();
   });
 });

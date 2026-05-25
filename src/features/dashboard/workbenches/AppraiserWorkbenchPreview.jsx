@@ -161,6 +161,20 @@ function getOrderMeta(row) {
   return client || address || "Order detail context";
 }
 
+function getPropertyAddress(row) {
+  return row.address || row.property_address || row.propertyAddress || "Address not loaded";
+}
+
+function getStatusLabel(row) {
+  const status = String(row.status_label || row.status || "").trim();
+  if (!status) return "Status not loaded";
+
+  return status
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 function formatDueDate(row) {
   const dueDate = getDueDate(row);
   if (!dueDate) return "No due date";
@@ -169,6 +183,19 @@ function formatDueDate(row) {
     month: "short",
     day: "numeric",
   }).format(dueDate);
+}
+
+function formatInspectionDate(row) {
+  const inspectionDate = getFirstDate(row, [
+    "site_visit_at",
+    "site_visit_date",
+    "inspection_at",
+    "inspection_date",
+    "appointment_at",
+    "scheduled_at",
+  ]);
+
+  return inspectionDate ? formatShortDate(inspectionDate) : "Not scheduled";
 }
 
 function getWorkReason(row) {
@@ -197,7 +224,7 @@ function getWaitingContext(row) {
 
   if (typeof context === "string" && context.trim()) return context.trim();
   if (row.access_notes && isWaitingOrBlocked(row)) return "Access notes may explain the wait.";
-  if (isWaitingOrBlocked(row)) return "Waiting/blocker evidence is present on the row.";
+  if (isWaitingOrBlocked(row)) return "Waiting/blocker evidence is loaded for this order.";
   return null;
 }
 
@@ -387,11 +414,111 @@ function WorkbenchSection({ title, count, emptyCopy, children, className = "", t
   );
 }
 
+function ActiveOrdersSection({ rows }) {
+  return (
+    <WorkspaceSurface
+      variant="evidence"
+      className="border-slate-200 bg-white p-4 shadow-sm"
+      aria-label="Active Orders"
+    >
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h3 className="text-lg font-semibold text-slate-950">Active Orders</h3>
+          <p className="mt-1 text-sm text-slate-600">
+            Assigned orders with due dates, inspection timing, status, and read-only context.
+          </p>
+        </div>
+        <span className="mt-2 inline-flex w-fit rounded bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700 sm:mt-0">
+          {rows.length}
+        </span>
+      </div>
+
+      {rows.length === 0 ? (
+        <p className="mt-4 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-4 text-sm text-slate-600">
+          No active assigned orders are currently available from My Work data.
+        </p>
+      ) : (
+        <div className="mt-4 overflow-hidden rounded-lg border border-slate-200">
+          <div className="hidden grid-cols-[minmax(150px,1.1fr)_minmax(180px,1.4fr)_110px_100px_110px_minmax(180px,1.2fr)] gap-3 border-b border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 lg:grid">
+            <span>Order</span>
+            <span>Property</span>
+            <span>Status</span>
+            <span>Due</span>
+            <span>Inspection</span>
+            <span>Context</span>
+          </div>
+          <div className="divide-y divide-slate-200">
+            {rows.map((row, index) => {
+              const orderId = getOrderId(row);
+              const label = getOrderLabel(row);
+              const href = orderId ? `/orders/${orderId}` : "/orders";
+              const contextChips = getOrderContextChips(row).slice(0, 3);
+
+              return (
+                <article
+                  key={getOrderKey(row, index)}
+                  className="grid gap-3 px-3 py-3 lg:grid-cols-[minmax(150px,1.1fr)_minmax(180px,1.4fr)_110px_100px_110px_minmax(180px,1.2fr)] lg:items-start"
+                >
+                  <div className="min-w-0">
+                    <a
+                      href={href}
+                      className="text-sm font-semibold text-slate-950 underline-offset-4 hover:text-blue-700 hover:underline"
+                    >
+                      {label}
+                    </a>
+                    <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 lg:hidden">
+                      {getStatusLabel(row)}
+                    </p>
+                  </div>
+                  <div className="min-w-0 text-sm text-slate-700">
+                    <span className="font-medium text-slate-500 lg:hidden">Property: </span>
+                    {getPropertyAddress(row)}
+                  </div>
+                  <div className="hidden text-sm font-medium text-slate-700 lg:block">
+                    {getStatusLabel(row)}
+                  </div>
+                  <div className="text-sm text-slate-700">
+                    <span className="font-medium text-slate-500 lg:hidden">Due: </span>
+                    {formatDueDate(row)}
+                  </div>
+                  <div className="text-sm text-slate-700">
+                    <span className="font-medium text-slate-500 lg:hidden">Inspection: </span>
+                    {formatInspectionDate(row)}
+                  </div>
+                  <div>
+                    {contextChips.length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5" aria-label={`${label} read-only context`}>
+                        {contextChips.map((chip) => (
+                          <span
+                            key={chip.id}
+                            className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${
+                              contextToneClasses[chip.tone] || contextToneClasses.info
+                            }`}
+                          >
+                            {chip.label}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-sm text-slate-500">No loaded context</span>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </WorkspaceSurface>
+  );
+}
+
 export default function AppraiserWorkbenchPreview({
   rows = EMPTY_ROWS,
   loading = false,
   appraiserLabel = "Appraiser",
   compact = false,
+  showPressureSections = true,
 } = {}) {
   const orderRows = normalizeRows(rows);
   const priorityRows = getPriorityRows(orderRows);
@@ -412,7 +539,7 @@ export default function AppraiserWorkbenchPreview({
             <h2 className="mt-1 text-xl font-semibold text-slate-950">My Work</h2>
             <p className="mt-1 max-w-3xl text-sm text-slate-600">
               Open the dedicated appraiser workspace for priority work, due pressure, revisions,
-              inspections, and waiting context from the current assigned rows.
+              inspections, and waiting context from current assigned orders.
             </p>
           </div>
           <a
@@ -432,25 +559,25 @@ export default function AppraiserWorkbenchPreview({
             <WorkbenchMetric
               label="Urgent Work"
               value={priorityRows.length}
-              caption="Rows surfaced first from overdue and active pressure"
+              caption="Orders surfaced first from overdue and active pressure"
               tone="urgent"
             />
             <WorkbenchMetric
               label="Due Soon"
               value={dueSoonRows.length + overdueRows.length}
-              caption="Rows overdue or due within seven days"
+              caption="Orders overdue or due within seven days"
               tone="due"
             />
             <WorkbenchMetric
               label="Revisions"
               value={revisionRows.length}
-              caption="Rows marked for appraiser revision follow-up"
+              caption="Orders marked for appraiser revision follow-up"
               tone="revision"
             />
             <WorkbenchMetric
               label="Inspections"
               value={siteVisitRows.length}
-              caption="Rows with site visit or schedule context"
+              caption="Orders with site visit or schedule context"
               tone="inspection"
             />
           </div>
@@ -466,7 +593,7 @@ export default function AppraiserWorkbenchPreview({
         <h2 className="text-2xl font-semibold text-slate-950">My Work</h2>
         <p className="max-w-3xl text-sm text-slate-600">
           Start with the assigned orders that need attention today: revisions, due pressure,
-          inspection context, and waiting or blocked work derived from the current order rows.
+          inspection context, and waiting or blocked work derived from current assigned orders.
         </p>
       </header>
 
@@ -480,102 +607,95 @@ export default function AppraiserWorkbenchPreview({
             <WorkbenchMetric
               label="Urgent Work"
               value={priorityRows.length}
-              caption="Rows surfaced first from overdue and active pressure"
+              caption="Orders surfaced first from overdue and active pressure"
               tone="urgent"
             />
             <WorkbenchMetric
               label="Due Soon"
               value={dueSoonRows.length + overdueRows.length}
-              caption="Rows overdue or due within seven days"
+              caption="Orders overdue or due within seven days"
               tone="due"
             />
             <WorkbenchMetric
               label="Revisions"
               value={revisionRows.length}
-              caption="Rows marked for appraiser revision follow-up"
+              caption="Orders marked for appraiser revision follow-up"
               tone="revision"
             />
             <WorkbenchMetric
               label="Inspections"
               value={siteVisitRows.length}
-              caption="Rows with site visit or schedule context"
+              caption="Orders with site visit or schedule context"
               tone="inspection"
             />
           </div>
 
-          <WorkbenchSection
-            title="Priority Work"
-            count={priorityRows.length}
-            emptyCopy="No assigned order rows need priority placement from the provided data."
-            tone="priority"
-          >
-            {priorityRows.map((row, index) => (
-              <OrderWorkItem key={getOrderKey(row, index)} row={row} />
-            ))}
-          </WorkbenchSection>
+          <ActiveOrdersSection rows={orderRows} />
 
-          <div className="grid gap-3 xl:grid-cols-2">
-            <WorkbenchSection
-              title="Urgent / Overdue"
-              count={overdueRows.length}
-              emptyCopy="No overdue assigned work is represented in these rows."
-              tone="urgent"
-            >
-              {overdueRows.map((row, index) => (
-                <OrderWorkItem key={getOrderKey(row, index)} row={row} compact />
-              ))}
-            </WorkbenchSection>
-            <WorkbenchSection
-              title="Due Soon"
-              count={dueSoonRows.length}
-              emptyCopy="No due-soon assigned work is represented in these rows."
-              tone="due"
-            >
-              {dueSoonRows.map((row, index) => (
-                <OrderWorkItem key={getOrderKey(row, index)} row={row} compact />
-              ))}
-            </WorkbenchSection>
-            <WorkbenchSection
-              title="Revisions Required"
-              count={revisionRows.length}
-              emptyCopy="No revision requests are represented in these rows."
-              tone="revision"
-            >
-              {revisionRows.map((row, index) => (
-                <OrderWorkItem key={getOrderKey(row, index)} row={row} compact />
-              ))}
-            </WorkbenchSection>
-            <WorkbenchSection
-              title="Upcoming Inspections"
-              count={siteVisitRows.length}
-              emptyCopy="No upcoming inspection context is represented in these rows."
-              tone="inspection"
-            >
-              {siteVisitRows.map((row, index) => (
-                <OrderWorkItem key={getOrderKey(row, index)} row={row} compact />
-              ))}
-            </WorkbenchSection>
-            <WorkbenchSection
-              title="Waiting / Blocked Context"
-              count={waitingRows.length}
-              emptyCopy="No waiting or blocked context is represented in these rows."
-              tone="waiting"
-            >
-              {waitingRows.map((row, index) => (
-                <OrderWorkItem key={getOrderKey(row, index)} row={row} compact />
-              ))}
-            </WorkbenchSection>
-            <WorkbenchSection
-              title="Lower-Priority Work"
-              count={lowerPriorityRows.length}
-              emptyCopy="No lower-priority assigned work remains outside today's priority grouping."
-              tone="quiet"
-            >
-              {lowerPriorityRows.map((row, index) => (
-                <OrderWorkItem key={getOrderKey(row, index)} row={row} compact subdued />
-              ))}
-            </WorkbenchSection>
-          </div>
+          {showPressureSections && (
+            <div className="grid gap-3 xl:grid-cols-2">
+              <WorkbenchSection
+                title="Urgent / Overdue"
+                count={overdueRows.length}
+                emptyCopy="No overdue assigned work is represented in the current orders."
+                tone="urgent"
+              >
+                {overdueRows.map((row, index) => (
+                  <OrderWorkItem key={getOrderKey(row, index)} row={row} compact />
+                ))}
+              </WorkbenchSection>
+              <WorkbenchSection
+                title="Due Soon"
+                count={dueSoonRows.length}
+                emptyCopy="No due-soon assigned work is represented in the current orders."
+                tone="due"
+              >
+                {dueSoonRows.map((row, index) => (
+                  <OrderWorkItem key={getOrderKey(row, index)} row={row} compact />
+                ))}
+              </WorkbenchSection>
+              <WorkbenchSection
+                title="Revisions Required"
+                count={revisionRows.length}
+                emptyCopy="No revision requests are represented in the current orders."
+                tone="revision"
+              >
+                {revisionRows.map((row, index) => (
+                  <OrderWorkItem key={getOrderKey(row, index)} row={row} compact />
+                ))}
+              </WorkbenchSection>
+              <WorkbenchSection
+                title="Upcoming Inspections"
+                count={siteVisitRows.length}
+                emptyCopy="No upcoming inspection context is represented in the current orders."
+                tone="inspection"
+              >
+                {siteVisitRows.map((row, index) => (
+                  <OrderWorkItem key={getOrderKey(row, index)} row={row} compact />
+                ))}
+              </WorkbenchSection>
+              <WorkbenchSection
+                title="Waiting / Blocked Context"
+                count={waitingRows.length}
+                emptyCopy="No waiting or blocked context is represented in the current orders."
+                tone="waiting"
+              >
+                {waitingRows.map((row, index) => (
+                  <OrderWorkItem key={getOrderKey(row, index)} row={row} compact />
+                ))}
+              </WorkbenchSection>
+              <WorkbenchSection
+                title="Lower-Priority Work"
+                count={lowerPriorityRows.length}
+                emptyCopy="No lower-priority assigned work remains outside today's priority grouping."
+                tone="quiet"
+              >
+                {lowerPriorityRows.map((row, index) => (
+                  <OrderWorkItem key={getOrderKey(row, index)} row={row} compact subdued />
+                ))}
+              </WorkbenchSection>
+            </div>
+          )}
         </>
       )}
     </WorkspaceSurface>

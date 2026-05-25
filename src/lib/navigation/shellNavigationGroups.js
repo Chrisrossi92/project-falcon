@@ -104,17 +104,17 @@ export const shellNavigationGroupEntries = freezeArray([
       {
         id: 'work',
         label: 'Work',
-        navEntryIds: ['my_work', 'dashboard', 'orders', 'calendar'],
+        navEntryIds: ['my_work', 'orders', 'calendar'],
         notes: [
-          'Assigned internal work uses the dedicated My Work surface when visible, with Operations, Orders, and Calendar nearby.',
+          'Assigned internal work uses the dedicated My Work surface when visible, with Orders and Calendar nearby.',
         ],
       },
       {
         id: 'support',
         label: 'Support',
-        navEntryIds: ['clients.primary', 'settings'],
+        navEntryIds: ['clients.primary', 'users', 'settings'],
         notes: [
-          'Assigned-safe client context and personal settings stay secondary when available.',
+          'Assigned-safe client context, read-only Team Access, and personal settings stay secondary when available.',
         ],
       },
     ],
