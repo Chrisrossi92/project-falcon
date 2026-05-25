@@ -12,6 +12,13 @@ const savedViewsApiMock = vi.hoisted(() => ({
   createOrderSavedView: vi.fn(),
   deleteOrderSavedView: vi.fn(),
 }));
+const shellProfileState = vi.hoisted(() => ({
+  exposure: {
+    profileId: "operations",
+    metadataAuthority: "presentation_only",
+    isPresentationOnly: true,
+  },
+}));
 
 vi.mock("@/components/orders/NewOrderButton", () => ({
   default: () => <a href="/orders/new">New Order</a>,
@@ -47,6 +54,10 @@ vi.mock("@/lib/hooks/useOrders", () => ({
 }));
 
 vi.mock("@/lib/api/orderSavedViews", () => savedViewsApiMock);
+
+vi.mock("@/lib/shell/useShellProfile", () => ({
+  useShellProfile: () => shellProfileState.exposure,
+}));
 
 function renderPage(initialEntries = ["/orders"]) {
   return render(
@@ -97,6 +108,7 @@ describe("OrdersPage historical access", () => {
     renderPage();
 
     expect(screen.getByRole("heading", { name: "Orders Workspace" })).toBeInTheDocument();
+    expect(screen.getByText("Operations Command")).toBeInTheDocument();
     expect(screen.getByText("Active workspace")).toBeInTheDocument();
     expect(screen.getByText("Workflow actions in table")).toBeInTheDocument();
     expect(screen.getByText("History is read-only")).toBeInTheDocument();

@@ -12,6 +12,7 @@ import { getCurrentShellNavigationSections } from "@/lib/navigation/currentShell
 import { avatarSettingsUtilityLinks } from "@/lib/navigation/currentSettingsUtilityLinks";
 import { PERMISSIONS } from "@/lib/permissions/constants";
 import { useShellProfile } from "@/lib/shell/useShellProfile";
+import { getShellWorkModeCue } from "@/lib/shell/shellWorkMode";
 import { Menu, Search } from "lucide-react";
 
 const DESKTOP_SECTION_STYLES = Object.freeze({
@@ -67,49 +68,6 @@ const DEFAULT_DESKTOP_SECTION_STYLE = Object.freeze({
   label: "text-slate-500",
   item: "operational",
 });
-
-const SHELL_MODE_CUES = Object.freeze({
-  operations: {
-    label: "Operations Command",
-    context: "Owner/admin oversight",
-    sectionId: "operations",
-  },
-  my_work: {
-    label: "My Work",
-    context: "Appraiser workflow",
-    sectionId: "work",
-  },
-  review_queue: {
-    label: "Review Queue",
-    context: "Reviewer workflow",
-    sectionId: "review_work",
-  },
-  received_work: {
-    label: "Received Work",
-    context: "Assignment workflow",
-    sectionId: "received_work",
-  },
-});
-
-function getShellModeCue(shellProfilePresentation) {
-  const profileId = shellProfilePresentation?.profileId ?? shellProfilePresentation?.id;
-  const profile = shellProfilePresentation?.profile;
-  const explicitCue = SHELL_MODE_CUES[profileId];
-  const useProfileMetadata = profile?.status === "active";
-
-  return {
-    profileId,
-    label:
-      explicitCue?.label ??
-      (useProfileMetadata ? profile?.defaultWorkspaceLabel ?? profile?.displayLabel : null) ??
-      "Operations Console",
-    context:
-      explicitCue?.context ??
-      (useProfileMetadata ? profile?.primaryDailyQuestion : null) ??
-      "Operational workspace",
-    sectionId: explicitCue?.sectionId ?? null,
-  };
-}
 
 function Brand({ shellModeCue }) {
   const modeLabel = shellModeCue?.label ?? "Operations Console";
@@ -280,7 +238,7 @@ export default function TopNav() {
     primaryNavLinks,
     shellProfileId,
   );
-  const shellModeCue = getShellModeCue(shellProfilePresentation);
+  const shellModeCue = getShellWorkModeCue(shellProfilePresentation);
 
   useEffect(() => {
     (async () => {

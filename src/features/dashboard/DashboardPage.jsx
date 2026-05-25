@@ -10,6 +10,7 @@ import { PERMISSIONS } from "@/lib/permissions/constants";
 import { ORDER_STATUS, normalizeOrderStatus } from "@/lib/constants/orderStatus";
 import { OPERATIONAL_QUEUE_IDS } from "@/features/queues/queueDefinitions";
 import { useCompanySetupContext } from "@/features/company-setup/useCompanySetupContext";
+import { getShellWorkModeCue } from "@/lib/shell/shellWorkMode";
 import { useMemo, useState } from "react";
 
 const DASHBOARD_CONFIG = {
@@ -425,6 +426,7 @@ export default function DashboardPage({ shellProfilePresentation } = {}) {
     isAdmin,
     isReviewer,
   });
+  const shellWorkMode = getShellWorkModeCue(shellProfilePresentation);
   const shellProfileId = getShellProfilePresentationId(shellProfilePresentation);
   const showAppraiserWorkbenchPreview = shellProfileId === "my_work" && !isAdmin;
   const showReviewerWorkbenchPreview = shellProfileId === "review_queue" && !isAdmin;
@@ -494,8 +496,11 @@ export default function DashboardPage({ shellProfilePresentation } = {}) {
       <section className="rounded-2xl border border-slate-200 bg-white/95 px-4 py-4 shadow-sm ring-1 ring-slate-100 sm:px-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="min-w-0">
-            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-              Falcon Operations
+            <div
+              className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500"
+              title={shellWorkMode.context}
+            >
+              {shellWorkMode.label}
             </div>
             <h1 className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-950">
               {title}

@@ -228,6 +228,7 @@ describe("DashboardPage operational polish", () => {
   it("renders the polished operational sections from existing summary data", () => {
     renderDashboard(operationsShell);
 
+    expect(screen.getByText("Operations Command")).toBeInTheDocument();
     expect(screen.getByText("Operations Dashboard")).toBeInTheDocument();
     expect(
       screen.getByText("Track active work, review handoffs, due pressure, and operational readiness."),

@@ -564,3 +564,42 @@ A2.3 preserves:
 
 The next safe phase is **A2.4 Workspace Header / Context Pass** only if role/work identity still
 needs clearer page-level reinforcement after visual review.
+
+## A2.4 Implementation Record
+
+Phase A2.4 connects shell/nav identity to the highest-value workspace headers as
+presentation-only runtime work.
+
+Runtime files updated:
+
+- `src/lib/shell/shellWorkMode.js`;
+- `src/components/shell/TopNav.jsx`;
+- `src/features/dashboard/DashboardPage.jsx`;
+- `src/features/dashboard/__tests__/DashboardPage.test.jsx`;
+- `src/pages/orders/Orders.jsx`;
+- `src/pages/orders/__tests__/Orders.test.jsx`.
+
+A2.4 changes:
+
+- moves the A2.3 shell work-mode cue into a shared presentation helper;
+- keeps `TopNav` using the same role/work cue source;
+- surfaces the resolved work mode in the dashboard header eyebrow;
+- surfaces the resolved work mode in the Orders workspace header context;
+- keeps the copy subtle and presentation-only;
+- avoids Order Detail header changes because lifecycle and action controls live there.
+
+A2.4 preserves:
+
+- all route paths;
+- all permission checks and route guards;
+- all nav link availability;
+- command palette behavior;
+- dashboard data behavior;
+- Orders filter/query/table behavior;
+- workflow/lifecycle behavior;
+- Smart Actions;
+- backend, Supabase, schema, automation, notifications, AMC, Client Portal, mobile/native, AI, and
+  production data behavior.
+
+The next safe phase is **A3 Surface / Elevation System** only if visual review confirms shell,
+workspace, and page-context identity are now stable enough for broader surface recipes.

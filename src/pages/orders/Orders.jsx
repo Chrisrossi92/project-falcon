@@ -9,6 +9,8 @@ import { OPERATIONAL_QUEUE_DEFINITIONS } from "@/features/queues/queueDefinition
 import { orderHasQueue } from "@/features/queues/queueEvaluator";
 import { getQueueSummaryById, summarizeOperationalQueues } from "@/features/queues/queueSummary";
 import { useOrdersSummary } from "@/lib/hooks/useOrders";
+import { useShellProfile } from "@/lib/shell/useShellProfile";
+import { getShellWorkModeCue } from "@/lib/shell/shellWorkMode";
 import {
   createOrderSavedView,
   deleteOrderSavedView,
@@ -453,6 +455,8 @@ function SavedViewsPanel({ filters, onApply }) {
 export default function OrdersPage() {
   const navigate = useNavigate();
   const qs = useQuery();
+  const shellProfilePresentation = useShellProfile();
+  const shellWorkMode = getShellWorkModeCue(shellProfilePresentation);
   const [filters, setFilters] = useState(() => readFilters(qs));
 
   useEffect(() => setFilters(readFilters(qs)), [qs]);
@@ -496,7 +500,12 @@ export default function OrdersPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
         <div className="min-w-0">
-          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Active Operations</div>
+          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em]">
+            <span className="text-slate-400">Active Operations</span>
+            <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] tracking-[0.12em] text-slate-500">
+              {shellWorkMode.label}
+            </span>
+          </div>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">Orders Workspace</h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
             Manage active order inventory. Archived, cancelled, and voided orders stay in historical readback.
