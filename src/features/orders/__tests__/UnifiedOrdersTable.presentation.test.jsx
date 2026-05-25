@@ -167,6 +167,26 @@ describe("UnifiedOrdersTable presentation", () => {
     expect(screen.queryByRole("button", { name: /archive|cancel|void/i })).not.toBeInTheDocument();
   });
 
+  it("allows My Work to use appraiser-specific table and empty-state copy", () => {
+    renderTable({
+      rowsOverride: [],
+      tableEyebrow: "Active Orders",
+      tableLabel: "Assigned work",
+      tableSummary: "Assigned orders from My Work.",
+      emptyTitle: "No active assigned orders to show.",
+      emptyDescription: "Assigned orders will appear here when they are available.",
+    });
+
+    expect(screen.getByText("Active Orders")).toBeInTheDocument();
+    expect(screen.getByText("Assigned work")).toBeInTheDocument();
+    expect(screen.getByText("Assigned orders from My Work.")).toBeInTheDocument();
+    expect(screen.getByText("No active assigned orders to show.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Assigned orders will appear here when they are available."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("The current filters do not have any active work.")).not.toBeInTheDocument();
+  });
+
   it("uses the polished loading state from existing table loading", () => {
     useOrdersMock.mockReturnValue({
       data: [],

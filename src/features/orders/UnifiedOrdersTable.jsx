@@ -64,6 +64,11 @@ export default function UnifiedOrdersTable({
   activeQueueAction = null,
   scope = null,
   onOrderDatesChanged,
+  tableEyebrow = "Orders Table",
+  tableLabel: tableLabelOverride = null,
+  tableSummary: tableSummaryOverride = null,
+  emptyTitle = null,
+  emptyDescription = null,
 }) {
   const { user: sessionUser } = useSession() || {};
   const { toast } = useToast();
@@ -478,10 +483,16 @@ export default function UnifiedOrdersTable({
 
   const stickyHeader = "bg-slate-50/95 sticky left-0 z-20 pr-4 border-r border-slate-200/70";
   const stickyCell = "bg-white sticky left-0 z-10 pr-4 border-slate-200/70 group-hover:bg-slate-50/80";
-  const tableLabel = activeQueue ? "Queue worklist" : "Active orders";
+  const tableLabel = activeQueue ? "Queue worklist" : tableLabelOverride || "Active orders";
   const tableSummary = activeQueue
     ? "Derived from the current active order set."
-    : "Active operational inventory only.";
+    : tableSummaryOverride || "Active operational inventory only.";
+  const emptyStateTitle = activeQueue
+    ? "No orders match this operational queue."
+    : emptyTitle || "No active orders to show.";
+  const emptyStateDescription = activeQueue
+    ? "Clear the queue filter to return to the full active worklist."
+    : emptyDescription || "The current filters do not have any active work.";
 
   return (
     <>
@@ -496,7 +507,7 @@ export default function UnifiedOrdersTable({
         <div className="border-b border-slate-200 bg-white px-4 py-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
-              <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Orders Table</div>
+              <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">{tableEyebrow}</div>
               <div className="mt-1 flex flex-wrap items-center gap-2">
                 <span className="text-sm font-semibold text-slate-950">{tableLabel}</span>
                 <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
@@ -594,10 +605,10 @@ export default function UnifiedOrdersTable({
                 0
               </div>
               <div className="mt-3 text-sm font-semibold text-slate-800">
-                {activeQueue ? "No orders match this operational queue." : "No active orders to show."}
+                {emptyStateTitle}
               </div>
               <div className="mx-auto mt-1 max-w-md text-sm text-slate-500">
-                {activeQueue ? "Clear the queue filter to return to the full active worklist." : "The current filters do not have any active work."}
+                {emptyStateDescription}
               </div>
             </div>
           ) : (

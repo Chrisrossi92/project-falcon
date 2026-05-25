@@ -106,6 +106,11 @@ describe("MyWorkPage", () => {
         rowsOverride: summaryState.current.ordersRows,
         pageSize: 10,
         scope: "dashboard",
+        tableEyebrow: "Active Orders",
+        tableLabel: "Assigned work",
+        tableSummary: "Assigned orders from My Work.",
+        emptyTitle: "No active assigned orders to show.",
+        emptyDescription: "Assigned orders will appear here when they are available.",
       }),
     );
     expect(screen.queryByRole("region", { name: "My Work preview" })).not.toBeInTheDocument();

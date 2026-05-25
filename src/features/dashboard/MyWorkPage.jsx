@@ -156,7 +156,7 @@ export default function MyWorkPage() {
             </div>
             <h2 className="mt-1 text-lg font-semibold text-slate-950">Active Orders</h2>
             <p className="mt-1 text-sm leading-6 text-slate-600">
-              Assigned orders from the established Orders worklist.
+              Assigned orders with current status, due dates, and available actions.
             </p>
           </div>
           <span className="mt-2 inline-flex w-fit rounded bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700 sm:mt-0">
@@ -173,6 +173,11 @@ export default function MyWorkPage() {
             rowsOverride={ordersRows || []}
             pageSize={10}
             scope="dashboard"
+            tableEyebrow="Active Orders"
+            tableLabel="Assigned work"
+            tableSummary="Assigned orders from My Work."
+            emptyTitle="No active assigned orders to show."
+            emptyDescription="Assigned orders will appear here when they are available."
           />
         )}
       </WorkspaceSurface>
