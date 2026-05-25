@@ -1,5 +1,5 @@
 // src/lib/hooks/useOrder.js
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getOrder } from "@/lib/services/ordersService";
 import { mapOrderRow } from "@/lib/mappers/orderMapper";
 
@@ -7,11 +7,36 @@ export default function useOrder(id) {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const mountedRef = useRef(false);
+  const hasLoadedRef = useRef(false);
+  const requestSeqRef = useRef(0);
 
-  async function load() {
-    if (!id) return;
-    setLoading(true);
-    setError(null);
+  const load = useCallback(async () => {
+    const requestSeq = requestSeqRef.current + 1;
+    requestSeqRef.current = requestSeq;
+
+    if (!id) {
+      hasLoadedRef.current = false;
+      if (mountedRef.current) {
+        setOrder(null);
+        setLoading(false);
+        setError(null);
+      }
+      return null;
+    }
+
+    const showPageLoading = !hasLoadedRef.current;
+
+    if (showPageLoading) {
+      if (mountedRef.current) {
+        setLoading(true);
+      }
+    }
+
+    if (mountedRef.current) {
+      setError(null);
+    }
+
     try {
       const row = await getOrder(id);
       const mapped = row ? mapOrderRow(row) : null;
@@ -23,18 +48,34 @@ export default function useOrder(id) {
           split_pct: mapped.split_pct,
         });
       }
+
+      if (requestSeq !== requestSeqRef.current || !mountedRef.current) return mapped;
+
       setOrder(mapped);
+      hasLoadedRef.current = true;
+      return mapped;
     } catch (err) {
+      if (requestSeq !== requestSeqRef.current || !mountedRef.current) return null;
       console.error("Failed to load order", err);
       setError(err);
+      return null;
     } finally {
-      setLoading(false);
+      if (requestSeq === requestSeqRef.current && mountedRef.current && showPageLoading) {
+        setLoading(false);
+      }
     }
-  }
+  }, [id]);
 
   useEffect(() => {
+    mountedRef.current = true;
+    hasLoadedRef.current = false;
+    setOrder(null);
     load();
-  }, [id]);
+
+    return () => {
+      mountedRef.current = false;
+    };
+  }, [load]);
 
   return { order, loading, error, refresh: load };
 }
