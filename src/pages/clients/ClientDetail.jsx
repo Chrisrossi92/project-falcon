@@ -115,14 +115,28 @@ export default function ClientDetail() {
         setLoading(true);
         setErr(null);
 
-        const clientPromise = getClientManagementDetail(numericId);
+        const clientRow = await getClientManagementDetail(numericId);
+
+        if (cancelled) return;
+
+        if (!clientRow) {
+          setClient(null);
+          setErr("Client not found");
+          setLoading(false);
+          return;
+        }
+
+        const isAmcRelationship = String(clientRow.category || "").toLowerCase() === "amc";
 
         let ordersQuery = supabase
           .from("v_orders_frontend_v4")
           .select(
-            "id, order_number, status, address, city, state, zip, fee_amount, base_fee, appraiser_fee, created_at, review_due_at, final_due_at, due_date"
-          )
-          .eq("client_id", numericId);
+            "id, order_number, status, address, city, state, zip, fee_amount, base_fee, appraiser_fee, created_at, review_due_at, final_due_at, due_date, client_id, managing_amc_id"
+          );
+
+        ordersQuery = isAmcRelationship
+          ? ordersQuery.eq("managing_amc_id", numericId)
+          : ordersQuery.eq("client_id", numericId);
 
         if (!isAdmin) {
           if (!publicUserId) {
@@ -134,25 +148,13 @@ export default function ClientDetail() {
           }
         }
 
-        const ordersPromise = ordersQuery
+        const { data: orderRows, error: ordersErr } = await ordersQuery
           .order("created_at", { ascending: false })
           .limit(100);
-
-        const [
-          clientRow,
-          { data: orderRows, error: ordersErr },
-        ] = await Promise.all([clientPromise, ordersPromise]);
 
         if (ordersErr) throw ordersErr;
 
         if (cancelled) return;
-
-        if (!clientRow) {
-          setClient(null);
-          setErr("Client not found");
-          setLoading(false);
-          return;
-        }
 
         setClient(clientRow);
         setOrders(orderRows || []);
@@ -309,6 +311,12 @@ export default function ClientDetail() {
   const activeOrders = stats.activeOrders ?? 0;
   const completedOrders = stats.completedOrders ?? 0;
   const anyOrders = orders && orders.length > 0;
+  const isAmcRelationship = String(category || "").toLowerCase() === "amc";
+  const relatedOrdersTitle = isAmcRelationship ? "Managed Orders" : "Client Orders";
+  const relatedOrdersDescription = isAmcRelationship
+    ? "Orders visible to your current company role where this AMC is the management relationship."
+    : "Orders visible to your current company role for this client.";
+  const contextTitle = isAmcRelationship ? "Managed Order Context" : "Visible Order Context";
 
   const activeList = (orders || []).filter(
     (o) => (o.status || "").toUpperCase() !== "COMPLETE"
@@ -428,9 +436,9 @@ export default function ClientDetail() {
           </WorkspaceSection>
 
           <WorkspaceSection
-            title="Related Orders"
+            title={relatedOrdersTitle}
             titleId="client-orders-heading"
-            description="Orders visible to your current company role for this client."
+            description={relatedOrdersDescription}
             meta={
               anyOrders ? (
                 <WorkspaceSectionMeta>
@@ -473,7 +481,7 @@ export default function ClientDetail() {
 
         <aside className="space-y-4">
           <WorkspaceSection
-            title="Visible Order Context"
+            title={contextTitle}
             titleId="client-context-heading"
             className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
             headerClassName="mb-3"

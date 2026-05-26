@@ -12,11 +12,126 @@ vi.mock("@/lib/supabaseClient", () => ({
   },
 }));
 
-import { listAssignedOrderClients } from "../clientManagementApi";
+import supabase from "@/lib/supabaseClient";
+import {
+  getClientManagementDetail,
+  listAssignedOrderClients,
+  listClientManagementClients,
+} from "../clientManagementApi";
+
+describe("clientManagementApi management clients", () => {
+  beforeEach(() => {
+    supabase.rpc.mockReset();
+  });
+
+  it("normalizes AMC umbrella metrics without rolling them into lender rows", async () => {
+    supabase.rpc.mockResolvedValue({
+      data: [
+        {
+          client_id: 10,
+          client_name: "MountainSeed",
+          status: "active",
+          category: "amc",
+          amc_id: null,
+          amc_name: null,
+          order_count: 3,
+          active_order_count: 2,
+          completed_order_count: 1,
+          direct_order_count: 0,
+          managed_order_count: 3,
+          avg_fee: 525,
+          last_order_date: "2026-05-20T12:00:00.000Z",
+        },
+        {
+          client_id: 20,
+          client_name: "Bank A",
+          status: "active",
+          category: "lender",
+          amc_id: 10,
+          amc_name: "MountainSeed",
+          order_count: 1,
+          active_order_count: 1,
+          completed_order_count: 0,
+          direct_order_count: 1,
+          managed_order_count: 0,
+          avg_fee: 500,
+          last_order_date: "2026-05-18T12:00:00.000Z",
+        },
+      ],
+      error: null,
+    });
+
+    const rows = await listClientManagementClients();
+
+    expect(supabase.rpc).toHaveBeenCalledWith("rpc_client_management_list", {
+      p_search: "",
+      p_category: "all",
+      p_sort: "orders_desc",
+    });
+    expect(rows).toEqual([
+      expect.objectContaining({
+        id: 10,
+        name: "MountainSeed",
+        category: "amc",
+        total_orders: 3,
+        active_orders: 2,
+        completed_orders: 1,
+        direct_order_count: 0,
+        managed_order_count: 3,
+      }),
+      expect.objectContaining({
+        id: 20,
+        name: "Bank A",
+        category: "lender",
+        amc_id: 10,
+        amc_name: "MountainSeed",
+        total_orders: 1,
+        direct_order_count: 1,
+        managed_order_count: 0,
+      }),
+    ]);
+  });
+
+  it("normalizes client detail rollup fields from the management RPC", async () => {
+    supabase.rpc.mockResolvedValue({
+      data: {
+        client_id: 10,
+        client_name: "MountainSeed",
+        status: "active",
+        category: "amc",
+        order_count: 3,
+        active_order_count: 2,
+        completed_order_count: 1,
+        direct_order_count: 0,
+        managed_order_count: 3,
+        avg_fee: 525,
+        last_order_date: "2026-05-20T12:00:00.000Z",
+      },
+      error: null,
+    });
+
+    await expect(getClientManagementDetail(10)).resolves.toEqual(
+      expect.objectContaining({
+        id: 10,
+        name: "MountainSeed",
+        category: "amc",
+        total_orders: 3,
+        active_order_count: 2,
+        completed_order_count: 1,
+        direct_order_count: 0,
+        managed_order_count: 3,
+      }),
+    );
+    expect(supabase.rpc).toHaveBeenCalledWith("rpc_client_management_detail", {
+      p_client_id: 10,
+    });
+  });
+});
 
 describe("clientManagementApi assigned order clients", () => {
   beforeEach(() => {
     fetchOrdersWithFiltersMock.mockReset();
+    supabase.rpc.mockReset();
   });
 
   it("groups appraiser-visible current and historical assigned orders by client", async () => {

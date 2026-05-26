@@ -95,6 +95,8 @@ function renderDetail({ canUpdate = true, context, client, orders } = {}) {
         id: "order-1",
         order_number: "26001",
         status: "in_progress",
+        client_id: 42,
+        managing_amc_id: null,
         address: "100 Main St",
         city: "Boston",
         state: "MA",
@@ -105,6 +107,8 @@ function renderDetail({ canUpdate = true, context, client, orders } = {}) {
         id: "order-2",
         order_number: "26002",
         status: "complete",
+        client_id: 42,
+        managing_amc_id: null,
         address: "200 Main St",
         city: "Boston",
         state: "MA",
@@ -163,13 +167,13 @@ describe("ClientDetail presentation", () => {
     expect(screen.getByText("Avery Client")).toBeInTheDocument();
     expect(screen.getByText("555-0100")).toBeInTheDocument();
     expect(screen.getByText("avery@example.test")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Related Orders" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Client Orders" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Visible Order Context" })).toBeInTheDocument();
     expect(screen.getByText("2 total / 1 active / 1 completed")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "26001" })).toHaveAttribute("href", "/orders/order-1");
   });
 
-  it("preserves the existing client detail and related-order read path", async () => {
+  it("loads direct client orders for lender and client relationships", async () => {
     const ordersQuery = renderDetail({
       context: {
         user_id: "reviewer-1",
@@ -185,12 +189,55 @@ describe("ClientDetail presentation", () => {
     });
 
     expect(ordersQuery.select).toHaveBeenCalledWith(
-      "id, order_number, status, address, city, state, zip, fee_amount, base_fee, appraiser_fee, created_at, review_due_at, final_due_at, due_date",
+      "id, order_number, status, address, city, state, zip, fee_amount, base_fee, appraiser_fee, created_at, review_due_at, final_due_at, due_date, client_id, managing_amc_id",
     );
     expect(ordersQuery.eq).toHaveBeenCalledWith("client_id", 42);
+    expect(ordersQuery.eq).not.toHaveBeenCalledWith("managing_amc_id", 42);
     expect(ordersQuery.eq).toHaveBeenCalledWith("reviewer_id", "reviewer-1");
     expect(ordersQuery.order).toHaveBeenCalledWith("created_at", { ascending: false });
     expect(ordersQuery.limit).toHaveBeenCalledWith(100);
+  });
+
+  it("loads managed orders for AMC relationships without using the direct client filter", async () => {
+    const ordersQuery = renderDetail({
+      client: {
+        id: 42,
+        name: "MountainSeed",
+        status: "active",
+        category: "amc",
+        primary_contact_name: "Morgan AMC",
+        primary_contact_phone: "555-0101",
+        contact_email_1: "morgan@example.test",
+        total_orders: 2,
+        active_order_count: 2,
+        managed_order_count: 2,
+        direct_order_count: 0,
+      },
+      orders: [
+        {
+          id: "order-ms-1",
+          order_number: "26010",
+          status: "in_progress",
+          client_id: 84,
+          managing_amc_id: 42,
+          address: "300 Main St",
+          city: "Boston",
+          state: "MA",
+          fee_amount: 650,
+          created_at: "2026-05-21T12:00:00.000Z",
+        },
+      ],
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "MountainSeed" })).toBeInTheDocument();
+    });
+
+    expect(ordersQuery.eq).toHaveBeenCalledWith("managing_amc_id", 42);
+    expect(ordersQuery.eq).not.toHaveBeenCalledWith("client_id", 42);
+    expect(screen.getByRole("heading", { name: "Managed Orders" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Managed Order Context" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "26010" })).toHaveAttribute("href", "/orders/order-ms-1");
   });
 
   it("keeps edit form visibility controlled by the existing update permission", async () => {
