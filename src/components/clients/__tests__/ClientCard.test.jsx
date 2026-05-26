@@ -80,6 +80,32 @@ describe("ClientCard presentation", () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
+  it("shows the managing AMC relationship for linked lender and client cards", () => {
+    renderCard({
+      client: {
+        name: "Richwood Bank",
+        category: "Lender",
+        amc_id: "amc-mountainseed",
+        amc_name: "Mountainseed",
+      },
+    });
+
+    expect(screen.getByText("Managed through Mountainseed AMC")).toBeInTheDocument();
+  });
+
+  it("keeps AMC cards free of managing-through hierarchy copy", () => {
+    renderCard({
+      client: {
+        name: "Mountainseed",
+        category: "AMC",
+        amc_id: "amc-parent",
+        amc_name: "Parent AMC",
+      },
+    });
+
+    expect(screen.queryByText(/Managed through/i)).not.toBeInTheDocument();
+  });
+
   it("renders read-only fallback copy and missing data placeholders", () => {
     renderCard({
       client: {

@@ -35,12 +35,14 @@ const statusBadgeClasses = (status) => {
 
 export default function ClientCard({ client, metrics }) {
   const { allowed: canUpdateAllClients } = useCan(PERMISSIONS.CLIENTS_UPDATE_ALL);
-  const { id, name, category, status, primary_contact, phone } = client || {};
+  const { id, name, category, status, primary_contact, phone, amc_id, amc_name } = client || {};
   const { total_orders, avg_fee, last_activity } = metrics || {};
 
   const statusLabel = status ? status.toUpperCase() : "ACTIVE";
   const detailLabel = name ? `View ${name} client detail` : "View client detail";
   const cardLabel = name ? `${name} client summary` : "Client summary";
+  const categoryKey = String(category || "").toLowerCase();
+  const showManagedThrough = categoryKey !== "amc" && amc_id && amc_name;
 
   return (
     <article
@@ -85,6 +87,12 @@ export default function ClientCard({ client, metrics }) {
                 </>
               )}
             </div>
+
+            {showManagedThrough && (
+              <div className="text-xs font-medium text-slate-500">
+                Managed through {amc_name} AMC
+              </div>
+            )}
           </div>
 
           <div className="shrink-0 rounded-lg bg-slate-50 px-3 py-2 text-right">

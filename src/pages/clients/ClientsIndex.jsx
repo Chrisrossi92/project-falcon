@@ -309,6 +309,8 @@ export default function ClientsIndex() {
                   name: row.name,
                   status: row.status,
                   category: row.category,
+                  amc_id: row.amc_id,
+                  amc_name: row.amc_name,
                   primary_contact: row.primary_contact,
                   phone: row.phone,
                 }}

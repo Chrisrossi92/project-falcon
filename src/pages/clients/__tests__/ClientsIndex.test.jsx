@@ -92,6 +92,8 @@ describe("ClientsIndex workspace polish", () => {
           name: "Acme Lending",
           status: "active",
           category: "lender",
+          amc_id: "amc-mountainseed",
+          amc_name: "Mountainseed",
           primary_contact: "Avery Client",
           phone: "555-0100",
           total_orders: 7,
@@ -127,6 +129,8 @@ describe("ClientsIndex workspace polish", () => {
           id: "client-1",
           name: "Acme Lending",
           category: "Lender",
+          amc_id: "amc-mountainseed",
+          amc_name: "Mountainseed",
         }),
         metrics: expect.objectContaining({
           total_orders: 7,
