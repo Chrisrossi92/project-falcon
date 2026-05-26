@@ -60,6 +60,41 @@ Deferred:
 - Full CI is future work.
 - Existing build warnings remain: Tailwind ambiguous `ease-[${EASING}]` class warning and large bundle chunk warning.
 
+## Owner Access Management Phase 1 - 2026-05-26
+
+Completed:
+
+- Users access editing now has a read-only Effective Permissions preview based on selected role
+  presets.
+- The access modal is framed as `Edit Access` while preserving existing role-preset-only save
+  behavior.
+- The preview groups human-readable permission labels and updates live as role presets are selected
+  or deselected.
+- The preview intentionally suppresses V1-hidden AMC/Assignments/Relationships-style operational
+  domains in Staff Appraisal mode.
+- A narrow read-only RPC, `rpc_company_role_permission_preview()`, exposes template role permission
+  labels for preview without mutating access or exposing member-specific overrides.
+
+Locked doctrine:
+
+- Primary role controls worldview/default shell experience.
+- Additional role presets provide bundled authority.
+- Effective permissions control actions.
+- Product/module scope controls operational domain visibility.
+- Permission overrides are future explicit, auditable, grouped, human-readable exceptions.
+- Overrides must not unlock hidden product modules by accident.
+- Owner-protected role safeguards remain backend-authoritative.
+- Role presets should prevent role explosion.
+
+Deferred:
+
+- Per-member permission override tables.
+- Custom grant/revoke UI controls.
+- Effective permission resolver changes for explicit overrides.
+- Shell/worldview resolution changes.
+- Product/module runtime enablement for AMC, Assignments, Relationships, Vendor Portal, or Client
+  Portal.
+
 ## Database Baseline Recovery - 2026-05-17
 
 Completed:

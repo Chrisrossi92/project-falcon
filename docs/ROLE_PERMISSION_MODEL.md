@@ -29,6 +29,77 @@ This model lets Falcon become a configurable appraisal operations platform that 
 9. Preserve a secure deny-by-default model for sensitive data and workflow actions.
 10. Make future client portal, inspector, trainee, and billing workflows fit the same model.
 
+## Owner Access Management Doctrine
+
+Owner Access Management separates persona, authority, and product scope.
+
+Canonical layers:
+
+1. Primary role controls worldview, default shell experience, role label priority, and the user's
+   main operational persona.
+2. Additional role presets provide bundled authority without replacing the primary persona.
+3. Effective permissions control action authority.
+4. Product/module scope controls which operational domains can be visible.
+
+Owners can assign multiple roles to shape a member's ability. This should be the normal way to
+combine broad operational patterns, such as an appraiser who also has reviewer authority or an admin
+who can manage users but should not receive owner authority.
+
+Role presets should prevent role explosion. The system should prefer reusable bundles plus a small
+number of explicit exceptions over many tiny one-off roles that are hard for owners to understand.
+
+Owner-protected safeguards are backend-authoritative:
+
+- granting Owner access requires explicit owner-grant authority;
+- revoking Owner access requires explicit owner-revoke authority;
+- a company must retain at least one active Owner;
+- owner role assignment changes should remain audited;
+- UI affordances may be hidden or locked, but RPC/database invariants are the authority.
+
+### Phase 1: Read-Only Effective Permission Preview
+
+Phase 1 adds a read-only preview of effective permissions produced by currently selected role
+presets in the Users access modal.
+
+Phase 1 includes:
+
+- primary role selection;
+- additional role preset selection;
+- grouped, human-readable permission preview;
+- live preview updates as role presets are selected or deselected;
+- no custom grant/revoke persistence.
+
+Phase 1 does not include:
+
+- per-member permission override tables;
+- editable grant or revoke checkboxes;
+- backend effective-permission resolver changes;
+- shell/worldview resolution changes;
+- module or product-mode enablement;
+- AMC/Assignments/Relationships surface exposure.
+
+### Future Custom Overrides
+
+Custom permission overrides are a future explicit layer. They should be:
+
+- explicit: each grant or revoke should be represented as a deliberate override;
+- auditable: changes should write actor, target, reason, old state, and new state;
+- grouped: owners should manage permissions by business area, not raw backend lists;
+- human-readable: labels should use permission display names, not raw permission keys;
+- reversible: removing an override should return the user to role-derived authority;
+- safe: overrides must not unlock hidden product modules or operational worlds by accident.
+
+Recommended future merge rule:
+
+```txt
+effective permissions = active role permissions + explicit grants - explicit revokes
+```
+
+Product/module scope remains separate. A permission override may authorize an action only inside a
+visible operational domain. It must not expose AMC Operations, Assignments, Relationships, Vendor
+Portal, Client Portal, or other hidden modules in V1 Staff Appraisal mode unless product/module
+scope explicitly enables that domain.
+
 ## Core Definitions
 
 ### User Identity

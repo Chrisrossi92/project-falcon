@@ -86,6 +86,26 @@ Migration readiness checklist:
 - Falcon v1 should suppress AMC/network surfaces from Staff Appraisal runtime UX unless the AMC
   operational domain is explicitly enabled, permissioned, and intentionally exposed.
 
+## Access Model Guardrail
+
+Product mode visibility is not the same as role assignment or permission authority.
+
+Falcon access should be interpreted in this order:
+
+1. Product/module scope decides which operational worlds can be visible.
+2. Primary role decides the user's default worldview and shell/persona.
+3. Additional role presets add bundled action authority.
+4. Effective permissions decide whether a visible action can be taken.
+
+Owner Access Management Phase 1 adds only a read-only effective-permission preview for selected
+role presets. It does not add direct permission overrides, product/module enablement, AMC surface
+enablement, or shell-resolution changes.
+
+Future custom permission overrides must not become an accidental product-mode switch. A custom
+grant can authorize an action only inside an already-visible operational domain. It must not reveal
+AMC Operations, Assignments, Relationships, Vendor Portal, Client Portal, or other suppressed
+modules in V1 Staff Appraisal mode unless the product/module scope also enables that domain.
+
 ## UX Guardrails
 
 Product modes:

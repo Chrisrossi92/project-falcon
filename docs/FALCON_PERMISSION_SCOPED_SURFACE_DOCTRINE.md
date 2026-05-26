@@ -34,6 +34,36 @@ Owner authority means:
 Owner should not be treated as decorative metadata. Owner authority must remain permission-backed,
 auditable, and protected by owner-invariant rules.
 
+## Owner-Managed Access Model
+
+Owner-managed access is composed from separate layers:
+
+- primary role controls the user's default worldview, persona, and shell experience;
+- additional role presets provide bundled authority without changing the primary persona by
+  themselves;
+- effective permissions control actions such as inviting users, updating orders, assigning roles,
+  or changing workflow state;
+- product/module scope controls which operational domains are visible.
+
+Phase 1 of Owner Access Management proves only the read-only preview layer: owners can see the
+effective permissions produced by selected role presets before saving role changes. It does not add
+custom grants, custom revokes, direct per-member permission overrides, module enablement, shell
+resolution changes, or backend permission resolver changes.
+
+Future permission overrides must be explicit, auditable, grouped, human-readable, and safe from
+unlocking hidden product modules by accident. Overrides may adjust action authority inside an
+already-visible operational domain, but they must not expose AMC Operations, Assignments,
+Relationships, Vendor Portal, Client Portal, or other hidden modules unless product/module scope
+also allows that domain.
+
+Role presets should prevent role explosion. Owners should first compose access from primary role
+plus additional presets; direct overrides should be the exceptional precision layer, not a reason to
+create many one-off roles.
+
+Owner-protected role safeguards remain backend-authoritative. The UI may explain owner protection,
+but the database/RPC layer must continue to enforce owner-grant, owner-revoke, and last-owner
+invariants.
+
 ## Internal Staff Operations Scope
 
 Internal Staff Appraiser Platform is the Falcon v1 default operational world.
