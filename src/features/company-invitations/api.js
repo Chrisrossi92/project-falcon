@@ -99,3 +99,10 @@ export async function listCompanyRolePresets() {
   if (error) throw error;
   return Array.isArray(data) ? data : [];
 }
+
+export async function listCompanyRolePermissionPreview() {
+  const { data, error } = await supabase.rpc("rpc_company_role_permission_preview");
+
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}

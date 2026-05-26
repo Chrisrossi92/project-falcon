@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const permissionsState = vi.hoisted(() => ({
@@ -20,6 +20,7 @@ const membersApiMock = vi.hoisted(() => ({
 const invitationsApiMock = vi.hoisted(() => ({
   cancelCompanyInvitation: vi.fn(),
   listCompanyInvitations: vi.fn(),
+  listCompanyRolePermissionPreview: vi.fn(),
   listCompanyRolePresets: vi.fn(),
   resendCompanyInvitation: vi.fn(),
   sendCompanyInvitation: vi.fn(),
@@ -217,6 +218,7 @@ describe("UsersIndex readability", () => {
     invitationsApiMock.cancelCompanyInvitation.mockReset();
     invitationsApiMock.listCompanyInvitations.mockReset();
     invitationsApiMock.listCompanyInvitations.mockResolvedValue([pendingInvitation]);
+    invitationsApiMock.listCompanyRolePermissionPreview.mockResolvedValue([]);
     invitationsApiMock.listCompanyRolePresets.mockResolvedValue([]);
     invitationsApiMock.resendCompanyInvitation.mockReset();
     invitationsApiMock.sendCompanyInvitation.mockReset();
@@ -315,6 +317,151 @@ describe("UsersIndex readability", () => {
     expect(await screen.findByText("Primary Role")).toBeInTheDocument();
     expect(screen.getByText("Primary role is the main role label shown after acceptance.")).toBeInTheDocument();
     expect(invitationsApiMock.sendCompanyInvitation).not.toHaveBeenCalled();
+  });
+
+  it("renders read-only effective permissions in the access modal and updates as roles change", async () => {
+    invitationsApiMock.listCompanyRolePresets.mockResolvedValue([
+      {
+        role_id: "role-admin",
+        role_name: "Admin",
+        description: "Can manage operational setup.",
+        assignable_by_current_user: true,
+      },
+      {
+        role_id: "role-reviewer",
+        role_name: "Reviewer",
+        description: "Can review orders.",
+        assignable_by_current_user: true,
+      },
+    ]);
+    invitationsApiMock.listCompanyRolePermissionPreview.mockResolvedValue([
+      {
+        role_id: "role-admin",
+        role_name: "Admin",
+        permission_key: "orders.read.all",
+        permission_category: "orders",
+        permission_label: "Read all orders",
+        permission_description: "View all company orders.",
+      },
+      {
+        role_id: "role-admin",
+        role_name: "Admin",
+        permission_key: "users.invite",
+        permission_category: "users",
+        permission_label: "Invite users",
+        permission_description: "Invite users to the company.",
+      },
+      {
+        role_id: "role-reviewer",
+        role_name: "Reviewer",
+        permission_key: "workflow.status.approve_review",
+        permission_category: "workflow",
+        permission_label: "Approve review",
+        permission_description: "Approve reviewed work.",
+      },
+      {
+        role_id: "role-admin",
+        role_name: "Admin",
+        permission_key: "assignments.read",
+        permission_category: "assignments",
+        permission_label: "Read assignments",
+        permission_description: "Suppressed in V1.",
+      },
+    ]);
+
+    renderUsersIndex();
+
+    await screen.findByText("Active Team Members");
+    const adminCard = memberArticle("Ari Admin");
+    fireEvent.click(within(adminCard).getByRole("button", { name: "Edit roles" }));
+
+    const accessDialog = await screen.findByRole("dialog", { name: "Edit Access" });
+    expect(accessDialog).toBeInTheDocument();
+    expect(screen.getByText(/read-only preview of bundled authority/i)).toBeInTheDocument();
+    expect(await within(accessDialog).findByText("Effective Permissions")).toBeInTheDocument();
+    expect(within(accessDialog).getByText("Orders")).toBeInTheDocument();
+    expect(within(accessDialog).getByText("Read all orders")).toBeInTheDocument();
+    expect(within(accessDialog).getByText("Invite users")).toBeInTheDocument();
+    expect(within(accessDialog).getAllByText("From Admin").length).toBeGreaterThan(0);
+    expect(within(accessDialog).queryByText("Read assignments")).toBeNull();
+
+    const reviewerRole = within(accessDialog).getByText("Reviewer").closest("label");
+    fireEvent.click(within(reviewerRole).getByRole("checkbox"));
+
+    expect(await within(accessDialog).findByText("Review / Workflow")).toBeInTheDocument();
+    expect(within(accessDialog).getByText("Approve review")).toBeInTheDocument();
+    expect(within(accessDialog).getByText("From Reviewer")).toBeInTheDocument();
+  });
+
+  it("keeps primary role save behavior role-only from the access modal", async () => {
+    invitationsApiMock.listCompanyRolePresets.mockResolvedValue([
+      {
+        role_id: "role-admin",
+        role_name: "Admin",
+        assignable_by_current_user: true,
+      },
+      {
+        role_id: "role-reviewer",
+        role_name: "Reviewer",
+        assignable_by_current_user: true,
+      },
+    ]);
+    invitationsApiMock.listCompanyRolePermissionPreview.mockResolvedValue([
+      {
+        role_id: "role-reviewer",
+        role_name: "Reviewer",
+        permission_key: "workflow.status.approve_review",
+        permission_category: "workflow",
+        permission_label: "Approve review",
+      },
+    ]);
+    membersApiMock.updateCompanyMemberRoles.mockResolvedValue({ changed: true });
+
+    renderUsersIndex();
+
+    await screen.findByText("Active Team Members");
+    const adminCard = memberArticle("Ari Admin");
+    fireEvent.click(within(adminCard).getByRole("button", { name: "Edit roles" }));
+
+    const accessDialog = await screen.findByRole("dialog", { name: "Edit Access" });
+    const reviewerRole = within(accessDialog).getByText("Reviewer").closest("label");
+    fireEvent.click(within(reviewerRole).getByRole("checkbox"));
+    fireEvent.click(within(reviewerRole).getByRole("radio"));
+    fireEvent.click(within(accessDialog).getByRole("button", { name: "Save Roles" }));
+
+    await waitFor(() => {
+      expect(membersApiMock.updateCompanyMemberRoles).toHaveBeenCalledWith(
+        "user-admin",
+        ["role-admin", "role-reviewer"],
+        "role-reviewer",
+        "Updated from Users",
+        expect.any(String)
+      );
+    });
+    expect(toastMock.success).toHaveBeenCalledWith("Member roles updated.");
+  });
+
+  it("keeps owner-protected role presets locked in the access modal", async () => {
+    invitationsApiMock.listCompanyRolePresets.mockResolvedValue([
+      {
+        role_id: "role-owner",
+        role_name: "Owner",
+        assignable_by_current_user: false,
+      },
+    ]);
+    invitationsApiMock.listCompanyRolePermissionPreview.mockResolvedValue([]);
+
+    renderUsersIndex();
+
+    await screen.findByText("Active Team Members");
+    const ownerCard = memberArticle("Olivia Owner");
+    fireEvent.click(within(ownerCard).getByRole("button", { name: "Edit roles" }));
+
+    const accessDialog = await screen.findByRole("dialog", { name: "Edit Access" });
+    const ownerRole = within(accessDialog).getByText("Owner").closest("label");
+    expect(within(ownerRole).getByRole("checkbox")).toBeDisabled();
+    expect(within(ownerRole).getByText("This role is protected for your current permissions.")).toBeInTheDocument();
+    expect(membersApiMock.updateCompanyMemberRoles).not.toHaveBeenCalled();
   });
 
   it("renders safer empty states", async () => {

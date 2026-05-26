@@ -4,7 +4,7 @@ import toast from "react-hot-toast";
 
 import CompanyInvitationsPanel from "@/features/company-invitations/CompanyInvitationsPanel";
 import InviteCompanyMemberModal from "@/features/company-invitations/InviteCompanyMemberModal";
-import { listCompanyRolePresets } from "@/features/company-invitations/api";
+import { listCompanyRolePermissionPreview, listCompanyRolePresets } from "@/features/company-invitations/api";
 import { listCompanyMembers, setCompanyMemberStatus, updateCompanyMemberRoles } from "@/features/company-members/api";
 import { useCan } from "@/lib/hooks/usePermissions";
 import { PERMISSIONS } from "@/lib/permissions/constants";
@@ -128,8 +128,86 @@ function roleSortValue(role) {
   return 99;
 }
 
+const V1_SUPPRESSED_PERMISSION_CATEGORIES = new Set([
+  "assignments",
+  "relationships",
+  "order_company_assignments",
+]);
+
+const PERMISSION_GROUP_LABELS = Object.freeze({
+  orders: "Orders",
+  clients: "Clients",
+  users: "Users",
+  roles: "Roles",
+  workflow: "Review / Workflow",
+  billing: "Billing",
+  settings: "Settings",
+});
+
+const PERMISSION_GROUP_ORDER = Object.freeze([
+  "orders",
+  "clients",
+  "users",
+  "roles",
+  "workflow",
+  "billing",
+  "settings",
+  "other",
+]);
+
+function permissionGroupId(permission) {
+  const category = String(permission?.permission_category || "").toLowerCase();
+  if (V1_SUPPRESSED_PERMISSION_CATEGORIES.has(category)) return null;
+  if (PERMISSION_GROUP_LABELS[category]) return category;
+  return "other";
+}
+
+function buildEffectivePermissionPreview(selectedRoleIds, permissions) {
+  const selected = new Set(selectedRoleIds);
+  const byPermission = new Map();
+
+  (Array.isArray(permissions) ? permissions : []).forEach((permission) => {
+    if (!selected.has(permission.role_id)) return;
+    const groupId = permissionGroupId(permission);
+    if (!groupId) return;
+
+    const key = permission.permission_key || `${permission.permission_category}:${permission.permission_label}`;
+    const existing = byPermission.get(key) || {
+      key,
+      label: permission.permission_label || "Permission",
+      description: permission.permission_description || "",
+      groupId,
+      sourceRoles: [],
+    };
+
+    if (permission.role_name && !existing.sourceRoles.includes(permission.role_name)) {
+      existing.sourceRoles.push(permission.role_name);
+    }
+
+    byPermission.set(key, existing);
+  });
+
+  const groups = new Map();
+  [...byPermission.values()]
+    .sort((a, b) => a.label.localeCompare(b.label))
+    .forEach((permission) => {
+      const group = groups.get(permission.groupId) || [];
+      group.push(permission);
+      groups.set(permission.groupId, group);
+    });
+
+  return PERMISSION_GROUP_ORDER
+    .filter((groupId) => groups.has(groupId))
+    .map((groupId) => ({
+      id: groupId,
+      label: PERMISSION_GROUP_LABELS[groupId] || "Other",
+      permissions: groups.get(groupId),
+    }));
+}
+
 function EditRolePresetsModal({ member, open, onClose, onSaved }) {
   const [roles, setRoles] = useState([]);
+  const [rolePermissions, setRolePermissions] = useState([]);
   const [selectedRoleIds, setSelectedRoleIds] = useState([]);
   const [selectedPrimaryRoleId, setSelectedPrimaryRoleId] = useState("");
   const [loadingRoles, setLoadingRoles] = useState(false);
@@ -142,14 +220,18 @@ function EditRolePresetsModal({ member, open, onClose, onSaved }) {
     setSelectedPrimaryRoleId(primaryRoleId(member));
     setError("");
     setLoadingRoles(true);
-    listCompanyRolePresets()
-      .then((rows) => setRoles(Array.isArray(rows) ? rows : []))
+    Promise.all([listCompanyRolePresets(), listCompanyRolePermissionPreview()])
+      .then(([roleRows, permissionRows]) => {
+        setRoles(Array.isArray(roleRows) ? roleRows : []);
+        setRolePermissions(Array.isArray(permissionRows) ? permissionRows : []);
+      })
       .catch((loadError) => {
         console.debug("Role preset list failed", {
           code: loadError?.code,
           message: loadError?.message,
         });
         setRoles([]);
+        setRolePermissions([]);
         setError("Falcon could not load role presets.");
       })
       .finally(() => setLoadingRoles(false));
@@ -171,6 +253,7 @@ function EditRolePresetsModal({ member, open, onClose, onSaved }) {
   const visibleRoles = [...roles]
     .filter((role) => role.assignable_by_current_user || currentRoleIds.has(role.role_id))
     .sort((a, b) => roleSortValue(a) - roleSortValue(b) || String(a.role_name).localeCompare(String(b.role_name)));
+  const permissionPreviewGroups = buildEffectivePermissionPreview(selectedRoleIds, rolePermissions);
 
   const toggleRole = (role) => {
     if (!role.assignable_by_current_user && !currentRoleIds.has(role.role_id)) return;
@@ -231,8 +314,10 @@ function EditRolePresetsModal({ member, open, onClose, onSaved }) {
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
           <div>
             <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Users</div>
-            <h2 id="edit-role-presets-title" className="mt-1 text-xl font-semibold text-slate-950">Edit Role Presets</h2>
-            <p className="mt-1 text-sm text-slate-500">Roles are company-scoped presets. Owner changes are protected by backend policy.</p>
+            <h2 id="edit-role-presets-title" className="mt-1 text-xl font-semibold text-slate-950">Edit Access</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Choose role presets and one primary role. Permissions below are a read-only preview of bundled authority.
+            </p>
           </div>
           <button
             type="button"
@@ -299,6 +384,44 @@ function EditRolePresetsModal({ member, open, onClose, onSaved }) {
               })}
             </div>
           )}
+
+          <section aria-labelledby="effective-permissions-title" className="rounded-md border border-slate-200 bg-white">
+            <div className="border-b border-slate-200 px-3 py-3">
+              <h3 id="effective-permissions-title" className="text-sm font-semibold text-slate-800">Effective Permissions</h3>
+              <p className="mt-1 text-xs text-slate-500">
+                Read-only preview from selected role presets. Custom grants and revokes are not implemented yet.
+              </p>
+            </div>
+            {loadingRoles ? (
+              <div className="px-3 py-4 text-sm text-slate-500">Loading permission preview...</div>
+            ) : selectedRoleIds.length === 0 ? (
+              <div className="px-3 py-4 text-sm text-slate-500">Choose role presets to preview access.</div>
+            ) : permissionPreviewGroups.length === 0 ? (
+              <div className="px-3 py-4 text-sm text-slate-500">
+                No V1 staff-appraisal permissions are visible for the selected roles.
+              </div>
+            ) : (
+              <div className="grid gap-3 p-3">
+                {permissionPreviewGroups.map((group) => (
+                  <div key={group.id}>
+                    <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">{group.label}</div>
+                    <ul className="mt-2 grid gap-2">
+                      {group.permissions.map((permission) => (
+                        <li key={permission.key} className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+                          <div className="text-sm font-medium text-slate-800">{permission.label}</div>
+                          {permission.sourceRoles.length > 0 && (
+                            <div className="mt-1 text-xs text-slate-500">
+                              From {permission.sourceRoles.join(", ")}
+                            </div>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
         </div>
 
         <div className="flex justify-end gap-2 border-t border-slate-200 px-5 py-4">

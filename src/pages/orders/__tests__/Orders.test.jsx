@@ -123,8 +123,8 @@ describe("OrdersPage historical access", () => {
     expect(screen.getByText("Filter Orders")).toBeInTheDocument();
     expect(screen.getByText("Search orders by status, owner, client, and due window.")).toBeInTheDocument();
     expect(screen.getByText("Appraiser")).toBeInTheDocument();
-    expect(screen.getByLabelText("Orders context")).toBeInTheDocument();
-    expect(screen.getByText(/Showing company order records/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText("Orders context")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Showing company order records/i)).not.toBeInTheDocument();
     expect(tableMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
         filters: expect.objectContaining({
@@ -292,8 +292,7 @@ describe("OrdersPage historical access", () => {
     expect(screen.getByText("Reviewer: reviewer-1")).toBeInTheDocument();
     expect(screen.getByText("Due: Overdue")).toBeInTheDocument();
     expect(screen.getByText("Queue: Unassigned Orders (derived)")).toBeInTheDocument();
-    expect(screen.getByText("Queue-derived view: Unassigned Orders.")).toBeInTheDocument();
-    expect(screen.getByText("Search")).toBeInTheDocument();
+    expect(screen.queryByText("Queue-derived view: Unassigned Orders.")).not.toBeInTheDocument();
   });
 
   it("removes a chip through the governed Orders filter URL path", () => {

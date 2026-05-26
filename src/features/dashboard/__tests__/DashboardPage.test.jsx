@@ -251,9 +251,8 @@ describe("DashboardPage operational polish", () => {
     expect(screen.queryByText("Schedule")).not.toBeInTheDocument();
     expect(screen.queryByText("Schedule pressure")).not.toBeInTheDocument();
     expect(screen.queryByText("Due dates and site visits.")).not.toBeInTheDocument();
-    expect(calendarHeading.compareDocumentPosition(ordersHeading)).toBe(DOCUMENT_POSITION_FOLLOWING);
     expect(calendarHeading.compareDocumentPosition(statusHeading)).toBe(DOCUMENT_POSITION_FOLLOWING);
-    expect(ordersHeading.compareDocumentPosition(statusHeading)).toBe(DOCUMENT_POSITION_FOLLOWING);
+    expect(statusHeading.compareDocumentPosition(ordersHeading)).toBe(DOCUMENT_POSITION_FOLLOWING);
     expect(screen.queryByText("Operational Support")).not.toBeInTheDocument();
     expect(screen.queryByText("Secondary context from existing dashboard reads.")).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: /operational kpi cards/i })).not.toBeInTheDocument();
@@ -264,8 +263,9 @@ describe("DashboardPage operational polish", () => {
       expect(screen.getByRole("button", { name: new RegExp(label, "i") })).toBeInTheDocument();
     }
     const statusFilters = screen.getByRole("group", { name: /status filters/i });
-    expect(statusFilters).toHaveClass("grid-cols-1");
-    expect(statusFilters).not.toHaveClass("grid-cols-2");
+    expect(statusFilters).toHaveClass("xl:grid-cols-5");
+    expect(statusFilters).toHaveClass("sm:grid-cols-2");
+    expect(statusFilters).not.toHaveClass("grid-cols-1");
     expect(within(screen.getByRole("button", { name: /new/i })).getByText("1")).toBeInTheDocument();
     expect(within(screen.getByRole("button", { name: /ready for client/i })).getByText("1")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /new/i })).toHaveClass("bg-blue-50");
@@ -306,7 +306,7 @@ describe("DashboardPage operational polish", () => {
 
     expect(inReview).toHaveAttribute("aria-pressed", "true");
     expect(inReview).toHaveClass("bg-indigo-100");
-    expect(inReview).toHaveClass("translate-x-0.5");
+    expect(inReview).toHaveClass("ring-2");
 
     expect(tableMock).toHaveBeenLastCalledWith(
       expect.objectContaining({

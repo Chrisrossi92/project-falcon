@@ -324,7 +324,16 @@ export default function DashboardPage({ shellProfilePresentation } = {}) {
         />
       </WorkspaceSurface>
 
-      <section className={isReviewerOnlyDashboard ? "grid gap-3" : "grid gap-3 xl:grid-cols-[minmax(0,1fr)_12rem]"}>
+      {isAdmin && (
+        <StatusTimelineBar
+          counts={statusCounts}
+          selectedStatus={statusFilter}
+          onClear={() => setStatusFilter("")}
+          onSelect={toggleStatus}
+        />
+      )}
+
+      <section className={!isReviewerOnlyDashboard && !isAdmin ? "grid gap-3 xl:grid-cols-[minmax(0,1fr)_12rem]" : "grid gap-3"}>
         {/* Orders section */}
         {cfg.showOrdersTable && (
           <WorkspaceSurface variant="primary" className="space-y-3 p-3">
@@ -350,7 +359,7 @@ export default function DashboardPage({ shellProfilePresentation } = {}) {
           </WorkspaceSurface>
         )}
 
-        {!isReviewerOnlyDashboard && (
+        {!isReviewerOnlyDashboard && !isAdmin && (
           <aside className="space-y-3 lg:sticky lg:top-20 lg:self-start">
           <WorkspaceSurface variant="secondary" className="space-y-3 p-3">
             <div className="flex items-baseline justify-between gap-2">
@@ -393,6 +402,52 @@ export default function DashboardPage({ shellProfilePresentation } = {}) {
         </section>
       )}
     </div>
+  );
+}
+
+function StatusTimelineBar({ counts, onClear, onSelect, selectedStatus }) {
+  return (
+    <WorkspaceSurface variant="secondary" className="bg-white p-3">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+            Status
+          </h2>
+        </div>
+        {selectedStatus ? (
+          <button
+            type="button"
+            onClick={onClear}
+            className="inline-flex min-h-9 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+          >
+            Clear Filter
+          </button>
+        ) : null}
+      </div>
+      <div role="group" aria-label="Status filters" className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+        {STATUS_TIMELINE.map((status) => {
+          const selected = selectedStatus === status.value;
+          return (
+            <button
+              key={status.value}
+              type="button"
+              onClick={() => onSelect(status.value)}
+              aria-pressed={selected}
+              className={`flex min-h-12 items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left transition-all duration-200 motion-reduce:transition-none ${
+                selected
+                  ? `${status.selectedTone} shadow-sm ring-2`
+                  : `${status.tone} hover:brightness-95`
+              }`}
+            >
+              <span className="text-xs font-semibold leading-tight">{status.label}</span>
+              <span className="text-lg font-semibold leading-none tracking-tight tabular-nums">
+                {counts[status.value] || 0}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </WorkspaceSurface>
   );
 }
 

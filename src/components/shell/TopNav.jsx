@@ -319,8 +319,13 @@ export default function TopNav() {
   const showSettingsNav = canViewSettings.allowed;
   const shellProfileId = shellProfilePresentation?.profileId ?? shellProfilePresentation?.id;
   const isInternalAppraiserShell = shellProfileId === "my_work";
-  const showAssignmentsNav = canReadAssignments.allowed && !isInternalAppraiserShell;
-  const showScopedRelationshipsNav = showRelationshipsNav && !isInternalAppraiserShell;
+  const appContext = shellProfilePresentation?.appContext;
+  const isOwnerAdminStaffAppraisalShell =
+    shellProfileId === "operations" || Boolean(appContext?.is_owner || appContext?.is_admin_role);
+  const showAssignmentsNav =
+    canReadAssignments.allowed && !isInternalAppraiserShell && !isOwnerAdminStaffAppraisalShell;
+  const showScopedRelationshipsNav =
+    showRelationshipsNav && !isInternalAppraiserShell && !isOwnerAdminStaffAppraisalShell;
   const showMyWorkNav = shellProfileId === "my_work" && canReadOrders.allowed;
   const primaryNavLinks = getCurrentPrimaryNavLinks({
     canReadAllClients: canReadAllClients.allowed,

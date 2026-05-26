@@ -138,18 +138,14 @@ describe("TopNav desktop operational spine navigation", () => {
       "Operations",
       "Orders",
       "Calendar",
-      "Assignments",
       "Clients",
-      "Relationships",
       "Users",
     ]);
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
       "/dashboard",
       "/orders",
       "/calendar",
-      "/assignments",
       "/clients",
-      "/relationships",
       "/users",
     ]);
   });
@@ -377,18 +373,14 @@ describe("TopNav desktop operational spine navigation", () => {
     expect(links.map((link) => link.textContent)).toEqual([
       "Orders",
       "Calendar",
-      "Assignments",
       "Clients",
-      "Relationships",
       "Users",
       "Settings",
     ]);
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
       "/orders",
       "/calendar",
-      "/assignments",
       "/clients",
-      "/relationships",
       "/users",
       "/settings",
     ]);

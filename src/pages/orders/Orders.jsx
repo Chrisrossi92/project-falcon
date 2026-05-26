@@ -240,64 +240,6 @@ function ActiveFilterChips({ filters, onChange }) {
   );
 }
 
-function hasActiveOrderFilters(filters) {
-  return Boolean(
-    filters?.search ||
-      filters?.clientId ||
-      filters?.appraiserId ||
-      filters?.reviewerId ||
-      filters?.dueWindow ||
-      filters?.queueId ||
-      filters?.statusIn?.[0],
-  );
-}
-
-function OrdersWorkspaceContext({ filters, activeQueue }) {
-  const queueLabel = filters?.queueId
-    ? QUEUE_LABELS.get(filters.queueId) || formatIdLabel(filters.queueId)
-    : "";
-  const status = filters?.statusIn?.[0] ? labelForStatus(filters.statusIn[0]) : "";
-  const filtered = hasActiveOrderFilters(filters);
-
-  let summary = "Showing company order records.";
-  if (queueLabel) {
-    summary = `Queue-derived view: ${queueLabel}.`;
-  } else if (filtered) {
-    summary = "Showing a filtered order view.";
-  }
-
-  return (
-    <WorkspaceSurface
-      as="div"
-      variant="evidence"
-      aria-label="Orders context"
-      className="px-3 py-2"
-    >
-      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
-        <span className="rounded-full bg-white px-2.5 py-1 font-semibold text-slate-700 shadow-sm">
-          Orders
-        </span>
-        {queueLabel ? (
-          <span className="rounded-full bg-white px-2.5 py-1 font-semibold text-slate-700 shadow-sm">
-            Derived queue{typeof activeQueue?.count === "number" ? ` · ${activeQueue.count}` : ""}
-          </span>
-        ) : null}
-        {status ? (
-          <span className="rounded-full bg-white px-2.5 py-1 font-semibold text-slate-700 shadow-sm">
-            {status}
-          </span>
-        ) : null}
-        {filters?.search ? (
-          <span className="rounded-full bg-white px-2.5 py-1 font-semibold text-slate-700 shadow-sm">
-            Search
-          </span>
-        ) : null}
-        <span className="min-w-0 flex-1 text-sm text-slate-500">{summary}</span>
-      </div>
-    </WorkspaceSurface>
-  );
-}
-
 function buildSavedViewFilters(filters) {
   const payload = {};
   const status = filters?.statusIn?.[0] || "";
@@ -610,7 +552,6 @@ export default function OrdersPage() {
         }
       />
       <ActiveFilterChips filters={visibleFilters} onChange={onChange} />
-      {roleFocusedOrdersView ? null : <OrdersWorkspaceContext filters={filters} activeQueue={activeQueue} />}
 
       <UnifiedOrdersTable
         key={JSON.stringify({
