@@ -212,41 +212,39 @@ export default function OrderForm({ order, onClose, onSaved, onCancel }) {
           : null,
       };
 
-      const shouldCreateClient =
+      const shouldResolveManualClient =
         !isEdit &&
         !nextValues.client_id &&
-        nextValues.create_client_from_manual &&
         String(nextValues.manual_client_name || "").trim();
 
-      if (shouldCreateClient) {
+      if (shouldResolveManualClient) {
         const manualClientName = String(nextValues.manual_client_name || "").trim();
-        const matches = await searchOrderFormClientsByName(manualClientName, 5);
+        const matches = await searchOrderFormClientsByName(manualClientName, 10);
         const normalizedManualName = normalizeClientName(manualClientName);
-        const duplicate = (matches || []).find(
+        const existingClient = (matches || []).find(
           (client) => normalizeClientName(client.name) === normalizedManualName
         );
 
-        if (duplicate) {
-          throw new Error(
-            `A client named "${duplicate.name}" already exists. Select the existing client before creating the order.`
-          );
+        if (existingClient?.id) {
+          nextValues.client_id = existingClient.id;
+        } else {
+          let createdClient;
+          try {
+            createdClient = await createOrderFormClient({
+              name: manualClientName,
+              amcId: nextValues.managing_amc_id || null,
+            });
+          } catch (clientError) {
+            throw new Error(getInlineClientCreateErrorMessage(clientError));
+          }
+
+          if (!createdClient?.id) {
+            throw new Error("Client record could not be created. The order was not created.");
+          }
+
+          nextValues.client_id = createdClient.id;
         }
 
-        let createdClient;
-        try {
-          createdClient = await createOrderFormClient({
-            name: manualClientName,
-            amcId: nextValues.managing_amc_id || null,
-          });
-        } catch (clientError) {
-          throw new Error(getInlineClientCreateErrorMessage(clientError));
-        }
-
-        if (!createdClient?.id) {
-          throw new Error("Client record could not be created. The order was not created.");
-        }
-
-        nextValues.client_id = createdClient.id;
         nextValues.manual_client_name = null;
       }
 
@@ -342,7 +340,6 @@ export default function OrderForm({ order, onClose, onSaved, onCancel }) {
     </form>
   );
 }
-
 
 
 

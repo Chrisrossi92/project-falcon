@@ -27,8 +27,8 @@ vi.mock("@/components/orders/NewOrderButton", () => ({
 vi.mock("@/features/orders/OrdersFilters", () => ({
   default: ({
     actions,
-    title = "Filter Active Orders",
-    description = "Search active operational orders by status, owner, client, and due window.",
+    title = "Filter Orders",
+    description = "Search orders by status, owner, client, and due window.",
     showAppraiserFilter = true,
   }) => (
     <div data-testid="orders-filters">
@@ -105,29 +105,26 @@ describe("OrdersPage historical access", () => {
     tableMock.mockReset();
   });
 
-  it("exposes Historical Orders as a secondary Orders page link", () => {
+  it("does not expose Historical Orders as a secondary Orders page link", () => {
     renderPage();
 
-    const link = screen.getByRole("link", { name: "Historical Orders" });
-
-    expect(link).toHaveAttribute("href", "/orders/historical");
-    expect(link).toHaveClass("border-slate-200", "text-slate-600");
-    expect(screen.getByTestId("orders-filter-actions")).toContainElement(link);
+    expect(screen.queryByRole("link", { name: "Historical Orders" })).not.toBeInTheDocument();
     expect(screen.getByTestId("orders-table")).toBeInTheDocument();
   });
 
-  it("renders the polished active Orders workspace hierarchy without changing table behavior", () => {
+  it("renders the polished Orders hierarchy without changing table behavior", () => {
     renderPage();
 
-    expect(screen.getByRole("heading", { name: "Orders Workspace" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Orders" })).toBeInTheDocument();
     expect(screen.getByText("Operations Command")).toBeInTheDocument();
-    expect(screen.getByText("Active workspace")).toBeInTheDocument();
-    expect(screen.getByText("Workflow actions in table")).toBeInTheDocument();
-    expect(screen.getByText("History is read-only")).toBeInTheDocument();
-    expect(screen.getByText("Filter Active Orders")).toBeInTheDocument();
+    expect(screen.queryByText("Orders workspace")).not.toBeInTheDocument();
+    expect(screen.queryByText("Workflow actions in table")).not.toBeInTheDocument();
+    expect(screen.queryByText("History is read-only")).not.toBeInTheDocument();
+    expect(screen.getByText("Filter Orders")).toBeInTheDocument();
+    expect(screen.getByText("Search orders by status, owner, client, and due window.")).toBeInTheDocument();
     expect(screen.getByText("Appraiser")).toBeInTheDocument();
-    expect(screen.getByLabelText("Orders workspace context")).toBeInTheDocument();
-    expect(screen.getByText(/Showing active operational orders/i)).toBeInTheDocument();
+    expect(screen.getByLabelText("Orders context")).toBeInTheDocument();
+    expect(screen.getByText(/Showing company order records/i)).toBeInTheDocument();
     expect(tableMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
         filters: expect.objectContaining({
@@ -136,6 +133,8 @@ describe("OrdersPage historical access", () => {
           queueId: "",
         }),
         rowsOverride: null,
+        tableLabel: "Orders",
+        tableSummary: "Company order records.",
       }),
     );
   });
@@ -164,11 +163,11 @@ describe("OrdersPage historical access", () => {
     expect(screen.queryByRole("link", { name: "New Order" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Historical Orders" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Saved Views" })).not.toBeInTheDocument();
-    expect(screen.getByText("Filters")).toBeInTheDocument();
+    expect(screen.getByTestId("orders-filters")).toHaveTextContent("Filters");
     expect(screen.queryByText("Filter Active Orders")).not.toBeInTheDocument();
     expect(screen.queryByText(/Search active operational orders/i)).not.toBeInTheDocument();
     expect(screen.queryByText("Appraiser")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Orders workspace context")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Orders context")).not.toBeInTheDocument();
     expect(screen.getByText("Status: In Review")).toBeInTheDocument();
     expect(screen.getByText("Client: client-1")).toBeInTheDocument();
     expect(screen.queryByText("Appraiser: appraiser-2")).not.toBeInTheDocument();
@@ -221,7 +220,7 @@ describe("OrdersPage historical access", () => {
     expect(screen.queryByText("Filter Active Orders")).not.toBeInTheDocument();
     expect(screen.queryByText(/Search active operational orders/i)).not.toBeInTheDocument();
     expect(screen.getByText("Appraiser")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Orders workspace context")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Orders context")).not.toBeInTheDocument();
     expect(screen.queryByText(/Showing active operational orders/i)).not.toBeInTheDocument();
     expect(screen.getByText("Status: In Review")).toBeInTheDocument();
     expect(screen.getByText("Client: client-1")).toBeInTheDocument();
@@ -285,7 +284,7 @@ describe("OrdersPage historical access", () => {
       "/orders?status=in_review&q=123%20Main&clientId=client-1&appraiserId=appraiser-1&reviewerId=reviewer-1&due=overdue&queue=unassigned_orders",
     ]);
 
-    expect(screen.getByLabelText("Active order filters")).toBeInTheDocument();
+    expect(screen.getByLabelText("Order filters")).toBeInTheDocument();
     expect(screen.getByText("Status: In Review")).toBeInTheDocument();
     expect(screen.getByText('Search: "123 Main"')).toBeInTheDocument();
     expect(screen.getByText("Client: client-1")).toBeInTheDocument();
@@ -293,8 +292,8 @@ describe("OrdersPage historical access", () => {
     expect(screen.getByText("Reviewer: reviewer-1")).toBeInTheDocument();
     expect(screen.getByText("Due: Overdue")).toBeInTheDocument();
     expect(screen.getByText("Queue: Unassigned Orders (derived)")).toBeInTheDocument();
-    expect(screen.getByText("Queue-derived active view: Unassigned Orders.")).toBeInTheDocument();
-    expect(screen.getByText("Search active")).toBeInTheDocument();
+    expect(screen.getByText("Queue-derived view: Unassigned Orders.")).toBeInTheDocument();
+    expect(screen.getByText("Search")).toBeInTheDocument();
   });
 
   it("removes a chip through the governed Orders filter URL path", () => {
@@ -337,13 +336,13 @@ describe("OrdersPage historical access", () => {
         }),
       }),
     );
-    expect(screen.queryByLabelText("Active order filters")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Order filters")).not.toBeInTheDocument();
   });
 
   it("keeps default active Orders filters unchanged when no overdue query is present", () => {
     renderPage();
 
-    expect(screen.queryByLabelText("Active order filters")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Order filters")).not.toBeInTheDocument();
     expect(tableMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
         filters: expect.objectContaining({

@@ -1,6 +1,6 @@
 // src/pages/Orders.jsx
 import { useEffect, useMemo, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import OrdersFilters from "@/features/orders/OrdersFilters";
 import UnifiedOrdersTable from "@/features/orders/UnifiedOrdersTable";
 import NewOrderButton from "@/components/orders/NewOrderButton";
@@ -209,11 +209,11 @@ function ActiveFilterChips({ filters, onChange }) {
     <WorkspaceSurface
       as="div"
       variant="evidence"
-      aria-label="Active order filters"
+      aria-label="Order filters"
       className="flex flex-wrap items-center gap-2 bg-white px-3 py-2"
     >
       <span className="mr-1 shrink-0 text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
-        Active filters
+        Filters
       </span>
       {chips.map((chip) => (
         <button
@@ -259,23 +259,23 @@ function OrdersWorkspaceContext({ filters, activeQueue }) {
   const status = filters?.statusIn?.[0] ? labelForStatus(filters.statusIn[0]) : "";
   const filtered = hasActiveOrderFilters(filters);
 
-  let summary = "Showing active operational orders. Historical records stay in the read-only history workspace.";
+  let summary = "Showing company order records.";
   if (queueLabel) {
-    summary = `Queue-derived active view: ${queueLabel}.`;
+    summary = `Queue-derived view: ${queueLabel}.`;
   } else if (filtered) {
-    summary = "Showing a filtered active order view.";
+    summary = "Showing a filtered order view.";
   }
 
   return (
     <WorkspaceSurface
       as="div"
       variant="evidence"
-      aria-label="Orders workspace context"
+      aria-label="Orders context"
       className="px-3 py-2"
     >
       <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
         <span className="rounded-full bg-white px-2.5 py-1 font-semibold text-slate-700 shadow-sm">
-          Active Orders
+          Orders
         </span>
         {queueLabel ? (
           <span className="rounded-full bg-white px-2.5 py-1 font-semibold text-slate-700 shadow-sm">
@@ -289,7 +289,7 @@ function OrdersWorkspaceContext({ filters, activeQueue }) {
         ) : null}
         {filters?.search ? (
           <span className="rounded-full bg-white px-2.5 py-1 font-semibold text-slate-700 shadow-sm">
-            Search active
+            Search
           </span>
         ) : null}
         <span className="min-w-0 flex-1 text-sm text-slate-500">{summary}</span>
@@ -556,12 +556,12 @@ export default function OrdersPage() {
     ? "Orders"
     : reviewerOrdersView
       ? reviewerOrdersTitle(shellProfilePresentation)
-      : "Orders Workspace";
+      : "Orders";
   const pageDescription = appraiserOrdersView
     ? "Orders assigned to you."
     : reviewerOrdersView
       ? "Review and track orders assigned to your queue."
-      : "Manage active order inventory. Archived, cancelled, and voided orders stay in historical readback.";
+      : "Manage company orders, workflow handoffs, and order records.";
 
   return (
     <div className="space-y-4">
@@ -573,7 +573,7 @@ export default function OrdersPage() {
         <div className="min-w-0">
           {roleFocusedOrdersView ? null : (
             <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em]">
-              <span className="text-slate-400">Active Operations</span>
+              <span className="text-slate-400">Operations</span>
               <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] tracking-[0.12em] text-slate-500">
                 {shellWorkMode.label}
               </span>
@@ -585,13 +585,6 @@ export default function OrdersPage() {
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
             {pageDescription}
           </p>
-          {roleFocusedOrdersView ? null : (
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-600">
-              <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">Active workspace</span>
-              <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">Workflow actions in table</span>
-              <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">History is read-only</span>
-            </div>
-          )}
         </div>
         {roleFocusedOrdersView ? null : (
           <div className="flex shrink-0 flex-wrap items-center justify-start gap-2 sm:justify-end">
@@ -612,12 +605,6 @@ export default function OrdersPage() {
           roleFocusedOrdersView ? null : (
             <>
               <SavedViewsPanel filters={filters} onApply={applySavedView} />
-              <Link
-                to="/orders/historical"
-                className="rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:border-slate-300 hover:bg-slate-50"
-              >
-                Historical Orders
-              </Link>
             </>
           )
         }
@@ -641,9 +628,9 @@ export default function OrdersPage() {
         pageSize={filters.pageSize || 15}
         rowsOverride={queueId ? queueRows || [] : null}
         activeQueue={activeQueue}
-        tableEyebrow={roleFocusedOrdersView ? null : undefined}
-        tableLabel={appraiserOrdersView ? "Assigned Orders" : reviewerOrdersView ? "Orders" : undefined}
-        tableSummary={roleFocusedOrdersView ? null : undefined}
+        tableEyebrow={null}
+        tableLabel={appraiserOrdersView ? "Assigned Orders" : "Orders"}
+        tableSummary={roleFocusedOrdersView ? null : "Company order records."}
       />
     </div>
   );

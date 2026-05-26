@@ -63,18 +63,15 @@ describe("OwnerSetupDashboardPrompt", () => {
     expect(screen.queryByRole("link", { name: "Review Owner Setup" })).toBeNull();
   });
 
-  it("uses setup readiness copy for non-owner settings users", () => {
+  it("hides setup readiness guidance from non-owner admin users", () => {
     permissionState.allowed = new Set([PERMISSIONS.SETTINGS_VIEW]);
 
     renderPrompt({ appContext: { is_owner: false, is_admin_role: true } });
 
-    expect(screen.getByText("Setup Readiness Guidance")).toBeInTheDocument();
+    expect(screen.queryByText("Setup Readiness Guidance")).toBeNull();
     expect(screen.queryByText("Owner Setup Guidance")).toBeNull();
-    expect(screen.getByRole("link", { name: "Review Setup Readiness" })).toHaveAttribute(
-      "href",
-      "/settings/owner-setup",
-    );
-    expect(screen.getByText(/does not grant owner authority/i)).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Review Setup Readiness" })).toBeNull();
+    expect(screen.queryByText(/does not grant owner authority/i)).toBeNull();
   });
 
   it("hides setup readiness guidance from appraiser-only users", () => {

@@ -231,41 +231,20 @@ describe("DashboardPage operational polish", () => {
     expect(screen.getByText("Operations Command")).toBeInTheDocument();
     expect(screen.getByText("Operations Dashboard")).toBeInTheDocument();
     expect(
-      screen.getByText("Track active work, review handoffs, due pressure, and operational readiness."),
+      screen.getByText("Track active work, review handoffs, due pressure, and workflow coordination."),
     ).toBeInTheDocument();
     expect(screen.getByText("Company")).toBeInTheDocument();
-    expect(screen.getAllByText("Falcon Appraisals")).toHaveLength(2);
+    expect(screen.getByText("Falcon Appraisals")).toBeInTheDocument();
     expect(screen.getByText("Work View")).toBeInTheDocument();
     expect(screen.getByText("Owner / Admin")).toBeInTheDocument();
 
     const calendarHeading = screen.getByText("Calendar");
     const ordersHeading = screen.getByText("Active Worklist");
     const statusHeading = screen.getByText("Status");
-    const supportHeading = screen.getByText("Operational Support");
-    expect(screen.getByText("Secondary context from existing dashboard reads.")).toBeInTheDocument();
-    const kpiCards = screen.getByRole("region", { name: /operational kpi cards/i });
 
     expect(statusHeading).toBeInTheDocument();
     expect(calendarHeading).toBeInTheDocument();
     expect(ordersHeading).toBeInTheDocument();
-    expect(within(kpiCards).getByText("Active Orders")).toBeInTheDocument();
-    expect(within(kpiCards).getByText("Current operational queue")).toBeInTheDocument();
-    expect(within(kpiCards).getByText("In Review")).toBeInTheDocument();
-    expect(within(kpiCards).getByText("Orders awaiting review clearance")).toBeInTheDocument();
-    expect(within(kpiCards).getByText("Needs Revisions")).toBeInTheDocument();
-    expect(within(kpiCards).getByText("Returned for report updates")).toBeInTheDocument();
-    expect(within(kpiCards).getByText("Overdue Orders")).toBeInTheDocument();
-    expect(within(kpiCards).getByText("Active orders past final due date")).toBeInTheDocument();
-    expect(within(kpiCards).getAllByText("1")).toHaveLength(3);
-    expect(within(kpiCards).queryByRole("button")).not.toBeInTheDocument();
-    const kpiLinks = within(kpiCards).getAllByRole("link");
-    expect(kpiLinks.map((link) => link.getAttribute("href"))).toEqual([
-      "/orders",
-      "/orders?status=in_review",
-      "/orders?status=needs_revisions",
-      "/orders?due=overdue",
-    ]);
-    expect(within(kpiCards).queryByRole("button")).not.toBeInTheDocument();
     expect(screen.queryByText("Priority Worklist Preview")).not.toBeInTheDocument();
     expect(screen.queryByText("Workload Snapshot")).not.toBeInTheDocument();
     expect(screen.queryByText("Review Bottlenecks")).not.toBeInTheDocument();
@@ -275,7 +254,11 @@ describe("DashboardPage operational polish", () => {
     expect(calendarHeading.compareDocumentPosition(ordersHeading)).toBe(DOCUMENT_POSITION_FOLLOWING);
     expect(calendarHeading.compareDocumentPosition(statusHeading)).toBe(DOCUMENT_POSITION_FOLLOWING);
     expect(ordersHeading.compareDocumentPosition(statusHeading)).toBe(DOCUMENT_POSITION_FOLLOWING);
-    expect(statusHeading.compareDocumentPosition(supportHeading)).toBe(DOCUMENT_POSITION_FOLLOWING);
+    expect(screen.queryByText("Operational Support")).not.toBeInTheDocument();
+    expect(screen.queryByText("Secondary context from existing dashboard reads.")).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: /operational kpi cards/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: /workload visibility/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: /operational readiness/i })).not.toBeInTheDocument();
 
     for (const label of ["New", "In Progress", "In Review", "Needs Revisions", "Ready for Client"]) {
       expect(screen.getByRole("button", { name: new RegExp(label, "i") })).toBeInTheDocument();
@@ -288,56 +271,6 @@ describe("DashboardPage operational polish", () => {
     expect(screen.getByRole("button", { name: /new/i })).toHaveClass("bg-blue-50");
     expect(screen.getByRole("button", { name: /in review/i })).toHaveClass("bg-indigo-50");
     expect(screen.queryByText("Operational Attention")).not.toBeInTheDocument();
-    const workload = screen.getByRole("region", { name: /workload visibility/i });
-    expect(within(workload).getByText("Workload Visibility")).toBeInTheDocument();
-    expect(within(workload).getByText("Current active order ownership for coordination.")).toBeInTheDocument();
-    expect(within(workload).getByText("Assigned Work")).toBeInTheDocument();
-    expect(within(workload).getByText("Review Queue")).toBeInTheDocument();
-    expect(within(workload).getByText("Unassigned Active")).toBeInTheDocument();
-    expect(within(workload).getByText("Revision Follow-Up")).toBeInTheDocument();
-    expect(within(workload).queryByRole("button")).not.toBeInTheDocument();
-    expect(within(workload).getByRole("link", { name: "Review Queue" })).toHaveAttribute(
-      "href",
-      "/orders?status=in_review",
-    );
-    expect(within(workload).getByRole("link", { name: "Unassigned Active" })).toHaveAttribute(
-      "href",
-      "/orders?queue=unassigned_orders",
-    );
-    expect(within(workload).getByRole("link", { name: "Revision Follow-Up" })).toHaveAttribute(
-      "href",
-      "/orders?status=needs_revisions",
-    );
-    const readiness = screen.getByRole("region", { name: /operational readiness/i });
-    expect(within(readiness).getByText("Operational Readiness")).toBeInTheDocument();
-    expect(within(readiness).getByText("Read-only")).toBeInTheDocument();
-    expect(within(readiness).getByText("Current company")).toBeInTheDocument();
-    expect(within(readiness).getByText("Owner/admin access")).toBeInTheDocument();
-    expect(within(readiness).getByText("Management dashboard access is active")).toBeInTheDocument();
-    expect(within(readiness).getByText("Team Access")).toBeInTheDocument();
-    expect(within(readiness).getByText("Member management route is available")).toBeInTheDocument();
-    expect(within(readiness).getByText("Additional team member")).toBeInTheDocument();
-    expect(within(readiness).getByText("2 active members")).toBeInTheDocument();
-    expect(within(readiness).getByText("Dashboard KPIs")).toBeInTheDocument();
-    expect(within(readiness).getByText("Active metrics read path is available")).toBeInTheDocument();
-    expect(within(readiness).getByText("Historical Orders")).toBeInTheDocument();
-    expect(within(readiness).getByText("Saved Views")).toBeInTheDocument();
-    expect(within(readiness).getByText("Print Packet")).toBeInTheDocument();
-    expect(within(readiness).getByText("Available from authorized Order Detail")).toBeInTheDocument();
-    expect(within(readiness).queryByRole("button")).not.toBeInTheDocument();
-    expect(within(readiness).queryByText(/100%/i)).not.toBeInTheDocument();
-    expect(within(readiness).getByRole("link", { name: /team access/i })).toHaveAttribute(
-      "href",
-      "/users",
-    );
-    expect(within(readiness).getByRole("link", { name: /historical orders/i })).toHaveAttribute(
-      "href",
-      "/orders/historical",
-    );
-    expect(within(readiness).getByRole("link", { name: /saved views/i })).toHaveAttribute(
-      "href",
-      "/orders",
-    );
 
     expect(calendarMock).toHaveBeenLastCalledWith(
       expect.objectContaining({ orders: summaryState.current.ordersRows }),
@@ -361,7 +294,7 @@ describe("DashboardPage operational polish", () => {
       screen.getByText("Calendar, active orders, and workflow handoffs for the current company."),
     ).toBeInTheDocument();
     expect(
-      screen.queryByText("Track active work, review handoffs, due pressure, and operational readiness."),
+      screen.queryByText("Track active work, review handoffs, due pressure, and workflow coordination."),
     ).not.toBeInTheDocument();
   });
 
@@ -418,21 +351,13 @@ describe("DashboardPage operational polish", () => {
 
     expect(within(screen.getByRole("button", { name: /new/i })).getByText("0")).toBeInTheDocument();
     expect(within(screen.getByRole("button", { name: /ready for client/i })).getByText("0")).toBeInTheDocument();
-    const kpiCards = screen.getByRole("region", { name: /operational kpi cards/i });
-    expect(within(kpiCards).getAllByText("0")).toHaveLength(4);
-    const workload = screen.getByRole("region", { name: /workload visibility/i });
-    expect(within(workload).getByText("No assigned appraiser work")).toBeInTheDocument();
-    expect(within(workload).getByText("No assigned review work")).toBeInTheDocument();
-    expect(within(workload).getByText("No unassigned active orders")).toBeInTheDocument();
-    expect(within(workload).getByText("No revision follow-up")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: /operational kpi cards/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: /workload visibility/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /view order/i })).not.toBeInTheDocument();
-    const readiness = screen.getByRole("region", { name: /operational readiness/i });
-    expect(within(readiness).getByText("Solo-owner operation is allowed")).toBeInTheDocument();
-    expect(within(readiness).getByText("Available after an order exists")).toBeInTheDocument();
-    expect(within(readiness).getByText("Neutral")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: /operational readiness/i })).not.toBeInTheDocument();
   });
 
-  it("keeps unverified readiness states neutral and avoids mutation controls", () => {
+  it("does not render operational readiness diagnostics for incomplete admin context", () => {
     permissionState.teamAccess = false;
     permissionState.orderRead = false;
     setupContextState.current = {
@@ -453,124 +378,10 @@ describe("DashboardPage operational polish", () => {
 
     renderDashboard();
 
-    const readiness = screen.getByRole("region", { name: /operational readiness/i });
-    expect(within(readiness).getByText("Company context has not resolved yet")).toBeInTheDocument();
-    expect(within(readiness).getByText("Not verified")).toBeInTheDocument();
-    expect(within(readiness).getByText("Team Access requires users.read")).toBeInTheDocument();
-    expect(within(readiness).getAllByText("Needs permission")).toHaveLength(3);
-    expect(within(readiness).getByText("Member count is not verified")).toBeInTheDocument();
-    expect(within(readiness).getByText("Available after an order exists")).toBeInTheDocument();
-    expect(within(readiness).queryByRole("button")).not.toBeInTheDocument();
-    expect(within(readiness).queryByText(/complete/i)).not.toBeInTheDocument();
-    expect(within(readiness).queryByText(/100%/i)).not.toBeInTheDocument();
-  });
-
-  it("derives workload visibility from active dashboard rows and excludes retired rows", () => {
-    summaryState.current = buildSummary({
-      ordersRows: [
-        {
-          id: "active-a1",
-          order_number: "2001",
-          status: "new",
-          appraiser_id: "appraiser-1",
-          appraiser_name: "Appraiser One",
-        },
-        {
-          id: "active-a2",
-          order_number: "2002",
-          status: "in_progress",
-          appraiser_id: "appraiser-1",
-          appraiser_name: "Appraiser One",
-        },
-        {
-          id: "active-a3",
-          order_number: "2003",
-          status: "needs_revisions",
-          appraiser_id: "appraiser-2",
-          appraiser_name: "Appraiser Two",
-        },
-        {
-          id: "review-r1",
-          order_number: "2004",
-          status: "in_review",
-          reviewer_id: "reviewer-1",
-          reviewer_name: "Reviewer One",
-        },
-        {
-          id: "review-r2",
-          order_number: "2005",
-          status: "in_review",
-          reviewer_id: "reviewer-1",
-          reviewer_name: "Reviewer One",
-        },
-        {
-          id: "unassigned-appraiser",
-          order_number: "2006",
-          status: "new",
-        },
-        {
-          id: "unassigned-reviewer",
-          order_number: "2007",
-          status: "in_review",
-        },
-        {
-          id: "archived-row",
-          order_number: "2008",
-          status: "new",
-          is_archived: true,
-          appraiser_id: "retired-appraiser",
-          appraiser_name: "Retired Appraiser",
-        },
-        {
-          id: "cancelled-row",
-          order_number: "2009",
-          status: "cancelled",
-          appraiser_id: "cancelled-appraiser",
-          appraiser_name: "Cancelled Appraiser",
-        },
-        {
-          id: "voided-row",
-          order_number: "2010",
-          status: "voided",
-          reviewer_id: "voided-reviewer",
-          reviewer_name: "Voided Reviewer",
-        },
-        {
-          id: "completed-row",
-          order_number: "2011",
-          status: "completed",
-          appraiser_id: "completed-appraiser",
-          appraiser_name: "Completed Appraiser",
-        },
-      ],
-    });
-
-    renderDashboard();
-
-    const workload = screen.getByRole("region", { name: /workload visibility/i });
-    expect(within(workload).getByText("Appraiser One")).toBeInTheDocument();
-    expect(within(workload).getAllByText("Appraiser Two")).toHaveLength(2);
-    expect(within(workload).getByText("Reviewer One")).toBeInTheDocument();
-    expect(within(workload).getByText("Needs assignment review")).toBeInTheDocument();
-    expect(within(workload).getAllByText("2")).toHaveLength(3);
-    expect(within(workload).getAllByText("1")).toHaveLength(2);
-    expect(within(workload).queryByText("Retired Appraiser")).not.toBeInTheDocument();
-    expect(within(workload).queryByText("Cancelled Appraiser")).not.toBeInTheDocument();
-    expect(within(workload).queryByText("Voided Reviewer")).not.toBeInTheDocument();
-    expect(within(workload).queryByText("Completed Appraiser")).not.toBeInTheDocument();
-    expect(within(workload).getByRole("link", { name: "Appraiser One" })).toHaveAttribute(
-      "href",
-      "/orders?appraiserId=appraiser-1",
-    );
-    expect(within(workload).getAllByRole("link", { name: "Appraiser Two" }).map((link) => link.getAttribute("href"))).toEqual([
-      "/orders?appraiserId=appraiser-2",
-      "/orders?status=needs_revisions&appraiserId=appraiser-2",
-    ]);
-    expect(within(workload).getByRole("link", { name: "Reviewer One" })).toHaveAttribute(
-      "href",
-      "/orders?status=in_review&reviewerId=reviewer-1",
-    );
-    expect(within(workload).queryByRole("button")).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: /operational readiness/i })).not.toBeInTheDocument();
+    expect(screen.queryByText("Company context has not resolved yet")).not.toBeInTheDocument();
+    expect(screen.queryByText("Team Access requires users.read")).not.toBeInTheDocument();
+    expect(screen.queryByText("Member count is not verified")).not.toBeInTheDocument();
   });
 
   it("mounts the appraiser workbench preview as a secondary panel for my_work shell metadata", () => {
@@ -724,7 +535,7 @@ describe("DashboardPage operational polish", () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "My Work preview" })).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Review Queue preview" })).not.toBeInTheDocument();
-    expect(screen.getByRole("region", { name: /operational readiness/i })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: /operational readiness/i })).not.toBeInTheDocument();
     expect(calendarMock).toHaveBeenLastCalledWith(
       expect.objectContaining({ orders: summaryState.current.ordersRows }),
     );

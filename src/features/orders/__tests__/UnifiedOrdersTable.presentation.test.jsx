@@ -165,7 +165,7 @@ describe("UnifiedOrdersTable presentation", () => {
     expect(screen.getByLabelText("Orders table")).toBeInTheDocument();
     expect(screen.getByText("Orders Table")).toBeInTheDocument();
     expect(screen.getByText("Active orders")).toBeInTheDocument();
-    expect(screen.getByText("Active operational inventory only.")).toBeInTheDocument();
+    expect(screen.getByText("Order records in this view.")).toBeInTheDocument();
     expect(screen.getAllByText("2 total")[0]).toBeInTheDocument();
     expect(screen.getByText("2026001")).toBeInTheDocument();
     expect(screen.getByText("Acme Lending")).toBeInTheDocument();

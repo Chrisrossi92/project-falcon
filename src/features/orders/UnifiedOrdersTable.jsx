@@ -614,7 +614,7 @@ export default function UnifiedOrdersTable({
   const tableLabel = activeQueue ? "Queue worklist" : tableLabelOverride || "Active orders";
   const tableSummary = activeQueue
     ? "Derived from the current active order set."
-    : tableSummaryOverride || "Active operational inventory only.";
+    : tableSummaryOverride || "Order records in this view.";
   const emptyStateTitle = activeQueue
     ? "No orders match this operational queue."
     : emptyTitle || "No active orders to show.";

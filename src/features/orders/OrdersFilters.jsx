@@ -37,9 +37,9 @@ export default function OrdersFilters({
   value,
   onChange,
   actions = null,
-  title = "Filter Active Orders",
-  description = "Search active operational orders by status, owner, client, and due window.",
-  searchLabel = "Search active orders",
+  title = "Filter Orders",
+  description = "Search orders by status, owner, client, and due window.",
+  searchLabel = "Search orders",
   showAppraiserFilter = true,
   density = "default",
 }) {

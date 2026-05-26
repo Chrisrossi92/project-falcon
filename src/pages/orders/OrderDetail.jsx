@@ -759,6 +759,29 @@ export default function OrderDetail() {
             <div className="mt-1">{lifecycleHistoryNotice.notice}</div>
           </div>
         )}
+        {showDerivedContextSurfaces && (
+          <OrderAttentionSummaryPanel
+            order={order}
+            documents={orderFilesLoaded ? orderFiles : null}
+            className="mt-4"
+          />
+        )}
+        {showDerivedContextSurfaces && (
+          <>
+            <OperationalInputsCreateClearControls
+              orderId={order.id}
+              inputs={operationalInputs}
+              onChanged={refreshOperationalInputs}
+              className="mt-3"
+            />
+            <OperationalInputsReadOnly
+              inputs={operationalInputs}
+              loading={operationalInputsLoading}
+              error={operationalInputsError}
+              className="mt-3"
+            />
+          </>
+        )}
         <div
           className="mt-4 border-t border-gray-100 pt-4"
           aria-label={overviewLabel}
@@ -801,30 +824,6 @@ export default function OrderDetail() {
             </OverviewSection>
           </div>
         </div>
-
-        {showDerivedContextSurfaces && (
-          <OrderAttentionSummaryPanel
-            order={order}
-            documents={orderFilesLoaded ? orderFiles : null}
-            className="mt-4"
-          />
-        )}
-        {showDerivedContextSurfaces && (
-          <>
-            <OperationalInputsCreateClearControls
-              orderId={order.id}
-              inputs={operationalInputs}
-              onChanged={refreshOperationalInputs}
-              className="mt-3"
-            />
-            <OperationalInputsReadOnly
-              inputs={operationalInputs}
-              loading={operationalInputsLoading}
-              error={operationalInputsError}
-              className="mt-3"
-            />
-          </>
-        )}
         </WorkspaceSurface>
 
         {/* Detail body */}

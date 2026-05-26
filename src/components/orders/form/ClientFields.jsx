@@ -19,7 +19,7 @@ function ClientNudge({ show, clientName }) {
   if (!show) return null;
   return (
     <div className="mt-2 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs text-slate-600">
-      A client named <span className="font-medium text-slate-800">{clientName}</span> already exists. Select the existing client instead of creating a duplicate.
+      Falcon will use the existing client <span className="font-medium text-slate-800">{clientName}</span> when this order is created.
     </div>
   );
 }
@@ -53,13 +53,17 @@ function SelectedClientContactPreview({ client }) {
   );
 }
 
+function normalizeClientName(name) {
+  return String(name || "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
 export default function ClientFields({ value, onChange }) {
   const [clients,setClients] = useState([]); const [amcs,setAmcs]=useState([]);
   const [matchingClient, setMatchingClient] = useState(null);
   const [checkingClientName, setCheckingClientName] = useState(false);
   const manualClientName = String(value.manual_client_name || "").trim();
   const needsClient = !value.client_id && !String(value.manual_client_name || "").trim();
-  const canOfferClientCreation = !value.client_id && manualClientName.length > 0;
+  const hasManualClientName = !value.client_id && manualClientName.length > 0;
 
   useEffect(() => {
     (async () => {
@@ -84,11 +88,8 @@ export default function ClientFields({ value, onChange }) {
   useEffect(() => {
     let cancelled = false;
 
-    if (!canOfferClientCreation) {
+    if (!hasManualClientName) {
       setMatchingClient(null);
-      if (value.create_client_from_manual) {
-        onChange({ create_client_from_manual: false });
-      }
       return () => {
         cancelled = true;
       };
@@ -97,16 +98,13 @@ export default function ClientFields({ value, onChange }) {
     setCheckingClientName(true);
     const timer = window.setTimeout(async () => {
       try {
-        const matches = await searchOrderFormClientsByName(manualClientName, 5);
+        const matches = await searchOrderFormClientsByName(manualClientName, 10);
         if (cancelled) return;
-        const normalized = manualClientName.toLowerCase();
+        const normalized = normalizeClientName(manualClientName);
         const exact = (matches || []).find(
-          (client) => String(client.name || "").trim().toLowerCase() === normalized
+          (client) => normalizeClientName(client.name) === normalized
         );
         setMatchingClient(exact || null);
-        if (exact && value.create_client_from_manual) {
-          onChange({ create_client_from_manual: false });
-        }
       } catch (error) {
         console.warn("Client duplicate check failed", error);
         if (!cancelled) setMatchingClient(null);
@@ -119,7 +117,7 @@ export default function ClientFields({ value, onChange }) {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [canOfferClientCreation, manualClientName, value.create_client_from_manual]);
+  }, [hasManualClientName, manualClientName]);
 
   return (
     <div className="rounded-md bg-white/60 p-3 border">
@@ -152,25 +150,20 @@ export default function ClientFields({ value, onChange }) {
       <TextInput
         placeholder="Manual client name"
         value={value.manual_client_name || ""}
-        onChange={(e) => onChange({ manual_client_name: e.target.value, create_client_from_manual: false })}
+        onChange={(e) => onChange({ manual_client_name: e.target.value })}
         disabled={!!value.client_id}
       />
-      {canOfferClientCreation && (
+      {hasManualClientName && (
         <div className="mt-2 space-y-2">
-          <label className="inline-flex items-center gap-2 text-xs font-medium text-slate-700">
-            <input
-              type="checkbox"
-              className="h-3.5 w-3.5 rounded border-slate-300 text-slate-900 focus:ring-slate-400"
-              checked={!!value.create_client_from_manual}
-              disabled={!!matchingClient || checkingClientName}
-              onChange={(e) => onChange({ create_client_from_manual: e.target.checked })}
-            />
-            <span>Create client record from this name</span>
-          </label>
           {checkingClientName && (
             <div className="text-[11px] text-slate-500">Checking existing clients...</div>
           )}
           <ClientNudge show={!!matchingClient} clientName={matchingClient?.name} />
+          {!checkingClientName && !matchingClient ? (
+            <div className="text-[11px] text-slate-500">
+              Falcon will create a client record from this name when the order is created.
+            </div>
+          ) : null}
         </div>
       )}
       <RecommendedCue show={needsClient}>

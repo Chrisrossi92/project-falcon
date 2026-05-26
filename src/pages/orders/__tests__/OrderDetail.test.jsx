@@ -322,8 +322,10 @@ describe("OrderDetail site visit save", () => {
 
     expect(screen.getByText("Activity")).toBeInTheDocument();
     expect(screen.queryByText("Activity / Communication History")).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Order attention summary")).toBeInTheDocument();
+    const attention = screen.getByLabelText("Order attention summary");
+    expect(attention).toBeInTheDocument();
     expect(screen.getByText("Attention Summary")).toBeInTheDocument();
+    expect(attention.compareDocumentPosition(overview)).toBe(DOCUMENT_POSITION_FOLLOWING);
   });
 
   it("adds document context to the read-only attention summary after files load", async () => {
@@ -368,7 +370,9 @@ describe("OrderDetail site visit save", () => {
     render(<OrderDetail />);
 
     const evidence = screen.getByLabelText("Operational status evidence");
+    const overview = screen.getByLabelText("Operational Overview");
     expect(within(evidence).getByText("Operational Context")).toBeInTheDocument();
+    expect(evidence.compareDocumentPosition(overview)).toBe(DOCUMENT_POSITION_FOLLOWING);
     expect(within(evidence).getByText("Inspection scheduled")).toBeInTheDocument();
     expect(within(evidence).getByText("Evidence")).toBeInTheDocument();
     expect(within(evidence).getByText("Appraiser")).toBeInTheDocument();

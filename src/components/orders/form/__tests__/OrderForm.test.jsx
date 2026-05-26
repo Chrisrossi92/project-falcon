@@ -27,7 +27,16 @@ vi.mock("@/lib/services/ordersService", () => ordersServiceMock);
 vi.mock("@/features/orders/orderClientOptionsApi", () => orderClientOptionsMock);
 
 vi.mock("../ClientFields", () => ({
-  default: () => <div data-testid="client-fields" />,
+  default: ({ value, onChange }) => (
+    <label>
+      Manual Client Name
+      <input
+        aria-label="Manual Client Name"
+        value={value.manual_client_name || ""}
+        onChange={(event) => onChange({ manual_client_name: event.target.value })}
+      />
+    </label>
+  ),
 }));
 
 vi.mock("../AssignmentFields", () => ({
@@ -115,6 +124,106 @@ describe("OrderForm", () => {
     );
     expect(ordersServiceMock.createOrderViaRpc.mock.calls[0][0]).not.toHaveProperty("order_number");
     expect(onSaved).toHaveBeenCalledWith(createdOrder);
+  });
+
+  it("reuses an existing client when manual client name matches exactly after normalization", async () => {
+    const createdOrder = {
+      id: "order-created",
+      order_number: "2026002",
+    };
+    const onSaved = vi.fn();
+    orderClientOptionsMock.searchOrderFormClientsByName.mockResolvedValue([
+      { id: "client-existing", name: "ACME Appraisal" },
+    ]);
+    ordersServiceMock.createOrderViaRpc.mockResolvedValue(createdOrder);
+
+    render(<OrderForm onSaved={onSaved} />);
+
+    fireEvent.change(screen.getByLabelText("Manual Client Name"), {
+      target: { value: "  acme   appraisal  " },
+    });
+    fireEvent.submit(screen.getByRole("button", { name: "Create Order" }).closest("form"));
+
+    await waitFor(() => {
+      expect(ordersServiceMock.createOrderViaRpc).toHaveBeenCalledTimes(1);
+    });
+
+    expect(orderClientOptionsMock.searchOrderFormClientsByName).toHaveBeenCalledWith(
+      "acme   appraisal",
+      10,
+    );
+    expect(orderClientOptionsMock.createOrderFormClient).not.toHaveBeenCalled();
+    expect(ordersServiceMock.createOrderViaRpc).toHaveBeenCalledWith(
+      expect.objectContaining({
+        client_id: "client-existing",
+        manual_client_name: null,
+        status: "new",
+      }),
+    );
+    expect(onSaved).toHaveBeenCalledWith(createdOrder);
+  });
+
+  it("creates and links a client when manual client name has no exact match", async () => {
+    const createdOrder = {
+      id: "order-created",
+      order_number: "2026003",
+    };
+    const onSaved = vi.fn();
+    orderClientOptionsMock.searchOrderFormClientsByName.mockResolvedValue([]);
+    orderClientOptionsMock.createOrderFormClient.mockResolvedValue({
+      id: "client-created",
+      name: "ACME Appraisal",
+    });
+    ordersServiceMock.createOrderViaRpc.mockResolvedValue(createdOrder);
+
+    render(<OrderForm onSaved={onSaved} />);
+
+    fireEvent.change(screen.getByLabelText("Manual Client Name"), {
+      target: { value: "ACME Appraisal" },
+    });
+    fireEvent.submit(screen.getByRole("button", { name: "Create Order" }).closest("form"));
+
+    await waitFor(() => {
+      expect(ordersServiceMock.createOrderViaRpc).toHaveBeenCalledTimes(1);
+    });
+
+    expect(orderClientOptionsMock.createOrderFormClient).toHaveBeenCalledWith({
+      name: "ACME Appraisal",
+      amcId: null,
+    });
+    expect(ordersServiceMock.createOrderViaRpc).toHaveBeenCalledWith(
+      expect.objectContaining({
+        client_id: "client-created",
+        manual_client_name: null,
+        status: "new",
+      }),
+    );
+    expect(onSaved).toHaveBeenCalledWith(createdOrder);
+  });
+
+  it("does not create the order when automatic client creation fails", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    orderClientOptionsMock.searchOrderFormClientsByName.mockResolvedValue([]);
+    orderClientOptionsMock.createOrderFormClient.mockRejectedValue(
+      new Error("client_name_already_exists"),
+    );
+
+    try {
+      render(<OrderForm onSaved={vi.fn()} />);
+
+      fireEvent.change(screen.getByLabelText("Manual Client Name"), {
+        target: { value: "ACME Appraisal" },
+      });
+      fireEvent.submit(screen.getByRole("button", { name: "Create Order" }).closest("form"));
+
+      await waitFor(() => {
+        expect(screen.getByText("A client with this name already exists.")).toBeInTheDocument();
+      });
+
+      expect(ordersServiceMock.createOrderViaRpc).not.toHaveBeenCalled();
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
   });
 
   it("uses the guarded RPC update service for edit submit without carrying order number", async () => {
