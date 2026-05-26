@@ -41,6 +41,11 @@ import { normalizeOrderStatus } from "@/lib/constants/orderStatus";
  * @property {string|null} entry_contact_name
  * @property {string|null} entry_contact_phone
  * @property {string|null} access_notes
+ * @property {string|null} client_contact_id
+ * @property {string|null} client_contact_name
+ * @property {string|null} client_contact_title
+ * @property {string|null} client_contact_email
+ * @property {string|null} client_contact_phone
  * @property {string|null} notes
  */
 
@@ -85,6 +90,11 @@ const emptyOrder = {
   entry_contact_name: null,
   entry_contact_phone: null,
   access_notes: null,
+  client_contact_id: null,
+  client_contact_name: null,
+  client_contact_title: null,
+  client_contact_email: null,
+  client_contact_phone: null,
   notes: null,
 };
 
@@ -177,6 +187,11 @@ export function mapOrderRow(row = {}) {
     entry_contact_name: row.entry_contact_name ?? null,
     entry_contact_phone: row.entry_contact_phone ?? null,
     access_notes: row.access_notes ?? null,
+    client_contact_id: row.client_contact_id ?? null,
+    client_contact_name: row.client_contact_name ?? null,
+    client_contact_title: row.client_contact_title ?? null,
+    client_contact_email: row.client_contact_email ?? null,
+    client_contact_phone: row.client_contact_phone ?? null,
     notes: row.notes ?? null,
   };
 }

@@ -47,6 +47,7 @@ function buildOrderPayload(values, { isEdit = false } = {}) {
     client_id: values.client_id || null,
     manual_client_name: values.manual_client_name || null,
     managing_amc_id: values.managing_amc_id || null,
+    client_contact_id: values.client_contact_id || null,
 
     appraiser_id: values.appraiser_id || null,
     reviewer_id: values.reviewer_id || null,
@@ -141,6 +142,7 @@ export default function OrderForm({ order, onClose, onSaved, onCancel }) {
       client_id: order.client_id ?? null,
       manual_client_name: order.manual_client_name ?? order.client_name ?? "",
       managing_amc_id: order.managing_amc_id ?? order.amc_id ?? null,
+      client_contact_id: order.client_contact_id ?? null,
       appraiser_id: order.appraiser_id ?? null,
       reviewer_id: order.reviewer_id ?? null,
       split_pct: order.split_pct ?? "",
@@ -340,7 +342,6 @@ export default function OrderForm({ order, onClose, onSaved, onCancel }) {
     </form>
   );
 }
-
 
 
 

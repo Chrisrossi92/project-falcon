@@ -64,6 +64,11 @@ const BASE_SELECT = `
   appraiser_name,
   reviewer_id,
   reviewer_name,
+  client_contact_id,
+  client_contact_name,
+  client_contact_title,
+  client_contact_email,
+  client_contact_phone,
   created_at,
   updated_at
 `;
@@ -389,6 +394,7 @@ export async function createOrder(payload = {}) {
     entry_contact_phone: payload.entry_contact_phone ?? null,
     property_contact_name: payload.property_contact_name ?? null,
     property_contact_phone: payload.property_contact_phone ?? null,
+    client_contact_id: payload.client_contact_id ?? null,
     access_notes: payload.access_notes ?? null,
     amc_id: payload.amc_id ?? null,
     managing_amc_id: payload.managing_amc_id ?? null,
