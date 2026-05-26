@@ -474,6 +474,11 @@ describe("OrderDetail site visit save", () => {
     expect(screen.getByLabelText("Order notes")).toBeInTheDocument();
 
     expect(screen.queryByRole("link", { name: "Edit" })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("assignments-panel")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Offer Assignment" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Archive order" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancel order" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Void order" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Order attention summary")).not.toBeInTheDocument();
     expect(screen.queryByText("Attention Summary")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Operational context controls")).not.toBeInTheDocument();

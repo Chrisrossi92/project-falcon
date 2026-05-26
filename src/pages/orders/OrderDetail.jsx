@@ -559,7 +559,7 @@ export default function OrderDetail() {
   );
   const isAppraiserExecutionWorkspace = shellProfile.profileId === SHELL_PROFILE_IDS.MY_WORK;
   const isReviewerReviewWorkspace = shellProfile.profileId === SHELL_PROFILE_IDS.REVIEW_QUEUE;
-  const showManagementSurfaces = !isAppraiserExecutionWorkspace;
+  const showManagementSurfaces = !isAppraiserExecutionWorkspace && !isReviewerReviewWorkspace;
   const showDerivedContextSurfaces = showManagementSurfaces && !isReviewerReviewWorkspace;
   const showOrderEditAction = showManagementSurfaces && !isReviewerReviewWorkspace;
   const overviewLabel = isReviewerReviewWorkspace ? "Order Summary" : "Operational Overview";
