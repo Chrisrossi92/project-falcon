@@ -5,7 +5,13 @@ import toast from "react-hot-toast";
 import CompanyInvitationsPanel from "@/features/company-invitations/CompanyInvitationsPanel";
 import InviteCompanyMemberModal from "@/features/company-invitations/InviteCompanyMemberModal";
 import { listCompanyRolePermissionPreview, listCompanyRolePresets } from "@/features/company-invitations/api";
-import { listCompanyMembers, setCompanyMemberStatus, updateCompanyMemberRoles } from "@/features/company-members/api";
+import {
+  listCompanyMemberPermissionOverrides,
+  listCompanyMembers,
+  saveCompanyMemberPermissionOverrides,
+  setCompanyMemberStatus,
+  updateCompanyMemberRoles,
+} from "@/features/company-members/api";
 import { useCan } from "@/lib/hooks/usePermissions";
 import { PERMISSIONS } from "@/lib/permissions/constants";
 import { useShellProfile } from "@/lib/shell/useShellProfile";
@@ -109,6 +115,9 @@ function safeMemberActionError(error, fallback) {
   if (/users_revoke_owner_permission_required/.test(text)) {
     return "You do not have permission to remove Owner access.";
   }
+  if (/owner_self_protection_override_blocked/.test(text)) {
+    return "Owner self-protection permissions cannot be revoked from your own access.";
+  }
   if (/role_preset_required|unknown_role_id|duplicate_role_ids|role_id_required|primary_role_not_in_submitted_roles/.test(text)) {
     return "Choose valid role presets.";
   }
@@ -162,12 +171,30 @@ function permissionGroupId(permission) {
   return "other";
 }
 
-function buildEffectivePermissionPreview(selectedRoleIds, permissions) {
+function normalizeOverrideRows(rows) {
+  const overrides = new Map();
+  (Array.isArray(rows) ? rows : []).forEach((row) => {
+    const permissionKey = String(row?.permission_key || "").trim();
+    const effect = String(row?.effect || "").trim().toLowerCase();
+    if (permissionKey && (effect === "grant" || effect === "revoke")) {
+      overrides.set(permissionKey, effect);
+    }
+  });
+  return overrides;
+}
+
+function serializeOverrideMap(overrides) {
+  return [...overrides.entries()]
+    .filter(([, effect]) => effect === "grant" || effect === "revoke")
+    .map(([permission_key, effect]) => ({ permission_key, effect }))
+    .sort((a, b) => a.permission_key.localeCompare(b.permission_key));
+}
+
+function buildEffectivePermissionPreview(selectedRoleIds, permissions, overrides = new Map()) {
   const selected = new Set(selectedRoleIds);
   const byPermission = new Map();
 
   (Array.isArray(permissions) ? permissions : []).forEach((permission) => {
-    if (!selected.has(permission.role_id)) return;
     const groupId = permissionGroupId(permission);
     if (!groupId) return;
 
@@ -178,11 +205,19 @@ function buildEffectivePermissionPreview(selectedRoleIds, permissions) {
       description: permission.permission_description || "",
       groupId,
       sourceRoles: [],
+      inherited: false,
     };
 
-    if (permission.role_name && !existing.sourceRoles.includes(permission.role_name)) {
+    if (selected.has(permission.role_id)) {
+      existing.inherited = true;
+    }
+
+    if (selected.has(permission.role_id) && permission.role_name && !existing.sourceRoles.includes(permission.role_name)) {
       existing.sourceRoles.push(permission.role_name);
     }
+
+    existing.override = overrides.get(key) || null;
+    existing.effective = existing.override === "grant" || (existing.inherited && existing.override !== "revoke");
 
     byPermission.set(key, existing);
   });
@@ -208,6 +243,7 @@ function buildEffectivePermissionPreview(selectedRoleIds, permissions) {
 function EditRolePresetsModal({ member, open, onClose, onSaved }) {
   const [roles, setRoles] = useState([]);
   const [rolePermissions, setRolePermissions] = useState([]);
+  const [permissionOverrides, setPermissionOverrides] = useState(new Map());
   const [selectedRoleIds, setSelectedRoleIds] = useState([]);
   const [selectedPrimaryRoleId, setSelectedPrimaryRoleId] = useState("");
   const [loadingRoles, setLoadingRoles] = useState(false);
@@ -218,21 +254,28 @@ function EditRolePresetsModal({ member, open, onClose, onSaved }) {
     if (!open || !member) return;
     setSelectedRoleIds(activeRoleIds(member));
     setSelectedPrimaryRoleId(primaryRoleId(member));
+    setPermissionOverrides(new Map());
     setError("");
     setLoadingRoles(true);
-    Promise.all([listCompanyRolePresets(), listCompanyRolePermissionPreview()])
-      .then(([roleRows, permissionRows]) => {
+    Promise.all([
+      listCompanyRolePresets(),
+      listCompanyRolePermissionPreview(),
+      listCompanyMemberPermissionOverrides(member.user_id),
+    ])
+      .then(([roleRows, permissionRows, overrideRows]) => {
         setRoles(Array.isArray(roleRows) ? roleRows : []);
         setRolePermissions(Array.isArray(permissionRows) ? permissionRows : []);
+        setPermissionOverrides(normalizeOverrideRows(overrideRows));
       })
       .catch((loadError) => {
-        console.debug("Role preset list failed", {
+        console.debug("Access detail list failed", {
           code: loadError?.code,
           message: loadError?.message,
         });
         setRoles([]);
         setRolePermissions([]);
-        setError("Falcon could not load role presets.");
+        setPermissionOverrides(new Map());
+        setError("Falcon could not load access details.");
       })
       .finally(() => setLoadingRoles(false));
   }, [member, open]);
@@ -253,13 +296,25 @@ function EditRolePresetsModal({ member, open, onClose, onSaved }) {
   const visibleRoles = [...roles]
     .filter((role) => role.assignable_by_current_user || currentRoleIds.has(role.role_id))
     .sort((a, b) => roleSortValue(a) - roleSortValue(b) || String(a.role_name).localeCompare(String(b.role_name)));
-  const permissionPreviewGroups = buildEffectivePermissionPreview(selectedRoleIds, rolePermissions);
+  const permissionPreviewGroups = buildEffectivePermissionPreview(selectedRoleIds, rolePermissions, permissionOverrides);
 
   const toggleRole = (role) => {
     if (!role.assignable_by_current_user && !currentRoleIds.has(role.role_id)) return;
     setSelectedRoleIds((current) => {
       if (current.includes(role.role_id)) return current.filter((id) => id !== role.role_id);
       return [...current, role.role_id];
+    });
+  };
+
+  const setPermissionOverride = (permissionKey, effect) => {
+    setPermissionOverrides((current) => {
+      const next = new Map(current);
+      if (effect === "grant" || effect === "revoke") {
+        next.set(permissionKey, effect);
+      } else {
+        next.delete(permissionKey);
+      }
+      return next;
     });
   };
 
@@ -276,14 +331,21 @@ function EditRolePresetsModal({ member, open, onClose, onSaved }) {
     }
     setSubmitting(true);
     try {
+      const requestId = crypto.randomUUID();
       await updateCompanyMemberRoles(
         member.user_id,
         selectedRoleIds,
         selectedPrimaryRoleId,
         "Updated from Users",
-        crypto.randomUUID()
+        requestId
       );
-      toast.success("Member roles updated.");
+      await saveCompanyMemberPermissionOverrides(
+        member.user_id,
+        serializeOverrideMap(permissionOverrides),
+        "Updated from Users",
+        requestId
+      );
+      toast.success("Member access updated.");
       onSaved?.();
       onClose?.();
     } catch (updateError) {
@@ -291,7 +353,7 @@ function EditRolePresetsModal({ member, open, onClose, onSaved }) {
         code: updateError?.code,
         message: updateError?.message,
       });
-      setError(safeMemberActionError(updateError, "Falcon could not update this member's roles."));
+      setError(safeMemberActionError(updateError, "Falcon could not update this member's access."));
     } finally {
       setSubmitting(false);
     }
@@ -316,7 +378,7 @@ function EditRolePresetsModal({ member, open, onClose, onSaved }) {
             <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Users</div>
             <h2 id="edit-role-presets-title" className="mt-1 text-xl font-semibold text-slate-950">Edit Access</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Choose role presets and one primary role. Permissions below are a read-only preview of bundled authority.
+              Choose role presets and one primary role. Permissions below show inherited access plus explicit overrides.
             </p>
           </div>
           <button
@@ -324,7 +386,7 @@ function EditRolePresetsModal({ member, open, onClose, onSaved }) {
             onClick={onClose}
             disabled={submitting}
             className="rounded-md border border-slate-200 p-2 text-slate-500 hover:bg-slate-50 disabled:opacity-60"
-            aria-label="Close role preset modal"
+            aria-label="Close access modal"
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -389,7 +451,7 @@ function EditRolePresetsModal({ member, open, onClose, onSaved }) {
             <div className="border-b border-slate-200 px-3 py-3">
               <h3 id="effective-permissions-title" className="text-sm font-semibold text-slate-800">Effective Permissions</h3>
               <p className="mt-1 text-xs text-slate-500">
-                Read-only preview from selected role presets. Custom grants and revokes are not implemented yet.
+                Role-derived access plus explicit V1-safe grants or revokes. Hidden product domains stay suppressed.
               </p>
             </div>
             {loadingRoles ? (
@@ -407,13 +469,63 @@ function EditRolePresetsModal({ member, open, onClose, onSaved }) {
                     <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">{group.label}</div>
                     <ul className="mt-2 grid gap-2">
                       {group.permissions.map((permission) => (
-                        <li key={permission.key} className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
-                          <div className="text-sm font-medium text-slate-800">{permission.label}</div>
-                          {permission.sourceRoles.length > 0 && (
-                            <div className="mt-1 text-xs text-slate-500">
-                              From {permission.sourceRoles.join(", ")}
+                        <li key={permission.key} className="grid gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 sm:grid-cols-[1fr_auto]">
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-sm font-medium text-slate-800">{permission.label}</span>
+                              {permission.override === "grant" && (
+                                <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                                  Granted
+                                </span>
+                              )}
+                              {permission.override === "revoke" && (
+                                <span className="rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs font-semibold text-rose-700">
+                                  Revoked
+                                </span>
+                              )}
+                              {!permission.override && permission.inherited && (
+                                <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs font-semibold text-slate-600">
+                                  Inherited
+                                </span>
+                              )}
+                              {!permission.effective && !permission.override && (
+                                <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs font-semibold text-slate-500">
+                                  Not granted
+                                </span>
+                              )}
                             </div>
-                          )}
+                            {permission.sourceRoles.length > 0 && (
+                              <div className="mt-1 text-xs text-slate-500">
+                                From {permission.sourceRoles.join(", ")}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setPermissionOverride(permission.key, null)}
+                              disabled={submitting || !permission.override}
+                              className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                            >
+                              Inherit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPermissionOverride(permission.key, "grant")}
+                              disabled={submitting || permission.override === "grant"}
+                              className="rounded-md border border-emerald-200 bg-white px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
+                            >
+                              Grant
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPermissionOverride(permission.key, "revoke")}
+                              disabled={submitting || permission.override === "revoke"}
+                              className="rounded-md border border-rose-200 bg-white px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+                            >
+                              Revoke
+                            </button>
+                          </div>
                         </li>
                       ))}
                     </ul>
@@ -438,7 +550,7 @@ function EditRolePresetsModal({ member, open, onClose, onSaved }) {
             disabled={submitting || loadingRoles}
             className="rounded-md border border-slate-950 bg-slate-950 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
           >
-            {submitting ? "Saving..." : "Save Roles"}
+            {submitting ? "Saving..." : "Save Access"}
           </button>
         </div>
       </form>
