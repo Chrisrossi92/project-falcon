@@ -1,5 +1,5 @@
 // src/components/clients/ClientDetail.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { WorkspaceContextTile } from "@/components/workspace/WorkspaceContext";
@@ -15,6 +15,13 @@ import {
   getClientManagementDetail,
   updateClientManagementClient,
 } from "@/features/clients/clientManagementApi";
+import {
+  createClientContact,
+  listClientContacts,
+  setClientContactStatus,
+  setDefaultClientContact,
+  updateClientContact,
+} from "@/features/clients/clientContactsApi";
 import { useCurrentUserAppContext } from "@/features/auth/useCurrentUserAppContext";
 import { useCan } from "@/lib/hooks/usePermissions";
 import { PERMISSIONS } from "@/lib/permissions/constants";
@@ -76,6 +83,20 @@ function clientUpdateErrorMessage(error) {
   return "Falcon could not update this client.";
 }
 
+function contactMutationErrorMessage(error) {
+  const message = error?.message || "";
+  if (message.includes("client_contact_name_required")) return "Enter a contact name.";
+  if (message.includes("invalid_client_contact_status")) return "Choose a valid contact status.";
+  if (
+    message.includes("permission")
+    || message.includes("forbidden")
+    || error?.code === "42501"
+  ) {
+    return "You do not have permission to manage contacts for this client.";
+  }
+  return "Falcon could not update this contact.";
+}
+
 /* ============================== main ============================== */
 
 export default function ClientDetail() {
@@ -96,8 +117,33 @@ export default function ClientDetail() {
   const [client, setClient] = useState(null);
   const [amc, setAmc] = useState(null);
   const [orders, setOrders] = useState([]);
+  const [contacts, setContacts] = useState([]);
+  const [contactsLoading, setContactsLoading] = useState(false);
+  const [contactsError, setContactsError] = useState(null);
+  const [contactFormMode, setContactFormMode] = useState(null);
+  const [editingContact, setEditingContact] = useState(null);
 
   const [editing, setEditing] = useState(false);
+
+  const refreshContacts = useCallback(async (targetClientId = numericId) => {
+    if (!targetClientId || Number.isNaN(targetClientId) || !Number.isFinite(targetClientId)) {
+      setContacts([]);
+      return;
+    }
+
+    try {
+      setContactsLoading(true);
+      setContactsError(null);
+      const rows = await listClientContacts(targetClientId);
+      setContacts(rows || []);
+    } catch (e) {
+      console.error("Failed to load client contacts", e);
+      setContactsError(e?.message || "Failed to load contacts");
+      setContacts([]);
+    } finally {
+      setContactsLoading(false);
+    }
+  }, [numericId]);
 
   useEffect(() => {
     if (appContextLoading) return;
@@ -175,6 +221,8 @@ export default function ClientDetail() {
         } else {
           setAmc(null);
         }
+
+        refreshContacts(numericId);
       } catch (e) {
         console.error("Failed to load client detail", e);
         if (!cancelled)
@@ -187,7 +235,7 @@ export default function ClientDetail() {
     return () => {
       cancelled = true;
     };
-  }, [clientIdParam, numericId, isAdmin, isReviewer, publicUserId, appContextLoading]);
+  }, [clientIdParam, numericId, isAdmin, isReviewer, publicUserId, appContextLoading, refreshContacts]);
 
   const stats = useMemo(() => {
     if (!orders || orders.length === 0) {
@@ -260,6 +308,66 @@ export default function ClientDetail() {
     } catch (e) {
       console.error(e);
       toast.error(clientUpdateErrorMessage(e));
+    }
+  }
+
+  function handleAddContact() {
+    setEditingContact(null);
+    setContactFormMode("add");
+  }
+
+  function handleEditContact(contact) {
+    setEditingContact(contact);
+    setContactFormMode("edit");
+  }
+
+  function closeContactForm() {
+    setContactFormMode(null);
+    setEditingContact(null);
+  }
+
+  async function handleSaveContact(values) {
+    if (!client || !canUpdateAllClients) return;
+
+    try {
+      if (contactFormMode === "edit" && editingContact) {
+        await updateClientContact(editingContact.id, values);
+        toast.success("Contact updated");
+      } else {
+        await createClientContact(client.id, values);
+        toast.success("Contact added");
+      }
+      closeContactForm();
+      await refreshContacts(client.id);
+    } catch (e) {
+      console.error(e);
+      toast.error(contactMutationErrorMessage(e));
+    }
+  }
+
+  async function handleSetContactStatus(contact, status) {
+    if (!canUpdateAllClients) return;
+
+    try {
+      await setClientContactStatus(contact.id, status);
+      toast.success(status === "active" ? "Contact reactivated" : "Contact deactivated");
+      await refreshContacts(client.id);
+    } catch (e) {
+      console.error(e);
+      toast.error(contactMutationErrorMessage(e));
+    }
+  }
+
+  async function handleSetDefaultContact(contact) {
+    if (!canUpdateAllClients) return;
+
+    try {
+      await setDefaultClientContact(contact.id);
+      toast.success("Default contact updated");
+      await refreshContacts(client.id);
+    } catch (e) {
+      console.error(e);
+      toast.error(contactMutationErrorMessage(e));
     }
   }
 
@@ -435,6 +543,21 @@ export default function ClientDetail() {
             )}
           </WorkspaceSection>
 
+          <ContactsSection
+            contacts={contacts}
+            loading={contactsLoading}
+            error={contactsError}
+            canManage={canUpdateAllClients}
+            formMode={contactFormMode}
+            editingContact={editingContact}
+            onAdd={handleAddContact}
+            onEdit={handleEditContact}
+            onCancelForm={closeContactForm}
+            onSave={handleSaveContact}
+            onSetDefault={handleSetDefaultContact}
+            onSetStatus={handleSetContactStatus}
+          />
+
           <WorkspaceSection
             title={relatedOrdersTitle}
             titleId="client-orders-heading"
@@ -516,6 +639,263 @@ export default function ClientDetail() {
 }
 
 /* ============================== subcomponents ============================== */
+
+function ContactsSection({
+  contacts,
+  loading,
+  error,
+  canManage,
+  formMode,
+  editingContact,
+  onAdd,
+  onEdit,
+  onCancelForm,
+  onSave,
+  onSetDefault,
+  onSetStatus,
+}) {
+  const isFormOpen = Boolean(formMode);
+
+  return (
+    <WorkspaceSection
+      title="Contacts"
+      titleId="client-contacts-heading"
+      description="Reusable relationship contacts for coordination with this client."
+      meta={
+        canManage ? (
+          <button
+            type="button"
+            onClick={onAdd}
+            className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+          >
+            Add Contact
+          </button>
+        ) : null
+      }
+      className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+      headerClassName="mb-4 border-b border-slate-100 pb-3"
+      headerContentClassName="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"
+    >
+      {error && (
+        <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          {error}
+        </div>
+      )}
+
+      {isFormOpen && canManage && (
+        <ContactForm
+          key={editingContact?.id || "new-contact"}
+          contact={editingContact}
+          mode={formMode}
+          onCancel={onCancelForm}
+          onSave={onSave}
+        />
+      )}
+
+      {loading ? (
+        <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
+          Loading contacts...
+        </div>
+      ) : contacts.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
+          No saved contacts yet.
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {contacts.map((contact) => (
+            <ClientContactCard
+              key={contact.id}
+              contact={contact}
+              canManage={canManage}
+              onEdit={onEdit}
+              onSetDefault={onSetDefault}
+              onSetStatus={onSetStatus}
+            />
+          ))}
+        </div>
+      )}
+    </WorkspaceSection>
+  );
+}
+
+function ContactForm({ contact, mode, onCancel, onSave }) {
+  const [values, setValues] = useState({
+    name: contact?.name || "",
+    title: contact?.title || "",
+    email: contact?.email || "",
+    phone: contact?.phone || "",
+    notes: contact?.notes || "",
+    is_default: contact?.is_default === true,
+  });
+
+  const submitLabel = mode === "edit" ? "Save Contact" : "Create Contact";
+
+  function updateField(field, value) {
+    setValues((prev) => ({ ...prev, [field]: value }));
+  }
+
+  function handleSubmit(event) {
+    event.preventDefault();
+    onSave({
+      name: values.name.trim(),
+      title: values.title.trim() || null,
+      email: values.email.trim() || null,
+      phone: values.phone.trim() || null,
+      notes: values.notes.trim() || null,
+      is_default: values.is_default,
+    });
+  }
+
+  return (
+    <form
+      aria-label={mode === "edit" ? "edit contact form" : "add contact form"}
+      onSubmit={handleSubmit}
+      className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3"
+    >
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="text-xs font-medium text-slate-700">
+          Name
+          <input
+            value={values.name}
+            onChange={(event) => updateField("name", event.target.value)}
+            required
+            className="mt-1 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
+          />
+        </label>
+        <label className="text-xs font-medium text-slate-700">
+          Title / Role
+          <input
+            value={values.title}
+            onChange={(event) => updateField("title", event.target.value)}
+            className="mt-1 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
+          />
+        </label>
+        <label className="text-xs font-medium text-slate-700">
+          Email
+          <input
+            type="email"
+            value={values.email}
+            onChange={(event) => updateField("email", event.target.value)}
+            className="mt-1 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
+          />
+        </label>
+        <label className="text-xs font-medium text-slate-700">
+          Phone
+          <input
+            value={values.phone}
+            onChange={(event) => updateField("phone", event.target.value)}
+            className="mt-1 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
+          />
+        </label>
+        <label className="text-xs font-medium text-slate-700 sm:col-span-2">
+          Notes
+          <textarea
+            value={values.notes}
+            onChange={(event) => updateField("notes", event.target.value)}
+            rows={2}
+            className="mt-1 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
+          />
+        </label>
+        <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
+          <input
+            type="checkbox"
+            checked={values.is_default}
+            onChange={(event) => updateField("is_default", event.target.checked)}
+            className="h-4 w-4 rounded border-slate-300"
+          />
+          Default contact
+        </label>
+      </div>
+
+      <div className="mt-3 flex justify-end gap-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          className="inline-flex items-center justify-center rounded-md border border-slate-900 bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
+        >
+          {submitLabel}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function ClientContactCard({ contact, canManage, onEdit, onSetDefault, onSetStatus }) {
+  const inactive = contact.status === "inactive";
+
+  return (
+    <article
+      className={
+        "rounded-lg border px-3 py-3 " +
+        (inactive
+          ? "border-slate-200 bg-slate-50 text-slate-500"
+          : "border-slate-200 bg-white text-slate-900")
+      }
+    >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-sm font-semibold text-slate-950">{contact.name}</h3>
+            {contact.is_default && (
+              <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-700">
+                Default
+              </span>
+            )}
+            {inactive && (
+              <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                Inactive
+              </span>
+            )}
+          </div>
+          {contact.title && (
+            <div className="mt-0.5 text-xs font-medium text-slate-600">{contact.title}</div>
+          )}
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
+            {contact.email && <span>{contact.email}</span>}
+            {contact.phone && <span>{contact.phone}</span>}
+          </div>
+          {contact.notes && (
+            <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-500">{contact.notes}</p>
+          )}
+        </div>
+
+        {canManage && (
+          <div className="flex flex-wrap gap-2 sm:justify-end">
+            <button
+              type="button"
+              onClick={() => onEdit(contact)}
+              className="rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Edit Contact
+            </button>
+            {!contact.is_default && !inactive && (
+              <button
+                type="button"
+                onClick={() => onSetDefault(contact)}
+                className="rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Set Default
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => onSetStatus(contact, inactive ? "active" : "inactive")}
+              className="rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              {inactive ? "Reactivate Contact" : "Deactivate Contact"}
+            </button>
+          </div>
+        )}
+      </div>
+    </article>
+  );
+}
 
 function DetailField({ label, value, className = "" }) {
   return (

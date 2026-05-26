@@ -6,6 +6,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const clientDetailMock = vi.hoisted(() => vi.fn());
 const updateClientMock = vi.hoisted(() => vi.fn());
+const listClientContactsMock = vi.hoisted(() => vi.fn());
+const createClientContactMock = vi.hoisted(() => vi.fn());
+const updateClientContactMock = vi.hoisted(() => vi.fn());
+const setClientContactStatusMock = vi.hoisted(() => vi.fn());
+const setDefaultClientContactMock = vi.hoisted(() => vi.fn());
 const appContextMock = vi.hoisted(() => vi.fn());
 const useCanMock = vi.hoisted(() => vi.fn());
 const supabaseMock = vi.hoisted(() => ({
@@ -22,6 +27,14 @@ vi.mock("react-hot-toast", () => ({
 vi.mock("@/features/clients/clientManagementApi", () => ({
   getClientManagementDetail: clientDetailMock,
   updateClientManagementClient: updateClientMock,
+}));
+
+vi.mock("@/features/clients/clientContactsApi", () => ({
+  listClientContacts: listClientContactsMock,
+  createClientContact: createClientContactMock,
+  updateClientContact: updateClientContactMock,
+  setClientContactStatus: setClientContactStatusMock,
+  setDefaultClientContact: setDefaultClientContactMock,
 }));
 
 vi.mock("@/features/auth/useCurrentUserAppContext", () => ({
@@ -63,7 +76,7 @@ function createOrdersQuery(data = []) {
   return query;
 }
 
-function renderDetail({ canUpdate = true, context, client, orders } = {}) {
+function renderDetail({ canUpdate = true, context, client, orders, contacts, contactLists } = {}) {
   useCanMock.mockReturnValue({ allowed: canUpdate });
   appContextMock.mockReturnValue({
     loading: false,
@@ -89,6 +102,28 @@ function renderDetail({ canUpdate = true, context, client, orders } = {}) {
       last_order_date: "2026-05-20T12:00:00.000Z",
     },
   );
+  if (Array.isArray(contactLists)) {
+    contactLists.forEach((list) => {
+      listClientContactsMock.mockResolvedValueOnce(list);
+    });
+  } else {
+    listClientContactsMock.mockResolvedValue(
+      contacts || [
+        {
+          id: 12,
+          contact_id: 12,
+          client_id: 42,
+          name: "Avery Desk",
+          title: "AMC Coordinator",
+          email: "avery.desk@example.test",
+          phone: "555-0200",
+          notes: "Use for order coordination.",
+          status: "active",
+          is_default: true,
+        },
+      ],
+    );
+  }
   const ordersQuery = createOrdersQuery(
     orders || [
       {
@@ -137,6 +172,11 @@ describe("ClientDetail presentation", () => {
   beforeEach(() => {
     clientDetailMock.mockReset();
     updateClientMock.mockReset();
+    listClientContactsMock.mockReset();
+    createClientContactMock.mockReset();
+    updateClientContactMock.mockReset();
+    setClientContactStatusMock.mockReset();
+    setDefaultClientContactMock.mockReset();
     appContextMock.mockReset();
     useCanMock.mockReset();
     supabaseMock.from.mockReset();
@@ -146,6 +186,11 @@ describe("ClientDetail presentation", () => {
     cleanup();
     clientDetailMock.mockReset();
     updateClientMock.mockReset();
+    listClientContactsMock.mockReset();
+    createClientContactMock.mockReset();
+    updateClientContactMock.mockReset();
+    setClientContactStatusMock.mockReset();
+    setDefaultClientContactMock.mockReset();
     appContextMock.mockReset();
     useCanMock.mockReset();
     supabaseMock.from.mockReset();
@@ -167,6 +212,11 @@ describe("ClientDetail presentation", () => {
     expect(screen.getByText("Avery Client")).toBeInTheDocument();
     expect(screen.getByText("555-0100")).toBeInTheDocument();
     expect(screen.getByText("avery@example.test")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Contacts" })).toBeInTheDocument();
+    expect(screen.getByText("Avery Desk")).toBeInTheDocument();
+    expect(screen.getByText("AMC Coordinator")).toBeInTheDocument();
+    expect(screen.getByText("avery.desk@example.test")).toBeInTheDocument();
+    expect(screen.getByText("Default")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Client Orders" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Visible Order Context" })).toBeInTheDocument();
     expect(screen.getByText("2 total / 1 active / 1 completed")).toBeInTheDocument();
@@ -262,5 +312,149 @@ describe("ClientDetail presentation", () => {
     expect(screen.queryByRole("button", { name: "Edit Client" })).not.toBeInTheDocument();
     expect(screen.queryByRole("form", { name: "client edit form" })).not.toBeInTheDocument();
     expect(within(screen.getByRole("banner")).getByRole("button", { name: "Back to Clients" })).toBeInTheDocument();
+  });
+
+  it("adds a reusable client contact and refreshes the list", async () => {
+    createClientContactMock.mockResolvedValue({
+      id: 14,
+      client_id: 42,
+      name: "Jordan Desk",
+      status: "active",
+    });
+    renderDetail({
+      contactLists: [
+        [],
+        [
+          {
+            id: 14,
+            contact_id: 14,
+            client_id: 42,
+            name: "Jordan Desk",
+            title: "Coordinator",
+            email: "jordan@example.test",
+            phone: "555-0140",
+            status: "active",
+            is_default: false,
+          },
+        ],
+      ],
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Contacts" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Add Contact" }));
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Jordan Desk" } });
+    fireEvent.change(screen.getByLabelText("Title / Role"), { target: { value: "Coordinator" } });
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "jordan@example.test" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create Contact" }));
+
+    await waitFor(() => {
+      expect(createClientContactMock).toHaveBeenCalledWith(42, {
+        name: "Jordan Desk",
+        title: "Coordinator",
+        email: "jordan@example.test",
+        phone: null,
+        notes: null,
+        is_default: false,
+      });
+    });
+    expect(listClientContactsMock).toHaveBeenCalledTimes(2);
+    expect(await screen.findByText("Jordan Desk")).toBeInTheDocument();
+  });
+
+  it("edits a reusable client contact", async () => {
+    updateClientContactMock.mockResolvedValue({
+      id: 12,
+      client_id: 42,
+      name: "Avery Updated",
+      status: "active",
+    });
+    renderDetail({
+      contactLists: [
+        [
+          {
+            id: 12,
+            contact_id: 12,
+            client_id: 42,
+            name: "Avery Desk",
+            title: "AMC Coordinator",
+            status: "active",
+            is_default: true,
+          },
+        ],
+        [
+          {
+            id: 12,
+            contact_id: 12,
+            client_id: 42,
+            name: "Avery Updated",
+            title: "Coordinator",
+            status: "active",
+            is_default: true,
+          },
+        ],
+      ],
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Avery Desk")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit Contact" }));
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Avery Updated" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save Contact" }));
+
+    await waitFor(() => {
+      expect(updateClientContactMock).toHaveBeenCalledWith(12, {
+        name: "Avery Updated",
+        title: "AMC Coordinator",
+        email: null,
+        phone: null,
+        notes: null,
+        is_default: true,
+      });
+    });
+    expect(await screen.findByText("Avery Updated")).toBeInTheDocument();
+  });
+
+  it("deactivates, reactivates, and sets a default contact", async () => {
+    setClientContactStatusMock.mockResolvedValue({});
+    setDefaultClientContactMock.mockResolvedValue({});
+    renderDetail({
+      contacts: [
+        {
+          id: 12,
+          contact_id: 12,
+          client_id: 42,
+          name: "Avery Desk",
+          status: "active",
+          is_default: false,
+        },
+        {
+          id: 13,
+          contact_id: 13,
+          client_id: 42,
+          name: "Morgan Archive",
+          status: "inactive",
+          is_default: false,
+        },
+      ],
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Morgan Archive")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Deactivate Contact" }));
+    expect(setClientContactStatusMock).toHaveBeenCalledWith(12, "inactive");
+
+    fireEvent.click(screen.getByRole("button", { name: "Reactivate Contact" }));
+    expect(setClientContactStatusMock).toHaveBeenCalledWith(13, "active");
+
+    fireEvent.click(screen.getByRole("button", { name: "Set Default" }));
+    expect(setDefaultClientContactMock).toHaveBeenCalledWith(12);
+    expect(screen.getByText("Inactive")).toBeInTheDocument();
   });
 });
