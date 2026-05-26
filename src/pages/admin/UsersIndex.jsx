@@ -144,6 +144,7 @@ const V1_SUPPRESSED_PERMISSION_CATEGORIES = new Set([
 ]);
 
 const PERMISSION_GROUP_LABELS = Object.freeze({
+  work_eligibility: "Work Eligibility",
   orders: "Orders",
   clients: "Clients",
   users: "Users",
@@ -154,6 +155,7 @@ const PERMISSION_GROUP_LABELS = Object.freeze({
 });
 
 const PERMISSION_GROUP_ORDER = Object.freeze([
+  "work_eligibility",
   "orders",
   "clients",
   "users",
@@ -164,7 +166,14 @@ const PERMISSION_GROUP_ORDER = Object.freeze([
   "other",
 ]);
 
+const WORK_ELIGIBILITY_PERMISSION_KEYS = new Set([
+  "orders.assignable_as_appraiser",
+  "orders.assignable_as_reviewer",
+]);
+
 function permissionGroupId(permission) {
+  const key = String(permission?.permission_key || "").trim();
+  if (WORK_ELIGIBILITY_PERMISSION_KEYS.has(key)) return "work_eligibility";
   const category = String(permission?.permission_category || "").toLowerCase();
   if (V1_SUPPRESSED_PERMISSION_CATEGORIES.has(category)) return null;
   if (PERMISSION_GROUP_LABELS[category]) return category;

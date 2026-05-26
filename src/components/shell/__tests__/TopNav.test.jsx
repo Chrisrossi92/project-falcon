@@ -164,6 +164,19 @@ describe("TopNav desktop operational spine navigation", () => {
     expect(within(desktopNav).queryByRole("link", { name: "Users" })).toBeNull();
   });
 
+  it("does not expose Assignments or Relationships from work eligibility permissions alone", () => {
+    permissionState.allowed = new Set([
+      PERMISSIONS.ORDERS_ASSIGNABLE_AS_APPRAISER,
+      PERMISSIONS.ORDERS_ASSIGNABLE_AS_REVIEWER,
+    ]);
+
+    const { container } = renderTopNav();
+    const desktopNav = getDesktopPrimaryNav(container);
+
+    expect(within(desktopNav).queryByRole("link", { name: "Assignments" })).toBeNull();
+    expect(within(desktopNav).queryByRole("link", { name: "Relationships" })).toBeNull();
+  });
+
   it("keeps desktop primary navigation out of the utility top bar", () => {
     const { container } = renderTopNav();
 

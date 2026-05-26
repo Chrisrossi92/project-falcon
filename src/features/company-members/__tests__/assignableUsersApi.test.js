@@ -42,6 +42,8 @@ describe("assignableUsersApi", () => {
       expect.objectContaining({
         id: "user-appraiser",
         user_id: "user-appraiser",
+        can_be_appraiser: true,
+        can_be_reviewer: false,
         fee_split: 42.5,
         split: 42.5,
         default_split_pct: 42.5,

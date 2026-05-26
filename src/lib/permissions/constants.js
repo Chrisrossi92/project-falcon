@@ -45,6 +45,8 @@ export const PERMISSIONS = Object.freeze({
   ORDERS_CANCEL: "orders.cancel",
   ORDERS_VOID: "orders.void",
   ORDERS_EXPORT: "orders.export",
+  ORDERS_ASSIGNABLE_AS_APPRAISER: "orders.assignable_as_appraiser",
+  ORDERS_ASSIGNABLE_AS_REVIEWER: "orders.assignable_as_reviewer",
 
   ASSIGNMENTS_READ: "assignments.read",
   ASSIGNMENTS_ASSIGN_APPRAISER: "assignments.assign_appraiser",

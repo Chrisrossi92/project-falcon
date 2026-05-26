@@ -195,6 +195,18 @@ describe("CommandPalette current registry helper migration", () => {
     expect(screen.queryByText("Open Team Access")).toBeNull();
   });
 
+  it("does not expose hidden surfaces from work eligibility permissions alone", () => {
+    permissionState.allowed = new Set([
+      PERMISSIONS.ORDERS_ASSIGNABLE_AS_APPRAISER,
+      PERMISSIONS.ORDERS_ASSIGNABLE_AS_REVIEWER,
+    ]);
+
+    renderPalette();
+
+    expect(screen.queryByText("Go to Assignments")).toBeNull();
+    expect(screen.queryByText("Go to Relationships")).toBeNull();
+  });
+
   it("preserves loading/error legacy fallback commands without future packet concepts", () => {
     permissionState.loading = true;
     renderPalette();

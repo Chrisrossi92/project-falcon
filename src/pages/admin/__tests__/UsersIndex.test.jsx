@@ -360,6 +360,14 @@ describe("UsersIndex readability", () => {
       {
         role_id: "role-reviewer",
         role_name: "Reviewer",
+        permission_key: "orders.assignable_as_reviewer",
+        permission_category: "orders",
+        permission_label: "Assignable as Reviewer",
+        permission_description: "Can be selected as a reviewer.",
+      },
+      {
+        role_id: "role-reviewer",
+        role_name: "Reviewer",
         permission_key: "workflow.status.approve_review",
         permission_category: "workflow",
         permission_label: "Approve review",
@@ -399,8 +407,10 @@ describe("UsersIndex readability", () => {
     fireEvent.click(within(reviewerRole).getByRole("checkbox"));
 
     expect(await within(accessDialog).findByText("Review / Workflow")).toBeInTheDocument();
+    expect(within(accessDialog).getByText("Work Eligibility")).toBeInTheDocument();
+    expect(within(accessDialog).getByText("Assignable as Reviewer")).toBeInTheDocument();
     expect(within(accessDialog).getByText("Approve review")).toBeInTheDocument();
-    expect(within(accessDialog).getByText("From Reviewer")).toBeInTheDocument();
+    expect(within(accessDialog).getAllByText("From Reviewer").length).toBeGreaterThan(0);
   });
 
   it("saves roles and explicit permission overrides from the access modal", async () => {
@@ -496,6 +506,13 @@ describe("UsersIndex readability", () => {
       {
         role_id: "role-reviewer",
         role_name: "Reviewer",
+        permission_key: "orders.assignable_as_appraiser",
+        permission_category: "orders",
+        permission_label: "Assignable as Appraiser",
+      },
+      {
+        role_id: "role-reviewer",
+        role_name: "Reviewer",
         permission_key: "clients.create",
         permission_category: "clients",
         permission_label: "Create clients",
@@ -516,11 +533,20 @@ describe("UsersIndex readability", () => {
     fireEvent.click(within(adminCard).getByRole("button", { name: "Edit roles" }));
 
     const accessDialog = await screen.findByRole("dialog", { name: "Edit Access" });
+    expect(within(accessDialog).getByText("Work Eligibility")).toBeInTheDocument();
+    expect(within(accessDialog).getByText("Assignable as Appraiser")).toBeInTheDocument();
     expect(within(accessDialog).getByText("Create clients")).toBeInTheDocument();
-    expect(within(accessDialog).getByText("Not granted")).toBeInTheDocument();
     expect(within(accessDialog).queryByText("Read relationships")).toBeNull();
 
+    const appraiserEligibilityPermission = within(accessDialog)
+      .getByText("Assignable as Appraiser")
+      .closest("li");
+    expect(within(appraiserEligibilityPermission).getByText("Not granted")).toBeInTheDocument();
+    fireEvent.click(within(appraiserEligibilityPermission).getByRole("button", { name: "Grant" }));
+    expect(within(appraiserEligibilityPermission).getByText("Granted")).toBeInTheDocument();
+
     const createClientsPermission = within(accessDialog).getByText("Create clients").closest("li");
+    expect(within(createClientsPermission).getByText("Not granted")).toBeInTheDocument();
     fireEvent.click(within(createClientsPermission).getByRole("button", { name: "Grant" }));
 
     expect(within(createClientsPermission).getByText("Granted")).toBeInTheDocument();
@@ -530,7 +556,10 @@ describe("UsersIndex readability", () => {
     await waitFor(() => {
       expect(membersApiMock.saveCompanyMemberPermissionOverrides).toHaveBeenCalledWith(
         "user-admin",
-        [{ permission_key: "clients.create", effect: "grant" }],
+        [
+          { permission_key: "clients.create", effect: "grant" },
+          { permission_key: "orders.assignable_as_appraiser", effect: "grant" },
+        ],
         "Updated from Users",
         expect.any(String)
       );
