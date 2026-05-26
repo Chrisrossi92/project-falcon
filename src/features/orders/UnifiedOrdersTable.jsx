@@ -20,7 +20,6 @@ import {
   markReadyForClient,
 } from "@/lib/services/ordersService";
 import { logNote } from "@/lib/services/activityService";
-import { emitNotification } from "@/lib/services/notificationsService";
 import WorkflowNoteModal from "@/components/orders/WorkflowNoteModal";
 
 import useColumnsConfig from "@/features/orders/columns/useColumnsConfig";
@@ -258,11 +257,6 @@ export default function UnifiedOrdersTable({
 
   const handleSendToReview = useCallback(
     async (order, noteText = "") => {
-      console.log("WORKFLOW NOTE PARENT HANDLER START", {
-        action: "send_to_review",
-        orderId: order?.id ?? null,
-        noteTextPresent: Boolean(noteText.trim()),
-      });
       const orderPk = orderPkOf(order);
       if (!orderPk) {
         toast({ title: "Error", description: "Missing order id.", tone: "error" });
@@ -274,17 +268,8 @@ export default function UnifiedOrdersTable({
         const isResubmission = isReviewResubmission(order);
         if (noteText.trim()) {
           formattedNote = `${isResubmission ? "Resubmission" : "Submission"} note:\n${noteText.trim()}`;
-          console.log("WORKFLOW NOTE BEFORE LOG NOTE", {
-            action: "send_to_review",
-            orderId: order?.id ?? null,
-            noteTextPresent: true,
-          });
           await logNote(orderPk, formattedNote);
         }
-        console.log("WORKFLOW NOTE BEFORE STATUS TRANSITION", {
-          action: "send_to_review",
-          orderId: order?.id ?? null,
-        });
         const updatedOrder = await sendOrderToReview(orderPk, internalUserId || sessionUser?.id, {
           noteText: formattedNote || null,
         });
@@ -311,11 +296,6 @@ export default function UnifiedOrdersTable({
 
   const handleSendBackToAppraiser = useCallback(
     async (order, noteText = "") => {
-      console.log("WORKFLOW NOTE PARENT HANDLER START", {
-        action: "send_back_to_appraiser",
-        orderId: order?.id ?? null,
-        noteTextPresent: Boolean(noteText.trim()),
-      });
       const orderPk = orderPkOf(order);
       if (!orderPk) {
         toast({ title: "Error", description: "Missing order id.", tone: "error" });
@@ -326,17 +306,8 @@ export default function UnifiedOrdersTable({
         let formattedNote = "";
         if (noteText.trim()) {
           formattedNote = `Revision note:\n${noteText.trim()}`;
-          console.log("WORKFLOW NOTE BEFORE LOG NOTE", {
-            action: "send_back_to_appraiser",
-            orderId: order?.id ?? null,
-            noteTextPresent: true,
-          });
           await logNote(orderPk, formattedNote);
         }
-        console.log("WORKFLOW NOTE BEFORE STATUS TRANSITION", {
-          action: "send_back_to_appraiser",
-          orderId: order?.id ?? null,
-        });
         const updatedOrder = await sendOrderBackToAppraiser(orderPk, sessionUser?.id, {
           noteText: formattedNote || null,
         });
@@ -365,12 +336,6 @@ export default function UnifiedOrdersTable({
 
   const confirmWorkflowModal = useCallback(
     async (noteText) => {
-      console.log("WORKFLOW NOTE PARENT CONFIRM ENTRY", {
-        action: workflowModal?.action ?? null,
-        hasOrder: Boolean(workflowModal?.order),
-        orderId: workflowModal?.order?.id ?? null,
-        noteTextPresent: Boolean(noteText?.trim?.()),
-      });
       if (!workflowModal?.order) return;
 
       setWorkflowBusy(true);

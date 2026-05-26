@@ -559,13 +559,17 @@ export default function OrderDetail() {
   );
   const isAppraiserExecutionWorkspace = shellProfile.profileId === SHELL_PROFILE_IDS.MY_WORK;
   const isReviewerReviewWorkspace = shellProfile.profileId === SHELL_PROFILE_IDS.REVIEW_QUEUE;
+  const isOwnerAdminStaffAppraisalShell =
+    shellProfile.profileId === SHELL_PROFILE_IDS.OPERATIONS ||
+    Boolean(shellProfile.appContext?.is_owner || shellProfile.appContext?.is_admin_role);
   const showManagementSurfaces = !isAppraiserExecutionWorkspace && !isReviewerReviewWorkspace;
+  const showAssignmentSurfaces = showManagementSurfaces && !isOwnerAdminStaffAppraisalShell;
   const showDerivedContextSurfaces = showManagementSurfaces && !isReviewerReviewWorkspace;
   const showOrderEditAction = showManagementSurfaces && !isReviewerReviewWorkspace;
   const overviewLabel = isReviewerReviewWorkspace ? "Order Summary" : "Operational Overview";
 
   const canOfferAssignment =
-    showManagementSurfaces &&
+    showAssignmentSurfaces &&
     !permissions.loading &&
     !permissions.error &&
     permissions.hasAllPermissions([
@@ -903,7 +907,7 @@ export default function OrderDetail() {
           </div>
         </div>
 
-        {showManagementSurfaces && (
+        {showAssignmentSurfaces && (
           <OwnerOrderAssignmentsPanel
             orderId={order.id}
             canOfferAssignment={canOfferAssignment}
@@ -911,7 +915,7 @@ export default function OrderDetail() {
           />
         )}
 
-        {showManagementSurfaces && (
+        {showAssignmentSurfaces && (
           <OfferAssignmentModal
             open={offerAssignmentOpen}
             order={order}

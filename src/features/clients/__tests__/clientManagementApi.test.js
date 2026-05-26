@@ -4,6 +4,7 @@ const fetchOrdersWithFiltersMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/api/orders", () => ({
   fetchOrdersWithFilters: fetchOrdersWithFiltersMock,
+  listHistoricalOrders: fetchOrdersWithFiltersMock,
 }));
 
 vi.mock("@/lib/supabaseClient", () => ({
@@ -269,8 +270,6 @@ describe("clientManagementApi assigned order clients", () => {
 
     expect(fetchOrdersWithFiltersMock).toHaveBeenCalledWith({
       appraiserId: "chris-user",
-      includeArchived: true,
-      includeRetiredLifecycle: true,
       orderBy: "created_at",
       ascending: false,
       page: 0,

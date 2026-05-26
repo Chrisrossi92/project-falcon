@@ -22,19 +22,3 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     </SessionContextProvider>
   </React.StrictMode>
 );
-
-// Temporary RLS debug helper
-if (typeof window !== "undefined") {
-  window.falconDebugOrders = async () => {
-    const { data, count, error } = await supabase
-      .from("orders")
-      .select("id, appraiser_id, assigned_to, status", { count: "exact" });
-    console.log("falconDebugOrders -> error:", error);
-    console.log("falconDebugOrders -> count:", count);
-    console.log("falconDebugOrders -> sample:", data?.slice(0, 5));
-    return { data, count, error };
-  };
-}
-
-
-

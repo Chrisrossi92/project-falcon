@@ -1,5 +1,5 @@
 import supabase from "@/lib/supabaseClient";
-import { fetchOrdersWithFilters } from "@/lib/api/orders";
+import { listHistoricalOrders } from "@/lib/api/orders";
 
 function normalizeClientRow(row = {}) {
   const contactMode = row.contact_mode || row.contactMode || "contacts";
@@ -236,10 +236,8 @@ export async function listAssignedOrderClients({
 } = {}) {
   if (!appraiserId) return [];
 
-  const { rows, error } = await fetchOrdersWithFilters({
+  const { rows, error } = await listHistoricalOrders({
     appraiserId,
-    includeArchived: true,
-    includeRetiredLifecycle: true,
     orderBy: "created_at",
     ascending: false,
     page: 0,

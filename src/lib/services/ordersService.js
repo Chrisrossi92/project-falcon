@@ -606,7 +606,6 @@ export async function sendOrderToReview(orderId, actorId, options = {}) {
 }
 
 export async function sendOrderBackToAppraiser(orderId, actorId, options = {}) {
-  console.log("[sendOrderBackToAppraiser] called", { orderId, actorId });
   const actorUserId = actorId || null;
 
   const { data: existingOrder, error: existingOrderError } = await supabase
@@ -672,7 +671,6 @@ export async function sendOrderBackToAppraiser(orderId, actorId, options = {}) {
 
 
 export async function completeOrder(orderId, actorId) {
-  console.log("[completeOrder] called", { orderId, actorId });
   const actorUserId = actorId || null;
 
   const { data: existingOrder, error: existingOrderError } = await supabase

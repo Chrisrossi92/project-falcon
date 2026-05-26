@@ -14,6 +14,7 @@ const permissionState = vi.hoisted(() => ({
 
 const shellProfileState = vi.hoisted(() => ({
   profileId: "operations",
+  appContext: {},
   exposure: undefined,
 }));
 
@@ -32,6 +33,7 @@ vi.mock("@/lib/shell/useShellProfile", () => ({
     shellProfileState.exposure === undefined
       ? {
           profileId: shellProfileState.profileId,
+          appContext: shellProfileState.appContext,
           metadataAuthority: "presentation_only",
           isPresentationOnly: true,
         }
@@ -78,6 +80,7 @@ describe("CommandPalette current registry helper migration", () => {
     permissionState.error = null;
     permissionState.loading = false;
     shellProfileState.profileId = "operations";
+    shellProfileState.appContext = {};
     shellProfileState.exposure = undefined;
   });
 
@@ -85,24 +88,35 @@ describe("CommandPalette current registry helper migration", () => {
     cleanup();
   });
 
-  it("renders current commands in the existing order and preserves the dynamic Clients route", () => {
+  it("suppresses V1 hidden surfaces in the owner/admin operations shell and preserves the dynamic Clients route", () => {
     permissionState.allowed = new Set(allCommandPermissions);
     const { onNavigate } = renderPalette({ clientsPath: "/clients/cards" });
 
     expect(commandLabels()).toEqual([
       "Go to Ordersg o",
       "Go to Calendarg c",
-      "Go to Assignmentsg a",
       "Go to Clientsg l",
-      "Go to Relationshipsg r",
       "Open Team Accessg u",
       "Open Account Settings,",
       "Open Notification Settings",
     ]);
+    expect(screen.queryByText("Go to Assignments")).toBeNull();
+    expect(screen.queryByText("Go to Relationships")).toBeNull();
 
     fireEvent.click(screen.getByText("Go to Clients"));
 
     expect(onNavigate).toHaveBeenCalledWith("/clients/cards");
+  });
+
+  it("suppresses V1 hidden surfaces when owner/admin authority is explicit in app context", () => {
+    shellProfileState.profileId = "custom_operations";
+    shellProfileState.appContext = { is_owner: true };
+    permissionState.allowed = new Set(allCommandPermissions);
+
+    renderPalette();
+
+    expect(screen.queryByText("Go to Assignments")).toBeNull();
+    expect(screen.queryByText("Go to Relationships")).toBeNull();
   });
 
   it("preserves current flat command order for unknown shell profiles", () => {
@@ -216,6 +230,7 @@ describe("CommandPalette current registry helper migration", () => {
   });
 
   it("preserves active search filtering in current command order", () => {
+    shellProfileState.profileId = "unknown_profile";
     permissionState.allowed = new Set(allCommandPermissions);
     renderPalette();
     const input = screen.getByRole("textbox");

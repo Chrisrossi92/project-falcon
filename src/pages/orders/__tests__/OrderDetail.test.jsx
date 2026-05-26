@@ -19,6 +19,7 @@ const refreshOperationalInputsMock = vi.hoisted(() => vi.fn());
 const permissionKeysMock = vi.hoisted(() => []);
 const shellProfileMock = vi.hoisted(() => ({
   profileId: "operations",
+  appContext: {},
   loading: false,
   error: null,
 }));
@@ -210,6 +211,7 @@ describe("OrderDetail site visit save", () => {
     );
     Object.assign(shellProfileMock, {
       profileId: "operations",
+      appContext: {},
       loading: false,
       error: null,
     });
@@ -496,7 +498,7 @@ describe("OrderDetail site visit save", () => {
     expect(screen.queryByText("No files loaded")).not.toBeInTheDocument();
   });
 
-  it("preserves owner/admin management surfaces when permissions allow them", () => {
+  it("preserves owner/admin management surfaces while suppressing V1 assignment surfaces", () => {
     permissionKeysMock.push(
       "orders.archive",
       "order_company_assignments.offer",
@@ -507,8 +509,8 @@ describe("OrderDetail site visit save", () => {
 
     render(<OrderDetail />);
 
-    expect(screen.getByRole("button", { name: "Offer Assignment" })).toBeInTheDocument();
-    expect(screen.getByTestId("assignments-panel")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Offer Assignment" })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("assignments-panel")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Operational context controls")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Edit" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Archive order" })).toBeInTheDocument();

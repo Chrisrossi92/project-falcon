@@ -52,12 +52,17 @@ export default function CommandPalette({ open, onClose, onNavigate, clientsPath 
   const shellProfileId = !loading && !error
     ? shellProfilePresentation?.profileId ?? shellProfilePresentation?.id
     : null;
+  const appContext = shellProfilePresentation?.appContext;
+  const isStaffAppraisalShell =
+    shellProfileId === "my_work" ||
+    shellProfileId === "operations" ||
+    Boolean(appContext?.is_owner || appContext?.is_admin_role);
   const visibleCommands = useMemo(
     () =>
-      shellProfileId === "my_work"
+      isStaffAppraisalShell
         ? commands.filter((command) => !["assignments", "relationships"].includes(command.id))
         : commands,
-    [commands, shellProfileId],
+    [commands, isStaffAppraisalShell],
   );
   const orderedCommands = useMemo(
     () => getCurrentShellCommandPaletteCommands(visibleCommands, shellProfileId),
