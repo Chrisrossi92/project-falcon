@@ -54,11 +54,35 @@ function withSiteVisit(order, siteVisitAt, serverPatch = {}) {
   };
 }
 
+function withWorkflowStatus(order, updatedOrder, fallbackStatus) {
+  const normalizedStatus = normalizeOrderStatus(updatedOrder?.status ?? fallbackStatus);
+  return {
+    ...order,
+    ...(updatedOrder || {}),
+    ...(normalizedStatus
+      ? {
+          status: normalizedStatus,
+          status_normalized: normalizedStatus,
+        }
+      : {}),
+  };
+}
+
+function matchesStatusFilters(order, statusFilters = []) {
+  if (!Array.isArray(statusFilters) || statusFilters.length === 0) return true;
+  const normalizedStatus = normalizeOrderStatus(order?.status_normalized || order?.status);
+  return statusFilters.map(normalizeOrderStatus).includes(normalizedStatus);
+}
+
 const APPRAISER_DASHBOARD_STATUSES = [
   ORDER_STATUS.NEW,
   ORDER_STATUS.IN_PROGRESS,
   ORDER_STATUS.NEEDS_REVISIONS,
 ];
+
+function isReviewResubmission(order) {
+  return normalizeOrderStatus(order?.status) === ORDER_STATUS.NEEDS_REVISIONS;
+}
 
 export default function UnifiedOrdersTable({
   role: roleProp,
@@ -78,6 +102,7 @@ export default function UnifiedOrdersTable({
   tableSummary: tableSummaryOverride = null,
   emptyTitle = null,
   emptyDescription = null,
+  onOrderChanged,
 }) {
   const { user: sessionUser } = useSession() || {};
   const { toast } = useToast();
@@ -178,17 +203,53 @@ export default function UnifiedOrdersTable({
       }),
     [optimisticOrderPatches, sourceData],
   );
-  const tableCount = hasRowsOverride ? rowsOverride.length : count;
+  const effectiveStatusFilters = useMemo(
+    () => seedFinal.statusIn || [],
+    [seedFinal.statusIn],
+  );
+  const filteredTableData = useMemo(
+    () => tableData.filter((row) => matchesStatusFilters(row, effectiveStatusFilters)),
+    [effectiveStatusFilters, tableData],
+  );
+  const tableCount = hasRowsOverride ? filteredTableData.length : count;
   const tableLoading = hasRowsOverride ? false : loading;
   const tableError = hasRowsOverride ? null : error;
   const pageStart = hasRowsOverride ? (tableFilters.page || 0) * (tableFilters.pageSize || pageSize) : 0;
   const pageEnd = pageStart + (tableFilters.pageSize || pageSize);
-  const displayData = hasRowsOverride ? tableData.slice(pageStart, pageEnd) : tableData;
+  const displayData = hasRowsOverride ? filteredTableData.slice(pageStart, pageEnd) : filteredTableData;
   const totalPages = Math.max(1, Math.ceil((tableCount || 0) / (tableFilters.pageSize || pageSize)));
   const [expandedId, setExpandedId] = useState(null);
 
   const refresh = useCallback(() => setRefreshTick((x) => x + 1), []);
   const go = (p) => setTableFilters((f) => ({ ...f, page: Math.min(Math.max(0, p), totalPages - 1) }));
+
+  const applyWorkflowOrderUpdate = useCallback(
+    (order, updatedOrder, fallbackStatus) => {
+      const orderPk = orderPkOf(order);
+      if (!orderPk) return order;
+
+      const nextOrder = withWorkflowStatus(order, updatedOrder, fallbackStatus);
+      const patch = { ...(updatedOrder || {}) };
+      if (nextOrder.status) {
+        patch.status = nextOrder.status;
+        patch.status_normalized = nextOrder.status_normalized || nextOrder.status;
+      }
+
+      setOptimisticOrderPatches((current) => ({
+        ...current,
+        [orderPk]: {
+          ...(current[orderPk] || {}),
+          ...patch,
+        },
+      }));
+      onOrderChanged?.(nextOrder, {
+        status: "success",
+        previousOrder: order,
+      });
+      return nextOrder;
+    },
+    [onOrderChanged],
+  );
 
   const closeWorkflowModal = useCallback(() => {
     if (workflowBusy) return;
@@ -210,8 +271,9 @@ export default function UnifiedOrdersTable({
 
       try {
         let formattedNote = "";
+        const isResubmission = isReviewResubmission(order);
         if (noteText.trim()) {
-          formattedNote = `Resubmission note:\n${noteText.trim()}`;
+          formattedNote = `${isResubmission ? "Resubmission" : "Submission"} note:\n${noteText.trim()}`;
           console.log("WORKFLOW NOTE BEFORE LOG NOTE", {
             action: "send_to_review",
             orderId: order?.id ?? null,
@@ -223,13 +285,16 @@ export default function UnifiedOrdersTable({
           action: "send_to_review",
           orderId: order?.id ?? null,
         });
-        await sendOrderToReview(orderPk, internalUserId || sessionUser?.id, {
+        const updatedOrder = await sendOrderToReview(orderPk, internalUserId || sessionUser?.id, {
           noteText: formattedNote || null,
         });
+        applyWorkflowOrderUpdate(order, updatedOrder, ORDER_STATUS.IN_REVIEW);
         refresh();
         toast({
-          title: "Sent to review",
-          description: `Order ${order.order_number || orderPk} was sent to review.`,
+          title: isResubmission ? "Resubmitted to review" : "Sent to review",
+          description: isResubmission
+            ? `Order ${order.order_number || orderPk} was resubmitted for review.`
+            : `Order ${order.order_number || orderPk} was sent to review.`,
           tone: "success",
         });
       } catch (err) {
@@ -241,7 +306,7 @@ export default function UnifiedOrdersTable({
         });
       }
     },
-    [internalUserId, sessionUser?.id, refresh, toast]
+    [internalUserId, sessionUser?.id, refresh, toast, applyWorkflowOrderUpdate]
   );
 
   const handleSendBackToAppraiser = useCallback(
@@ -272,9 +337,10 @@ export default function UnifiedOrdersTable({
           action: "send_back_to_appraiser",
           orderId: order?.id ?? null,
         });
-        await sendOrderBackToAppraiser(orderPk, sessionUser?.id, {
+        const updatedOrder = await sendOrderBackToAppraiser(orderPk, sessionUser?.id, {
           noteText: formattedNote || null,
         });
+        applyWorkflowOrderUpdate(order, updatedOrder, ORDER_STATUS.NEEDS_REVISIONS);
         refresh();
         toast({
           title: "Revisions requested",
@@ -290,7 +356,7 @@ export default function UnifiedOrdersTable({
         });
       }
     },
-    [sessionUser?.id, refresh, toast]
+    [sessionUser?.id, refresh, toast, applyWorkflowOrderUpdate]
   );
 
   const openWorkflowModal = useCallback((action, order) => {
@@ -331,7 +397,8 @@ export default function UnifiedOrdersTable({
       }
 
       try {
-        await completeOrder(orderPk, sessionUser?.id);
+        const updatedOrder = await completeOrder(orderPk, sessionUser?.id);
+        applyWorkflowOrderUpdate(order, updatedOrder, ORDER_STATUS.COMPLETED);
         refresh();
         toast({
           title: "Order completed",
@@ -347,7 +414,7 @@ export default function UnifiedOrdersTable({
         });
       }
     },
-    [sessionUser?.id, refresh, toast]
+    [sessionUser?.id, refresh, toast, applyWorkflowOrderUpdate]
   );
 
   const handleClearReview = useCallback(
@@ -359,7 +426,8 @@ export default function UnifiedOrdersTable({
       }
 
       try {
-        await clearReview(orderPk, sessionUser?.id);
+        const updatedOrder = await clearReview(orderPk, sessionUser?.id);
+        applyWorkflowOrderUpdate(order, updatedOrder, ORDER_STATUS.REVIEW_CLEARED);
         refresh();
         toast({
           title: "Review cleared",
@@ -375,7 +443,7 @@ export default function UnifiedOrdersTable({
         });
       }
     },
-    [sessionUser?.id, refresh, toast]
+    [sessionUser?.id, refresh, toast, applyWorkflowOrderUpdate]
   );
 
   const handleRequestFinalApproval = useCallback(
@@ -387,7 +455,8 @@ export default function UnifiedOrdersTable({
       }
 
       try {
-        await requestFinalApproval(orderPk, sessionUser?.id);
+        const updatedOrder = await requestFinalApproval(orderPk, sessionUser?.id);
+        applyWorkflowOrderUpdate(order, updatedOrder, ORDER_STATUS.PENDING_FINAL_APPROVAL);
         refresh();
         toast({
           title: "Final approval requested",
@@ -403,7 +472,7 @@ export default function UnifiedOrdersTable({
         });
       }
     },
-    [sessionUser?.id, refresh, toast]
+    [sessionUser?.id, refresh, toast, applyWorkflowOrderUpdate]
   );
 
   const handleReadyForClient = useCallback(
@@ -415,7 +484,8 @@ export default function UnifiedOrdersTable({
       }
 
       try {
-        await markReadyForClient(orderPk, sessionUser?.id);
+        const updatedOrder = await markReadyForClient(orderPk, sessionUser?.id);
+        applyWorkflowOrderUpdate(order, updatedOrder, ORDER_STATUS.READY_FOR_CLIENT);
         refresh();
         toast({
           title: "Marked ready for client",
@@ -431,7 +501,7 @@ export default function UnifiedOrdersTable({
         });
       }
     },
-    [sessionUser?.id, refresh, toast]
+    [sessionUser?.id, refresh, toast, applyWorkflowOrderUpdate]
   );
 
   const handleSetSiteVisit = useCallback(
@@ -551,6 +621,19 @@ export default function UnifiedOrdersTable({
   const emptyStateDescription = activeQueue
     ? "Clear the queue filter to return to the full active worklist."
     : emptyDescription || "The current filters do not have any active work.";
+  const workflowModalIsRequestingRevisions = workflowModal?.action === "send_back_to_appraiser";
+  const workflowModalIsResubmission =
+    workflowModal?.action === "send_to_review" && isReviewResubmission(workflowModal?.order);
+  const workflowModalTitle = workflowModalIsRequestingRevisions
+    ? "Request Revisions"
+    : workflowModalIsResubmission
+      ? "Resubmit to Review"
+      : "Send to Review";
+  const workflowModalDescription = workflowModalIsRequestingRevisions
+    ? "Add an optional revision note before requesting changes from the appraiser."
+    : workflowModalIsResubmission
+      ? "Add an optional resubmission note before sending the revised order back to review."
+      : "Add an optional submission note before sending the order to review.";
 
   return (
     <>
@@ -565,8 +648,10 @@ export default function UnifiedOrdersTable({
         <div className="border-b border-slate-200 bg-white px-4 py-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
-              <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">{tableEyebrow}</div>
-              <div className="mt-1 flex flex-wrap items-center gap-2">
+              {tableEyebrow ? (
+                <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">{tableEyebrow}</div>
+              ) : null}
+              <div className={`${tableEyebrow ? "mt-1" : ""} flex flex-wrap items-center gap-2`}>
                 <span className="text-sm font-semibold text-slate-950">{tableLabel}</span>
                 <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
                   {tableCount || 0} total
@@ -580,7 +665,7 @@ export default function UnifiedOrdersTable({
                   </span>
                 ) : null}
               </div>
-              <p className="mt-1 text-xs text-slate-500">{tableSummary}</p>
+              {tableSummary ? <p className="mt-1 text-xs text-slate-500">{tableSummary}</p> : null}
             </div>
             <div className="text-xs font-medium text-slate-500">
               Page {tableFilters.page + 1} of {totalPages}
@@ -741,13 +826,9 @@ export default function UnifiedOrdersTable({
       <WorkflowNoteModal
         open={Boolean(workflowModal)}
         busy={workflowBusy}
-        title={workflowModal?.action === "send_back_to_appraiser" ? "Request Revisions" : "Send to Review"}
-        description={
-          workflowModal?.action === "send_back_to_appraiser"
-            ? "Add an optional revision note before requesting changes from the appraiser."
-            : "Add an optional resubmission note before sending the order to review."
-        }
-        confirmLabel={workflowModal?.action === "send_back_to_appraiser" ? "Request Revisions" : "Send to Review"}
+        title={workflowModalTitle}
+        description={workflowModalDescription}
+        confirmLabel={workflowModalTitle}
         onCancel={closeWorkflowModal}
         onConfirm={confirmWorkflowModal}
       />

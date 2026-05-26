@@ -77,7 +77,7 @@ export const shellNavigationGroupEntries = freezeArray([
         label: 'Management',
         navEntryIds: ['clients.primary', 'relationships', 'users'],
         notes: [
-          'Business relationship, client context, and Team Access surfaces remain secondary to daily triage.',
+          'Business relationship, client context, and Users surfaces remain secondary to daily triage.',
         ],
       },
       {
@@ -114,7 +114,7 @@ export const shellNavigationGroupEntries = freezeArray([
         label: 'Support',
         navEntryIds: ['clients.primary', 'users', 'settings'],
         notes: [
-          'Assigned-safe client context, read-only Team Access, and personal settings stay secondary when available.',
+          'Assigned-safe client context, read-only staff directory, and personal settings stay secondary when available.',
         ],
       },
     ],

@@ -11,7 +11,12 @@ import {
 } from "@/components/workspace/WorkspaceState";
 import { useCan } from "@/lib/hooks/usePermissions";
 import { PERMISSIONS } from "@/lib/permissions/constants";
-import { listClientManagementClients } from "@/features/clients/clientManagementApi";
+import { useShellProfile } from "@/lib/shell/useShellProfile";
+import { SHELL_PROFILE_IDS } from "@/lib/shell/resolveShellProfile";
+import {
+  listAssignedOrderClients,
+  listClientManagementClients,
+} from "@/features/clients/clientManagementApi";
 
 const normalizeCategory = (raw) => {
   const v = (raw || "").toLowerCase();
@@ -38,6 +43,9 @@ const sortLabels = {
 export default function ClientsIndex() {
   const canCreateClientsPermission = useCan(PERMISSIONS.CLIENTS_CREATE);
   const canCreateClients = canCreateClientsPermission.allowed;
+  const shellProfile = useShellProfile();
+  const isAppraiserClientsView = shellProfile.profileId === SHELL_PROFILE_IDS.MY_WORK;
+  const appraiserId = shellProfile.appContext?.user_id || null;
   const [baseRows, setBaseRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
@@ -54,11 +62,18 @@ export default function ClientsIndex() {
       try {
         setLoading(true);
         setErr(null);
-        const rows = await listClientManagementClients({
-          search,
-          category: categoryFilter,
-          sort,
-        });
+        const rows = isAppraiserClientsView
+          ? await listAssignedOrderClients({
+              search,
+              category: categoryFilter,
+              sort,
+              appraiserId,
+            })
+          : await listClientManagementClients({
+              search,
+              category: categoryFilter,
+              sort,
+            });
 
         if (!cancelled) {
           setBaseRows(rows.map((row) => ({
@@ -77,7 +92,7 @@ export default function ClientsIndex() {
     return () => {
       cancelled = true;
     };
-  }, [search, categoryFilter, sort]);
+  }, [search, categoryFilter, sort, isAppraiserClientsView, appraiserId]);
 
   const gridRows = useMemo(() => {
     let out = [...baseRows];
@@ -103,14 +118,15 @@ export default function ClientsIndex() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
             <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Relationship Management
+              {isAppraiserClientsView ? "Assigned Client Work" : "Relationship Management"}
             </div>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">
-              Clients Workspace
+              {isAppraiserClientsView ? "Clients" : "Clients Workspace"}
             </h1>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              Find client, lender, and AMC relationships for current order
-              coordination.
+              {isAppraiserClientsView
+                ? "Clients connected to orders assigned to you."
+                : "Find client, lender, and AMC relationships for current order coordination."}
             </p>
           </div>
 
@@ -120,7 +136,7 @@ export default function ClientsIndex() {
           >
             <WorkspaceContextTile
               label="Work view"
-              value="Client relationships"
+              value={isAppraiserClientsView ? "Assigned order clients" : "Client relationships"}
               valueClassName="mt-0.5 text-slate-900"
             />
             <WorkspaceContextTile
@@ -150,11 +166,13 @@ export default function ClientsIndex() {
               Relationship Controls
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              Search and filter the current client relationship list.
+              {isAppraiserClientsView
+                ? "Search clients from your assigned order history."
+                : "Search and filter the current client relationship list."}
             </p>
           </div>
 
-          {canCreateClients && (
+          {canCreateClients && !isAppraiserClientsView && (
             <Link
               to="/clients/new"
               className="inline-flex items-center justify-center rounded-md border border-slate-900 bg-slate-900 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800"

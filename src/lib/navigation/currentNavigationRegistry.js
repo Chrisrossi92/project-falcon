@@ -410,7 +410,7 @@ export const currentLiveNavigationEntries = freezeArray([
 
   createEntry({
     id: 'users',
-    label: 'Team Access',
+    label: 'Users',
     path: '/users',
     order: 70,
     surfaces: [
@@ -423,7 +423,7 @@ export const currentLiveNavigationEntries = freezeArray([
     routeGate: gate(CURRENT_NAV_GATE_TYPES.PERMISSION, [PERMISSIONS.USERS_READ]),
     command: {
       id: 'users',
-      label: 'Open Team Access',
+      label: 'Open Users',
       hint: 'g u',
       path: '/users',
       gate: gate(CURRENT_NAV_GATE_TYPES.ANY_PERMISSION, [
@@ -431,7 +431,7 @@ export const currentLiveNavigationEntries = freezeArray([
         PERMISSIONS.NAVIGATION_USERS_VIEW,
       ]),
     },
-    notes: ['The /users route hosts Team Access invitation management.'],
+    notes: ['The /users route hosts company user and staff directory views.'],
   }),
 
   createEntry({

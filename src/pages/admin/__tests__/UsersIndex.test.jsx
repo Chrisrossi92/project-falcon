@@ -102,6 +102,52 @@ const appraiserMember = {
   can_reactivate: false,
 };
 
+const adminMember = {
+  user_id: "user-admin",
+  membership_id: "membership-admin",
+  display_name: "Ari Admin",
+  email: "ari@example.com",
+  membership_status: "active",
+  joined_at: "2026-05-02T13:00:00Z",
+  auth_linked: true,
+  is_owner: false,
+  role_assignments: [
+    {
+      role_id: "role-admin",
+      role_name: "Admin",
+      is_owner_role: false,
+      is_primary: true,
+      status: "active",
+    },
+  ],
+  can_update_roles: true,
+  can_deactivate: true,
+  can_reactivate: false,
+};
+
+const reviewerMember = {
+  user_id: "user-reviewer",
+  membership_id: "membership-reviewer",
+  display_name: "Riley Reviewer",
+  email: "riley@example.com",
+  membership_status: "active",
+  joined_at: "2026-05-02T14:00:00Z",
+  auth_linked: true,
+  is_owner: false,
+  role_assignments: [
+    {
+      role_id: "role-reviewer",
+      role_name: "Reviewer",
+      is_owner_role: false,
+      is_primary: true,
+      status: "active",
+    },
+  ],
+  can_update_roles: true,
+  can_deactivate: true,
+  can_reactivate: false,
+};
+
 const inactiveMember = {
   user_id: "user-inactive",
   membership_id: "membership-inactive",
@@ -155,12 +201,14 @@ function memberArticle(name) {
   return screen.getAllByText(name).map((node) => node.closest("article")).find(Boolean);
 }
 
-describe("UsersIndex Team Access readability", () => {
+describe("UsersIndex readability", () => {
   beforeEach(() => {
     permissionsState.allowed = true;
     shellProfileState.profileId = "operations";
     membersApiMock.listCompanyMembers.mockResolvedValue([
       ownerMember,
+      adminMember,
+      reviewerMember,
       appraiserMember,
       inactiveMember,
     ]);
@@ -185,6 +233,8 @@ describe("UsersIndex Team Access readability", () => {
 
     const activeSection = await screen.findByText("Active Team Members");
     expect(activeSection).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Users" })).toBeInTheDocument();
+    expect(screen.getByText(/Manage company users, roles, and invitations/)).toBeInTheDocument();
     expect(screen.getByText("People with active current-company membership.")).toBeInTheDocument();
     expect(screen.getAllByText("Olivia Owner").length).toBeGreaterThan(0);
     expect(screen.getByText("Alex Appraiser")).toBeInTheDocument();
@@ -250,13 +300,14 @@ describe("UsersIndex Team Access readability", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Invite Member" }));
 
-    expect(await screen.findByRole("dialog", { name: "Invite Member" })).toBeInTheDocument();
+    const inviteDialog = await screen.findByRole("dialog", { name: "Invite Member" });
+    expect(inviteDialog).toBeInTheDocument();
     expect(screen.getByText(/Access activates only after the recipient accepts/)).toBeInTheDocument();
     expect(screen.getByText("The invited person appears as pending until they accept.")).toBeInTheDocument();
     expect(screen.getByText(/backend permissions remain authoritative/i)).toBeInTheDocument();
 
-    const adminRole = screen.getByText("Admin").closest("label");
-    const reviewerRole = screen.getByText("Reviewer").closest("label");
+    const adminRole = within(inviteDialog).getByText("Admin").closest("label");
+    const reviewerRole = within(inviteDialog).getByText("Reviewer").closest("label");
 
     fireEvent.click(within(adminRole).getByRole("checkbox"));
     fireEvent.click(within(reviewerRole).getByRole("checkbox"));
@@ -291,23 +342,41 @@ describe("UsersIndex Team Access readability", () => {
     expect(invitationsApiMock.sendCompanyInvitation).not.toHaveBeenCalled();
   });
 
-  it("renders appraiser Team Access as a read-only staff directory", async () => {
+  it("renders appraiser Users page as a read-only staff directory", async () => {
     shellProfileState.profileId = "my_work";
 
     renderUsersIndex();
 
-    await screen.findByText("Active Team Members");
+    await screen.findByRole("heading", { name: "Owner" });
 
-    expect(screen.getByText(/View current-company teammates and contact context/)).toBeInTheDocument();
-    expect(screen.getByText("Read-only directory mode.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Staff Directory" })).toBeInTheDocument();
+    expect(screen.getByText("Current company contacts.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Admin" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Reviewers" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Appraisers" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Show inactive")).toBeNull();
+    expect(screen.queryByText("Active Members")).toBeNull();
+    expect(screen.queryByText("Members Shown")).toBeNull();
+    expect(screen.queryByText("Access Model")).toBeNull();
+    expect(screen.queryByText("Members")).toBeNull();
+    expect(screen.queryByText("Membership")).toBeNull();
+    expect(screen.queryByText("Access summary")).toBeNull();
+    expect(screen.queryByText("Login linked")).toBeNull();
+    expect(screen.queryByText("Joined")).toBeNull();
+    expect(screen.queryByText(/Profile fields are read-only/)).toBeNull();
     expect(screen.queryByText("Pending Invitations")).toBeNull();
     expect(screen.queryByRole("button", { name: "Invite Member" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Edit roles" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Deactivate" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Reactivate" })).toBeNull();
     expect(screen.getByText("Olivia Owner")).toBeInTheDocument();
+    expect(screen.getByText("Ari Admin")).toBeInTheDocument();
+    expect(screen.getByText("Riley Reviewer")).toBeInTheDocument();
     expect(screen.getByText("Alex Appraiser")).toBeInTheDocument();
+    expect(screen.getByText("owner@example.com")).toBeInTheDocument();
+    expect(screen.getByText("ari@example.com")).toBeInTheDocument();
+    expect(screen.getByText("riley@example.com")).toBeInTheDocument();
+    expect(screen.getByText("alex@example.com")).toBeInTheDocument();
     expect(screen.queryByText("Inactive Irene")).toBeNull();
     expect(invitationsApiMock.listCompanyInvitations).not.toHaveBeenCalled();
     expect(membersApiMock.setCompanyMemberStatus).not.toHaveBeenCalled();

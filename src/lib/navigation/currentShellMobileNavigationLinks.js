@@ -2,6 +2,7 @@ import {
   SHELL_NAVIGATION_GROUP_STATUSES,
   getShellNavigationGroups,
 } from './shellNavigationGroups.js';
+import { applyShellNavigationLabels } from './shellNavigationLabels.js';
 
 const freezeArray = (items = []) => Object.freeze([...items]);
 
@@ -24,11 +25,13 @@ export function getCurrentShellMobileNavigationLinks(visibleLinks = [], profileI
       }
 
       orderedLinkIds.add(navEntryId);
-      return [link];
+      return [applyShellNavigationLabels(link, profileId)];
     }),
   );
 
-  const remainingLinks = links.filter((link) => !orderedLinkIds.has(link.id));
+  const remainingLinks = links
+    .filter((link) => !orderedLinkIds.has(link.id))
+    .map((link) => applyShellNavigationLabels(link, profileId));
 
   return freezeArray([...prioritizedLinks, ...remainingLinks]);
 }

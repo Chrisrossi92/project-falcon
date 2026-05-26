@@ -1,13 +1,24 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import SmartActionsControl from "../components/SmartActionsControl";
 import UnifiedOrdersTable from "../UnifiedOrdersTable";
 
 const useOrdersMock = vi.hoisted(() => vi.fn());
 const useColumnsConfigMock = vi.hoisted(() => vi.fn());
 const updateSiteVisitAtMock = vi.hoisted(() => vi.fn());
+const sendOrderToReviewMock = vi.hoisted(() => vi.fn());
+const orderWorkflowMocks = vi.hoisted(() => ({
+  sendOrderBackToAppraiser: vi.fn(),
+  completeOrder: vi.fn(),
+  clearReview: vi.fn(),
+  requestFinalApproval: vi.fn(),
+  markReadyForClient: vi.fn(),
+}));
+const logNoteMock = vi.hoisted(() => vi.fn());
+const emitNotificationMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/hooks/useSession", () => ({
   default: () => ({ user: { id: "auth-user-1" } }),
@@ -33,6 +44,23 @@ vi.mock("@/lib/api/orders", () => ({
   updateSiteVisitAt: updateSiteVisitAtMock,
 }));
 
+vi.mock("@/lib/services/ordersService", () => ({
+  sendOrderToReview: sendOrderToReviewMock,
+  sendOrderBackToAppraiser: orderWorkflowMocks.sendOrderBackToAppraiser,
+  completeOrder: orderWorkflowMocks.completeOrder,
+  clearReview: orderWorkflowMocks.clearReview,
+  requestFinalApproval: orderWorkflowMocks.requestFinalApproval,
+  markReadyForClient: orderWorkflowMocks.markReadyForClient,
+}));
+
+vi.mock("@/lib/services/activityService", () => ({
+  logNote: logNoteMock,
+}));
+
+vi.mock("@/lib/services/notificationsService", () => ({
+  emitNotification: emitNotificationMock,
+}));
+
 vi.mock("@/features/auth/useCurrentUserAppContext", () => ({
   useCurrentUserAppContext: () => ({
     loading: false,
@@ -54,7 +82,18 @@ vi.mock("@/components/orders/drawer/OrderDrawerContent", () => ({
 }));
 
 vi.mock("@/components/orders/WorkflowNoteModal", () => ({
-  default: () => null,
+  default: ({ open, title, description, confirmLabel, onConfirm }) => {
+    if (!open) return null;
+
+    return (
+      <div role="dialog" aria-label={title}>
+        <p>{description}</p>
+        <button type="button" onClick={() => onConfirm("Ready for review")}>
+          {confirmLabel}
+        </button>
+      </div>
+    );
+  },
 }));
 
 const rows = [
@@ -114,6 +153,10 @@ describe("UnifiedOrdersTable presentation", () => {
     useOrdersMock.mockReset();
     useColumnsConfigMock.mockReset();
     updateSiteVisitAtMock.mockReset();
+    sendOrderToReviewMock.mockReset();
+    Object.values(orderWorkflowMocks).forEach((mock) => mock.mockReset());
+    logNoteMock.mockReset();
+    emitNotificationMock.mockReset();
   });
 
   it("renders the active table chrome without changing loaded rows", () => {
@@ -304,5 +347,259 @@ describe("UnifiedOrdersTable presentation", () => {
       expect.objectContaining({ status: "error" }),
     );
     consoleErrorSpy.mockRestore();
+  });
+
+  it("keeps Smart Action button clicks from opening the row drawer", () => {
+    const smartAction = vi.fn();
+    useColumnsConfigMock.mockReturnValue([
+      {
+        key: "order",
+        width: "minmax(140px,1fr)",
+        header: () => "Order / Status",
+        cell: (order) => order.order_number,
+      },
+      {
+        key: "actions",
+        width: "minmax(140px,1fr)",
+        header: () => "Actions",
+        cell: () => (
+          <SmartActionsControl
+            actions={[
+              {
+                id: "send-to-review",
+                label: "Send to Review",
+                visible: true,
+                onClick: smartAction,
+              },
+            ]}
+          />
+        ),
+      },
+    ]);
+
+    renderTable({ rowsOverride: [rows[0]] });
+
+    fireEvent.click(screen.getByRole("button", { name: "Send to Review" }));
+
+    expect(smartAction).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText("Drawer for 2026001")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("2026001"));
+
+    expect(screen.getByText("Drawer for 2026001")).toBeInTheDocument();
+  });
+
+  it("keeps Smart Action dropdown selections from opening the row drawer", () => {
+    const firstAction = vi.fn();
+    const secondAction = vi.fn();
+    useColumnsConfigMock.mockReturnValue([
+      {
+        key: "order",
+        width: "minmax(140px,1fr)",
+        header: () => "Order / Status",
+        cell: (order) => order.order_number,
+      },
+      {
+        key: "actions",
+        width: "minmax(140px,1fr)",
+        header: () => "Actions",
+        cell: () => (
+          <SmartActionsControl
+            actions={[
+              {
+                id: "send-to-review",
+                label: "Send to Review",
+                visible: true,
+                isPrimary: true,
+                onClick: firstAction,
+              },
+              {
+                id: "ready-for-client",
+                label: "Ready for Client",
+                visible: true,
+                onClick: secondAction,
+              },
+            ]}
+          />
+        ),
+      },
+    ]);
+
+    renderTable({ rowsOverride: [rows[0]] });
+
+    fireEvent.click(screen.getByRole("button", { name: "Send to Review" }));
+
+    expect(screen.getByRole("button", { name: "Ready for Client" })).toBeInTheDocument();
+    expect(screen.queryByText("Drawer for 2026001")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Ready for Client" }));
+
+    expect(secondAction).toHaveBeenCalledTimes(1);
+    expect(firstAction).not.toHaveBeenCalled();
+    expect(screen.queryByText("Drawer for 2026001")).not.toBeInTheDocument();
+  });
+
+  it("optimistically updates reviewer Request Revisions rows after the action succeeds", async () => {
+    orderWorkflowMocks.sendOrderBackToAppraiser.mockResolvedValue({
+      id: "order-2",
+      status: "needs_revisions",
+    });
+    useColumnsConfigMock.mockImplementation((_role, actions) => [
+      {
+        key: "status",
+        width: "minmax(140px,1fr)",
+        header: () => "Status",
+        cell: (order) => <span>{order.status}</span>,
+      },
+      {
+        key: "actions",
+        width: "minmax(140px,1fr)",
+        header: () => "Actions",
+        cell: (order) => (
+          <SmartActionsControl
+            actions={[
+              {
+                id: "request-revisions",
+                label: "Request Revisions",
+                visible: order.status === "in_review",
+                onClick: () => actions.onSendBackToAppraiser(order),
+              },
+            ]}
+          />
+        ),
+      },
+    ]);
+
+    renderTable({
+      role: "reviewer",
+      rowsOverride: [rows[1]],
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Request Revisions" }));
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Request Revisions" })).getByRole("button", { name: "Request Revisions" }));
+
+    await waitFor(() => expect(screen.getByText("Needs Revisions")).toBeInTheDocument());
+    expect(orderWorkflowMocks.sendOrderBackToAppraiser).toHaveBeenCalledWith("order-2", "auth-user-1", {
+      noteText: "Revision note:\nReady for review",
+    });
+    expect(screen.queryByRole("button", { name: "Request Revisions" })).not.toBeInTheDocument();
+  });
+
+  it("removes reviewer Clear Review rows from the current status-filtered view after success", async () => {
+    orderWorkflowMocks.clearReview.mockResolvedValue({
+      id: "order-2",
+      status: "review_cleared",
+    });
+    useColumnsConfigMock.mockImplementation((_role, actions) => [
+      {
+        key: "status",
+        width: "minmax(140px,1fr)",
+        header: () => "Status",
+        cell: (order) => <span>{order.status}</span>,
+      },
+      {
+        key: "actions",
+        width: "minmax(140px,1fr)",
+        header: () => "Actions",
+        cell: (order) => (
+          <SmartActionsControl
+            actions={[
+              {
+                id: "clear-review",
+                label: "Clear Review",
+                visible: order.status === "in_review",
+                onClick: () => actions.onClearReview(order),
+              },
+            ]}
+          />
+        ),
+      },
+    ]);
+
+    renderTable({
+      role: "reviewer",
+      filters: { statusIn: ["in_review"], page: 0, pageSize: 15 },
+      rowsOverride: [rows[1]],
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear Review" }));
+
+    await waitFor(() => expect(screen.queryByText("in_review")).not.toBeInTheDocument());
+    expect(orderWorkflowMocks.clearReview).toHaveBeenCalledWith("order-2", "auth-user-1");
+    expect(screen.getByText("0 total")).toBeInTheDocument();
+    expect(screen.getByText("No active orders to show.")).toBeInTheDocument();
+  });
+
+  it("labels first send-to-review notes as submission notes", async () => {
+    sendOrderToReviewMock.mockResolvedValue({ id: "order-1", status: "in_review" });
+    logNoteMock.mockResolvedValue(undefined);
+    useColumnsConfigMock.mockImplementation((_role, actions) => [
+      {
+        key: "workflow",
+        width: "minmax(180px,1fr)",
+        header: () => "Workflow",
+        cell: (order) => (
+          <button type="button" onClick={() => actions.onSendToReview(order)}>
+            Send workflow
+          </button>
+        ),
+      },
+    ]);
+
+    renderTable({
+      rowsOverride: [{ ...rows[0], status: "in_progress" }],
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Send workflow" }));
+
+    expect(screen.getByRole("dialog", { name: "Send to Review" })).toBeInTheDocument();
+    expect(
+      screen.getByText("Add an optional submission note before sending the order to review."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/resubmission note/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Send to Review" }));
+
+    await waitFor(() => expect(sendOrderToReviewMock).toHaveBeenCalled());
+    expect(logNoteMock).toHaveBeenCalledWith("order-1", "Submission note:\nReady for review");
+    expect(sendOrderToReviewMock).toHaveBeenCalledWith("order-1", "app-user-1", {
+      noteText: "Submission note:\nReady for review",
+    });
+  });
+
+  it("uses resubmission wording only when the order is returning from needs revisions", async () => {
+    sendOrderToReviewMock.mockResolvedValue({ id: "order-1", status: "in_review" });
+    logNoteMock.mockResolvedValue(undefined);
+    useColumnsConfigMock.mockImplementation((_role, actions) => [
+      {
+        key: "workflow",
+        width: "minmax(180px,1fr)",
+        header: () => "Workflow",
+        cell: (order) => (
+          <button type="button" onClick={() => actions.onSendToReview(order)}>
+            Send workflow
+          </button>
+        ),
+      },
+    ]);
+
+    renderTable({
+      rowsOverride: [{ ...rows[0], status: "needs_revisions" }],
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Send workflow" }));
+
+    expect(screen.getByRole("dialog", { name: "Resubmit to Review" })).toBeInTheDocument();
+    expect(
+      screen.getByText("Add an optional resubmission note before sending the revised order back to review."),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Resubmit to Review" }));
+
+    await waitFor(() => expect(sendOrderToReviewMock).toHaveBeenCalled());
+    expect(logNoteMock).toHaveBeenCalledWith("order-1", "Resubmission note:\nReady for review");
+    expect(sendOrderToReviewMock).toHaveBeenCalledWith("order-1", "app-user-1", {
+      noteText: "Resubmission note:\nReady for review",
+    });
   });
 });

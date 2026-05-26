@@ -315,6 +315,57 @@ The owner/admin experience should answer:
 Owner/admin surfaces should preserve broad oversight without turning every visible event into an
 interrupting alert.
 
+## Role-Based Surface Refinement Doctrine
+
+Falcon v1 role refinement should use a stable hierarchy:
+
+- role defines the user's worldview/persona;
+- permissions define action authority;
+- product/module scope defines which operational world is visible.
+
+Appraiser surfaces should feel like assigned-work execution, not company management. Reviewer
+surfaces should feel like review and quality control, not owner/admin management. Admin surfaces
+should expose operational coordination tools only within granted permissions. Owner surfaces can
+expose company setup, users, permissions, and high-level operational controls.
+
+AMC/network concepts must not leak into Staff Appraiser Platform views unless AMC scope is
+explicitly enabled. Runtime language should stay plain and role-native: appraiser/reviewer surfaces
+use `Staff Directory`, `Assigned Orders`, and `My Work`; owner/admin surfaces use `Users`,
+`Operations`, `Setup`, and `Management`.
+
+Runtime surfaces should avoid redundant explanatory copy once structure is clear, avoid fake
+navigation that redirects back to the same place, keep drawers as secondary context rather than row
+or detail-page duplicates, and reuse established table/list systems instead of creating weaker
+duplicate versions. Visual polish should prioritize calm hierarchy, density, and clarity over
+dashboard clutter.
+
+The appraiser experience is visually and structurally locked pending final smoke testing. The
+reviewer worldview pass is also checkpointed: reviewer surfaces now center quality control,
+revision coordination, files, notes, calendar context, and workflow actions rather than
+management/admin operations.
+
+Reviewer checkpoint outcomes:
+
+- dashboard language is `Pam's Reviews` / `My Reviews`, with reviewer queue context;
+- Orders language is user-specific and avoids active-operations inventory framing;
+- Order Detail suppresses derived operational context clutter while preserving reviewer workflow
+  areas;
+- reviewers no longer see the general Order Detail `Edit` action;
+- pre-review appraiser notes no longer alert reviewers;
+- first submission and true resubmission wording are distinct;
+- Smart Action clicks are contained and successful reviewer actions update visible rows
+  optimistically.
+
+The reviewer checkpoint does not change backend/schema/Supabase behavior, permission model,
+query authority, lifecycle authority, route structure, AMC scope, automation, Client Portal
+behavior, AI, or production data.
+
+Next refinement order:
+
+1. Admin worldview.
+2. Owner worldview.
+3. Cross-role consistency pass.
+
 ## Success Criteria
 
 Falcon v1 succeeds when:

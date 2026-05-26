@@ -160,6 +160,36 @@ function isAppraiserOrdersProfile(shellProfilePresentation) {
   return role === "appraiser" || profileId === "appraiser" || profileId === "my_work" || navMode === "my_work";
 }
 
+function isReviewerOrdersProfile(shellProfilePresentation) {
+  const context = shellProfilePresentation?.appContext || {};
+  const role = String(shellProfilePresentation?.role || context?.primary_role_key || "").toLowerCase();
+  const profileId = String(shellProfilePresentation?.profileId || shellProfilePresentation?.id || "").toLowerCase();
+  const navMode = String(shellProfilePresentation?.navMode || "").toLowerCase();
+  const isOwnerAdmin = Boolean(context?.is_owner || context?.is_admin_role);
+
+  return !isOwnerAdmin && (role === "reviewer" || profileId === "review_queue" || navMode === "review_queue");
+}
+
+function firstNameFromIdentity(shellProfilePresentation) {
+  const context = shellProfilePresentation?.appContext || {};
+  const candidate = [
+    context?.display_name,
+    context?.full_name,
+    context?.name,
+    context?.email,
+  ]
+    .map((value) => String(value || "").trim())
+    .find(Boolean);
+
+  if (!candidate) return "";
+  return candidate.split(/\s+/)[0]?.replace(/['’]s$/i, "") || "";
+}
+
+function reviewerOrdersTitle(shellProfilePresentation) {
+  const firstName = firstNameFromIdentity(shellProfilePresentation);
+  return firstName ? `${firstName}'s Orders` : "My Orders";
+}
+
 function ActiveFilterChips({ filters, onChange }) {
   const chips = buildActiveFilterChips(filters || {});
   if (!chips.length) return null;
@@ -474,6 +504,8 @@ export default function OrdersPage() {
   const shellProfilePresentation = useShellProfile();
   const shellWorkMode = getShellWorkModeCue(shellProfilePresentation);
   const appraiserOrdersView = isAppraiserOrdersProfile(shellProfilePresentation);
+  const reviewerOrdersView = isReviewerOrdersProfile(shellProfilePresentation);
+  const roleFocusedOrdersView = appraiserOrdersView || reviewerOrdersView;
   const [filters, setFilters] = useState(() => readFilters(qs));
 
   useEffect(() => setFilters(readFilters(qs)), [qs]);
@@ -520,6 +552,16 @@ export default function OrdersPage() {
         reviewerId: "",
       }
     : filters;
+  const pageTitle = appraiserOrdersView
+    ? "Orders"
+    : reviewerOrdersView
+      ? reviewerOrdersTitle(shellProfilePresentation)
+      : "Orders Workspace";
+  const pageDescription = appraiserOrdersView
+    ? "Orders assigned to you."
+    : reviewerOrdersView
+      ? "Review and track orders assigned to your queue."
+      : "Manage active order inventory. Archived, cancelled, and voided orders stay in historical readback.";
 
   return (
     <div className="space-y-4">
@@ -529,7 +571,7 @@ export default function OrdersPage() {
         className="flex flex-wrap items-end justify-between gap-4 px-5 py-4"
       >
         <div className="min-w-0">
-          {appraiserOrdersView ? null : (
+          {roleFocusedOrdersView ? null : (
             <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em]">
               <span className="text-slate-400">Active Operations</span>
               <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] tracking-[0.12em] text-slate-500">
@@ -538,14 +580,12 @@ export default function OrdersPage() {
             </div>
           )}
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">
-            {appraiserOrdersView ? "Orders" : "Orders Workspace"}
+            {pageTitle}
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
-            {appraiserOrdersView
-              ? "Orders assigned to you."
-              : "Manage active order inventory. Archived, cancelled, and voided orders stay in historical readback."}
+            {pageDescription}
           </p>
-          {appraiserOrdersView ? null : (
+          {roleFocusedOrdersView ? null : (
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-600">
               <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">Active workspace</span>
               <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">Workflow actions in table</span>
@@ -553,7 +593,7 @@ export default function OrdersPage() {
             </div>
           )}
         </div>
-        {appraiserOrdersView ? null : (
+        {roleFocusedOrdersView ? null : (
           <div className="flex shrink-0 flex-wrap items-center justify-start gap-2 sm:justify-end">
             <NewOrderButton show className="shrink-0" />
           </div>
@@ -563,13 +603,13 @@ export default function OrdersPage() {
       <OrdersFilters
         value={visibleFilters}
         onChange={onChange}
-        title={appraiserOrdersView ? "Filters" : undefined}
-        description={appraiserOrdersView ? null : undefined}
-        searchLabel={appraiserOrdersView ? "Search assigned orders" : undefined}
+        title={roleFocusedOrdersView ? (reviewerOrdersView ? "Filter Orders" : "Filters") : undefined}
+        description={roleFocusedOrdersView ? null : undefined}
+        searchLabel={roleFocusedOrdersView ? (reviewerOrdersView ? "Search orders" : "Search assigned orders") : undefined}
         showAppraiserFilter={!appraiserOrdersView}
-        density={appraiserOrdersView ? "compact" : undefined}
+        density={roleFocusedOrdersView ? "compact" : undefined}
         actions={
-          appraiserOrdersView ? null : (
+          roleFocusedOrdersView ? null : (
             <>
               <SavedViewsPanel filters={filters} onApply={applySavedView} />
               <Link
@@ -583,7 +623,7 @@ export default function OrdersPage() {
         }
       />
       <ActiveFilterChips filters={visibleFilters} onChange={onChange} />
-      {appraiserOrdersView ? null : <OrdersWorkspaceContext filters={filters} activeQueue={activeQueue} />}
+      {roleFocusedOrdersView ? null : <OrdersWorkspaceContext filters={filters} activeQueue={activeQueue} />}
 
       <UnifiedOrdersTable
         key={JSON.stringify({
@@ -601,9 +641,9 @@ export default function OrdersPage() {
         pageSize={filters.pageSize || 15}
         rowsOverride={queueId ? queueRows || [] : null}
         activeQueue={activeQueue}
-        tableEyebrow={appraiserOrdersView ? "Orders" : undefined}
-        tableLabel={appraiserOrdersView ? "Assigned Orders" : undefined}
-        tableSummary={appraiserOrdersView ? "Orders assigned to you." : undefined}
+        tableEyebrow={roleFocusedOrdersView ? null : undefined}
+        tableLabel={appraiserOrdersView ? "Assigned Orders" : reviewerOrdersView ? "Orders" : undefined}
+        tableSummary={roleFocusedOrdersView ? null : undefined}
       />
     </div>
   );

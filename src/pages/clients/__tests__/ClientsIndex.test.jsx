@@ -6,11 +6,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ClientsIndex from "../ClientsIndex";
 
 const listClientsMock = vi.hoisted(() => vi.fn());
+const listAssignedOrderClientsMock = vi.hoisted(() => vi.fn());
 const useCanMock = vi.hoisted(() => vi.fn());
 const clientCardMock = vi.hoisted(() => vi.fn());
+const shellProfileMock = vi.hoisted(() => ({
+  profileId: "operations",
+  appContext: { user_id: "user-1" },
+}));
 
 vi.mock("@/features/clients/clientManagementApi", () => ({
   listClientManagementClients: listClientsMock,
+  listAssignedOrderClients: listAssignedOrderClientsMock,
 }));
 
 vi.mock("@/lib/hooks/usePermissions", () => ({
@@ -20,6 +26,17 @@ vi.mock("@/lib/hooks/usePermissions", () => ({
 vi.mock("@/lib/permissions/constants", () => ({
   PERMISSIONS: {
     CLIENTS_CREATE: "clients.create",
+  },
+}));
+
+vi.mock("@/lib/shell/useShellProfile", () => ({
+  useShellProfile: () => shellProfileMock,
+}));
+
+vi.mock("@/lib/shell/resolveShellProfile", () => ({
+  SHELL_PROFILE_IDS: {
+    OPERATIONS: "operations",
+    MY_WORK: "my_work",
   },
 }));
 
@@ -38,6 +55,7 @@ vi.mock("@/components/clients/ClientCard", () => ({
 function renderClients({ canCreate = true, rows = [] } = {}) {
   useCanMock.mockReturnValue({ allowed: canCreate });
   listClientsMock.mockResolvedValue(rows);
+  listAssignedOrderClientsMock.mockResolvedValue(rows);
 
   return render(
     <MemoryRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
@@ -49,13 +67,19 @@ function renderClients({ canCreate = true, rows = [] } = {}) {
 describe("ClientsIndex workspace polish", () => {
   beforeEach(() => {
     listClientsMock.mockReset();
+    listAssignedOrderClientsMock.mockReset();
     useCanMock.mockReset();
     clientCardMock.mockClear();
+    Object.assign(shellProfileMock, {
+      profileId: "operations",
+      appContext: { user_id: "user-1" },
+    });
   });
 
   afterEach(() => {
     cleanup();
     listClientsMock.mockReset();
+    listAssignedOrderClientsMock.mockReset();
     useCanMock.mockReset();
     clientCardMock.mockReset();
   });
@@ -147,6 +171,52 @@ describe("ClientsIndex workspace polish", () => {
 
     expect(screen.queryByRole("link", { name: "New Client" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Clients Workspace" })).toBeInTheDocument();
+  });
+
+  it("derives appraiser clients from assigned order rows instead of management relationships", async () => {
+    Object.assign(shellProfileMock, {
+      profileId: "my_work",
+      appContext: { user_id: "chris-user" },
+    });
+
+    renderClients({
+      rows: [
+        {
+          id: "client-acme-capital",
+          name: "Acme Capital",
+          status: "active",
+          category: "Client",
+          total_orders: 1,
+          avg_fee: 500,
+          last_activity: "2026-05-20",
+        },
+        {
+          id: "client-acme-appraisal",
+          name: "ACME Appraisal",
+          status: "active",
+          category: "Client",
+          total_orders: 1,
+          avg_fee: 625,
+          last_activity: "2026-05-22",
+        },
+      ],
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Acme Capital")).toBeInTheDocument();
+      expect(screen.getByText("ACME Appraisal")).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole("heading", { name: "Clients" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "New Client" })).not.toBeInTheDocument();
+    expect(listAssignedOrderClientsMock).toHaveBeenCalledWith({
+      search: "",
+      category: "all",
+      sort: "orders_desc",
+      appraiserId: "chris-user",
+    });
+    expect(listClientsMock).not.toHaveBeenCalled();
+    expect(screen.getAllByTestId("client-card")).toHaveLength(2);
   });
 
   it("renders a polished empty state without changing filter behavior", async () => {

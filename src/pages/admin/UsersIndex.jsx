@@ -9,6 +9,7 @@ import { listCompanyMembers, setCompanyMemberStatus, updateCompanyMemberRoles } 
 import { useCan } from "@/lib/hooks/usePermissions";
 import { PERMISSIONS } from "@/lib/permissions/constants";
 import { useShellProfile } from "@/lib/shell/useShellProfile";
+import { SHELL_PROFILE_IDS } from "@/lib/shell/resolveShellProfile";
 
 const DEFAULT_COLOR = "#6B82A7";
 
@@ -79,6 +80,22 @@ function memberAccessSummary(member) {
   }
   if (!roles.length) return "No active role assigned";
   return `${roles.length} active ${roles.length === 1 ? "role" : "roles"}`;
+}
+
+function memberRoleNames(member) {
+  return roleLabels(member)
+    .map((role) => role.name)
+    .filter(Boolean);
+}
+
+function memberDirectoryGroupId(member) {
+  const roleNames = memberRoleNames(member).map((role) => role.toLowerCase());
+
+  if (member?.is_owner || roleNames.some((role) => role.includes("owner"))) return "owner";
+  if (roleNames.some((role) => role.includes("admin"))) return "admin";
+  if (roleNames.some((role) => role.includes("reviewer"))) return "reviewer";
+  if (roleNames.some((role) => role.includes("appraiser"))) return "appraiser";
+  return "other";
 }
 
 function safeMemberActionError(error, fallback) {
@@ -180,7 +197,7 @@ function EditRolePresetsModal({ member, open, onClose, onSaved }) {
         member.user_id,
         selectedRoleIds,
         selectedPrimaryRoleId,
-        "Updated from Team Access",
+        "Updated from Users",
         crypto.randomUUID()
       );
       toast.success("Member roles updated.");
@@ -213,7 +230,7 @@ function EditRolePresetsModal({ member, open, onClose, onSaved }) {
       >
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
           <div>
-            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Team Access</div>
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Users</div>
             <h2 id="edit-role-presets-title" className="mt-1 text-xl font-semibold text-slate-950">Edit Role Presets</h2>
             <p className="mt-1 text-sm text-slate-500">Roles are company-scoped presets. Owner changes are protected by backend policy.</p>
           </div>
@@ -429,6 +446,133 @@ function MemberCard({ member, busy, readOnly = false, onEditRoles, onSetStatus }
   );
 }
 
+function StaffDirectoryCard({ member }) {
+  const name = getMemberName(member);
+  const color = getMemberColor(member);
+  const roles = memberRoleNames(member);
+  const roleText = roles.length ? roles.join(", ") : "Staff";
+  const accentClass = {
+    owner: "border-l-emerald-500",
+    admin: "border-l-blue-500",
+    reviewer: "border-l-violet-500",
+    appraiser: "border-l-amber-500",
+    other: "border-l-slate-400",
+  }[memberDirectoryGroupId(member)];
+
+  return (
+    <li className="min-w-0">
+      <article
+        className={`flex h-full min-h-36 flex-col rounded-lg border border-l-4 border-slate-200 ${accentClass} bg-gradient-to-br from-white to-slate-50/70 p-3.5 shadow-sm transition hover:border-slate-300 hover:shadow-md`}
+      >
+        <div className="flex min-w-0 items-start gap-3">
+          <span
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white shadow-sm ring-2 ring-white"
+            style={{ backgroundColor: color }}
+            title={name}
+          >
+            {member.avatar_url ? (
+              <img src={member.avatar_url} alt="" className="h-10 w-10 rounded-full object-cover" />
+            ) : (
+              (name || "?").slice(0, 1).toUpperCase()
+            )}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[15px] font-semibold text-slate-950">{name}</div>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {(roles.length ? roles : [roleText]).map((role) => (
+                <span
+                  key={role}
+                  className="inline-flex rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs font-medium text-slate-700 shadow-sm"
+                >
+                  {role}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="mt-3 flex min-w-0 flex-1 flex-col justify-end gap-2 border-t border-slate-200/80 pt-3 text-sm">
+          {member.email && (
+            <div className="min-w-0">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Email</div>
+              <a
+                href={`mailto:${member.email}`}
+                className="mt-0.5 block truncate font-medium text-slate-700 underline decoration-dotted underline-offset-2 hover:text-slate-950"
+              >
+                {member.email}
+              </a>
+            </div>
+          )}
+          {member.phone && (
+            <div className="min-w-0">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Phone</div>
+              <a
+                href={`tel:${member.phone}`}
+                className="mt-0.5 block truncate font-medium text-slate-600 underline decoration-dotted underline-offset-2 hover:text-slate-950"
+              >
+                {member.phone}
+              </a>
+            </div>
+          )}
+        </div>
+      </article>
+    </li>
+  );
+}
+
+const STAFF_DIRECTORY_GROUPS = Object.freeze([
+  { id: "owner", title: "Owner" },
+  { id: "admin", title: "Admin" },
+  { id: "reviewer", title: "Reviewers" },
+  { id: "appraiser", title: "Appraisers" },
+  { id: "other", title: "Other Staff" },
+]);
+
+function StaffDirectory({ members }) {
+  const activeMembers = members.filter(
+    (member) => String(member.membership_status || "").toLowerCase() === "active",
+  );
+  const groupedMembers = activeMembers.reduce((groups, member) => {
+    const groupId = memberDirectoryGroupId(member);
+    groups[groupId] = [...(groups[groupId] || []), member];
+    return groups;
+  }, {});
+
+  if (activeMembers.length === 0) {
+    return (
+      <section className="rounded-lg border border-slate-200 bg-white px-4 py-6 text-sm text-slate-500 shadow-sm">
+        No staff contacts are visible.
+      </section>
+    );
+  }
+
+  return (
+    <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm" aria-label="Staff directory">
+      {STAFF_DIRECTORY_GROUPS.flatMap((group) => {
+        const groupMembers = groupedMembers[group.id] || [];
+        if (groupMembers.length === 0) return [];
+
+        return [
+          <section key={group.id} aria-labelledby={`staff-directory-${group.id}`} className="border-b border-slate-200 last:border-b-0">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/80 px-4 py-2">
+              <h2 id={`staff-directory-${group.id}`} className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                {group.title}
+              </h2>
+              <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs font-semibold text-slate-600">
+                {groupMembers.length}
+              </span>
+            </div>
+            <ul className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {groupMembers.map((member) => (
+                <StaffDirectoryCard key={member.membership_id || member.user_id} member={member} />
+              ))}
+            </ul>
+          </section>,
+        ];
+      })}
+    </section>
+  );
+}
+
 export default function UsersIndex() {
   const shellProfilePresentation = useShellProfile();
   const canReadUsersPermission = useCan(PERMISSIONS.USERS_READ);
@@ -446,7 +590,9 @@ export default function UsersIndex() {
   const [invitationRefreshKey, setInvitationRefreshKey] = useState(0);
 
   const shellProfileId = shellProfilePresentation?.profileId ?? shellProfilePresentation?.id;
-  const isAppraiserDirectoryMode = shellProfileId === "my_work";
+  const isAppraiserDirectoryMode =
+    shellProfileId === SHELL_PROFILE_IDS.MY_WORK || shellProfileId === SHELL_PROFILE_IDS.REVIEW_QUEUE;
+  const pageTitle = isAppraiserDirectoryMode ? "Staff Directory" : "Users";
   const canListMembers = canReadUsersPermission.allowed;
   const canManageInvitations =
     !isAppraiserDirectoryMode &&
@@ -512,7 +658,7 @@ export default function UsersIndex() {
       await setCompanyMemberStatus(
         member.user_id,
         status,
-        isDeactivate ? "Deactivated from Team Access" : "Reactivated from Team Access",
+        isDeactivate ? "Deactivated from Users" : "Reactivated from Users",
         crypto.randomUUID()
       );
       toast.success(isDeactivate ? "Member deactivated." : "Member reactivated.");
@@ -532,11 +678,11 @@ export default function UsersIndex() {
     <div className="space-y-4 p-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-950">Team Access</h1>
+          <h1 className="text-2xl font-semibold text-slate-950">{pageTitle}</h1>
           <p className="mt-1 max-w-3xl text-sm text-slate-500">
             {isAppraiserDirectoryMode
-              ? "View current-company teammates and contact context. Access changes remain with authorized owner/admin users."
-              : "Manage company membership and invitations. New access starts with an invite; direct user creation is no longer available here."}
+              ? "Current company contacts."
+              : "Manage company users, roles, and invitations. New access starts with an invite; direct user creation is no longer available here."}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -573,35 +719,48 @@ export default function UsersIndex() {
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-3">
-        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-            <UserRoundCheck className="h-4 w-4 text-emerald-600" aria-hidden="true" />
-            Active Members
+      {!isAppraiserDirectoryMode && (
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <UserRoundCheck className="h-4 w-4 text-emerald-600" aria-hidden="true" />
+              Active Members
+            </div>
+            <div className="mt-2 text-2xl font-semibold text-slate-950">{activeCount}</div>
           </div>
-          <div className="mt-2 text-2xl font-semibold text-slate-950">{activeCount}</div>
-        </div>
-        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-            <UserRoundX className="h-4 w-4 text-slate-500" aria-hidden="true" />
-            Members Shown
+          <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <UserRoundX className="h-4 w-4 text-slate-500" aria-hidden="true" />
+              Members Shown
+            </div>
+            <div className="mt-2 text-2xl font-semibold text-slate-950">{members.length}</div>
+            <p className="mt-1 text-xs text-slate-500">Inactive members appear only when enabled.</p>
           </div>
-          <div className="mt-2 text-2xl font-semibold text-slate-950">{members.length}</div>
-          <p className="mt-1 text-xs text-slate-500">Inactive members appear only when enabled.</p>
-        </div>
-        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-            <ShieldCheck className="h-4 w-4 text-blue-600" aria-hidden="true" />
-            Access Model
+          <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <ShieldCheck className="h-4 w-4 text-blue-600" aria-hidden="true" />
+              Access Model
+            </div>
+            <p className="mt-2 text-sm text-slate-500">Roles are company-scoped presets. Legacy profile role editing is disabled on this page.</p>
+            <p className="mt-1 text-xs text-slate-500">Owner/admin users manage access changes.</p>
           </div>
-          <p className="mt-2 text-sm text-slate-500">Roles are company-scoped presets. Legacy profile role editing is disabled on this page.</p>
-          {isAppraiserDirectoryMode && (
-            <p className="mt-1 text-xs text-slate-500">Read-only directory mode.</p>
-          )}
         </div>
-      </div>
+      )}
 
-      <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
+      {isAppraiserDirectoryMode ? (
+        loading ? (
+          <div className="rounded-lg border border-slate-200 bg-white px-4 py-6 text-sm text-slate-500 shadow-sm">
+            Loading staff directory...
+          </div>
+        ) : error ? (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+            Falcon could not load staff contacts.
+          </div>
+        ) : (
+          <StaffDirectory members={members} />
+        )
+      ) : (
+        <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 px-4 py-4">
           <h2 className="text-lg font-semibold text-slate-950">Members</h2>
           <p className="mt-1 text-sm text-slate-500">
@@ -686,7 +845,8 @@ export default function UsersIndex() {
             )}
           </div>
         )}
-      </section>
+        </section>
+      )}
 
       {!isAppraiserDirectoryMode && (
         <CompanyInvitationsPanel

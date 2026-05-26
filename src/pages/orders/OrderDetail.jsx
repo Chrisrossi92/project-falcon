@@ -195,7 +195,7 @@ function OverviewSection({ title, children, className = "" }) {
   );
 }
 
-function FilesCard({ order, orderId, canArchive, canUpload, onFilesLoaded }) {
+function FilesCard({ order, orderId, canArchive, canUpload, onFilesLoaded, showReadinessSummary = true }) {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -348,7 +348,7 @@ function FilesCard({ order, orderId, canArchive, canUpload, onFilesLoaded }) {
         )}
       </div>
 
-      {!loading && !error && (
+      {showReadinessSummary && !loading && !error && (
         <FileReadinessSummary order={order} documents={files} className="mt-3" />
       )}
 
@@ -558,7 +558,11 @@ export default function OrderDetail() {
     [orderFiles],
   );
   const isAppraiserExecutionWorkspace = shellProfile.profileId === SHELL_PROFILE_IDS.MY_WORK;
+  const isReviewerReviewWorkspace = shellProfile.profileId === SHELL_PROFILE_IDS.REVIEW_QUEUE;
   const showManagementSurfaces = !isAppraiserExecutionWorkspace;
+  const showDerivedContextSurfaces = showManagementSurfaces && !isReviewerReviewWorkspace;
+  const showOrderEditAction = showManagementSurfaces && !isReviewerReviewWorkspace;
+  const overviewLabel = isReviewerReviewWorkspace ? "Order Summary" : "Operational Overview";
 
   const canOfferAssignment =
     showManagementSurfaces &&
@@ -730,7 +734,7 @@ export default function OrderDetail() {
             <Link to="/orders" className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50">
               {"<- Back"}
             </Link>
-            {showManagementSurfaces && (
+            {showOrderEditAction && (
               <Link to={`/orders/${order.id}/edit`} className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50">
                 Edit
               </Link>
@@ -757,10 +761,10 @@ export default function OrderDetail() {
         )}
         <div
           className="mt-4 border-t border-gray-100 pt-4"
-          aria-label="Operational Overview"
+          aria-label={overviewLabel}
         >
           <div className="mb-3 text-[11px] uppercase tracking-wide text-gray-500 font-semibold">
-            Operational Overview
+            {overviewLabel}
           </div>
           <div className="grid gap-3 lg:grid-cols-12">
             <OverviewSection title="Order / Client" className="lg:col-span-4">
@@ -798,14 +802,14 @@ export default function OrderDetail() {
           </div>
         </div>
 
-        {showManagementSurfaces && (
+        {showDerivedContextSurfaces && (
           <OrderAttentionSummaryPanel
             order={order}
             documents={orderFilesLoaded ? orderFiles : null}
             className="mt-4"
           />
         )}
-        {showManagementSurfaces && (
+        {showDerivedContextSurfaces && (
           <>
             <OperationalInputsCreateClearControls
               orderId={order.id}
@@ -830,11 +834,13 @@ export default function OrderDetail() {
             <div className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-2">
               Activity
             </div>
-            <ReviewContextSummary
-              order={order}
-              documents={orderFilesLoaded ? orderFiles : null}
-              className="mb-3"
-            />
+            {!isReviewerReviewWorkspace && (
+              <ReviewContextSummary
+                order={order}
+                documents={orderFilesLoaded ? orderFiles : null}
+                className="mb-3"
+              />
+            )}
             <ActivityLog orderId={order.id} order={order} showComposer height={360} />
           </WorkspaceSurface>
         </div>
@@ -882,6 +888,7 @@ export default function OrderDetail() {
               canArchive={canArchiveDocuments}
               canUpload={canUploadDocuments}
               onFilesLoaded={handleFilesLoaded}
+              showReadinessSummary={!isReviewerReviewWorkspace}
             />
           </div>
 

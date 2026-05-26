@@ -40,7 +40,7 @@ describe('current shell mobile navigation links', () => {
       'Assignments',
       'Clients',
       'Relationships',
-      'Team Access',
+      'Users',
     ]);
     expect(paths(mobileLinks)).toEqual([
       '/orders',
@@ -74,11 +74,12 @@ describe('current shell mobile navigation links', () => {
       'orders',
       'calendar',
       'clients.primary',
+      'users',
       'assignments',
       'relationships',
-      'users',
     ]);
-    expect(ids(mobileLinks).slice(3)).toEqual(['assignments', 'relationships', 'users']);
+    expect(mobileLinks.find((link) => link.id === 'users')?.label).toBe('Staff Directory');
+    expect(ids(mobileLinks).slice(3)).toEqual(['users', 'assignments', 'relationships']);
     expect(new Set(ids(mobileLinks))).toEqual(new Set(ids(visibleLinks)));
   });
 

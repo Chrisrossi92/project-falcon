@@ -45,7 +45,7 @@ describe('current shell navigation sections', () => {
     ]);
   });
 
-  it('groups appraiser Team Access with Support while unrelated visible links fall through to More', () => {
+  it('groups appraiser Staff Directory with Support while unrelated visible links fall through to More', () => {
     const sections = getCurrentShellNavigationSections(fullyVisibleLinks(), SHELL_PROFILE_IDS.MY_WORK);
 
     expect(sections.map(({ id, label }) => [id, label])).toEqual([
@@ -57,10 +57,28 @@ describe('current shell navigation sections', () => {
       'clients.primary',
       'users',
     ]);
+    expect(sections.find((section) => section.id === 'support').links.map((link) => link.label)).toEqual([
+      'Clients',
+      'Staff Directory',
+    ]);
     expect(sections.at(-1).links.map((link) => link.id)).toEqual([
       'assignments',
       'relationships',
     ]);
+  });
+
+  it('uses role-intent labels for Users across owner/admin and reviewer shell sections', () => {
+    expect(
+      getCurrentShellNavigationSections(fullyVisibleLinks(), SHELL_PROFILE_IDS.OPERATIONS)
+        .flatMap((section) => section.links)
+        .find((link) => link.id === 'users')?.label,
+    ).toBe('Users');
+
+    expect(
+      getCurrentShellNavigationSections(fullyVisibleLinks(), SHELL_PROFILE_IDS.REVIEW_QUEUE)
+        .flatMap((section) => section.links)
+        .find((link) => link.id === 'users')?.label,
+    ).toBe('Staff Directory');
   });
 
   it('falls back to current flat nav for unknown and fallback profiles', () => {

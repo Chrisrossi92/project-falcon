@@ -213,6 +213,114 @@ Avoid:
 - using permissions to imply visibility without governed data scope;
 - using module scope to imply action authority without permissions.
 
+## Falcon v1 Role-Based Surface Refinement Doctrine
+
+Falcon v1 role surfaces should be composed from three separate decisions:
+
+- role defines the user's worldview and default persona;
+- permissions define action authority;
+- product/module scope defines which operational world is visible.
+
+These decisions must stay separate. A role can shape language, navigation priority, layout density,
+and default surface selection, but it must not grant action authority. A permission can authorize
+an action, but it must not expose an unrelated product world. A module/product scope can expose an
+operational world, but it must not imply that every visible user can mutate it.
+
+### Role Worldview Rules
+
+Appraiser surfaces should feel like assigned-work execution, not company management. Appraiser
+navigation, lists, order detail, drawers, and directory views should prioritize `My Work`,
+`Assigned Orders`, schedule pressure, files, notes, activity, contacts, and the next allowed
+execution step.
+
+Reviewer surfaces should feel like review and quality control, not owner/admin management. Review
+queues, review order detail, revision context, files, activity, and decision controls should be
+framed around review readiness and permitted review action.
+
+Admin surfaces may expose operational coordination tools, but only within granted permissions.
+Admin users should see company operations, staffing, workload, scheduling, and coordination
+surfaces when their permissions allow them, without automatically inheriting owner-only setup or
+AMC/network worlds.
+
+Owner surfaces can expose company setup, users, permissions, high-level operational controls, and
+owner-sensitive readiness. Owner authority still remains permission-backed and should not be
+treated as decorative metadata.
+
+AMC/network concepts must not leak into Internal Staff Appraiser Platform views unless AMC scope is
+explicitly enabled. Staff appraisers should not see assignment-network, vendor, panel, packet, or
+AMC queue concepts simply because the architecture contains those future capabilities.
+
+### Language And Structure Rules
+
+Use plain operational language:
+
+- appraiser/reviewer: `Staff Directory`, `Assigned Orders`, `My Work`;
+- owner/admin: `Users`, `Operations`, `Setup`, `Management`.
+
+Avoid redundant explanatory copy once UI structure is clear. If a surface is already framed by a
+plain title, clear grouping, and obvious controls, do not add doctrine-like helper copy inside the
+runtime UI.
+
+Avoid fake navigation that redirects back to the same place. A link should represent a meaningful
+surface or be hidden until the surface exists.
+
+Drawers should provide secondary context only. They should not duplicate the row they came from or
+the full detail page.
+
+Appraiser and reviewer directory views should be read-only contact context, not access management.
+Owner/admin user surfaces should remain the place for invitation, role, and access controls.
+
+Table and list systems should be reused rather than creating weaker duplicate versions. Role-based
+surfaces may provide a role-native wrapper or data subset, but should not fork lower-quality table
+behavior when the established list system already answers the same operational question.
+
+Visual polish should prioritize calm hierarchy, density, and clarity over dashboard clutter.
+
+### Reviewer Worldview Checkpoint
+
+The reviewer worldview pass is complete as the first post-appraiser role refinement checkpoint.
+
+Reviewer role doctrine:
+
+- reviewer is a quality-control and revision-coordination persona;
+- reviewer surfaces should feel like review workflow, not owner/admin/company management;
+- reviewer authority still comes from permissions and workflow state, not from role label alone;
+- reviewer visibility remains governed by current review/order read authority;
+- AMC/network operations language must not leak into reviewer Staff Appraiser Platform views.
+
+Completed reviewer surface refinements:
+
+- reviewer dashboard is simplified into the `Pam's Reviews` / `My Reviews` queue model;
+- reviewer dashboard keeps calendar and active review work while removing duplicate KPI rails,
+  operational support blocks, and explanatory management copy;
+- reviewer Orders is reframed as user-specific orders rather than active operations inventory;
+- reviewer Order Detail removes Attention Summary, Operational Context, review-derived summary
+  blocks, file-readiness derived clutter, and passive derived messages;
+- reviewer Order Detail preserves files, notes/activity, map/contact info, due/site/review dates,
+  revision communication, review actions, and workflow history;
+- reviewer Order Detail hides the general `Edit` action while preserving `Print Packet` and
+  `Back`;
+- reviewer notification leakage is corrected so pre-review appraiser notes do not alert reviewers;
+- first appraiser submission language now says submitted/sent to review, while true resubmission
+  language is used only after revisions;
+- Smart Action button/dropdown clicks no longer open the order drawer;
+- reviewer Smart Actions now apply optimistic row/status refresh after successful workflow actions.
+
+This checkpoint does not authorize backend/schema/Supabase changes, permission model changes,
+query-authority broadening, lifecycle authority changes, route migration, AMC implementation,
+automation, Client Portal behavior, AI, or production data changes.
+
+### Next-Phase Role Refinement Order
+
+The appraiser experience and reviewer worldview are visually and structurally locked pending final
+smoke testing.
+
+Next refinement order:
+
+1. Admin worldview.
+2. Owner worldview.
+3. Cross-role consistency pass.
+
 ## Implementation Guidance
 
 Future implementation should resolve surfaces in this order:

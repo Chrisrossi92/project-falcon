@@ -603,3 +603,77 @@ B1.3f remains frontend presentation/composition only. It does not redesign the m
 add backend queries, change workflow logic, permissions, permission seeds, route guards,
 backend/schema/Supabase behavior, data/query authority, Smart Actions, automation, notifications,
 AMC, Client Portal, AI, or production data behavior.
+
+## B1.3g Appraiser Surface Lock And Role Doctrine Record
+
+Phase B1.3g documents the appraiser worldview now established across My Work, assigned Orders,
+Order Detail, Staff Directory, drawer behavior, and shell language.
+
+Appraiser experience principles:
+
+- appraiser role defines the assigned-work execution persona;
+- permissions continue to define which actions are allowed;
+- Internal Staff Appraiser Platform scope defines the visible operational world;
+- appraiser surfaces should feel like execution workstations, not company management;
+- AMC/network concepts stay hidden unless AMC scope is explicitly enabled;
+- read-only directory context is `Staff Directory`, not access management;
+- fake appraiser navigation that redirects back to the same surface should remain hidden;
+- drawers should provide secondary context rather than duplicating the row or full detail page;
+- established table/list systems should be reused for assigned work instead of weaker duplicate
+  lists;
+- explanatory copy should be reduced once the UI structure is clear;
+- visual polish should favor calm hierarchy, density, and clarity over dashboard clutter.
+
+The appraiser experience is visually and structurally locked pending final smoke testing.
+
+Next role refinement order:
+
+1. Reviewer worldview.
+2. Admin worldview.
+3. Owner worldview.
+4. Cross-role consistency pass.
+
+B1.3g is docs-only. It does not add runtime code, route changes, navigation behavior, permission
+changes, backend/schema/Supabase behavior, data/query authority, workflow/action behavior, Smart
+Actions, automation, notifications, AMC, Client Portal, AI, or production data behavior.
+
+## B2.1 Reviewer Worldview Refinement Checkpoint
+
+Phase B2.1 completes the first reviewer worldview pass after the appraiser surface lock.
+
+Reviewer experience principles:
+
+- reviewer role defines a quality-control and revision-coordination persona;
+- permissions continue to define action authority;
+- review/order visibility continues to define the visible work queue;
+- reviewer surfaces should feel like review workflow, not owner/admin management;
+- reviewer language should focus on reviews, revisions, files, notes, and workflow actions;
+- AMC/network concepts stay hidden unless AMC scope is explicitly enabled.
+
+B2.1 completed refinements:
+
+- reviewer dashboard is framed as `Pam's Reviews` when a first name is available, with `My Reviews`
+  fallback;
+- reviewer dashboard keeps compact review status filters, calendar context, and active review work
+  while removing duplicate dashboard rails and operational support sections;
+- reviewer Orders is reframed as the reviewer's orders rather than active operations inventory;
+- reviewer Order Detail removes derived operational clutter while preserving files, notes/activity,
+  contacts/map, schedule dates, revision communication, review actions, and workflow history;
+- reviewer Order Detail removes the general `Edit` action and keeps reviewer action authority
+  inside review workflow controls;
+- notification routing no longer alerts reviewers for appraiser working notes before review
+  submission;
+- first submission wording is distinct from true resubmission wording;
+- Smart Action row interactions no longer open drawers accidentally;
+- reviewer Smart Actions optimistically refresh visible row status after successful workflow
+  actions.
+
+B2.1 is a frontend worldview, notification-mapping, and local-state refresh checkpoint. It does not
+change backend/schema/Supabase behavior, permission model, query authority, lifecycle authority,
+route structure, AMC scope, Client Portal behavior, AI, or production data.
+
+Next role refinement order:
+
+1. Admin worldview.
+2. Owner worldview.
+3. Cross-role consistency pass.

@@ -622,18 +622,26 @@ describe("DashboardPage operational polish", () => {
     );
   });
 
-  it("mounts the reviewer workbench preview as a secondary panel for review_queue shell metadata", () => {
+  it("renders the reviewer dashboard as a focused review workspace", () => {
     summaryState.current = buildSummary({
       role: "reviewer",
       isAdmin: false,
       isReviewer: true,
       userId: "reviewer-1",
+      appContext: {
+        current_company_id: "company-1",
+        company_name: "Falcon Appraisals",
+        has_current_company_membership: true,
+        display_name: "Pam Reviewer",
+        is_owner: false,
+        is_admin_role: false,
+      },
       orders: {
-        count: 1,
+        count: 2,
         inProgress: 0,
         dueIn7: 1,
         inReview: 1,
-        needsRevisions: 0,
+        needsRevisions: 1,
         overdue: 0,
         inspectedAwaitingReport: 0,
         dueToClient2: 1,
@@ -643,22 +651,23 @@ describe("DashboardPage operational polish", () => {
     renderDashboard(reviewQueueShell);
 
     expect(
-      screen.getByRole("heading", { name: "Operations Dashboard", level: 1 }),
+      screen.getByRole("heading", { name: "Pam's Reviews", level: 1 }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Calendar context and review work assigned to your queue.")).toBeInTheDocument();
-    expect(screen.getAllByText("Reviewer")).toHaveLength(2);
+    expect(
+      screen.getByText("Active review work, revision follow-up, and calendar context for your queue."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Reviewer")).toBeInTheDocument();
     expect(screen.getByText("My Review Work")).toBeInTheDocument();
-    const reviewQueuePreview = screen.getByRole("region", { name: "Review Queue preview" });
     expect(
-      within(reviewQueuePreview).getByRole("heading", { name: "Review Queue" }),
+      screen.getByRole("group", { name: "Review status filters" }),
     ).toBeInTheDocument();
-    expect(
-      within(reviewQueuePreview).getByRole("region", { name: "In Review" }),
-    ).toBeInTheDocument();
-    expect(
-      within(reviewQueuePreview).getByRole("region", { name: "Due Soon / Overdue Review" }),
-    ).toBeInTheDocument();
-    expect(within(reviewQueuePreview).queryByRole("button")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /In Review 1/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Needs Revisions 1/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Resubmitted/i })).not.toBeInTheDocument();
+    expect(screen.queryByText("Operational Support")).not.toBeInTheDocument();
+    expect(screen.queryByText("Workload Visibility")).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Review Queue preview" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Status")).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "My Work preview" })).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: /operational readiness/i })).not.toBeInTheDocument();
     expect(calendarMock).toHaveBeenLastCalledWith(
@@ -668,7 +677,21 @@ describe("DashboardPage operational polish", () => {
       expect.objectContaining({
         mode: "reviewerQueue",
         reviewerId: "reviewer-1",
+        rowsOverride: summaryState.current.ordersRows,
         scope: "dashboard",
+      }),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Needs Revisions 1/i }));
+
+    expect(tableMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        rowsOverride: [
+          expect.objectContaining({
+            id: "order-revisions",
+            status: "needs_revisions",
+          }),
+        ],
       }),
     );
   });

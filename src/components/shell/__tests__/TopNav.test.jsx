@@ -141,7 +141,7 @@ describe("TopNav desktop operational spine navigation", () => {
       "Assignments",
       "Clients",
       "Relationships",
-      "Team Access",
+      "Users",
     ]);
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
       "/dashboard",
@@ -165,7 +165,7 @@ describe("TopNav desktop operational spine navigation", () => {
     expect(within(desktopNav).queryByRole("link", { name: "Assignments" })).toBeNull();
     expect(within(desktopNav).queryByRole("link", { name: "Relationships" })).toBeNull();
     expect(within(desktopNav).queryByRole("link", { name: "Clients" })).toBeNull();
-    expect(within(desktopNav).queryByRole("link", { name: "Team Access" })).toBeNull();
+    expect(within(desktopNav).queryByRole("link", { name: "Users" })).toBeNull();
   });
 
   it("keeps desktop primary navigation out of the utility top bar", () => {
@@ -228,7 +228,7 @@ describe("TopNav desktop operational spine navigation", () => {
       "Orders",
       "Calendar",
       "Clients",
-      "Team Access",
+      "Staff Directory",
     ]);
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
       "/my-work",
@@ -263,7 +263,7 @@ describe("TopNav desktop operational spine navigation", () => {
       "Relationships",
       "Calendar",
       "Clients",
-      "Team Access",
+      "Users",
     ]);
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
       "/dashboard",
@@ -276,7 +276,7 @@ describe("TopNav desktop operational spine navigation", () => {
     ]);
   });
 
-  it("keeps appraiser Team Access under Support without creating a More group", () => {
+  it("keeps appraiser Staff Directory under Support without creating a More group", () => {
     shellProfileState.profileId = "my_work";
     permissionState.allowed = new Set([
       PERMISSIONS.ORDERS_READ_ASSIGNED,
@@ -298,7 +298,7 @@ describe("TopNav desktop operational spine navigation", () => {
       "Orders",
       "Calendar",
       "Clients",
-      "Team Access",
+      "Staff Directory",
     ]);
     expect(within(desktopNav).queryByRole("link", { name: "Assignments" })).toBeNull();
     expect(within(desktopNav).queryByRole("link", { name: "Relationships" })).toBeNull();
@@ -323,7 +323,7 @@ describe("TopNav desktop operational spine navigation", () => {
     expect(screen.queryByRole("link", { name: "Assignments" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Relationships" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Clients" })).toBeNull();
-    expect(screen.queryByRole("link", { name: "Team Access" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Users" })).toBeNull();
   });
 
   it("preserves exact-path active styling through the operational spine NavItem", () => {
@@ -355,7 +355,7 @@ describe("TopNav desktop operational spine navigation", () => {
       "Relationships",
       "Calendar",
       "Clients",
-      "Team Access",
+      "Users",
     ]);
     expect(within(getDesktopPrimaryNav(container)).queryByText("Management")).toBeNull();
   });
@@ -380,7 +380,7 @@ describe("TopNav desktop operational spine navigation", () => {
       "Assignments",
       "Clients",
       "Relationships",
-      "Team Access",
+      "Users",
       "Settings",
     ]);
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
@@ -438,7 +438,7 @@ describe("TopNav desktop operational spine navigation", () => {
       "/calendar",
     ]);
     expect(within(mobileNav).queryByRole("link", { name: "Clients" })).toBeNull();
-    expect(within(mobileNav).queryByRole("link", { name: "Team Access" })).toBeNull();
+    expect(within(mobileNav).queryByRole("link", { name: "Users" })).toBeNull();
   });
 
   it("preserves current flat mobile order for unknown shell profiles", () => {
@@ -461,7 +461,7 @@ describe("TopNav desktop operational spine navigation", () => {
       "Relationships",
       "Calendar",
       "Clients",
-      "Team Access",
+      "Users",
       "Settings",
     ]);
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
@@ -496,7 +496,7 @@ describe("TopNav desktop operational spine navigation", () => {
     expect(within(mobileNav).queryByRole("link", { name: "Assignments" })).toBeNull();
     expect(within(mobileNav).queryByRole("link", { name: "Relationships" })).toBeNull();
     expect(within(mobileNav).queryByRole("link", { name: "Clients" })).toBeNull();
-    expect(within(mobileNav).queryByRole("link", { name: "Team Access" })).toBeNull();
+    expect(within(mobileNav).queryByRole("link", { name: "Users" })).toBeNull();
     expect(within(mobileNav).queryByRole("link", { name: "Settings" })).toBeNull();
   });
 

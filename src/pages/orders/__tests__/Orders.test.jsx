@@ -181,9 +181,63 @@ describe("OrdersPage historical access", () => {
           reviewerId: "reviewer-1",
           clientId: "client-1",
         }),
-        tableEyebrow: "Orders",
+        tableEyebrow: null,
         tableLabel: "Assigned Orders",
-        tableSummary: "Orders assigned to you.",
+        tableSummary: null,
+      }),
+    );
+  });
+
+  it("renders reviewer Orders as a focused review workspace without management utilities", () => {
+    shellProfileState.exposure = {
+      role: "reviewer",
+      profileId: "review_queue",
+      navMode: "review_queue",
+      metadataAuthority: "presentation_only",
+      isPresentationOnly: true,
+      appContext: {
+        user_id: "reviewer-1",
+        display_name: "Pam Reviewer",
+        is_reviewer_role: true,
+      },
+    };
+
+    renderPage([
+      "/orders?status=in_review&appraiserId=appraiser-2&reviewerId=reviewer-1&clientId=client-1",
+    ]);
+
+    expect(screen.getByRole("heading", { name: "Pam's Orders" })).toBeInTheDocument();
+    expect(screen.getByText("Review and track orders assigned to your queue.")).toBeInTheDocument();
+    expect(screen.queryByText("Orders Workspace")).not.toBeInTheDocument();
+    expect(screen.queryByText("Active Operations")).not.toBeInTheDocument();
+    expect(screen.queryByText("Operations Command")).not.toBeInTheDocument();
+    expect(screen.queryByText("Active workspace")).not.toBeInTheDocument();
+    expect(screen.queryByText("Workflow actions in table")).not.toBeInTheDocument();
+    expect(screen.queryByText("History is read-only")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "New Order" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Historical Orders" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Saved Views" })).not.toBeInTheDocument();
+    expect(screen.getByText("Filter Orders")).toBeInTheDocument();
+    expect(screen.queryByText("Filter Active Orders")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Search active operational orders/i)).not.toBeInTheDocument();
+    expect(screen.getByText("Appraiser")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Orders workspace context")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Showing active operational orders/i)).not.toBeInTheDocument();
+    expect(screen.getByText("Status: In Review")).toBeInTheDocument();
+    expect(screen.getByText("Client: client-1")).toBeInTheDocument();
+    expect(screen.getByText("Appraiser: appraiser-2")).toBeInTheDocument();
+    expect(screen.getByText("Reviewer: reviewer-1")).toBeInTheDocument();
+    expect(tableMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        filters: expect.objectContaining({
+          statusIn: ["in_review"],
+          appraiserId: "appraiser-2",
+          reviewerId: "reviewer-1",
+          clientId: "client-1",
+        }),
+        tableEyebrow: null,
+        tableLabel: "Orders",
+        tableSummary: null,
       }),
     );
   });

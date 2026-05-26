@@ -4,7 +4,6 @@ import { useDashboardSummary } from "@/lib/hooks/useDashboardSummary";
 import UnifiedOrdersTable from "@/features/orders/UnifiedOrdersTable";
 import DashboardCalendarPanel from "@/components/dashboard/DashboardCalendarPanel";
 import AppraiserWorkbenchPreview from "@/features/dashboard/workbenches/AppraiserWorkbenchPreview";
-import ReviewerWorkbenchPreview from "@/features/dashboard/workbenches/ReviewerWorkbenchPreview";
 import {
   WorkspaceSurface,
   workspaceSurfaceClassNames,
@@ -15,7 +14,7 @@ import { ORDER_STATUS, normalizeOrderStatus } from "@/lib/constants/orderStatus"
 import { OPERATIONAL_QUEUE_IDS } from "@/features/queues/queueDefinitions";
 import { useCompanySetupContext } from "@/features/company-setup/useCompanySetupContext";
 import { getShellWorkModeCue } from "@/lib/shell/shellWorkMode";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 const DASHBOARD_CONFIG = {
   owner:     { showOrdersTable: true, showReviewQueue: false },
@@ -136,6 +135,24 @@ function roleContextLabel({ isAdmin, isReviewer, role }) {
 const OPERATIONS_DASHBOARD_SUBTITLE =
   "Track active work, review handoffs, due pressure, and operational readiness.";
 
+const REVIEWER_DASHBOARD_SUBTITLE =
+  "Active review work, revision follow-up, and calendar context for your queue.";
+
+const REVIEWER_STATUS_FILTERS = Object.freeze([
+  {
+    label: "In Review",
+    value: ORDER_STATUS.IN_REVIEW,
+    tone: "border-indigo-200 bg-indigo-50 text-indigo-900",
+    selectedTone: "border-indigo-500 bg-indigo-100 text-indigo-950 ring-indigo-300",
+  },
+  {
+    label: "Needs Revisions",
+    value: ORDER_STATUS.NEEDS_REVISIONS,
+    tone: "border-rose-200 bg-rose-50 text-rose-900",
+    selectedTone: "border-rose-500 bg-rose-100 text-rose-950 ring-rose-300",
+  },
+]);
+
 function getShellProfilePresentationId(shellProfilePresentation) {
   return (
     shellProfilePresentation?.profileId ??
@@ -144,13 +161,37 @@ function getShellProfilePresentationId(shellProfilePresentation) {
   );
 }
 
+function firstNameFromIdentity(appContext) {
+  const identity = displayName(
+    appContext?.display_name || appContext?.name || appContext?.full_name || appContext?.email,
+    "",
+  );
+
+  if (!identity) return "";
+
+  return identity.split(/\s+/)[0].replace(/@.*$/, "");
+}
+
+function reviewerReviewsTitle(appContext) {
+  const firstName = firstNameFromIdentity(appContext);
+  return firstName ? `${firstName}'s Reviews` : "My Reviews";
+}
+
 function resolveDashboardPresentation({
   shellProfilePresentation,
   isAdmin,
   isReviewer,
+  appContext,
 }) {
   const profileId = getShellProfilePresentationId(shellProfilePresentation);
   const isOperations = profileId === "operations";
+
+  if (isReviewer && !isAdmin) {
+    return {
+      title: reviewerReviewsTitle(appContext),
+      subtitle: REVIEWER_DASHBOARD_SUBTITLE,
+    };
+  }
 
   if (isOperations) {
     return {
@@ -166,8 +207,6 @@ function resolveDashboardPresentation({
     title: "Operations Dashboard",
     subtitle: isAdmin
       ? "Calendar, active orders, and workflow handoffs for the current company."
-      : isReviewer
-      ? "Calendar context and review work assigned to your queue."
       : "Calendar context, assigned orders, and revision follow-up.",
   };
 }
@@ -405,9 +444,11 @@ export default function DashboardPage({ shellProfilePresentation } = {}) {
   const isReviewer = summaryIsReviewer;
   const loading = summaryLoading;
   const reviewerId = isReviewer ? userId || null : null;
+  const isReviewerOnlyDashboard = isReviewer && !isAdmin;
 
   const cfg = DASHBOARD_CONFIG[normalizedRole] || DASHBOARD_CONFIG.appraiser;
   const [statusFilter, setStatusFilter] = useState("");
+  const [dashboardOrderPatches, setDashboardOrderPatches] = useState({});
 
   const appliedFilters = useMemo(() => {
     const next = { ...(tableFilters || {}) };
@@ -429,14 +470,34 @@ export default function DashboardPage({ shellProfilePresentation } = {}) {
     shellProfilePresentation,
     isAdmin,
     isReviewer,
+    appContext,
   });
   const shellWorkMode = getShellWorkModeCue(shellProfilePresentation);
   const shellProfileId = getShellProfilePresentationId(shellProfilePresentation);
   const showAppraiserWorkbenchPreview = shellProfileId === "my_work" && !isAdmin;
-  const showReviewerWorkbenchPreview = shellProfileId === "review_queue" && !isAdmin;
   const companyLabel = displayName(appContext?.company_name, "Current company");
   const roleLabel = roleContextLabel({ isAdmin, isReviewer, role: normalizedRole });
   const ordersCount = summary.orders.count ?? 0;
+  const patchedOrdersRows = useMemo(
+    () =>
+      (ordersRows || []).map((order) => {
+        const orderId = order?.id || order?.order_id;
+        return orderId && dashboardOrderPatches[orderId]
+          ? { ...order, ...dashboardOrderPatches[orderId] }
+          : order;
+      }),
+    [dashboardOrderPatches, ordersRows],
+  );
+  const handleDashboardOrderChanged = useCallback((updatedOrder) => {
+    const orderId = updatedOrder?.id || updatedOrder?.order_id;
+    if (!orderId) return;
+
+    setDashboardOrderPatches((current) => ({
+      ...current,
+      [orderId]: updatedOrder,
+    }));
+    setDashboardRefreshKey((key) => key + 1);
+  }, []);
   const kpiValues = useMemo(
     () => ({
       activeOrders: ordersCount,
@@ -448,23 +509,23 @@ export default function DashboardPage({ shellProfilePresentation } = {}) {
   );
   const statusCounts = useMemo(() => {
     const counts = Object.fromEntries(STATUS_TIMELINE.map((status) => [status.value, 0]));
-    (ordersRows || []).forEach((order) => {
+    (patchedOrdersRows || []).forEach((order) => {
       const status = normalizeOrderStatus(order?.status_normalized || order?.status);
       if (Object.prototype.hasOwnProperty.call(counts, status)) {
         counts[status] += 1;
       }
     });
     return counts;
-  }, [ordersRows]);
+  }, [patchedOrdersRows]);
   const filteredOrdersRows = useMemo(() => {
-    if (!statusFilter) return ordersRows || [];
-    return (ordersRows || []).filter(
+    if (!statusFilter) return patchedOrdersRows || [];
+    return (patchedOrdersRows || []).filter(
       (order) => normalizeOrderStatus(order?.status_normalized || order?.status) === statusFilter,
     );
-  }, [ordersRows, statusFilter]);
+  }, [patchedOrdersRows, statusFilter]);
   const workloadSummary = useMemo(
-    () => summarizeWorkloadVisibility(ordersRows || []),
-    [ordersRows],
+    () => summarizeWorkloadVisibility(patchedOrdersRows || []),
+    [patchedOrdersRows],
   );
   const readinessItems = useMemo(
     () =>
@@ -476,14 +537,14 @@ export default function DashboardPage({ shellProfilePresentation } = {}) {
         teamAccess: teamAccessPermission,
         orderRead: orderReadPermission,
         dashboardLoading: loading,
-        ordersRows: ordersRows || [],
+        ordersRows: patchedOrdersRows || [],
       }),
     [
       appContext,
       isAdmin,
       loading,
       orderReadPermission,
-      ordersRows,
+      patchedOrdersRows,
       setupContextState.context,
       setupContextState.loading,
       teamAccessPermission,
@@ -545,6 +606,15 @@ export default function DashboardPage({ shellProfilePresentation } = {}) {
 
       <OwnerSetupDashboardPrompt appContext={appContext} />
 
+      {isReviewerOnlyDashboard && (
+        <ReviewerStatusFilterChips
+          counts={statusCounts}
+          selectedStatus={statusFilter}
+          onClear={() => setStatusFilter("")}
+          onSelect={toggleStatus}
+        />
+      )}
+
       <WorkspaceSurface
         variant="secondary"
         className="bg-white p-3"
@@ -561,7 +631,7 @@ export default function DashboardPage({ shellProfilePresentation } = {}) {
           </div>
         </div>
         <DashboardCalendarPanel
-          orders={ordersRows || []}
+          orders={patchedOrdersRows || []}
           role={normalizedRole}
           onOpenOrder={handleOpenOrder}
           fixedHeader={true}
@@ -570,7 +640,7 @@ export default function DashboardPage({ shellProfilePresentation } = {}) {
         />
       </WorkspaceSurface>
 
-      <section className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_12rem]">
+      <section className={isReviewerOnlyDashboard ? "grid gap-3" : "grid gap-3 xl:grid-cols-[minmax(0,1fr)_12rem]"}>
         {/* Orders section */}
         {cfg.showOrdersTable && (
           <WorkspaceSurface variant="primary" className="space-y-3 p-3">
@@ -591,11 +661,13 @@ export default function DashboardPage({ shellProfilePresentation } = {}) {
               pageSize={10}
               scope="dashboard"
               onOrderDatesChanged={() => setDashboardRefreshKey((key) => key + 1)}
+              onOrderChanged={handleDashboardOrderChanged}
             />
           </WorkspaceSurface>
         )}
 
-        <aside className="space-y-3 lg:sticky lg:top-20 lg:self-start">
+        {!isReviewerOnlyDashboard && (
+          <aside className="space-y-3 lg:sticky lg:top-20 lg:self-start">
           <WorkspaceSurface variant="secondary" className="space-y-3 p-3">
             <div className="flex items-baseline justify-between gap-2">
               <div>
@@ -612,27 +684,21 @@ export default function DashboardPage({ shellProfilePresentation } = {}) {
               onSelect={toggleStatus}
             />
           </WorkspaceSurface>
-        </aside>
+          </aside>
+        )}
       </section>
 
       {showAppraiserWorkbenchPreview && (
         <AppraiserWorkbenchPreview
-          rows={ordersRows || []}
+          rows={patchedOrdersRows || []}
           loading={loading}
           appraiserLabel={roleLabel}
           compact
         />
       )}
 
-      {showReviewerWorkbenchPreview && (
-        <ReviewerWorkbenchPreview
-          rows={ordersRows || []}
-          loading={loading}
-          reviewerLabel={roleLabel}
-        />
-      )}
-
-      <WorkspaceSurface
+      {!isReviewerOnlyDashboard && (
+        <WorkspaceSurface
         variant="secondary"
         aria-labelledby="dashboard-support-heading"
         className="space-y-4 bg-slate-50/70 p-3 sm:p-4"
@@ -651,7 +717,8 @@ export default function DashboardPage({ shellProfilePresentation } = {}) {
         <OperationalKpiCards loading={loading} values={kpiValues} />
         <WorkloadVisibilitySection loading={loading} summary={workloadSummary} />
         {isAdmin && <OperationalReadinessCard items={readinessItems} />}
-      </WorkspaceSurface>
+        </WorkspaceSurface>
+      )}
 
       {/* Placeholder for future review queue */}
       {cfg.showReviewQueue && (
@@ -896,6 +963,48 @@ function WorkloadList({ items, itemTo, empty }) {
         </div>
       ))}
     </div>
+  );
+}
+
+function ReviewerStatusFilterChips({ counts, onClear, onSelect, selectedStatus }) {
+  const hasSelection = Boolean(selectedStatus);
+  // TODO: Add a Resubmitted chip when resubmission is represented by a canonical status or
+  // derived activity/order field. Do not infer it from unrelated review states.
+  return (
+    <WorkspaceSurface variant="secondary" className="bg-white p-3">
+      <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Review status filters">
+        {REVIEWER_STATUS_FILTERS.map((filter) => {
+          const selected = selectedStatus === filter.value;
+          return (
+            <button
+              key={filter.value}
+              type="button"
+              onClick={() => onSelect(filter.value)}
+              aria-pressed={selected}
+              className={`inline-flex min-h-10 items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold transition ${
+                selected
+                  ? `${filter.selectedTone} shadow-sm ring-2`
+                  : `${filter.tone} hover:brightness-95`
+              }`}
+            >
+              <span>{filter.label}</span>
+              <span className="rounded-full bg-white/80 px-2 py-0.5 text-xs font-semibold tabular-nums">
+                {counts[filter.value] || 0}
+              </span>
+            </button>
+          );
+        })}
+        {hasSelection && (
+          <button
+            type="button"
+            onClick={onClear}
+            className="inline-flex min-h-10 items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+    </WorkspaceSurface>
   );
 }
 

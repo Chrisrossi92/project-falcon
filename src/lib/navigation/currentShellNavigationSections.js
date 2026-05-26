@@ -2,6 +2,7 @@ import {
   SHELL_NAVIGATION_GROUP_STATUSES,
   getShellNavigationGroups,
 } from './shellNavigationGroups.js';
+import { applyShellNavigationLabels } from './shellNavigationLabels.js';
 
 export const SHELL_NAVIGATION_UNGROUPED_SECTION_ID = 'other_visible_links';
 
@@ -40,7 +41,7 @@ export function getCurrentShellNavigationSections(visibleLinks = [], profileId) 
       }
 
       groupedLinkIds.add(navEntryId);
-      return [link];
+      return [applyShellNavigationLabels(link, profileId)];
     });
 
     if (groupLinks.length === 0) {
@@ -57,7 +58,9 @@ export function getCurrentShellNavigationSections(visibleLinks = [], profileId) 
     ];
   });
 
-  const ungroupedLinks = links.filter((link) => !groupedLinkIds.has(link.id));
+  const ungroupedLinks = links
+    .filter((link) => !groupedLinkIds.has(link.id))
+    .map((link) => applyShellNavigationLabels(link, profileId));
 
   if (ungroupedLinks.length > 0) {
     sections.push(

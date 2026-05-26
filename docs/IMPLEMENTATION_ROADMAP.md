@@ -4040,3 +4040,38 @@ dedicated page. This remains frontend presentation/composition only and does not
 Orders page, add backend queries, change route guards, permission seeds, permission authority,
 workflow/action behavior, Smart Actions, backend/schema/Supabase behavior, data/query authority,
 automation, notifications, AMC, Client Portal, AI, or production data behavior.
+
+Falcon v1 Role-Based Surface Refinement Doctrine is complete as docs-only planning in
+`docs/FALCON_PERMISSION_SCOPED_SURFACE_DOCTRINE.md`,
+`docs/FALCON_V1_MY_WORK_SURFACE_STRATEGY.md`, and
+`docs/FALCON_V1_OPERATIONAL_COMPLETION_STRATEGY.md`. It records the appraiser experience
+principles established during the role-surface tightening pass: role defines worldview/persona,
+permissions define action authority, and product/module scope defines the visible operational
+world. Appraiser surfaces should feel like assigned-work execution, reviewer surfaces should feel
+like review/quality control, admin surfaces should expose coordination tools only within granted
+permissions, and owner surfaces can expose company setup, users, permissions, and high-level
+operational controls. AMC/network concepts must not leak into Staff Appraiser Platform views
+unless AMC scope is explicitly enabled. The doctrine also locks plain role-native language, avoids
+redundant explanatory copy and fake navigation, keeps drawers as secondary context, favors reuse of
+established table/list systems, and prioritizes calm hierarchy, density, and clarity over dashboard
+clutter. The appraiser experience is visually and structurally locked pending final smoke testing.
+The next refinement order is Reviewer worldview, Admin worldview, Owner worldview, then a
+cross-role consistency pass. This is docs-only and makes no runtime code, route, navigation,
+permission, backend/schema/Supabase, data/query, workflow/action, Smart Action, automation,
+notification, AMC, Client Portal, AI, or production data changes.
+
+Falcon v1 Reviewer Worldview Refinement checkpoint is complete. The reviewer experience now
+presents reviewer work as quality control and revision coordination rather than owner/admin
+operations. The dashboard is simplified into the `Pam's Reviews` / `My Reviews` queue model with
+calendar and active review work as the primary surfaces. The reviewer Orders page is reframed as
+the user's orders instead of active operations inventory. Reviewer Order Detail suppresses
+Attention Summary, Operational Context, review-derived summary blocks, file-readiness derived
+clutter, and passive derived messages while preserving files, notes/activity, contacts/map, due
+dates, revision communication, review actions, and workflow history. The general Order Detail
+`Edit` action is hidden for reviewers. Notification routing no longer alerts reviewers for
+pre-review appraiser notes, first submission wording is distinct from true resubmission wording,
+Smart Action button/dropdown clicks no longer open row drawers, and successful reviewer Smart
+Actions optimistically refresh visible row status and filtered row membership. This checkpoint
+does not change backend/schema/Supabase behavior, permission model, query authority, lifecycle
+authority, route structure, AMC scope, Client Portal behavior, AI, or production data. The next
+role refinement order is Admin worldview, Owner worldview, then a cross-role consistency pass.

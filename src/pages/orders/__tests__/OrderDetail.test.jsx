@@ -442,6 +442,51 @@ describe("OrderDetail site visit save", () => {
     expect(screen.queryByRole("button", { name: "Void order" })).not.toBeInTheDocument();
   });
 
+  it("removes derived operational context from the reviewer review workspace", async () => {
+    Object.assign(shellProfileMock, {
+      profileId: "review_queue",
+      loading: false,
+      error: null,
+    });
+    orderMock.status = "in_review";
+    orderMock.last_review_activity_at = "2026-05-23T12:00:00.000Z";
+    operationalInputsMock.push({
+      id: "input-1",
+      input_type: "inspection_scheduled",
+      actor_role: "Appraiser",
+      created_at: "2026-05-24T13:00:00.000Z",
+      expires_at: "2026-05-31T13:00:00.000Z",
+    });
+
+    render(<OrderDetail />);
+
+    expect(screen.getByLabelText("Order Summary")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Operational Overview")).not.toBeInTheDocument();
+    expect(screen.getByText("Schedule")).toBeInTheDocument();
+    expect(screen.getByText("Review Due")).toBeInTheDocument();
+    expect(screen.getByText("Contacts / Map")).toBeInTheDocument();
+    expect(screen.getByText("Activity")).toBeInTheDocument();
+    expect(screen.getByTestId("activity-log")).toBeInTheDocument();
+    expect(screen.getByTestId("activity-log")).toHaveAttribute("data-height", "360");
+    expect(screen.getByRole("button", { name: "Print Packet" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "<- Back" })).toBeInTheDocument();
+    expect(await screen.findByLabelText("Order files")).toBeInTheDocument();
+    expect(screen.getByLabelText("Order notes")).toBeInTheDocument();
+
+    expect(screen.queryByRole("link", { name: "Edit" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Order attention summary")).not.toBeInTheDocument();
+    expect(screen.queryByText("Attention Summary")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Operational context controls")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Operational status evidence")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Review context summary")).not.toBeInTheDocument();
+    expect(screen.queryByText("Review / Revision Context")).not.toBeInTheDocument();
+    expect(screen.queryByText("Derived")).not.toBeInTheDocument();
+    expect(screen.queryByText("Review appears active.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Appointment scheduled")).not.toBeInTheDocument();
+    expect(screen.queryByText("Recently updated")).not.toBeInTheDocument();
+    expect(screen.queryByText("No files loaded")).not.toBeInTheDocument();
+  });
+
   it("preserves owner/admin management surfaces when permissions allow them", () => {
     permissionKeysMock.push(
       "orders.archive",

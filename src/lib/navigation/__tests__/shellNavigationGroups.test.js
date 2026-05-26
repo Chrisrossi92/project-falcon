@@ -189,7 +189,7 @@ describe('passive shell navigation groups', () => {
       'Relationships',
       'Calendar',
       'Clients',
-      'Team Access',
+      'Users',
     ]);
   });
 
@@ -207,7 +207,7 @@ describe('passive shell navigation groups', () => {
       path: '/assignments',
     });
     expect(getCurrentLiveNavigationEntry('users')).toMatchObject({
-      label: 'Team Access',
+      label: 'Users',
       path: '/users',
     });
     expect(getCurrentLiveNavigationEntry('settings.ownerSetup')).toMatchObject({

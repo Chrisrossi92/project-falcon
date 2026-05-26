@@ -30,6 +30,15 @@ export default function SmartActionsControl({
       ? `h-9 w-full max-w-[128px] rounded-full border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 shadow-sm transition duration-150 hover:-translate-y-px hover:border-slate-300 hover:bg-slate-50 hover:text-slate-950 hover:shadow-md ${buttonClassName}`.trim()
       : `h-8 w-[120px] rounded-full border-slate-200 bg-white px-2 text-[11px] font-semibold text-slate-700 shadow-sm transition duration-150 hover:-translate-y-px hover:border-slate-300 hover:bg-slate-50 hover:text-slate-950 hover:shadow-md ${buttonClassName}`.trim();
 
+  const stopDrawerPropagation = (event) => {
+    event?.stopPropagation?.();
+  };
+
+  const runAction = (action, event) => {
+    stopDrawerPropagation(event);
+    action.onClick?.(event);
+  };
+
   const renderDropdown = (dropdownActions, triggerLabel = "View Actions") => {
     if (!dropdownActions.length) return null;
 
@@ -40,6 +49,7 @@ export default function SmartActionsControl({
             size="sm"
             variant="outline"
             className={actionButtonClassName}
+            onClick={stopDrawerPropagation}
           >
             <span className="truncate">{triggerLabel}</span>
           </Button>
@@ -50,11 +60,12 @@ export default function SmartActionsControl({
             align="end"
             sideOffset={6}
             className="z-50"
+            onClick={stopDrawerPropagation}
           >
             {dropdownActions.map((action) => (
               <DropdownMenuItem
                 key={action.id}
-                onClick={action.onClick}
+                onClick={(event) => runAction(action, event)}
                 disabled={action.disabled}
               >
                 {action.label}
@@ -78,7 +89,7 @@ export default function SmartActionsControl({
         size="sm"
         variant="outline"
         className={actionButtonClassName}
-        onClick={visibleActions[0].onClick}
+        onClick={(event) => runAction(visibleActions[0], event)}
         disabled={visibleActions[0].disabled}
       >
         <span className="truncate">{visibleActions[0].label}</span>
@@ -88,7 +99,12 @@ export default function SmartActionsControl({
     );
 
   return (
-    <div className={wrapperClassName}>
+    <div
+      className={wrapperClassName}
+      data-interactive
+      data-no-drawer
+      onClick={stopDrawerPropagation}
+    >
       {button}
     </div>
   );

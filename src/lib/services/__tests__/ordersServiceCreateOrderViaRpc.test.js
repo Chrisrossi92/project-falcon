@@ -812,6 +812,62 @@ describe("canonical workflow transition helpers", () => {
     expect(supabaseMock.from.mock.results[0].value).not.toHaveProperty("update");
   });
 
+  it("emits first send-to-review notifications without resubmission metadata", async () => {
+    const transitionedOrder = {
+      id: "order-1",
+      status: "in_review",
+      appraiser_id: "appraiser-1",
+      reviewer_id: "reviewer-1",
+    };
+    mockExistingOrder("in_progress");
+    supabaseMock.rpc.mockResolvedValue({ data: transitionedOrder, error: null });
+    resolveOrderParticipants.mockReturnValue({
+      recipients: ["reviewer-1"],
+      suppressUserIds: [],
+    });
+
+    await expect(
+      sendOrderToReview("order-1", "appraiser-1", { noteText: "Submission note:\nReady" }),
+    ).resolves.toBe(transitionedOrder);
+
+    expect(emitNotification).toHaveBeenCalledWith("order.sent_to_review", {
+      recipients: [{ userId: "reviewer-1", role: "reviewer" }],
+      order: transitionedOrder,
+      payload: {
+        note_text: "Submission note:\nReady",
+      },
+    });
+  });
+
+  it("emits resubmission metadata only when sending from needs revisions", async () => {
+    const transitionedOrder = {
+      id: "order-1",
+      status: "in_review",
+      appraiser_id: "appraiser-1",
+      reviewer_id: "reviewer-1",
+    };
+    mockExistingOrder("needs_revisions");
+    supabaseMock.rpc.mockResolvedValue({ data: transitionedOrder, error: null });
+    resolveOrderParticipants.mockReturnValue({
+      recipients: ["reviewer-1"],
+      suppressUserIds: [],
+    });
+
+    await expect(
+      sendOrderToReview("order-1", "appraiser-1", { noteText: "Resubmission note:\nReady" }),
+    ).resolves.toBe(transitionedOrder);
+
+    expect(emitNotification).toHaveBeenCalledWith("order.sent_to_review", {
+      recipients: [{ userId: "reviewer-1", role: "reviewer" }],
+      order: transitionedOrder,
+      payload: {
+        note_text: "Resubmission note:\nReady",
+        is_resubmission: true,
+        previous_status: "needs_revisions",
+      },
+    });
+  });
+
   it("propagates canonical workflow RPC errors", async () => {
     const error = Object.assign(new Error("workflow transition denied"), {
       code: "42501",

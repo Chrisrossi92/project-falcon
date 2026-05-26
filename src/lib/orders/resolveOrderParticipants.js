@@ -6,6 +6,11 @@ export function resolveOrderParticipants(order, {
 } = {}) {
   const appraiserId = order?.appraiser_id || null;
   const reviewerId = order?.reviewer_id || null;
+  const normalizedStatus = String(status || "").toLowerCase().trim();
+  const isReviewWorkflowStatus =
+    normalizedStatus === "in_review" ||
+    normalizedStatus === "needs_revisions" ||
+    normalizedStatus === "review_cleared";
 
   let roleOnOrder = "other";
   if (actorUserId && actorUserId === appraiserId) {
@@ -17,6 +22,8 @@ export function resolveOrderParticipants(order, {
   let recipients = [];
   if (event === "workflow.sent_to_review") {
     recipients = reviewerId ? [reviewerId] : [];
+  } else if (event === "activity_note" && roleOnOrder === "appraiser") {
+    recipients = isReviewWorkflowStatus && reviewerId ? [reviewerId] : [];
   } else if (roleOnOrder === "appraiser") {
     recipients = reviewerId ? [reviewerId] : [];
   } else if (roleOnOrder === "reviewer") {
