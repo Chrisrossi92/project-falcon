@@ -1,6 +1,15 @@
 // src/components/maps/GoogleMapEmbed.jsx
 import React from "react";
 
+export function googleMapsEmbedApiKey() {
+  return (
+    import.meta.env.VITE_GOOGLE_MAPS_EMBED_API_KEY ||
+    import.meta.env.VITE_GOOGLE_MAPS_API_KEY ||
+    import.meta.env.VITE_GOOGLE_MAPS_KEY ||
+    ""
+  );
+}
+
 export default function GoogleMapEmbed({
   addressLine1,
   address_line1,
@@ -28,11 +37,7 @@ export default function GoogleMapEmbed({
 
   const encoded = encodeURIComponent(addressStr);
   const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || import.meta.env.VITE_GOOGLE_MAPS_KEY;
-
-  if (import.meta?.env?.DEV) {
-    console.debug("[GoogleMapEmbed] key present:", Boolean(apiKey));
-  }
+  const apiKey = googleMapsEmbedApiKey();
 
   if (!apiKey) {
     return (

@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import supabase from "@/lib/supabaseClient";
 import ActivityLog from "@/components/activity/ActivityLog";
-import GoogleMapEmbed from "@/components/maps/GoogleMapEmbed";
+import GoogleMapEmbed, { googleMapsEmbedApiKey } from "@/components/maps/GoogleMapEmbed";
 import OperationalInputsReadOnly from "@/features/orders/operational-inputs/OperationalInputsReadOnly";
 import useOrderOperationalInputs from "@/features/orders/operational-inputs/useOrderOperationalInputs";
 
@@ -282,9 +282,7 @@ export default function OrderDrawerContent({ orderId, order: rowFromTable }) {
   const cityLine = cityLineOf(row);
   const hasLocation = Boolean(addressLine || cityLine);
   const mapsHref = mapsHrefFor(row);
-  const canRenderEmbeddedMap = Boolean(
-    hasLocation && (import.meta.env.VITE_GOOGLE_MAPS_API_KEY || import.meta.env.VITE_GOOGLE_MAPS_KEY)
-  );
+  const canRenderEmbeddedMap = Boolean(hasLocation && googleMapsEmbedApiKey());
 
   return (
     <div className="space-y-3">
@@ -405,8 +403,6 @@ function ContactLine({ label, value }) {
     </div>
   );
 }
-
-
 
 
 

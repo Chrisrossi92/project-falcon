@@ -30,6 +30,7 @@ vi.mock("@/components/activity/ActivityLog", () => ({
 
 vi.mock("@/components/maps/GoogleMapEmbed", () => ({
   default: () => <div data-testid="google-map" />,
+  googleMapsEmbedApiKey: () => "test-key",
 }));
 
 vi.mock("@/features/orders/operational-inputs/useOrderOperationalInputs", () => ({
