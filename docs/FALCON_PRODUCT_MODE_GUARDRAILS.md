@@ -18,6 +18,7 @@ Reference docs:
 - `docs/FALCON_VENDOR_PORTAL_BLUEPRINT.md`
 - `docs/FALCON_CLIENT_PORTAL_BLUEPRINT.md`
 - `docs/FALCON_PRODUCT_PACKAGING_AND_ONBOARDING_DOCTRINE.md`
+- `docs/FALCON_V1_AMC_OPERATIONAL_SURFACE_SUPPRESSION_DOCTRINE.md`
 
 ## Current Implementation Boundary
 
@@ -82,6 +83,8 @@ Migration readiness checklist:
 - Implementation must start with constants and metadata before tenant/module/package enforcement.
 - Packaging should map to operational outcomes, not hidden features, and must follow `docs/FALCON_PRODUCT_PACKAGING_AND_ONBOARDING_DOCTRINE.md`.
 - Continental AMC should prove AMC network operations without becoming the default UX for Staff, Vendor, or Client modes.
+- Falcon v1 should suppress AMC/network surfaces from Staff Appraisal runtime UX unless the AMC
+  operational domain is explicitly enabled, permissioned, and intentionally exposed.
 
 ## UX Guardrails
 
@@ -135,12 +138,17 @@ Staff Appraisal Mode:
 - Can use order, workflow, appraiser, reviewer, revision, due-date, client, and delivery language.
 - Should not show AMC command-center, Vendor packet, or Client portal surfaces unless explicitly enabled.
 - Should not mix network packet work into internal order queues without a clear lane.
+- May preserve AMC-capable backend architecture without exposing AMC-native runtime concepts.
+- Should treat `AMC` as an ordinary client/relationship category only where the current
+  client/order model already requires it, not as a gateway to AMC Operations.
 
 AMC Operations Mode:
 
 - Can use intake, assignment, vendor panel, client/lender, SLA, QC/review, escalation, and delivery-risk language.
 - Should not present itself as Staff Appraisal Mode with extra AMC tools.
 - Should keep owner-company order operations separate from vendor-facing packet execution.
+- Must be explicitly enabled as its own operational domain. Admin role title alone must not expose
+  AMC Operations.
 
 Vendor Portal Mode:
 

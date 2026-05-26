@@ -55,6 +55,9 @@ role/persona context, and the required permission gates for each surface.
 
 AMC Operations is a v2+ operational world.
 
+The v1 AMC suppression doctrine lives in
+`docs/FALCON_V1_AMC_OPERATIONAL_SURFACE_SUPPRESSION_DOCTRINE.md`.
+
 AMC scope may eventually include:
 
 - lender/client intake;
@@ -67,6 +70,18 @@ AMC scope may eventually include:
 AMC surfaces must not appear simply because a user is an admin. AMC Operations requires explicit
 module scope and the relevant permissions. Until those contracts are live, AMC surfaces should stay
 hidden rather than appearing as disabled clutter.
+
+Hidden AMC architecture is intentional. Multi-company relationships, assignment packet
+foundations, vendor capability, and AMC workflow foundations may exist internally while remaining
+suppressed from the Internal Staff Appraiser Platform. Dormant architecture must not leak into v1
+navigation, dashboards, command palette entries, empty states, notification/activity labels, or
+setup guidance.
+
+AMC operational concepts should be exposed only when AMC module scope is enabled, AMC permissions
+are granted, and the active operational domain intentionally renders AMC-native surfaces. Role title
+alone is not enough: admin is not AMC Admin, and owner-granted admin authority inside Staff
+Appraisal Mode does not automatically expose vendor panels, network assignments, client/lender
+queues, SLA dashboards, or marketplace language.
 
 ## Admin With And Without AMC Permissions
 

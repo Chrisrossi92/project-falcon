@@ -34,6 +34,7 @@ Phase 9 product-mode architecture is now the planning layer above this multi-com
 The canonical module registry lives in `docs/FALCON_MODULE_REGISTRY.md`.
 The product-mode composition matrix lives in `docs/FALCON_PRODUCT_MODE_COMPOSITION.md`.
 The Continental AMC operational blueprint lives in `docs/FALCON_CONTINENTAL_AMC_BLUEPRINT.md`.
+The v1 AMC operational surface suppression doctrine lives in `docs/FALCON_V1_AMC_OPERATIONAL_SURFACE_SUPPRESSION_DOCTRINE.md`.
 Phase 10A company bootstrap doctrine lives in `docs/COMPANY_BOOTSTRAP_ARCHITECTURE.md`.
 
 Falcon should support complete, purpose-built modes:
@@ -45,6 +46,40 @@ Falcon should support complete, purpose-built modes:
 - Hybrid / Ecosystem Mode for companies that intentionally combine internal operations with network participation.
 
 Product modes should be implemented through capability/module bundles, permission domains, relationship types, and mode-specific UX. They should not be implemented as one cluttered universal UI with disabled or irrelevant features. Staff Appraisal Mode remains the likely primary SaaS product, while Continental AMC should be the flagship internal deployment for validating AMC, vendor, client, and ecosystem workflows.
+
+## 1A. V1 Operational Surface Suppression
+
+Multi-company and AMC architecture may exist before it is exposed in runtime UX.
+
+Falcon v1 should keep Staff Appraisal Mode as the active operational experience unless another
+operational domain is explicitly enabled. Company relationships, relationship types, assignment
+packet foundations, vendor capability, and AMC workflow foundations are architectural capacity, not
+active UI commitments.
+
+Rules:
+
+- Staff Appraisal users should not routinely see AMC command-center, vendor panel, assignment
+  marketplace, external packet, multi-company abstraction, or network dashboard language.
+- Admin is not AMC Admin. Admin authority in the internal staff operational domain does not expose
+  AMC Operations unless AMC module scope and AMC permissions are both granted.
+- Owner controls future operational-domain exposure. Owners may later enable AMC domains
+  selectively for a company, user, or role preset without making AMC visibility inherent to every
+  admin.
+- Operational-domain visibility is separate from action authority. Permissions can authorize an
+  action inside a visible domain, but they should not expose unrelated dormant domains.
+- Hidden foundations should remain hidden rather than rendered as locked or disabled modules.
+
+Examples:
+
+- A client record categorized as `AMC` may remain visible where the v1 client/order model already
+  uses that relationship.
+- `Vendor Panel`, `AMC Command Center`, `Network Work`, `Sent Assignments`, `Received Packets`,
+  and `Assignment Marketplace` should stay hidden until an AMC or Hybrid operational domain is
+  intentionally live.
+
+Suppression is not removal. Future AMC, Vendor Portal, Client Portal, and Hybrid/Ecosystem modes
+should continue to build on the multi-company foundation, but each must surface as a complete,
+domain-native workspace rather than hidden architecture leaking into Staff Appraisal Mode.
 
 ## 2. Company Identity Model
 

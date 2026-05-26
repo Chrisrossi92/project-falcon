@@ -20,6 +20,7 @@ Reference docs:
 - `docs/FALCON_AMC_VENDOR_PANEL_DOCTRINE.md`
 - `docs/FALCON_AMC_CLIENT_LENDER_DOCTRINE.md`
 - `docs/FALCON_AMC_NOTIFICATION_ACTIVITY_ESCALATION_DOCTRINE.md`
+- `docs/FALCON_V1_AMC_OPERATIONAL_SURFACE_SUPPRESSION_DOCTRINE.md`
 
 ## Core Doctrine
 
@@ -27,6 +28,8 @@ Reference docs:
 - Staff Appraisal Mode remains the primary SaaS sales path despite AMC sophistication.
 - AMC operations should feel like a network operations command center.
 - Continental validates Vendor Portal and Client Portal surfaces without making Staff Mode feel cluttered.
+- Hidden AMC architecture may exist in Falcon v1 without exposing AMC operational surfaces to Staff
+  Appraisal users.
 - Assignment packet access is not canonical order access.
 - Assignment lifecycle is operationally distinct from internal order lifecycle.
 - AMC queue and workflow taxonomy lives in `docs/FALCON_AMC_QUEUE_WORKFLOW_TAXONOMY.md`.
