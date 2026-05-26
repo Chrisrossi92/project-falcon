@@ -66,11 +66,14 @@ function buildOrderPayload(values, { isEdit = false } = {}) {
 
     entry_contact_name: values.entry_contact_name || null,
     entry_contact_phone: values.entry_contact_phone || null,
+    property_contact_name: values.property_contact_name || values.entry_contact_name || null,
+    property_contact_phone: values.property_contact_phone || values.entry_contact_phone || null,
 
     site_visit_at: values.site_visit_at || null,
     review_due_at: values.review_due_at || null,
     final_due_at: values.final_due_at || null,
 
+    access_notes: values.access_notes || null,
     notes: values.notes || null,
   };
 
@@ -342,7 +345,6 @@ export default function OrderForm({ order, onClose, onSaved, onCancel }) {
     </form>
   );
 }
-
 
 
 

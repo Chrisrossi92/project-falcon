@@ -28,48 +28,170 @@ vi.mock("@/features/orders/orderClientOptionsApi", () => orderClientOptionsMock)
 
 vi.mock("../ClientFields", () => ({
   default: ({ value, onChange }) => (
-    <label>
-      Manual Client Name
-      <input
-        aria-label="Manual Client Name"
-        value={value.manual_client_name || ""}
-        onChange={(event) => onChange({ manual_client_name: event.target.value })}
-      />
-    </label>
+    <div>
+      <label>
+        Manual Client Name
+        <input
+          aria-label="Manual Client Name"
+          value={value.manual_client_name || ""}
+          onChange={(event) => onChange({ manual_client_name: event.target.value })}
+        />
+      </label>
+      <label>
+        AMC
+        <input
+          aria-label="AMC"
+          value={value.managing_amc_id || ""}
+          onChange={(event) => onChange({ managing_amc_id: event.target.value })}
+        />
+      </label>
+      <label>
+        Client
+        <input
+          aria-label="Client"
+          value={value.client_id || ""}
+          onChange={(event) => onChange({ client_id: event.target.value })}
+        />
+      </label>
+      <label>
+        Client Contact
+        <input
+          aria-label="Client Contact"
+          value={value.client_contact_id || ""}
+          onChange={(event) => onChange({ client_contact_id: event.target.value })}
+        />
+      </label>
+      <label>
+        Property Contact Name
+        <input
+          aria-label="Property Contact Name"
+          value={value.entry_contact_name || ""}
+          onChange={(event) => onChange({ entry_contact_name: event.target.value })}
+        />
+      </label>
+      <label>
+        Property Contact Phone
+        <input
+          aria-label="Property Contact Phone"
+          value={value.entry_contact_phone || ""}
+          onChange={(event) => onChange({ entry_contact_phone: event.target.value })}
+        />
+      </label>
+    </div>
   ),
 }));
 
 vi.mock("../AssignmentFields", () => ({
-  default: ({ value, onChange, isEdit }) =>
-    isEdit ? (
+  default: ({ value, onChange, isEdit }) => (
+    <div>
+      {isEdit ? (
+        <label>
+          Order #
+          <input
+            aria-label="Order #"
+            value={value.order_number || ""}
+            onChange={(event) => onChange({ order_number: event.target.value })}
+          />
+        </label>
+      ) : (
+        <div aria-label="Order number generated on save">Generated on save</div>
+      )}
       <label>
-        Order #
+        Appraiser
         <input
-          aria-label="Order #"
-          value={value.order_number || ""}
-          onChange={(event) => onChange({ order_number: event.target.value })}
+          aria-label="Appraiser"
+          value={value.appraiser_id || ""}
+          onChange={(event) => onChange({ appraiser_id: event.target.value })}
         />
       </label>
-    ) : (
-      <div aria-label="Order number generated on save">Generated on save</div>
-    ),
+      <label>
+        Reviewer
+        <input
+          aria-label="Reviewer"
+          value={value.reviewer_id || ""}
+          onChange={(event) => onChange({ reviewer_id: event.target.value })}
+        />
+      </label>
+      <label>
+        Split %
+        <input
+          aria-label="Split %"
+          value={value.split_pct || ""}
+          onChange={(event) => onChange({ split_pct: event.target.value })}
+        />
+      </label>
+      <label>
+        Base Fee
+        <input
+          aria-label="Base Fee"
+          value={value.base_fee || ""}
+          onChange={(event) => onChange({ base_fee: event.target.value })}
+        />
+      </label>
+      <label>
+        Appraiser Fee
+        <input
+          aria-label="Appraiser Fee"
+          value={value.appraiser_fee || ""}
+          onChange={(event) => onChange({ appraiser_fee: event.target.value })}
+        />
+      </label>
+    </div>
+  ),
 }));
 
 vi.mock("../PropertyFields", () => ({
   default: ({ value, onChange }) => (
-    <label>
-      Property Address
-      <input
-        aria-label="Property Address"
-        value={value.address_line1 || ""}
-        onChange={(event) => onChange({ address_line1: event.target.value })}
-      />
-    </label>
+    <div>
+      <label>
+        Property Address
+        <input
+          aria-label="Property Address"
+          value={value.address_line1 || ""}
+          onChange={(event) => onChange({ address_line1: event.target.value })}
+        />
+      </label>
+      <label>
+        Property Type
+        <input
+          aria-label="Property Type"
+          value={value.property_type || ""}
+          onChange={(event) => onChange({ property_type: event.target.value })}
+        />
+      </label>
+      <label>
+        Report Type
+        <input
+          aria-label="Report Type"
+          value={value.report_type || ""}
+          onChange={(event) => onChange({ report_type: event.target.value })}
+        />
+      </label>
+    </div>
   ),
 }));
 
 vi.mock("../DatesFields", () => ({
-  default: () => <div data-testid="dates-fields" />,
+  default: ({ values, onChange }) => (
+    <div data-testid="dates-fields">
+      <label>
+        Reviewer Due
+        <input
+          aria-label="Reviewer Due"
+          value={values.review_due_at || ""}
+          onChange={(event) => onChange({ target: { name: "review_due_at", value: event.target.value } })}
+        />
+      </label>
+      <label>
+        Final Due
+        <input
+          aria-label="Final Due"
+          value={values.final_due_at || ""}
+          onChange={(event) => onChange({ target: { name: "final_due_at", value: event.target.value } })}
+        />
+      </label>
+    </div>
+  ),
 }));
 
 const { default: OrderForm } = await import("../OrderForm.jsx");
@@ -123,6 +245,88 @@ describe("OrderForm", () => {
       }),
     );
     expect(ordersServiceMock.createOrderViaRpc.mock.calls[0][0]).not.toHaveProperty("order_number");
+    expect(onSaved).toHaveBeenCalledWith(createdOrder);
+  });
+
+  it("includes the supported intake, assignment, fee, contact, and due date fields in the create payload", async () => {
+    const createdOrder = {
+      id: "order-created",
+      order_number: "2026004",
+    };
+    const onSaved = vi.fn();
+    ordersServiceMock.createOrderViaRpc.mockResolvedValue(createdOrder);
+
+    render(<OrderForm onSaved={onSaved} />);
+
+    fireEvent.change(screen.getByLabelText("AMC"), {
+      target: { value: "44" },
+    });
+    fireEvent.change(screen.getByLabelText("Client"), {
+      target: { value: "101" },
+    });
+    fireEvent.change(screen.getByLabelText("Client Contact"), {
+      target: { value: "202" },
+    });
+    fireEvent.change(screen.getByLabelText("Property Type"), {
+      target: { value: "Industrial" },
+    });
+    fireEvent.change(screen.getByLabelText("Report Type"), {
+      target: { value: "Narrative" },
+    });
+    fireEvent.change(screen.getByLabelText("Reviewer Due"), {
+      target: { value: "2026-06-02" },
+    });
+    fireEvent.change(screen.getByLabelText("Final Due"), {
+      target: { value: "2026-06-05" },
+    });
+    fireEvent.change(screen.getByLabelText("Appraiser"), {
+      target: { value: "appraiser-1" },
+    });
+    fireEvent.change(screen.getByLabelText("Reviewer"), {
+      target: { value: "reviewer-1" },
+    });
+    fireEvent.change(screen.getByLabelText("Split %"), {
+      target: { value: "42.5" },
+    });
+    fireEvent.change(screen.getByLabelText("Base Fee"), {
+      target: { value: "1000" },
+    });
+    fireEvent.change(screen.getByLabelText("Appraiser Fee"), {
+      target: { value: "425" },
+    });
+    fireEvent.change(screen.getByLabelText("Property Contact Name"), {
+      target: { value: "Casey Contact" },
+    });
+    fireEvent.change(screen.getByLabelText("Property Contact Phone"), {
+      target: { value: "555-0100" },
+    });
+    fireEvent.submit(screen.getByRole("button", { name: "Create Order" }).closest("form"));
+
+    await waitFor(() => {
+      expect(ordersServiceMock.createOrderViaRpc).toHaveBeenCalledTimes(1);
+    });
+
+    expect(ordersServiceMock.createOrderViaRpc).toHaveBeenCalledWith(
+      expect.objectContaining({
+        managing_amc_id: "44",
+        client_id: "101",
+        client_contact_id: "202",
+        property_type: "Industrial",
+        report_type: "Narrative",
+        review_due_at: "2026-06-02",
+        final_due_at: "2026-06-05",
+        appraiser_id: "appraiser-1",
+        reviewer_id: "reviewer-1",
+        split_pct: 42.5,
+        base_fee: 1000,
+        appraiser_fee: 425,
+        entry_contact_name: "Casey Contact",
+        entry_contact_phone: "555-0100",
+        property_contact_name: "Casey Contact",
+        property_contact_phone: "555-0100",
+        status: "new",
+      }),
+    );
     expect(onSaved).toHaveBeenCalledWith(createdOrder);
   });
 
