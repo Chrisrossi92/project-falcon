@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ActivityLog from "../ActivityLog";
 import { dayLabel } from "../utils";
@@ -113,5 +113,76 @@ describe("ActivityLog date grouping", () => {
     expect(screen.getByText("Unknown")).toBeInTheDocument();
     expect(screen.getByText("Event recorded")).toBeInTheDocument();
     expect(screen.queryByText("do-not-render")).not.toBeInTheDocument();
+  });
+
+  it("dedupes exact duplicate assignment system events from feed and realtime", async () => {
+    const createdAt = isoDaysAgo(0, 11);
+    const assignmentDetail = {
+      field: "appraiser_id",
+      from: null,
+      to: "chris",
+    };
+    const assignmentEvent = {
+      id: "assignment-1",
+      event_type: "assignee_changed",
+      created_at: createdAt,
+      body: JSON.stringify(assignmentDetail),
+      actor_name: "Ops Admin",
+    };
+    let realtimeHandler;
+    listOrderActivityMock.mockResolvedValue([
+      assignmentEvent,
+      {
+        ...assignmentEvent,
+        id: "assignment-duplicate",
+      },
+    ]);
+    subscribeOrderActivityMock.mockImplementation((_orderId, cb) => {
+      realtimeHandler = cb;
+      return () => {};
+    });
+
+    render(<ActivityLog orderId="order-1" showComposer={false} height={420} />);
+
+    expect(await screen.findByText("Today")).toBeInTheDocument();
+    expect(screen.getAllByText("Assignment changed")).toHaveLength(1);
+
+    act(() => {
+      realtimeHandler({
+        id: "assignment-1",
+        order_id: "order-1",
+        event_type: "assignee_changed",
+        created_at: createdAt,
+        actor_id: "actor-1",
+        detail: assignmentDetail,
+      });
+    });
+
+    expect(screen.getAllByText("Assignment changed")).toHaveLength(1);
+  });
+
+  it("preserves distinct repeated human notes", async () => {
+    const createdAt = isoDaysAgo(0, 13);
+    renderActivityLog([
+      {
+        id: "note-1",
+        order_id: "order-1",
+        event_type: "note",
+        created_at: createdAt,
+        body: "Repeated note",
+        created_by_name: "Chris Rossi",
+      },
+      {
+        id: "note-2",
+        order_id: "order-1",
+        event_type: "note",
+        created_at: createdAt,
+        body: "Repeated note",
+        created_by_name: "Chris Rossi",
+      },
+    ]);
+
+    expect(await screen.findByText("Today")).toBeInTheDocument();
+    expect(screen.getAllByText("Repeated note")).toHaveLength(2);
   });
 });

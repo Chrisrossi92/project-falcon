@@ -25,9 +25,16 @@ vi.mock("@/components/orders/NewOrderButton", () => ({
 }));
 
 vi.mock("@/features/orders/OrdersFilters", () => ({
-  default: ({ actions }) => (
+  default: ({
+    actions,
+    title = "Filter Active Orders",
+    description = "Search active operational orders by status, owner, client, and due window.",
+    showAppraiserFilter = true,
+  }) => (
     <div data-testid="orders-filters">
-      <div>Filter Active Orders</div>
+      <div>{title}</div>
+      {description ? <p>{description}</p> : null}
+      {showAppraiserFilter ? <div>Appraiser</div> : null}
       {actions ? <div data-testid="orders-filter-actions">{actions}</div> : null}
     </div>
   ),
@@ -72,6 +79,11 @@ function renderPage(initialEntries = ["/orders"]) {
 
 describe("OrdersPage historical access", () => {
   beforeEach(() => {
+    shellProfileState.exposure = {
+      profileId: "operations",
+      metadataAuthority: "presentation_only",
+      isPresentationOnly: true,
+    };
     useOrdersSummaryMock.mockReturnValue({
       rows: [],
       count: 0,
@@ -113,6 +125,7 @@ describe("OrdersPage historical access", () => {
     expect(screen.getByText("Workflow actions in table")).toBeInTheDocument();
     expect(screen.getByText("History is read-only")).toBeInTheDocument();
     expect(screen.getByText("Filter Active Orders")).toBeInTheDocument();
+    expect(screen.getByText("Appraiser")).toBeInTheDocument();
     expect(screen.getByLabelText("Orders workspace context")).toBeInTheDocument();
     expect(screen.getByText(/Showing active operational orders/i)).toBeInTheDocument();
     expect(tableMock).toHaveBeenLastCalledWith(
@@ -123,6 +136,54 @@ describe("OrdersPage historical access", () => {
           queueId: "",
         }),
         rowsOverride: null,
+      }),
+    );
+  });
+
+  it("renders appraiser Orders as a focused assigned-work list", () => {
+    shellProfileState.exposure = {
+      role: "appraiser",
+      profileId: "my_work",
+      navMode: "my_work",
+      metadataAuthority: "presentation_only",
+      isPresentationOnly: true,
+    };
+
+    renderPage([
+      "/orders?status=in_review&appraiserId=appraiser-2&reviewerId=reviewer-1&clientId=client-1",
+    ]);
+
+    expect(screen.getByRole("heading", { name: "Orders" })).toBeInTheDocument();
+    expect(screen.getByText("Orders assigned to you.")).toBeInTheDocument();
+    expect(screen.queryByText("Orders Workspace")).not.toBeInTheDocument();
+    expect(screen.queryByText("Active Operations")).not.toBeInTheDocument();
+    expect(screen.queryByText("Operations Command")).not.toBeInTheDocument();
+    expect(screen.queryByText("Active workspace")).not.toBeInTheDocument();
+    expect(screen.queryByText("Workflow actions in table")).not.toBeInTheDocument();
+    expect(screen.queryByText("History is read-only")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "New Order" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Historical Orders" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Saved Views" })).not.toBeInTheDocument();
+    expect(screen.getByText("Filters")).toBeInTheDocument();
+    expect(screen.queryByText("Filter Active Orders")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Search active operational orders/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("Appraiser")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Orders workspace context")).not.toBeInTheDocument();
+    expect(screen.getByText("Status: In Review")).toBeInTheDocument();
+    expect(screen.getByText("Client: client-1")).toBeInTheDocument();
+    expect(screen.queryByText("Appraiser: appraiser-2")).not.toBeInTheDocument();
+    expect(screen.queryByText("Reviewer: reviewer-1")).not.toBeInTheDocument();
+    expect(tableMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        filters: expect.objectContaining({
+          statusIn: ["in_review"],
+          appraiserId: "appraiser-2",
+          reviewerId: "reviewer-1",
+          clientId: "client-1",
+        }),
+        tableEyebrow: "Orders",
+        tableLabel: "Assigned Orders",
+        tableSummary: "Orders assigned to you.",
       }),
     );
   });

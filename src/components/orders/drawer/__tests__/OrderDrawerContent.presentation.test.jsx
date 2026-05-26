@@ -92,28 +92,25 @@ describe("OrderDrawerContent presentation", () => {
     supabaseMaybeSingleMock.mockReset();
   });
 
-  it("renders the polished inline detail hierarchy after existing drawer fetches", async () => {
+  it("renders a lean secondary-context drawer after existing drawer fetches", async () => {
     renderDrawer({ orderId: "order-1" });
 
     expect(screen.getByRole("status")).toHaveTextContent("Loading order details...");
 
-    expect(await screen.findByText("Inline order detail")).toBeInTheDocument();
-    expect(screen.getByText("Order 2026001")).toBeInTheDocument();
-    expect(screen.getAllByText("Acme Lending").length).toBeGreaterThan(0);
-    expect(screen.getByText("Appraiser: Avery Appraiser")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Open full order ↗" })).toHaveAttribute(
-      "href",
-      "/orders/order-1",
-    );
-    expect(screen.getByLabelText("Order attention summary")).toBeInTheDocument();
-    expect(screen.getByText("Order Signals")).toBeInTheDocument();
-    expect(screen.getByLabelText("File readiness summary")).toBeInTheDocument();
-    expect(screen.getByText("No files loaded")).toBeInTheDocument();
-    expect(screen.getByLabelText("Review context summary")).toBeInTheDocument();
-    expect(screen.getByText("Review / Revision Context")).toBeInTheDocument();
+    expect(await screen.findByText("Activity")).toBeInTheDocument();
+    expect(screen.queryByText("Order 2026001")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Open full order ↗" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Order context")).not.toBeInTheDocument();
+    expect(screen.queryByText("Inline order detail")).not.toBeInTheDocument();
+    expect(screen.queryByText("Appraiser: Avery Appraiser")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Order attention summary")).not.toBeInTheDocument();
+    expect(screen.queryByText("Order Signals")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("File readiness summary")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Review context summary")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Operational status evidence")).not.toBeInTheDocument();
     expect(screen.getByText("Order Contacts")).toBeInTheDocument();
     expect(screen.getByText("Client and site contact context")).toBeInTheDocument();
+    expect(screen.getByText("Acme Lending")).toBeInTheDocument();
     expect(screen.getByText("Location Preview")).toBeInTheDocument();
     expect(screen.getByText("Subject property context")).toBeInTheDocument();
     expect(screen.getByTestId("activity-log")).toHaveTextContent("Activity for order-1 with composer");

@@ -24,6 +24,110 @@ function compareActivityChronologically(a, b) {
   return String(a?.id || "").localeCompare(String(b?.id || ""));
 }
 
+const HUMAN_ACTIVITY_TYPES = new Set(["note", "note_added"]);
+
+function stableDetailString(value) {
+  if (!value || typeof value !== "object") return "";
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableDetailString(item) || String(item ?? "")).join(",")}]`;
+  }
+  return Object.keys(value)
+    .sort()
+    .map((key) => `${key}:${stableDetailString(value[key]) || String(value[key] ?? "")}`)
+    .join("|");
+}
+
+function activityType(item) {
+  return item?.event_type || item?.action || "";
+}
+
+function activityContentKey(item) {
+  return item?.message || item?.body || item?.title || "";
+}
+
+function parseJsonDetail(value) {
+  if (typeof value !== "string") return null;
+  const text = value.trim();
+  if (!text.startsWith("{") && !text.startsWith("[")) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+function systemPayloadKey(item) {
+  const detailKey = stableDetailString(item?.detail);
+  if (detailKey) return detailKey;
+
+  const content = activityContentKey(item);
+  const parsed = parseJsonDetail(content);
+  return stableDetailString(parsed) || content;
+}
+
+function systemActivityFingerprint(item, fallbackOrderId) {
+  return [
+    "system",
+    item?.order_id || fallbackOrderId || "",
+    activityType(item),
+    item?.created_at || "",
+    systemPayloadKey(item),
+  ].join("::");
+}
+
+function activityRowScore(item) {
+  return [
+    item?.detail && typeof item.detail === "object" ? 4 : 0,
+    item?.order_id ? 2 : 0,
+    item?.actor_user_id || item?.actor_id ? 1 : 0,
+  ].reduce((sum, value) => sum + value, 0);
+}
+
+function preferActivityRow(current, next) {
+  return activityRowScore(next) > activityRowScore(current) ? next : current;
+}
+
+function normalizeActivityRows(items, fallbackOrderId) {
+  const rows = Array.isArray(items) ? items : [];
+  const kept = [];
+  const byId = new Map();
+  const bySystemFingerprint = new Map();
+
+  rows.forEach((item) => {
+    const idKey = item?.id ? `id:${item.id}` : null;
+    const type = activityType(item);
+    const isHuman = HUMAN_ACTIVITY_TYPES.has(type);
+
+    if (idKey && byId.has(idKey)) {
+      const existingIndex = byId.get(idKey);
+      kept[existingIndex] = preferActivityRow(kept[existingIndex], item);
+      return;
+    }
+
+    const systemFingerprint = isHuman ? null : systemActivityFingerprint(item, fallbackOrderId);
+    if (systemFingerprint && bySystemFingerprint.has(systemFingerprint)) {
+      const existingIndex = bySystemFingerprint.get(systemFingerprint);
+      kept[existingIndex] = preferActivityRow(kept[existingIndex], item);
+      if (idKey) byId.set(idKey, existingIndex);
+      return;
+    }
+
+    const nextIndex = kept.length;
+    kept.push(item);
+    if (idKey) byId.set(idKey, nextIndex);
+    if (systemFingerprint) bySystemFingerprint.set(systemFingerprint, nextIndex);
+  });
+
+  return kept.sort(compareActivityChronologically);
+}
+
+function mergeActivityRows(current, next, fallbackOrderId) {
+  return normalizeActivityRows([
+    ...(Array.isArray(current) ? current : []),
+    ...(Array.isArray(next) ? next : [next]),
+  ], fallbackOrderId).slice(-1000);
+}
+
 export default function ActivityLog({
   orderId,
   order = null,
@@ -52,7 +156,7 @@ export default function ActivityLog({
     setLoading(true); setErr("");
     try {
       const list = await listOrderActivity(orderId);
-      setRows(Array.isArray(list) ? list : []);
+      setRows(normalizeActivityRows(list, orderId));
     } catch (e) {
       setErr(e?.message || "Failed to load activity");
     } finally {
@@ -66,7 +170,7 @@ export default function ActivityLog({
     setErr("");
     try {
       const list = await listOrderActivity(orderId);
-      setRows(Array.isArray(list) ? list : []);
+      setRows(normalizeActivityRows(list, orderId));
     } catch (e) {
       setErr(e?.message || "Failed to load activity");
     } finally {
@@ -79,7 +183,7 @@ export default function ActivityLog({
   useEffect(() => {
     if (!orderId) return;
     const off = subscribeOrderActivity(orderId, (row) => {
-      setRows((curr) => [...curr, row].slice(-1000));
+      setRows((curr) => mergeActivityRows(curr, row, orderId));
       setTimeout(scrollToBottom, 0);
     });
     return () => off?.();
@@ -210,5 +314,3 @@ export default function ActivityLog({
     </div>
   );
 }
-
-

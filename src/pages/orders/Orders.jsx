@@ -152,6 +152,14 @@ function buildActiveFilterChips(filters) {
   return chips;
 }
 
+function isAppraiserOrdersProfile(shellProfilePresentation) {
+  const role = String(shellProfilePresentation?.role || "").toLowerCase();
+  const profileId = String(shellProfilePresentation?.profileId || shellProfilePresentation?.id || "").toLowerCase();
+  const navMode = String(shellProfilePresentation?.navMode || "").toLowerCase();
+
+  return role === "appraiser" || profileId === "appraiser" || profileId === "my_work" || navMode === "my_work";
+}
+
 function ActiveFilterChips({ filters, onChange }) {
   const chips = buildActiveFilterChips(filters || {});
   if (!chips.length) return null;
@@ -465,6 +473,7 @@ export default function OrdersPage() {
   const qs = useQuery();
   const shellProfilePresentation = useShellProfile();
   const shellWorkMode = getShellWorkModeCue(shellProfilePresentation);
+  const appraiserOrdersView = isAppraiserOrdersProfile(shellProfilePresentation);
   const [filters, setFilters] = useState(() => readFilters(qs));
 
   useEffect(() => setFilters(readFilters(qs)), [qs]);
@@ -504,6 +513,14 @@ export default function OrdersPage() {
     writeFilters(navigate, next);
   }
 
+  const visibleFilters = appraiserOrdersView
+    ? {
+        ...filters,
+        appraiserId: "",
+        reviewerId: "",
+      }
+    : filters;
+
   return (
     <div className="space-y-4">
       <WorkspaceSurface
@@ -512,44 +529,61 @@ export default function OrdersPage() {
         className="flex flex-wrap items-end justify-between gap-4 px-5 py-4"
       >
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em]">
-            <span className="text-slate-400">Active Operations</span>
-            <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] tracking-[0.12em] text-slate-500">
-              {shellWorkMode.label}
-            </span>
-          </div>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">Orders Workspace</h1>
+          {appraiserOrdersView ? null : (
+            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em]">
+              <span className="text-slate-400">Active Operations</span>
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] tracking-[0.12em] text-slate-500">
+                {shellWorkMode.label}
+              </span>
+            </div>
+          )}
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">
+            {appraiserOrdersView ? "Orders" : "Orders Workspace"}
+          </h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
-            Manage active order inventory. Archived, cancelled, and voided orders stay in historical readback.
+            {appraiserOrdersView
+              ? "Orders assigned to you."
+              : "Manage active order inventory. Archived, cancelled, and voided orders stay in historical readback."}
           </p>
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-600">
-            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">Active workspace</span>
-            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">Workflow actions in table</span>
-            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">History is read-only</span>
+          {appraiserOrdersView ? null : (
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-600">
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">Active workspace</span>
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">Workflow actions in table</span>
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">History is read-only</span>
+            </div>
+          )}
+        </div>
+        {appraiserOrdersView ? null : (
+          <div className="flex shrink-0 flex-wrap items-center justify-start gap-2 sm:justify-end">
+            <NewOrderButton show className="shrink-0" />
           </div>
-        </div>
-        <div className="flex shrink-0 flex-wrap items-center justify-start gap-2 sm:justify-end">
-          <NewOrderButton show className="shrink-0" />
-        </div>
+        )}
       </WorkspaceSurface>
 
       <OrdersFilters
-        value={filters}
+        value={visibleFilters}
         onChange={onChange}
+        title={appraiserOrdersView ? "Filters" : undefined}
+        description={appraiserOrdersView ? null : undefined}
+        searchLabel={appraiserOrdersView ? "Search assigned orders" : undefined}
+        showAppraiserFilter={!appraiserOrdersView}
+        density={appraiserOrdersView ? "compact" : undefined}
         actions={
-          <>
-            <SavedViewsPanel filters={filters} onApply={applySavedView} />
-            <Link
-              to="/orders/historical"
-              className="rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:border-slate-300 hover:bg-slate-50"
-            >
-              Historical Orders
-            </Link>
-          </>
+          appraiserOrdersView ? null : (
+            <>
+              <SavedViewsPanel filters={filters} onApply={applySavedView} />
+              <Link
+                to="/orders/historical"
+                className="rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+              >
+                Historical Orders
+              </Link>
+            </>
+          )
         }
       />
-      <ActiveFilterChips filters={filters} onChange={onChange} />
-      <OrdersWorkspaceContext filters={filters} activeQueue={activeQueue} />
+      <ActiveFilterChips filters={visibleFilters} onChange={onChange} />
+      {appraiserOrdersView ? null : <OrdersWorkspaceContext filters={filters} activeQueue={activeQueue} />}
 
       <UnifiedOrdersTable
         key={JSON.stringify({
@@ -567,6 +601,9 @@ export default function OrdersPage() {
         pageSize={filters.pageSize || 15}
         rowsOverride={queueId ? queueRows || [] : null}
         activeQueue={activeQueue}
+        tableEyebrow={appraiserOrdersView ? "Orders" : undefined}
+        tableLabel={appraiserOrdersView ? "Assigned Orders" : undefined}
+        tableSummary={appraiserOrdersView ? "Orders assigned to you." : undefined}
       />
     </div>
   );

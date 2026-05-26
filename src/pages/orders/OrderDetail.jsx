@@ -16,6 +16,8 @@ import useOrder from "@/lib/hooks/useOrder";
 import { useEffectivePermissions } from "@/lib/hooks/usePermissions";
 import { useToast } from "@/lib/hooks/useToast";
 import { PERMISSIONS } from "@/lib/permissions/constants";
+import { useShellProfile } from "@/lib/shell/useShellProfile";
+import { SHELL_PROFILE_IDS } from "@/lib/shell/resolveShellProfile";
 import {
   archiveOrderDocument,
   createOrderDocumentDownloadUrl,
@@ -332,7 +334,7 @@ function FilesCard({ order, orderId, canArchive, canUpload, onFilesLoaded }) {
     <WorkspaceSurface
       as="div"
       variant="secondary"
-      className="mt-4 bg-white p-3"
+      className="bg-white p-3"
       aria-label="Order files"
     >
       <div className="flex items-center justify-between gap-3">
@@ -411,7 +413,7 @@ function FilesCard({ order, orderId, canArchive, canUpload, onFilesLoaded }) {
           No files uploaded yet.
         </div>
       ) : (
-        <div className="mt-3 space-y-3">
+        <div className="mt-3 max-h-96 space-y-3 overflow-y-auto pr-1">
           {groupedFiles.map((group) => (
             <section
               key={group.key}
@@ -499,6 +501,7 @@ export default function OrderDetail() {
 
   const { order, loading, error: loadErr, refresh } = useOrder(id);
   const permissions = useEffectivePermissions();
+  const shellProfile = useShellProfile();
   const { success, error: toastError } = useToast();
   const [offerAssignmentOpen, setOfferAssignmentOpen] = useState(false);
   const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false);
@@ -554,8 +557,11 @@ export default function OrderDetail() {
     () => buildDocumentCategoryCounts(orderFiles),
     [orderFiles],
   );
+  const isAppraiserExecutionWorkspace = shellProfile.profileId === SHELL_PROFILE_IDS.MY_WORK;
+  const showManagementSurfaces = !isAppraiserExecutionWorkspace;
 
   const canOfferAssignment =
+    showManagementSurfaces &&
     !permissions.loading &&
     !permissions.error &&
     permissions.hasAllPermissions([
@@ -575,9 +581,9 @@ export default function OrderDetail() {
       PERMISSIONS.DOCUMENTS_UPLOAD_ASSIGNED,
       PERMISSIONS.DOCUMENTS_UPLOAD_ALL,
     ]);
-  const canArchiveThisOrder = canArchiveOrder(order, permissions);
-  const canCancelThisOrder = canCancelOrder(order, permissions);
-  const canVoidThisOrder = canVoidOrder(order, permissions);
+  const canArchiveThisOrder = showManagementSurfaces && canArchiveOrder(order, permissions);
+  const canCancelThisOrder = showManagementSurfaces && canCancelOrder(order, permissions);
+  const canVoidThisOrder = showManagementSurfaces && canVoidOrder(order, permissions);
   const lifecycleCopy = lifecycleAction ? LIFECYCLE_ACTION_COPY[lifecycleAction] : null;
   const lifecycleReasonTrimmed = lifecycleReason.trim();
   const lifecycleHistoryNotice =
@@ -724,9 +730,11 @@ export default function OrderDetail() {
             <Link to="/orders" className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50">
               {"<- Back"}
             </Link>
-            <Link to={`/orders/${order.id}/edit`} className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50">
-              Edit
-            </Link>
+            {showManagementSurfaces && (
+              <Link to={`/orders/${order.id}/edit`} className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50">
+                Edit
+              </Link>
+            )}
           </div>
         </div>
         {order.is_archived === true && (
@@ -790,35 +798,66 @@ export default function OrderDetail() {
           </div>
         </div>
 
-        <OrderAttentionSummaryPanel
-          order={order}
-          documents={orderFilesLoaded ? orderFiles : null}
-          className="mt-4"
-        />
-        <OperationalInputsCreateClearControls
-          orderId={order.id}
-          inputs={operationalInputs}
-          onChanged={refreshOperationalInputs}
-          className="mt-3"
-        />
-        <OperationalInputsReadOnly
-          inputs={operationalInputs}
-          loading={operationalInputsLoading}
-          error={operationalInputsError}
-          className="mt-3"
-        />
+        {showManagementSurfaces && (
+          <OrderAttentionSummaryPanel
+            order={order}
+            documents={orderFilesLoaded ? orderFiles : null}
+            className="mt-4"
+          />
+        )}
+        {showManagementSurfaces && (
+          <>
+            <OperationalInputsCreateClearControls
+              orderId={order.id}
+              inputs={operationalInputs}
+              onChanged={refreshOperationalInputs}
+              className="mt-3"
+            />
+            <OperationalInputsReadOnly
+              inputs={operationalInputs}
+              loading={operationalInputsLoading}
+              error={operationalInputsError}
+              className="mt-3"
+            />
+          </>
+        )}
         </WorkspaceSurface>
 
         {/* Detail body */}
         <div className="grid grid-cols-12 gap-4 items-start" aria-label="Order detail body">
+        <div className="col-span-12 lg:col-span-7">
+          <WorkspaceSurface variant="primary" className="p-3">
+            <div className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-2">
+              Activity
+            </div>
+            <ReviewContextSummary
+              order={order}
+              documents={orderFilesLoaded ? orderFiles : null}
+              className="mb-3"
+            />
+            <ActivityLog orderId={order.id} order={order} showComposer height={360} />
+          </WorkspaceSurface>
+        </div>
+
         <div className="col-span-12 lg:col-span-5">
           <WorkspaceSurface variant="secondary" className="bg-white p-3">
-            <div className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-2">Property / Map</div>
+            <div className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-2">Contacts / Map</div>
 
             <div className="mb-3 text-sm">
               <div className="text-xs text-gray-500 mb-0.5">Address</div>
               <div className="text-gray-800">{addr1 || "-"}</div>
               <div className="text-xs text-gray-500">{addr2 || "-"}</div>
+            </div>
+
+            <div className="mb-3 grid gap-2 rounded-md border border-slate-100 bg-slate-50/50 p-2 text-sm sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+              <div>
+                <div className="text-xs text-gray-500 mb-0.5">Property Contact</div>
+                <div className="text-gray-800">{contactName || "-"}</div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-500 mb-0.5">Contact Phone</div>
+                <div className="text-gray-800">{contactPhone || "-"}</div>
+              </div>
             </div>
 
             <div className="w-full h-64 md:h-72">
@@ -832,53 +871,52 @@ export default function OrderDetail() {
               />
             </div>
           </WorkspaceSurface>
-
-          <FilesCard
-            order={order}
-            orderId={order.id}
-            canArchive={canArchiveDocuments}
-            canUpload={canUploadDocuments}
-            onFilesLoaded={handleFilesLoaded}
-          />
+        </div>
         </div>
 
-        <div className="col-span-12 lg:col-span-7">
-          <WorkspaceSurface variant="primary" className="p-3">
-            <div className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-2">
-              Activity
-            </div>
-            <ReviewContextSummary
+        <div className="grid grid-cols-12 gap-4 items-start" aria-label="Order support body">
+          <div className="col-span-12 lg:col-span-7">
+            <FilesCard
               order={order}
-              documents={orderFilesLoaded ? orderFiles : null}
-              className="mb-3"
+              orderId={order.id}
+              canArchive={canArchiveDocuments}
+              canUpload={canUploadDocuments}
+              onFilesLoaded={handleFilesLoaded}
             />
-            <ActivityLog orderId={order.id} order={order} showComposer height={420} />
-          </WorkspaceSurface>
+          </div>
+
+          <div className="col-span-12 lg:col-span-5">
+            <WorkspaceSurface variant="evidence" className="bg-white p-3" aria-label="Order notes">
+              <div className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-2">
+                Notes
+              </div>
+              <div className="max-h-72 overflow-y-auto rounded-md border border-slate-100 bg-slate-50/40 p-3 text-sm text-gray-800 whitespace-pre-wrap">
+                {order.access_notes || order.notes || "-"}
+              </div>
+            </WorkspaceSurface>
+          </div>
         </div>
-        </div>
 
-        <OwnerOrderAssignmentsPanel
-          orderId={order.id}
-          canOfferAssignment={canOfferAssignment}
-          onOfferAssignment={() => setOfferAssignmentOpen(true)}
-        />
+        {showManagementSurfaces && (
+          <OwnerOrderAssignmentsPanel
+            orderId={order.id}
+            canOfferAssignment={canOfferAssignment}
+            onOfferAssignment={() => setOfferAssignmentOpen(true)}
+          />
+        )}
 
-        {/* Notes */}
-        <WorkspaceSurface variant="evidence" className="bg-white p-3">
-          <div className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-2">Notes</div>
-          <div className="text-sm text-gray-800 whitespace-pre-wrap">{order.access_notes || order.notes || "-"}</div>
-        </WorkspaceSurface>
-
-        <OfferAssignmentModal
-          open={offerAssignmentOpen}
-          order={order}
-          onClose={() => setOfferAssignmentOpen(false)}
-          onSuccess={(assignmentId) => {
-            setOfferAssignmentOpen(false);
-            success("Assignment offer created.");
-            navigate(`/assignments/${assignmentId}`);
-          }}
-        />
+        {showManagementSurfaces && (
+          <OfferAssignmentModal
+            open={offerAssignmentOpen}
+            order={order}
+            onClose={() => setOfferAssignmentOpen(false)}
+            onSuccess={(assignmentId) => {
+              setOfferAssignmentOpen(false);
+              success("Assignment offer created.");
+              navigate(`/assignments/${assignmentId}`);
+            }}
+          />
+        )}
       </div>
 
       {printPacketOpen && (

@@ -2,14 +2,9 @@
 import { useEffect, useState } from "react";
 import supabase from "@/lib/supabaseClient";
 import ActivityLog from "@/components/activity/ActivityLog";
-import OrderStatusBadge from "@/components/orders/table/OrderStatusBadge";
-import OrderOpenFullLink from "@/components/orders/drawer/OrderOpenFullLink";
 import GoogleMapEmbed from "@/components/maps/GoogleMapEmbed";
-import OrderAttentionSummaryPanel from "@/features/orders/attention/OrderAttentionSummaryPanel";
-import FileReadinessSummary from "@/features/orders/readiness/FileReadinessSummary";
 import OperationalInputsReadOnly from "@/features/orders/operational-inputs/OperationalInputsReadOnly";
 import useOrderOperationalInputs from "@/features/orders/operational-inputs/useOrderOperationalInputs";
-import ReviewContextSummary from "@/features/orders/review/ReviewContextSummary";
 
 /** Pull from the normalized v4 view (no legacy fallback). */
 async function fetchViewRow(orderId) {
@@ -102,10 +97,6 @@ function findByKeyIncludesAll(obj, mustInclude = [], mustNotInclude = []) {
     if (hasAll && !hasAnyBlocked) return v;
   }
   return null;
-}
-
-function orderNumberOf(row) {
-  return row?.order_number || row?.order_no || (row?.id ? row.id.slice(0, 8) : "—");
 }
 
 function addressLineOf(row) {
@@ -297,39 +288,6 @@ export default function OrderDrawerContent({ orderId, order: rowFromTable }) {
 
   return (
     <div className="space-y-3">
-      <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-              Inline order detail
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="text-lg font-semibold tracking-tight text-slate-950">Order {orderNumberOf(row)}</div>
-              <OrderStatusBadge status={row?.status} />
-            </div>
-            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
-              <span className="font-medium text-slate-700">{row?.client_name || "Client not set"}</span>
-              {row?.appraiser_name && <span>Appraiser: {row.appraiser_name}</span>}
-              {(addressLine || cityLine) && (
-                <span className="max-w-xl truncate">
-                  {[addressLine, cityLine].filter(Boolean).join(", ")}
-                </span>
-              )}
-            </div>
-          </div>
-          <OrderOpenFullLink orderId={id} className="shrink-0" />
-        </div>
-      </div>
-
-      <OrderAttentionSummaryPanel
-        order={row}
-        title="Order Signals"
-        description="Read-only summary from the loaded order row."
-        compact
-      />
-
-      <FileReadinessSummary order={row} compact />
-      <ReviewContextSummary order={row} compact />
       <OperationalInputsReadOnly
         inputs={operationalInputs}
         loading={operationalInputsLoading}
@@ -447,9 +405,6 @@ function ContactLine({ label, value }) {
     </div>
   );
 }
-
-
-
 
 
 

@@ -17,6 +17,11 @@ const clearOrderOperationalInputMock = vi.hoisted(() => vi.fn());
 const operationalInputsMock = vi.hoisted(() => []);
 const refreshOperationalInputsMock = vi.hoisted(() => vi.fn());
 const permissionKeysMock = vi.hoisted(() => []);
+const shellProfileMock = vi.hoisted(() => ({
+  profileId: "operations",
+  loading: false,
+  error: null,
+}));
 const toastSuccessMock = vi.hoisted(() => vi.fn());
 const toastErrorMock = vi.hoisted(() => vi.fn());
 const orderMock = vi.hoisted(() => ({
@@ -82,6 +87,10 @@ vi.mock("@/lib/hooks/usePermissions", () => ({
   }),
 }));
 
+vi.mock("@/lib/shell/useShellProfile", () => ({
+  useShellProfile: () => shellProfileMock,
+}));
+
 vi.mock("@/features/order-documents/api", () => ({
   listOrderDocuments: listOrderDocumentsMock,
   createOrderDocumentDownloadUrl: createOrderDocumentDownloadUrlMock,
@@ -127,7 +136,7 @@ vi.mock("@/components/orders/table/OrderStatusBadge", () => ({
 }));
 
 vi.mock("@/components/activity/ActivityLog", () => ({
-  default: () => <div data-testid="activity-log" />,
+  default: ({ height }) => <div data-testid="activity-log" data-height={height} />,
 }));
 
 vi.mock("@/features/assignments/components/OfferAssignmentModal", () => ({
@@ -164,6 +173,7 @@ describe("OrderDetail site visit save", () => {
       last_review_activity_at: null,
       final_due_at: "2026-05-29T12:00:00.000Z",
       due_date: null,
+      notes: "Inspection access confirmed. Bring gate code and call contact on arrival.",
     });
     refreshMock.mockReset();
     updateSiteVisitAtViaRpcMock.mockReset();
@@ -198,6 +208,11 @@ describe("OrderDetail site visit save", () => {
       "documents.delete",
       "documents.upload.all",
     );
+    Object.assign(shellProfileMock, {
+      profileId: "operations",
+      loading: false,
+      error: null,
+    });
     toastSuccessMock.mockReset();
     toastErrorMock.mockReset();
     listOrderDocumentsMock.mockReset();
@@ -377,33 +392,115 @@ describe("OrderDetail site visit save", () => {
     expect(clearOrderOperationalInputMock).not.toHaveBeenCalled();
   });
 
-  it("uses overview first, then map and activity detail cards", () => {
+  it("hides management and AMC assignment surfaces in the appraiser execution workspace", async () => {
+    Object.assign(shellProfileMock, {
+      profileId: "my_work",
+      loading: false,
+      error: null,
+    });
+    permissionKeysMock.splice(
+      0,
+      permissionKeysMock.length,
+      "documents.delete",
+      "documents.upload.all",
+      "orders.archive",
+      "orders.cancel",
+      "orders.void",
+      "order_company_assignments.offer",
+      "order_company_assignments.read_owner",
+      "relationships.assign_work",
+      "relationships.read",
+    );
+    operationalInputsMock.push({
+      id: "input-1",
+      input_type: "inspection_scheduled",
+      actor_role: "Appraiser",
+      created_at: "2026-05-24T13:00:00.000Z",
+      expires_at: "2026-05-31T13:00:00.000Z",
+    });
+
+    render(<OrderDetail />);
+
+    expect(screen.getByRole("button", { name: "Print Packet" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Set site visit" })).toBeInTheDocument();
+    expect(screen.getByText("Contacts / Map")).toBeInTheDocument();
+    expect(screen.getByText("Activity")).toBeInTheDocument();
+    expect(screen.getByTestId("activity-log")).toBeInTheDocument();
+    expect(screen.getByTestId("activity-log")).toHaveAttribute("data-height", "360");
+    expect(await screen.findByLabelText("Order files")).toBeInTheDocument();
+    expect(screen.getByLabelText("Order notes")).toBeInTheDocument();
+
+    expect(screen.queryByRole("button", { name: "Offer Assignment" })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("assignments-panel")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Operational context controls")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Operational status evidence")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Order attention summary")).not.toBeInTheDocument();
+    expect(screen.queryByText("Attention Summary")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Edit" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Archive order" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancel order" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Void order" })).not.toBeInTheDocument();
+  });
+
+  it("preserves owner/admin management surfaces when permissions allow them", () => {
+    permissionKeysMock.push(
+      "orders.archive",
+      "order_company_assignments.offer",
+      "order_company_assignments.read_owner",
+      "relationships.assign_work",
+      "relationships.read",
+    );
+
+    render(<OrderDetail />);
+
+    expect(screen.getByRole("button", { name: "Offer Assignment" })).toBeInTheDocument();
+    expect(screen.getByTestId("assignments-panel")).toBeInTheDocument();
+    expect(screen.getByLabelText("Operational context controls")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Edit" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Archive order" })).toBeInTheDocument();
+  });
+
+  it("uses overview first, then map, activity, and support detail zones", () => {
     render(<OrderDetail />);
 
     const overview = screen.getByLabelText("Operational Overview");
     const detailBody = screen.getByLabelText("Order detail body");
-    const propertyHeading = screen.getByText("Property / Map");
+    const supportBody = screen.getByLabelText("Order support body");
+    const contactMapHeading = screen.getByText("Contacts / Map");
     const activityHeading = screen.getByText("Activity");
 
     expect(screen.queryByTestId("two-week-calendar")).not.toBeInTheDocument();
     expect(screen.queryByTestId("calendar-legend")).not.toBeInTheDocument();
     expect(screen.queryByText("Dates")).not.toBeInTheDocument();
     expect(screen.queryByText("People / Fees")).not.toBeInTheDocument();
-    expect(within(detailBody).getByText("Property / Map")).toBeInTheDocument();
     expect(within(detailBody).getByText("Activity")).toBeInTheDocument();
-    expect(overview.compareDocumentPosition(propertyHeading)).toBe(DOCUMENT_POSITION_FOLLOWING);
+    expect(within(detailBody).getByText("Contacts / Map")).toBeInTheDocument();
+    expect(within(detailBody).getByText("Property Contact")).toBeInTheDocument();
+    expect(within(detailBody).getByText("Contact Phone")).toBeInTheDocument();
+    expect(within(supportBody).getByLabelText("Order files")).toBeInTheDocument();
+    expect(within(supportBody).getByLabelText("Order notes")).toBeInTheDocument();
     expect(overview.compareDocumentPosition(activityHeading)).toBe(DOCUMENT_POSITION_FOLLOWING);
+    expect(overview.compareDocumentPosition(contactMapHeading)).toBe(DOCUMENT_POSITION_FOLLOWING);
+    expect(detailBody.compareDocumentPosition(supportBody)).toBe(DOCUMENT_POSITION_FOLLOWING);
   });
 
-  it("renders compact order files under the property map", async () => {
+  it("renders compact order files beside the notes support panel", async () => {
     render(<OrderDetail />);
 
+    const supportBody = screen.getByLabelText("Order support body");
     const files = await screen.findByLabelText("Order files");
+    const notes = within(supportBody).getByLabelText("Order notes");
     const engagementGroup = within(files).getByLabelText("Engagement files");
     const sourceGroup = within(files).getByLabelText("Source Documents files");
 
+    expect(within(supportBody).getByLabelText("Order files")).toBe(files);
+    expect(notes).toBeInTheDocument();
     expect(listOrderDocumentsMock).toHaveBeenCalledWith("order-1");
     expect(within(files).getByText("Files")).toBeInTheDocument();
+    expect(within(files).getByLabelText("Engagement files").parentElement).toHaveClass(
+      "max-h-96",
+      "overflow-y-auto",
+    );
     expect(engagementGroup).toBeInTheDocument();
     expect(sourceGroup).toBeInTheDocument();
     expect(within(engagementGroup).getByText("Engagement Letter")).toBeInTheDocument();
@@ -412,6 +509,20 @@ describe("OrderDetail site visit save", () => {
     expect(within(engagementGroup).getByText("2.0 KB")).toBeInTheDocument();
     expect(within(sourceGroup).getByText("rent-roll.xlsx")).toBeInTheDocument();
     expect(within(sourceGroup).getByText("Archived")).toBeInTheDocument();
+  });
+
+  it("keeps long operational notes internally scrollable beside files", async () => {
+    orderMock.notes = Array.from({ length: 20 }, (_, index) => `Operational note ${index + 1}`).join("\n");
+
+    render(<OrderDetail />);
+
+    const supportBody = screen.getByLabelText("Order support body");
+    const notes = within(supportBody).getByLabelText("Order notes");
+    const noteContent = within(notes).getByText(/Operational note 1/);
+
+    expect(await within(supportBody).findByLabelText("Order files")).toBeInTheDocument();
+    expect(noteContent).toHaveClass("max-h-72", "overflow-y-auto");
+    expect(noteContent).toHaveTextContent("Operational note 20");
   });
 
   it("preserves document order within grouped file sections", async () => {
