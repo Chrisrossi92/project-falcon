@@ -487,7 +487,132 @@ describe("UsersIndex readability", () => {
     expect(toastMock.success).toHaveBeenCalledWith("Member access updated.");
   });
 
-  it("lets owners grant missing V1-safe permissions without exposing hidden product domains", async () => {
+  it("skips the override RPC when saving role-only access changes", async () => {
+    invitationsApiMock.listCompanyRolePresets.mockResolvedValue([
+      {
+        role_id: "role-reviewer",
+        role_name: "Reviewer",
+        assignable_by_current_user: true,
+      },
+      {
+        role_id: "role-appraiser",
+        role_name: "Appraiser",
+        assignable_by_current_user: true,
+      },
+    ]);
+    invitationsApiMock.listCompanyRolePermissionPreview.mockResolvedValue([
+      {
+        role_id: "role-reviewer",
+        role_name: "Reviewer",
+        permission_key: "orders.assignable_as_reviewer",
+        permission_category: "orders",
+        permission_label: "Assignable as Reviewer",
+      },
+      {
+        role_id: "role-appraiser",
+        role_name: "Appraiser",
+        permission_key: "orders.assignable_as_appraiser",
+        permission_category: "orders",
+        permission_label: "Assignable as Appraiser",
+      },
+    ]);
+    membersApiMock.updateCompanyMemberRoles.mockResolvedValue({ changed: true });
+
+    renderUsersIndex();
+
+    await screen.findByText("Active Team Members");
+    const reviewerCard = memberArticle("Riley Reviewer");
+    fireEvent.click(within(reviewerCard).getByRole("button", { name: "Edit roles" }));
+
+    const accessDialog = await screen.findByRole("dialog", { name: "Edit Access" });
+    const appraiserRole = within(accessDialog).getByText("Appraiser").closest("label");
+    fireEvent.click(within(appraiserRole).getByRole("checkbox"));
+    fireEvent.click(within(accessDialog).getByRole("button", { name: "Save Access" }));
+
+    await waitFor(() => {
+      expect(membersApiMock.updateCompanyMemberRoles).toHaveBeenCalledWith(
+        "user-reviewer",
+        ["role-reviewer", "role-appraiser"],
+        "role-reviewer",
+        "Updated from Users",
+        expect.any(String)
+      );
+    });
+    expect(membersApiMock.saveCompanyMemberPermissionOverrides).not.toHaveBeenCalled();
+  });
+
+  it("shows work eligibility as role-preset managed in V1", async () => {
+    membersApiMock.listCompanyMembers.mockResolvedValue([
+      ownerMember,
+      {
+        ...reviewerMember,
+        role_assignments: [
+          reviewerMember.role_assignments[0],
+          {
+            role_id: "role-appraiser",
+            role_name: "Appraiser",
+            is_owner_role: false,
+            is_primary: false,
+            status: "active",
+          },
+        ],
+      },
+    ]);
+    invitationsApiMock.listCompanyRolePresets.mockResolvedValue([
+      {
+        role_id: "role-reviewer",
+        role_name: "Reviewer",
+        assignable_by_current_user: true,
+      },
+      {
+        role_id: "role-appraiser",
+        role_name: "Appraiser",
+        assignable_by_current_user: true,
+      },
+    ]);
+    invitationsApiMock.listCompanyRolePermissionPreview.mockResolvedValue([
+      {
+        role_id: "role-appraiser",
+        role_name: "Appraiser",
+        permission_key: "orders.assignable_as_appraiser",
+        permission_category: "orders",
+        permission_label: "Assignable as Appraiser",
+      },
+    ]);
+    membersApiMock.listCompanyMemberPermissionOverrides.mockResolvedValue([
+      {
+        permission_key: "orders.assignable_as_appraiser",
+        effect: "grant",
+      },
+    ]);
+
+    renderUsersIndex();
+
+    await screen.findByText("Active Team Members");
+    const reviewerCard = memberArticle("Riley Reviewer");
+    fireEvent.click(within(reviewerCard).getByRole("button", { name: "Edit roles" }));
+
+    const accessDialog = await screen.findByRole("dialog", { name: "Edit Access" });
+    const appraiserEligibilityPermission = within(accessDialog)
+      .getByText("Assignable as Appraiser")
+      .closest("li");
+
+    expect(within(appraiserEligibilityPermission).getByText("Inherited")).toBeInTheDocument();
+    expect(within(appraiserEligibilityPermission).queryByText("Granted")).toBeNull();
+    expect(within(accessDialog).getByText("Work eligibility is managed through Appraiser/Reviewer role presets in V1.")).toBeInTheDocument();
+    expect(within(appraiserEligibilityPermission).getByText("Role preset managed")).toBeInTheDocument();
+    expect(within(appraiserEligibilityPermission).queryByRole("button", { name: "Grant" })).toBeNull();
+    expect(within(appraiserEligibilityPermission).queryByRole("button", { name: "Revoke" })).toBeNull();
+
+    fireEvent.click(within(accessDialog).getByRole("button", { name: "Save Access" }));
+
+    await waitFor(() => {
+      expect(membersApiMock.updateCompanyMemberRoles).toHaveBeenCalled();
+    });
+    expect(membersApiMock.saveCompanyMemberPermissionOverrides).not.toHaveBeenCalled();
+  });
+
+  it("lets owners grant missing V1-safe permissions while leaving work eligibility read-only", async () => {
     invitationsApiMock.listCompanyRolePresets.mockResolvedValue([
       {
         role_id: "role-admin",
@@ -542,8 +667,8 @@ describe("UsersIndex readability", () => {
       .getByText("Assignable as Appraiser")
       .closest("li");
     expect(within(appraiserEligibilityPermission).getByText("Not granted")).toBeInTheDocument();
-    fireEvent.click(within(appraiserEligibilityPermission).getByRole("button", { name: "Grant" }));
-    expect(within(appraiserEligibilityPermission).getByText("Granted")).toBeInTheDocument();
+    expect(within(appraiserEligibilityPermission).getByText("Role preset managed")).toBeInTheDocument();
+    expect(within(appraiserEligibilityPermission).queryByRole("button", { name: "Grant" })).toBeNull();
 
     const createClientsPermission = within(accessDialog).getByText("Create clients").closest("li");
     expect(within(createClientsPermission).getByText("Not granted")).toBeInTheDocument();
@@ -556,10 +681,7 @@ describe("UsersIndex readability", () => {
     await waitFor(() => {
       expect(membersApiMock.saveCompanyMemberPermissionOverrides).toHaveBeenCalledWith(
         "user-admin",
-        [
-          { permission_key: "clients.create", effect: "grant" },
-          { permission_key: "orders.assignable_as_appraiser", effect: "grant" },
-        ],
+        [{ permission_key: "clients.create", effect: "grant" }],
         "Updated from Users",
         expect.any(String)
       );

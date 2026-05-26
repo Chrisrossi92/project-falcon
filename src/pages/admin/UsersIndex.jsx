@@ -185,6 +185,7 @@ function normalizeOverrideRows(rows) {
   (Array.isArray(rows) ? rows : []).forEach((row) => {
     const permissionKey = String(row?.permission_key || "").trim();
     const effect = String(row?.effect || "").trim().toLowerCase();
+    if (WORK_ELIGIBILITY_PERMISSION_KEYS.has(permissionKey)) return;
     if (permissionKey && (effect === "grant" || effect === "revoke")) {
       overrides.set(permissionKey, effect);
     }
@@ -192,11 +193,39 @@ function normalizeOverrideRows(rows) {
   return overrides;
 }
 
-function serializeOverrideMap(overrides) {
-  return [...overrides.entries()]
+function roleDerivedPermissionKeys(selectedRoleIds, permissions) {
+  const selected = new Set(selectedRoleIds);
+  const keys = new Set();
+  (Array.isArray(permissions) ? permissions : []).forEach((permission) => {
+    const key = String(permission?.permission_key || "").trim();
+    if (key && selected.has(permission.role_id)) keys.add(key);
+  });
+  return keys;
+}
+
+function normalizeEffectiveOverrideMap(overrides, selectedRoleIds, permissions) {
+  const inheritedKeys = roleDerivedPermissionKeys(selectedRoleIds, permissions);
+  const normalized = new Map();
+
+  overrides.forEach((effect, permissionKey) => {
+    if (WORK_ELIGIBILITY_PERMISSION_KEYS.has(permissionKey)) return;
+    const inherited = inheritedKeys.has(permissionKey);
+    if (effect === "grant" && !inherited) normalized.set(permissionKey, effect);
+    if (effect === "revoke" && inherited) normalized.set(permissionKey, effect);
+  });
+
+  return normalized;
+}
+
+function serializeOverrideMap(overrides, selectedRoleIds, permissions) {
+  return [...normalizeEffectiveOverrideMap(overrides, selectedRoleIds, permissions).entries()]
     .filter(([, effect]) => effect === "grant" || effect === "revoke")
     .map(([permission_key, effect]) => ({ permission_key, effect }))
     .sort((a, b) => a.permission_key.localeCompare(b.permission_key));
+}
+
+function serializedOverrideSignature(overrides) {
+  return JSON.stringify(overrides);
 }
 
 function buildEffectivePermissionPreview(selectedRoleIds, permissions, overrides = new Map()) {
@@ -227,6 +256,7 @@ function buildEffectivePermissionPreview(selectedRoleIds, permissions, overrides
 
     existing.override = overrides.get(key) || null;
     existing.effective = existing.override === "grant" || (existing.inherited && existing.override !== "revoke");
+    existing.readOnly = WORK_ELIGIBILITY_PERMISSION_KEYS.has(key);
 
     byPermission.set(key, existing);
   });
@@ -253,6 +283,8 @@ function EditRolePresetsModal({ member, open, onClose, onSaved }) {
   const [roles, setRoles] = useState([]);
   const [rolePermissions, setRolePermissions] = useState([]);
   const [permissionOverrides, setPermissionOverrides] = useState(new Map());
+  const [initialOverrideSignature, setInitialOverrideSignature] = useState("[]");
+  const [overridesTouched, setOverridesTouched] = useState(false);
   const [selectedRoleIds, setSelectedRoleIds] = useState([]);
   const [selectedPrimaryRoleId, setSelectedPrimaryRoleId] = useState("");
   const [loadingRoles, setLoadingRoles] = useState(false);
@@ -264,6 +296,8 @@ function EditRolePresetsModal({ member, open, onClose, onSaved }) {
     setSelectedRoleIds(activeRoleIds(member));
     setSelectedPrimaryRoleId(primaryRoleId(member));
     setPermissionOverrides(new Map());
+    setInitialOverrideSignature("[]");
+    setOverridesTouched(false);
     setError("");
     setLoadingRoles(true);
     Promise.all([
@@ -272,9 +306,16 @@ function EditRolePresetsModal({ member, open, onClose, onSaved }) {
       listCompanyMemberPermissionOverrides(member.user_id),
     ])
       .then(([roleRows, permissionRows, overrideRows]) => {
+        const activeIds = activeRoleIds(member);
+        const normalizedOverrides = normalizeEffectiveOverrideMap(
+          normalizeOverrideRows(overrideRows),
+          activeIds,
+          permissionRows
+        );
         setRoles(Array.isArray(roleRows) ? roleRows : []);
         setRolePermissions(Array.isArray(permissionRows) ? permissionRows : []);
-        setPermissionOverrides(normalizeOverrideRows(overrideRows));
+        setPermissionOverrides(normalizedOverrides);
+        setInitialOverrideSignature(serializedOverrideSignature(serializeOverrideMap(normalizedOverrides, activeIds, permissionRows)));
       })
       .catch((loadError) => {
         console.debug("Access detail list failed", {
@@ -305,7 +346,8 @@ function EditRolePresetsModal({ member, open, onClose, onSaved }) {
   const visibleRoles = [...roles]
     .filter((role) => role.assignable_by_current_user || currentRoleIds.has(role.role_id))
     .sort((a, b) => roleSortValue(a) - roleSortValue(b) || String(a.role_name).localeCompare(String(b.role_name)));
-  const permissionPreviewGroups = buildEffectivePermissionPreview(selectedRoleIds, rolePermissions, permissionOverrides);
+  const effectivePermissionOverrides = normalizeEffectiveOverrideMap(permissionOverrides, selectedRoleIds, rolePermissions);
+  const permissionPreviewGroups = buildEffectivePermissionPreview(selectedRoleIds, rolePermissions, effectivePermissionOverrides);
 
   const toggleRole = (role) => {
     if (!role.assignable_by_current_user && !currentRoleIds.has(role.role_id)) return;
@@ -325,6 +367,7 @@ function EditRolePresetsModal({ member, open, onClose, onSaved }) {
       }
       return next;
     });
+    setOverridesTouched(true);
   };
 
   const handleSubmit = async (event) => {
@@ -348,12 +391,15 @@ function EditRolePresetsModal({ member, open, onClose, onSaved }) {
         "Updated from Users",
         requestId
       );
-      await saveCompanyMemberPermissionOverrides(
-        member.user_id,
-        serializeOverrideMap(permissionOverrides),
-        "Updated from Users",
-        requestId
-      );
+      const overridePayload = serializeOverrideMap(permissionOverrides, selectedRoleIds, rolePermissions);
+      if (overridesTouched && serializedOverrideSignature(overridePayload) !== initialOverrideSignature) {
+        await saveCompanyMemberPermissionOverrides(
+          member.user_id,
+          overridePayload,
+          "Updated from Users",
+          `${requestId}:permission-overrides`
+        );
+      }
       toast.success("Member access updated.");
       onSaved?.();
       onClose?.();
@@ -462,6 +508,11 @@ function EditRolePresetsModal({ member, open, onClose, onSaved }) {
               <p className="mt-1 text-xs text-slate-500">
                 Role-derived access plus explicit V1-safe grants or revokes. Hidden product domains stay suppressed.
               </p>
+              {permissionPreviewGroups.some((group) => group.id === "work_eligibility") && (
+                <p className="mt-1 text-xs text-slate-500">
+                  Work eligibility is managed through Appraiser/Reviewer role presets in V1.
+                </p>
+              )}
             </div>
             {loadingRoles ? (
               <div className="px-3 py-4 text-sm text-slate-500">Loading permission preview...</div>
@@ -509,32 +560,36 @@ function EditRolePresetsModal({ member, open, onClose, onSaved }) {
                               </div>
                             )}
                           </div>
-                          <div className="flex flex-wrap items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => setPermissionOverride(permission.key, null)}
-                              disabled={submitting || !permission.override}
-                              className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-                            >
-                              Inherit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setPermissionOverride(permission.key, "grant")}
-                              disabled={submitting || permission.override === "grant"}
-                              className="rounded-md border border-emerald-200 bg-white px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
-                            >
-                              Grant
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setPermissionOverride(permission.key, "revoke")}
-                              disabled={submitting || permission.override === "revoke"}
-                              className="rounded-md border border-rose-200 bg-white px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50"
-                            >
-                              Revoke
-                            </button>
-                          </div>
+                          {permission.readOnly ? (
+                            <div className="text-xs font-medium text-slate-500">Role preset managed</div>
+                          ) : (
+                            <div className="flex flex-wrap items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => setPermissionOverride(permission.key, null)}
+                                disabled={submitting || !permission.override}
+                                className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                              >
+                                Inherit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setPermissionOverride(permission.key, "grant")}
+                                disabled={submitting || permission.override === "grant"}
+                                className="rounded-md border border-emerald-200 bg-white px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
+                              >
+                                Grant
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setPermissionOverride(permission.key, "revoke")}
+                                disabled={submitting || permission.override === "revoke"}
+                                className="rounded-md border border-rose-200 bg-white px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+                              >
+                                Revoke
+                              </button>
+                            </div>
+                          )}
                         </li>
                       ))}
                     </ul>
