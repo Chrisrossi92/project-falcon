@@ -420,6 +420,7 @@ export default function ClientDetail() {
   const completedOrders = stats.completedOrders ?? 0;
   const anyOrders = orders && orders.length > 0;
   const isAmcRelationship = String(category || "").toLowerCase() === "amc";
+  const hasNoSpecificContact = client.contact_mode === "no_specific_contact";
   const relatedOrdersTitle = isAmcRelationship ? "Managed Orders" : "Client Orders";
   const relatedOrdersDescription = isAmcRelationship
     ? "Orders visible to your current company role where this AMC is the management relationship."
@@ -515,6 +516,15 @@ export default function ClientDetail() {
                 onSubmit={handleUpdateClient}
                 submitLabel="Save Changes"
               />
+            ) : hasNoSpecificContact ? (
+              <div className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-4">
+                <div className="text-sm font-medium text-slate-900">
+                  No specific client contact is required for this relationship.
+                </div>
+                <p className="mt-1 text-sm leading-6 text-slate-500">
+                  This relationship is handled through a portal or general intake process.
+                </p>
+              </div>
             ) : (
               <div className="grid gap-3 text-sm sm:grid-cols-2">
                 <DetailField

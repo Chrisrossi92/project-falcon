@@ -14,9 +14,11 @@ vi.mock("@/lib/supabaseClient", () => ({
 
 import supabase from "@/lib/supabaseClient";
 import {
+  createClientManagementClient,
   getClientManagementDetail,
   listAssignedOrderClients,
   listClientManagementClients,
+  updateClientManagementClient,
 } from "../clientManagementApi";
 
 describe("clientManagementApi management clients", () => {
@@ -34,6 +36,7 @@ describe("clientManagementApi management clients", () => {
           category: "amc",
           amc_id: null,
           amc_name: null,
+          contact_mode: "no_specific_contact",
           order_count: 3,
           active_order_count: 2,
           completed_order_count: 1,
@@ -73,6 +76,7 @@ describe("clientManagementApi management clients", () => {
         id: 10,
         name: "MountainSeed",
         category: "amc",
+        contact_mode: "no_specific_contact",
         total_orders: 3,
         active_orders: 2,
         completed_orders: 1,
@@ -99,6 +103,7 @@ describe("clientManagementApi management clients", () => {
         client_name: "MountainSeed",
         status: "active",
         category: "amc",
+        contact_mode: "no_specific_contact",
         order_count: 3,
         active_order_count: 2,
         completed_order_count: 1,
@@ -115,6 +120,7 @@ describe("clientManagementApi management clients", () => {
         id: 10,
         name: "MountainSeed",
         category: "amc",
+        contact_mode: "no_specific_contact",
         total_orders: 3,
         active_order_count: 2,
         completed_order_count: 1,
@@ -124,6 +130,46 @@ describe("clientManagementApi management clients", () => {
     );
     expect(supabase.rpc).toHaveBeenCalledWith("rpc_client_management_detail", {
       p_client_id: 10,
+    });
+  });
+
+  it("passes and normalizes contact optionality through create/update RPC helpers", async () => {
+    supabase.rpc.mockResolvedValue({
+      data: {
+        client_id: 20,
+        client_name: "Portal Lender",
+        status: "active",
+        category: "lender",
+        contact_mode: "no_specific_contact",
+      },
+      error: null,
+    });
+
+    await expect(
+      createClientManagementClient({
+        name: "Portal Lender",
+        category: "lender",
+        contact_mode: "no_specific_contact",
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        id: 20,
+        name: "Portal Lender",
+        contact_mode: "no_specific_contact",
+      }),
+    );
+    expect(supabase.rpc).toHaveBeenLastCalledWith("rpc_client_management_create", {
+      p_client: {
+        name: "Portal Lender",
+        category: "lender",
+        contact_mode: "no_specific_contact",
+      },
+    });
+
+    await updateClientManagementClient(20, { contact_mode: "contacts" });
+    expect(supabase.rpc).toHaveBeenLastCalledWith("rpc_client_management_update", {
+      p_client_id: 20,
+      p_patch: { contact_mode: "contacts" },
     });
   });
 });

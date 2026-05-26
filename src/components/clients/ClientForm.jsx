@@ -15,6 +15,7 @@ export default function ClientForm({ initial, onSubmit, submitLabel = "Save" }) 
     // new fields we added
     category: "client",
     amc_id: null,
+    contact_mode: "contacts",
     notes: "",
   });
 
@@ -31,6 +32,7 @@ export default function ClientForm({ initial, onSubmit, submitLabel = "Save" }) 
       status: initial.status || "active",
       category: initial.category || initial.client_type || initial.kind || "client",
       amc_id: initial.amc_id ?? null,
+      contact_mode: initial.contact_mode || "contacts",
       notes: initial.notes || "",
       contact_name_1:
         initial.contact_name_1 || initial.contact_name || initial.primary_contact || "",
@@ -109,6 +111,7 @@ export default function ClientForm({ initial, onSubmit, submitLabel = "Save" }) 
       status: values.status || "active",
       category: values.category || "client",
       amc_id: (values.category || "").toLowerCase() === "amc" ? null : (values.amc_id || null),
+      contact_mode: values.contact_mode || "contacts",
       notes: values.notes || null,
       contact_name_1: values.contact_name_1 || null,
       contact_email_1: values.contact_email_1 || null,
@@ -185,6 +188,29 @@ export default function ClientForm({ initial, onSubmit, submitLabel = "Save" }) 
             Main client-side contact for routine order coordination.
           </p>
         </div>
+
+        <label className="sm:col-span-2 flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">
+          <input
+            type="checkbox"
+            checked={values.contact_mode === "no_specific_contact"}
+            onChange={(e) =>
+              setValues((v) => ({
+                ...v,
+                contact_mode: e.target.checked ? "no_specific_contact" : "contacts",
+              }))
+            }
+            className="mt-0.5 h-4 w-4 rounded border-slate-300"
+          />
+          <span>
+            <span className="block font-medium text-slate-800">
+              No specific contact / portal or general intake only
+            </span>
+            <span className="mt-1 block text-xs leading-5 text-slate-500">
+              Use this when orders are handled through a portal, queue, or general client process
+              rather than a routine person.
+            </span>
+          </span>
+        </label>
 
         <div>
           <label className="block text-xs text-gray-600 mb-1">Primary Contact Name</label>

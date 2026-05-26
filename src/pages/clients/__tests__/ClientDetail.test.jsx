@@ -93,6 +93,7 @@ function renderDetail({ canUpdate = true, context, client, orders, contacts, con
       name: "Acme Lending",
       status: "active",
       category: "lender",
+      contact_mode: "contacts",
       primary_contact_name: "Avery Client",
       primary_contact_phone: "555-0100",
       contact_email_1: "avery@example.test",
@@ -312,6 +313,38 @@ describe("ClientDetail presentation", () => {
     expect(screen.queryByRole("button", { name: "Edit Client" })).not.toBeInTheDocument();
     expect(screen.queryByRole("form", { name: "client edit form" })).not.toBeInTheDocument();
     expect(within(screen.getByRole("banner")).getByRole("button", { name: "Back to Clients" })).toBeInTheDocument();
+  });
+
+  it("simplifies the legacy contact card when no specific contact is required", async () => {
+    renderDetail({
+      client: {
+        id: 42,
+        name: "Portal Managed AMC",
+        status: "active",
+        category: "amc",
+        contact_mode: "no_specific_contact",
+        contact_name_1: null,
+        contact_email_1: null,
+        contact_phone_1: null,
+        total_orders: 0,
+      },
+      contacts: [],
+      orders: [],
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Portal Managed AMC" })).toBeInTheDocument();
+    });
+
+    expect(
+      screen.getByText("No specific client contact is required for this relationship."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("This relationship is handled through a portal or general intake process."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Contacts" })).toBeInTheDocument();
+    expect(screen.getByText("No saved contacts yet.")).toBeInTheDocument();
+    expect(screen.queryByText("Primary Contact")).not.toBeInTheDocument();
   });
 
   it("adds a reusable client contact and refreshes the list", async () => {
