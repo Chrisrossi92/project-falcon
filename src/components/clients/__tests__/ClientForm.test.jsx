@@ -41,6 +41,17 @@ describe("ClientForm contact optionality", () => {
     fireEvent.change(screen.getByPlaceholderText("Acme Capital, LLC"), {
       target: { value: "Portal Managed AMC" },
     });
+    fireEvent.change(screen.getByPlaceholderText("https://portal.example.com"), {
+      target: { value: "https://portal.example.com/login" },
+    });
+    fireEvent.change(
+      screen.getByPlaceholderText(
+        "General intake steps, portal routing notes, or non-secret workflow reminders.",
+      ),
+      {
+        target: { value: "Upload engagement letter through intake queue." },
+      },
+    );
     fireEvent.click(screen.getByRole("checkbox", { name: /No specific contact/ }));
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
@@ -49,6 +60,8 @@ describe("ClientForm contact optionality", () => {
         expect.objectContaining({
           name: "Portal Managed AMC",
           contact_mode: "no_specific_contact",
+          portal_url: "https://portal.example.com/login",
+          portal_notes: "Upload engagement letter through intake queue.",
         }),
       );
     });
@@ -62,6 +75,8 @@ describe("ClientForm contact optionality", () => {
           id: 42,
           name: "Portal Client",
           contact_mode: "no_specific_contact",
+          portal_url: "https://client.example.com",
+          portal_notes: "Use general intake only.",
         }}
         onSubmit={onSubmit}
       />,
@@ -70,6 +85,8 @@ describe("ClientForm contact optionality", () => {
     expect(
       screen.getByRole("checkbox", { name: /No specific contact/ }),
     ).toBeChecked();
+    expect(screen.getByDisplayValue("https://client.example.com")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Use general intake only.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
@@ -81,5 +98,22 @@ describe("ClientForm contact optionality", () => {
         }),
       );
     });
+  });
+
+  it("hydrates existing camelCase contactMode", async () => {
+    render(
+      <ClientForm
+        initial={{
+          id: 43,
+          name: "Camel Case Portal Client",
+          contactMode: "no_specific_contact",
+        }}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("checkbox", { name: /No specific contact/ }),
+    ).toBeChecked();
   });
 });

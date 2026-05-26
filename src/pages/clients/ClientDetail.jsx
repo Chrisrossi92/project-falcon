@@ -68,6 +68,17 @@ const formatCategoryLabel = (category) => {
   return `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
 };
 
+const portalHref = (url) => {
+  const value = String(url || "").trim();
+  if (!value) return null;
+  if (/^https?:\/\//i.test(value)) return value;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(value)) return null;
+  return `https://${value}`;
+};
+
+const normalizeContactMode = (client = {}) =>
+  String(client.contact_mode || client.contactMode || "contacts").trim().toLowerCase();
+
 function clientUpdateErrorMessage(error) {
   const message = error?.message || "";
   if (message.includes("client_name_required")) return "Enter a client name.";
@@ -420,12 +431,15 @@ export default function ClientDetail() {
   const completedOrders = stats.completedOrders ?? 0;
   const anyOrders = orders && orders.length > 0;
   const isAmcRelationship = String(category || "").toLowerCase() === "amc";
-  const hasNoSpecificContact = client.contact_mode === "no_specific_contact";
+  const contactMode = normalizeContactMode(client);
+  const hasNoSpecificContact = contactMode === "no_specific_contact";
   const relatedOrdersTitle = isAmcRelationship ? "Managed Orders" : "Client Orders";
   const relatedOrdersDescription = isAmcRelationship
     ? "Orders visible to your current company role where this AMC is the management relationship."
     : "Orders visible to your current company role for this client.";
   const contextTitle = isAmcRelationship ? "Managed Order Context" : "Visible Order Context";
+  const portalUrl = portalHref(client.portal_url);
+  const hasPortalInfo = Boolean(portalUrl || client.portal_notes);
 
   const activeList = (orders || []).filter(
     (o) => (o.status || "").toUpperCase() !== "COMPLETE"
@@ -517,13 +531,27 @@ export default function ClientDetail() {
                 submitLabel="Save Changes"
               />
             ) : hasNoSpecificContact ? (
-              <div className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-4">
+              <div className="space-y-3 rounded-lg border border-slate-100 bg-slate-50 px-4 py-4">
                 <div className="text-sm font-medium text-slate-900">
-                  No specific client contact is required for this relationship.
+                  {portalUrl
+                    ? "This relationship is handled through a portal or general intake process."
+                    : "No specific client contact is required for this relationship."}
                 </div>
-                <p className="mt-1 text-sm leading-6 text-slate-500">
-                  This relationship is handled through a portal or general intake process.
-                </p>
+                {portalUrl && (
+                  <a
+                    href={portalUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center justify-center rounded-md border border-slate-900 bg-slate-900 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800"
+                  >
+                    Open Portal
+                  </a>
+                )}
+                {client.portal_notes && (
+                  <div className="whitespace-pre-wrap rounded-md border border-slate-200 bg-white px-3 py-3 text-sm leading-6 text-slate-600">
+                    {client.portal_notes}
+                  </div>
+                )}
               </div>
             ) : (
               <div className="grid gap-3 text-sm sm:grid-cols-2">
@@ -552,6 +580,34 @@ export default function ClientDetail() {
               </div>
             )}
           </WorkspaceSection>
+
+          {hasPortalInfo && !hasNoSpecificContact && (
+            <WorkspaceSection
+              title="Portal / Intake"
+              titleId="client-portal-heading"
+              description="Operational portal or general intake details for this relationship."
+              className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+              headerClassName="mb-3"
+            >
+              <div className="space-y-3 text-sm text-slate-600">
+                {portalUrl && (
+                  <a
+                    href={portalUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center justify-center rounded-md border border-slate-900 bg-slate-900 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800"
+                  >
+                    Open Portal
+                  </a>
+                )}
+                {client.portal_notes && (
+                  <div className="whitespace-pre-wrap rounded-lg border border-slate-100 bg-slate-50 px-3 py-3 leading-6 text-slate-700">
+                    {client.portal_notes}
+                  </div>
+                )}
+              </div>
+            </WorkspaceSection>
+          )}
 
           <ContactsSection
             contacts={contacts}

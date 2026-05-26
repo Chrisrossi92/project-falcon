@@ -16,6 +16,8 @@ export default function ClientForm({ initial, onSubmit, submitLabel = "Save" }) 
     category: "client",
     amc_id: null,
     contact_mode: "contacts",
+    portal_url: "",
+    portal_notes: "",
     notes: "",
   });
 
@@ -32,7 +34,9 @@ export default function ClientForm({ initial, onSubmit, submitLabel = "Save" }) 
       status: initial.status || "active",
       category: initial.category || initial.client_type || initial.kind || "client",
       amc_id: initial.amc_id ?? null,
-      contact_mode: initial.contact_mode || "contacts",
+      contact_mode: initial.contact_mode || initial.contactMode || "contacts",
+      portal_url: initial.portal_url || "",
+      portal_notes: initial.portal_notes || "",
       notes: initial.notes || "",
       contact_name_1:
         initial.contact_name_1 || initial.contact_name || initial.primary_contact || "",
@@ -112,6 +116,8 @@ export default function ClientForm({ initial, onSubmit, submitLabel = "Save" }) 
       category: values.category || "client",
       amc_id: (values.category || "").toLowerCase() === "amc" ? null : (values.amc_id || null),
       contact_mode: values.contact_mode || "contacts",
+      portal_url: values.portal_url?.trim() || null,
+      portal_notes: values.portal_notes || null,
       notes: values.notes || null,
       contact_name_1: values.contact_name_1 || null,
       contact_email_1: values.contact_email_1 || null,
@@ -240,6 +246,37 @@ export default function ClientForm({ initial, onSubmit, submitLabel = "Save" }) 
             value={values.contact_phone_1 || ""}
             onChange={(e) => setValues((v) => ({ ...v, contact_phone_1: e.target.value }))}
             placeholder="(555) 123-4567"
+          />
+        </div>
+
+        <div className="sm:col-span-2 pt-1">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+            Portal / Intake
+          </div>
+          <p className="mt-1 text-xs text-slate-500">
+            Optional process memory for client portals or general intake workflows. Do not store
+            credentials here.
+          </p>
+        </div>
+
+        <div className="sm:col-span-2">
+          <label className="block text-xs text-gray-600 mb-1">Portal URL</label>
+          <input
+            className="w-full rounded border px-3 py-2 text-sm"
+            value={values.portal_url || ""}
+            onChange={(e) => setValues((v) => ({ ...v, portal_url: e.target.value }))}
+            placeholder="https://portal.example.com"
+          />
+        </div>
+
+        <div className="sm:col-span-2">
+          <label className="block text-xs text-gray-600 mb-1">Portal Notes</label>
+          <textarea
+            className="w-full rounded border px-3 py-2 text-sm"
+            rows={3}
+            value={values.portal_notes || ""}
+            onChange={(e) => setValues((v) => ({ ...v, portal_notes: e.target.value }))}
+            placeholder="General intake steps, portal routing notes, or non-secret workflow reminders."
           />
         </div>
       </div>

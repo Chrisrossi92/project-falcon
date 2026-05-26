@@ -219,9 +219,43 @@ describe("ClientDetail presentation", () => {
     expect(screen.getByText("avery.desk@example.test")).toBeInTheDocument();
     expect(screen.getByText("Default")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Client Orders" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Portal / Intake" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Visible Order Context" })).toBeInTheDocument();
     expect(screen.getByText("2 total / 1 active / 1 completed")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "26001" })).toHaveAttribute("href", "/orders/order-1");
+  });
+
+  it("shows portal guidance in the contact card when no specific contact has portal metadata", async () => {
+    renderDetail({
+      client: {
+        id: 42,
+        name: "Portal Managed AMC",
+        status: "active",
+        category: "amc",
+        contact_mode: "no_specific_contact",
+        portal_url: "portal.mountainseed.example.com",
+        portal_notes: "Submit orders through the general intake dashboard.",
+        total_orders: 0,
+      },
+      contacts: [],
+      orders: [],
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Portal Managed AMC" })).toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole("heading", { name: "Portal / Intake" })).not.toBeInTheDocument();
+    expect(
+      screen.getByText("This relationship is handled through a portal or general intake process."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open Portal" })).toHaveAttribute(
+      "href",
+      "https://portal.mountainseed.example.com",
+    );
+    expect(
+      screen.getByText("Submit orders through the general intake dashboard."),
+    ).toBeInTheDocument();
   });
 
   it("loads direct client orders for lender and client relationships", async () => {
@@ -322,7 +356,7 @@ describe("ClientDetail presentation", () => {
         name: "Portal Managed AMC",
         status: "active",
         category: "amc",
-        contact_mode: "no_specific_contact",
+        contactMode: "no_specific_contact",
         contact_name_1: null,
         contact_email_1: null,
         contact_phone_1: null,
@@ -339,12 +373,41 @@ describe("ClientDetail presentation", () => {
     expect(
       screen.getByText("No specific client contact is required for this relationship."),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText("This relationship is handled through a portal or general intake process."),
-    ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Contacts" })).toBeInTheDocument();
     expect(screen.getByText("No saved contacts yet.")).toBeInTheDocument();
     expect(screen.queryByText("Primary Contact")).not.toBeInTheDocument();
+  });
+
+  it("renders the separate portal card for contacts-mode clients with portal metadata", async () => {
+    renderDetail({
+      client: {
+        id: 42,
+        name: "Portal Supported Lender",
+        status: "active",
+        category: "lender",
+        contact_mode: "contacts",
+        primary_contact_name: "Avery Client",
+        primary_contact_phone: "555-0100",
+        contact_email_1: "avery@example.test",
+        portal_url: "https://lender.example.com",
+        portal_notes: "Portal is optional for escalations.",
+        total_orders: 0,
+      },
+      contacts: [],
+      orders: [],
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Portal Supported Lender" })).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Avery Client")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Portal / Intake" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open Portal" })).toHaveAttribute(
+      "href",
+      "https://lender.example.com",
+    );
+    expect(screen.getByText("Portal is optional for escalations.")).toBeInTheDocument();
   });
 
   it("adds a reusable client contact and refreshes the list", async () => {

@@ -2,6 +2,7 @@ import supabase from "@/lib/supabaseClient";
 import { fetchOrdersWithFilters } from "@/lib/api/orders";
 
 function normalizeClientRow(row = {}) {
+  const contactMode = row.contact_mode || row.contactMode || "contacts";
   return {
     id: row.client_id,
     name: row.client_name,
@@ -9,7 +10,10 @@ function normalizeClientRow(row = {}) {
     category: row.category,
     amc_id: row.amc_id,
     amc_name: row.amc_name,
-    contact_mode: row.contact_mode || "contacts",
+    contact_mode: contactMode,
+    contactMode,
+    portal_url: row.portal_url || null,
+    portal_notes: row.portal_notes || null,
     primary_contact: row.contact_name,
     phone: row.contact_phone,
     email: row.contact_email,
@@ -34,6 +38,7 @@ function normalizeClientRow(row = {}) {
 }
 
 function normalizeClientDetail(row = {}) {
+  const contactMode = row.contact_mode || row.contactMode || "contacts";
   return {
     id: row.client_id,
     name: row.client_name,
@@ -41,7 +46,10 @@ function normalizeClientDetail(row = {}) {
     category: row.category,
     amc_id: row.amc_id,
     amc_name: row.amc_name,
-    contact_mode: row.contact_mode || "contacts",
+    contact_mode: contactMode,
+    contactMode,
+    portal_url: row.portal_url || null,
+    portal_notes: row.portal_notes || null,
     notes: row.notes,
     primary_contact_name: row.contact_name_1,
     primary_contact_phone: row.contact_phone_1,
@@ -70,6 +78,7 @@ function normalizeClientDetail(row = {}) {
 }
 
 function normalizeClientMutation(row = {}) {
+  const contactMode = row.contact_mode || row.contactMode || "contacts";
   return {
     id: row.client_id,
     name: row.client_name,
@@ -77,7 +86,10 @@ function normalizeClientMutation(row = {}) {
     category: row.category,
     amc_id: row.amc_id,
     amc_name: row.amc_name,
-    contact_mode: row.contact_mode || "contacts",
+    contact_mode: contactMode,
+    contactMode,
+    portal_url: row.portal_url || null,
+    portal_notes: row.portal_notes || null,
     notes: row.notes,
     primary_contact_name: row.contact_name_1,
     primary_contact_phone: row.contact_phone_1,
@@ -100,6 +112,16 @@ const parseFee = (value) => {
   const number = typeof value === "number" ? value : Number(String(value).replace(/[$,]/g, ""));
   return Number.isFinite(number) ? number : null;
 };
+
+function normalizeClientWritePayload(payload = {}) {
+  const contactMode = payload.contact_mode || payload.contactMode;
+  if (!contactMode) return payload;
+  const { contactMode: _contactMode, ...rest } = payload;
+  return {
+    ...rest,
+    contact_mode: contactMode,
+  };
+}
 
 const orderClientSorters = {
   orders_desc: (a, b) => b.total_orders - a.total_orders || a.name.localeCompare(b.name),
@@ -247,7 +269,7 @@ export async function listClientManagementAmcOptions() {
 
 export async function createClientManagementClient(payload) {
   const { data, error } = await supabase.rpc("rpc_client_management_create", {
-    p_client: payload,
+    p_client: normalizeClientWritePayload(payload),
   });
   if (error) throw error;
 
@@ -258,7 +280,7 @@ export async function createClientManagementClient(payload) {
 export async function updateClientManagementClient(clientId, patch) {
   const { data, error } = await supabase.rpc("rpc_client_management_update", {
     p_client_id: Number(clientId),
-    p_patch: patch,
+    p_patch: normalizeClientWritePayload(patch),
   });
   if (error) throw error;
 

@@ -37,6 +37,8 @@ describe("clientManagementApi management clients", () => {
           amc_id: null,
           amc_name: null,
           contact_mode: "no_specific_contact",
+          portal_url: "https://mountainseed.example.com",
+          portal_notes: "Portal intake only.",
           order_count: 3,
           active_order_count: 2,
           completed_order_count: 1,
@@ -77,6 +79,8 @@ describe("clientManagementApi management clients", () => {
         name: "MountainSeed",
         category: "amc",
         contact_mode: "no_specific_contact",
+        portal_url: "https://mountainseed.example.com",
+        portal_notes: "Portal intake only.",
         total_orders: 3,
         active_orders: 2,
         completed_orders: 1,
@@ -104,6 +108,8 @@ describe("clientManagementApi management clients", () => {
         status: "active",
         category: "amc",
         contact_mode: "no_specific_contact",
+        portal_url: "https://mountainseed.example.com",
+        portal_notes: "Portal intake only.",
         order_count: 3,
         active_order_count: 2,
         completed_order_count: 1,
@@ -121,6 +127,8 @@ describe("clientManagementApi management clients", () => {
         name: "MountainSeed",
         category: "amc",
         contact_mode: "no_specific_contact",
+        portal_url: "https://mountainseed.example.com",
+        portal_notes: "Portal intake only.",
         total_orders: 3,
         active_order_count: 2,
         completed_order_count: 1,
@@ -140,7 +148,9 @@ describe("clientManagementApi management clients", () => {
         client_name: "Portal Lender",
         status: "active",
         category: "lender",
-        contact_mode: "no_specific_contact",
+        contactMode: "no_specific_contact",
+        portal_url: "https://portal.example.com",
+        portal_notes: "Use intake dashboard.",
       },
       error: null,
     });
@@ -150,12 +160,17 @@ describe("clientManagementApi management clients", () => {
         name: "Portal Lender",
         category: "lender",
         contact_mode: "no_specific_contact",
+        portal_url: "https://portal.example.com",
+        portal_notes: "Use intake dashboard.",
       }),
     ).resolves.toEqual(
       expect.objectContaining({
         id: 20,
         name: "Portal Lender",
         contact_mode: "no_specific_contact",
+        contactMode: "no_specific_contact",
+        portal_url: "https://portal.example.com",
+        portal_notes: "Use intake dashboard.",
       }),
     );
     expect(supabase.rpc).toHaveBeenLastCalledWith("rpc_client_management_create", {
@@ -163,12 +178,48 @@ describe("clientManagementApi management clients", () => {
         name: "Portal Lender",
         category: "lender",
         contact_mode: "no_specific_contact",
+        portal_url: "https://portal.example.com",
+        portal_notes: "Use intake dashboard.",
       },
     });
 
-    await updateClientManagementClient(20, { contact_mode: "contacts" });
+    await updateClientManagementClient(20, {
+      contactMode: "contacts",
+      portal_url: null,
+      portal_notes: null,
+    });
     expect(supabase.rpc).toHaveBeenLastCalledWith("rpc_client_management_update", {
       p_client_id: 20,
+      p_patch: { contact_mode: "contacts", portal_url: null, portal_notes: null },
+    });
+  });
+
+  it("maps camelCase contactMode to RPC contact_mode on writes", async () => {
+    supabase.rpc.mockResolvedValue({
+      data: {
+        client_id: 22,
+        client_name: "Portal AMC",
+        status: "active",
+        category: "amc",
+        contact_mode: "no_specific_contact",
+      },
+      error: null,
+    });
+
+    await createClientManagementClient({
+      name: "Portal AMC",
+      contactMode: "no_specific_contact",
+    });
+    expect(supabase.rpc).toHaveBeenLastCalledWith("rpc_client_management_create", {
+      p_client: {
+        name: "Portal AMC",
+        contact_mode: "no_specific_contact",
+      },
+    });
+
+    await updateClientManagementClient(22, { contactMode: "contacts" });
+    expect(supabase.rpc).toHaveBeenLastCalledWith("rpc_client_management_update", {
+      p_client_id: 22,
       p_patch: { contact_mode: "contacts" },
     });
   });
