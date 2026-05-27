@@ -301,6 +301,7 @@ function savedViewFiltersToOrdersFilters(savedFilters, currentFilters) {
 
 function SavedViewsPanel({ filters, onApply }) {
   const [open, setOpen] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const [views, setViews] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -309,6 +310,8 @@ function SavedViewsPanel({ filters, onApply }) {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (!open || loaded) return undefined;
+
     let mounted = true;
 
     async function loadSavedViews() {
@@ -316,7 +319,10 @@ function SavedViewsPanel({ filters, onApply }) {
       setError("");
       try {
         const data = await listOrderSavedViews();
-        if (mounted) setViews(Array.isArray(data) ? data : []);
+        if (mounted) {
+          setViews(Array.isArray(data) ? data : []);
+          setLoaded(true);
+        }
       } catch (err) {
         if (mounted) setError(err?.message || "Saved views could not be loaded.");
       } finally {
@@ -329,7 +335,7 @@ function SavedViewsPanel({ filters, onApply }) {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [loaded, open]);
 
   async function handleSave(event) {
     event.preventDefault();

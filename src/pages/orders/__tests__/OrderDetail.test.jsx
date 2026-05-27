@@ -689,10 +689,32 @@ describe("OrderDetail site visit save", () => {
     const files = await screen.findByLabelText("Order files");
     fireEvent.click(within(files).getByRole("button", { name: "Archive" }));
 
+    const dialog = screen.getByRole("alertdialog", { name: "Archive file" });
+    expect(within(dialog).getByText("Archive Engagement Letter?")).toBeInTheDocument();
+    expect(archiveOrderDocumentMock).not.toHaveBeenCalled();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Archive file" }));
+
     await waitFor(() => {
       expect(archiveOrderDocumentMock).toHaveBeenCalledWith("doc-1");
     });
     expect(listOrderDocumentsMock).toHaveBeenCalledTimes(2);
+    expect(window.confirm).not.toHaveBeenCalled();
+    expect(toastSuccessMock).toHaveBeenCalledWith("File archived.");
+  });
+
+  it("cancels document archive without calling the archive RPC helper", async () => {
+    render(<OrderDetail />);
+
+    const files = await screen.findByLabelText("Order files");
+    fireEvent.click(within(files).getByRole("button", { name: "Archive" }));
+
+    const dialog = screen.getByRole("alertdialog", { name: "Archive file" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+    expect(screen.queryByRole("alertdialog", { name: "Archive file" })).not.toBeInTheDocument();
+    expect(archiveOrderDocumentMock).not.toHaveBeenCalled();
+    expect(window.confirm).not.toHaveBeenCalled();
   });
 
   it("uploads a selected order file through the upload helper and refreshes the list", async () => {

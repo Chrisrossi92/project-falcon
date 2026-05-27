@@ -577,6 +577,9 @@ function MemberCard({ member, busy, readOnly = false, onEditRoles, onSetStatus }
   const status = String(member.membership_status || "").toLowerCase();
   const hasOwnerAccess = member?.is_owner || roles.some((role) => role.owner);
   const hasAdminAccess = roles.some((role) => role.admin);
+  const [pendingStatus, setPendingStatus] = useState(null);
+  const isPendingDeactivate = pendingStatus === "inactive";
+  const pendingStatusLabel = isPendingDeactivate ? "Deactivate" : "Reactivate";
 
   return (
     <article className="flex min-h-72 flex-col rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
@@ -669,7 +672,7 @@ function MemberCard({ member, busy, readOnly = false, onEditRoles, onSetStatus }
             {member.can_deactivate && (
               <button
                 type="button"
-                onClick={() => onSetStatus(member, "inactive")}
+                onClick={() => setPendingStatus("inactive")}
                 disabled={busy}
                 className="rounded-md border border-rose-200 bg-white px-3 py-1.5 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60"
               >
@@ -679,13 +682,50 @@ function MemberCard({ member, busy, readOnly = false, onEditRoles, onSetStatus }
             {member.can_reactivate && (
               <button
                 type="button"
-                onClick={() => onSetStatus(member, "active")}
+                onClick={() => setPendingStatus("active")}
                 disabled={busy}
                 className="rounded-md border border-emerald-200 bg-white px-3 py-1.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
               >
                 Reactivate
               </button>
             )}
+          </div>
+        )}
+        {pendingStatus && (
+          <div
+            role="alertdialog"
+            aria-label={`${pendingStatusLabel} member`}
+            className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950"
+          >
+            <div className="font-semibold">
+              {pendingStatusLabel} {name}?
+            </div>
+            <div className="mt-1 text-xs text-amber-800">
+              {isPendingDeactivate
+                ? "They will lose active company access."
+                : "Their company access will become active again."}
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setPendingStatus(null)}
+                disabled={busy}
+                className="rounded border border-amber-300 bg-white px-2 py-1 text-xs font-medium text-amber-900 hover:bg-amber-100 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onSetStatus(member, pendingStatus);
+                  setPendingStatus(null);
+                }}
+                disabled={busy}
+                className="rounded border border-amber-700 bg-amber-700 px-2 py-1 text-xs font-semibold text-white hover:bg-amber-800 disabled:opacity-50"
+              >
+                {pendingStatusLabel}
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -893,13 +933,6 @@ export default function UsersIndex() {
 
   const handleSetStatus = async (member, status) => {
     const isDeactivate = status === "inactive";
-    const confirmed = window.confirm(
-      isDeactivate
-        ? "Deactivate this member? They will lose active company access."
-        : "Reactivate this member? Their company access will become active again."
-    );
-    if (!confirmed) return;
-
     setBusyMemberId(member.user_id);
     try {
       await setCompanyMemberStatus(

@@ -196,10 +196,12 @@ function OverviewSection({ title, children, className = "" }) {
 }
 
 function FilesCard({ order, orderId, canArchive, canUpload, onFilesLoaded, showReadinessSummary = true }) {
+  const { success, error: toastError } = useToast();
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [busyId, setBusyId] = useState(null);
+  const [archiveCandidate, setArchiveCandidate] = useState(null);
   const [category, setCategory] = useState("engagement");
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -262,6 +264,8 @@ function FilesCard({ order, orderId, canArchive, canUpload, onFilesLoaded, showR
 
   const latestFiles = files.slice(0, 5);
   const groupedFiles = groupDocumentsByCategory(latestFiles);
+  const archiveCandidateLabel =
+    archiveCandidate?.title || archiveCandidate?.file_name || "this file";
 
   async function handleDownload(document) {
     setBusyId(document.id);
@@ -270,22 +274,24 @@ function FilesCard({ order, orderId, canArchive, canUpload, onFilesLoaded, showR
       const result = await createOrderDocumentDownloadUrl(document.id);
       window.open(result.signed_url, "_blank", "noopener,noreferrer");
     } catch (downloadError) {
-      alert(downloadError?.message || "Could not open this file.");
+      toastError(downloadError?.message || "Could not open this file.");
     } finally {
       setBusyId(null);
     }
   }
 
-  async function handleArchive(document) {
-    if (!window.confirm(`Archive ${document.title || document.file_name}?`)) return;
+  async function handleArchive() {
+    if (!archiveCandidate) return;
 
-    setBusyId(document.id);
+    setBusyId(archiveCandidate.id);
 
     try {
-      await archiveOrderDocument(document.id);
+      await archiveOrderDocument(archiveCandidate.id);
+      setArchiveCandidate(null);
+      success("File archived.");
       await loadFiles();
     } catch (archiveError) {
-      alert(archiveError?.message || "Could not archive this file.");
+      toastError(archiveError?.message || "Could not archive this file.");
     } finally {
       setBusyId(null);
     }
@@ -350,6 +356,38 @@ function FilesCard({ order, orderId, canArchive, canUpload, onFilesLoaded, showR
 
       {showReadinessSummary && !loading && !error && (
         <FileReadinessSummary order={order} documents={files} className="mt-3" />
+      )}
+
+      {archiveCandidate && (
+        <div
+          role="alertdialog"
+          aria-label="Archive file"
+          className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950"
+        >
+          <div className="font-semibold">Archive {archiveCandidateLabel}?</div>
+          <div className="mt-1 text-xs text-amber-800">
+            This removes the file from active document lists. It does not delete the order or
+            activity history.
+          </div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setArchiveCandidate(null)}
+              disabled={busyId === archiveCandidate.id}
+              className="rounded border border-amber-300 bg-white px-2 py-1 text-xs font-medium text-amber-900 hover:bg-amber-100 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleArchive}
+              disabled={busyId === archiveCandidate.id}
+              className="rounded border border-amber-700 bg-amber-700 px-2 py-1 text-xs font-semibold text-white hover:bg-amber-800 disabled:opacity-50"
+            >
+              {busyId === archiveCandidate.id ? "Archiving..." : "Archive file"}
+            </button>
+          </div>
+        </div>
       )}
 
       {canUpload && (
@@ -473,7 +511,7 @@ function FilesCard({ order, orderId, canArchive, canUpload, onFilesLoaded, showR
                           {canArchive && !isArchived && (
                             <button
                               type="button"
-                              onClick={() => handleArchive(document)}
+                              onClick={() => setArchiveCandidate(document)}
                               disabled={isBusy}
                               className="rounded border px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                             >
@@ -601,7 +639,7 @@ export default function OrderDetail() {
     try {
       await updateSiteVisitAtViaRpc(order.id, iso || null);
     } catch (error) {
-      alert(error?.message || "Failed to save site visit");
+      toastError(error?.message || "Failed to save site visit");
       return;
     }
     refresh();

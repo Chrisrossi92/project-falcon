@@ -501,6 +501,13 @@ describe("OrdersPage historical access", () => {
     );
   });
 
+  it("does not load saved views before the panel is opened", () => {
+    renderPage();
+
+    expect(screen.getByRole("button", { name: "Saved Views" })).toBeInTheDocument();
+    expect(savedViewsApiMock.listOrderSavedViews).not.toHaveBeenCalled();
+  });
+
   it("loads and renders saved views in a compact secondary panel", async () => {
     savedViewsApiMock.listOrderSavedViews.mockResolvedValue([
       { id: "view-1", name: "Review queue", filters: { status: "in_review" } },

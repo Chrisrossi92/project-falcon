@@ -8,6 +8,7 @@ import { PERMISSIONS } from "@/lib/permissions/constants";
 
 const permissionState = vi.hoisted(() => ({
   allowed: new Set(),
+  useEffectivePermissions: vi.fn(),
 }));
 
 const shellProfileState = vi.hoisted(() => ({
@@ -21,20 +22,21 @@ const profileApiMock = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/hooks/usePermissions", () => ({
-  useCan: (permissionKey) => ({
-    allowed: permissionState.allowed.has(permissionKey),
-    loading: false,
-    error: null,
-    permissionKeys: [...permissionState.allowed],
-    reload: vi.fn(),
-  }),
-  useCanAny: (permissionKeys) => ({
-    allowed: permissionKeys.some((permissionKey) => permissionState.allowed.has(permissionKey)),
-    loading: false,
-    error: null,
-    permissionKeys: [...permissionState.allowed],
-    reload: vi.fn(),
-  }),
+  useEffectivePermissions: () => {
+    permissionState.useEffectivePermissions();
+    return {
+      hasPermission: (permissionKey) => permissionState.allowed.has(permissionKey),
+      hasAnyPermission: (permissionKeys) =>
+        permissionKeys.some((permissionKey) => permissionState.allowed.has(permissionKey)),
+      hasAllPermissions: (permissionKeys) =>
+        permissionKeys.every((permissionKey) => permissionState.allowed.has(permissionKey)),
+      permissionSet: permissionState.allowed,
+      permissions: [...permissionState.allowed],
+      loading: false,
+      error: null,
+      reload: vi.fn(),
+    };
+  },
 }));
 
 vi.mock("@/lib/shell/useShellProfile", () => ({
@@ -107,6 +109,7 @@ const openMobileNav = (container) => {
 describe("TopNav desktop operational spine navigation", () => {
   beforeEach(() => {
     permissionState.allowed = new Set();
+    permissionState.useEffectivePermissions.mockClear();
     shellProfileState.profileId = "operations";
     shellProfileState.exposure = undefined;
     shellProfileState.appContext = null;

@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import toast from "react-hot-toast";
 import {
   getCurrentUserProfile,
   rpcGetNotificationPolicies,
@@ -88,15 +89,23 @@ export default function NotificationPrefsPanel({ showAdminSections = false, show
   }
 
   async function saveUserPrefs() {
-    await updateMyNotificationPrefs(userPrefs);
-    alert("Saved your preferences.");
+    try {
+      await updateMyNotificationPrefs(userPrefs);
+      toast.success("Preferences saved");
+    } catch (error) {
+      toast.error(error?.message || "Could not save preferences");
+    }
   }
 
   async function saveAdminDefaults(which, rules) {
-    await rpcSetNotificationPolicy(which, rules);
-    const p = await rpcGetNotificationPolicies();
-    setPolicies(p || []);
-    alert("Saved company defaults.");
+    try {
+      await rpcSetNotificationPolicy(which, rules);
+      const p = await rpcGetNotificationPolicies();
+      setPolicies(p || []);
+      toast.success("Company defaults saved");
+    } catch (error) {
+      toast.error(error?.message || "Could not save company defaults");
+    }
   }
 
   async function toggleLock(eventKey) {
@@ -104,12 +113,16 @@ export default function NotificationPrefsPanel({ showAdminSections = false, show
     const set = new Set(next.email_required || []);
     set.has(eventKey) ? set.delete(eventKey) : set.add(eventKey);
     next.email_required = Array.from(set);
-    await rpcSetNotificationPolicy("locks.appraiser", next);
-    const p = await rpcGetNotificationPolicies();
-    setPolicies(p || []);
-    const lockRow = (p || []).find((r) => r.key === "locks.appraiser");
-    setLocks(lockRow?.rules ?? { email_required: [] });
-    alert("Updated lock policy.");
+    try {
+      await rpcSetNotificationPolicy("locks.appraiser", next);
+      const p = await rpcGetNotificationPolicies();
+      setPolicies(p || []);
+      const lockRow = (p || []).find((r) => r.key === "locks.appraiser");
+      setLocks(lockRow?.rules ?? { email_required: [] });
+      toast.success("Lock policy updated");
+    } catch (error) {
+      toast.error(error?.message || "Could not update lock policy");
+    }
   }
 
   return (

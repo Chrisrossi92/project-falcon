@@ -6,7 +6,7 @@ import NotificationBell from "@/components/notifications/NotificationBell";
 import CommandPalette from "@/components/nav/CommandPalette";
 import { getCurrentUserProfile } from "@/lib/services/api";
 import AvatarBadge from "@/components/ui/AvatarBadge";
-import { useCan, useCanAny } from "@/lib/hooks/usePermissions";
+import { useEffectivePermissions } from "@/lib/hooks/usePermissions";
 import { getCurrentPrimaryNavLinks } from "@/lib/navigation/currentPrimaryNavLinks";
 import { getCurrentShellMobileNavigationLinks } from "@/lib/navigation/currentShellMobileNavigationLinks";
 import { getCurrentShellNavigationSections } from "@/lib/navigation/currentShellNavigationSections";
@@ -300,36 +300,39 @@ export default function TopNav() {
   const [open, setOpen]  = useState(false); // mobile sheet
   const [pal, setPal]    = useState(false); // command palette
   const shellProfilePresentation = useShellProfile();
-  const canReadAllClients = useCan(PERMISSIONS.CLIENTS_READ_ALL);
-  const canReadAssignedClients = useCan(PERMISSIONS.CLIENTS_READ_ASSIGNED);
-  const canReadAssignments = useCanAny([
+  const effectivePermissions = useEffectivePermissions();
+  const hasPermission = (permissionKey) => effectivePermissions.hasPermission(permissionKey);
+  const hasAnyPermission = (permissionKeys) => effectivePermissions.hasAnyPermission(permissionKeys);
+  const canReadAllClients = hasPermission(PERMISSIONS.CLIENTS_READ_ALL);
+  const canReadAssignedClients = hasPermission(PERMISSIONS.CLIENTS_READ_ASSIGNED);
+  const canReadAssignments = hasAnyPermission([
     PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_ASSIGNED,
     PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_OWNER,
   ]);
-  const canReadOrders = useCanAny([
+  const canReadOrders = hasAnyPermission([
     PERMISSIONS.ORDERS_READ_ALL,
     PERMISSIONS.ORDERS_READ_ASSIGNED,
   ]);
-  const canReadRelationships = useCan(PERMISSIONS.RELATIONSHIPS_READ);
-  const canReadUsers = useCan(PERMISSIONS.USERS_READ);
-  const canViewSettings = useCan(PERMISSIONS.SETTINGS_VIEW);
-  const clientsPath = canReadAllClients.allowed ? "/clients" : "/clients/cards";
-  const showUsersNav = canReadUsers.allowed;
-  const showRelationshipsNav = canReadRelationships.allowed;
-  const showSettingsNav = canViewSettings.allowed;
+  const canReadRelationships = hasPermission(PERMISSIONS.RELATIONSHIPS_READ);
+  const canReadUsers = hasPermission(PERMISSIONS.USERS_READ);
+  const canViewSettings = hasPermission(PERMISSIONS.SETTINGS_VIEW);
+  const clientsPath = canReadAllClients ? "/clients" : "/clients/cards";
+  const showUsersNav = canReadUsers;
+  const showRelationshipsNav = canReadRelationships;
+  const showSettingsNav = canViewSettings;
   const shellProfileId = shellProfilePresentation?.profileId ?? shellProfilePresentation?.id;
   const isInternalAppraiserShell = shellProfileId === "my_work";
   const appContext = shellProfilePresentation?.appContext;
   const isOwnerAdminStaffAppraisalShell =
     shellProfileId === "operations" || Boolean(appContext?.is_owner || appContext?.is_admin_role);
   const showAssignmentsNav =
-    canReadAssignments.allowed && !isInternalAppraiserShell && !isOwnerAdminStaffAppraisalShell;
+    canReadAssignments && !isInternalAppraiserShell && !isOwnerAdminStaffAppraisalShell;
   const showScopedRelationshipsNav =
     showRelationshipsNav && !isInternalAppraiserShell && !isOwnerAdminStaffAppraisalShell;
-  const showMyWorkNav = shellProfileId === "my_work" && canReadOrders.allowed;
+  const showMyWorkNav = shellProfileId === "my_work" && canReadOrders;
   const primaryNavLinks = getCurrentPrimaryNavLinks({
-    canReadAllClients: canReadAllClients.allowed,
-    canReadAssignedClients: canReadAssignedClients.allowed,
+    canReadAllClients,
+    canReadAssignedClients,
     canReadAssignments: showAssignmentsNav,
     canReadRelationships: showScopedRelationshipsNav,
     canReadUsers: showUsersNav,

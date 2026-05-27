@@ -103,6 +103,7 @@ export default function CompanyInvitationsPanel({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [busyId, setBusyId] = useState(null);
+  const [cancelCandidate, setCancelCandidate] = useState(null);
 
   const title = useMemo(() => {
     if (status === "terminal") return "Past Invitations";
@@ -136,11 +137,10 @@ export default function CompanyInvitationsPanel({
   if (!canList) return null;
 
   const handleCancel = async (invitation) => {
-    const ok = window.confirm("Cancel this invitation? The recipient will no longer be able to use this invite.");
-    if (!ok) return;
     setBusyId(invitation.invitation_id);
     try {
       await cancelCompanyInvitation(invitation.invitation_id, "Cancelled from Team Access", crypto.randomUUID());
+      setCancelCandidate(null);
       toast.success("Invitation cancelled.");
       await load();
     } catch (cancelError) {
@@ -215,6 +215,37 @@ export default function CompanyInvitationsPanel({
           )}
         </div>
       </div>
+
+      {cancelCandidate && (
+        <div
+          role="alertdialog"
+          aria-label="Cancel invitation"
+          className="mx-4 mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950"
+        >
+          <div className="font-semibold">Cancel invitation?</div>
+          <div className="mt-1 text-xs text-amber-800">
+            The recipient will no longer be able to use this invite.
+          </div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setCancelCandidate(null)}
+              disabled={busyId === cancelCandidate.invitation_id}
+              className="rounded border border-amber-300 bg-white px-2 py-1 text-xs font-medium text-amber-900 hover:bg-amber-100 disabled:opacity-50"
+            >
+              Keep invite
+            </button>
+            <button
+              type="button"
+              onClick={() => handleCancel(cancelCandidate)}
+              disabled={busyId === cancelCandidate.invitation_id}
+              className="rounded border border-amber-700 bg-amber-700 px-2 py-1 text-xs font-semibold text-white hover:bg-amber-800 disabled:opacity-50"
+            >
+              {busyId === cancelCandidate.invitation_id ? "Cancelling..." : "Cancel invitation"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="px-4 py-6 text-sm text-slate-500">Loading invitations...</div>
@@ -298,7 +329,7 @@ export default function CompanyInvitationsPanel({
                       {invitation.can_cancel && (
                         <button
                           type="button"
-                          onClick={() => handleCancel(invitation)}
+                          onClick={() => setCancelCandidate(invitation)}
                           disabled={busyId === invitation.invitation_id}
                           className="inline-flex h-8 items-center justify-center gap-1 rounded-md border border-red-200 bg-white px-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
                         >
