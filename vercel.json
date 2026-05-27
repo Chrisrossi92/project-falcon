@@ -1,10 +1,15 @@
 {
   "rewrites": [
     {
-      "source": "/((?!api/|assets/|.*\\..*).*)",
+      "source": "/:path((?!api(?:/|$)|assets/|.*\\..*).*)",
       "destination": "/index.html"
     }
   ],
+  "functions": {
+    "api/cron/email-worker.js": {
+      "runtime": "nodejs20.x"
+    }
+  },
   "crons": [
     {
       "path": "/api/cron/email-worker",

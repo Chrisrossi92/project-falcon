@@ -54,8 +54,11 @@ describe("email worker cron endpoint", () => {
       (rewrite) => rewrite.destination === "/index.html"
     );
 
-    expect(fallbackRewrite.source).toContain("api/");
-    expect(fallbackRewrite.source).toBe("/((?!api/|assets/|.*\\..*).*)");
+    expect(fallbackRewrite.source).toContain("api(?:/|$)");
+    expect(fallbackRewrite.source).toBe("/:path((?!api(?:/|$)|assets/|.*\\..*).*)");
+    expect(vercelConfig.functions["api/cron/email-worker.js"]).toMatchObject({
+      runtime: "nodejs20.x",
+    });
   });
 
   it("invokes email-worker with the service role JWT", async () => {
