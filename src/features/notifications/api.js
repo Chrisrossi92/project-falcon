@@ -1,16 +1,6 @@
 // src/features/notifications/api.js
 import supabase from "@/lib/supabaseClient";
 
-/* ---------- small util ---------- */
-async function getUserId() {
-  try {
-    const { data } = await supabase.auth.getUser();
-    return data?.user?.id ?? null;
-  } catch {
-    return null;
-  }
-}
-
 function notificationPrefsRpcError(action, error) {
   const details = [error?.message, error?.details, error?.hint].filter(Boolean).join(" ");
   const rpcUnavailable = error?.code === "42883"
@@ -26,25 +16,9 @@ function notificationPrefsRpcError(action, error) {
 
 /* ---------- prefs ---------- */
 export async function getNotificationPrefs() {
-  try {
-    const rpc = await supabase.rpc("rpc_notification_prefs_get");
-    if (!rpc.error) return rpc.data ?? null;
-  } catch {
-    // Fall back to direct table reads when the RPC is unavailable.
-  }
-  try {
-    const uid = await getUserId();
-    if (!uid) return null;
-    const { data } = await supabase
-      .from("notification_prefs")
-      .select("*")
-      .or(`user_id.eq.${uid},uid.eq.${uid}`)
-      .maybeSingle();
-    return data ?? null;
-  } catch {
-    // Notification preferences are optional; callers handle null.
-  }
-  return null;
+  const rpc = await supabase.rpc("rpc_notification_prefs_get");
+  if (rpc.error) throw notificationPrefsRpcError("load", rpc.error);
+  return rpc.data ?? null;
 }
 
 export async function ensureNotificationPrefs() {
@@ -57,6 +31,28 @@ export async function updateNotificationPrefs(patch = {}) {
   const rpc = await supabase.rpc("rpc_notification_prefs_update", { patch });
   if (rpc.error) throw notificationPrefsRpcError("update", rpc.error);
   return rpc.data ?? patch;
+}
+
+export async function getEffectiveNotificationPrefs() {
+  const rpc = await supabase.rpc("rpc_current_user_notification_preferences_get");
+  if (rpc.error) throw notificationPrefsRpcError("load", rpc.error);
+  return Array.isArray(rpc.data) ? rpc.data : [];
+}
+
+export async function updateCurrentUserNotificationPreference({
+  eventKey,
+  channel,
+  enabled,
+  meta = null,
+}) {
+  const rpc = await supabase.rpc("rpc_current_user_notification_preference_update", {
+    p_event_key: eventKey,
+    p_channel: channel,
+    p_enabled: !!enabled,
+    p_meta: meta,
+  });
+  if (rpc.error) throw notificationPrefsRpcError("update", rpc.error);
+  return Array.isArray(rpc.data) ? rpc.data[0] ?? null : rpc.data ?? null;
 }
 
 /* ---------- counts & lists ---------- */
@@ -108,6 +104,8 @@ export default {
   getNotificationPrefs,
   ensureNotificationPrefs,
   updateNotificationPrefs,
+  getEffectiveNotificationPrefs,
+  updateCurrentUserNotificationPreference,
   getUnreadCount,
   unreadCount,
   listNotifications,

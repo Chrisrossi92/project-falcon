@@ -6,7 +6,28 @@ export const DEFAULT_WORKFLOW_NOTIFICATION_DEFAULTS = Object.freeze({
     primaryRecipientRole: "appraiser",
     suppressActor: true,
   }),
+  "order.assigned_appraiser": Object.freeze({
+    primaryRecipientRole: "appraiser",
+    suppressActor: true,
+  }),
+  "order.reassigned_appraiser": Object.freeze({
+    primaryRecipientRole: "appraiser",
+    suppressActor: true,
+  }),
+  "order.assigned_reviewer": Object.freeze({
+    primaryRecipientRole: "reviewer",
+    suppressActor: true,
+  }),
+  "order.reassigned_reviewer": Object.freeze({
+    primaryRecipientRole: "reviewer",
+    suppressActor: true,
+  }),
   "order.sent_to_review": Object.freeze({
+    primaryRecipientRole: "reviewer",
+    secondaryRecipientIntent: "admin_visibility",
+    suppressActor: true,
+  }),
+  "order.resubmitted_to_review": Object.freeze({
     primaryRecipientRole: "reviewer",
     secondaryRecipientIntent: "admin_visibility",
     suppressActor: true,
@@ -31,9 +52,23 @@ export const DEFAULT_WORKFLOW_NOTIFICATION_DEFAULTS = Object.freeze({
     secondaryRecipientIntent: "completion_awareness",
     suppressActor: true,
   }),
+  "order.dates_updated": Object.freeze({
+    primaryRecipientRole: "appraiser",
+    secondaryRecipientIntent: "schedule_awareness",
+    suppressActor: true,
+  }),
+  "order.site_visit_updated": Object.freeze({
+    primaryRecipientRole: "appraiser",
+    secondaryRecipientIntent: "schedule_awareness",
+    suppressActor: true,
+  }),
 });
 
 export const DEFAULT_NOTE_NOTIFICATION_DEFAULTS = Object.freeze({
+  "note.added": Object.freeze({
+    primaryRecipientRole: "assigned_participant",
+    suppressActor: true,
+  }),
   "note.appraiser_added": Object.freeze({
     primaryRecipientRole: "reviewer",
     suppressActor: true,

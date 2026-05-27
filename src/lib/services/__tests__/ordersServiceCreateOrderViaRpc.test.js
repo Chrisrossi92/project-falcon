@@ -12,6 +12,7 @@ vi.mock("@/lib/supabaseClient", () => ({
 vi.mock("@/lib/services/notificationsService", () => ({
   emitNotification: vi.fn(),
   fetchAdminRecipients: vi.fn(),
+  fetchOrderRoleRecipients: vi.fn(),
 }));
 
 vi.mock("@/lib/orders/resolveOrderParticipants", () => ({
@@ -51,7 +52,11 @@ const {
   voidOrderViaRpc,
 } = await import("../ordersService.js");
 
-const { emitNotification, fetchAdminRecipients } = await import("@/lib/services/notificationsService");
+const {
+  emitNotification,
+  fetchAdminRecipients,
+  fetchOrderRoleRecipients,
+} = await import("@/lib/services/notificationsService");
 const { resolveOrderParticipants } = await import("@/lib/orders/resolveOrderParticipants");
 const { assertOrderWorkflowTransition } = await import("@/lib/workflow/orderWorkflowGuards");
 
@@ -726,10 +731,12 @@ describe("canonical workflow transition helpers", () => {
     supabaseMock.from.mockReset();
     emitNotification.mockReset();
     fetchAdminRecipients.mockReset();
+    fetchOrderRoleRecipients.mockReset();
     resolveOrderParticipants.mockReset();
     assertOrderWorkflowTransition.mockReset();
     emitNotification.mockResolvedValue(undefined);
     fetchAdminRecipients.mockResolvedValue([]);
+    fetchOrderRoleRecipients.mockResolvedValue([]);
     resolveOrderParticipants.mockReturnValue({
       recipients: [],
       suppressUserIds: [],
@@ -825,6 +832,7 @@ describe("canonical workflow transition helpers", () => {
       recipients: ["reviewer-1"],
       suppressUserIds: [],
     });
+    fetchOrderRoleRecipients.mockResolvedValue([{ userId: "reviewer-1", role: "reviewer" }]);
 
     await expect(
       sendOrderToReview("order-1", "appraiser-1", { noteText: "Submission note:\nReady" }),
@@ -852,12 +860,13 @@ describe("canonical workflow transition helpers", () => {
       recipients: ["reviewer-1"],
       suppressUserIds: [],
     });
+    fetchOrderRoleRecipients.mockResolvedValue([{ userId: "reviewer-1", role: "reviewer" }]);
 
     await expect(
       sendOrderToReview("order-1", "appraiser-1", { noteText: "Resubmission note:\nReady" }),
     ).resolves.toBe(transitionedOrder);
 
-    expect(emitNotification).toHaveBeenCalledWith("order.sent_to_review", {
+    expect(emitNotification).toHaveBeenCalledWith("order.resubmitted_to_review", {
       recipients: [{ userId: "reviewer-1", role: "reviewer" }],
       order: transitionedOrder,
       payload: {

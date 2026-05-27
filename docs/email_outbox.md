@@ -1,40 +1,45 @@
-# Email Outbox (Notifications → Email)
+# Email Queue (Notifications To Email)
 
 ## Overview
-- Notifications automatically enqueue rows in `public.email_outbox` via trigger `trg_notifications_queue_email`.
-- A Supabase Edge Function (`supabase/functions/email-worker`) claims queued rows via RPCs and sends them through Resend.
-- Status/locking fields prevent double‑send.
+- Notifications enqueue email rows in canonical `public.email_queue` through `trg_notifications_queue_email`.
+- Email enqueue uses the recipient's effective V1 email preference: `notification_policies` defaults/locks plus `user_notification_prefs` overrides keyed by `public.users.id`.
+- Locked-on email preferences always queue email. Optional user-disabled email preferences skip email queueing while preserving the in-app notification row.
+- `supabase/functions/email-worker` claims queued rows with `rpc_claim_email_batch_v1`, sends through Resend, then marks rows sent or failed.
+- The legacy `email_outbox` path is deprecated and must not be used by active V1 workers.
+- `supabase/functions/email-sender` is retired; it must not mark rows sent without real provider delivery.
 
-## Database pieces
-- Table: `public.email_outbox` — queued/sending/sent/failed/suppressed; includes `locked_at`, `locked_by`, `attempts`, `error`.
-- Table: `public.notification_preferences` — per-user email opt-in + optional override address.
+## Database Pieces
+- Table: `public.email_queue`
+  - Fields include `to_email`, `subject`, `template`, `payload`, `status`, `attempts`, `claimed_at`, `locked_by`, `sent_at`, and `error`.
 - Trigger: `trg_notifications_queue_email` on `public.notifications`.
-- RPCs (service/admin only):
-  - `rpc_claim_email_outbox(p_limit int default 25)` → claims queued rows, sets `status='sending'`, `locked_at`, `locked_by`.
-  - `rpc_mark_email_outbox_sent(p_id uuid)` → marks sent + clears lock.
-  - `rpc_mark_email_outbox_failed(p_id uuid, p_error text)` → marks failed, increments `attempts`, clears lock.
+- Canonical RPCs:
+  - `rpc_claim_email_batch_v1(p_limit int, p_worker text default 'edge')`
+  - `rpc_mark_email_sent_v1(p_id uuid)`
+  - `rpc_mark_email_failed_v1(p_id uuid, p_error text)`
 
-## Edge Function (email-worker)
+## Edge Function
 - Location: `supabase/functions/email-worker/index.ts`
-- Uses Resend API by default.
-- Env vars:
-  - `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
-  - `RESEND_API_KEY` (or `RESEND_KEY`)
-  - `EMAIL_FROM` (default: `Falcon <no-reply@yourdomain>`)
-  - `APP_BASE_URL` (optional; used for links)
-  - `EMAIL_BATCH_SIZE` (optional; default 25)
+- Provider: Resend
+- Required env vars:
+  - `SUPABASE_URL`
+  - `SUPABASE_SERVICE_ROLE_KEY`
+  - `RESEND_API_KEY` or `RESEND_KEY`
+  - `EMAIL_FROM`
+- Optional env vars:
+  - `APP_BASE_URL` for absolute order-safe links
+  - `EMAIL_BATCH_SIZE`, default `25`
 
-## Manual test flow
-1) Apply migrations (including `2025-09-12_email_outbox.sql` and `2025-09-13_email_outbox_worker.sql`).
-2) Set env vars above in your Supabase function environment.
-3) Create a notification row (normal app flow or direct insert) for a user with `notification_preferences.email_enabled = true`.
-4) Invoke the Edge Function (e.g., `supabase functions serve` locally or call deployed function).
-5) Check `email_outbox`:
-   - Claimed rows move to `status='sending'`, then `sent` or `failed`.
-   - Errors appear in `error` column if provider rejects.
-6) Verify email delivery in your provider’s dashboard (Resend).
+## Manual Test Flow
+1. Confirm hosted function env vars are set.
+2. Create a notification through the normal app flow for an event whose policy allows email.
+3. Confirm a queued row appears in `public.email_queue`.
+4. Invoke `email-worker`.
+5. Confirm successful sends move to `status = 'sent'` with `sent_at`.
+6. Confirm provider failures move to `status = 'failed'` with `error`.
+7. Verify delivery in Resend.
 
-## Notes
-- Only admins/service role can claim/mark outbox rows.
-- Preferences: RPC `rpc_set_notification_preferences(email_enabled boolean, email_address text)` lets users opt out/override email.
-- Actual email templates are minimal; customize `renderTemplate` in `email-worker` as needed.
+## V1 Notes
+- Email failure must not block in-app notification creation.
+- In-app notification rows are created regardless of email preference state.
+- Failed rows remain auditable in `public.email_queue`.
+- Retry UI is deferred; V1 only preserves failed rows and provider error text.

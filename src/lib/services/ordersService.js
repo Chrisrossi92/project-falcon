@@ -1,6 +1,10 @@
 // src/lib/services/ordersService.js
 import supabase from "@/lib/supabaseClient";
-import { emitNotification, fetchAdminRecipients } from "@/lib/services/notificationsService";
+import {
+  emitNotification,
+  fetchAdminRecipients,
+  fetchOrderRoleRecipients,
+} from "@/lib/services/notificationsService";
 import { resolveOrderParticipants } from "@/lib/orders/resolveOrderParticipants";
 import { assertOrderWorkflowTransition } from "@/lib/workflow/orderWorkflowGuards";
 
@@ -422,7 +426,7 @@ export async function clearReview(orderId, note = null) {
     note,
   });
 
-  const recipients = await fetchAdminRecipients();
+  const recipients = await fetchAdminRecipients({ orderId: order.id });
 
   if (recipients.length > 0) {
     emitNotification("order.review_cleared", { recipients, order }).catch(
@@ -497,11 +501,9 @@ export async function markReadyForClient(orderId, note = null) {
 
   const recipients = [];
 
-  if (order.reviewer_id) {
-    recipients.push({ userId: order.reviewer_id, role: "reviewer" });
-  }
+  recipients.push(...await fetchOrderRoleRecipients(order.id, "reviewer"));
 
-  const adminRecipients = await fetchAdminRecipients();
+  const adminRecipients = await fetchAdminRecipients({ orderId: order.id });
   recipients.push(...adminRecipients);
 
   if (recipients.length > 0) {
@@ -577,15 +579,9 @@ export async function sendOrderToReview(orderId, actorId, options = {}) {
     status: order.status,
   });
 
-  let recipients = resolvedParticipants.recipients
-    .filter((userId) => userId && userId === order.reviewer_id)
-    .map((userId) => ({ userId, role: "reviewer" }));
+  let recipients = await fetchOrderRoleRecipients(order.id, "reviewer");
 
-  if (!recipients.length && order.reviewer_id) {
-    recipients.push({ userId: order.reviewer_id, role: "reviewer" });
-  }
-
-  const adminRecipients = await fetchAdminRecipients();
+  const adminRecipients = await fetchAdminRecipients({ orderId: order.id });
   recipients.push(...adminRecipients);
   const suppressUserIds = new Set(resolvedParticipants.suppressUserIds.filter(Boolean));
   recipients = recipients.filter((recipient) => !suppressUserIds.has(recipient.userId));
@@ -597,8 +593,9 @@ export async function sendOrderToReview(orderId, actorId, options = {}) {
         ? { is_resubmission: true, previous_status: OrderStatus.NEEDS_REVISIONS }
         : {}),
     };
-    emitNotification("order.sent_to_review", { recipients, order, payload }).catch(
-      (err) => console.error("order.sent_to_review notification failed", err)
+    const eventKey = isResubmission ? "order.resubmitted_to_review" : "order.sent_to_review";
+    emitNotification(eventKey, { recipients, order, payload }).catch(
+      (err) => console.error(`${eventKey} notification failed`, err)
     );
   }
 
@@ -645,15 +642,9 @@ export async function sendOrderBackToAppraiser(orderId, actorId, options = {}) {
     status: order.status,
   });
 
-  let recipients = resolvedParticipants.recipients
-    .filter((userId) => userId && userId === order.appraiser_id)
-    .map((userId) => ({ userId, role: "appraiser" }));
+  let recipients = await fetchOrderRoleRecipients(order.id, "appraiser");
 
-  if (!recipients.length && order.appraiser_id) {
-    recipients.push({ userId: order.appraiser_id, role: "appraiser" });
-  }
-
-  const adminRecipients = await fetchAdminRecipients();
+  const adminRecipients = await fetchAdminRecipients({ orderId: order.id });
   recipients.push(...adminRecipients);
   const suppressUserIds = new Set(resolvedParticipants.suppressUserIds.filter(Boolean));
   recipients = recipients.filter((recipient) => !suppressUserIds.has(recipient.userId));
@@ -703,7 +694,7 @@ export async function completeOrder(orderId, actorId) {
     note: null,
   });
 
-  const adminRecipients = await fetchAdminRecipients();
+  const adminRecipients = await fetchAdminRecipients({ orderId: order.id });
   const resolvedParticipants = resolveOrderParticipants(order, {
     actorUserId,
     actorRole: null,
@@ -713,15 +704,9 @@ export async function completeOrder(orderId, actorId) {
   let recipients = [];
   recipients.push(...adminRecipients);
 
-  const appraiserRecipients = resolvedParticipants.recipients
-    .filter((userId) => userId && userId === order.appraiser_id)
-    .map((userId) => ({ userId, role: "appraiser" }));
+  const appraiserRecipients = await fetchOrderRoleRecipients(order.id, "appraiser");
 
   recipients.push(...appraiserRecipients);
-
-  if (!appraiserRecipients.length && order.appraiser_id) {
-    recipients.push({ userId: order.appraiser_id, role: "appraiser" });
-  }
   const suppressUserIds = new Set(resolvedParticipants.suppressUserIds.filter(Boolean));
   recipients = recipients.filter((recipient) => !suppressUserIds.has(recipient.userId));
 

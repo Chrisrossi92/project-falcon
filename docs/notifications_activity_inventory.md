@@ -4,13 +4,26 @@
 - `public.activity_log` — primary audit/event stream for orders; columns include `event_type`, `detail` (jsonb), `actor_id`, `created_at`. RLS enabled; see triggers below.
 - `public.order_activity` — legacy activity table kept for compat; inserts still possible via client fallback (`logOrderEvent`). Compat view `public.v_order_activity_compat` exposes `activity_log` shape.
 - `public.notifications` — in-app notifications; mixed flags `is_read` vs `read/read_at`, optional order linkage (`order_id`, `link_path`, `payload`).
-- `public.notification_prefs` — per-user prefs row (dnd/snooze/email/push + categories json).
-- `public.notification_policies` — JSON rules keyed by event (used client-side to fan out recipients).
-- `public.user_notification_prefs` & view `public.v_user_notification_prefs` — granular type×channel prefs (not yet wired in UI).
+- `public.notification_prefs` — per-user prefs row (dnd/snooze/email/push + categories json), keyed by canonical `public.users.id`.
+- `public.notification_policies` — JSON rules keyed by event. In V1 this is also the source for default and owner/admin-locked staff notification requirements.
+- `public.user_notification_prefs` & view `public.v_user_notification_prefs` — granular event×channel prefs keyed by canonical `public.users.id`.
 - Views with last-activity: `public.v_orders_list_with_last_activity` and `_v2` (joins latest `activity_log`), used by orders list/drawer. Additional order views reference `last_activity_at`.
 - Triggers (orders): `public.tg_orders_audit_ins` and `public.tg_orders_audit_upd` on `orders` insert/update → write normalized rows into `activity_log` (event_type: order_created, status_changed, dates_updated, assignee_changed, fee_changed).
 - RPCs (activity): `rpc_log_event` (two overloads), `rpc_log_note`, `rpc_log_status_change`; older order RPCs (`rpc_update_order_status`, `rpc_assign_order`) also insert into `activity_log`.
-- RPCs (notifications): `rpc_notification_create`, `rpc_notifications_list`, `rpc_notifications_mark_read`, `rpc_notifications_mark_all_read`, `rpc_notifications_unread_count` (also legacy `rpc_unread_notifications_count`), `rpc_notification_prefs_ensure/get/update`, `rpc_set_notification_pref_v1`, `_default_notification_categories`, `_ensure_notification_prefs_for`, `rpc_create_notifications_for_event` / `_order_event`, `rpc_notify_admins`, `rpc_notify_user`.
+- RPCs (notifications): `rpc_notification_create`, `rpc_notifications_list`, `rpc_notifications_mark_read`, `rpc_notifications_mark_all_read`, `rpc_notifications_unread_count` (also legacy `rpc_unread_notifications_count`), `rpc_notification_prefs_ensure/get/update`, `rpc_current_user_notification_preferences_get`, `rpc_current_user_notification_preference_update`, `rpc_notification_policy_locks_get`, `rpc_notification_policy_lock_update`, `rpc_set_notification_pref_v1`, `_default_notification_categories`, `_ensure_notification_prefs_for`, `rpc_create_notifications_for_event` / `_order_event`, `rpc_notify_admins`, `rpc_notify_user`.
+
+### V1 Preference + Lock Behavior
+- Current-user notification preference reads and writes resolve identity through `current_app_user_id()` / `public.users.id`; active V1 surfaces should not use `auth.uid()` as the preference key.
+- `rpc_current_user_notification_preferences_get()` returns effective preferences per event and channel with: policy default, user override, effective enabled state, lock state, and lock reason.
+- `rpc_current_user_notification_preference_update(...)` writes only the current user's event/channel override and rejects attempts to disable a locked preference.
+- Owner/admin staff locks are stored on `notification_policies` role/channel rules through `rpc_notification_policy_lock_update(...)`; Settings displays these as locked/read-only for affected users.
+- Locks make a preference required for staff-critical delivery. They do not create advanced template rules, reminder automation, @mentions, or company-specific notification defaults.
+
+### V1 Recipient Resolution
+- Active workflow fanout should resolve recipients through `rpc_notification_recipients_for_order(...)`, not `public.users.role`.
+- Owner/admin recipients come from active `company_memberships` plus active `user_role_assignments` for Owner/Admin roles in the source order company.
+- Appraiser and reviewer recipients come from the source order assignment columns and are still filtered through active company membership and active user state.
+- Recipient rows use `public.users.id` and are deduped before notification creation.
 
 ## B) Frontend Files (paths + purpose)
 - `src/lib/services/activityService.js` — reads `activity_log`, subscribes to realtime inserts, and writes notes directly into `activity_log`.

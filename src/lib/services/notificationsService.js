@@ -7,22 +7,45 @@ import {
 
 const debug = process.env.NODE_ENV === "development";
 
-export async function fetchAdminRecipients() {
+function mapRecipientRows(rows) {
+  const seen = new Set();
+  return (rows || [])
+    .map((row) => ({
+      userId: row.user_id || row.userId || null,
+      role: row.role_key || row.role || "admin",
+    }))
+    .filter((recipient) => {
+      if (!recipient.userId || seen.has(recipient.userId)) return false;
+      seen.add(recipient.userId);
+      return true;
+    });
+}
+
+export async function fetchAdminRecipients({ orderId = null } = {}) {
   try {
-    const { data, error } = await supabase
-      .from("users")
-      .select("id, role, status")
-      .in("role", ["owner", "admin"]);
+    const { data, error } = await supabase.rpc("rpc_notification_recipients_for_order", {
+      p_order_id: orderId,
+      p_recipient_kind: "admin_owner",
+    });
     if (error) throw error;
-    if (data && data.length) {
-      return (data || [])
-        .filter((u) => !u.status || u.status.toLowerCase() === "active")
-        .filter((u) => !!u.id)
-        .map((u) => ({ userId: u.id, role: "admin" }))
-        .filter((u) => !!u.userId);
-    }
+    return mapRecipientRows(data);
   } catch (err) {
     if (debug) console.debug("[fetchAdminRecipients] failed", err?.message || err);
+  }
+  return [];
+}
+
+export async function fetchOrderRoleRecipients(orderId, recipientKind) {
+  if (!orderId || !recipientKind) return [];
+  try {
+    const { data, error } = await supabase.rpc("rpc_notification_recipients_for_order", {
+      p_order_id: orderId,
+      p_recipient_kind: recipientKind,
+    });
+    if (error) throw error;
+    return mapRecipientRows(data);
+  } catch (err) {
+    if (debug) console.debug("[fetchOrderRoleRecipients] failed", err?.message || err);
   }
   return [];
 }

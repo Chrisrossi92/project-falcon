@@ -84,6 +84,54 @@ export async function rpcSetNotificationPolicy(key, rules = {}) {
   if (error) throw error;
 }
 
+export async function rpcGetCurrentUserNotificationPreferences() {
+  const { data, error } = await supabase.rpc("rpc_current_user_notification_preferences_get");
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+
+export async function rpcUpdateCurrentUserNotificationPreference({
+  eventKey,
+  channel,
+  enabled,
+  meta = null,
+}) {
+  const { data, error } = await supabase.rpc("rpc_current_user_notification_preference_update", {
+    p_event_key: eventKey,
+    p_channel: channel,
+    p_enabled: !!enabled,
+    p_meta: meta,
+  });
+  if (error) throw error;
+  return Array.isArray(data) ? data[0] ?? null : data ?? null;
+}
+
+export async function rpcUpdateNotificationPolicyLock({
+  eventKey,
+  channel,
+  locked,
+  role = "appraiser",
+  lockReason = null,
+}) {
+  const { data, error } = await supabase.rpc("rpc_notification_policy_lock_update", {
+    p_event_key: eventKey,
+    p_channel: channel,
+    p_locked: !!locked,
+    p_role: role,
+    p_lock_reason: lockReason,
+  });
+  if (error) throw error;
+  return Array.isArray(data) ? data[0] ?? null : data ?? null;
+}
+
+export async function rpcGetNotificationPolicyLocks({ role = "appraiser" } = {}) {
+  const { data, error } = await supabase.rpc("rpc_notification_policy_locks_get", {
+    p_role: role,
+  });
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+
 /* -------------------------------- CALENDAR ------------------------------- */
 
 /**

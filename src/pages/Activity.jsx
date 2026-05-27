@@ -153,19 +153,16 @@ export default function ActivityPage() {
     });
   }, [items, search, stateFilter, typeFilter]);
 
+  const orderSafePathFor = (notification) => {
+    const linkPath = typeof notification?.link_path === "string" ? notification.link_path : "";
+    if (linkPath && !linkPath.startsWith("/assignments")) return linkPath;
+    const orderId = notification?.order_id || notification?.payload?.order_id || null;
+    return orderId ? `/orders/${orderId}` : null;
+  };
+
   const openItem = (notification) => {
-    const assignmentId = notification?.payload?.assignment_id || notification?.assignment_id || null;
-    if (assignmentId) {
-      navigate(`/assignments/${assignmentId}`);
-      return;
-    }
-    if (notification?.link_path) {
-      navigate(notification.link_path);
-      return;
-    }
-    if (notification?.order_id) {
-      navigate(`/orders/${notification.order_id}`);
-    }
+    const path = orderSafePathFor(notification);
+    if (path) navigate(path);
   };
 
   return (
@@ -257,8 +254,7 @@ export default function ActivityPage() {
               const state = notificationState(notification);
               const type = typeInfoFor(notification);
               const orderNumber = orderNumberFor(notification);
-              const assignmentId = notification?.payload?.assignment_id || notification?.assignment_id || null;
-              const isOpenable = Boolean(assignmentId || notification?.link_path || notification?.order_id);
+              const isOpenable = Boolean(orderSafePathFor(notification));
 
               return (
                 <article

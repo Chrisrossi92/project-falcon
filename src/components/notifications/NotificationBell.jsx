@@ -77,22 +77,17 @@ export default function NotificationBell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
-  const assignmentPathFor = (n) => {
-    const assignmentId = n?.payload?.assignment_id || n?.assignment_id || null;
-    if (!assignmentId) return null;
-    return `/assignments/${assignmentId}`;
+  const orderSafePathFor = (n) => {
+    if (!n) return null;
+    const linkPath = typeof n.link_path === "string" ? n.link_path : "";
+    if (linkPath && !linkPath.startsWith("/assignments")) return linkPath;
+    const orderId = n.order_id || n?.payload?.order_id || null;
+    return orderId ? `/orders/${orderId}` : null;
   };
 
   const openOrder = (n) => {
-    if (!n) return;
-    const assignmentPath = assignmentPathFor(n);
-    if (assignmentPath) {
-      navigate(assignmentPath);
-    } else if (n.link_path) {
-      navigate(n.link_path);
-    } else if (n.order_id) {
-      navigate(`/orders/${n.order_id}`);
-    }
+    const path = orderSafePathFor(n);
+    if (path) navigate(path);
     setOpen(false);
   };
 
@@ -153,7 +148,12 @@ export default function NotificationBell() {
   };
 
   const titleFor = (n) => {
-    if ((n?.type === "note.appraiser_added" || n?.type === "note.reviewer_added") && n?.payload?.actor?.name) {
+    if (
+      (n?.type === "note.added" ||
+        n?.type === "note.appraiser_added" ||
+        n?.type === "note.reviewer_added") &&
+      n?.payload?.actor?.name
+    ) {
       return `${n.payload.actor.name} added a note`;
     }
     return n?.title || n?.type || "Notification";

@@ -142,7 +142,7 @@ export default function ActivityNoteForm({ orderId, order = null, onSaved }) {
     const recipientUserId = resolved.recipients[0] || null;
     const recipientRoleOnOrder =
       recipientUserId && recipientUserId === order?.reviewer_id ? "reviewer" : "appraiser";
-    const eventKey = actorRoleOnOrder === "appraiser" ? "note.appraiser_added" : "note.reviewer_added";
+    const eventKey = "note.added";
     const recipient = recipientUserId ? { userId: recipientUserId, role: recipientRoleOnOrder } : null;
 
     if (!eventKey || !recipient?.userId) {
