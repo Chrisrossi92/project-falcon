@@ -8,9 +8,8 @@ import { listCompanyRolePermissionPreview, listCompanyRolePresets } from "@/feat
 import {
   listCompanyMemberPermissionOverrides,
   listCompanyMembers,
-  saveCompanyMemberPermissionOverrides,
+  saveCompanyMemberAccess,
   setCompanyMemberStatus,
-  updateCompanyMemberRoles,
 } from "@/features/company-members/api";
 import { useCan } from "@/lib/hooks/usePermissions";
 import { PERMISSIONS } from "@/lib/permissions/constants";
@@ -384,22 +383,20 @@ function EditRolePresetsModal({ member, open, onClose, onSaved }) {
     setSubmitting(true);
     try {
       const requestId = crypto.randomUUID();
-      await updateCompanyMemberRoles(
+      const overridePayload = serializeOverrideMap(permissionOverrides, selectedRoleIds, rolePermissions);
+      const shouldSaveOverrides =
+        overridesTouched && serializedOverrideSignature(overridePayload) !== initialOverrideSignature;
+      await saveCompanyMemberAccess(
         member.user_id,
         selectedRoleIds,
         selectedPrimaryRoleId,
-        "Updated from Users",
-        requestId
+        overridePayload,
+        {
+          savePermissionOverrides: shouldSaveOverrides,
+          reason: "Updated from Users",
+          requestId,
+        }
       );
-      const overridePayload = serializeOverrideMap(permissionOverrides, selectedRoleIds, rolePermissions);
-      if (overridesTouched && serializedOverrideSignature(overridePayload) !== initialOverrideSignature) {
-        await saveCompanyMemberPermissionOverrides(
-          member.user_id,
-          overridePayload,
-          "Updated from Users",
-          `${requestId}:permission-overrides`
-        );
-      }
       toast.success("Member access updated.");
       onSaved?.();
       onClose?.();

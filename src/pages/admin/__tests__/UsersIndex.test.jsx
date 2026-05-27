@@ -14,6 +14,7 @@ const shellProfileState = vi.hoisted(() => ({
 const membersApiMock = vi.hoisted(() => ({
   listCompanyMemberPermissionOverrides: vi.fn(),
   listCompanyMembers: vi.fn(),
+  saveCompanyMemberAccess: vi.fn(),
   saveCompanyMemberPermissionOverrides: vi.fn(),
   setCompanyMemberStatus: vi.fn(),
   updateCompanyMemberRoles: vi.fn(),
@@ -217,6 +218,8 @@ describe("UsersIndex readability", () => {
     ]);
     membersApiMock.listCompanyMemberPermissionOverrides.mockReset();
     membersApiMock.listCompanyMemberPermissionOverrides.mockResolvedValue([]);
+    membersApiMock.saveCompanyMemberAccess.mockReset();
+    membersApiMock.saveCompanyMemberAccess.mockResolvedValue({ role_changed: false, permission_overrides_changed: false });
     membersApiMock.saveCompanyMemberPermissionOverrides.mockReset();
     membersApiMock.saveCompanyMemberPermissionOverrides.mockResolvedValue({ changed: false, overrides: [] });
     membersApiMock.setCompanyMemberStatus.mockReset();
@@ -449,12 +452,6 @@ describe("UsersIndex readability", () => {
         permission_label: "Approve review",
       },
     ]);
-    membersApiMock.updateCompanyMemberRoles.mockResolvedValue({ changed: true });
-    membersApiMock.saveCompanyMemberPermissionOverrides.mockResolvedValue({
-      changed: true,
-      overrides: [{ permission_key: "orders.read.all", effect: "revoke" }],
-    });
-
     renderUsersIndex();
 
     await screen.findByText("Active Team Members");
@@ -470,20 +467,20 @@ describe("UsersIndex readability", () => {
     fireEvent.click(within(accessDialog).getByRole("button", { name: "Save Access" }));
 
     await waitFor(() => {
-      expect(membersApiMock.updateCompanyMemberRoles).toHaveBeenCalledWith(
+      expect(membersApiMock.saveCompanyMemberAccess).toHaveBeenCalledWith(
         "user-admin",
         ["role-admin", "role-reviewer"],
         "role-reviewer",
-        "Updated from Users",
-        expect.any(String)
+        [{ permission_key: "orders.read.all", effect: "revoke" }],
+        {
+          savePermissionOverrides: true,
+          reason: "Updated from Users",
+          requestId: expect.any(String),
+        }
       );
     });
-    expect(membersApiMock.saveCompanyMemberPermissionOverrides).toHaveBeenCalledWith(
-      "user-admin",
-      [{ permission_key: "orders.read.all", effect: "revoke" }],
-      "Updated from Users",
-      expect.any(String)
-    );
+    expect(membersApiMock.updateCompanyMemberRoles).not.toHaveBeenCalled();
+    expect(membersApiMock.saveCompanyMemberPermissionOverrides).not.toHaveBeenCalled();
     expect(toastMock.success).toHaveBeenCalledWith("Member access updated.");
   });
 
@@ -516,8 +513,6 @@ describe("UsersIndex readability", () => {
         permission_label: "Assignable as Appraiser",
       },
     ]);
-    membersApiMock.updateCompanyMemberRoles.mockResolvedValue({ changed: true });
-
     renderUsersIndex();
 
     await screen.findByText("Active Team Members");
@@ -530,14 +525,19 @@ describe("UsersIndex readability", () => {
     fireEvent.click(within(accessDialog).getByRole("button", { name: "Save Access" }));
 
     await waitFor(() => {
-      expect(membersApiMock.updateCompanyMemberRoles).toHaveBeenCalledWith(
+      expect(membersApiMock.saveCompanyMemberAccess).toHaveBeenCalledWith(
         "user-reviewer",
         ["role-reviewer", "role-appraiser"],
         "role-reviewer",
-        "Updated from Users",
-        expect.any(String)
+        [],
+        {
+          savePermissionOverrides: false,
+          reason: "Updated from Users",
+          requestId: expect.any(String),
+        }
       );
     });
+    expect(membersApiMock.updateCompanyMemberRoles).not.toHaveBeenCalled();
     expect(membersApiMock.saveCompanyMemberPermissionOverrides).not.toHaveBeenCalled();
   });
 
@@ -607,8 +607,9 @@ describe("UsersIndex readability", () => {
     fireEvent.click(within(accessDialog).getByRole("button", { name: "Save Access" }));
 
     await waitFor(() => {
-      expect(membersApiMock.updateCompanyMemberRoles).toHaveBeenCalled();
+      expect(membersApiMock.saveCompanyMemberAccess).toHaveBeenCalled();
     });
+    expect(membersApiMock.updateCompanyMemberRoles).not.toHaveBeenCalled();
     expect(membersApiMock.saveCompanyMemberPermissionOverrides).not.toHaveBeenCalled();
   });
 
@@ -679,13 +680,20 @@ describe("UsersIndex readability", () => {
     fireEvent.click(within(accessDialog).getByRole("button", { name: "Save Access" }));
 
     await waitFor(() => {
-      expect(membersApiMock.saveCompanyMemberPermissionOverrides).toHaveBeenCalledWith(
+      expect(membersApiMock.saveCompanyMemberAccess).toHaveBeenCalledWith(
         "user-admin",
+        ["role-admin"],
+        "role-admin",
         [{ permission_key: "clients.create", effect: "grant" }],
-        "Updated from Users",
-        expect.any(String)
+        {
+          savePermissionOverrides: true,
+          reason: "Updated from Users",
+          requestId: expect.any(String),
+        }
       );
     });
+    expect(membersApiMock.updateCompanyMemberRoles).not.toHaveBeenCalled();
+    expect(membersApiMock.saveCompanyMemberPermissionOverrides).not.toHaveBeenCalled();
   });
 
   it("loads existing override revokes and allows returning to inherited access", async () => {
@@ -729,13 +737,66 @@ describe("UsersIndex readability", () => {
     fireEvent.click(within(accessDialog).getByRole("button", { name: "Save Access" }));
 
     await waitFor(() => {
-      expect(membersApiMock.saveCompanyMemberPermissionOverrides).toHaveBeenCalledWith(
+      expect(membersApiMock.saveCompanyMemberAccess).toHaveBeenCalledWith(
         "user-admin",
+        ["role-admin"],
+        "role-admin",
         [],
-        "Updated from Users",
-        expect.any(String)
+        {
+          savePermissionOverrides: true,
+          reason: "Updated from Users",
+          requestId: expect.any(String),
+        }
       );
     });
+    expect(membersApiMock.updateCompanyMemberRoles).not.toHaveBeenCalled();
+    expect(membersApiMock.saveCompanyMemberPermissionOverrides).not.toHaveBeenCalled();
+  });
+
+  it("uses the atomic access save path for failures so roles are not persisted separately", async () => {
+    invitationsApiMock.listCompanyRolePresets.mockResolvedValue([
+      {
+        role_id: "role-reviewer",
+        role_name: "Reviewer",
+        assignable_by_current_user: true,
+      },
+      {
+        role_id: "role-appraiser",
+        role_name: "Appraiser",
+        assignable_by_current_user: true,
+      },
+    ]);
+    invitationsApiMock.listCompanyRolePermissionPreview.mockResolvedValue([]);
+    membersApiMock.saveCompanyMemberAccess.mockRejectedValueOnce({
+      code: "42501",
+      message: "roles_manage_permissions_required",
+    });
+
+    renderUsersIndex();
+
+    await screen.findByText("Active Team Members");
+    const reviewerCard = memberArticle("Riley Reviewer");
+    fireEvent.click(within(reviewerCard).getByRole("button", { name: "Edit roles" }));
+
+    const accessDialog = await screen.findByRole("dialog", { name: "Edit Access" });
+    const appraiserRole = within(accessDialog).getByText("Appraiser").closest("label");
+    fireEvent.click(within(appraiserRole).getByRole("checkbox"));
+    fireEvent.click(within(accessDialog).getByRole("button", { name: "Save Access" }));
+
+    expect(await within(accessDialog).findByText("You do not have permission to update this member.")).toBeInTheDocument();
+    expect(membersApiMock.saveCompanyMemberAccess).toHaveBeenCalledWith(
+      "user-reviewer",
+      ["role-reviewer", "role-appraiser"],
+      "role-reviewer",
+      [],
+      {
+        savePermissionOverrides: false,
+        reason: "Updated from Users",
+        requestId: expect.any(String),
+      }
+    );
+    expect(membersApiMock.updateCompanyMemberRoles).not.toHaveBeenCalled();
+    expect(membersApiMock.saveCompanyMemberPermissionOverrides).not.toHaveBeenCalled();
   });
 
   it("keeps owner-protected role presets locked in the access modal", async () => {
@@ -759,6 +820,7 @@ describe("UsersIndex readability", () => {
     expect(within(ownerRole).getByRole("checkbox")).toBeDisabled();
     expect(within(ownerRole).getByText("This role is protected for your current permissions.")).toBeInTheDocument();
     expect(membersApiMock.updateCompanyMemberRoles).not.toHaveBeenCalled();
+    expect(membersApiMock.saveCompanyMemberAccess).not.toHaveBeenCalled();
   });
 
   it("renders safer empty states", async () => {
@@ -781,6 +843,7 @@ describe("UsersIndex readability", () => {
 
     expect(membersApiMock.setCompanyMemberStatus).not.toHaveBeenCalled();
     expect(membersApiMock.updateCompanyMemberRoles).not.toHaveBeenCalled();
+    expect(membersApiMock.saveCompanyMemberAccess).not.toHaveBeenCalled();
     expect(invitationsApiMock.cancelCompanyInvitation).not.toHaveBeenCalled();
     expect(invitationsApiMock.resendCompanyInvitation).not.toHaveBeenCalled();
     expect(invitationsApiMock.sendCompanyInvitation).not.toHaveBeenCalled();
@@ -825,5 +888,6 @@ describe("UsersIndex readability", () => {
     expect(invitationsApiMock.listCompanyInvitations).not.toHaveBeenCalled();
     expect(membersApiMock.setCompanyMemberStatus).not.toHaveBeenCalled();
     expect(membersApiMock.updateCompanyMemberRoles).not.toHaveBeenCalled();
+    expect(membersApiMock.saveCompanyMemberAccess).not.toHaveBeenCalled();
   });
 });

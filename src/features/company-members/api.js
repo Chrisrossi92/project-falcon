@@ -47,6 +47,27 @@ export async function saveCompanyMemberPermissionOverrides(userId, overrides, re
   return firstRow(data);
 }
 
+export async function saveCompanyMemberAccess(
+  userId,
+  roleIds,
+  primaryRoleId,
+  overrides,
+  { savePermissionOverrides = true, reason = null, requestId = null } = {},
+) {
+  const { data, error } = await supabase.rpc("rpc_company_member_access_save", {
+    p_user_id: userId,
+    p_role_ids: Array.isArray(roleIds) ? roleIds : [],
+    p_primary_role_id: primaryRoleId ?? null,
+    p_overrides: Array.isArray(overrides) ? overrides : [],
+    p_save_permission_overrides: !!savePermissionOverrides,
+    p_reason: reason ?? null,
+    p_request_id: requestId ?? null,
+  });
+
+  if (error) throw error;
+  return firstRow(data);
+}
+
 export async function setCompanyMemberStatus(userId, status, reason = null, requestId = null) {
   const { data, error } = await supabase.rpc("rpc_company_member_set_status", {
     p_user_id: userId,
