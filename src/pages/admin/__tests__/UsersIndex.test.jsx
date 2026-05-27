@@ -651,6 +651,18 @@ describe("UsersIndex readability", () => {
         permission_label: "Read relationships",
       },
     ]);
+    membersApiMock.listCompanyMemberPermissionOverrides.mockResolvedValue([
+      {
+        permission_key: "relationships.read",
+        permission_category: "relationships",
+        effect: "revoke",
+      },
+      {
+        permission_key: "orders.assignable_as_appraiser",
+        permission_category: "orders",
+        effect: "grant",
+      },
+    ]);
 
     renderUsersIndex();
 

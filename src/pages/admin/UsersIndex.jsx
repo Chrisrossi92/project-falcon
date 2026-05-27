@@ -6,6 +6,14 @@ import CompanyInvitationsPanel from "@/features/company-invitations/CompanyInvit
 import InviteCompanyMemberModal from "@/features/company-invitations/InviteCompanyMemberModal";
 import { listCompanyRolePermissionPreview, listCompanyRolePresets } from "@/features/company-invitations/api";
 import {
+  V1_SUPPRESSED_PERMISSION_CATEGORIES,
+  isWorkEligibilityPermissionKey,
+  normalizeEffectiveOverrideMap,
+  normalizeOverrideRows,
+  serializeOverrideMap,
+  serializedOverrideSignature,
+} from "@/features/company-members/permissionOverrideVisibility";
+import {
   listCompanyMemberPermissionOverrides,
   listCompanyMembers,
   saveCompanyMemberAccess,
@@ -136,11 +144,7 @@ function roleSortValue(role) {
   return 99;
 }
 
-const V1_SUPPRESSED_PERMISSION_CATEGORIES = new Set([
-  "assignments",
-  "relationships",
-  "order_company_assignments",
-]);
+const V1_SUPPRESSED_PERMISSION_CATEGORY_SET = new Set(V1_SUPPRESSED_PERMISSION_CATEGORIES);
 
 const PERMISSION_GROUP_LABELS = Object.freeze({
   work_eligibility: "Work Eligibility",
@@ -165,66 +169,13 @@ const PERMISSION_GROUP_ORDER = Object.freeze([
   "other",
 ]);
 
-const WORK_ELIGIBILITY_PERMISSION_KEYS = new Set([
-  "orders.assignable_as_appraiser",
-  "orders.assignable_as_reviewer",
-]);
-
 function permissionGroupId(permission) {
   const key = String(permission?.permission_key || "").trim();
-  if (WORK_ELIGIBILITY_PERMISSION_KEYS.has(key)) return "work_eligibility";
+  if (isWorkEligibilityPermissionKey(key)) return "work_eligibility";
   const category = String(permission?.permission_category || "").toLowerCase();
-  if (V1_SUPPRESSED_PERMISSION_CATEGORIES.has(category)) return null;
+  if (V1_SUPPRESSED_PERMISSION_CATEGORY_SET.has(category)) return null;
   if (PERMISSION_GROUP_LABELS[category]) return category;
   return "other";
-}
-
-function normalizeOverrideRows(rows) {
-  const overrides = new Map();
-  (Array.isArray(rows) ? rows : []).forEach((row) => {
-    const permissionKey = String(row?.permission_key || "").trim();
-    const effect = String(row?.effect || "").trim().toLowerCase();
-    if (WORK_ELIGIBILITY_PERMISSION_KEYS.has(permissionKey)) return;
-    if (permissionKey && (effect === "grant" || effect === "revoke")) {
-      overrides.set(permissionKey, effect);
-    }
-  });
-  return overrides;
-}
-
-function roleDerivedPermissionKeys(selectedRoleIds, permissions) {
-  const selected = new Set(selectedRoleIds);
-  const keys = new Set();
-  (Array.isArray(permissions) ? permissions : []).forEach((permission) => {
-    const key = String(permission?.permission_key || "").trim();
-    if (key && selected.has(permission.role_id)) keys.add(key);
-  });
-  return keys;
-}
-
-function normalizeEffectiveOverrideMap(overrides, selectedRoleIds, permissions) {
-  const inheritedKeys = roleDerivedPermissionKeys(selectedRoleIds, permissions);
-  const normalized = new Map();
-
-  overrides.forEach((effect, permissionKey) => {
-    if (WORK_ELIGIBILITY_PERMISSION_KEYS.has(permissionKey)) return;
-    const inherited = inheritedKeys.has(permissionKey);
-    if (effect === "grant" && !inherited) normalized.set(permissionKey, effect);
-    if (effect === "revoke" && inherited) normalized.set(permissionKey, effect);
-  });
-
-  return normalized;
-}
-
-function serializeOverrideMap(overrides, selectedRoleIds, permissions) {
-  return [...normalizeEffectiveOverrideMap(overrides, selectedRoleIds, permissions).entries()]
-    .filter(([, effect]) => effect === "grant" || effect === "revoke")
-    .map(([permission_key, effect]) => ({ permission_key, effect }))
-    .sort((a, b) => a.permission_key.localeCompare(b.permission_key));
-}
-
-function serializedOverrideSignature(overrides) {
-  return JSON.stringify(overrides);
 }
 
 function buildEffectivePermissionPreview(selectedRoleIds, permissions, overrides = new Map()) {
@@ -255,7 +206,7 @@ function buildEffectivePermissionPreview(selectedRoleIds, permissions, overrides
 
     existing.override = overrides.get(key) || null;
     existing.effective = existing.override === "grant" || (existing.inherited && existing.override !== "revoke");
-    existing.readOnly = WORK_ELIGIBILITY_PERMISSION_KEYS.has(key);
+    existing.readOnly = isWorkEligibilityPermissionKey(key);
 
     byPermission.set(key, existing);
   });
@@ -307,7 +258,7 @@ function EditRolePresetsModal({ member, open, onClose, onSaved }) {
       .then(([roleRows, permissionRows, overrideRows]) => {
         const activeIds = activeRoleIds(member);
         const normalizedOverrides = normalizeEffectiveOverrideMap(
-          normalizeOverrideRows(overrideRows),
+          normalizeOverrideRows(overrideRows, permissionRows),
           activeIds,
           permissionRows
         );

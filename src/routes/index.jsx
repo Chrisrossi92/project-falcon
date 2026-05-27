@@ -4,6 +4,7 @@ import Layout from "@/layout/Layout";
 import ProtectedRoute from "@/lib/hooks/ProtectedRoute";
 import { PERMISSIONS } from "@/lib/permissions/constants";
 import DefaultWorkspaceRedirect from "@/routes/DefaultWorkspaceRedirect";
+import V1HiddenSurfaceRouteGuard from "@/routes/V1HiddenSurfaceRouteGuard";
 import {
   notificationSettingsRoute,
   productMetadataDiagnosticsRoute,
@@ -168,7 +169,9 @@ export default function AppRoutes() {
           path="/assignments"
           element={
             <ProtectedRoute requiredAnyPermissions={ASSIGNMENT_NAV_PERMISSIONS}>
-              <AssignmentsPage />
+              <V1HiddenSurfaceRouteGuard>
+                <AssignmentsPage />
+              </V1HiddenSurfaceRouteGuard>
             </ProtectedRoute>
           }
         />
@@ -176,7 +179,9 @@ export default function AppRoutes() {
           path="/assignments/:assignmentId"
           element={
             <ProtectedRoute requiredAnyPermissions={ASSIGNMENT_NAV_PERMISSIONS}>
-              <AssignmentDetail />
+              <V1HiddenSurfaceRouteGuard>
+                <AssignmentDetail />
+              </V1HiddenSurfaceRouteGuard>
             </ProtectedRoute>
           }
         />
@@ -186,7 +191,9 @@ export default function AppRoutes() {
           path="/relationships"
           element={
             <ProtectedRoute requiredPermission={RELATIONSHIP_NAV_PERMISSION}>
-              <RelationshipsPage />
+              <V1HiddenSurfaceRouteGuard>
+                <RelationshipsPage />
+              </V1HiddenSurfaceRouteGuard>
             </ProtectedRoute>
           }
         />
@@ -194,7 +201,9 @@ export default function AppRoutes() {
           path="/relationships/:relationshipId"
           element={
             <ProtectedRoute requiredPermission={RELATIONSHIP_NAV_PERMISSION}>
-              <RelationshipsPage />
+              <V1HiddenSurfaceRouteGuard>
+                <RelationshipsPage />
+              </V1HiddenSurfaceRouteGuard>
             </ProtectedRoute>
           }
         />
