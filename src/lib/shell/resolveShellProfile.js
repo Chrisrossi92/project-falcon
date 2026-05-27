@@ -114,6 +114,8 @@ const normalizeRoleLabels = (value) => {
   return [];
 };
 
+const normalizePrimaryRoleLabel = (value) => normalizeToken(value);
+
 const normalizeInput = (input) => {
   if (!input) return {};
 
@@ -187,6 +189,11 @@ export function getShellProfileCapabilities(input) {
   const permissionSet = new Set(permissionKeys);
   const roleLabels = normalizeRoleLabels(normalizedInput.roleLabels ?? normalizedInput.roles);
   const roleSet = new Set(roleLabels);
+  const primaryRoleLabel = normalizePrimaryRoleLabel(
+    normalizedInput.primaryRoleLabel ??
+      normalizedInput.primaryRoleKey ??
+      normalizedInput.primary_role_key,
+  );
 
   const explicitOwnerAdmin =
     normalizedInput.hasOwnerAdminAuthority ??
@@ -246,6 +253,10 @@ export function getShellProfileCapabilities(input) {
     requestedProfileId: normalizedInput.requestedProfileId ?? null,
     permissionKeys: Object.freeze(permissionKeys),
     roleLabels: Object.freeze(roleLabels),
+    primaryRoleLabel,
+    hasPrimaryOwnerAdminRole: hasAnyRole(new Set([primaryRoleLabel]), OWNER_ADMIN_ROLE_LABELS),
+    hasPrimaryAppraiserRole: hasAnyRole(new Set([primaryRoleLabel]), APPRAISER_ROLE_LABELS),
+    hasPrimaryReviewerRole: hasAnyRole(new Set([primaryRoleLabel]), REVIEWER_ROLE_LABELS),
     hasOwnerAdminAuthority,
     hasAppraiserResponsibility,
     hasReviewerResponsibility,
@@ -327,13 +338,26 @@ export function resolveShellProfile(input) {
     );
   }
 
-  if (capabilities.hasOwnerAdminAuthority) {
+  if (capabilities.hasPrimaryOwnerAdminRole || (!capabilities.primaryRoleLabel && capabilities.hasOwnerAdminAuthority)) {
     return shellProfile(
       SHELL_PROFILE_IDS.OPERATIONS,
       'Operations',
       'owner_admin_authority',
       capabilities,
     );
+  }
+
+  if (capabilities.hasPrimaryReviewerRole && capabilities.hasReviewerResponsibility) {
+    return shellProfile(
+      SHELL_PROFILE_IDS.REVIEW_QUEUE,
+      'Review Queue',
+      'primary_reviewer_role',
+      capabilities,
+    );
+  }
+
+  if (capabilities.hasPrimaryAppraiserRole && capabilities.hasAppraiserResponsibility) {
+    return shellProfile(SHELL_PROFILE_IDS.MY_WORK, 'My Work', 'primary_appraiser_role', capabilities);
   }
 
   if (capabilities.hasReviewerResponsibility && capabilities.reviewWorkWaiting) {

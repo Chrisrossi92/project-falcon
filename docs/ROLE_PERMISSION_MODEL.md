@@ -45,6 +45,12 @@ Owners can assign multiple roles to shape a member's ability. This should be the
 combine broad operational patterns, such as an appraiser who also has reviewer authority or an admin
 who can manage users but should not receive owner authority.
 
+Secondary work roles must not replace the primary worldview. Primary role continues to control the
+dashboard shell and default persona, while assigned work from secondary roles is available through
+Orders -> My Work. Reviewer-primary users with Appraiser as a secondary role may also receive a
+reviewer-dashboard Appraisal Work shortcut as a convenience, but that shortcut does not change the
+default reviewer worldview.
+
 Role presets should prevent role explosion. The system should prefer reusable bundles plus a small
 number of explicit exceptions over many tiny one-off roles that are hard for owners to understand.
 

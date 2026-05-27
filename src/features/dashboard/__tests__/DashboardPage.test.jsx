@@ -190,6 +190,11 @@ function buildSummary(overrides = {}) {
         final_due_date: dueDate(4),
       },
     ],
+    reviewerHybridAppraisal: {
+      count: 0,
+      rows: [],
+      filters: null,
+    },
     ...overrides,
   };
 }
@@ -505,6 +510,179 @@ describe("DashboardPage operational polish", () => {
         ],
       }),
     );
+  });
+
+  it("lets reviewer-primary appraiser-secondary users switch the dashboard table to appraisal work", () => {
+    summaryState.current = buildSummary({
+      role: "reviewer",
+      isAdmin: false,
+      isReviewer: true,
+      userId: "pam-user",
+      appContext: {
+        current_company_id: "company-1",
+        company_name: "Falcon Appraisals",
+        has_current_company_membership: true,
+        display_name: "Pam Reviewer",
+        is_owner: false,
+        is_admin_role: false,
+        is_reviewer_role: true,
+        is_appraiser_role: true,
+        primary_role_key: "reviewer",
+        role_keys: ["reviewer", "appraiser"],
+      },
+      orders: {
+        count: 1,
+        inProgress: 0,
+        dueIn7: 1,
+        inReview: 1,
+        needsRevisions: 0,
+        overdue: 0,
+        inspectedAwaitingReport: 0,
+        dueToClient2: 1,
+      },
+      ordersRows: [
+        {
+          id: "review-order",
+          order_number: "1002",
+          status: "in_review",
+          reviewer_id: "pam-user",
+          reviewer_name: "Pam Reviewer",
+          final_due_date: dueDate(1),
+        },
+      ],
+      reviewerHybridAppraisal: {
+        count: 2,
+        rows: [
+          { id: "appraisal-order", order_number: "1007", status: "in_progress", appraiser_id: "pam-user" },
+          { id: "revision-order", order_number: "1008", status: "needs_revisions", appraiser_id: "pam-user" },
+        ],
+        filters: {
+          activeOnly: false,
+          appraiserId: "pam-user",
+          assignedAppraiserId: "pam-user",
+          statusIn: ["new", "in_progress", "needs_revisions"],
+        },
+      },
+    });
+
+    renderDashboard(reviewQueueShell);
+
+    expect(screen.getByRole("heading", { name: "Pam's Reviews", level: 1 })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Assigned appraisal work" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Open Assigned Work" })).not.toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Dashboard work filter" })).toBeInTheDocument();
+    const reviewWorkButton = screen.getByRole("button", { name: "Review Work" });
+    const appraisalWorkButton = screen.getByRole("button", { name: "Appraisal Work 2" });
+    expect(reviewWorkButton).toHaveAttribute("aria-pressed", "true");
+    expect(appraisalWorkButton).toHaveAttribute("aria-pressed", "false");
+    expect(within(reviewWorkButton).queryByText("1")).not.toBeInTheDocument();
+    expect(within(appraisalWorkButton).getByText("2")).toBeInTheDocument();
+    expect(screen.getByText("My Review Work")).toBeInTheDocument();
+    expect(tableMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        role: "reviewer",
+        mode: "reviewerQueue",
+        reviewerId: "pam-user",
+        rowsOverride: [expect.objectContaining({ id: "review-order" })],
+      }),
+    );
+
+    fireEvent.click(appraisalWorkButton);
+
+    const inactiveReviewWorkButton = screen.getByRole("button", { name: "Review Work 1" });
+    const activeAppraisalWorkButton = screen.getByRole("button", { name: "Appraisal Work" });
+    expect(inactiveReviewWorkButton).toHaveAttribute("aria-pressed", "false");
+    expect(activeAppraisalWorkButton).toHaveAttribute("aria-pressed", "true");
+    expect(within(inactiveReviewWorkButton).getByText("1")).toBeInTheDocument();
+    expect(within(activeAppraisalWorkButton).queryByText("2")).not.toBeInTheDocument();
+    expect(screen.getByText("My Appraisal Work")).toBeInTheDocument();
+    expect(tableMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        role: "appraiser",
+        mode: undefined,
+        reviewerId: undefined,
+        filters: expect.objectContaining({
+          appraiserId: "pam-user",
+          assignedAppraiserId: "pam-user",
+          statusIn: ["new", "in_progress", "needs_revisions"],
+        }),
+        rowsOverride: [
+          expect.objectContaining({ id: "appraisal-order" }),
+          expect.objectContaining({ id: "revision-order" }),
+        ],
+      }),
+    );
+  });
+
+  it("does not add an inactive tab badge when the opposite hybrid work count is zero", () => {
+    summaryState.current = buildSummary({
+      role: "reviewer",
+      isAdmin: false,
+      isReviewer: true,
+      userId: "pam-user",
+      appContext: {
+        current_company_id: "company-1",
+        company_name: "Falcon Appraisals",
+        has_current_company_membership: true,
+        display_name: "Pam Reviewer",
+        is_owner: false,
+        is_admin_role: false,
+        is_reviewer_role: true,
+        is_appraiser_role: true,
+        primary_role_key: "reviewer",
+        role_keys: ["reviewer", "appraiser"],
+      },
+      ordersRows: [
+        {
+          id: "review-order",
+          order_number: "1002",
+          status: "in_review",
+          reviewer_id: "pam-user",
+        },
+      ],
+      reviewerHybridAppraisal: {
+        count: 0,
+        rows: [],
+        filters: {
+          activeOnly: false,
+          appraiserId: "pam-user",
+          assignedAppraiserId: "pam-user",
+          statusIn: ["new", "in_progress", "needs_revisions"],
+        },
+      },
+    });
+
+    renderDashboard(reviewQueueShell);
+
+    const appraisalWorkButton = screen.getByRole("button", { name: "Appraisal Work" });
+    expect(appraisalWorkButton).toHaveAttribute("aria-pressed", "false");
+    expect(within(appraisalWorkButton).queryByText("0")).not.toBeInTheDocument();
+  });
+
+  it("does not show secondary appraisal work for reviewer-only users", () => {
+    summaryState.current = buildSummary({
+      role: "reviewer",
+      isAdmin: false,
+      isReviewer: true,
+      userId: "reviewer-1",
+      appContext: {
+        current_company_id: "company-1",
+        company_name: "Falcon Appraisals",
+        has_current_company_membership: true,
+        display_name: "Pam Reviewer",
+        is_owner: false,
+        is_admin_role: false,
+        is_reviewer_role: true,
+        is_appraiser_role: false,
+        primary_role_key: "reviewer",
+        role_keys: ["reviewer"],
+      },
+    });
+
+    renderDashboard(reviewQueueShell);
+
+    expect(screen.queryByRole("group", { name: "Dashboard work filter" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Assigned appraisal work" })).not.toBeInTheDocument();
   });
 
   it("does not mount appraiser or reviewer workbench previews for owner/admin hybrids", () => {

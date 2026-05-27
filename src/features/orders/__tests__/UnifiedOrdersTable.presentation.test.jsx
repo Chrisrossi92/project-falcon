@@ -19,6 +19,14 @@ const orderWorkflowMocks = vi.hoisted(() => ({
 }));
 const logNoteMock = vi.hoisted(() => vi.fn());
 const emitNotificationMock = vi.hoisted(() => vi.fn());
+const appContextState = vi.hoisted(() => ({
+  context: {
+    user_id: "app-user-1",
+    is_owner: true,
+    is_admin_role: true,
+    primary_role_key: "owner",
+  },
+}));
 
 vi.mock("@/lib/hooks/useSession", () => ({
   default: () => ({ user: { id: "auth-user-1" } }),
@@ -64,12 +72,7 @@ vi.mock("@/lib/services/notificationsService", () => ({
 vi.mock("@/features/auth/useCurrentUserAppContext", () => ({
   useCurrentUserAppContext: () => ({
     loading: false,
-    context: {
-      user_id: "app-user-1",
-      is_owner: true,
-      is_admin_role: true,
-      primary_role_key: "owner",
-    },
+    context: appContextState.context,
   }),
 }));
 
@@ -123,6 +126,12 @@ function renderTable(props = {}) {
 
 describe("UnifiedOrdersTable presentation", () => {
   beforeEach(() => {
+    appContextState.context = {
+      user_id: "app-user-1",
+      is_owner: true,
+      is_admin_role: true,
+      primary_role_key: "owner",
+    };
     useOrdersMock.mockReturnValue({
       data: rows,
       count: rows.length,
@@ -234,6 +243,62 @@ describe("UnifiedOrdersTable presentation", () => {
       screen.getByText("Assigned orders will appear here when they are available."),
     ).toBeInTheDocument();
     expect(screen.queryByText("The current filters do not have any active work.")).not.toBeInTheDocument();
+  });
+
+  it("does not force reviewer-primary appraiser-secondary Orders data into appraiser-only filters", () => {
+    appContextState.context = {
+      user_id: "pam-user",
+      is_owner: false,
+      is_admin_role: false,
+      is_reviewer_role: true,
+      is_appraiser_role: true,
+      primary_role_key: "reviewer",
+      role_keys: ["reviewer", "appraiser"],
+    };
+
+    renderTable({
+      filters: { page: 0, pageSize: 15 },
+    });
+
+    expect(useOrdersMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        appraiserId: null,
+        assignedAppraiserId: null,
+        reviewerId: null,
+      }),
+      expect.objectContaining({
+        enabled: true,
+      }),
+    );
+  });
+
+  it("passes My Work assignment OR filters without forcing the primary reviewer queue", () => {
+    appContextState.context = {
+      user_id: "pam-user",
+      is_owner: false,
+      is_admin_role: false,
+      is_reviewer_role: true,
+      is_appraiser_role: true,
+      primary_role_key: "reviewer",
+      role_keys: ["reviewer", "appraiser"],
+    };
+
+    renderTable({
+      filters: { assignedToMe: true, page: 0, pageSize: 15 },
+    });
+
+    expect(useOrdersMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        assignedToMe: true,
+        assignedToMeUserId: "pam-user",
+        appraiserId: null,
+        assignedAppraiserId: null,
+        reviewerId: null,
+      }),
+      expect.objectContaining({
+        enabled: true,
+      }),
+    );
   });
 
   it("uses the polished loading state from existing table loading", () => {

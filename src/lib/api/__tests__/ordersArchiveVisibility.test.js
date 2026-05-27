@@ -133,6 +133,29 @@ describe("fetchOrdersWithFilters archived visibility", () => {
     }
   });
 
+  it("filters My Work orders by appraiser or reviewer assignment", async () => {
+    await fetchOrdersWithFilters({ scope: "orders", assignedToMeUserId: "user-1" });
+
+    for (const builder of builders) {
+      expect(builder.or).toHaveBeenCalledWith("appraiser_id.eq.user-1,reviewer_id.eq.user-1");
+      expect(builder.or).toHaveBeenCalledWith("is_archived.is.null,is_archived.eq.false");
+      expect(builder.not).toHaveBeenCalledWith("status", "in", "(cancelled,voided)");
+    }
+  });
+
+  it("keeps reviewer queue queries aligned with reviewer-visible active review statuses", async () => {
+    await fetchOrdersWithFilters({ scope: "dashboard", mode: "reviewerQueue", reviewerId: "reviewer-1" });
+
+    for (const builder of builders) {
+      expect(builder.eq).toHaveBeenCalledWith("reviewer_id", "reviewer-1");
+      expect(builder.in).toHaveBeenCalledWith("status", [
+        "in_review",
+        "needs_revisions",
+        "review_cleared",
+      ]);
+    }
+  });
+
   it("keeps retired lifecycle rows excluded from overdue filters by default", async () => {
     await fetchOrdersWithFilters({ scope: "orders", dueWindow: "overdue" });
 

@@ -25,6 +25,7 @@ import WorkflowNoteModal from "@/components/orders/WorkflowNoteModal";
 import useColumnsConfig from "@/features/orders/columns/useColumnsConfig";
 import { useToast } from "@/lib/hooks/useToast";
 import { useCurrentUserAppContext } from "@/features/auth/useCurrentUserAppContext";
+import { deriveDashboardRoleFlags } from "@/lib/hooks/useDashboardSummary";
 
 /* helpers */
 const feeOf = (r) => [r?.base_fee, r?.appraiser_fee].find((v) => v != null);
@@ -108,15 +109,7 @@ export default function UnifiedOrdersTable({
   const workflowPermissions = useEffectivePermissions();
 
   const { context: appContext, loading: appContextLoading } = useCurrentUserAppContext();
-  const contextRole = appContext?.is_owner
-    ? "owner"
-    : appContext?.is_admin_role
-    ? "admin"
-    : appContext?.is_reviewer_role
-    ? "reviewer"
-    : appContext?.is_appraiser_role
-    ? "appraiser"
-    : String(appContext?.primary_role_key || appContext?.role_keys?.[0] || "appraiser").toLowerCase();
+  const contextRole = deriveDashboardRoleFlags(appContext).role;
   const internalUserId = appContext?.user_id || null;
   const normalizedRole = (roleProp || contextRole || "appraiser").toString().toLowerCase();
   const isAdminLike = normalizedRole === "owner" || normalizedRole === "admin";
@@ -138,6 +131,8 @@ export default function UnifiedOrdersTable({
       appraiserId: appliedFilters.appraiserId || null,
       reviewerId: appliedFilters.reviewerId || null,
       assignedAppraiserId: appliedFilters.assignedAppraiserId || null,
+      assignedToMe: Boolean(appliedFilters.assignedToMe),
+      assignedToMeUserId: appliedFilters.assignedToMeUserId || (appliedFilters.assignedToMe ? internalUserId : null),
       inspectedAwaitingReport: appliedFilters.inspectedAwaitingReport || false,
       finalDueWithinDays: appliedFilters.finalDueWithinDays ?? null,
       priority: appliedFilters.priority || "",
@@ -147,19 +142,18 @@ export default function UnifiedOrdersTable({
     };
     if (role === "reviewer" && reviewerId && !base.reviewerId) base.reviewerId = reviewerId;
     return base;
-  }, [appliedFilters, pageSize, role, reviewerId]);
+  }, [appliedFilters, internalUserId, pageSize, role, reviewerId]);
 
   const seedFinal = useMemo(() => {
     const enforced = { ...seed };
     if (isAppraiser) {
-      enforced.appraiserId = internalUserId || null;
-      enforced.assignedAppraiserId = null;
+      if (!enforced.assignedToMe) {
+        enforced.appraiserId = internalUserId || null;
+        enforced.assignedAppraiserId = null;
+      }
       if (scope === "dashboard") {
         enforced.statusIn = APPRAISER_DASHBOARD_STATUSES;
       }
-    }
-    if (process.env.NODE_ENV === "development" && isAppraiser) {
-      console.debug("[UnifiedOrdersTable] seedFinal (appraiser)", enforced);
     }
     return enforced;
   }, [seed, isAppraiser, internalUserId, scope]);

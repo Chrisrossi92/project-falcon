@@ -20,6 +20,11 @@ const ORDERABLE_COLUMNS = new Set([
   "final_due_date",
 ]);
 const REPORT_WRITING_STATUSES = ["new", "in_progress", "needs_revisions"];
+const REVIEW_QUEUE_STATUSES = [
+  OrderStatus.IN_REVIEW,
+  OrderStatus.NEEDS_REVISIONS,
+  OrderStatus.REVIEW_CLEARED,
+];
 
 function warnDeprecatedDirectOrderMutation(helperName, replacement) {
   if (import.meta.env?.DEV !== true) return;
@@ -82,6 +87,7 @@ function applyCommonFilters(
     appraiserId = null,
     reviewerId = null,
     assignedAppraiserId = null,
+    assignedToMeUserId = null,
     inspectedAwaitingReport = false,
     finalDueWithinDays = null,
     dueWindow = "",
@@ -105,6 +111,9 @@ function applyCommonFilters(
   const targetAppraiserId = assignedAppraiserId || appraiserId;
   if (targetAppraiserId) q = q.eq("appraiser_id", targetAppraiserId);
   if (reviewerId) q = q.eq("reviewer_id", reviewerId);
+  if (assignedToMeUserId) {
+    q = q.or(`appraiser_id.eq.${assignedToMeUserId},reviewer_id.eq.${assignedToMeUserId}`);
+  }
   if (inspectedAwaitingReport) {
     q = q
       .in("status", REPORT_WRITING_STATUSES)
@@ -159,6 +168,7 @@ export async function fetchOrdersWithFilters(filters = {}) {
     appraiserId = null,
     reviewerId = null,
     assignedAppraiserId = null,
+    assignedToMeUserId = null,
     inspectedAwaitingReport = false,
     finalDueWithinDays = null,
     dueWindow = "",
@@ -190,6 +200,7 @@ export async function fetchOrdersWithFilters(filters = {}) {
     appraiserId,
     assignedAppraiserId,
     reviewerId,
+    assignedToMeUserId,
     inspectedAwaitingReport,
     finalDueWithinDays,
     dueWindow,
@@ -199,7 +210,6 @@ export async function fetchOrdersWithFilters(filters = {}) {
   });
 
   if (mode === "reviewerQueue") {
-    const REVIEW_QUEUE_STATUSES = [OrderStatus.IN_REVIEW];
     countQuery = countQuery.in("status", REVIEW_QUEUE_STATUSES);
   }
 
@@ -233,6 +243,7 @@ export async function fetchOrdersWithFilters(filters = {}) {
     appraiserId,
     reviewerId,
     assignedAppraiserId,
+    assignedToMeUserId,
     inspectedAwaitingReport,
     finalDueWithinDays,
     dueWindow,
@@ -242,7 +253,6 @@ export async function fetchOrdersWithFilters(filters = {}) {
   });
 
   if (mode === "reviewerQueue") {
-    const REVIEW_QUEUE_STATUSES = [OrderStatus.IN_REVIEW];
     dataQuery = dataQuery.in("status", REVIEW_QUEUE_STATUSES);
   }
 

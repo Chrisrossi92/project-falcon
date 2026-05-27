@@ -167,6 +167,43 @@ describe('resolveShellProfile', () => {
     });
   });
 
+  it('lets the primary reviewer role control hybrid appraiser/reviewer worldview', () => {
+    const resolution = resolve({
+      primaryRoleLabel: 'reviewer',
+      roleLabels: ['reviewer', 'appraiser'],
+      permissionKeys: [
+        PERMISSIONS.ORDERS_READ_ASSIGNED,
+        PERMISSIONS.WORKFLOW_STATUS_REQUEST_REVISIONS,
+      ],
+    });
+
+    expect(resolution).toMatchObject({
+      id: SHELL_PROFILE_IDS.REVIEW_QUEUE,
+      reason: 'primary_reviewer_role',
+    });
+    expect(resolution.capabilities.hasAppraiserResponsibility).toBe(true);
+    expect(resolution.capabilities.hasReviewerResponsibility).toBe(true);
+  });
+
+  it('lets the primary appraiser role control hybrid appraiser/reviewer worldview', () => {
+    const resolution = resolve({
+      primaryRoleLabel: 'appraiser',
+      roleLabels: ['reviewer', 'appraiser'],
+      permissionKeys: [
+        PERMISSIONS.ORDERS_READ_ASSIGNED,
+        PERMISSIONS.WORKFLOW_STATUS_REQUEST_REVISIONS,
+      ],
+      reviewWorkWaiting: true,
+    });
+
+    expect(resolution).toMatchObject({
+      id: SHELL_PROFILE_IDS.MY_WORK,
+      reason: 'primary_appraiser_role',
+    });
+    expect(resolution.capabilities.hasAppraiserResponsibility).toBe(true);
+    expect(resolution.capabilities.hasReviewerResponsibility).toBe(true);
+  });
+
   it('only resolves requests when future client requests authority and module availability are explicit', () => {
     expect(
       resolve({

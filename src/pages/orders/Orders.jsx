@@ -31,6 +31,7 @@ function readFilters(qs) {
     clientId: qs.get("clientId") || "",
     appraiserId: qs.get("appraiserId") || "",
     reviewerId: qs.get("reviewerId") || "",
+    assignedToMe: qs.get("myWork") === "1",
     priority: qs.get("priority") || "",
     dueWindow: qs.get("due") || "",
     queueId: qs.get("queue") || "",
@@ -47,6 +48,7 @@ function writeFilters(navigate, next) {
   if (next.statusIn?.length) qs.set("status", next.statusIn[0]);
   if (next.appraiserId) qs.set("appraiserId", next.appraiserId);
   if (next.reviewerId) qs.set("reviewerId", next.reviewerId);
+  if (next.assignedToMe) qs.set("myWork", "1");
   if (next.clientId) qs.set("clientId", next.clientId);
   if (next.priority) qs.set("priority", next.priority);
   if (next.dueWindow) qs.set("due", next.dueWindow);
@@ -63,6 +65,7 @@ const SAVED_VIEW_FILTER_KEYS = new Set([
   "clientId",
   "appraiserId",
   "reviewerId",
+  "myWork",
   "due",
   "queue",
   "pageSize",
@@ -129,6 +132,14 @@ function buildActiveFilterChips(filters) {
       key: "reviewerId",
       label: `Reviewer: ${formatIdLabel(filters.reviewerId)}`,
       clearPatch: { reviewerId: "" },
+    });
+  }
+
+  if (filters.assignedToMe) {
+    chips.push({
+      key: "assignedToMe",
+      label: "My Work",
+      clearPatch: { assignedToMe: false },
     });
   }
 
@@ -201,6 +212,7 @@ function ActiveFilterChips({ filters, onChange }) {
       clientId: "",
       appraiserId: "",
       reviewerId: "",
+      assignedToMe: false,
       dueWindow: "",
       queueId: "",
     });
@@ -249,6 +261,7 @@ function buildSavedViewFilters(filters) {
   if (filters?.clientId) payload.clientId = filters.clientId;
   if (filters?.appraiserId) payload.appraiserId = filters.appraiserId;
   if (filters?.reviewerId) payload.reviewerId = filters.reviewerId;
+  if (filters?.assignedToMe) payload.myWork = "1";
   if (filters?.dueWindow) payload.due = filters.dueWindow;
   if (filters?.queueId) payload.queue = filters.queueId;
   if (filters?.pageSize) payload.pageSize = filters.pageSize;
@@ -277,6 +290,7 @@ function savedViewFiltersToOrdersFilters(savedFilters, currentFilters) {
     clientId: filters.clientId || "",
     appraiserId: filters.appraiserId || "",
     reviewerId: filters.reviewerId || "",
+    assignedToMe: filters.myWork === "1" || filters.myWork === true,
     dueWindow: filters.due || "",
     queueId: filters.queue || "",
     priority: "",
@@ -445,6 +459,7 @@ export default function OrdersPage() {
   const qs = useQuery();
   const shellProfilePresentation = useShellProfile();
   const shellWorkMode = getShellWorkModeCue(shellProfilePresentation);
+  const currentUserId = shellProfilePresentation?.appContext?.user_id || "";
   const appraiserOrdersView = isAppraiserOrdersProfile(shellProfilePresentation);
   const reviewerOrdersView = isReviewerOrdersProfile(shellProfilePresentation);
   const roleFocusedOrdersView = appraiserOrdersView || reviewerOrdersView;
@@ -457,10 +472,17 @@ export default function OrdersPage() {
     const { queueId: _queueId, page: _page, pageSize: _pageSize, ...rest } = filters;
     return {
       ...rest,
+      ...(rest.assignedToMe
+        ? {
+            appraiserId: "",
+            reviewerId: "",
+            assignedToMeUserId: currentUserId,
+          }
+        : {}),
       page: 0,
       pageSize: 1000,
     };
-  }, [filters]);
+  }, [currentUserId, filters]);
   const queueSource = useOrdersSummary(queueSourceFilters, {
     enabled: Boolean(queueId),
     scope: "orders",
@@ -478,13 +500,20 @@ export default function OrdersPage() {
 
   function onChange(patch) {
     const next = { ...filters, ...patch, page: 0 };
+    if (next.assignedToMe) {
+      next.appraiserId = "";
+      next.reviewerId = "";
+    }
     setFilters(next);
     writeFilters(navigate, next);
   }
 
   function applySavedView(next) {
-    setFilters(next);
-    writeFilters(navigate, next);
+    const normalized = next.assignedToMe
+      ? { ...next, appraiserId: "", reviewerId: "" }
+      : next;
+    setFilters(normalized);
+    writeFilters(navigate, normalized);
   }
 
   const visibleFilters = appraiserOrdersView
@@ -492,6 +521,14 @@ export default function OrdersPage() {
         ...filters,
         appraiserId: "",
         reviewerId: "",
+      }
+    : filters;
+  const tableFilters = filters.assignedToMe
+    ? {
+        ...filters,
+        appraiserId: "",
+        reviewerId: "",
+        assignedToMeUserId: currentUserId,
       }
     : filters;
   const pageTitle = appraiserOrdersView
@@ -542,6 +579,7 @@ export default function OrdersPage() {
         description={roleFocusedOrdersView ? null : undefined}
         searchLabel={roleFocusedOrdersView ? (reviewerOrdersView ? "Search orders" : "Search assigned orders") : undefined}
         showAppraiserFilter={!appraiserOrdersView}
+        showMyWorkFilter={Boolean(currentUserId)}
         density={roleFocusedOrdersView ? "compact" : undefined}
         actions={
           roleFocusedOrdersView ? null : (
@@ -560,12 +598,13 @@ export default function OrdersPage() {
           c: filters.clientId || "",
           a: filters.appraiserId || "",
           r: filters.reviewerId || "",
+          mw: filters.assignedToMe ? "1" : "",
           d: filters.dueWindow || "",
           queue: filters.queueId || "",
           p: filters.page,
           ps: filters.pageSize,
         })}
-        filters={filters}
+        filters={tableFilters}
         pageSize={filters.pageSize || 15}
         rowsOverride={queueId ? queueRows || [] : null}
         activeQueue={activeQueue}

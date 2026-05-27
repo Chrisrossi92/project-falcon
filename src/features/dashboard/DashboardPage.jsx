@@ -159,6 +159,7 @@ export default function DashboardPage({ shellProfilePresentation } = {}) {
     ordersRows,
     userId,
     appContext,
+    reviewerHybridAppraisal,
   } = summary;
   const normalizedRole = summaryRole || "appraiser";
   const isAdmin = summaryIsAdmin;
@@ -169,10 +170,40 @@ export default function DashboardPage({ shellProfilePresentation } = {}) {
 
   const cfg = DASHBOARD_CONFIG[normalizedRole] || DASHBOARD_CONFIG.appraiser;
   const [statusFilter, setStatusFilter] = useState("");
+  const [reviewerWorkLens, setReviewerWorkLens] = useState("review");
   const [dashboardOrderPatches, setDashboardOrderPatches] = useState({});
+  const canSwitchReviewerWork =
+    isReviewerOnlyDashboard &&
+    Boolean(appContext?.is_appraiser_role) &&
+    Boolean(userId);
+  const activeReviewerWorkLens = canSwitchReviewerWork ? reviewerWorkLens : "review";
+  const reviewerWorkCounts = {
+    review: Array.isArray(ordersRows) ? ordersRows.length : 0,
+    appraisal: Array.isArray(reviewerHybridAppraisal?.rows) ? reviewerHybridAppraisal.rows.length : 0,
+  };
+  const selectedDashboardRows = useMemo(
+    () =>
+      activeReviewerWorkLens === "appraisal"
+        ? reviewerHybridAppraisal?.rows || []
+        : ordersRows || [],
+    [activeReviewerWorkLens, ordersRows, reviewerHybridAppraisal?.rows],
+  );
+  const selectedDashboardFilters = useMemo(
+    () =>
+      activeReviewerWorkLens === "appraisal"
+        ? reviewerHybridAppraisal?.filters || {}
+        : tableFilters || {},
+    [activeReviewerWorkLens, reviewerHybridAppraisal?.filters, tableFilters],
+  );
+  const selectedDashboardRole =
+    activeReviewerWorkLens === "appraisal" ? "appraiser" : normalizedRole;
+  const selectedDashboardMode =
+    activeReviewerWorkLens === "review" && isReviewer ? "reviewerQueue" : undefined;
+  const selectedDashboardReviewerId =
+    activeReviewerWorkLens === "review" && isReviewer ? reviewerId : undefined;
 
   const appliedFilters = useMemo(() => {
-    const next = { ...(tableFilters || {}) };
+    const next = { ...(selectedDashboardFilters || {}) };
     if (isAdmin) {
       next.inspectedAwaitingReport = false;
       next.finalDueWithinDays = null;
@@ -181,7 +212,7 @@ export default function DashboardPage({ shellProfilePresentation } = {}) {
       next.page = next.page || 0;
     }
     return next;
-  }, [tableFilters, isAdmin]);
+  }, [selectedDashboardFilters, isAdmin]);
 
   const toggleStatus = (val) => {
     setStatusFilter((curr) => (curr === val ? "" : val));
@@ -201,6 +232,16 @@ export default function DashboardPage({ shellProfilePresentation } = {}) {
   const ordersCount = summary.orders.count ?? 0;
   const patchedOrdersRows = useMemo(
     () =>
+      (selectedDashboardRows || []).map((order) => {
+        const orderId = order?.id || order?.order_id;
+        return orderId && dashboardOrderPatches[orderId]
+          ? { ...order, ...dashboardOrderPatches[orderId] }
+          : order;
+      }),
+    [dashboardOrderPatches, selectedDashboardRows],
+  );
+  const patchedCalendarRows = useMemo(
+    () =>
       (ordersRows || []).map((order) => {
         const orderId = order?.id || order?.order_id;
         return orderId && dashboardOrderPatches[orderId]
@@ -209,6 +250,13 @@ export default function DashboardPage({ shellProfilePresentation } = {}) {
       }),
     [dashboardOrderPatches, ordersRows],
   );
+  const dashboardTableTitle = isAdmin
+    ? "Active Worklist"
+    : isReviewer
+      ? activeReviewerWorkLens === "appraisal"
+        ? "My Appraisal Work"
+        : "My Review Work"
+      : "My Assignments";
   const handleDashboardOrderChanged = useCallback((updatedOrder) => {
     const orderId = updatedOrder?.id || updatedOrder?.order_id;
     if (!orderId) return;
@@ -290,7 +338,7 @@ export default function DashboardPage({ shellProfilePresentation } = {}) {
 
       <OwnerSetupDashboardPrompt appContext={appContext} />
 
-      {isReviewerOnlyDashboard && (
+      {isReviewerOnlyDashboard && activeReviewerWorkLens === "review" && (
         <ReviewerStatusFilterChips
           counts={statusCounts}
           selectedStatus={statusFilter}
@@ -315,12 +363,12 @@ export default function DashboardPage({ shellProfilePresentation } = {}) {
           </div>
         </div>
         <DashboardCalendarPanel
-          orders={patchedOrdersRows || []}
+          orders={patchedCalendarRows || []}
           role={normalizedRole}
           onOpenOrder={handleOpenOrder}
           fixedHeader={true}
-          mode={isReviewer ? "reviewerQueue" : undefined}
-          reviewerId={isReviewer ? reviewerId : undefined}
+          mode={selectedDashboardMode}
+          reviewerId={selectedDashboardReviewerId}
         />
       </WorkspaceSurface>
 
@@ -338,17 +386,58 @@ export default function DashboardPage({ shellProfilePresentation } = {}) {
         {cfg.showOrdersTable && (
           <WorkspaceSurface variant="primary" className="space-y-3 p-3">
             <div className="flex items-baseline justify-between gap-2">
-              <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                {isAdmin ? "Active Worklist" : isReviewer ? "My Review Work" : "My Assignments"}
-              </h2>
+              <div className="flex flex-wrap items-center gap-3">
+                <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                  {dashboardTableTitle}
+                </h2>
+                {canSwitchReviewerWork ? (
+                  <div
+                    role="group"
+                    aria-label="Dashboard work filter"
+                    className="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1"
+                  >
+                    {[
+                      ["review", "Review Work"],
+                      ["appraisal", "Appraisal Work"],
+                    ].map(([value, label]) => {
+                      const active = activeReviewerWorkLens === value;
+                      const inactiveCount = active ? 0 : reviewerWorkCounts[value] || 0;
+                      return (
+                        <button
+                          key={value}
+                          type="button"
+                          aria-pressed={active}
+                          onClick={() => {
+                            setReviewerWorkLens(value);
+                            setStatusFilter("");
+                          }}
+                          className={
+                            "h-7 rounded-md px-2.5 text-xs font-semibold transition " +
+                            (active
+                              ? "bg-white text-slate-950 shadow-sm ring-1 ring-slate-200"
+                              : "text-slate-500 hover:bg-white/70 hover:text-slate-800")
+                          }
+                        >
+                          <span>{label}</span>
+                          {inactiveCount > 0 ? (
+                            <span className="ml-1.5 rounded-full bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-slate-700">
+                              {inactiveCount}
+                            </span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </div>
               <div className="text-sm text-slate-500">
-                {ordersCount} order{ordersCount === 1 ? "" : "s"}
+                {filteredOrdersRows.length} order{filteredOrdersRows.length === 1 ? "" : "s"}
               </div>
             </div>
             <UnifiedOrdersTable
-              role={normalizedRole}
-              mode={isReviewer ? "reviewerQueue" : undefined}
-              reviewerId={isReviewer ? reviewerId : undefined}
+              role={selectedDashboardRole}
+              mode={selectedDashboardMode}
+              reviewerId={selectedDashboardReviewerId}
               filters={appliedFilters}
               rowsOverride={filteredOrdersRows}
               pageSize={10}

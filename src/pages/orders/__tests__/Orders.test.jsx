@@ -27,13 +27,25 @@ vi.mock("@/components/orders/NewOrderButton", () => ({
 vi.mock("@/features/orders/OrdersFilters", () => ({
   default: ({
     actions,
+    value,
+    onChange,
     title = "Filter Orders",
     description = "Search orders by status, owner, client, and due window.",
     showAppraiserFilter = true,
+    showMyWorkFilter = true,
   }) => (
     <div data-testid="orders-filters">
       <div>{title}</div>
       {description ? <p>{description}</p> : null}
+      {showMyWorkFilter ? (
+        <button
+          type="button"
+          aria-pressed={Boolean(value?.assignedToMe)}
+          onClick={() => onChange?.({ ...value, assignedToMe: !value?.assignedToMe, page: 0 })}
+        >
+          My Work
+        </button>
+      ) : null}
       {showAppraiserFilter ? <div>Appraiser</div> : null}
       {actions ? <div data-testid="orders-filter-actions">{actions}</div> : null}
     </div>
@@ -237,6 +249,143 @@ describe("OrdersPage historical access", () => {
         tableEyebrow: null,
         tableLabel: "Orders",
         tableSummary: null,
+      }),
+    );
+  });
+
+  it("lets reviewer-primary appraiser-secondary users open Orders without assignment filters so all assigned work can load", () => {
+    shellProfileState.exposure = {
+      profileId: "review_queue",
+      navMode: "review_queue",
+      metadataAuthority: "presentation_only",
+      isPresentationOnly: true,
+      appContext: {
+        user_id: "pam-user",
+        display_name: "Pam Reviewer",
+        is_owner: false,
+        is_admin_role: false,
+        is_reviewer_role: true,
+        is_appraiser_role: true,
+        primary_role_key: "reviewer",
+        role_keys: ["reviewer", "appraiser"],
+      },
+    };
+
+    renderPage(["/orders"]);
+
+    expect(screen.getByRole("heading", { name: "Pam's Orders" })).toBeInTheDocument();
+    expect(tableMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        filters: expect.objectContaining({
+          appraiserId: "",
+          reviewerId: "",
+          assignedToMe: false,
+          statusIn: [],
+        }),
+        tableLabel: "Orders",
+        tableSummary: null,
+      }),
+    );
+  });
+
+  it("lets reviewer-primary appraiser-secondary users switch Orders to My Work assignment OR filtering", () => {
+    shellProfileState.exposure = {
+      profileId: "review_queue",
+      navMode: "review_queue",
+      metadataAuthority: "presentation_only",
+      isPresentationOnly: true,
+      appContext: {
+        user_id: "pam-user",
+        display_name: "Pam Reviewer",
+        is_owner: false,
+        is_admin_role: false,
+        is_reviewer_role: true,
+        is_appraiser_role: true,
+        primary_role_key: "reviewer",
+        role_keys: ["reviewer", "appraiser"],
+      },
+    };
+
+    renderPage(["/orders?appraiserId=other-appraiser&reviewerId=other-reviewer"]);
+
+    fireEvent.click(screen.getByRole("button", { name: "My Work" }));
+
+    expect(tableMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        filters: expect.objectContaining({
+          assignedToMe: true,
+          assignedToMeUserId: "pam-user",
+          appraiserId: "",
+          reviewerId: "",
+        }),
+      }),
+    );
+    expect(screen.getByRole("button", { name: "Remove My Work filter" })).toBeInTheDocument();
+    expect(screen.queryByText("Appraiser: other-appraiser")).not.toBeInTheDocument();
+    expect(screen.queryByText("Reviewer: other-reviewer")).not.toBeInTheDocument();
+  });
+
+  it("applies My Work from URL state for appraiser-primary Orders without breaking assigned view copy", () => {
+    shellProfileState.exposure = {
+      role: "appraiser",
+      profileId: "my_work",
+      navMode: "my_work",
+      metadataAuthority: "presentation_only",
+      isPresentationOnly: true,
+      appContext: {
+        user_id: "appraiser-1",
+        primary_role_key: "appraiser",
+        role_keys: ["appraiser"],
+        is_appraiser_role: true,
+      },
+    };
+
+    renderPage(["/orders?myWork=1&status=in_progress"]);
+
+    expect(screen.getByText("Orders assigned to you.")).toBeInTheDocument();
+    expect(tableMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        filters: expect.objectContaining({
+          assignedToMe: true,
+          assignedToMeUserId: "appraiser-1",
+          appraiserId: "",
+          reviewerId: "",
+          statusIn: ["in_progress"],
+        }),
+      }),
+    );
+  });
+
+  it("applies My Work assignment OR filtering for non-review primary users with secondary appraisal work", () => {
+    shellProfileState.exposure = {
+      role: "billing",
+      profileId: "operations",
+      navMode: "operations",
+      metadataAuthority: "presentation_only",
+      isPresentationOnly: true,
+      appContext: {
+        user_id: "billing-user",
+        display_name: "Bailey Billing",
+        is_owner: false,
+        is_admin_role: false,
+        is_reviewer_role: false,
+        is_appraiser_role: true,
+        primary_role_key: "billing",
+        role_keys: ["billing", "appraiser"],
+      },
+    };
+
+    renderPage(["/orders?myWork=1&status=in_progress&appraiserId=other-appraiser&reviewerId=other-reviewer"]);
+
+    expect(tableMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        filters: expect.objectContaining({
+          assignedToMe: true,
+          assignedToMeUserId: "billing-user",
+          appraiserId: "",
+          reviewerId: "",
+          statusIn: ["in_progress"],
+        }),
       }),
     );
   });

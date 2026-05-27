@@ -22,6 +22,19 @@ const roleLabelsFromContext = (appContext = {}) => {
   return Object.freeze([...new Set(labels)]);
 };
 
+const primaryRoleLabelFromContext = (appContext = {}) => {
+  const context = appContext || {};
+  const explicitPrimary = normalizeToken(context.primary_role_key);
+  if (explicitPrimary) return explicitPrimary;
+
+  const primaryAssignment = normalizeArray(context.role_assignments).find((role) => role?.is_primary);
+  return normalizeToken(
+    primaryAssignment?.role_key ??
+      primaryAssignment?.role_name ??
+      primaryAssignment?.display_name,
+  );
+};
+
 const hasOwn = (value, key) => Object.prototype.hasOwnProperty.call(value || {}, key);
 
 const explicitContextBoolean = (context, key) =>
@@ -55,6 +68,7 @@ export function buildShellProfileInput({ appContext, permissions, session, userI
       : undefined,
     permissionKeys: Object.freeze([...new Set(permissionKeys)]),
     roleLabels: roleLabelsFromContext(appContext),
+    primaryRoleLabel: primaryRoleLabelFromContext(appContext),
     hasOwnerAdminAuthority: explicitOwnerAdminAuthority(appContext),
     hasAppraiserResponsibilities: explicitContextBoolean(appContext, 'is_appraiser_role'),
     hasReviewerResponsibilities: explicitContextBoolean(appContext, 'is_reviewer_role'),

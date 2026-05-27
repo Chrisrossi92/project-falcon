@@ -150,10 +150,49 @@ describe('shell profile exposure', () => {
 
     expect(exposure).toMatchObject({
       profileId: SHELL_PROFILE_IDS.MY_WORK,
-      resolutionReason: 'appraiser_work',
+      resolutionReason: 'primary_appraiser_role',
     });
     expect(exposure.capabilities.hasOwnerAdminAuthority).toBe(false);
     expect(exposure.capabilities.hasAppraiserResponsibility).toBe(true);
+  });
+
+  it('uses the primary role for hybrid reviewer/appraiser shell worldview', () => {
+    const exposure = getShellProfileExposure({
+      appContext: {
+        ...activeAppContext,
+        primary_role_key: 'reviewer',
+        role_keys: ['reviewer', 'appraiser'],
+        role_assignments: [
+          {
+            role_key: 'reviewer',
+            role_name: 'Reviewer',
+            display_name: 'Reviewer',
+            is_primary: true,
+          },
+          {
+            role_key: 'appraiser',
+            role_name: 'Appraiser',
+            display_name: 'Appraiser',
+            is_primary: false,
+          },
+        ],
+        is_appraiser_role: true,
+        is_reviewer_role: true,
+      },
+      permissions: {
+        permissionKeys: [
+          PERMISSIONS.ORDERS_READ_ASSIGNED,
+          PERMISSIONS.WORKFLOW_STATUS_REQUEST_REVISIONS,
+        ],
+      },
+    });
+
+    expect(exposure).toMatchObject({
+      profileId: SHELL_PROFILE_IDS.REVIEW_QUEUE,
+      resolutionReason: 'primary_reviewer_role',
+    });
+    expect(exposure.capabilities.hasAppraiserResponsibility).toBe(true);
+    expect(exposure.capabilities.hasReviewerResponsibility).toBe(true);
   });
 
   it('does not expose route, navigation, command, workflow, or permission authority fields', () => {

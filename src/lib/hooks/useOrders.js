@@ -16,6 +16,8 @@ const DEFAULT_FILTERS = {
   appraiserId: null,
   reviewerId: null,
   assignedAppraiserId: null,
+  assignedToMe: false,
+  assignedToMeUserId: null,
   priority: "",
   dueWindow: "",
   from: "",
@@ -66,10 +68,6 @@ export function useOrders(initialSeed = {}, options = {}) {
       setError(null);
 
       try {
-        if (mode === "reviewerQueue") {
-          console.log("[useOrders] reviewerQueue mode", { reviewerId });
-        }
-
         const { rows, count, error: fetchErr } = await fetchOrdersWithFilters({
           search: filters.search || "",
           statusIn: filters.statusIn?.filter(Boolean) || [],
@@ -77,6 +75,7 @@ export function useOrders(initialSeed = {}, options = {}) {
           appraiserId: filters.appraiserId || null,
           reviewerId: filters.reviewerId || reviewerId || null,
           assignedAppraiserId: filters.assignedAppraiserId || null,
+          assignedToMeUserId: filters.assignedToMe ? filters.assignedToMeUserId || null : null,
           inspectedAwaitingReport: filters.inspectedAwaitingReport || false,
           finalDueWithinDays: filters.finalDueWithinDays ?? null,
           dueWindow: filters.dueWindow || "",

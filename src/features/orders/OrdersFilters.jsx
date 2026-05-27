@@ -41,6 +41,7 @@ export default function OrdersFilters({
   description = "Search orders by status, owner, client, and due window.",
   searchLabel = "Search orders",
   showAppraiserFilter = true,
+  showMyWorkFilter = true,
   density = "default",
 }) {
   const v = value || {};
@@ -95,6 +96,38 @@ export default function OrdersFilters({
       </div>
 
       <div className={rowSpacing}>
+        {showMyWorkFilter ? (
+          <div role="group" aria-label="Orders assignment scope" className="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1">
+            {[
+              ["", "All visible"],
+              ["my_work", "My Work"],
+            ].map(([key, label]) => {
+              const active = key === "my_work" ? Boolean(v.assignedToMe) : !v.assignedToMe;
+              return (
+                <button
+                  key={key || "all_visible"}
+                  type="button"
+                  onClick={() =>
+                    set(
+                      key === "my_work"
+                        ? { assignedToMe: true, appraiserId: "", reviewerId: "", page: 0 }
+                        : { assignedToMe: false, page: 0 },
+                    )
+                  }
+                  className={
+                    "h-7 rounded-md px-2.5 text-xs font-semibold transition " +
+                    (active
+                      ? "bg-white text-slate-950 shadow-sm ring-1 ring-slate-200"
+                      : "text-slate-500 hover:bg-white/70 hover:text-slate-800")
+                  }
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
+
         <input
           aria-label={searchLabel}
           className={`${controlClass} w-full md:w-[360px]`}

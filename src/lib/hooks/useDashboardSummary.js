@@ -6,15 +6,100 @@ import { ORDER_STATUS } from "@/lib/constants/orderStatus";
 import useDashboardKpis from "./useDashboardKpis";
 import { useCurrentUserAppContext } from "@/features/auth/useCurrentUserAppContext";
 
+export const REVIEWER_DASHBOARD_STATUSES = Object.freeze([
+  ORDER_STATUS.IN_REVIEW,
+  ORDER_STATUS.NEEDS_REVISIONS,
+  ORDER_STATUS.REVIEW_CLEARED,
+]);
+
+export const APPRAISER_DASHBOARD_STATUSES = Object.freeze([
+  ORDER_STATUS.NEW,
+  ORDER_STATUS.IN_PROGRESS,
+  ORDER_STATUS.NEEDS_REVISIONS,
+]);
+
 function deriveLensRole(context) {
   const primaryRole = String(context?.primary_role_key || "").toLowerCase();
   const firstRole = String(context?.role_keys?.[0] || "").toLowerCase();
 
   if (context?.is_owner) return "owner";
   if (context?.is_admin_role) return "admin";
+  if (primaryRole) return primaryRole;
+  if (firstRole) return firstRole;
   if (context?.is_reviewer_role) return "reviewer";
   if (context?.is_appraiser_role) return "appraiser";
-  return primaryRole || firstRole || "appraiser";
+  return "appraiser";
+}
+
+function hasPrimaryRole(context, role) {
+  const primaryRole = String(context?.primary_role_key || "").toLowerCase();
+  if (primaryRole) return primaryRole === role;
+
+  const firstRole = String(context?.role_keys?.[0] || "").toLowerCase();
+  if (firstRole) return firstRole === role;
+
+  return false;
+}
+
+function roleFlagForDashboard(context, role, fallbackFlag) {
+  const primaryRole = String(context?.primary_role_key || "").toLowerCase();
+  const firstRole = String(context?.role_keys?.[0] || "").toLowerCase();
+  if (primaryRole || firstRole) return hasPrimaryRole(context, role);
+
+  return Boolean(fallbackFlag);
+}
+
+export function deriveDashboardRoleFlags(context) {
+  const role = deriveLensRole(context);
+  const isOwner = Boolean(context?.is_owner);
+  const isAdmin = Boolean(context?.is_owner || context?.is_admin_role);
+  const isReviewer = !isAdmin && roleFlagForDashboard(context, "reviewer", context?.is_reviewer_role);
+  const isAppraiser = !isAdmin && !isReviewer && roleFlagForDashboard(context, "appraiser", context?.is_appraiser_role);
+
+  return {
+    role,
+    isOwner,
+    isAdmin,
+    isReviewer,
+    isAppraiser,
+  };
+}
+
+export function deriveDashboardTableFilters({ appContext, userId, user } = {}) {
+  const { role, isReviewer, isAppraiser } = deriveDashboardRoleFlags(appContext);
+  const filters = { activeOnly: false };
+
+  if (isAppraiser && userId) {
+    filters.appraiserId = userId;
+    filters.assignedAppraiserId = userId;
+    filters.statusIn = [...APPRAISER_DASHBOARD_STATUSES];
+  } else if (isReviewer && userId) {
+    filters.reviewerId = userId;
+    filters.statusIn = [...REVIEWER_DASHBOARD_STATUSES];
+  }
+
+  if (role === "client") {
+    if (user?.client_id) filters.clientId = user.client_id;
+    else if (user?.managing_amc_id) filters.clientId = user.managing_amc_id;
+  }
+
+  return filters;
+}
+
+export function deriveReviewerHybridAppraisalFilters({ appContext, userId } = {}) {
+  const { isReviewer } = deriveDashboardRoleFlags(appContext);
+  const hasSecondaryAppraiserRole = Boolean(appContext?.is_appraiser_role);
+
+  if (!isReviewer || !hasSecondaryAppraiserRole || !userId) {
+    return null;
+  }
+
+  return {
+    activeOnly: false,
+    appraiserId: userId,
+    assignedAppraiserId: userId,
+    statusIn: [...APPRAISER_DASHBOARD_STATUSES],
+  };
 }
 
 /**
@@ -31,11 +116,7 @@ export function useDashboardSummary({ refreshKey = 0 } = {}) {
     error: appContextError,
   } = useCurrentUserAppContext();
   const publicUserId = appContext?.user_id || null;
-  const role = deriveLensRole(appContext);
-  const isOwner = Boolean(appContext?.is_owner);
-  const isAdmin = Boolean(appContext?.is_owner || appContext?.is_admin_role);
-  const isReviewer = !isAdmin && Boolean(appContext?.is_reviewer_role);
-  const isAppraiser = !isAdmin && !isReviewer && Boolean(appContext?.is_appraiser_role);
+  const { role, isOwner, isAdmin, isReviewer, isAppraiser } = deriveDashboardRoleFlags(appContext);
   const caps = {
     role,
     isOwner,
@@ -46,29 +127,21 @@ export function useDashboardSummary({ refreshKey = 0 } = {}) {
 
   // Build role-aware filters for both summary and table
   const tableFilters = useMemo(() => {
-    const f = { activeOnly: false };
-
-    if (isAppraiser && publicUserId) {
-      f.appraiserId = publicUserId;
-      f.assignedAppraiserId = publicUserId;
-      f.statusIn = [ORDER_STATUS.NEW, ORDER_STATUS.IN_PROGRESS, ORDER_STATUS.NEEDS_REVISIONS];
-    } else if (isReviewer && publicUserId) {
-      f.reviewerId = publicUserId;
-      f.statusIn = [ORDER_STATUS.IN_REVIEW];
-    }
-
-    if (role === "client") {
-      if (user?.client_id) f.clientId = user.client_id;
-      else if (user?.managing_amc_id) f.clientId = user.managing_amc_id;
-    }
-
-    return f;
-  }, [role, isAppraiser, isReviewer, publicUserId, user?.client_id, user?.managing_amc_id]);
+    return deriveDashboardTableFilters({ appContext, userId: publicUserId, user });
+  }, [appContext, publicUserId, user]);
+  const reviewerHybridAppraisalFilters = useMemo(() => {
+    return deriveReviewerHybridAppraisalFilters({ appContext, userId: publicUserId });
+  }, [appContext, publicUserId]);
 
   const hasIdForRole =
     (!isAppraiser || Boolean(tableFilters.appraiserId || tableFilters.assignedAppraiserId)) &&
     (!isReviewer || Boolean(tableFilters.reviewerId));
   const summary = useOrdersSummary(tableFilters, { enabled: hasIdForRole && !userLoading && !appContextLoading, scope: "dashboard", refreshKey });
+  const reviewerHybridAppraisalSummary = useOrdersSummary(reviewerHybridAppraisalFilters || {}, {
+    enabled: Boolean(reviewerHybridAppraisalFilters) && !userLoading && !appContextLoading,
+    scope: "dashboard",
+    refreshKey,
+  });
   const kpis = useDashboardKpis(
     {
       reviewerId: isReviewer ? publicUserId || null : null,
@@ -81,24 +154,18 @@ export function useDashboardSummary({ refreshKey = 0 } = {}) {
     { enabled: hasIdForRole && !userLoading && !appContextLoading }
   );
 
-  if (import.meta?.env?.DEV) {
-    console.debug("[useDashboardSummary]", {
-      publicUserId,
-      role,
-      appliedFilterIds: {
-        appraiserId: tableFilters.appraiserId,
-        reviewerId: tableFilters.reviewerId,
-      },
-    });
-  }
-
   return {
     user,
     userId: publicUserId,
     appContext,
     appContextError,
     ...caps,
-    loading: userLoading || appContextLoading || summary.loading || kpis.loading,
+    loading:
+      userLoading ||
+      appContextLoading ||
+      summary.loading ||
+      reviewerHybridAppraisalSummary.loading ||
+      kpis.loading,
     orders: {
       count: kpis.total_active ?? summary.count,
       inProgress: kpis.in_progress ?? summary.inProgress,
@@ -110,6 +177,11 @@ export function useDashboardSummary({ refreshKey = 0 } = {}) {
       dueToClient2: kpis.due_to_client_2 ?? 0,
     },
     ordersRows: summary.rows,
+    reviewerHybridAppraisal: {
+      count: reviewerHybridAppraisalSummary.count,
+      rows: reviewerHybridAppraisalSummary.rows,
+      filters: reviewerHybridAppraisalFilters,
+    },
     tableFilters,
     reviews: {
       count: 0, // placeholder for future reviewer stats

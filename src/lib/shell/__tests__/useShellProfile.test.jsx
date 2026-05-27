@@ -118,7 +118,7 @@ describe("useShellProfile", () => {
 
     expect(screen.getByText(SHELL_PROFILE_IDS.MY_WORK)).toBeInTheDocument();
     expect(screen.getByText("My Work")).toBeInTheDocument();
-    expect(screen.getByText("appraiser_work")).toBeInTheDocument();
+    expect(screen.getByText("primary_appraiser_role")).toBeInTheDocument();
     expect(screen.getByText(SHELL_PROFILE_AUTHORITY.PRESENTATION_ONLY)).toBeInTheDocument();
     expect(screen.getByText("true")).toBeInTheDocument();
   });
