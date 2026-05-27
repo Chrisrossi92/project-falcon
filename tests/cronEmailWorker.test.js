@@ -56,8 +56,17 @@ describe("email worker cron endpoint", () => {
 
     expect(fallbackRewrite.source).toContain("api(?:/|$)");
     expect(fallbackRewrite.source).toBe("/:path((?!api(?:/|$)|assets/|.*\\..*).*)");
-    expect(vercelConfig.functions["api/cron/email-worker.js"]).toMatchObject({
-      runtime: "nodejs20.x",
+    expect(vercelConfig.functions).toBeUndefined();
+  });
+
+  it("uses a near-real-time Vercel Pro Cron schedule for hosted invocation", () => {
+    const vercelConfig = JSON.parse(
+      readFileSync(new URL("../vercel.json", import.meta.url), "utf8")
+    );
+
+    expect(vercelConfig.crons).toContainEqual({
+      path: "/api/cron/email-worker",
+      schedule: "* * * * *",
     });
   });
 

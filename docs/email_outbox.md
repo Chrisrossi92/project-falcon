@@ -30,7 +30,7 @@
   - `EMAIL_BATCH_SIZE`, default `25`
 
 ## Hosted Invocation
-- Vercel Cron calls `GET /api/cron/email-worker` every five minutes.
+- Vercel Cron calls `GET /api/cron/email-worker` every minute.
 - The cron endpoint requires `Authorization: Bearer $CRON_SECRET`.
 - The cron endpoint invokes the Supabase Edge Function at
   `$SUPABASE_URL/functions/v1/email-worker` with `SUPABASE_SERVICE_ROLE_KEY`.
@@ -42,6 +42,8 @@
   - `SUPABASE_SERVICE_ROLE_KEY`
 - Concurrency safety remains in the queue claim RPC; duplicate invocations should
   not send the same claimed row twice.
+- Minute-level automated processing requires the hosted Vercel project to remain
+  on a plan that supports one-minute cron cadence.
 
 ## Manual Test Flow
 1. Confirm hosted function env vars are set.
