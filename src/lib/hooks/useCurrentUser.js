@@ -1,6 +1,7 @@
 // src/lib/hooks/useCurrentUser.js
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { getCurrentUserProfile } from "@/lib/services/api";
 
 /**
  * Returns the current application user (row from public.users) based on auth.uid.
@@ -37,26 +38,23 @@ export function useCurrentUser() {
         return;
       }
 
-      const { data, error: userError } = await supabase
-        .from("profiles")
-        .select("*")
-        .or(`auth_id.eq.${authId},uid.eq.${authId}`)
-        .maybeSingle();
+      const data = await getCurrentUserProfile();
 
       if (cancelled) return;
 
-      if (userError) {
-        setError(userError);
-        setUser(null);
-      } else {
-        setError(null);
-        setUser(data || null);
-      }
+      setError(null);
+      setUser(data || null);
 
       setLoading(false);
     }
 
-    load();
+    load().catch((userError) => {
+      if (!cancelled) {
+        setError(userError);
+        setUser(null);
+        setLoading(false);
+      }
+    });
 
     return () => {
       cancelled = true;

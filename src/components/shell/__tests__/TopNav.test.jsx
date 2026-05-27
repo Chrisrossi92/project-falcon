@@ -17,10 +17,6 @@ const shellProfileState = vi.hoisted(() => ({
   appContext: null,
 }));
 
-const profileApiMock = vi.hoisted(() => ({
-  getCurrentUserProfile: vi.fn(async () => null),
-}));
-
 vi.mock("@/lib/hooks/usePermissions", () => ({
   useEffectivePermissions: () => {
     permissionState.useEffectivePermissions();
@@ -57,10 +53,6 @@ vi.mock("@/lib/supabaseClient", () => ({
       signOut: vi.fn(),
     },
   },
-}));
-
-vi.mock("@/lib/services/api", () => ({
-  getCurrentUserProfile: profileApiMock.getCurrentUserProfile,
 }));
 
 vi.mock("@/components/notifications/NotificationBell", () => ({
@@ -113,8 +105,6 @@ describe("TopNav desktop operational spine navigation", () => {
     shellProfileState.profileId = "operations";
     shellProfileState.exposure = undefined;
     shellProfileState.appContext = null;
-    profileApiMock.getCurrentUserProfile.mockReset();
-    profileApiMock.getCurrentUserProfile.mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -517,11 +507,6 @@ describe("TopNav desktop operational spine navigation", () => {
       avatar_url: null,
       display_color: "#334155",
     };
-    profileApiMock.getCurrentUserProfile.mockResolvedValue({
-      display_name: "User",
-      email: "legacy@example.test",
-    });
-
     renderTopNav();
 
     expect(screen.getAllByText("Abby Rossi").length).toBeGreaterThan(0);

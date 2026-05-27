@@ -1,6 +1,7 @@
 // src/lib/api.js
 // Adjust supabase import path to your project
 import supabase from "@/lib/supabaseClient";
+import { getCurrentUserAppContext } from "@/features/auth/currentUserAppContextApi";
 
 /* ----------------------------- NOTIFICATIONS ----------------------------- */
 
@@ -116,68 +117,42 @@ export async function rpcGetCalendarEvents({ from = null, to = null } = {}) {
 
 /**
  * Current user profile (lightweight).
- * We avoid selecting non-existent columns. Compose display_name from available fields.
+ * Uses the V1 app-context RPC. The legacy public.profiles view is intentionally
+ * quarantined and must not be queried by active runtime surfaces.
  */
 export async function getCurrentUserProfile() {
-  // 1) Auth user
   const { data: authData, error: authErr } = await supabase.auth.getUser();
   if (authErr) throw authErr;
   const authUser = authData?.user;
   if (!authUser) return null;
 
-  const authId = authUser.id;
   const authEmail = authUser.email || "";
+  const context = await getCurrentUserAppContext();
+  const displayName =
+    context?.display_name ||
+    context?.full_name ||
+    authUser.user_metadata?.full_name ||
+    authUser.user_metadata?.name ||
+    context?.email ||
+    authEmail;
+  const primaryRole =
+    context?.primary_role_key ||
+    context?.role_keys?.[0] ||
+    "appraiser";
 
-  // columns we want from public.profiles
-  const cols =
-    "id, uid, email, display_name, full_name, name, role, fee_split, display_color, avatar_url, status, updated_at";
-
-  // 2) Try by uid first (this is the canonical mapping)
-  let row = null;
-  if (authId) {
-    const { data, error } = await supabase.from("profiles").select(cols).eq("uid", authId).limit(1);
-    if (error) throw error;
-    row = data?.[0] || null;
-  }
-
-  // 3) Fallback by email if uid not set yet
-  if (!row && authEmail) {
-    const { data, error } = await supabase.from("profiles").select(cols).eq("email", authEmail).limit(1);
-    if (error) throw error;
-    row = data?.[0] || null;
-  }
-
-  // 4) Fallback: synthesize from auth user if view returned nothing (should be rare)
-  if (!row) {
-    row = {
-      id: authId,
-      uid: authId,
-      email: authEmail,
-      display_name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || authEmail,
-      full_name: authUser.user_metadata?.full_name || null,
-      name: authUser.user_metadata?.name || null,
-      role: "appraiser",
-      status: "active",
-      updated_at: authUser?.updated_at || null,
-    };
-  }
-
-  const display_name = row.display_name || row.full_name || row.name || row.email;
-
-  // ✅ IMPORTANT: return *app user* id as .id, and auth id as .auth_id
   return {
-    id: row.id,               // public.users.id  <-- use this in links: /users/view/:id
-    auth_id: row.uid,         // auth.users.id    <-- use this only for policy checks
-    email: row.email,
-    display_name,
-    full_name: row.full_name || null,
-    name: row.name || null,
-    role: row.role || "appraiser",
-    fee_split: row.fee_split ?? null,
-    display_color: row.display_color || null,
-    avatar_url: row.avatar_url || null,
-    status: row.status || "active",
-    updated_at: row.updated_at || null,
+    id: context?.user_id || null,
+    auth_id: authUser.id,
+    email: context?.email || authEmail,
+    display_name: displayName,
+    full_name: context?.full_name || authUser.user_metadata?.full_name || null,
+    name: displayName,
+    role: primaryRole,
+    fee_split: null,
+    display_color: context?.display_color || null,
+    avatar_url: context?.avatar_url || null,
+    status: context?.has_current_company_membership ? "active" : null,
+    updated_at: authUser?.updated_at || null,
   };
 }
 

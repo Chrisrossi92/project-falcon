@@ -9,30 +9,17 @@ const debug = process.env.NODE_ENV === "development";
 
 export async function fetchAdminRecipients() {
   try {
-    // Prefer public.users when it has role/status; fall back to profiles.
-    const tables = [
-      { name: "users", fields: "id, auth_id, role, status" },
-      { name: "profiles", fields: "id, auth_id, role, status" },
-    ];
-
-    for (const tbl of tables) {
-      try {
-        const { data, error } = await supabase
-          .from(tbl.name)
-          .select(tbl.fields)
-          .in("role", ["owner", "admin"]);
-        if (error) throw error;
-        if (data && data.length) {
-          return (data || [])
-            .filter((u) => !u.status || u.status.toLowerCase() === "active")
-            .filter((u) => !!u.id)
-            .map((u) => ({ userId: u.id, role: "admin" }))
-            .filter((u) => !!u.userId);
-        }
-      } catch (innerErr) {
-        if (debug) console.debug(`[fetchAdminRecipients] ${tbl.name} fallback`, innerErr?.message || innerErr);
-        continue;
-      }
+    const { data, error } = await supabase
+      .from("users")
+      .select("id, role, status")
+      .in("role", ["owner", "admin"]);
+    if (error) throw error;
+    if (data && data.length) {
+      return (data || [])
+        .filter((u) => !u.status || u.status.toLowerCase() === "active")
+        .filter((u) => !!u.id)
+        .map((u) => ({ userId: u.id, role: "admin" }))
+        .filter((u) => !!u.userId);
     }
   } catch (err) {
     if (debug) console.debug("[fetchAdminRecipients] failed", err?.message || err);
@@ -53,26 +40,6 @@ async function resolveRecipientUserId(userId) {
     if (!userErr && userRow?.id) return userRow.id;
   } catch (err) {
     if (debug) console.debug("[resolveRecipientUserId] users lookup failed", err?.message || err);
-  }
-
-  try {
-    const { data: profileRow, error: profileErr } = await supabase
-      .from("profiles")
-      .select("id, auth_id")
-      .or(`id.eq.${userId},auth_id.eq.${userId}`)
-      .maybeSingle();
-
-    if (!profileErr && profileRow?.auth_id) {
-      const { data: userRow, error: userErr } = await supabase
-        .from("users")
-        .select("id")
-        .eq("auth_id", profileRow.auth_id)
-        .maybeSingle();
-
-      if (!userErr && userRow?.id) return userRow.id;
-    }
-  } catch (err) {
-    if (debug) console.debug("[resolveRecipientUserId] profiles lookup failed", err?.message || err);
   }
 
   return null;

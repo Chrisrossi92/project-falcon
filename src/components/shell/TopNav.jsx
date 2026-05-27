@@ -4,7 +4,6 @@ import falconWordmark from "@/assets/branding/falcon-wordmark-dark-shell.png";
 import supabase from "@/lib/supabaseClient";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import CommandPalette from "@/components/nav/CommandPalette";
-import { getCurrentUserProfile } from "@/lib/services/api";
 import AvatarBadge from "@/components/ui/AvatarBadge";
 import { useEffectivePermissions } from "@/lib/hooks/usePermissions";
 import { getCurrentPrimaryNavLinks } from "@/lib/navigation/currentPrimaryNavLinks";
@@ -296,7 +295,6 @@ function AvatarMenu({ identity }) {
 export default function TopNav() {
   const navigate         = useNavigate();
   const { pathname }     = useLocation();
-  const [me, setMe]      = useState(null);
   const [open, setOpen]  = useState(false); // mobile sheet
   const [pal, setPal]    = useState(false); // command palette
   const shellProfilePresentation = useShellProfile();
@@ -350,13 +348,7 @@ export default function TopNav() {
     shellProfileId,
   );
   const shellModeCue = getShellWorkModeCue(shellProfilePresentation);
-  const userIdentity = resolveShellUserIdentity(shellProfilePresentation?.appContext, me);
-
-  useEffect(() => {
-    (async () => {
-      try { setMe(await getCurrentUserProfile()); } catch { setMe(null); }
-    })();
-  }, []);
+  const userIdentity = resolveShellUserIdentity(shellProfilePresentation?.appContext, null);
 
   // ⌘K / Ctrl+K
   useEffect(() => {

@@ -60,15 +60,15 @@ export function subscribeOrderActivity(orderId, cb) {
       "postgres_changes",
       { event: "INSERT", schema: "public", table: "activity_log", filter: `order_id=eq.${orderId}` },
       async ({ new: row }) => {
-        // if missing display fields, try enrich from profiles
+        // if missing display fields, try enrich from canonical public.users
         if ((!row.created_by_name || !row.created_by_email) && row.created_by) {
           const { data } = await supabase
-            .from("profiles")
-            .select("full_name, email")
-            .eq("id", row.created_by)
+            .from("users")
+            .select("display_name, full_name, name, email")
+            .or(`id.eq.${row.created_by},auth_id.eq.${row.created_by}`)
             .maybeSingle();
           if (data) {
-            row.created_by_name ||= data.full_name || null;
+            row.created_by_name ||= data.display_name || data.full_name || data.name || null;
             row.created_by_email ||= data.email || null;
           }
         }
@@ -119,8 +119,6 @@ export async function logNote(orderId, message, options = {}) {
   const found = feed.find((r) => r.id === newId) || null;
   return found || { id: newId, order_id: orderId, event_type: "note", message, created_at: new Date().toISOString() };
 }
-
-
 
 
 
