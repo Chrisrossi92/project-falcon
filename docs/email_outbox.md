@@ -29,11 +29,25 @@
   - `APP_BASE_URL` for absolute order-safe links
   - `EMAIL_BATCH_SIZE`, default `25`
 
+## Hosted Invocation
+- Vercel Cron calls `GET /api/cron/email-worker` every five minutes.
+- The cron endpoint requires `Authorization: Bearer $CRON_SECRET`.
+- The cron endpoint invokes the Supabase Edge Function at
+  `$SUPABASE_URL/functions/v1/email-worker` with `SUPABASE_SERVICE_ROLE_KEY`.
+- The same endpoint can be used as a manual admin trigger when called with the
+  same bearer secret.
+- Required Vercel env vars:
+  - `CRON_SECRET`
+  - `SUPABASE_URL`
+  - `SUPABASE_SERVICE_ROLE_KEY`
+- Concurrency safety remains in the queue claim RPC; duplicate invocations should
+  not send the same claimed row twice.
+
 ## Manual Test Flow
 1. Confirm hosted function env vars are set.
 2. Create a notification through the normal app flow for an event whose policy allows email.
 3. Confirm a queued row appears in `public.email_queue`.
-4. Invoke `email-worker`.
+4. Invoke `/api/cron/email-worker` with `Authorization: Bearer $CRON_SECRET`, or wait for the scheduled Vercel Cron run.
 5. Confirm successful sends move to `status = 'sent'` with `sent_at`.
 6. Confirm provider failures move to `status = 'failed'` with `error`.
 7. Verify delivery in Resend.
