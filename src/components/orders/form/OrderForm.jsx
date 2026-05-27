@@ -35,11 +35,11 @@ const toLocalDateTimeInput = (value) => {
   return `${y}-${m}-${day}T${h}:${min}`;
 };
 
-const fromLocalDateTimeInputToISO = (value) => {
+const fromLocalDateTimeInputToLocalTimestamp = (value) => {
   if (!value) return null;
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toISOString();
+  const match = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})(?::(\d{2}))?$/.exec(value);
+  if (!match) return null;
+  return `${match[1]}T${match[2]}:${match[3] || "00"}`;
 };
 
 function buildOrderPayload(values, { isEdit = false } = {}) {
@@ -213,7 +213,7 @@ export default function OrderForm({ order, onClose, onSaved, onCancel }) {
       const nextValues = {
         ...values,
         site_visit_at: values.site_visit_at
-          ? fromLocalDateTimeInputToISO(values.site_visit_at)
+          ? fromLocalDateTimeInputToLocalTimestamp(values.site_visit_at)
           : null,
       };
 
@@ -345,7 +345,6 @@ export default function OrderForm({ order, onClose, onSaved, onCancel }) {
     </form>
   );
 }
-
 
 
 

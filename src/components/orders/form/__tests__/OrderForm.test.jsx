@@ -175,6 +175,14 @@ vi.mock("../DatesFields", () => ({
   default: ({ values, onChange }) => (
     <div data-testid="dates-fields">
       <label>
+        Site Visit
+        <input
+          aria-label="Site Visit"
+          value={values.site_visit_at || ""}
+          onChange={(event) => onChange({ target: { name: "site_visit_at", value: event.target.value } })}
+        />
+      </label>
+      <label>
         Reviewer Due
         <input
           aria-label="Reviewer Due"
@@ -325,6 +333,41 @@ describe("OrderForm", () => {
         property_contact_name: "Casey Contact",
         property_contact_phone: "555-0100",
         status: "new",
+      }),
+    );
+    expect(onSaved).toHaveBeenCalledWith(createdOrder);
+  });
+
+  it("submits site visit appointments as local wall time while keeping due dates date-only", async () => {
+    const createdOrder = {
+      id: "order-created",
+      order_number: "2026005",
+    };
+    const onSaved = vi.fn();
+    ordersServiceMock.createOrderViaRpc.mockResolvedValue(createdOrder);
+
+    render(<OrderForm onSaved={onSaved} />);
+
+    fireEvent.change(screen.getByLabelText("Site Visit"), {
+      target: { value: "2026-06-02T11:00" },
+    });
+    fireEvent.change(screen.getByLabelText("Reviewer Due"), {
+      target: { value: "2026-06-03" },
+    });
+    fireEvent.change(screen.getByLabelText("Final Due"), {
+      target: { value: "2026-06-05" },
+    });
+    fireEvent.submit(screen.getByRole("button", { name: "Create Order" }).closest("form"));
+
+    await waitFor(() => {
+      expect(ordersServiceMock.createOrderViaRpc).toHaveBeenCalledTimes(1);
+    });
+
+    expect(ordersServiceMock.createOrderViaRpc).toHaveBeenCalledWith(
+      expect.objectContaining({
+        site_visit_at: "2026-06-02T11:00:00",
+        review_due_at: "2026-06-03",
+        final_due_at: "2026-06-05",
       }),
     );
     expect(onSaved).toHaveBeenCalledWith(createdOrder);
