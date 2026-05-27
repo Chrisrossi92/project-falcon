@@ -557,7 +557,6 @@ describe("DashboardPage operational polish", () => {
           { id: "revision-order", order_number: "1008", status: "needs_revisions", appraiser_id: "pam-user" },
         ],
         filters: {
-          activeOnly: false,
           appraiserId: "pam-user",
           assignedAppraiserId: "pam-user",
           statusIn: ["new", "in_progress", "needs_revisions"],
@@ -644,7 +643,6 @@ describe("DashboardPage operational polish", () => {
         count: 0,
         rows: [],
         filters: {
-          activeOnly: false,
           appraiserId: "pam-user",
           assignedAppraiserId: "pam-user",
           statusIn: ["new", "in_progress", "needs_revisions"],

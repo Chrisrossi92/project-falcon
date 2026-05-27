@@ -67,7 +67,7 @@ export function deriveDashboardRoleFlags(context) {
 
 export function deriveDashboardTableFilters({ appContext, userId, user } = {}) {
   const { role, isReviewer, isAppraiser } = deriveDashboardRoleFlags(appContext);
-  const filters = { activeOnly: false };
+  const filters = {};
 
   if (isAppraiser && userId) {
     filters.appraiserId = userId;
@@ -95,7 +95,6 @@ export function deriveReviewerHybridAppraisalFilters({ appContext, userId } = {}
   }
 
   return {
-    activeOnly: false,
     appraiserId: userId,
     assignedAppraiserId: userId,
     statusIn: [...APPRAISER_DASHBOARD_STATUSES],

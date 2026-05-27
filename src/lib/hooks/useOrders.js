@@ -5,7 +5,6 @@ import { ORDER_STATUS } from "@/lib/constants/orderStatus";
 import { mapOrderRows } from "@/lib/mappers/orderMapper";
 
 const DEFAULT_FILTERS = {
-  activeOnly: false,
   page: 0,
   pageSize: 15,
   orderBy: "order_number",
@@ -81,7 +80,6 @@ export function useOrders(initialSeed = {}, options = {}) {
           dueWindow: filters.dueWindow || "",
           from: filters.from || null,
           to: filters.to || null,
-          activeOnly: false, // fetch all; we'll filter active locally if needed
           page: filters.page || 0,
           pageSize: filters.pageSize || 15,
           orderBy: filters.orderBy || "order_number",
@@ -156,7 +154,6 @@ export function useOrdersSummary(filters = {}, { enabled = true, scope = null, r
       try {
         const { rows, count, error: fetchErr } = await fetchOrdersWithFilters({
           ...filters,
-          activeOnly: false, // fetch all, filter active locally if needed
           page: 0,
           pageSize: 1000, // pull enough to compute aggregates client-side
           orderBy: filters.orderBy || "order_number",

@@ -51,6 +51,50 @@ Current decision:
 - **Deferred post-MVP hardening**: not required to launch the first governed production cutover, but
   should be tracked after MVP.
 
+## Falcon V1 Wrap Hardening Decision Lock
+
+The following hardening work is complete for Falcon V1 and should be treated as locked unless
+validation finds a production-impacting defect:
+
+- **Access save atomicity**: Users/Edit Access now has a narrow backend RPC wrapper for atomic role
+  and V1-visible permission override persistence.
+- **Hidden enterprise route suppression**: Assignments and Relationships are suppressed from Staff
+  Appraisal navigation/commands and direct route access.
+- **Permission override visible scope**: active Users/Edit Access override reads/saves are limited
+  to the V1-visible override universe; hidden/deferred rows are preserved outside that flow.
+- **TopNav permission RPC cleanup**: TopNav resolves effective permissions once and derives nav
+  booleans locally.
+- **Native alert/confirm cleanup**: active V1 production surfaces no longer rely on native browser
+  alert/confirm dialogs.
+- **Saved Views lazy-load**: Orders saved views load only when the panel is opened.
+- **Orders `activeOnly` cleanup**: the main Orders API no longer accepts an unused `activeOnly`
+  option; active/default visibility remains controlled by archived and retired-lifecycle flags.
+
+These items are not production cutover blockers after their test/lint/build validation has passed.
+
+### Known Warning And Debt Classification
+
+| Item | V1 Classification | Decision |
+|---|---|---|
+| Tailwind ambiguous class warning | Non-blocking unless low-risk obvious fix | Defer unless the fix is local and cannot alter runtime behavior. |
+| Vite large chunk warning | Post-V1 unless real performance issue | Defer until production usage or profiling shows operational impact. |
+| Remaining lint warnings | Non-blocking by default | Address only warnings that indicate production-impacting behavior, security risk, or data integrity risk before cutover. |
+| Supabase db lint legacy issues | Conditional blocker | Defer legacy/noise findings; treat RLS, grants, exposed secrets, cross-company isolation, direct-write authority, or data-loss findings as blockers. |
+| Work eligibility override allowlist | Backend-only/deferred foundation | Keep out of active V1 override UI. It supports future controlled authority and is not a current UX surface. |
+| `/clients` vs `/clients/cards` | Current V1 dynamic routing | Full client readers route to `/clients`; assigned-only readers route to `/clients/cards`. `/clients/cards` remains the assigned-client compatibility surface for V1, not a product-mode expansion. |
+
+### Remaining V1 Wrap Gates
+
+The remaining V1 blockers are operational validation gates, not new architecture work:
+
+- final Supabase production target decision and environment parity;
+- clean migration replay/bootstrap proof;
+- backup/rollback readiness;
+- storage bucket, Edge Function, auth, owner/admin, role, order, document, notification, and saved
+  view smoke tests;
+- representative browser checks for owner/admin, appraiser, reviewer, and hybrid-role users;
+- confirmation that hidden enterprise surfaces remain suppressed in Staff Appraisal mode.
+
 ## Readiness Audit Matrix
 
 | Area | Status | Current Finding | Required Next Step |

@@ -120,7 +120,6 @@ export default function UnifiedOrdersTable({
   /* seed built from the **live** filters prop */
   const seed = useMemo(() => {
     const base = {
-      activeOnly: appliedFilters.activeOnly ?? false,
       page: appliedFilters.page || 0,
       pageSize: appliedFilters.pageSize || pageSize,
       orderBy: appliedFilters.orderBy || "order_number",

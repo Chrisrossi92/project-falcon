@@ -50,6 +50,62 @@ Reference docs:
 - [ ] Team profile/auth linking and true auth invite flow remain future Team Management work.
 - [ ] Client contact architecture remains future work before save-to-client-profile contact behavior.
 
+## Falcon V1 Wrap Hardening Decision Lock
+
+This section records final V1 hardening decisions. Items marked complete are not reopened for
+architecture redesign unless a production-impacting defect is found.
+
+### Completed V1 Hardening
+
+- [x] Users/Edit Access atomic save complete: primary role, secondary roles, and V1-visible
+  permission overrides persist through one backend RPC wrapper so partial role/override saves do
+  not create operational ambiguity.
+- [x] Hidden enterprise surface route suppression complete: Staff Appraisal mode suppresses
+  Assignments and Relationships in navigation, command surfaces, and direct route access.
+- [x] V1-visible permission override scope complete: Users/Edit Access reads and mutates only the
+  active V1 override universe; hidden/deferred override rows are preserved outside that UI flow.
+- [x] TopNav duplicate permission RPC cleanup complete: TopNav derives nav booleans from one
+  effective-permissions read instead of multiple shell-level permission hook calls.
+- [x] Native browser alert/confirm cleanup complete for active V1 surfaces: production actions use
+  Falcon toast, inline error, or local confirmation surfaces.
+- [x] Saved Views lazy-load complete: Orders does not fetch saved views until the Saved Views panel
+  is opened.
+- [x] Orders `activeOnly` cleanup complete: the main Orders API path no longer accepts an unused
+  `activeOnly` option; active/default visibility remains governed by `includeArchived` and
+  `includeRetiredLifecycle`.
+
+### V1 Blockers
+
+- [ ] Final production target decision and environment parity remain blockers before cutover.
+- [ ] Migration replay/bootstrap evidence remains a blocker before cutover.
+- [ ] Production storage, Edge Function, auth, owner/admin, and order workflow smoke evidence remain
+  blockers before cutover.
+- [ ] Security/data-risk Supabase db lint findings remain blockers if they affect RLS, grants,
+  exposed secrets, cross-company isolation, or direct-write authority.
+
+### Non-Blocking V1 Debt
+
+- [ ] Tailwind ambiguous class warning is deferred unless the fix is clearly low-risk and local.
+- [ ] Vite large chunk warning is deferred post-V1 unless real production performance evidence
+  shows it blocks operational use.
+- [ ] Remaining lint warnings are non-blocking unless a warning is production-impacting.
+- [ ] Supabase db lint legacy issues are deferred unless they are security or data-risk related.
+- [ ] Work eligibility override allowlist remains a backend-only/deferred foundation. It should not
+  appear as active V1 override UI.
+- [ ] V1 Clients routing is locked as current dynamic behavior: users with `clients.read.all` route
+  to `/clients`; assigned-only client readers route to `/clients/cards`. Treat `/clients/cards` as
+  the assigned-client compatibility surface for V1, not a new canonical client architecture.
+
+### Remaining V1 Wrap Checklist
+
+- [ ] Run the full production smoke checklist against the chosen target environment.
+- [ ] Re-run representative owner/admin, appraiser, reviewer, and hybrid-role browser checks.
+- [ ] Confirm hidden Assignments/Relationships routes remain blocked in Staff Appraisal mode.
+- [ ] Confirm Orders remains the operational truth surface for assigned work, saved views, and
+  active/default order visibility.
+- [ ] Confirm Users/Edit Access role/override saves refetch normalized access state after success.
+- [ ] Confirm final deployment uses the intended Supabase target, secrets, CORS origins, and CSP.
+
 ## Engineering Infrastructure Stabilization
 
 - [x] ESLint flat config stabilized for the current JavaScript/JSX app surface.

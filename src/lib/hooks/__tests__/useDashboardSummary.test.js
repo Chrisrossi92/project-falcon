@@ -72,7 +72,6 @@ describe("deriveDashboardRoleFlags", () => {
         userId: "pam-user",
       }),
     ).toMatchObject({
-      activeOnly: false,
       reviewerId: "pam-user",
       statusIn: ["in_review", "needs_revisions", "review_cleared"],
     });
@@ -90,7 +89,6 @@ describe("deriveDashboardRoleFlags", () => {
         userId: "pam-user",
       }),
     ).toMatchObject({
-      activeOnly: false,
       appraiserId: "pam-user",
       assignedAppraiserId: "pam-user",
       statusIn: ["new", "in_progress", "needs_revisions"],
@@ -109,7 +107,6 @@ describe("deriveDashboardRoleFlags", () => {
         userId: "pam-user",
       }),
     ).toEqual({
-      activeOnly: false,
       reviewerId: "pam-user",
       statusIn: ["in_review", "needs_revisions", "review_cleared"],
     });
@@ -127,7 +124,6 @@ describe("deriveDashboardRoleFlags", () => {
         userId: "pam-user",
       }),
     ).toEqual({
-      activeOnly: false,
       appraiserId: "pam-user",
       assignedAppraiserId: "pam-user",
       statusIn: ["new", "in_progress", "needs_revisions"],

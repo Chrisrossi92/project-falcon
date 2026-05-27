@@ -81,7 +81,6 @@ const BASE_SELECT = `
 function applyCommonFilters(
   q,
   {
-    activeOnly = false,
     statusIn = null,
     clientId = null,
     appraiserId = null,
@@ -174,7 +173,6 @@ export async function fetchOrdersWithFilters(filters = {}) {
     dueWindow = "",
     from = null,
     to = null,
-    activeOnly = false,
     includeArchived = false,
     includeRetiredLifecycle = false,
     page = 0,
@@ -192,7 +190,6 @@ export async function fetchOrdersWithFilters(filters = {}) {
     .select("*", { count: "exact", head: true });
 
   countQuery = applyCommonFilters(countQuery, {
-    activeOnly,
     includeArchived,
     includeRetiredLifecycle,
     statusIn,
@@ -235,7 +232,6 @@ export async function fetchOrdersWithFilters(filters = {}) {
   }
 
   dataQuery = applyCommonFilters(dataQuery, {
-    activeOnly,
     includeArchived,
     includeRetiredLifecycle,
     statusIn,
