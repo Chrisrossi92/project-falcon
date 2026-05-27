@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 import handler, {
   buildEmailWorkerUrl,
   invokeEmailWorker,
@@ -43,6 +44,18 @@ describe("email worker cron endpoint", () => {
     expect(isAuthorized("Bearer secret", "secret")).toBe(true);
     expect(isAuthorized("Bearer wrong", "secret")).toBe(false);
     expect(isAuthorized("Bearer secret", "")).toBe(false);
+  });
+
+  it("keeps /api routes out of the Vite SPA fallback rewrite", () => {
+    const vercelConfig = JSON.parse(
+      readFileSync(new URL("../vercel.json", import.meta.url), "utf8")
+    );
+    const fallbackRewrite = vercelConfig.rewrites.find(
+      (rewrite) => rewrite.destination === "/index.html"
+    );
+
+    expect(fallbackRewrite.source).toContain("api/");
+    expect(fallbackRewrite.source).toBe("/((?!api/|assets/|.*\\..*).*)");
   });
 
   it("invokes email-worker with the service role JWT", async () => {
