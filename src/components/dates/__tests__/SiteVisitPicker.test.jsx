@@ -81,6 +81,29 @@ describe("SiteVisitPicker", () => {
     expect(screen.getByLabelText("Site visit meridiem")).toHaveValue("PM");
   });
 
+  it("treats timezone-bearing site visit values as local appointment wall time", () => {
+    const onChange = vi.fn();
+    render(
+      <SiteVisitPicker
+        value="2026-06-02T11:00:00+00:00"
+        onChange={onChange}
+        triggerVariant="ghost"
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Jun 2, 2026, 11:00 AM" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Jun 2, 2026, 11:00 AM" }));
+
+    expect(screen.getByLabelText("Site visit hour")).toHaveValue("11");
+    expect(screen.getByLabelText("Site visit minutes")).toHaveValue("00");
+    expect(screen.getByLabelText("Site visit meridiem")).toHaveValue("AM");
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(onChange).toHaveBeenCalledWith("2026-06-02T11:00:00");
+  });
+
   it("can render a compact trigger label while preserving the full date title", () => {
     render(
       <SiteVisitPicker

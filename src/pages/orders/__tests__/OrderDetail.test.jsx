@@ -122,7 +122,7 @@ vi.mock("@/lib/hooks/useToast", () => ({
 
 vi.mock("@/components/dates/SiteVisitPicker", () => ({
   default: ({ onChange }) => (
-    <button type="button" onClick={() => onChange("2026-05-20T14:00:00.000Z")}>
+    <button type="button" onClick={() => onChange("2026-05-20T14:00:00")}>
       Set site visit
     </button>
   ),
@@ -180,7 +180,7 @@ describe("OrderDetail site visit save", () => {
     updateSiteVisitAtViaRpcMock.mockReset();
     updateSiteVisitAtViaRpcMock.mockResolvedValue({
       id: "order-1",
-      site_visit_at: "2026-05-20T14:00:00.000Z",
+      site_visit_at: "2026-05-20T14:00:00",
     });
     archiveOrderViaRpcMock.mockReset();
     archiveOrderViaRpcMock.mockResolvedValue({
@@ -278,7 +278,7 @@ describe("OrderDetail site visit save", () => {
     await waitFor(() => {
       expect(updateSiteVisitAtViaRpcMock).toHaveBeenCalledWith(
         "order-1",
-        "2026-05-20T14:00:00.000Z",
+        "2026-05-20T14:00:00",
       );
     });
     expect(refreshMock).toHaveBeenCalledTimes(1);

@@ -1,3 +1,5 @@
+import { siteVisitToCalendarStart } from "@/lib/utils/siteVisitDateTime";
+
 export default function mapOrderToEvents(order) {
   if (!order) return [];
 
@@ -15,7 +17,7 @@ export default function mapOrderToEvents(order) {
   if (order.site_visit_at) {
     events.push({
       title: `📍 Site Visit – ${addr}`,
-      start: toISO(order.site_visit_at),
+      start: siteVisitToCalendarStart(order.site_visit_at),
       orderId: order.id,
       type: "site",
     });
@@ -43,7 +45,6 @@ export default function mapOrderToEvents(order) {
 
   return events;
 }
-
 
 
 

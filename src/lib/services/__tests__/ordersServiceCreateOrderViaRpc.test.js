@@ -385,19 +385,19 @@ describe("updateSiteVisitAtViaRpc", () => {
   it("updates only site_visit_at through the guarded update RPC", async () => {
     const updatedOrder = {
       id: "order-1",
-      site_visit_at: "2026-05-20T14:00:00.000Z",
+      site_visit_at: "2026-05-20T14:00:00",
     };
     supabaseMock.rpc.mockResolvedValue({ data: updatedOrder, error: null });
 
     await expect(
-      updateSiteVisitAtViaRpc("order-1", "2026-05-20T14:00:00.000Z"),
+      updateSiteVisitAtViaRpc("order-1", "2026-05-20T14:00:00"),
     ).resolves.toBe(updatedOrder);
 
     expect(supabaseMock.rpc).toHaveBeenCalledTimes(1);
     expect(supabaseMock.rpc).toHaveBeenCalledWith("rpc_update_order", {
       order_id: "order-1",
       patch: {
-        site_visit_at: "2026-05-20T14:00:00.000Z",
+        site_visit_at: "2026-05-20T14:00:00",
       },
     });
     expect(supabaseMock.from).not.toHaveBeenCalled();
@@ -426,7 +426,7 @@ describe("updateSiteVisitAtViaRpc", () => {
     supabaseMock.rpc.mockResolvedValue({ data: null, error });
 
     await expect(
-      updateSiteVisitAtViaRpc("order-1", "2026-05-20T14:00:00.000Z"),
+      updateSiteVisitAtViaRpc("order-1", "2026-05-20T14:00:00"),
     ).rejects.toBe(error);
   });
 });

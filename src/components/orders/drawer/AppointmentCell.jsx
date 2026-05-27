@@ -5,15 +5,19 @@
 
 
 // src/components/orders/view/AppointmentCell.jsx
-import React, { useState } from "react";
+import { useState } from "react";
 import DatePicker from "react-datepicker";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Pencil } from "lucide-react";
+import {
+  formatSiteVisitLocalTimestamp,
+  parseSiteVisitWallTime,
+} from "@/lib/utils/siteVisitDateTime";
 
-export default function AppointmentCell({ siteVisitAt, onSetAppointment, compact = true }) {
+export default function AppointmentCell({ siteVisitAt, onSetAppointment, compact: _compact = true }) {
   const [isEditing, setIsEditing] = useState(false);
-  const initial = siteVisitAt ? new Date(siteVisitAt) : new Date();
+  const initial = parseSiteVisitWallTime(siteVisitAt) || new Date();
   const [date, setDate] = useState(initial);
   const [hour, setHour] = useState(initial.getHours() % 12 || 12);
   const [minute, setMinute] = useState(Math.round(initial.getMinutes() / 15) * 15);
@@ -25,7 +29,7 @@ export default function AppointmentCell({ siteVisitAt, onSetAppointment, compact
     updated.setHours(h24);
     updated.setMinutes(parseInt(minute));
     updated.setSeconds(0);
-    onSetAppointment?.(updated.toISOString());
+    onSetAppointment?.(formatSiteVisitLocalTimestamp(updated));
     setIsEditing(false);
   };
 
@@ -34,7 +38,10 @@ export default function AppointmentCell({ siteVisitAt, onSetAppointment, compact
       {siteVisitAt ? (
         <>
           <span className="text-sm text-gray-800">
-            {format(new Date(siteVisitAt), "MMM d, yyyy • h:mm a")}
+            {format(
+              parseSiteVisitWallTime(siteVisitAt) || new Date(siteVisitAt),
+              "MMM d, yyyy • h:mm a",
+            )}
           </span>
           <button
             type="button"

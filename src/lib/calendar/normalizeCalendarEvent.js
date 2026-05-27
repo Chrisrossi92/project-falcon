@@ -1,4 +1,5 @@
 import { DEFAULT_CALENDAR_POLICY } from "@/lib/policies/defaultCalendarPolicy";
+import { siteVisitToCalendarStart } from "@/lib/utils/siteVisitDateTime";
 
 export function normalizeCalendarEventType(value) {
   const raw = String(value || "").toLowerCase();
@@ -184,8 +185,9 @@ export function calendarEventsFromOrder(order = {}, options = {}) {
   return eventSpecs
     .filter((spec) => spec.start)
     .map((spec) => {
-      const when = new Date(spec.start);
-      const start = Number.isNaN(when.getTime()) ? spec.start : when.toISOString();
+      const siteStart = spec.type === "site" ? siteVisitToCalendarStart(spec.start) : null;
+      const when = siteStart ? new Date(siteStart) : new Date(spec.start);
+      const start = siteStart || (Number.isNaN(when.getTime()) ? spec.start : when.toISOString());
       return normalizeCalendarEvent(
         {
           ...order,

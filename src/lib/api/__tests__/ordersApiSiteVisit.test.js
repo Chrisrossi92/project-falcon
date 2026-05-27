@@ -36,13 +36,13 @@ describe("updateSiteVisitAt", () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const updatedOrder = {
       id: "order-1",
-      site_visit_at: "2026-05-20T14:00:00.000Z",
+      site_visit_at: "2026-05-20T14:00:00",
     };
     ordersServiceMock.updateSiteVisitAtViaRpc.mockResolvedValue(updatedOrder);
     supabaseMock.rpc.mockResolvedValue({ data: "calendar-1", error: null });
 
     await expect(
-      updateSiteVisitAt("order-1", "2026-05-20T14:00:00.000Z", {
+      updateSiteVisitAt("order-1", "2026-05-20T14:00:00", {
         address: "1 Main St",
         appraiserId: "appraiser-1",
       }),
@@ -50,7 +50,7 @@ describe("updateSiteVisitAt", () => {
 
     expect(ordersServiceMock.updateSiteVisitAtViaRpc).toHaveBeenCalledWith(
       "order-1",
-      "2026-05-20T14:00:00.000Z",
+      "2026-05-20T14:00:00",
     );
     expect(supabaseMock.from).not.toHaveBeenCalled();
     expect(warnSpy).not.toHaveBeenCalled();
@@ -61,11 +61,11 @@ describe("updateSiteVisitAt", () => {
   it("keeps calendar event creation as a best-effort side effect after success", async () => {
     ordersServiceMock.updateSiteVisitAtViaRpc.mockResolvedValue({
       id: "order-1",
-      site_visit_at: "2026-05-20T14:00:00.000Z",
+      site_visit_at: "2026-05-20T14:00:00",
     });
     supabaseMock.rpc.mockResolvedValue({ data: "calendar-1", error: null });
 
-    await updateSiteVisitAt("order-1", "2026-05-20T14:00:00.000Z", {
+    await updateSiteVisitAt("order-1", "2026-05-20T14:00:00", {
       address: "1 Main St",
       appraiserId: "appraiser-1",
     });
@@ -73,8 +73,8 @@ describe("updateSiteVisitAt", () => {
     expect(supabaseMock.rpc).toHaveBeenCalledWith("rpc_create_calendar_event", {
       p_event_type: "site_visit",
       p_title: "Site Visit – 1 Main St",
-      p_start_at: "2026-05-20T14:00:00.000Z",
-      p_end_at: "2026-05-20T14:00:00.000Z",
+      p_start_at: "2026-05-20T14:00:00",
+      p_end_at: "2026-05-20T14:00:00",
       p_order_id: "order-1",
       p_appraiser_id: "appraiser-1",
       p_location: "1 Main St",
@@ -86,13 +86,13 @@ describe("updateSiteVisitAt", () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const updatedOrder = {
       id: "order-1",
-      site_visit_at: "2026-05-20T14:00:00.000Z",
+      site_visit_at: "2026-05-20T14:00:00",
     };
     ordersServiceMock.updateSiteVisitAtViaRpc.mockResolvedValue(updatedOrder);
     supabaseMock.rpc.mockRejectedValue(new Error("calendar unavailable"));
 
     await expect(
-      updateSiteVisitAt("order-1", "2026-05-20T14:00:00.000Z"),
+      updateSiteVisitAt("order-1", "2026-05-20T14:00:00"),
     ).resolves.toBe(updatedOrder);
 
     expect(warnSpy).toHaveBeenCalledWith(
@@ -107,7 +107,7 @@ describe("updateSiteVisitAt", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     ordersServiceMock.updateSiteVisitAtViaRpc.mockRejectedValue(new Error("not authorized"));
 
-    await expect(updateSiteVisitAt("order-1", "2026-05-20T14:00:00.000Z")).resolves.toBeNull();
+    await expect(updateSiteVisitAt("order-1", "2026-05-20T14:00:00")).resolves.toBeNull();
 
     expect(supabaseMock.rpc).not.toHaveBeenCalled();
     expect(errorSpy).toHaveBeenCalled();

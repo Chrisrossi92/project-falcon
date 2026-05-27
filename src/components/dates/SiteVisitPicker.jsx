@@ -2,25 +2,24 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
+import {
+  formatSiteVisitLocalTimestamp,
+  parseSiteVisitWallTime,
+} from "@/lib/utils/siteVisitDateTime";
 
 const formatFullDisplay = (iso, emptyLabel = "Set Appointment") => {
   if (!iso) return emptyLabel;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return emptyLabel;
+  const d = parseSiteVisitWallTime(iso);
+  if (!d) return emptyLabel;
   return d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 };
 
 const formatDisplay = (iso, emptyLabel = "Set Appointment", displayFormatter) => {
   if (!iso) return emptyLabel;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return emptyLabel;
+  const d = parseSiteVisitWallTime(iso);
+  if (!d) return emptyLabel;
   return displayFormatter?.(d, iso) ?? formatFullDisplay(iso, emptyLabel);
 };
-
-function toLocalTimestamp(value) {
-  const pad = (n) => String(n).padStart(2, "0");
-  return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}T${pad(value.getHours())}:${pad(value.getMinutes())}:00`;
-}
 
 const MINUTE_OPTIONS = ["00", "15", "30", "45"];
 const PICKER_WIDTH = 240;
@@ -70,8 +69,7 @@ export default function SiteVisitPicker({
   displayFormatter,
 }) {
   const initialDate = useMemo(() => {
-    const d = value ? new Date(value) : new Date();
-    return Number.isNaN(d.getTime()) ? new Date() : d;
+    return parseSiteVisitWallTime(value) || new Date();
   }, [value]);
 
   const [open, setOpen] = useState(false);
@@ -83,8 +81,8 @@ export default function SiteVisitPicker({
   const popoverRef = useRef(null);
 
   useEffect(() => {
-    const d = value ? new Date(value) : new Date();
-    if (!Number.isNaN(d.getTime())) {
+    const d = parseSiteVisitWallTime(value) || new Date();
+    if (d) {
       setDate(d);
       setTimeParts(timePartsFromDate(d));
     }
@@ -142,7 +140,7 @@ export default function SiteVisitPicker({
 
   const handleSave = () => {
     const merged = mergeDateAndTimeParts(date, timeParts);
-    const iso = toLocalTimestamp(merged);
+    const iso = formatSiteVisitLocalTimestamp(merged);
     onChange?.(iso);
     onSave?.(iso);
     setOpen(false);
