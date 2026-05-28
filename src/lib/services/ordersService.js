@@ -153,7 +153,7 @@ export async function listOrders({
 export async function getOrder(orderId) {
   if (!orderId) return null;
 
-  const { data, error } = await supabase
+  const viewPromise = supabase
     .from(ORDERS_VIEW)
     .select(
       `
@@ -199,8 +199,18 @@ export async function getOrder(orderId) {
     .eq("id", orderId)
     .single();
 
-  if (error) throw error;
-  return data ?? null;
+  const ordersPromise = supabase
+    .from(ORDERS_TABLE)
+    .select("*")
+    .eq("id", orderId)
+    .maybeSingle();
+
+  const [{ data: viewRow, error: viewError }, { data: ordersRow, error: ordersError }] =
+    await Promise.all([viewPromise, ordersPromise]);
+
+  if (viewError) throw viewError;
+  if (ordersError) throw ordersError;
+  return viewRow || ordersRow ? { ...(viewRow || {}), ...(ordersRow || {}) } : null;
 }
 
 /* ============================================================================

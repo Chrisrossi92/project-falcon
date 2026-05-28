@@ -116,8 +116,12 @@ describe("OrderDrawerContent presentation", () => {
     expect(screen.getByText("Order Contacts")).toBeInTheDocument();
     expect(screen.getByText("Client and site contact context")).toBeInTheDocument();
     expect(screen.getByText("Acme Lending")).toBeInTheDocument();
-    expect(screen.getByText("Riley Reviewer")).toBeInTheDocument();
+    expect(screen.queryByText("Order Team")).not.toBeInTheDocument();
+    expect(screen.queryByText("Avery Appraiser")).not.toBeInTheDocument();
+    expect(screen.queryByText("Riley Reviewer")).not.toBeInTheDocument();
     expect(screen.getByText("555-0100")).toBeInTheDocument();
+    expect(screen.queryByText("Access")).not.toBeInTheDocument();
+    expect(screen.queryByText("Use side entrance.")).not.toBeInTheDocument();
     expect(screen.getByText("Location Preview")).toBeInTheDocument();
     expect(screen.getByText("Subject property context")).toBeInTheDocument();
     expect(screen.getByTestId("activity-log")).toHaveTextContent("Activity for order-1 with composer");

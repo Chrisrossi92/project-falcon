@@ -125,6 +125,14 @@ export function mapOrderRow(row = {}) {
 
   const status = row.status ?? null;
   const statusNormalized = normalizeOrderStatus(status);
+  const splitPct = row.split_pct ?? row.appraiser_split ?? row.split_percent ?? null;
+  const baseFee = row.base_fee ?? row.fee_amount ?? row.fee ?? null;
+  const appraiserFee =
+    row.appraiser_fee ??
+    row.appraiserFee ??
+    row.appraiser_amount ??
+    computeAppraiserFee(baseFee, splitPct) ??
+    null;
 
   return {
     ...emptyOrder,
@@ -157,10 +165,10 @@ export function mapOrderRow(row = {}) {
     zip: postalCode,
     property_type: row.property_type ?? null,
     report_type: row.report_type ?? null,
-    fee_amount: row.fee_amount ?? null,
-    base_fee: row.base_fee ?? row.fee_amount ?? null,
-    appraiser_fee: row.appraiser_fee ?? null,
-    split_pct: row.split_pct ?? row.appraiser_split ?? null,
+    fee_amount: row.fee_amount ?? row.fee ?? null,
+    base_fee: baseFee,
+    appraiser_fee: appraiserFee,
+    split_pct: splitPct,
     review_due_at:
       row.review_due_at ??
       row.review_due_date ??
@@ -200,4 +208,11 @@ export function mapOrderRow(row = {}) {
 export function mapOrderRows(rows = []) {
   if (!Array.isArray(rows)) return [];
   return rows.map((r) => mapOrderRow(r));
+}
+
+function computeAppraiserFee(baseFee, splitPct) {
+  const base = Number(baseFee);
+  const split = Number(splitPct);
+  if (!Number.isFinite(base) || !Number.isFinite(split)) return null;
+  return Math.round(base * (split / 100) * 100) / 100;
 }

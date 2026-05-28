@@ -48,4 +48,20 @@ describe("mapOrderRow", () => {
       }),
     );
   });
+
+  it("derives appraiser fee from persisted base fee and split when direct projection is missing", () => {
+    expect(
+      mapOrderRow({
+        id: "order-3",
+        base_fee: 1200,
+        split_pct: 42.5,
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        base_fee: 1200,
+        split_pct: 42.5,
+        appraiser_fee: 510,
+      }),
+    );
+  });
 });

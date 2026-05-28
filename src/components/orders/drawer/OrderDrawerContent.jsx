@@ -332,14 +332,6 @@ export default function OrderDrawerContent({ orderId, order: rowFromTable }) {
               </div>
 
               <div className="rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-2">
-                <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Order Team</div>
-                <div className="space-y-1">
-                  <ContactLine label="Appraiser" value={row?.appraiser_name} />
-                  <ContactLine label="Reviewer" value={row?.reviewer_name} />
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-2">
                 <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Property Contact</div>
                 <div className="space-y-1">
                   <ContactLine label="Name" value={contactName} />
@@ -357,12 +349,6 @@ export default function OrderDrawerContent({ orderId, order: rowFromTable }) {
                   </div>
                 </div>
               </div>
-              {row?.access_notes && (
-                <div className="rounded-lg border border-slate-100 bg-white px-3 py-2">
-                  <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Access</div>
-                  <div className="mt-0.5 line-clamp-2 text-xs leading-5 text-slate-600">{row.access_notes}</div>
-                </div>
-              )}
             </div>
           </div>
 
@@ -414,8 +400,6 @@ function ContactLine({ label, value }) {
     </div>
   );
 }
-
-
 
 
 
