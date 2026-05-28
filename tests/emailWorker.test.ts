@@ -212,8 +212,10 @@ describe("email queue worker", () => {
     );
     expect(rendered.html).toContain("Falcon");
     expect(rendered.html).toContain("Order summary");
+    expect(rendered.html).toContain("Property contact");
     expect(rendered.html).toContain("Test Property Contact · 555-123-4567");
     expect(rendered.html).not.toContain("Contact phone");
+    expect(rendered.html).not.toContain("Property contact phone");
     expect(rendered.html).toContain("Open Order");
     expect(rendered.html).toContain("Powered by Falcon &middot; Continental Real Estate Solutions");
     expect(rendered.html).not.toContain("2026-06-03T10:30:00");
