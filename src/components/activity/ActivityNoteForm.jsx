@@ -2,12 +2,9 @@
 import React, { useState } from "react";
 import supabase from "@/lib/supabaseClient";
 import { logNote } from "@/lib/services/activityService";
-import { emitNotification } from "@/lib/services/notificationsService";
 import { useCurrentUserAppContext } from "@/features/auth/useCurrentUserAppContext";
-import { resolveOrderParticipants } from "@/lib/orders/resolveOrderParticipants";
 
 const GENERIC_USER_NAMES = new Set(["user", "demo user"]);
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function deriveActorRole(context) {
   if (context?.is_owner) return "owner";
@@ -17,7 +14,7 @@ function deriveActorRole(context) {
   return String(context?.primary_role_key || context?.role_keys?.[0] || "").toLowerCase() || null;
 }
 
-export default function ActivityNoteForm({ orderId, order = null, onSaved }) {
+export default function ActivityNoteForm({ orderId, onSaved }) {
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
@@ -40,22 +37,6 @@ export default function ActivityNoteForm({ orderId, order = null, onSaved }) {
       name: meta.name,
       email: authUser?.email,
     });
-  }
-
-  function isUuidLike(value) {
-    return UUID_RE.test(String(value || ""));
-  }
-
-  function isShortIdLike(value) {
-    const raw = String(value || "").trim();
-    const id = String(order?.id || orderId || "").trim();
-    return !!raw && !!id && raw === id.slice(0, 8);
-  }
-
-  function usableOrderNumber(value) {
-    const raw = String(value || "").trim();
-    if (!raw || isUuidLike(raw) || isShortIdLike(raw)) return null;
-    return raw;
   }
 
   async function currentUserDisplayName() {
@@ -98,107 +79,6 @@ export default function ActivityNoteForm({ orderId, order = null, onSaved }) {
     };
   }
 
-  async function resolveOrderNumber() {
-    const localOrderNumber = usableOrderNumber(order?.order_number || order?.order_no || order?.orderNumber);
-    if (localOrderNumber) return localOrderNumber;
-
-    const id = order?.id || orderId;
-    if (!id) return null;
-
-    try {
-      const { data, error } = await supabase
-        .from("orders")
-        .select("order_number")
-        .eq("id", id)
-        .maybeSingle();
-      if (error) throw error;
-      return usableOrderNumber(data?.order_number);
-    } catch {
-      return null;
-    }
-  }
-
-  async function actorParticipantName(roleName) {
-    if (roleName === "appraiser") return order?.appraiser_name || "Appraiser";
-    if (roleName === "reviewer") return order?.reviewer_name || "Reviewer";
-    return currentUserDisplayName();
-  }
-
-  function participantName(roleName) {
-    if (roleName === "appraiser") return order?.appraiser_name || "Appraiser";
-    if (roleName === "reviewer") return order?.reviewer_name || "Reviewer";
-    if (roleName === "owner") return "Owner";
-    if (roleName === "admin") return "Admin";
-    return "User";
-  }
-
-  async function emitNoteNotification(message) {
-    const resolved = resolveOrderParticipants(order, {
-      actorUserId: userId,
-      actorRole: role,
-      event: "activity_note",
-    });
-    const actorRoleOnOrder = resolved.actor.roleOnOrder;
-    const recipientUserId = resolved.recipients[0] || null;
-    const recipientRoleOnOrder =
-      recipientUserId && recipientUserId === order?.reviewer_id ? "reviewer" : "appraiser";
-    const eventKey = "note.added";
-    const recipient = recipientUserId ? { userId: recipientUserId, role: recipientRoleOnOrder } : null;
-
-    if (!eventKey || !recipient?.userId) {
-      return;
-    }
-
-    if (resolved.suppressUserIds.includes(recipient.userId)) {
-      return;
-    }
-
-    const orderNumber = await resolveOrderNumber();
-    const actorName = await actorParticipantName(actorRoleOnOrder);
-    const recipientName = participantName(recipientRoleOnOrder);
-    const kindLabel =
-      actorRoleOnOrder === "appraiser"
-        ? "Appraiser note"
-        : actorRoleOnOrder === "reviewer"
-        ? "Reviewer note"
-        : actorRoleOnOrder === "owner"
-        ? "Owner note"
-        : actorRoleOnOrder === "admin"
-        ? "Admin note"
-        : "Note";
-
-    await emitNotification(eventKey, {
-      recipients: [recipient],
-      order: order || { id: orderId },
-      payload: {
-        message,
-        order_id: order?.id || orderId || null,
-        order_number: orderNumber,
-        note_text: message,
-        actor: {
-          user_id: userId || null,
-          name: actorName,
-          role_on_order: actorRoleOnOrder,
-        },
-        recipient: {
-          user_id: recipient.userId,
-          name: recipientName,
-          role_on_order: recipientRoleOnOrder,
-        },
-        order_participants: {
-          appraiser_id: order?.appraiser_id || null,
-          appraiser_name: order?.appraiser_name || "Appraiser",
-          reviewer_id: order?.reviewer_id || null,
-          reviewer_name: order?.reviewer_name || "Reviewer",
-        },
-        communication: {
-          direction_label: `${actorName} → ${recipientName}`,
-          kind_label: kindLabel,
-        },
-      },
-    });
-  }
-
   async function onSubmit(e) {
     e?.preventDefault?.();
     if (!msg.trim()) return;
@@ -207,11 +87,6 @@ export default function ActivityNoteForm({ orderId, order = null, onSaved }) {
       setBusy(true); setErr(null);
       const actor = await resolveActorMetadata();
       await logNote(orderId, message, { actor });
-      try {
-        await emitNoteNotification(message);
-      } catch (notifyErr) {
-        console.error("[ActivityNoteForm] note notification failed", notifyErr);
-      }
       setMsg("");
       onSaved?.();
     } catch (e2) {
