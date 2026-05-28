@@ -30,6 +30,30 @@ describe("PropertyFields options", () => {
       "Residential",
       "Other",
     ]));
+
+    render(
+      <PropertyFields
+        value={{ property_type: "" }}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("option", { name: "Medical Office" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Self Storage" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Gas Station/C-Store" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Residential" })).toBeInTheDocument();
+  });
+
+  it("preserves legacy selected property type values", () => {
+    render(
+      <PropertyFields
+        value={{ property_type: "Gas Station" }}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("option", { name: "Gas Station (legacy)" })).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Gas Station (legacy)")).toBeInTheDocument();
   });
 
   it("uses V1 report/product options and preserves legacy selected values", () => {

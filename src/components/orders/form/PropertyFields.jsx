@@ -88,6 +88,9 @@ export default function PropertyFields({ value, onChange }) {
             onChange={(e) => onChange({ property_type: e.target.value })}
           >
             <option value="">Select type...</option>
+            {value.property_type && !PROPERTY_TYPES.includes(value.property_type) && (
+              <option value={value.property_type}>{value.property_type} (legacy)</option>
+            )}
             {PROPERTY_TYPES.map((t) => (<option key={t} value={t}>{t}</option>))}
           </select>
         </div>
