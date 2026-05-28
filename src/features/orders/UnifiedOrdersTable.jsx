@@ -21,6 +21,7 @@ import {
 } from "@/lib/services/ordersService";
 import { logNote } from "@/lib/services/activityService";
 import WorkflowNoteModal from "@/components/orders/WorkflowNoteModal";
+import { formatOperationalDate } from "@/lib/utils/dateOnly";
 
 import useColumnsConfig from "@/features/orders/columns/useColumnsConfig";
 import { useToast } from "@/lib/hooks/useToast";
@@ -35,7 +36,7 @@ const mapsHref = (street, cityline) => {
   const full = [street || "", cityline || ""].filter(Boolean).join(", ");
   return full ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(full)}` : null;
 };
-const fmtDate = (d) => (!d ? "-" : isNaN(new Date(d)) ? "-" : new Date(d).toLocaleDateString());
+const fmtDate = (d) => formatOperationalDate(d);
 const orderNumberOf = (row) => {
   const fallbackId = row?.id || row?.order_id;
   return row?.order_number || (fallbackId ? String(fallbackId).slice(0, 8) : "");

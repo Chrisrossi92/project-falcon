@@ -39,6 +39,7 @@ import {
   voidOrderViaRpc,
 } from "@/lib/services/ordersService";
 import { formatPhoneForDisplay } from "@/lib/utils/phoneFormat";
+import { formatOperationalDate } from "@/lib/utils/dateOnly";
 
 /* ---------- helpers ---------- */
 const fmtDate = (s) => (s ? new Date(s).toLocaleDateString() : "-");
@@ -848,8 +849,8 @@ export default function OrderDetail() {
               <SummaryField label="Site Visit">
                 <SiteVisitPicker value={order.site_visit_at} onChange={saveAppt} />
               </SummaryField>
-              <SummaryField label="Review Due" value={fmtDate(reviewDateOf(order))} />
-              <SummaryField label="Final Due" value={fmtDate(order.final_due_at ?? order.due_date)} />
+              <SummaryField label="Review Due" value={formatOperationalDate(reviewDateOf(order))} />
+              <SummaryField label="Final Due" value={formatOperationalDate(order.final_due_at ?? order.due_date)} />
               <SummaryField label="Updated" value={fmtDateTime(order.updated_at)} />
             </OverviewSection>
 

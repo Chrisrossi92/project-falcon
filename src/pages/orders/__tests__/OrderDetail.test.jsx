@@ -342,6 +342,19 @@ describe("OrderDetail site visit save", () => {
     expect(attention.compareDocumentPosition(overview)).toBe(DOCUMENT_POSITION_FOLLOWING);
   });
 
+  it("renders midnight UTC review and final due timestamps as date-only values", () => {
+    orderMock.review_due_at = "2026-06-01T00:00:00+00";
+    orderMock.final_due_at = "2026-06-03T00:00:00+00";
+
+    render(<OrderDetail />);
+
+    const overview = screen.getByLabelText("Operational Overview");
+    expect(within(overview).getByText("6/1/2026")).toBeInTheDocument();
+    expect(within(overview).getByText("6/3/2026")).toBeInTheDocument();
+    expect(within(overview).queryByText("5/31/2026")).not.toBeInTheDocument();
+    expect(within(overview).queryByText("6/2/2026")).not.toBeInTheDocument();
+  });
+
   it("adds document context to the read-only attention summary after files load", async () => {
     render(<OrderDetail />);
 

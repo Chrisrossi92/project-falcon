@@ -11,17 +11,11 @@ import {
   searchOrderFormClientsByName,
 } from "@/features/orders/orderClientOptionsApi";
 import { formatPhoneForDisplay } from "@/lib/utils/phoneFormat";
+import { dateOnlyInputValue } from "@/lib/utils/dateOnly";
 
 // ---- date helpers ----
 const toYMD = (value) => {
-  if (!value) return "";
-  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "";
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  return dateOnlyInputValue(value);
 };
 
 const toLocalDateTimeInput = (value) => {
@@ -348,7 +342,6 @@ export default function OrderForm({ order, onSaved, onCancel }) {
     </form>
   );
 }
-
 
 
 

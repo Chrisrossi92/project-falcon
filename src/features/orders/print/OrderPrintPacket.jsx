@@ -1,4 +1,5 @@
 import { formatPhoneForDisplay } from "@/lib/utils/phoneFormat";
+import { formatOperationalDate } from "@/lib/utils/dateOnly";
 
 const fallback = "-";
 
@@ -6,10 +7,7 @@ const pick = (...values) =>
   values.find((value) => value !== undefined && value !== null && value !== "") ?? null;
 
 const formatDate = (value) => {
-  if (!value) return fallback;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return fallback;
-  return date.toLocaleDateString();
+  return formatOperationalDate(value, fallback);
 };
 
 const formatDateTime = (value) => {

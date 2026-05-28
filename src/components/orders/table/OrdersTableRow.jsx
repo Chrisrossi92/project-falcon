@@ -1,6 +1,7 @@
 // src/components/orders/table/OrdersTableRow.jsx
 import React from "react";
 import OrderRowNextStep from "@/features/orders/attention/OrderRowNextStep";
+import { formatOperationalDate } from "@/lib/utils/dateOnly";
 
 const INTERACTIVE_TAGS = new Set([
   "A", "BUTTON", "SELECT", "INPUT", "TEXTAREA", "LABEL", "svg", "path",
@@ -23,9 +24,7 @@ const money = (n) =>
     : Number(n).toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 
 const fmt = (d) => {
-  if (!d) return "—";
-  const t = typeof d === "string" || d instanceof Date ? new Date(d) : new Date(String(d));
-  return isNaN(t) ? "—" : t.toLocaleDateString();
+  return formatOperationalDate(d, "—");
 };
 
 function DefaultCells({ order }) {
@@ -171,7 +170,6 @@ export default function OrdersTableRow({
     </>
   );
 }
-
 
 
 

@@ -345,6 +345,22 @@ describe("OrderForm", () => {
     expect(screen.queryByText("Special Instructions (Internal)")).not.toBeInTheDocument();
   });
 
+  it("hydrates date-only due fields from midnight UTC timestamps without shifting a day early", () => {
+    render(
+      <OrderForm
+        order={{
+          id: "order-1",
+          order_number: "2026001",
+          review_due_at: "2026-06-01T00:00:00+00",
+          final_due_at: "2026-06-03T00:00:00+00",
+        }}
+      />,
+    );
+
+    expect(screen.getByLabelText("Reviewer Due")).toHaveValue("2026-06-01");
+    expect(screen.getByLabelText("Final Due")).toHaveValue("2026-06-03");
+  });
+
   it("submits site visit appointments as local wall time while keeping due dates date-only", async () => {
     const createdOrder = {
       id: "order-created",

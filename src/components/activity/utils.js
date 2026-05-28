@@ -11,6 +11,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { formatOrderStatusLabel, normalizeOrderStatus } from "@/lib/constants/orderStatus";
+import { formatOperationalDate } from "@/lib/utils/dateOnly";
 
 /** Build a "First L." style display name from name or email */
 export function displayNameFrom(createdByName, createdByEmail, createdById) {
@@ -332,10 +333,8 @@ function statusLabel(raw) {
 }
 
 function fmtDateLocal(raw) {
-  if (!raw) return null;
-  const d = new Date(raw);
-  if (isNaN(d.getTime())) return null;
-  return d.toLocaleDateString();
+  const formatted = formatOperationalDate(raw, "");
+  return formatted || null;
 }
 
 function firstSafeText(...values) {
