@@ -1,4 +1,5 @@
 import { DEFAULT_CALENDAR_POLICY } from "@/lib/policies/defaultCalendarPolicy";
+import { dateOnlyInputValue } from "@/lib/utils/dateOnly";
 import { siteVisitToCalendarStart } from "@/lib/utils/siteVisitDateTime";
 
 export function normalizeCalendarEventType(value) {
@@ -31,6 +32,19 @@ export function formatCalendarEventTime(value) {
 function parseDate(value) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function dateOnlyCalendarStart(value) {
+  const inputValue = dateOnlyInputValue(value);
+  return inputValue ? `${inputValue}T00:00:00` : value;
+}
+
+function calendarStartForType(type, value) {
+  if (!value) return value;
+  const normalizedType = normalizeCalendarEventType(type);
+  return normalizedType === "review" || normalizedType === "final"
+    ? dateOnlyCalendarStart(value)
+    : value;
 }
 
 function daysBetween(start, end) {
@@ -72,7 +86,7 @@ export function deriveCalendarOperationalSignals(order = {}, eventType = "") {
   const type = normalizeCalendarEventType(eventType);
   const siteVisit = order.site_visit_at || order.site_visit_date || null;
   const reviewDue = order.review_due_at || order.review_due_date || null;
-  const finalDue = order.final_due_at || order.final_due_date || order.due_date || null;
+  const finalDue = order.final_due_at || order.client_due_at || order.final_due_date || order.due_date || null;
   const signals = [];
 
   if ((type === "review" || type === "final") && !siteVisit && (reviewDue || finalDue)) {
@@ -120,8 +134,10 @@ export function normalizeCalendarEvent(row = {}, options = {}) {
   const type = normalizeCalendarEventType(row.type || row.event_type || row.kind || options.type);
   const orderId = orderIdOf(row);
   const orderNumber = orderNumberOf(row);
-  const startValue = row.start || row.start_at || row.at || options.start || null;
-  const endValue = row.end || row.end_at || options.end || startValue;
+  const rawStartValue = row.start || row.start_at || row.at || options.start || null;
+  const startValue = calendarStartForType(type, rawStartValue);
+  const rawEndValue = row.end || row.end_at || options.end || rawStartValue;
+  const endValue = calendarStartForType(type, rawEndValue) || startValue;
   const sourceField = row.sourceField || row.source_field || options.sourceField || null;
   const street = row.street || streetAddressOf(row);
   const address = row.fullAddress || row.full_address || fullAddressOf(row, { includePostal: options.includePostal !== false }) || street;
@@ -176,22 +192,30 @@ export function normalizeCalendarEvent(row = {}, options = {}) {
 
 export function calendarEventsFromOrder(order = {}, options = {}) {
   const orderId = orderIdOf(order);
+  const finalDue = order.final_due_at || order.client_due_at || order.final_due_date || order.due_date;
+  const finalSourceField = order.final_due_at
+    ? "final_due_at"
+    : order.client_due_at
+    ? "client_due_at"
+    : order.final_due_date
+    ? "final_due_date"
+    : "due_date";
   const eventSpecs = [
     { type: "site", start: order.site_visit_at || order.site_visit_date, sourceField: order.site_visit_at ? "site_visit_at" : "site_visit_date" },
     { type: "review", start: order.review_due_at || order.review_due_date, sourceField: order.review_due_at ? "review_due_at" : "review_due_date" },
-    { type: "final", start: order.final_due_at || order.final_due_date || order.due_date, sourceField: order.final_due_at ? "final_due_at" : order.final_due_date ? "final_due_date" : "due_date" },
+    { type: "final", start: finalDue, sourceField: finalSourceField },
   ];
 
   return eventSpecs
     .filter((spec) => spec.start)
     .map((spec) => {
       const siteStart = spec.type === "site" ? siteVisitToCalendarStart(spec.start) : null;
-      const when = siteStart ? new Date(siteStart) : new Date(spec.start);
-      const start = siteStart || (Number.isNaN(when.getTime()) ? spec.start : when.toISOString());
+      const start = siteStart || calendarStartForType(spec.type, spec.start);
+      const when = new Date(start);
       return normalizeCalendarEvent(
         {
           ...order,
-          id: `${orderId || "order"}-${spec.type}-${Number.isNaN(when.getTime()) ? spec.start : when.getTime()}`,
+          id: `${orderId || "order"}-${spec.type}-${Number.isNaN(when.getTime()) ? start : when.getTime()}`,
           type: spec.type,
           start,
           end: start,
