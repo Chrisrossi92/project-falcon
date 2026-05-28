@@ -50,6 +50,15 @@ describe("activity note notification fanout", () => {
     expect(migration).toContain("v_recipient_kinds := array['appraiser', 'reviewer']");
   });
 
+  it("uses the note actor and a short excerpt for notification title/body", () => {
+    expect(migration).toContain("if p_event_type = 'note.added' then");
+    expect(migration).toContain("v_note_excerpt := nullif(btrim(coalesce(v_payload->>'note_text', v_payload->>'message', '')), '')");
+    expect(migration).toContain("char_length(v_note_excerpt) > 150");
+    expect(migration).toContain("v_note_excerpt := left(v_note_excerpt, 147) || '...'");
+    expect(migration).toContain("v_title := coalesce(nullif(v_payload #>> '{actor,name}', ''), 'Someone') || ' added a note'");
+    expect(migration).toContain("v_body := coalesce(v_note_excerpt, 'A note was added to this order.')");
+  });
+
   it("keeps note links order-safe and email preference gated", () => {
     expect(enrichedNotificationMigration).toContain("'/orders/' || v_order.id::text");
     expect(enrichedNotificationMigration).toContain("'link_path', '/orders/' || v_order.id::text");

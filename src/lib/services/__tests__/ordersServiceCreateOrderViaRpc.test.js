@@ -908,15 +908,29 @@ describe("getOrder archived readback", () => {
       status: "in_progress",
       is_archived: true,
     };
+    const ordersRow = {
+      id: "order-1",
+      appraiser_fee: 510,
+    };
     const single = vi.fn().mockResolvedValue({ data: archivedOrder, error: null });
-    const eq = vi.fn(() => ({ single }));
-    const select = vi.fn(() => ({ eq }));
-    supabaseMock.from.mockReturnValue({ select });
+    const maybeSingle = vi.fn().mockResolvedValue({ data: ordersRow, error: null });
+    const viewEq = vi.fn(() => ({ single }));
+    const ordersEq = vi.fn(() => ({ maybeSingle }));
+    const viewSelect = vi.fn(() => ({ eq: viewEq }));
+    const ordersSelect = vi.fn(() => ({ eq: ordersEq }));
+    supabaseMock.from
+      .mockReturnValueOnce({ select: viewSelect })
+      .mockReturnValueOnce({ select: ordersSelect });
 
-    await expect(getOrder("order-1")).resolves.toBe(archivedOrder);
+    await expect(getOrder("order-1")).resolves.toEqual({
+      ...archivedOrder,
+      ...ordersRow,
+    });
 
     expect(supabaseMock.from).toHaveBeenCalledWith("v_orders_frontend_v4");
-    expect(select.mock.calls[0][0]).toContain("is_archived");
-    expect(eq).toHaveBeenCalledWith("id", "order-1");
+    expect(supabaseMock.from).toHaveBeenCalledWith("orders");
+    expect(viewSelect.mock.calls[0][0]).toContain("is_archived");
+    expect(viewEq).toHaveBeenCalledWith("id", "order-1");
+    expect(ordersEq).toHaveBeenCalledWith("id", "order-1");
   });
 });

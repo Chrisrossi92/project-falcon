@@ -46,6 +46,9 @@ const orderMock = vi.hoisted(() => ({
   review_due_at: "2026-05-22T12:00:00.000Z",
   final_due_at: "2026-05-29T12:00:00.000Z",
   due_date: null,
+  split_pct: 42.5,
+  base_fee: 1200,
+  appraiser_fee: 510,
 }));
 const DOCUMENT_POSITION_FOLLOWING = 4;
 
@@ -174,6 +177,10 @@ describe("OrderDetail site visit save", () => {
       last_review_activity_at: null,
       final_due_at: "2026-05-29T12:00:00.000Z",
       due_date: null,
+      split_pct: 42.5,
+      base_fee: 1200,
+      appraiser_fee: 510,
+      access_notes: "Unsupported V1 access text",
       notes: "Inspection access confirmed. Bring gate code and call contact on arrival.",
     });
     refreshMock.mockReset();
@@ -309,20 +316,25 @@ describe("OrderDetail site visit save", () => {
     expect(within(overview).getByText("Avery Appraiser")).toBeInTheDocument();
     expect(within(overview).getByText("Reviewer")).toBeInTheDocument();
     expect(within(overview).getByText("Riley Reviewer")).toBeInTheDocument();
-    expect(within(overview).getByText("Property Contact / Access")).toBeInTheDocument();
+    expect(within(overview).getByText("Property Contact")).toBeInTheDocument();
     expect(within(overview).getByText("Contact")).toBeInTheDocument();
     expect(within(overview).getByText("Casey Contact")).toBeInTheDocument();
     expect(within(overview).getByText("Contact Phone")).toBeInTheDocument();
     expect(within(overview).getByText("555-123-4567")).toBeInTheDocument();
     expect(within(overview).getByText("Split %")).toBeInTheDocument();
+    expect(within(overview).getByText("42.5")).toBeInTheDocument();
     expect(within(overview).getByText("Base Fee")).toBeInTheDocument();
+    expect(within(overview).getByText("$1,200.00")).toBeInTheDocument();
     expect(within(overview).getByText("Appraiser Fee")).toBeInTheDocument();
+    expect(within(overview).getByText("$510.00")).toBeInTheDocument();
+    expect(within(overview).queryByText("Property Contact / Access")).not.toBeInTheDocument();
     expect(within(overview).queryByText("Client Contact")).not.toBeInTheDocument();
     expect(within(overview).queryByText("Client Contact Phone")).not.toBeInTheDocument();
     expect(within(overview).queryByText("Client Contact Email")).not.toBeInTheDocument();
     expect(within(overview).queryByText("Property Contact Email")).not.toBeInTheDocument();
 
     expect(screen.getByText("Activity")).toBeInTheDocument();
+    expect(screen.queryByText("Unsupported V1 access text")).not.toBeInTheDocument();
     expect(screen.queryByText("Activity / Communication History")).not.toBeInTheDocument();
     const attention = screen.getByLabelText("Order attention summary");
     expect(attention).toBeInTheDocument();

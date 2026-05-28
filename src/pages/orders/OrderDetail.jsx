@@ -861,7 +861,7 @@ export default function OrderDetail() {
               <SummaryField label="Appraiser Fee" value={money(order.appraiser_fee)} />
             </OverviewSection>
 
-            <OverviewSection title="Property Contact / Access" className="lg:col-span-12">
+            <OverviewSection title="Property Contact" className="lg:col-span-12">
               <SummaryField label="Contact" value={contactName} />
               <SummaryField label="Contact Phone" value={contactPhone} />
             </OverviewSection>
@@ -940,7 +940,7 @@ export default function OrderDetail() {
                 Notes
               </div>
               <div className="max-h-72 overflow-y-auto rounded-md border border-slate-100 bg-slate-50/40 p-3 text-sm text-gray-800 whitespace-pre-wrap">
-                {order.access_notes || order.notes || "-"}
+                {order.notes || "-"}
               </div>
             </WorkspaceSurface>
           </div>
