@@ -42,7 +42,7 @@ function getMemberColor(member) {
 }
 
 function getMemberName(member) {
-  return member?.display_name || member?.full_name || member?.email || "Team member";
+  return member?.full_name || member?.name || member?.display_name || member?.email || "Team member";
 }
 
 function statusLabel(status) {

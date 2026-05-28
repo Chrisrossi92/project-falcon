@@ -276,6 +276,46 @@ describe("UsersIndex readability", () => {
     expect(within(appraiserCard).getByText("1 active role")).toBeInTheDocument();
   });
 
+  it("uses the Users member-card name priority without changing compact display-name surfaces", async () => {
+    membersApiMock.listCompanyMembers.mockResolvedValue([
+      {
+        ...reviewerMember,
+        user_id: "user-full-name",
+        membership_id: "membership-full-name",
+        full_name: "Michael Full Name",
+        name: "Michael Name",
+        display_name: "Mike Display",
+        email: "michael@example.com",
+      },
+      {
+        ...reviewerMember,
+        user_id: "user-name",
+        membership_id: "membership-name",
+        display_name: "Pam Display",
+        name: "Pam Name",
+        email: "pam@example.com",
+      },
+      {
+        ...reviewerMember,
+        user_id: "user-email",
+        membership_id: "membership-email",
+        display_name: "",
+        name: "",
+        full_name: "",
+        email: "fallback@example.com",
+      },
+    ]);
+
+    renderUsersIndex();
+
+    await screen.findByText("Active Team Members");
+    expect(memberArticle("Michael Full Name")).not.toBeNull();
+    expect(memberArticle("Pam Name")).not.toBeNull();
+    expect(memberArticle("fallback@example.com")).not.toBeNull();
+    expect(screen.queryByText("Mike Display")).not.toBeInTheDocument();
+    expect(screen.queryByText("Pam Display")).not.toBeInTheDocument();
+  });
+
   it("renders pending invitations with status help and role primary labels", async () => {
     renderUsersIndex();
 
