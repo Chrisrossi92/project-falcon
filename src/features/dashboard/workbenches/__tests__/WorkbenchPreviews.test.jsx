@@ -135,6 +135,28 @@ describe("passive workbench previews", () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
+  it("renders active worklist due-date aliases without local timezone day drift", () => {
+    render(
+      <AppraiserWorkbenchPreview
+        rows={[
+          {
+            id: "assigned-1",
+            order_number: "CF-1001",
+            status: "in_review",
+            final_due_date: "2026-06-03T00:00:00+00",
+            review_due_date: "2026-06-01T00:00:00+00",
+          },
+        ]}
+      />,
+    );
+
+    const activeOrders = screen.getByRole("region", { name: "Active Orders" });
+    expect(within(activeOrders).getByText("Jun 3")).toBeInTheDocument();
+    expect(screen.getAllByText("Review due Jun 1.").length).toBeGreaterThan(0);
+    expect(screen.queryByText("May 31")).not.toBeInTheDocument();
+    expect(screen.queryByText("Jun 2")).not.toBeInTheDocument();
+  });
+
   it("renders reviewer-native Review Queue copy from provided rows", () => {
     render(
       <ReviewerWorkbenchPreview

@@ -1,4 +1,5 @@
 import { WorkspaceSurface } from "@/components/workspace/WorkspaceSurface";
+import { dateOnlyInputValue } from "../../../lib/utils/dateOnly";
 
 const EMPTY_ROWS = Object.freeze([]);
 const DUE_SOON_DAYS = 7;
@@ -45,7 +46,8 @@ function getDueDate(row) {
   const rawDate = getDateValue(row);
   if (!rawDate) return null;
 
-  const dueDate = new Date(rawDate);
+  const inputValue = dateOnlyInputValue(rawDate);
+  const dueDate = inputValue ? new Date(`${inputValue}T00:00:00`) : new Date(rawDate);
   return Number.isNaN(dueDate.getTime()) ? null : dueDate;
 }
 
@@ -53,7 +55,8 @@ function getFirstDate(row, keys) {
   for (const key of keys) {
     const rawDate = row?.[key];
     if (!rawDate) continue;
-    const date = new Date(rawDate);
+    const inputValue = dateOnlyInputValue(rawDate);
+    const date = inputValue ? new Date(`${inputValue}T00:00:00`) : new Date(rawDate);
     if (!Number.isNaN(date.getTime())) return date;
   }
   return null;

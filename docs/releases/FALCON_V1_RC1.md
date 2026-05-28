@@ -89,6 +89,16 @@
 - Users page member cards prefer `full_name`, then `name`, then `display_name`, then email.
 - Manual scripts were prepared for RC1 blank-slate test data cleanup and temporary internal pilot email muting.
 
+## RC1 Pilot Patches
+
+### Due Date Timezone Rendering Fix
+
+- Fixed operational due-date rendering drift caused by UTC timestamp conversion.
+- Date-only operational fields were previously rendering one day early in Eastern time when formatted through local timezone conversion.
+- Added centralized date-only formatting utility and regression coverage.
+- No backend/schema changes.
+- Affected surfaces: Orders table, order detail, order form hydration, activity timeline, and print packet.
+
 ## Validation Summary
 
 - Tests: focused RC1 test files passed, and full test suite passed during RC stabilization.

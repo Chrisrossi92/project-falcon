@@ -3,9 +3,9 @@ import { Link } from "react-router-dom";
 import SiteVisitPicker from "@/components/dates/SiteVisitPicker";
 import SmartActionsControl from "@/features/orders/components/SmartActionsControl";
 import { getSmartOrderActions } from "@/features/orders/smartActions";
+import { formatOperationalDate } from "@/lib/utils/dateOnly";
 
-const fmtDate = (d) =>
-  !d ? "-" : isNaN(new Date(d)) ? "-" : new Date(d).toLocaleDateString();
+const fmtDate = (d) => formatOperationalDate(d);
 
 const formatCompactSiteVisit = (date) =>
   date.toLocaleString(undefined, {
@@ -138,8 +138,8 @@ const datesColumnBase = {
   header: () => "Dates",
   cell: (order, { isAppraiser = false, onSetSiteVisit } = {}) => {
     const site = order?.site_visit_at ?? order?.site_visit_date ?? null;
-    const rev = order?.review_due_at ?? null;
-    const fin = order?.final_due_at ?? null;
+    const rev = order?.review_due_at ?? order?.review_due_date ?? null;
+    const fin = order?.final_due_at ?? order?.final_due_date ?? order?.due_date ?? null;
     return (
       <div className="space-y-1.5 text-[12px] leading-tight">
         <div className="flex items-center justify-between gap-2 whitespace-nowrap rounded-lg bg-slate-50/70 px-2 py-1" title={site || ""}>

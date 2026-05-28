@@ -54,4 +54,18 @@ describe("ordersColumns date cell", () => {
 
     await waitFor(() => expect(onSetSiteVisit).toHaveBeenCalledWith(order, "2026-05-20T09:15:00"));
   });
+
+  it("renders due-date timestamp aliases without local timezone day drift", () => {
+    renderDatesCell({
+      id: "order-1",
+      site_visit_at: null,
+      review_due_date: "2026-06-01T00:00:00+00",
+      final_due_date: "2026-06-03T00:00:00+00",
+    });
+
+    expect(screen.getByText("6/1/2026")).toBeInTheDocument();
+    expect(screen.getByText("6/3/2026")).toBeInTheDocument();
+    expect(screen.queryByText("5/31/2026")).not.toBeInTheDocument();
+    expect(screen.queryByText("6/2/2026")).not.toBeInTheDocument();
+  });
 });

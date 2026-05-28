@@ -740,9 +740,11 @@ export default function UnifiedOrdersTable({
                         // Status column special rendering
                         if (c.key === "status") {
                           const rawStatus = normalizeOrderStatus(o.status_normalized || o.status);
+                          const reviewDue = o.review_due_at ?? o.review_due_date ?? null;
+                          const finalDue = o.final_due_at ?? o.final_due_date ?? o.due_date ?? null;
                           const dueDates = [
-                            o.review_due_at ? `Review: ${fmtDate(o.review_due_at)}` : "",
-                            o.final_due_at ? `Final: ${fmtDate(o.final_due_at)}` : "",
+                            reviewDue ? `Review: ${fmtDate(reviewDue)}` : "",
+                            finalDue ? `Final: ${fmtDate(finalDue)}` : "",
                           ].filter(Boolean);
                           return (
                             <div key={c.key} className="flex flex-col gap-1">

@@ -46,8 +46,8 @@ function DefaultCells({ order }) {
 
   const fee = order?.fee_amount ?? order?.feeAmount ?? order?.fee;
 
-  const reviewDue = order?.review_due_at || order?.reviewDueAt;
-  const finalDue = order?.final_due_at || order?.finalDueAt;
+  const reviewDue = order?.review_due_at || order?.review_due_date || order?.reviewDueAt;
+  const finalDue = order?.final_due_at || order?.final_due_date || order?.due_date || order?.finalDueAt;
 
   return (
     <div
@@ -170,7 +170,6 @@ export default function OrdersTableRow({
     </>
   );
 }
-
 
 
 
