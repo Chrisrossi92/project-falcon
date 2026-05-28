@@ -1,5 +1,6 @@
 // src/lib/mappers/orderMapper.js
 import { normalizeOrderStatus } from "@/lib/constants/orderStatus";
+import { formatPhoneForDisplay } from "@/lib/utils/phoneFormat";
 
 /**
  * @typedef {Object} OrderFrontend
@@ -145,7 +146,7 @@ export function mapOrderRow(row = {}) {
     managing_amc_id: row.managing_amc_id ?? null,
     appraiser_id: row.appraiser_id || null,
     appraiser_name: row.appraiser_name || null,
-    reviewer_id: row.reviewer_id || null,
+    reviewer_id: row.reviewer_id || row.current_reviewer_id || null,
     reviewer_name: row.reviewer_name || null,
     assigned_to: row.assigned_to ?? row.appraiser_id ?? null,
     address_line1: addressLine1,
@@ -183,15 +184,15 @@ export function mapOrderRow(row = {}) {
     created_at: row.created_at ?? null,
     updated_at: row.updated_at ?? null,
     property_contact_name: row.property_contact_name ?? null,
-    property_contact_phone: row.property_contact_phone ?? null,
+    property_contact_phone: row.property_contact_phone ? formatPhoneForDisplay(row.property_contact_phone) : null,
     entry_contact_name: row.entry_contact_name ?? null,
-    entry_contact_phone: row.entry_contact_phone ?? null,
+    entry_contact_phone: row.entry_contact_phone ? formatPhoneForDisplay(row.entry_contact_phone) : null,
     access_notes: row.access_notes ?? null,
     client_contact_id: row.client_contact_id ?? null,
     client_contact_name: row.client_contact_name ?? null,
     client_contact_title: row.client_contact_title ?? null,
     client_contact_email: row.client_contact_email ?? null,
-    client_contact_phone: row.client_contact_phone ?? null,
+    client_contact_phone: row.client_contact_phone ? formatPhoneForDisplay(row.client_contact_phone) : null,
     notes: row.notes ?? null,
   };
 }

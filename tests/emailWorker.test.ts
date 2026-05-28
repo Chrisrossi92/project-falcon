@@ -60,7 +60,7 @@ describe("email queue worker", () => {
     expect(JSON.parse(String(fetchImpl.mock.calls[0][1]?.body))).toMatchObject({
       from: "Falcon <no-reply@example.com>",
       to: "appraiser@example.com",
-      subject: "New Order Assigned - 2026004",
+      subject: "You've been assigned Order 2026004",
     });
     expect(supabase.rpc).toHaveBeenCalledWith("rpc_mark_email_sent_v1", { p_id: "email-1" });
     expect(supabase.rpc).not.toHaveBeenCalledWith("rpc_mark_email_outbox_sent", expect.anything());
@@ -170,5 +170,205 @@ describe("email queue worker", () => {
 
     expect(rendered.text).toContain("https://continentalres.com/orders/order-7");
     expect(rendered.html).toContain("https://continentalres.com/orders/order-7");
+  });
+
+  it("renders appraiser assignment emails with useful order context", () => {
+    const rendered = renderEmailQueueRow(
+      {
+        id: "email-assignment",
+        to_email: "appraiser@example.com",
+        template: "order.assigned_appraiser",
+        payload: {
+          order_id: "order-5",
+          order_number: "2026005",
+          property_address: "1505 Monroe Street",
+          client_name: "Continental Bank",
+          report_type: "Appraisal",
+          property_type: "Retail",
+          property_contact_name: "Test Property Contact",
+          property_contact_phone: "555-123-4567",
+          site_visit_at: "2026-06-03T10:30:00",
+          review_due_at: "2026-06-05T17:00:00",
+          final_due_at: "2026-06-08T17:00:00",
+          reviewer_name: "Riley Reviewer",
+          link_path: "/orders/order-5",
+        },
+      },
+      "https://continentalres.com"
+    );
+
+    expect(rendered.subject).toBe("You've been assigned Order 2026005 - 1505 Monroe Street");
+    expect(rendered.text).toContain("**Client:** Continental Bank");
+    expect(rendered.text).toContain("Property contact: Test Property Contact · 555-123-4567");
+    expect(rendered.text).not.toContain("**Contact phone:**");
+    expect(rendered.text).toContain("**Site visit:** Wednesday, June 3, 2026 at 10:30 AM");
+    expect(rendered.text).toContain("**Review due:** Friday, June 5, 2026");
+    expect(rendered.text).toContain("**Final due:** Monday, June 8, 2026");
+    expect(rendered.text).not.toContain("2026-06-03T10:30:00");
+    expect(rendered.text).not.toContain("2026-06-05T17:00:00");
+    expect(rendered.text).toContain("**Reviewer:** Riley Reviewer");
+    expect(rendered.text).toContain(
+      "Please coordinate access with the contact above and let us know if you have any questions.",
+    );
+    expect(rendered.html).toContain("Falcon");
+    expect(rendered.html).toContain("Order summary");
+    expect(rendered.html).toContain("Test Property Contact · 555-123-4567");
+    expect(rendered.html).not.toContain("Contact phone");
+    expect(rendered.html).toContain("Open Order");
+    expect(rendered.html).toContain("Powered by Falcon &middot; Continental Real Estate Solutions");
+    expect(rendered.html).not.toContain("2026-06-03T10:30:00");
+    expect(rendered.text).toContain("https://continentalres.com/orders/order-5");
+  });
+
+  it("renders legacy APPRAISER_ASSIGNED rows with enriched order payload fields", () => {
+    const rendered = renderEmailQueueRow(
+      {
+        id: "email-legacy-assignment",
+        to_email: "appraiser@example.com",
+        template: "APPRAISER_ASSIGNED",
+        payload: {
+          order_id: "order-2008",
+          order_number: "2026008",
+          address: "2008 Legacy Lane",
+          client_name: "Legacy Client",
+          property_contact_name: "Pat Property",
+          property_contact_phone: "555-2008",
+          site_visit_at: "2026-06-08T11:00:00",
+          review_due_at: "2026-06-09",
+          final_due_at: "2026-06-10",
+          report_type: "Full appraisal",
+          property_type: "Industrial",
+          appraiser_name: "Alex Appraiser",
+          reviewer_name: "Riley Reviewer",
+          link_path: "/orders/order-2008",
+        },
+      },
+      "https://continentalres.com"
+    );
+
+    expect(rendered.subject).toBe("You've been assigned Order 2026008 - 2008 Legacy Lane");
+    expect(rendered.text).toContain("**Property:** 2008 Legacy Lane");
+    expect(rendered.text).toContain("**Client:** Legacy Client");
+    expect(rendered.text).toContain("Property contact: Pat Property · 555-2008");
+    expect(rendered.text).toContain("**Site visit:** Monday, June 8, 2026 at 11:00 AM");
+    expect(rendered.text).toContain("**Final due:** Wednesday, June 10, 2026");
+    expect(rendered.html).toContain("Powered by Falcon &middot; Continental Real Estate Solutions");
+  });
+
+  it("renders assignment property contact cleanly when name or phone is missing", () => {
+    const withNameOnly = renderEmailQueueRow({
+      id: "email-contact-name-only",
+      to_email: "appraiser@example.com",
+      template: "APPRAISER_ASSIGNED",
+      payload: {
+        order_number: "2026012",
+        property_contact_name: "Name Only",
+      },
+    });
+    expect(withNameOnly.text).toContain("Property contact: Name Only");
+    expect(withNameOnly.html).toContain("Name Only");
+    expect(withNameOnly.text).not.toContain("Name Only ·");
+
+    const withPhoneOnly = renderEmailQueueRow({
+      id: "email-contact-phone-only",
+      to_email: "appraiser@example.com",
+      template: "APPRAISER_ASSIGNED",
+      payload: {
+        order_number: "2026013",
+        property_contact_phone: "555-000-1212",
+      },
+    });
+    expect(withPhoneOnly.text).toContain("Property contact: 555-000-1212");
+    expect(withPhoneOnly.html).toContain("555-000-1212");
+    expect(withPhoneOnly.text).not.toContain("· 555-000-1212");
+  });
+
+  it("renders workflow emails for sent to review, revisions, and review cleared", () => {
+    const basePayload = {
+      order_id: "order-8",
+      order_number: "2026008",
+      property_address: "44 Review Road",
+      client_name: "North Client",
+      appraiser_name: "Alex Appraiser",
+      reviewer_name: "Riley Reviewer",
+      final_due_at: "2026-06-10",
+      link_path: "/orders/order-8",
+    };
+
+    const sentToReview = renderEmailQueueRow({
+      id: "email-review",
+      to_email: "reviewer@example.com",
+      template: "order.sent_to_review",
+      payload: { ...basePayload, note_text: "Ready for review." },
+    });
+    expect(sentToReview.subject).toBe("Order 2026008 - 44 Review Road is ready for review");
+    expect(sentToReview.text).toContain("An appraiser submitted this report for review.");
+    expect(sentToReview.text).toContain("Ready for review.");
+
+    const revisions = renderEmailQueueRow({
+      id: "email-revisions",
+      to_email: "appraiser@example.com",
+      template: "order.sent_back_to_appraiser",
+      payload: { ...basePayload, note_text: "Please update the sales grid." },
+    });
+    expect(revisions.subject).toBe("Revisions requested for Order 2026008 - 44 Review Road");
+    expect(revisions.text).toContain("Please update the sales grid.");
+    expect(revisions.text).toContain("resubmit when ready");
+
+    const cleared = renderEmailQueueRow({
+      id: "email-cleared",
+      to_email: "admin@example.com",
+      template: "order.review_cleared",
+      payload: basePayload,
+    });
+    expect(cleared.subject).toBe("Review cleared for Order 2026008 - 44 Review Road");
+    expect(cleared.text).toContain("Continue the client-release workflow");
+  });
+
+  it("renders date, site visit, and note emails with safe fallbacks", () => {
+    const dates = renderEmailQueueRow({
+      id: "email-dates",
+      to_email: "appraiser@example.com",
+      template: "order.dates_updated",
+      payload: {
+        order_number: "2026009",
+        review_due_at: "2026-06-11",
+        final_due_at: "2026-06-13",
+      },
+    });
+    expect(dates.subject).toBe("Dates updated for Order 2026009");
+    expect(dates.text).toContain("**Property:** Not provided");
+    expect(dates.text).toContain("**Review due:** Thursday, June 11, 2026");
+    expect(dates.text).toContain("**Site visit:** Not set");
+
+    const site = renderEmailQueueRow({
+      id: "email-site",
+      to_email: "appraiser@example.com",
+      template: "order.site_visit_updated",
+      payload: {
+        order_number: "2026010",
+        property_address: "10 Site Way",
+        site_visit_at: "2026-06-03T11:00:00",
+      },
+    });
+    expect(site.subject).toBe("Site visit updated for Order 2026010 - 10 Site Way");
+    expect(site.text).toContain("**Site visit:** Wednesday, June 3, 2026 at 11:00 AM");
+
+    const note = renderEmailQueueRow({
+      id: "email-note",
+      to_email: "reviewer@example.com",
+      template: "note.added",
+      payload: {
+        order_number: "2026011",
+        property_address: "11 Note Lane",
+        actor: { name: "Alex Appraiser" },
+        note_text: "Needs review. <script>bad()</script>",
+      },
+    });
+    expect(note.subject).toBe("New note on Order 2026011 - 11 Note Lane");
+    expect(note.text).toContain("Alex Appraiser added a note");
+    expect(note.text.length).toBeLessThan(900);
+    expect(note.html).toContain("&lt;script&gt;");
+    expect(note.text).not.toContain("[Open Order]()");
   });
 });

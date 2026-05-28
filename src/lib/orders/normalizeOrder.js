@@ -29,8 +29,10 @@ export default function normalizeOrder(o = {}) {
     cityLine,
 
     propertyType: o.property_type ?? null,
+    reportType: o.report_type ?? null,
 
     appraiserName: o.appraiser_name ?? o.assigned_appraiser_name ?? o.appraiser?.full_name ?? null,
+    reviewerName: o.reviewer_name ?? o.current_reviewer_name ?? o.reviewer?.full_name ?? null,
 
     feeAmount:     num(o.fee_amount ?? o.fee ?? o.base_fee),
     baseFee:       num(o.base_fee),

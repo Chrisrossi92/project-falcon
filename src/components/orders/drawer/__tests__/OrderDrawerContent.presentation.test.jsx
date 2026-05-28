@@ -60,6 +60,8 @@ describe("OrderDrawerContent presentation", () => {
           status: "in_review",
           client_name: "Acme Lending",
           appraiser_name: "Avery Appraiser",
+          reviewer_id: "reviewer-1",
+          reviewer_name: "Riley Reviewer",
           address: "123 Main St",
           city: "Atlanta",
           state: "GA",
@@ -76,6 +78,8 @@ describe("OrderDrawerContent presentation", () => {
           status: "in_review",
           client_name: "Acme Lending",
           appraiser_name: "Avery Appraiser",
+          reviewer_id: "reviewer-1",
+          reviewer_name: "Riley Reviewer",
           address: "123 Main St",
           city: "Atlanta",
           state: "GA",
@@ -112,6 +116,8 @@ describe("OrderDrawerContent presentation", () => {
     expect(screen.getByText("Order Contacts")).toBeInTheDocument();
     expect(screen.getByText("Client and site contact context")).toBeInTheDocument();
     expect(screen.getByText("Acme Lending")).toBeInTheDocument();
+    expect(screen.getByText("Riley Reviewer")).toBeInTheDocument();
+    expect(screen.getByText("555-0100")).toBeInTheDocument();
     expect(screen.getByText("Location Preview")).toBeInTheDocument();
     expect(screen.getByText("Subject property context")).toBeInTheDocument();
     expect(screen.getByTestId("activity-log")).toHaveTextContent("Activity for order-1 with composer");

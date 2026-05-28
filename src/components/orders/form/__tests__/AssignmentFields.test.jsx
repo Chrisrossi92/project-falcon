@@ -52,6 +52,36 @@ describe("AssignmentFields order number state", () => {
     });
   });
 
+  it("keeps split percent, base fee, and appraiser fee editable", async () => {
+    const onChange = vi.fn();
+
+    render(
+      <AssignmentFields
+        value={{ split_pct: "", base_fee: "", appraiser_fee: "" }}
+        onChange={onChange}
+        isEdit={false}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Split %"), {
+      target: { value: "42.5" },
+    });
+    fireEvent.change(screen.getByLabelText("Base Fee"), {
+      target: { value: "1000" },
+    });
+    fireEvent.change(screen.getByLabelText("Appraiser Fee"), {
+      target: { value: "425" },
+    });
+
+    expect(onChange).toHaveBeenCalledWith({ split_pct: "42.5" });
+    expect(onChange).toHaveBeenCalledWith({ base_fee: "1000" });
+    expect(onChange).toHaveBeenCalledWith({ appraiser_fee: "425" });
+
+    await waitFor(() => {
+      expect(screen.getByText("No active appraisers found.")).toBeInTheDocument();
+    });
+  });
+
   it("shows the existing order number as read-only with an explicit override action in edit mode", () => {
     const onChange = vi.fn();
 

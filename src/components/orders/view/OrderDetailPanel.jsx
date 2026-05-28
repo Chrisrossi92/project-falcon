@@ -1,4 +1,3 @@
-import React from "react";
 import normalizeOrder from "@/lib/orders/normalizeOrder";
 
 const money = (n) =>
@@ -15,11 +14,17 @@ export default function OrderDetailPanel({ order }) {
         <div className="text-xs text-muted-foreground">Appraiser</div>
         <div>{n.appraiserName || "—"}</div>
 
+        <div className="text-xs text-muted-foreground">Reviewer</div>
+        <div>{n.reviewerName || "—"}</div>
+
         <div className="text-xs text-muted-foreground">Fee</div>
         <div>{money(n.feeAmount)}</div>
 
         <div className="text-xs text-muted-foreground">Property Type</div>
         <div>{n.propertyType || "—"}</div>
+
+        <div className="text-xs text-muted-foreground">Report Type</div>
+        <div>{n.reportType || "—"}</div>
 
         <div className="text-xs text-muted-foreground">Address</div>
         <div className="truncate">
@@ -30,8 +35,6 @@ export default function OrderDetailPanel({ order }) {
     </div>
   );
 }
-
-
 
 
 

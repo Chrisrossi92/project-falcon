@@ -73,6 +73,14 @@ describe("V1 notification event coverage", () => {
     "supabase/migrations/20260527093000_notification_v1_event_coverage_order_safe_links.sql",
     "utf8",
   );
+  const emailPayloadMigration = readFileSync(
+    "supabase/migrations/20260527100000_notification_email_payload_enrichment.sql",
+    "utf8",
+  );
+  const assignmentActivityDedupeMigration = readFileSync(
+    "supabase/migrations/20260527110000_v1_assignment_activity_dedupe.sql",
+    "utf8",
+  );
   const policySql = [
     migration,
     readFileSync("supabase/migrations/20260518002000_baseline_static_seed_data.sql", "utf8"),
@@ -108,6 +116,39 @@ describe("V1 notification event coverage", () => {
     expect(migration).toContain("tg_notifications_v1_order_safe_links");
     expect(migration).toContain("NEW.link_path := '/orders/' || v_order_id::text");
     expect(migration).toContain("v1_hidden_surface_link_rerouted");
+  });
+
+  it("enriches backend-owned notification payloads for useful RC1 emails", () => {
+    expect(emailPayloadMigration).toContain("create or replace function public.notify_order_v1_event");
+    expect(emailPayloadMigration).toContain("'property_address', v_property_address");
+    expect(emailPayloadMigration).toContain("'client_name', v_client_name");
+    expect(emailPayloadMigration).toContain("'property_contact_name'");
+    expect(emailPayloadMigration).toContain("'property_contact_phone'");
+    expect(emailPayloadMigration).toContain("'appraiser_name', v_appraiser_name");
+    expect(emailPayloadMigration).toContain("'reviewer_name', v_reviewer_name");
+    expect(emailPayloadMigration).toContain("'site_visit_at', v_order.site_visit_at");
+    expect(emailPayloadMigration).toContain("'review_due_at', v_order.review_due_at");
+    expect(emailPayloadMigration).toContain("'final_due_at', v_order.final_due_at");
+    expect(emailPayloadMigration).toContain("'link_path', '/orders/' || v_order.id::text");
+  });
+
+  it("routes active appraiser assignment trigger through enriched V1 event helper", () => {
+    expect(emailPayloadMigration).toContain("create or replace function public.tg_orders_insert_assignment_notification()");
+    expect(emailPayloadMigration).toContain("v_new_appraiser_id := coalesce(NEW.appraiser_id, NEW.assigned_to)");
+    expect(emailPayloadMigration).toContain("v_old_appraiser_id := coalesce(OLD.appraiser_id, OLD.assigned_to)");
+    expect(emailPayloadMigration).toContain("'order.assigned_appraiser'");
+    expect(emailPayloadMigration).toContain("'order.reassigned_appraiser'");
+    expect(emailPayloadMigration).toContain("after insert or update of appraiser_id, assigned_to, reviewer_id");
+    expect(emailPayloadMigration).toContain("n.type = p_event_type");
+    expect(emailPayloadMigration).toContain("coalesce(n.payload->>'assigned_user_id', '') = coalesce(p_payload->>'assigned_user_id', '')");
+    expect(emailPayloadMigration).not.toContain("'email_template_key'");
+  });
+
+  it("dedupes logical appraiser activity across appraiser_id and assigned_to", () => {
+    expect(assignmentActivityDedupeMigration).toContain("v_old_appraiser_id uuid := coalesce(OLD.appraiser_id, OLD.assigned_to)");
+    expect(assignmentActivityDedupeMigration).toContain("v_new_appraiser_id uuid := coalesce(NEW.appraiser_id, NEW.assigned_to)");
+    expect(assignmentActivityDedupeMigration).toContain("if v_new_appraiser_id is distinct from v_old_appraiser_id then");
+    expect(assignmentActivityDedupeMigration).toContain("'field', 'appraiser'");
   });
 });
 

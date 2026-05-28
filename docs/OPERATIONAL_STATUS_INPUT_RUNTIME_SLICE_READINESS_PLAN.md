@@ -1,5 +1,18 @@
 # Operational Status Input Runtime Slice Readiness Plan
 
+## Falcon V1 RC1 Release Lock
+
+Falcon V1 RC1 is locked under tag `falcon-v1-rc1` for office testing at
+`https://continentalres.com`.
+
+Validation passed for the RC lock: tests, lint, production build, and `git diff --check`.
+The hosted notification/email pipeline is confirmed end-to-end, Vercel Cron is confirmed at
+one-minute cadence, Resend domain verification and sending are confirmed, and no tracked secrets
+remain in the repository.
+
+V2 work is paused until office testing feedback is collected and triaged. The V1.1 backlog is
+limited to bid tracker, `@mentions`, and polish/fixes from testers.
+
 ## Purpose
 
 This document defines the smallest safe runtime implementation path for explicit operational status
@@ -430,4 +443,3 @@ application migrations. The safe validation path is to repair or reset the local
 environment so Storage's managed schema exists, or validate in a disposable hosted-compatible
 Supabase environment. Phase 2E still must pause before UI, signal suppression, mobile execution,
 automation, or notification work.
-

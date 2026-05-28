@@ -1,3 +1,5 @@
+import { formatPhoneForDisplay } from "@/lib/utils/phoneFormat";
+
 const fallback = "-";
 
 const pick = (...values) =>
@@ -136,7 +138,7 @@ export default function OrderPrintPacket({
     (order.postal_code || order.zip ? ` ${order.postal_code || order.zip}` : "");
   const propertyAddress = [addr1, addr2].filter(Boolean).join(", ");
   const contactName = pick(order.property_contact_name, order.entry_contact_name);
-  const contactPhone = pick(order.property_contact_phone, order.entry_contact_phone);
+  const contactPhone = formatPhoneForDisplay(pick(order.property_contact_phone, order.entry_contact_phone));
   const reviewDue = pick(order.review_due_at);
   const finalDue = pick(order.final_due_at, order.due_date);
   const effectiveClientName = pick(clientName, order.client_name);
@@ -214,18 +216,16 @@ export default function OrderPrintPacket({
         <Field label="Address" value={addr1} />
         <Field label="City / State / Postal" value={addr2} />
         <Field label="Property Contact" value={contactName} />
-        <Field label="Contact Phone" value={contactPhone} />
+        <Field label="Property Contact Phone" value={contactPhone} />
         <Field label="Access Notes" value={order.access_notes} wide />
-        <Field label="Internal Notes" value={order.notes} wide />
+        <Field label="Special Instructions" value={order.notes} wide />
       </Section>
 
       <Section title="Client And Participants">
         <Field label="Client" value={effectiveClientName} />
         <Field label="AMC / Lender" value={effectiveAmcName} />
-        <Field label="Borrower" value={order.borrower_name} />
         <Field label="Appraiser" value={effectiveAppraiserName} />
         <Field label="Reviewer" value={order.reviewer_name} />
-        <Field label="Assigned To" value={order.assigned_to_name || order.assignee_name} />
       </Section>
 
       <Section title="Key Dates">

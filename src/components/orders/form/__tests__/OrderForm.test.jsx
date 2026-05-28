@@ -279,7 +279,7 @@ describe("OrderForm", () => {
       target: { value: "Industrial" },
     });
     fireEvent.change(screen.getByLabelText("Report Type"), {
-      target: { value: "Narrative" },
+      target: { value: "Appraisal" },
     });
     fireEvent.change(screen.getByLabelText("Reviewer Due"), {
       target: { value: "2026-06-02" },
@@ -306,7 +306,7 @@ describe("OrderForm", () => {
       target: { value: "Casey Contact" },
     });
     fireEvent.change(screen.getByLabelText("Property Contact Phone"), {
-      target: { value: "555-0100" },
+      target: { value: "(555) 123-4567" },
     });
     fireEvent.submit(screen.getByRole("button", { name: "Create Order" }).closest("form"));
 
@@ -320,7 +320,7 @@ describe("OrderForm", () => {
         client_id: "101",
         client_contact_id: "202",
         property_type: "Industrial",
-        report_type: "Narrative",
+        report_type: "Appraisal",
         review_due_at: "2026-06-02",
         final_due_at: "2026-06-05",
         appraiser_id: "appraiser-1",
@@ -329,13 +329,20 @@ describe("OrderForm", () => {
         base_fee: 1000,
         appraiser_fee: 425,
         entry_contact_name: "Casey Contact",
-        entry_contact_phone: "555-0100",
+        entry_contact_phone: "555-123-4567",
         property_contact_name: "Casey Contact",
-        property_contact_phone: "555-0100",
+        property_contact_phone: "555-123-4567",
         status: "new",
       }),
     );
     expect(onSaved).toHaveBeenCalledWith(createdOrder);
+  });
+
+  it("uses a V1 public special instructions label", () => {
+    render(<OrderForm />);
+
+    expect(screen.getByText("Special Instructions")).toBeInTheDocument();
+    expect(screen.queryByText("Special Instructions (Internal)")).not.toBeInTheDocument();
   });
 
   it("submits site visit appointments as local wall time while keeping due dates date-only", async () => {

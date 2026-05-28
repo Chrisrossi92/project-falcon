@@ -38,6 +38,7 @@ import {
   updateSiteVisitAtViaRpc,
   voidOrderViaRpc,
 } from "@/lib/services/ordersService";
+import { formatPhoneForDisplay } from "@/lib/utils/phoneFormat";
 
 /* ---------- helpers ---------- */
 const fmtDate = (s) => (s ? new Date(s).toLocaleDateString() : "-");
@@ -584,7 +585,7 @@ export default function OrderDetail() {
     (order?.postal_code ? ` ${order.postal_code}` : "");
   const propertyAddress = [addr1, addr2].filter(Boolean).join(", ");
   const contactName = order?.property_contact_name || order?.entry_contact_name || "";
-  const contactPhone = order?.property_contact_phone || order?.entry_contact_phone || "";
+  const contactPhone = formatPhoneForDisplay(order?.property_contact_phone || order?.entry_contact_phone || "");
 
   const copyNo = () => navigator.clipboard?.writeText(titleNo).catch(() => {});
   const handleFilesLoaded = React.useCallback((files) => {

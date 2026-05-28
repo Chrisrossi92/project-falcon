@@ -29,4 +29,23 @@ describe("mapOrderRow", () => {
       }),
     );
   });
+
+  it("falls back to current_reviewer_id and formats phone snapshots", () => {
+    expect(
+      mapOrderRow({
+        id: "order-2",
+        current_reviewer_id: "reviewer-current",
+        property_contact_phone: "(555) 123-4567",
+        entry_contact_phone: "5551230000 x42",
+        client_contact_phone: "1-555-999-0000",
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        reviewer_id: "reviewer-current",
+        property_contact_phone: "555-123-4567",
+        entry_contact_phone: "555-123-0000 x42",
+        client_contact_phone: "555-999-0000",
+      }),
+    );
+  });
 });

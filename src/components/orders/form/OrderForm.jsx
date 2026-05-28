@@ -1,5 +1,5 @@
 // src/components/orders/form/OrderForm.jsx
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ClientFields from "./ClientFields";
 import AssignmentFields from "./AssignmentFields";
@@ -10,6 +10,7 @@ import {
   createOrderFormClient,
   searchOrderFormClientsByName,
 } from "@/features/orders/orderClientOptionsApi";
+import { formatPhoneForDisplay } from "@/lib/utils/phoneFormat";
 
 // ---- date helpers ----
 const toYMD = (value) => {
@@ -65,9 +66,11 @@ function buildOrderPayload(values, { isEdit = false } = {}) {
     report_type: values.report_type || null,
 
     entry_contact_name: values.entry_contact_name || null,
-    entry_contact_phone: values.entry_contact_phone || null,
+    entry_contact_phone: values.entry_contact_phone ? formatPhoneForDisplay(values.entry_contact_phone) : null,
     property_contact_name: values.property_contact_name || values.entry_contact_name || null,
-    property_contact_phone: values.property_contact_phone || values.entry_contact_phone || null,
+    property_contact_phone: values.property_contact_phone || values.entry_contact_phone
+      ? formatPhoneForDisplay(values.property_contact_phone || values.entry_contact_phone)
+      : null,
 
     site_visit_at: values.site_visit_at || null,
     review_due_at: values.review_due_at || null,
@@ -122,7 +125,7 @@ function getInlineClientCreateErrorMessage(error) {
   return "Falcon could not create this client.";
 }
 
-export default function OrderForm({ order, onClose, onSaved, onCancel }) {
+export default function OrderForm({ order, onSaved, onCancel }) {
   const navigate = useNavigate();
   const [values, setValues] = useState({});
   const [isSaving, setIsSaving] = useState(false);
@@ -147,7 +150,7 @@ export default function OrderForm({ order, onClose, onSaved, onCancel }) {
       managing_amc_id: order.managing_amc_id ?? order.amc_id ?? null,
       client_contact_id: order.client_contact_id ?? null,
       appraiser_id: order.appraiser_id ?? null,
-      reviewer_id: order.reviewer_id ?? null,
+      reviewer_id: order.reviewer_id ?? order.current_reviewer_id ?? null,
       split_pct: order.split_pct ?? "",
       base_fee: order.base_fee ?? "",
       appraiser_fee: order.appraiser_fee ?? "",
@@ -161,9 +164,9 @@ export default function OrderForm({ order, onClose, onSaved, onCancel }) {
       review_due_at: toYMD(order.review_due_at),
       final_due_at: toYMD(order.final_due_at ?? order.due_date),
       property_contact_name: order.property_contact_name ?? "",
-      property_contact_phone: order.property_contact_phone ?? "",
+      property_contact_phone: formatPhoneForDisplay(order.property_contact_phone ?? ""),
       entry_contact_name: order.entry_contact_name ?? "",
-      entry_contact_phone: order.entry_contact_phone ?? "",
+      entry_contact_phone: formatPhoneForDisplay(order.entry_contact_phone ?? ""),
       access_notes: order.access_notes ?? "",
       notes: order.notes ?? "",
     });
@@ -331,7 +334,7 @@ export default function OrderForm({ order, onClose, onSaved, onCancel }) {
         />
         <div className="col-span-1 xl:col-span-2 space-y-2">
           <label className="block text-sm font-medium text-gray-700">
-            Special Instructions (Internal)
+            Special Instructions
           </label>
           <textarea
             name="notes"
@@ -345,9 +348,6 @@ export default function OrderForm({ order, onClose, onSaved, onCancel }) {
     </form>
   );
 }
-
-
-
 
 
 

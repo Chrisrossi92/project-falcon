@@ -1,5 +1,3 @@
-import React from "react";
-
 function Label({ children }) { return <label className="block text-xs font-medium text-gray-600 mb-1">{children}</label>; }
 function TextInput(props){ return <input {...props} className={"w-full border rounded px-2 py-1 text-sm "+(props.className||"")} />; }
 function RecommendedCue({ show, children }) {
@@ -12,8 +10,41 @@ function RecommendedCue({ show, children }) {
   );
 }
 
-const PROPERTY_TYPES = ["Industrial","Office","Retail","Multifamily","Land","Mixed-Use","Special Purpose","Other"];
-const REPORT_TYPES   = ["Narrative","Form","Restricted","Review","Other"];
+export const PROPERTY_TYPES = [
+  "Industrial",
+  "Office",
+  "Retail",
+  "Multifamily",
+  "Land",
+  "Mixed-Use",
+  "Special Purpose",
+  "Medical Office",
+  "Self Storage",
+  "Hospitality",
+  "Restaurant",
+  "Auto Service",
+  "Car Wash",
+  "Gas Station/C-Store",
+  "Bank Branch",
+  "School/Daycare",
+  "Religious Facility",
+  "Agricultural",
+  "Residential",
+  "Other",
+];
+export const REPORT_TYPES = [
+  "Appraisal",
+  "Restricted Appraisal",
+  "Construction Draw",
+  "Trip Fee",
+  "Review",
+  "Other",
+];
+const LEGACY_REPORT_TYPE_LABELS = {
+  Narrative: "Narrative",
+  Form: "Form",
+  Restricted: "Restricted",
+};
 
 export default function PropertyFields({ value, onChange }) {
   const needsAddress = !String(value.address_line1 || value.property_address || "").trim();
@@ -68,6 +99,11 @@ export default function PropertyFields({ value, onChange }) {
             onChange={(e) => onChange({ report_type: e.target.value })}
           >
             <option value="">Select report...</option>
+            {value.report_type && !REPORT_TYPES.includes(value.report_type) && (
+              <option value={value.report_type}>
+                {LEGACY_REPORT_TYPE_LABELS[value.report_type] || value.report_type} (legacy)
+              </option>
+            )}
             {REPORT_TYPES.map((t) => (<option key={t} value={t}>{t}</option>))}
           </select>
         </div>

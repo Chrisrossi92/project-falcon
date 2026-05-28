@@ -59,3 +59,8 @@
 - In-app notification rows are created regardless of email preference state.
 - Failed rows remain auditable in `public.email_queue`.
 - Retry UI is deferred; V1 only preserves failed rows and provider error text.
+
+## RC1 Lock
+- `falcon-v1-rc1` confirms the hosted notification/email pipeline end-to-end.
+- Vercel Cron is confirmed at one-minute cadence.
+- Resend domain verification and delivery are confirmed for RC1.

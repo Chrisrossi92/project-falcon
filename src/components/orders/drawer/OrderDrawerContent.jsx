@@ -5,6 +5,7 @@ import ActivityLog from "@/components/activity/ActivityLog";
 import GoogleMapEmbed, { googleMapsEmbedApiKey } from "@/components/maps/GoogleMapEmbed";
 import OperationalInputsReadOnly from "@/features/orders/operational-inputs/OperationalInputsReadOnly";
 import useOrderOperationalInputs from "@/features/orders/operational-inputs/useOrderOperationalInputs";
+import { formatPhoneForDisplay } from "@/lib/utils/phoneFormat";
 
 /** Pull from the normalized v4 view (no legacy fallback). */
 async function fetchViewRow(orderId) {
@@ -21,6 +22,7 @@ async function fetchViewRow(orderId) {
         reviewer_name,
         client_id,
         appraiser_id,
+        reviewer_id,
         address,
         city,
         state,
@@ -229,13 +231,14 @@ export default function OrderDrawerContent({ orderId, order: rowFromTable }) {
       "loan_officer",
       "borrower_name",
     ]) ?? row?.client_name ?? null;
-  const clientContactPhone =
+  const clientContactPhone = formatPhoneForDisplay(
     firstTruthy(row, [
       "client_contact_phone",
       "client_phone",
       "loan_officer_phone",
       "borrower_phone",
-    ]) ?? findByKeyIncludesAll(row, ["client", "phone"]);
+    ]) ?? findByKeyIncludesAll(row, ["client", "phone"])
+  );
   const clientContactEmail =
     firstTruthy(row, [
       "client_contact_email",
@@ -272,7 +275,7 @@ export default function OrderDrawerContent({ orderId, order: rowFromTable }) {
     findByKeyIncludesAll(row, ["phone", "access"]) ??
     "";
 
-  rawPhone = rawPhone == null ? "" : String(rawPhone).trim();
+  rawPhone = formatPhoneForDisplay(rawPhone);
   const telHref =
     rawPhone && /\d/.test(rawPhone)
       ? `tel:${rawPhone.replace(/[^\d+]/g, "")}`
@@ -326,6 +329,14 @@ export default function OrderDrawerContent({ orderId, order: rowFromTable }) {
                 ) : (
                   <div className="text-xs font-medium text-slate-400">Not set</div>
                 )}
+              </div>
+
+              <div className="rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-2">
+                <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Order Team</div>
+                <div className="space-y-1">
+                  <ContactLine label="Appraiser" value={row?.appraiser_name} />
+                  <ContactLine label="Reviewer" value={row?.reviewer_name} />
+                </div>
               </div>
 
               <div className="rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-2">
@@ -403,8 +414,6 @@ function ContactLine({ label, value }) {
     </div>
   );
 }
-
-
 
 
 

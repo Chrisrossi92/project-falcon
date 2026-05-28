@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   listOrderFormClientOptions,
   searchOrderFormClientsByName,
 } from "@/features/orders/orderClientOptionsApi";
+import { formatPhoneForDisplay } from "@/lib/utils/phoneFormat";
 
 function Label({ children }) { return <label className="block text-xs font-medium text-gray-600 mb-1">{children}</label>; }
 function TextInput(props){ return <input {...props} className={"w-full border rounded px-2 py-1 text-sm "+(props.className||"")} />; }
@@ -28,7 +29,7 @@ function SelectedClientContactPreview({ client }) {
 
   const contactName = String(client.contact_name_1 || "").trim();
   const contactEmail = String(client.contact_email_1 || "").trim();
-  const contactPhone = String(client.contact_phone_1 || "").trim();
+  const contactPhone = formatPhoneForDisplay(client.contact_phone_1);
   const hasContact = Boolean(contactName || contactEmail || contactPhone);
 
   if (!hasContact) {
@@ -185,6 +186,7 @@ export default function ClientFields({ value, onChange }) {
             placeholder="(555) 123-4567"
             value={value.entry_contact_phone || ""}
             onChange={(e) => onChange({ entry_contact_phone: e.target.value })}
+            onBlur={(e) => onChange({ entry_contact_phone: formatPhoneForDisplay(e.target.value) })}
           />
         </div>
       </div>

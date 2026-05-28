@@ -321,6 +321,7 @@ export default function AssignmentFields({ value, onChange, isEdit, orderId = nu
         setLoading(false);
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // default split when appraiser is already selected and split is empty
@@ -381,15 +382,27 @@ export default function AssignmentFields({ value, onChange, isEdit, orderId = nu
       <div className="mt-3 grid grid-cols-3 gap-3">
         <div>
           <Label>Split %</Label>
-          <PercentInput value={value.split_pct || ""} onChange={(e)=>handleSplitChange(e.target.value)}/>
+          <PercentInput
+            aria-label="Split %"
+            value={value.split_pct || ""}
+            onChange={(e)=>handleSplitChange(e.target.value)}
+          />
         </div>
         <div>
           <Label>Base Fee</Label>
-          <MoneyInput value={value.base_fee || ""} onChange={(e)=>handleBaseFeeChange(e.target.value)}/>
+          <MoneyInput
+            aria-label="Base Fee"
+            value={value.base_fee || ""}
+            onChange={(e)=>handleBaseFeeChange(e.target.value)}
+          />
         </div>
         <div>
           <Label>Appraiser Fee</Label>
-          <MoneyInput value={value.appraiser_fee || ""} onChange={(e)=>onChange({ appraiser_fee: e.target.value })}/>
+          <MoneyInput
+            aria-label="Appraiser Fee"
+            value={value.appraiser_fee || ""}
+            onChange={(e)=>onChange({ appraiser_fee: e.target.value })}
+          />
         </div>
       </div>
 

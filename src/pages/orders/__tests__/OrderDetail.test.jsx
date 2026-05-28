@@ -39,7 +39,7 @@ const orderMock = vi.hoisted(() => ({
   state: "MA",
   postal_code: "02110",
   property_contact_name: "Casey Contact",
-  property_contact_phone: "555-0100",
+  property_contact_phone: "(555) 123-4567",
   created_at: "2026-05-20T12:00:00.000Z",
   updated_at: "2026-05-20T12:00:00.000Z",
   site_visit_at: null,
@@ -166,7 +166,7 @@ describe("OrderDetail site visit save", () => {
       state: "MA",
       postal_code: "02110",
       property_contact_name: "Casey Contact",
-      property_contact_phone: "555-0100",
+      property_contact_phone: "(555) 123-4567",
       created_at: "2026-05-20T12:00:00.000Z",
       updated_at: "2026-05-20T12:00:00.000Z",
       site_visit_at: null,
@@ -313,7 +313,7 @@ describe("OrderDetail site visit save", () => {
     expect(within(overview).getByText("Contact")).toBeInTheDocument();
     expect(within(overview).getByText("Casey Contact")).toBeInTheDocument();
     expect(within(overview).getByText("Contact Phone")).toBeInTheDocument();
-    expect(within(overview).getByText("555-0100")).toBeInTheDocument();
+    expect(within(overview).getByText("555-123-4567")).toBeInTheDocument();
     expect(within(overview).getByText("Split %")).toBeInTheDocument();
     expect(within(overview).getByText("Base Fee")).toBeInTheDocument();
     expect(within(overview).getByText("Appraiser Fee")).toBeInTheDocument();
@@ -791,6 +791,11 @@ describe("OrderDetail site visit save", () => {
     expect(within(packet).getByText("100 Main St, Boston, MA 02110")).toBeInTheDocument();
     expect(within(packet).getByText("Avery Appraiser")).toBeInTheDocument();
     expect(within(packet).getByText("Riley Reviewer")).toBeInTheDocument();
+    expect(within(packet).getByText("Property Contact Phone")).toBeInTheDocument();
+    expect(within(packet).getByText("555-123-4567")).toBeInTheDocument();
+    expect(within(packet).getByText("Special Instructions")).toBeInTheDocument();
+    expect(within(packet).queryByText("Borrower")).not.toBeInTheDocument();
+    expect(within(packet).queryByText("Assigned To")).not.toBeInTheDocument();
     expect(within(packet).getAllByText("2 files").length).toBeGreaterThan(0);
     expect(within(packet).getByText("Document Categories")).toBeInTheDocument();
     expect(within(packet).getByLabelText("Document category counts")).toHaveTextContent(
