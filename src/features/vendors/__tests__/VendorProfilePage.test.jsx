@@ -55,7 +55,7 @@ const profile = {
     state: "NY",
     zip: "10601",
   },
-  default_assignment_instructions: "Upload report packet before delivery.",
+  default_assignment_instructions: "Upload report before delivery.",
   capabilities: {
     commercial: true,
     rush: "available",
@@ -139,9 +139,14 @@ describe("VendorProfilePage", () => {
     expect(vendorApiState.getVendorProfileDetail).toHaveBeenCalledWith("profile-1");
     expect(vendorApiState.getVendorProfileContacts).toHaveBeenCalledWith("profile-1");
     expect(vendorApiState.getVendorProfileServiceAreas).toHaveBeenCalledWith("profile-1");
+    expect(screen.getByText("Network: Active")).toBeInTheDocument();
+    expect(screen.getByText("Operational Notes")).toBeInTheDocument();
+    expect(screen.queryByText("Assignment Readiness")).toBeNull();
+    expect(screen.queryByText("Amc Vendor")).toBeNull();
+    expect(screen.queryByText(/amc_vendor/i)).toBeNull();
     expect(screen.getByText("https://abc.example")).toBeInTheDocument();
     expect(screen.getByText(/100 Main St/)).toBeInTheDocument();
-    expect(screen.getByText("Upload report packet before delivery.")).toBeInTheDocument();
+    expect(screen.getByText("Upload report before delivery.")).toBeInTheDocument();
     expect(screen.getByText(/Commercial: Yes/)).toBeInTheDocument();
     expect(screen.getByText(/Multifamily: Yes/)).toBeInTheDocument();
     expect(screen.getByText(/Restricted: \{"reason":"review"\}/)).toBeInTheDocument();
@@ -219,7 +224,7 @@ describe("VendorProfilePage", () => {
     fireEvent.change(within(dialog).getByLabelText("State"), {
       target: { value: " OH " },
     });
-    fireEvent.change(within(dialog).getByLabelText("Default assignment instructions"), {
+    fireEvent.change(within(dialog).getByLabelText("Default coordination instructions"), {
       target: { value: " Updated instructions. " },
     });
     fireEvent.change(within(dialog).getByLabelText("Capabilities"), {
@@ -295,9 +300,29 @@ describe("VendorProfilePage", () => {
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Save Profile" }));
 
-    expect(await within(dialog).findByText("You do not have permission to update this vendor profile.")).toBeInTheDocument();
+    expect(await within(dialog).findByText("You do not have permission to update this vendor.")).toBeInTheDocument();
     expect(website).toHaveValue("https://preserved.example");
     expect(screen.getByRole("dialog", { name: "Edit Profile" })).toBeInTheDocument();
+  });
+
+  it("shows generic action failure for unknown profile update errors", async () => {
+    permissionState.allowed = new Set(["vendors.update"]);
+    vendorApiState.getVendorProfileDetail.mockResolvedValue(profile);
+    vendorApiState.getVendorProfileContacts.mockResolvedValue(contacts);
+    vendorApiState.getVendorProfileServiceAreas.mockResolvedValue(serviceAreas);
+    vendorApiState.updateVendorProfile.mockRejectedValue(new Error("unexpected profile failure"));
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Edit Profile" }));
+    const dialog = screen.getByRole("dialog", { name: "Edit Profile" });
+    const website = within(dialog).getByLabelText("Website");
+    fireEvent.change(website, { target: { value: "https://preserved-profile.example" } });
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save Profile" }));
+
+    expect(await within(dialog).findByText("Vendor action failed. Please review the details and try again.")).toBeInTheDocument();
+    expect(website).toHaveValue("https://preserved-profile.example");
   });
 
   it("prevents duplicate profile update submits while saving", async () => {
@@ -511,6 +536,26 @@ describe("VendorProfilePage", () => {
     expect(screen.getByRole("dialog", { name: "Add Contact" })).toBeInTheDocument();
   });
 
+  it("shows contact not-found errors with a friendly message", async () => {
+    permissionState.allowed = new Set(["vendors.contacts.manage"]);
+    vendorApiState.getVendorProfileDetail.mockResolvedValue(profile);
+    vendorApiState.getVendorProfileContacts.mockResolvedValue(contacts);
+    vendorApiState.getVendorProfileServiceAreas.mockResolvedValue(serviceAreas);
+    vendorApiState.updateVendorContact.mockRejectedValue(new Error("vendor_contact_not_found_or_not_authorized"));
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Edit Contact" }));
+    const dialog = screen.getByRole("dialog", { name: "Edit Contact" });
+    const name = within(dialog).getByLabelText("Name");
+    fireEvent.change(name, { target: { value: "Preserved Missing Contact" } });
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save Contact" }));
+
+    expect(await within(dialog).findByText("That contact could not be found or you do not have access to it.")).toBeInTheDocument();
+    expect(name).toHaveValue("Preserved Missing Contact");
+  });
+
   it("prevents duplicate contact saves while saving", async () => {
     permissionState.allowed = new Set(["vendors.contacts.manage"]);
     vendorApiState.getVendorProfileDetail.mockResolvedValue(profile);
@@ -562,8 +607,9 @@ describe("VendorProfilePage", () => {
     renderPage();
 
     expect(await screen.findByRole("heading", { name: "ABC Valuation" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Add Service Area" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Edit Service Area" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Add Coverage" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Add single coverage row" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Edit coverage row" })).toBeNull();
 
     cleanup();
     permissionState.allowed = new Set(["vendors.service_areas.manage"]);
@@ -573,11 +619,12 @@ describe("VendorProfilePage", () => {
 
     renderPage();
 
-    expect(await screen.findByRole("button", { name: "Add Service Area" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Edit Service Area" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Add Coverage" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Add single coverage row" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit coverage row" })).toBeInTheDocument();
   });
 
-  it("validates Add Service Area coverage before saving", async () => {
+  it("validates bulk Add Coverage requires generated rows", async () => {
     permissionState.allowed = new Set(["vendors.service_areas.manage"]);
     vendorApiState.getVendorProfileDetail.mockResolvedValue(profile);
     vendorApiState.getVendorProfileContacts.mockResolvedValue(contacts);
@@ -585,9 +632,100 @@ describe("VendorProfilePage", () => {
 
     renderPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Add Service Area" }));
-    const dialog = screen.getByRole("dialog", { name: "Add Service Area" });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Add Service Area" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Add Coverage" }));
+    const dialog = screen.getByRole("dialog", { name: "Add Coverage" });
+    expect(within(dialog).getByText(/does not assign work automatically/i)).toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save Coverage" }));
+
+    expect(await within(dialog).findByText("Add at least one coverage selection before saving.")).toBeInTheDocument();
+    expect(vendorApiState.createVendorServiceArea).not.toHaveBeenCalled();
+  });
+
+  it("bulk adds generated coverage rows and refreshes the profile data", async () => {
+    permissionState.allowed = new Set(["vendors.service_areas.manage"]);
+    vendorApiState.getVendorProfileDetail.mockResolvedValue(profile);
+    vendorApiState.getVendorProfileContacts.mockResolvedValue(contacts);
+    vendorApiState.getVendorProfileServiceAreas.mockResolvedValue(serviceAreas);
+    vendorApiState.createVendorServiceArea.mockResolvedValue("area-created");
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Add Coverage" }));
+    const dialog = screen.getByRole("dialog", { name: "Add Coverage" });
+    fireEvent.change(within(dialog).getByLabelText("Coverage mode"), {
+      target: { value: "selected_counties" },
+    });
+    fireEvent.click(within(dialog).getByLabelText("Franklin"));
+    fireEvent.click(within(dialog).getByLabelText("Delaware"));
+    fireEvent.click(within(dialog).getByLabelText("Commercial"));
+    fireEvent.click(within(dialog).getByLabelText("Multifamily"));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add coverage" }));
+
+    expect(within(dialog).getAllByText("OH · Franklin County · Commercial").length).toBeGreaterThan(0);
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save Coverage" }));
+
+    await waitFor(() => {
+      expect(vendorApiState.createVendorServiceArea).toHaveBeenCalledTimes(4);
+    });
+    expect(vendorApiState.createVendorServiceArea).toHaveBeenNthCalledWith(1, "profile-1", {
+      state: "OH",
+      county: "Franklin",
+      zip: null,
+      market: null,
+      radius_miles: null,
+      product_type: "commercial",
+      status: "active",
+    });
+    expect(vendorApiState.createVendorServiceArea).toHaveBeenNthCalledWith(4, "profile-1", {
+      state: "OH",
+      county: "Delaware",
+      zip: null,
+      market: null,
+      radius_miles: null,
+      product_type: "multifamily",
+      status: "active",
+    });
+    await waitFor(() => {
+      expect(vendorApiState.getVendorProfileServiceAreas).toHaveBeenCalledTimes(2);
+    });
+    expect(screen.queryByRole("dialog", { name: "Add Coverage" })).toBeNull();
+  });
+
+  it("preserves bulk Add Coverage rows after create errors", async () => {
+    permissionState.allowed = new Set(["vendors.service_areas.manage"]);
+    vendorApiState.getVendorProfileDetail.mockResolvedValue(profile);
+    vendorApiState.getVendorProfileContacts.mockResolvedValue(contacts);
+    vendorApiState.getVendorProfileServiceAreas.mockResolvedValue(serviceAreas);
+    vendorApiState.createVendorServiceArea.mockRejectedValue(Object.assign(new Error("vendor_service_areas_manage_permission_required"), {
+      code: "42501",
+    }));
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Add Coverage" }));
+    const dialog = screen.getByRole("dialog", { name: "Add Coverage" });
+    fireEvent.click(within(dialog).getByLabelText("Commercial"));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add coverage" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save Coverage" }));
+
+    expect(await within(dialog).findByText("You do not have permission to manage vendor coverage.")).toBeInTheDocument();
+    expect(within(dialog).getAllByText("OH · Statewide · Commercial").length).toBeGreaterThan(0);
+    expect(screen.getByRole("dialog", { name: "Add Coverage" })).toBeInTheDocument();
+  });
+
+  it("validates Add single coverage row coverage before saving", async () => {
+    permissionState.allowed = new Set(["vendors.service_areas.manage"]);
+    vendorApiState.getVendorProfileDetail.mockResolvedValue(profile);
+    vendorApiState.getVendorProfileContacts.mockResolvedValue(contacts);
+    vendorApiState.getVendorProfileServiceAreas.mockResolvedValue(serviceAreas);
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Add single coverage row" }));
+    const dialog = screen.getByRole("dialog", { name: "Add single coverage row" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add coverage row" }));
 
     expect(await within(dialog).findByText("Add at least one coverage or product field.")).toBeInTheDocument();
     expect(vendorApiState.createVendorServiceArea).not.toHaveBeenCalled();
@@ -602,8 +740,8 @@ describe("VendorProfilePage", () => {
 
     renderPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Add Service Area" }));
-    const dialog = screen.getByRole("dialog", { name: "Add Service Area" });
+    fireEvent.click(await screen.findByRole("button", { name: "Add single coverage row" }));
+    const dialog = screen.getByRole("dialog", { name: "Add single coverage row" });
     fireEvent.change(within(dialog).getByLabelText("State"), {
       target: { value: " oh " },
     });
@@ -620,10 +758,12 @@ describe("VendorProfilePage", () => {
       target: { value: " 25 " },
     });
     fireEvent.change(within(dialog).getByLabelText("Product type"), {
-      target: { value: " commercial " },
+      target: { value: "commercial" },
     });
+    expect(within(dialog).getByRole("option", { name: "Construction Draw" })).toHaveValue("construction_draw");
+    expect(within(dialog).getByRole("option", { name: "Short-Term Rental" })).toHaveValue("short_term_rental");
 
-    fireEvent.click(within(dialog).getByRole("button", { name: "Add Service Area" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add coverage row" }));
 
     await waitFor(() => {
       expect(vendorApiState.createVendorServiceArea).toHaveBeenCalledWith("profile-1", {
@@ -639,7 +779,7 @@ describe("VendorProfilePage", () => {
     await waitFor(() => {
       expect(vendorApiState.getVendorProfileServiceAreas).toHaveBeenCalledTimes(2);
     });
-    expect(screen.queryByRole("dialog", { name: "Add Service Area" })).toBeNull();
+    expect(screen.queryByRole("dialog", { name: "Add single coverage row" })).toBeNull();
   });
 
   it("edits a vendor service area with prefilled values and inactive status", async () => {
@@ -651,8 +791,8 @@ describe("VendorProfilePage", () => {
 
     renderPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Edit Service Area" }));
-    const dialog = screen.getByRole("dialog", { name: "Edit Service Area" });
+    fireEvent.click(await screen.findByRole("button", { name: "Edit coverage row" }));
+    const dialog = screen.getByRole("dialog", { name: "Edit coverage row" });
 
     expect(within(dialog).getByLabelText("State")).toHaveValue("NY");
     expect(within(dialog).getByLabelText("County")).toHaveValue("Westchester");
@@ -666,13 +806,13 @@ describe("VendorProfilePage", () => {
       target: { value: "inactive" },
     });
     fireEvent.change(within(dialog).getByLabelText("Product type"), {
-      target: { value: " residential " },
+      target: { value: "residential" },
     });
     fireEvent.change(within(dialog).getByLabelText("Radius miles"), {
       target: { value: " 40 " },
     });
 
-    fireEvent.click(within(dialog).getByRole("button", { name: "Save Service Area" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save coverage row" }));
 
     await waitFor(() => {
       expect(vendorApiState.updateVendorServiceArea).toHaveBeenCalledWith("area-1", {
@@ -688,7 +828,7 @@ describe("VendorProfilePage", () => {
     await waitFor(() => {
       expect(vendorApiState.getVendorProfileServiceAreas).toHaveBeenCalledTimes(2);
     });
-    expect(screen.queryByRole("dialog", { name: "Edit Service Area" })).toBeNull();
+    expect(screen.queryByRole("dialog", { name: "Edit coverage row" })).toBeNull();
   });
 
   it("shows service area save errors and preserves form values", async () => {
@@ -702,16 +842,36 @@ describe("VendorProfilePage", () => {
 
     renderPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Add Service Area" }));
-    const dialog = screen.getByRole("dialog", { name: "Add Service Area" });
+    fireEvent.click(await screen.findByRole("button", { name: "Add single coverage row" }));
+    const dialog = screen.getByRole("dialog", { name: "Add single coverage row" });
     const state = within(dialog).getByLabelText("State");
     fireEvent.change(state, { target: { value: "MI" } });
 
-    fireEvent.click(within(dialog).getByRole("button", { name: "Add Service Area" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add coverage row" }));
 
-    expect(await within(dialog).findByText("You do not have permission to manage vendor service areas.")).toBeInTheDocument();
+    expect(await within(dialog).findByText("You do not have permission to manage vendor coverage.")).toBeInTheDocument();
     expect(state).toHaveValue("MI");
-    expect(screen.getByRole("dialog", { name: "Add Service Area" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Add single coverage row" })).toBeInTheDocument();
+  });
+
+  it("shows service area not-found errors with a friendly message", async () => {
+    permissionState.allowed = new Set(["vendors.service_areas.manage"]);
+    vendorApiState.getVendorProfileDetail.mockResolvedValue(profile);
+    vendorApiState.getVendorProfileContacts.mockResolvedValue(contacts);
+    vendorApiState.getVendorProfileServiceAreas.mockResolvedValue(serviceAreas);
+    vendorApiState.updateVendorServiceArea.mockRejectedValue(new Error("vendor_service_area_not_found_or_not_authorized"));
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Edit coverage row" }));
+    const dialog = screen.getByRole("dialog", { name: "Edit coverage row" });
+    const market = within(dialog).getByLabelText("Market");
+    fireEvent.change(market, { target: { value: "Preserved Market" } });
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save coverage row" }));
+
+    expect(await within(dialog).findByText("That coverage could not be found or you do not have access to it.")).toBeInTheDocument();
+    expect(market).toHaveValue("Preserved Market");
   });
 
   it("prevents duplicate service area saves while saving", async () => {
@@ -726,13 +886,13 @@ describe("VendorProfilePage", () => {
 
     renderPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Add Service Area" }));
-    const dialog = screen.getByRole("dialog", { name: "Add Service Area" });
+    fireEvent.click(await screen.findByRole("button", { name: "Add single coverage row" }));
+    const dialog = screen.getByRole("dialog", { name: "Add single coverage row" });
     fireEvent.change(within(dialog).getByLabelText("Market"), {
       target: { value: "Slow Market" },
     });
 
-    fireEvent.click(within(dialog).getByRole("button", { name: "Add Service Area" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add coverage row" }));
     expect(await within(dialog).findByRole("button", { name: "Saving..." })).toBeDisabled();
     fireEvent.click(within(dialog).getByRole("button", { name: "Saving..." }));
 
@@ -740,7 +900,7 @@ describe("VendorProfilePage", () => {
 
     resolveCreate("area-slow");
     await waitFor(() => {
-      expect(screen.queryByRole("dialog", { name: "Add Service Area" })).toBeNull();
+      expect(screen.queryByRole("dialog", { name: "Add single coverage row" })).toBeNull();
     });
   });
 
@@ -752,20 +912,36 @@ describe("VendorProfilePage", () => {
 
     renderPage();
 
-    expect(await screen.findByRole("button", { name: "Add Service Area" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Add single coverage row" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /delete service area|archive service area|map|geocode|assign|candidate/i })).toBeNull();
     expect(screen.queryByRole("link", { name: /map|geocode|assign|candidate|amc/i })).toBeNull();
   });
 
+  it("renders unknown legacy service-area product values without crashing", async () => {
+    vendorApiState.getVendorProfileDetail.mockResolvedValue(profile);
+    vendorApiState.getVendorProfileContacts.mockResolvedValue(contacts);
+    vendorApiState.getVendorProfileServiceAreas.mockResolvedValue([
+      {
+        ...serviceAreas[0],
+        product_type: "custom legacy product",
+      },
+    ]);
+
+    renderPage();
+
+    expect(await screen.findByRole("heading", { name: "ABC Valuation" })).toBeInTheDocument();
+    expect(screen.getByText("custom legacy product")).toBeInTheDocument();
+  });
+
   it("renders an error state for unauthorized or missing profiles", async () => {
-    vendorApiState.getVendorProfileDetail.mockRejectedValue(new Error("denied"));
+    vendorApiState.getVendorProfileDetail.mockRejectedValue(new Error("vendor_profile_not_found_or_not_authorized"));
     vendorApiState.getVendorProfileContacts.mockResolvedValue([]);
     vendorApiState.getVendorProfileServiceAreas.mockResolvedValue([]);
 
     renderPage();
 
     expect(await screen.findByText("Vendor profile could not load.")).toBeInTheDocument();
-    expect(screen.getByText(/not authorized/)).toBeInTheDocument();
+    expect(screen.getByText("That vendor could not be found or you do not have access to it.")).toBeInTheDocument();
   });
 
   it("renders a not found state when the API returns no detail", async () => {
@@ -798,7 +974,7 @@ describe("VendorProfilePage", () => {
     expect(screen.getByText("No tags listed.")).toBeInTheDocument();
     expect(screen.getByText("No internal notes listed.")).toBeInTheDocument();
     expect(screen.getByText("No contacts listed.")).toBeInTheDocument();
-    expect(screen.getByText("No service areas listed.")).toBeInTheDocument();
+    expect(screen.getByText("No coverage listed.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /create|save|assign|invite|add|delete|archive|edit/i })).toBeNull();
   });
 });

@@ -6,6 +6,8 @@ The AMC Vendor Directory defines the vendor data model and management doctrine f
 
 The directory should support vendor companies first while leaving room for individual appraiser contacts and future vendor portal functionality.
 
+Coverage doctrine is maintained separately in [AMC Vendor Coverage Doctrine](./AMC_VENDOR_COVERAGE_DOCTRINE.md). Vendor Directory coverage must support both commercial and residential workflows, keep geography independent from product type, and remain informational until assignment matching is explicitly implemented.
+
 ## Vendor Company First Model
 
 Vendor Company is the primary AMC assignment unit for MVP.
@@ -165,6 +167,66 @@ Users without `vendors.service_areas.manage` keep the read-only service-area exp
 
 AMC-3B does not add service-area delete/hard-delete workflows, assignment candidate logic, automatic coverage matching, mapping/geocoding, assignment behavior, route/navigation changes, vendor roles, order behavior, schema/RLS changes, raw relationship/assignment UX exposure, or `/amc/*` routes.
 
+## AMC-3D Vendor Product Taxonomy Constants
+
+AMC-3D replaces free-text product type inputs with controlled frontend product options.
+
+Add Vendor coverage and Vendor Profile service-area create/update now use stable product slugs with display labels. Known product values render with owner-friendly labels, while older unknown text values remain readable as fallbacks.
+
+The database remains text-backed for MVP. AMC-3D does not add the county coverage builder, normalized coverage-region tables, backend RPC behavior changes, schema/RLS changes, permission changes, route/navigation changes, assignment behavior, order behavior, vendor roles, raw relationship/assignment UX exposure, or `/amc/*` routes.
+
+## AMC-3E.1 Static State/County Coverage Constants
+
+AMC-3E.1 adds frontend static coverage geography constants for Ohio, Michigan, and Indiana.
+
+The constants provide state codes, state labels, and county lists for the first Coverage Builder phase. Backend reference tables and authoritative ZIP datasets remain deferred, and the Coverage Builder is not integrated into Add Vendor or Vendor Profile service-area UI yet.
+
+AMC-3E.1 does not change Vendor Directory UI, backend RPC behavior, schema/RLS, permissions, route/navigation exposure, assignment behavior, order behavior, vendor roles, raw relationship/assignment UX exposure, or `/amc/*` routes.
+
+## AMC-3E.2 Reusable CoverageBuilder
+
+AMC-3E.2 adds a reusable frontend CoverageBuilder component and pure row-generation utilities in isolation.
+
+The builder can configure entire-state, selected-county, selected-ZIP, and market/radius coverage blocks, combine them with controlled product-type slugs, and preview the `vendor_service_areas` rows that would be created later. It does not call backend APIs and is not imported by Add Vendor or Vendor Profile yet.
+
+AMC-3E.2 does not change Add Vendor, Vendor Profile service-area management, backend RPC behavior, schema/RLS, permissions, route/navigation exposure, assignment behavior, order behavior, vendor roles, raw relationship/assignment UX exposure, or `/amc/*` routes.
+
+## AMC-3E.3 Add Vendor CoverageBuilder Integration
+
+AMC-3E.3 replaces the simple single-row Add Vendor coverage fields with the reusable CoverageBuilder.
+
+Add Vendor can now collect one or more coverage blocks and submit generated `service_areas` rows through the existing `createVendorProfile` payload. Each generated row is submitted as active coverage using the current `vendor_service_areas` row shape: state, county, ZIP, market, radius miles, product type, and status. Add Vendor remains valid without coverage.
+
+Vendor Profile bulk Add Coverage and service-area edit replacement remain deferred.
+
+AMC-3E.3 does not change backend RPC behavior, frontend API wrappers, schema/RLS, permissions, route/navigation exposure, assignment behavior, order behavior, vendor roles, raw relationship/assignment UX exposure, or `/amc/*` routes.
+
+## AMC-3E.4 Vendor Profile Bulk Add Coverage
+
+AMC-3E.4 adds a bulk Add Coverage workflow to `/vendors/:vendorProfileId`.
+
+Users with `vendors.service_areas.manage` can open Add Coverage from the Coverage section, build one or more coverage selections with CoverageBuilder, and create generated service-area rows through the existing `createVendorServiceArea` API wrapper. Successful bulk create refreshes the Vendor Profile and closes the modal. Failed creates keep the builder state and show mapped vendor errors.
+
+The existing single-row add/edit workflow remains in place as secondary coverage-row cleanup and correction.
+
+AMC-3E.4 does not add bulk edit, delete/hard-delete, mapping/geocoding, assignment candidate logic, assignment behavior, backend RPC/API changes, schema/RLS changes, permission changes, route/navigation changes, order behavior changes, raw relationship/assignment UX exposure, or `/amc/*` routes.
+
+## AMC-3F.1 Vendor Copy and Terminology Polish
+
+AMC-3F.1 polishes owner-facing Vendor Directory terminology without changing behavior or data flow.
+
+CoverageBuilder now uses owner-facing labels: Coverage to add, Added coverage, and Add coverage. Vendor Profile shows network status without raw relationship type keys, the primary service-area surface is labeled Coverage, the secondary single-row workflow is labeled as coverage-row cleanup, and Assignment Readiness is renamed Operational Notes until assignment matching exists.
+
+AMC-3F.1 does not change backend RPC/API behavior, schema/RLS, permissions, route/navigation exposure, assignment behavior, order behavior, vendor roles, archive/delete behavior, raw relationship/assignment UX exposure, or `/amc/*` routes.
+
+## AMC-3G Vendor Error Message Hardening
+
+AMC-3G centralizes Vendor Directory error mapping for owner-facing messages.
+
+Add Vendor, Vendor Profile edit, contact management, service-area management, and vendor load failures now map stable backend error codes to clear user-facing copy. Duplicate vendor, self-vendor, missing vendor company, invalid payload, permission, and not-found/not-authorized failures should not surface raw SQL or vague fallback text to normal users.
+
+AMC-3G does not change backend RPC behavior, schema/RLS, permissions, route/navigation exposure, assignment behavior, order behavior, vendor roles, coverage builder behavior, product taxonomy, raw relationship/assignment UX exposure, or `/amc/*` routes.
+
 ## Framework Reuse Doctrine
 
 Vendor Directory records should build on the existing company framework wherever possible:
@@ -221,6 +283,12 @@ Coverage may include:
 - zip
 - radius
 - product-specific coverage
+
+AMC-3D.5 locks the long-term coverage doctrine before deeper coverage UI work. Current `vendor_service_areas` rows can support MVP coverage by storing positive coverage rows, including full-state rows, selected counties, selected ZIPs, selected markets, and radius-based coverage. Do not introduce normalized coverage-region tables yet.
+
+Product type must remain conceptually independent from geography. A vendor may cover different geographies for different products. Long-term product values should use controlled stable slugs and display labels rather than free text.
+
+Coverage rows are informational until assignment matching is explicitly implemented. Future matching must evaluate vendor status, relationship status, geography, product type, and coverage specificity before presenting any assignment candidate behavior.
 
 ## Vendor Statuses
 

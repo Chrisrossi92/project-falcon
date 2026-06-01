@@ -121,7 +121,7 @@ describe("VendorDirectoryPage", () => {
     expect(await screen.findByText("Sparse Vendor")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Sparse Vendor" })).toBeNull();
     expect(screen.getByText("Unknown")).toBeInTheDocument();
-    expect(screen.getByText("Staged")).toBeInTheDocument();
+    expect(screen.getByText(/Network:\s*Staged/)).toBeInTheDocument();
     expect(screen.getByText("No primary contact")).toBeInTheDocument();
     expect(screen.getByText("No active coverage")).toBeInTheDocument();
     expect(screen.getByText("No product summary")).toBeInTheDocument();
@@ -272,19 +272,15 @@ describe("VendorDirectoryPage", () => {
     fireEvent.change(within(dialog).getByLabelText("Contact email"), {
       target: { value: "dana@example.test" },
     });
-    fireEvent.change(within(dialog).getByLabelText("State"), {
-      target: { value: "oh" },
-    });
-    fireEvent.change(within(dialog).getByLabelText("County"), {
-      target: { value: "Franklin" },
-    });
-    fireEvent.change(within(dialog).getByLabelText("Product type"), {
-      target: { value: "commercial" },
-    });
+    expect(within(dialog).getByText(/Coverage is used for directory visibility/)).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByLabelText("Commercial"));
+    expect(within(dialog).getByLabelText("Restricted Appraisal")).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Short-Term Rental")).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add coverage" }));
     fireEvent.change(within(dialog).getByLabelText("Tags"), {
       target: { value: "preferred, commercial, preferred" },
     });
-    fireEvent.change(within(dialog).getByLabelText("Default assignment instructions"), {
+    fireEvent.change(within(dialog).getByLabelText("Default coordination instructions"), {
       target: { value: "Send report questions to the coordinator." },
     });
     fireEvent.change(within(dialog).getByLabelText("Internal notes"), {
@@ -310,8 +306,12 @@ describe("VendorDirectoryPage", () => {
         service_areas: [
           expect.objectContaining({
             state: "OH",
-            county: "Franklin",
+            county: null,
+            zip: null,
+            market: null,
+            radius_miles: null,
             product_type: "commercial",
+            status: "active",
           }),
         ],
       }));
@@ -394,9 +394,6 @@ describe("VendorDirectoryPage", () => {
     fireEvent.change(within(dialog).getByLabelText("Contact email"), {
       target: { value: "   " },
     });
-    fireEvent.change(within(dialog).getByLabelText("State"), {
-      target: { value: "   " },
-    });
     fireEvent.change(within(dialog).getByLabelText("Tags"), {
       target: { value: " ,  " },
     });
@@ -412,7 +409,135 @@ describe("VendorDirectoryPage", () => {
     });
   });
 
-  it("shows create errors and preserves Add Vendor form input", async () => {
+  it("submits Add Vendor entire-state CoverageBuilder rows", async () => {
+    permissionState.allowed = new Set(["vendors.create"]);
+    vendorApiState.listVendorDirectory.mockResolvedValue([]);
+    vendorApiState.createVendorProfile.mockResolvedValue({ vendor_profile_id: "profile-coverage" });
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Add Vendor" }));
+    const dialog = screen.getByRole("dialog", { name: "Add Vendor" });
+    fireEvent.change(within(dialog).getByLabelText("Vendor company name"), {
+      target: { value: "Statewide Vendor" },
+    });
+    fireEvent.click(within(dialog).getByLabelText("Commercial"));
+    fireEvent.click(within(dialog).getByLabelText("Multifamily"));
+    expect(within(dialog).getByText("OH · Statewide · Commercial")).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add coverage" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add Vendor" }));
+
+    await waitFor(() => {
+      expect(vendorApiState.createVendorProfile).toHaveBeenCalledWith(expect.objectContaining({
+        service_areas: [
+          expect.objectContaining({ state: "OH", county: null, product_type: "commercial", status: "active" }),
+          expect.objectContaining({ state: "OH", county: null, product_type: "multifamily", status: "active" }),
+        ],
+      }));
+    });
+  });
+
+  it("submits Add Vendor county CoverageBuilder row combinations", async () => {
+    permissionState.allowed = new Set(["vendors.create"]);
+    vendorApiState.listVendorDirectory.mockResolvedValue([]);
+    vendorApiState.createVendorProfile.mockResolvedValue({ vendor_profile_id: "profile-counties" });
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Add Vendor" }));
+    const dialog = screen.getByRole("dialog", { name: "Add Vendor" });
+    fireEvent.change(within(dialog).getByLabelText("Vendor company name"), {
+      target: { value: "County Vendor" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Coverage mode"), {
+      target: { value: "selected_counties" },
+    });
+    fireEvent.click(within(dialog).getByLabelText("Franklin"));
+    fireEvent.click(within(dialog).getByLabelText("Delaware"));
+    fireEvent.click(within(dialog).getByLabelText("Commercial"));
+    fireEvent.click(within(dialog).getByLabelText("Land"));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add coverage" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add Vendor" }));
+
+    await waitFor(() => {
+      expect(vendorApiState.createVendorProfile.mock.calls[0][0].service_areas).toEqual([
+        expect.objectContaining({ state: "OH", county: "Franklin", product_type: "commercial", status: "active" }),
+        expect.objectContaining({ state: "OH", county: "Franklin", product_type: "land", status: "active" }),
+        expect.objectContaining({ state: "OH", county: "Delaware", product_type: "commercial", status: "active" }),
+        expect.objectContaining({ state: "OH", county: "Delaware", product_type: "land", status: "active" }),
+      ]);
+    });
+  });
+
+  it("submits Add Vendor ZIP CoverageBuilder row combinations", async () => {
+    permissionState.allowed = new Set(["vendors.create"]);
+    vendorApiState.listVendorDirectory.mockResolvedValue([]);
+    vendorApiState.createVendorProfile.mockResolvedValue({ vendor_profile_id: "profile-zips" });
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Add Vendor" }));
+    const dialog = screen.getByRole("dialog", { name: "Add Vendor" });
+    fireEvent.change(within(dialog).getByLabelText("Vendor company name"), {
+      target: { value: "ZIP Vendor" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Coverage mode"), {
+      target: { value: "selected_zips" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("ZIP codes"), {
+      target: { value: "43215, 43212" },
+    });
+    fireEvent.click(within(dialog).getByLabelText("Residential"));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add coverage" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add Vendor" }));
+
+    await waitFor(() => {
+      expect(vendorApiState.createVendorProfile.mock.calls[0][0].service_areas).toEqual([
+        expect.objectContaining({ state: "OH", zip: "43215", product_type: "residential", status: "active" }),
+        expect.objectContaining({ state: "OH", zip: "43212", product_type: "residential", status: "active" }),
+      ]);
+    });
+  });
+
+  it("submits Add Vendor market/radius CoverageBuilder rows", async () => {
+    permissionState.allowed = new Set(["vendors.create"]);
+    vendorApiState.listVendorDirectory.mockResolvedValue([]);
+    vendorApiState.createVendorProfile.mockResolvedValue({ vendor_profile_id: "profile-market" });
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Add Vendor" }));
+    const dialog = screen.getByRole("dialog", { name: "Add Vendor" });
+    fireEvent.change(within(dialog).getByLabelText("Vendor company name"), {
+      target: { value: "Market Vendor" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Coverage mode"), {
+      target: { value: "market_radius" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Market"), {
+      target: { value: "Columbus" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Radius miles"), {
+      target: { value: "25" },
+    });
+    fireEvent.click(within(dialog).getByLabelText("Commercial"));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add coverage" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add Vendor" }));
+
+    await waitFor(() => {
+      expect(vendorApiState.createVendorProfile.mock.calls[0][0].service_areas).toEqual([
+        expect.objectContaining({
+          state: "OH",
+          market: "Columbus",
+          radius_miles: 25,
+          product_type: "commercial",
+          status: "active",
+        }),
+      ]);
+    });
+  });
+
+  it("shows duplicate create errors and preserves Add Vendor form input", async () => {
     permissionState.allowed = new Set(["vendors.create"]);
     vendorApiState.listVendorDirectory.mockResolvedValue([]);
     vendorApiState.createVendorProfile.mockRejectedValue(Object.assign(new Error("vendor_profile_duplicate"), {
@@ -428,10 +553,75 @@ describe("VendorDirectoryPage", () => {
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Add Vendor" }));
 
-    expect(await within(dialog).findByText("A vendor profile already exists for this company.")).toBeInTheDocument();
+    expect(await within(dialog).findByText("This vendor is already in your Vendor Directory.")).toBeInTheDocument();
     expect(companyName).toHaveValue("Duplicate Vendor");
     expect(screen.getByRole("dialog", { name: "Add Vendor" })).toBeInTheDocument();
     expect(routeState.navigate).not.toHaveBeenCalled();
+  });
+
+  it("shows a self-vendor message for relationship-invalid create errors", async () => {
+    permissionState.allowed = new Set(["vendors.create"]);
+    vendorApiState.listVendorDirectory.mockResolvedValue([]);
+    vendorApiState.createVendorProfile.mockRejectedValue(new Error("vendor_relationship_invalid"));
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Add Vendor" }));
+    const dialog = screen.getByRole("dialog", { name: "Add Vendor" });
+    const companyName = within(dialog).getByLabelText("Vendor company name");
+    fireEvent.change(companyName, { target: { value: "Falcon Default" } });
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add Vendor" }));
+
+    expect(await within(dialog).findByText("You cannot add your current company as its own vendor.")).toBeInTheDocument();
+    expect(companyName).toHaveValue("Falcon Default");
+    expect(routeState.navigate).not.toHaveBeenCalled();
+  });
+
+  it("shows vendor company and permission backend errors with friendly messages", async () => {
+    permissionState.allowed = new Set(["vendors.create"]);
+    vendorApiState.listVendorDirectory.mockResolvedValue([]);
+    vendorApiState.createVendorProfile
+      .mockRejectedValueOnce(new Error("vendor_company_required"))
+      .mockRejectedValueOnce(new Error("vendor_company_name_required"))
+      .mockRejectedValueOnce(Object.assign(new Error("vendor_create_permission_required"), {
+        code: "42501",
+      }));
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Add Vendor" }));
+    const dialog = screen.getByRole("dialog", { name: "Add Vendor" });
+    const companyName = within(dialog).getByLabelText("Vendor company name");
+    fireEvent.change(companyName, { target: { value: "Backend Checked Vendor" } });
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add Vendor" }));
+    expect(await within(dialog).findByText("Choose an existing vendor company or enter a new vendor company name.")).toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add Vendor" }));
+    expect(await within(dialog).findByText("Vendor company name is required.")).toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add Vendor" }));
+    expect(await within(dialog).findByText("You do not have permission to add vendors.")).toBeInTheDocument();
+    expect(companyName).toHaveValue("Backend Checked Vendor");
+  });
+
+  it("shows generic action failure for unknown create errors", async () => {
+    permissionState.allowed = new Set(["vendors.create"]);
+    vendorApiState.listVendorDirectory.mockResolvedValue([]);
+    vendorApiState.createVendorProfile.mockRejectedValue(new Error("unexpected backend failure"));
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Add Vendor" }));
+    const dialog = screen.getByRole("dialog", { name: "Add Vendor" });
+    const companyName = within(dialog).getByLabelText("Vendor company name");
+    fireEvent.change(companyName, { target: { value: "Unknown Error Vendor" } });
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add Vendor" }));
+
+    expect(await within(dialog).findByText("Vendor action failed. Please review the details and try again.")).toBeInTheDocument();
+    expect(companyName).toHaveValue("Unknown Error Vendor");
   });
 
   it("does not render mutation controls without create permission", async () => {

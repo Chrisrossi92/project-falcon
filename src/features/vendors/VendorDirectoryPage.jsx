@@ -5,6 +5,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { useCan } from "@/lib/hooks/usePermissions";
 import { PERMISSIONS } from "@/lib/permissions/constants";
 import { createVendorProfile, listVendorDirectory } from "./api";
+import CoverageBuilder from "./coverage/CoverageBuilder";
+import { getVendorProductTypeLabel } from "./coverage/productTypes";
+import { getVendorErrorMessage } from "./vendorErrors";
 
 const VENDOR_STATUS_OPTIONS = Object.freeze([
   { value: "", label: "All statuses" },
@@ -60,7 +63,7 @@ function summarizeProductEligibility(productEligibility = {}) {
 
   const enabledKeys = Object.entries(productEligibility)
     .filter(([, value]) => value === true || value === "true" || value === "eligible")
-    .map(([key]) => formatStatus(key));
+    .map(([key]) => getVendorProductTypeLabel(key) || formatStatus(key));
 
   if (enabledKeys.length > 0) return enabledKeys.slice(0, 4).join(", ");
   return "Product eligibility noted";
@@ -82,10 +85,15 @@ function EmptyState() {
   );
 }
 
-function ErrorState({ onRetry }) {
+function ErrorState({ error, onRetry }) {
   return (
     <div className="rounded-lg border border-rose-200 bg-rose-50 p-6 text-sm text-rose-800 shadow-sm">
       <div className="font-semibold">Vendor Directory could not load.</div>
+      <div className="mt-1">
+        {getVendorErrorMessage(error, {
+          fallback: "Vendor Directory could not load. Please try again.",
+        })}
+      </div>
       <button
         type="button"
         onClick={onRetry}
@@ -106,12 +114,6 @@ const EMPTY_VENDOR_FORM = Object.freeze({
   contactEmail: "",
   contactPhone: "",
   contactRoleLabel: "",
-  serviceState: "",
-  serviceCounty: "",
-  serviceZip: "",
-  serviceMarket: "",
-  serviceRadiusMiles: "",
-  serviceProductType: "",
   tags: "",
   defaultAssignmentInstructions: "",
   internalNotes: "",
@@ -137,31 +139,19 @@ function assignIfPresent(target, key, value) {
   }
 }
 
-function vendorCreateErrorMessage(error) {
-  const code = String(error?.message || error?.code || "").toLowerCase();
-  if (code.includes("vendor_profile_duplicate") || code.includes("duplicate")) {
-    return "A vendor profile already exists for this company.";
-  }
-  if (code.includes("vendor_company_name_required")) {
-    return "Vendor company name is required.";
-  }
-  if (code.includes("permission") || code.includes("42501")) {
-    return "You do not have permission to add vendors from this company context.";
-  }
-  return "Vendor could not be added. Review the details and try again.";
-}
-
 function AddVendorModal({ open, onClose, onCreated }) {
   const [form, setForm] = useState(EMPTY_VENDOR_FORM);
   const [formError, setFormError] = useState("");
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [coverageRows, setCoverageRows] = useState([]);
 
   useEffect(() => {
     if (!open) return;
     setForm(EMPTY_VENDOR_FORM);
     setFormError("");
     setSubmitError("");
+    setCoverageRows([]);
   }, [open]);
 
   if (!open) return null;
@@ -195,14 +185,6 @@ function AddVendorModal({ open, onClose, onCreated }) {
       return;
     }
 
-    const serviceArea = {};
-    assignIfPresent(serviceArea, "state", textOrNull(form.serviceState)?.toUpperCase() || null);
-    assignIfPresent(serviceArea, "county", textOrNull(form.serviceCounty));
-    assignIfPresent(serviceArea, "zip", textOrNull(form.serviceZip));
-    assignIfPresent(serviceArea, "market", textOrNull(form.serviceMarket));
-    assignIfPresent(serviceArea, "radius_miles", textOrNull(form.serviceRadiusMiles));
-    assignIfPresent(serviceArea, "product_type", textOrNull(form.serviceProductType));
-    const hasServiceArea = Object.keys(serviceArea).length > 0;
     const tags = tagsFromText(form.tags);
 
     const payload = {
@@ -234,8 +216,16 @@ function AddVendorModal({ open, onClose, onCreated }) {
       payload.primary_contact = primaryContact;
     }
 
-    if (hasServiceArea) {
-      payload.service_areas = [serviceArea];
+    if (coverageRows.length > 0) {
+      payload.service_areas = coverageRows.map((row) => ({
+        state: row.state || null,
+        county: row.county || null,
+        zip: row.zip || null,
+        market: row.market || null,
+        radius_miles: row.radius_miles ?? null,
+        product_type: row.product_type || null,
+        status: "active",
+      }));
     }
 
     setSubmitting(true);
@@ -243,12 +233,16 @@ function AddVendorModal({ open, onClose, onCreated }) {
       const created = await createVendorProfile(payload);
       await onCreated?.(created);
       setForm(EMPTY_VENDOR_FORM);
+      setCoverageRows([]);
     } catch (error) {
       console.debug("Vendor create failed", {
         code: error?.code,
         message: error?.message,
       });
-      setSubmitError(vendorCreateErrorMessage(error));
+      setSubmitError(getVendorErrorMessage(error, {
+        selfVendorMessage: true,
+        permissionMessage: "You do not have permission to add vendors.",
+      }));
     } finally {
       setSubmitting(false);
     }
@@ -360,32 +354,10 @@ function AddVendorModal({ open, onClose, onCreated }) {
 
           <section className="grid gap-3" aria-labelledby="coverage-section-title">
             <h3 id="coverage-section-title" className="text-sm font-semibold text-slate-950">Coverage</h3>
-            <div className="grid gap-3 md:grid-cols-3">
-              <label className="grid gap-1 text-sm">
-                <span className="font-medium text-slate-700">State</span>
-                <input value={form.serviceState} onChange={updateField("serviceState")} className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100" />
-              </label>
-              <label className="grid gap-1 text-sm">
-                <span className="font-medium text-slate-700">County</span>
-                <input value={form.serviceCounty} onChange={updateField("serviceCounty")} className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100" />
-              </label>
-              <label className="grid gap-1 text-sm">
-                <span className="font-medium text-slate-700">ZIP</span>
-                <input value={form.serviceZip} onChange={updateField("serviceZip")} className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100" />
-              </label>
-              <label className="grid gap-1 text-sm">
-                <span className="font-medium text-slate-700">Market</span>
-                <input value={form.serviceMarket} onChange={updateField("serviceMarket")} className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100" />
-              </label>
-              <label className="grid gap-1 text-sm">
-                <span className="font-medium text-slate-700">Radius miles</span>
-                <input value={form.serviceRadiusMiles} onChange={updateField("serviceRadiusMiles")} className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100" />
-              </label>
-              <label className="grid gap-1 text-sm">
-                <span className="font-medium text-slate-700">Product type</span>
-                <input value={form.serviceProductType} onChange={updateField("serviceProductType")} className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100" />
-              </label>
-            </div>
+            <p className="text-sm text-slate-500">
+              Coverage is used for directory visibility and future vendor matching. It does not assign work automatically.
+            </p>
+            <CoverageBuilder onRowsChange={setCoverageRows} />
           </section>
 
           <section className="grid gap-3">
@@ -400,7 +372,7 @@ function AddVendorModal({ open, onClose, onCreated }) {
               />
             </label>
             <label className="grid gap-1 text-sm">
-              <span className="font-medium text-slate-700">Default assignment instructions</span>
+              <span className="font-medium text-slate-700">Default coordination instructions</span>
               <textarea value={form.defaultAssignmentInstructions} onChange={updateField("defaultAssignmentInstructions")} rows={3} className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100" />
             </label>
             <label className="grid gap-1 text-sm">
@@ -459,7 +431,7 @@ function VendorDirectoryRow({ vendor }) {
             <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">
               {formatStatus(vendor.vendor_status)}
             </span>
-            <span>{vendor.relationship_status ? formatStatus(vendor.relationship_status) : "Staged"}</span>
+            <span>Network: {vendor.relationship_status ? formatStatus(vendor.relationship_status) : "Staged"}</span>
           </div>
         </div>
         <div className="text-xs text-slate-400">Updated {formatDateTime(vendor.updated_at)}</div>
@@ -583,7 +555,7 @@ export default function VendorDirectoryPage() {
       {loading ? (
         <LoadingState />
       ) : error ? (
-        <ErrorState onRetry={loadVendors} />
+        <ErrorState error={error} onRetry={loadVendors} />
       ) : vendors.length === 0 ? (
         <EmptyState />
       ) : (
