@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { OPERATIONS_MODES } from '../../operations/operationsMode.js';
 import { PERMISSIONS } from '../../permissions/constants.js';
 import {
   CURRENT_COMMAND_PALETTE_COMMAND_IDS,
@@ -119,6 +120,25 @@ describe('current command palette commands', () => {
 
     expect(fullClientCommands.find(({ id }) => id === 'clients')?.to).toBe('/clients');
     expect(assignedClientCommands.find(({ id }) => id === 'clients')?.to).toBe('/clients/cards');
+  });
+
+  it('accepts operations mode without changing current commands or routes', () => {
+    const internalCommands = getCurrentCommandPaletteCommands({
+      operationsMode: OPERATIONS_MODES.INTERNAL_OPERATIONS,
+      permissions: fullPermissions,
+    });
+    const amcCommands = getCurrentCommandPaletteCommands({
+      operationsMode: OPERATIONS_MODES.AMC_OPERATIONS,
+      permissions: fullPermissions,
+    });
+
+    expect(idsFor(amcCommands)).toEqual(idsFor(internalCommands));
+    expect(labelsFor(amcCommands)).toEqual(labelsFor(internalCommands));
+    expect(pathsFor(amcCommands)).toEqual(pathsFor(internalCommands));
+    expect(amcCommands.every((command) => command.operationsMode === OPERATIONS_MODES.AMC_OPERATIONS)).toBe(
+      true,
+    );
+    expect(pathsFor(amcCommands).some((path) => path.startsWith('/amc'))).toBe(false);
   });
 
   it('represents order-search fallback without making it a visible command', () => {

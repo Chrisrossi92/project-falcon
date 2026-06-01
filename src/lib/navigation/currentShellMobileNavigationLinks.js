@@ -3,15 +3,28 @@ import {
   getShellNavigationGroups,
 } from './shellNavigationGroups.js';
 import { applyShellNavigationLabels } from './shellNavigationLabels.js';
+import { normalizeOperationsMode } from '../operations/operationsMode.js';
 
 const freezeArray = (items = []) => Object.freeze([...items]);
 
-export function getCurrentShellMobileNavigationLinks(visibleLinks = [], profileId) {
+const resolveOperationsMode = (options = {}) =>
+  normalizeOperationsMode(
+    typeof options === 'string' ? options : options.operationsMode,
+  );
+
+const withOperationsMode = (link, operationsMode) =>
+  Object.freeze({
+    ...link,
+    operationsMode,
+  });
+
+export function getCurrentShellMobileNavigationLinks(visibleLinks = [], profileId, options = {}) {
   const links = Array.isArray(visibleLinks) ? visibleLinks : [];
+  const operationsMode = resolveOperationsMode(options);
   const profileGroups = getShellNavigationGroups(profileId);
 
   if (!profileGroups || profileGroups.status !== SHELL_NAVIGATION_GROUP_STATUSES.ACTIVE) {
-    return freezeArray(links);
+    return freezeArray(links.map((link) => withOperationsMode(link, operationsMode)));
   }
 
   const visibleLinksById = new Map(links.map((link) => [link.id, link]));
@@ -25,13 +38,13 @@ export function getCurrentShellMobileNavigationLinks(visibleLinks = [], profileI
       }
 
       orderedLinkIds.add(navEntryId);
-      return [applyShellNavigationLabels(link, profileId)];
+      return [withOperationsMode(applyShellNavigationLabels(link, profileId), operationsMode)];
     }),
   );
 
   const remainingLinks = links
     .filter((link) => !orderedLinkIds.has(link.id))
-    .map((link) => applyShellNavigationLabels(link, profileId));
+    .map((link) => withOperationsMode(applyShellNavigationLabels(link, profileId), operationsMode));
 
   return freezeArray([...prioritizedLinks, ...remainingLinks]);
 }

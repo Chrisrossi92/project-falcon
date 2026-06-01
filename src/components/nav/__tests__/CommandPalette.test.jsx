@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import CommandPalette from "../CommandPalette.jsx";
+import { OperationsModeProvider } from "@/lib/operations/OperationsModeProvider";
 import { PERMISSIONS } from "@/lib/permissions/constants";
 
 const permissionState = vi.hoisted(() => ({
@@ -58,12 +59,14 @@ const renderPalette = (props = {}) => {
   const onNavigate = vi.fn();
 
   render(
-    <CommandPalette
-      open
-      onClose={onClose}
-      onNavigate={onNavigate}
-      {...props}
-    />,
+    <OperationsModeProvider>
+      <CommandPalette
+        open
+        onClose={onClose}
+        onNavigate={onNavigate}
+        {...props}
+      />
+    </OperationsModeProvider>,
   );
 
   return { onClose, onNavigate };
@@ -76,6 +79,7 @@ const commandLabels = () =>
 
 describe("CommandPalette current registry helper migration", () => {
   beforeEach(() => {
+    window.localStorage.clear();
     permissionState.allowed = new Set();
     permissionState.error = null;
     permissionState.loading = false;
@@ -86,6 +90,7 @@ describe("CommandPalette current registry helper migration", () => {
 
   afterEach(() => {
     cleanup();
+    window.localStorage.clear();
   });
 
   it("suppresses V1 hidden surfaces in the owner/admin operations shell and preserves the dynamic Clients route", () => {

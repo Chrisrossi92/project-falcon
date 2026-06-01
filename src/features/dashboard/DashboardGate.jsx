@@ -4,6 +4,7 @@ import AssignmentDashboardPage from "@/features/dashboard/AssignmentDashboardPag
 import DashboardPage from "@/features/dashboard/DashboardPage";
 import { AssignmentState, LoadingState } from "@/features/assignments/AssignmentPrimitives";
 import { useEffectivePermissions } from "@/lib/hooks/usePermissions";
+import { useOperationsMode } from "@/lib/operations/OperationsModeProvider";
 import { useShellProfile } from "@/lib/shell/useShellProfile";
 import {
   CURRENT_DASHBOARD_RESOLUTION_STATES,
@@ -15,11 +16,13 @@ export const ORDER_DASHBOARD_PERMISSIONS = CURRENT_ORDER_DASHBOARD_PERMISSIONS;
 
 export default function DashboardGate() {
   const permissions = useEffectivePermissions();
+  const { operationsMode, operationsModeLabel } = useOperationsMode();
   const shellProfilePresentation = useShellProfile();
   const dashboardResolution = resolveCurrentDashboard({
     loading: permissions.loading,
     error: permissions.error,
     permissionKeys: permissions.permissionKeys,
+    operationsMode,
   });
 
   if (dashboardResolution.state === CURRENT_DASHBOARD_RESOLUTION_STATES.LOADING) {
@@ -33,10 +36,22 @@ export default function DashboardGate() {
       return <Navigate to="/my-work" replace />;
     }
 
-    return <DashboardPage shellProfilePresentation={shellProfilePresentation} />;
+    return (
+      <DashboardPage
+        shellProfilePresentation={shellProfilePresentation}
+        operationsMode={dashboardResolution.operationsMode}
+        operationsModeLabel={dashboardResolution.operationsModeLabel || operationsModeLabel}
+      />
+    );
   }
   if (dashboardResolution.state === CURRENT_DASHBOARD_RESOLUTION_STATES.ASSIGNMENT_DASHBOARD) {
-    return <AssignmentDashboardPage shellProfilePresentation={shellProfilePresentation} />;
+    return (
+      <AssignmentDashboardPage
+        shellProfilePresentation={shellProfilePresentation}
+        operationsMode={dashboardResolution.operationsMode}
+        operationsModeLabel={dashboardResolution.operationsModeLabel || operationsModeLabel}
+      />
+    );
   }
 
   return (

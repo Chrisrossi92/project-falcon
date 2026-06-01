@@ -36,6 +36,8 @@ AMC should extend Falcon, not replace Falcon.
 
 ### AMC-1: Operations Command
 
+Status: foundation complete through AMC-1E closeout.
+
 Purpose: enable switching between Internal Operations and AMC Operations without leaving Falcon.
 
 Dependencies:

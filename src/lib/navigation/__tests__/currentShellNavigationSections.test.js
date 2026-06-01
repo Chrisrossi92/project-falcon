@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { OPERATIONS_MODES } from '../../operations/operationsMode.js';
 import { SHELL_PROFILE_IDS } from '../../shell/resolveShellProfile.js';
 import { getCurrentPrimaryNavLinks } from '../currentPrimaryNavLinks.js';
 import { getCurrentShellNavigationSections } from '../currentShellNavigationSections.js';
@@ -79,6 +80,30 @@ describe('current shell navigation sections', () => {
         .flatMap((section) => section.links)
         .find((link) => link.id === 'users')?.label,
     ).toBe('Staff Directory');
+  });
+
+  it('carries operations mode metadata without changing shell grouping', () => {
+    const visibleLinks = fullyVisibleLinks();
+    const internalSections = getCurrentShellNavigationSections(
+      visibleLinks,
+      SHELL_PROFILE_IDS.OPERATIONS,
+      { operationsMode: OPERATIONS_MODES.INTERNAL_OPERATIONS },
+    );
+    const amcSections = getCurrentShellNavigationSections(
+      visibleLinks,
+      SHELL_PROFILE_IDS.OPERATIONS,
+      { operationsMode: OPERATIONS_MODES.AMC_OPERATIONS },
+    );
+
+    expect(amcSections.map(({ id, label }) => [id, label])).toEqual(
+      internalSections.map(({ id, label }) => [id, label]),
+    );
+    expect(amcSections.flatMap((section) => section.links.map((link) => link.path))).toEqual(
+      internalSections.flatMap((section) => section.links.map((link) => link.path)),
+    );
+    expect(amcSections.every((section) => section.operationsMode === OPERATIONS_MODES.AMC_OPERATIONS)).toBe(
+      true,
+    );
   });
 
   it('falls back to current flat nav for unknown and fallback profiles', () => {

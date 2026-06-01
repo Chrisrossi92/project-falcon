@@ -4,6 +4,11 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import {
+  OperationsModeProvider,
+  OPERATIONS_MODE_STORAGE_KEY,
+} from "@/lib/operations/OperationsModeProvider";
+import { OPERATIONS_MODES } from "@/lib/operations/operationsMode";
 import { PERMISSIONS } from "@/lib/permissions/constants";
 
 const permissionState = vi.hoisted(() => ({
@@ -86,16 +91,27 @@ function renderDashboardGateInRouter() {
       initialEntries={["/dashboard"]}
       future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
     >
-      <Routes>
-        <Route path="/dashboard" element={<DashboardGate />} />
-        <Route path="/my-work" element={<LocationProbe />} />
-      </Routes>
+      <OperationsModeProvider>
+        <Routes>
+          <Route path="/dashboard" element={<DashboardGate />} />
+          <Route path="/my-work" element={<LocationProbe />} />
+        </Routes>
+      </OperationsModeProvider>
     </MemoryRouter>,
+  );
+}
+
+function renderDashboardGate() {
+  return render(
+    <OperationsModeProvider>
+      <DashboardGate />
+    </OperationsModeProvider>,
   );
 }
 
 describe("DashboardGate current dashboard resolution helper migration", () => {
   beforeEach(() => {
+    window.localStorage.clear();
     permissionState.error = null;
     permissionState.loading = false;
     permissionState.permissionKeys = [];
@@ -114,13 +130,14 @@ describe("DashboardGate current dashboard resolution helper migration", () => {
 
   afterEach(() => {
     cleanup();
+    window.localStorage.clear();
   });
 
   it("preserves loading behavior", () => {
     permissionState.loading = true;
     permissionState.permissionKeys = [PERMISSIONS.NAVIGATION_ORDERS_VIEW];
 
-    render(<DashboardGate />);
+    renderDashboardGate();
 
     expect(screen.getByTestId("loading-state")).toHaveTextContent("Loading dashboard...");
     expect(screen.queryByTestId("order-dashboard")).toBeNull();
@@ -130,26 +147,43 @@ describe("DashboardGate current dashboard resolution helper migration", () => {
   it("renders the existing order dashboard for order-capable users", () => {
     permissionState.permissionKeys = [PERMISSIONS.ORDERS_READ_ASSIGNED];
 
-    render(<DashboardGate />);
+    renderDashboardGate();
 
     expect(screen.getByTestId("order-dashboard")).toBeInTheDocument();
     expect(screen.queryByTestId("assignment-dashboard")).toBeNull();
     expect(screen.queryByTestId("assignment-state")).toBeNull();
     expect(dashboardProps.order).toHaveLength(1);
     expect(dashboardProps.order[0].shellProfilePresentation).toBe(shellProfileState.exposure);
+    expect(dashboardProps.order[0].operationsMode).toBe(OPERATIONS_MODES.INTERNAL_OPERATIONS);
+    expect(dashboardProps.order[0].operationsModeLabel).toBe("Internal Operations");
     expect(dashboardProps.assignment).toHaveLength(0);
+  });
+
+  it("passes AMC operations mode through without changing dashboard authority", () => {
+    window.localStorage.setItem(OPERATIONS_MODE_STORAGE_KEY, OPERATIONS_MODES.AMC_OPERATIONS);
+    permissionState.permissionKeys = [PERMISSIONS.ORDERS_READ_ASSIGNED];
+
+    renderDashboardGate();
+
+    expect(screen.getByTestId("order-dashboard")).toBeInTheDocument();
+    expect(screen.queryByTestId("assignment-dashboard")).toBeNull();
+    expect(dashboardProps.order).toHaveLength(1);
+    expect(dashboardProps.order[0].operationsMode).toBe(OPERATIONS_MODES.AMC_OPERATIONS);
+    expect(dashboardProps.order[0].operationsModeLabel).toBe("AMC Operations");
   });
 
   it("renders the existing assignment dashboard for assignment-only users", () => {
     permissionState.permissionKeys = [PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_ASSIGNED];
 
-    render(<DashboardGate />);
+    renderDashboardGate();
 
     expect(screen.getByTestId("assignment-dashboard")).toBeInTheDocument();
     expect(screen.queryByTestId("order-dashboard")).toBeNull();
     expect(screen.queryByTestId("assignment-state")).toBeNull();
     expect(dashboardProps.assignment).toHaveLength(1);
     expect(dashboardProps.assignment[0].shellProfilePresentation).toBe(shellProfileState.exposure);
+    expect(dashboardProps.assignment[0].operationsMode).toBe(OPERATIONS_MODES.INTERNAL_OPERATIONS);
+    expect(dashboardProps.assignment[0].operationsModeLabel).toBe("Internal Operations");
     expect(dashboardProps.order).toHaveLength(0);
   });
 
@@ -160,7 +194,7 @@ describe("DashboardGate current dashboard resolution helper migration", () => {
       PERMISSIONS.NAVIGATION_ORDERS_VIEW,
     ];
 
-    render(<DashboardGate />);
+    renderDashboardGate();
 
     expect(screen.getByTestId("order-dashboard")).toBeInTheDocument();
     expect(screen.queryByTestId("assignment-dashboard")).toBeNull();
@@ -178,7 +212,7 @@ describe("DashboardGate current dashboard resolution helper migration", () => {
       },
     };
 
-    render(<DashboardGate />);
+    renderDashboardGate();
 
     expect(screen.getByTestId("order-dashboard")).toBeInTheDocument();
     expect(screen.queryByTestId("assignment-dashboard")).toBeNull();
@@ -217,7 +251,7 @@ describe("DashboardGate current dashboard resolution helper migration", () => {
       },
     };
 
-    render(<DashboardGate />);
+    renderDashboardGate();
 
     expect(screen.getByTestId("assignment-dashboard")).toBeInTheDocument();
     expect(screen.queryByTestId("order-dashboard")).toBeNull();
@@ -225,7 +259,7 @@ describe("DashboardGate current dashboard resolution helper migration", () => {
   });
 
   it("preserves no-capability fallback copy", () => {
-    render(<DashboardGate />);
+    renderDashboardGate();
 
     expect(screen.getByTestId("assignment-state")).toHaveTextContent("Dashboard unavailable");
     expect(screen.getByTestId("assignment-state")).toHaveTextContent(
@@ -241,7 +275,7 @@ describe("DashboardGate current dashboard resolution helper migration", () => {
       PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_ASSIGNED,
     ];
 
-    render(<DashboardGate />);
+    renderDashboardGate();
 
     expect(screen.queryByText(/Vendor Packet Dashboard/i)).toBeNull();
     expect(screen.queryByText(/Client Order Status Dashboard/i)).toBeNull();

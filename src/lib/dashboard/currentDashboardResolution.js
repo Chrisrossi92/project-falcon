@@ -1,5 +1,9 @@
 import { PERMISSIONS } from '../permissions/constants.js';
 import {
+  getOperationsModeLabel,
+  normalizeOperationsMode,
+} from '../operations/operationsMode.js';
+import {
   CURRENT_DASHBOARD_AUTHORITY,
   CURRENT_DASHBOARD_REGISTRY_KIND,
   CURRENT_DASHBOARD_SURFACES,
@@ -120,6 +124,7 @@ const getAssignmentDashboardEntries = (capabilities) => {
 
 export function getCurrentDashboardCapabilities(input) {
   const normalizedInput = normalizeResolutionInput(input);
+  const operationsMode = normalizeOperationsMode(normalizedInput.operationsMode);
   const permissionKeys = normalizePermissionKeys(
     normalizedInput.permissionKeys ?? normalizedInput.permissions,
   );
@@ -141,6 +146,8 @@ export function getCurrentDashboardCapabilities(input) {
   return Object.freeze({
     loading: Boolean(normalizedInput.loading),
     error: normalizedInput.error ?? null,
+    operationsMode,
+    operationsModeLabel: getOperationsModeLabel(operationsMode),
     permissionKeys: Object.freeze(permissionKeys),
     canViewOrderDashboard: Boolean(canViewOrderDashboard),
     canViewAssignmentDashboard: Boolean(canViewAssignmentDashboard),
@@ -152,10 +159,14 @@ export function getCurrentDashboardCapabilities(input) {
 export function resolveCurrentDashboard(input) {
   const capabilities = getCurrentDashboardCapabilities(input);
   const gateEntry = getCurrentLiveDashboardEntry('dashboard.gate');
+  const operationsMode = capabilities.operationsMode;
+  const operationsModeLabel = capabilities.operationsModeLabel;
 
   if (capabilities.loading) {
     return Object.freeze({
       ...LOADING_DASHBOARD_METADATA,
+      operationsMode,
+      operationsModeLabel,
       registryKind: CURRENT_DASHBOARD_REGISTRY_KIND,
       metadataAuthority: CURRENT_DASHBOARD_AUTHORITY.DESCRIPTIVE_ONLY,
       gateEntry,
@@ -167,6 +178,8 @@ export function resolveCurrentDashboard(input) {
   if (capabilities.canViewOrderDashboard) {
     return Object.freeze({
       ...ORDER_DASHBOARD_METADATA,
+      operationsMode,
+      operationsModeLabel,
       registryKind: CURRENT_DASHBOARD_REGISTRY_KIND,
       metadataAuthority: CURRENT_DASHBOARD_AUTHORITY.DESCRIPTIVE_ONLY,
       gateEntry,
@@ -178,6 +191,8 @@ export function resolveCurrentDashboard(input) {
   if (capabilities.canViewAssignmentDashboard) {
     return Object.freeze({
       ...ASSIGNMENT_DASHBOARD_METADATA,
+      operationsMode,
+      operationsModeLabel,
       registryKind: CURRENT_DASHBOARD_REGISTRY_KIND,
       metadataAuthority: CURRENT_DASHBOARD_AUTHORITY.DESCRIPTIVE_ONLY,
       gateEntry,
@@ -188,6 +203,8 @@ export function resolveCurrentDashboard(input) {
 
   return Object.freeze({
     ...UNAVAILABLE_DASHBOARD_METADATA,
+    operationsMode,
+    operationsModeLabel,
     registryKind: CURRENT_DASHBOARD_REGISTRY_KIND,
     metadataAuthority: CURRENT_DASHBOARD_AUTHORITY.DESCRIPTIVE_ONLY,
     gateEntry,

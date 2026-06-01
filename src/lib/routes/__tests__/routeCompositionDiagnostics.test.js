@@ -237,4 +237,12 @@ describe('shadow route composition diagnostics', () => {
 
     expect(matches).toEqual([]);
   });
+
+  it('keeps active dashboard routing shared and does not introduce AMC route trees', () => {
+    const activeRoutes = readFileSync('src/routes/index.jsx', 'utf8');
+
+    expect(activeRoutes).toContain('path="/dashboard"');
+    expect(activeRoutes).not.toContain('path="/amc');
+    expect(activeRoutes).not.toContain('path="/amc/');
+  });
 });

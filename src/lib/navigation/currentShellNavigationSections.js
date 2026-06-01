@@ -3,6 +3,7 @@ import {
   getShellNavigationGroups,
 } from './shellNavigationGroups.js';
 import { applyShellNavigationLabels } from './shellNavigationLabels.js';
+import { normalizeOperationsMode } from '../operations/operationsMode.js';
 
 export const SHELL_NAVIGATION_UNGROUPED_SECTION_ID = 'other_visible_links';
 
@@ -14,20 +15,27 @@ const freezeSection = (section) =>
     links: freezeArray(section.links),
   });
 
-const flatSection = (links) =>
+const resolveOperationsMode = (options = {}) =>
+  normalizeOperationsMode(
+    typeof options === 'string' ? options : options.operationsMode,
+  );
+
+const flatSection = (links, operationsMode) =>
   freezeSection({
     id: 'current_primary_nav',
     label: null,
     grouped: false,
+    operationsMode,
     links,
   });
 
-export function getCurrentShellNavigationSections(visibleLinks = [], profileId) {
+export function getCurrentShellNavigationSections(visibleLinks = [], profileId, options = {}) {
   const links = Array.isArray(visibleLinks) ? visibleLinks : [];
+  const operationsMode = resolveOperationsMode(options);
   const profileGroups = getShellNavigationGroups(profileId);
 
   if (!profileGroups || profileGroups.status !== SHELL_NAVIGATION_GROUP_STATUSES.ACTIVE) {
-    return freezeArray([flatSection(links)]);
+    return freezeArray([flatSection(links, operationsMode)]);
   }
 
   const visibleLinksById = new Map(links.map((link) => [link.id, link]));
@@ -53,6 +61,7 @@ export function getCurrentShellNavigationSections(visibleLinks = [], profileId) 
         id: group.id,
         label: group.label,
         grouped: true,
+        operationsMode,
         links: groupLinks,
       }),
     ];
@@ -68,10 +77,11 @@ export function getCurrentShellNavigationSections(visibleLinks = [], profileId) 
         id: SHELL_NAVIGATION_UNGROUPED_SECTION_ID,
         label: 'More',
         grouped: true,
+        operationsMode,
         links: ungroupedLinks,
       }),
     );
   }
 
-  return freezeArray(sections.length > 0 ? sections : [flatSection(links)]);
+  return freezeArray(sections.length > 0 ? sections : [flatSection(links, operationsMode)]);
 }

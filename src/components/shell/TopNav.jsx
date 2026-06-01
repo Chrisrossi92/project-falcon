@@ -10,6 +10,8 @@ import { getCurrentPrimaryNavLinks } from "@/lib/navigation/currentPrimaryNavLin
 import { getCurrentShellMobileNavigationLinks } from "@/lib/navigation/currentShellMobileNavigationLinks";
 import { getCurrentShellNavigationSections } from "@/lib/navigation/currentShellNavigationSections";
 import { avatarSettingsUtilityLinks } from "@/lib/navigation/currentSettingsUtilityLinks";
+import { useOperationsMode } from "@/lib/operations/OperationsModeProvider";
+import { getOperationsModeLabel } from "@/lib/operations/operationsMode";
 import { PERMISSIONS } from "@/lib/permissions/constants";
 import { useShellProfile } from "@/lib/shell/useShellProfile";
 import { getShellWorkModeCue } from "@/lib/shell/shellWorkMode";
@@ -96,10 +98,16 @@ function workspaceContextLabel(appContext) {
 }
 
 function OperationalModeContext({ shellModeCue, appContext, placement = "rail" }) {
+  const {
+    operationsMode,
+    setOperationsMode,
+    operationsModeLabel,
+    availableOperationsModes,
+  } = useOperationsMode();
   const placementClass =
     placement === "rail"
       ? "rounded-2xl border border-slate-800 bg-slate-900/80 px-3 py-3"
-      : "hidden min-w-0 border-l border-slate-800/80 pl-3 md:block";
+      : "rounded-2xl border border-slate-800 bg-slate-900/80 px-3 py-3";
   const contextLabel = workspaceContextLabel(appContext);
 
   return (
@@ -116,6 +124,36 @@ function OperationalModeContext({ shellModeCue, appContext, placement = "rail" }
         title={shellModeCue.context}
       >
         {shellModeCue.label}
+      </div>
+      <div className="mt-3" aria-label="Operations Command" data-testid="operations-mode-switcher">
+        <div className="mb-1 truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+          Mode
+        </div>
+        <div className="grid grid-cols-1 gap-1 rounded-xl border border-slate-800 bg-slate-950/55 p-1">
+          {availableOperationsModes.map((mode) => {
+            const isActive = mode === operationsMode;
+            const label = getOperationsModeLabel(mode);
+
+            return (
+              <button
+                key={mode}
+                type="button"
+                className={`rounded-lg px-2 py-1.5 text-left text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 ${
+                  isActive
+                    ? "bg-white text-slate-950 shadow-sm"
+                    : "text-slate-300 hover:bg-white/10 hover:text-white"
+                }`}
+                aria-pressed={isActive ? "true" : "false"}
+                onClick={() => setOperationsMode(mode)}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+        <div className="sr-only" data-testid="operations-mode-current">
+          {operationsModeLabel}
+        </div>
       </div>
     </div>
   );
@@ -186,20 +224,22 @@ function DesktopNavSection({ section, emphasizedSectionId, orientation = "horizo
   );
 }
 
-function createDashboardLink() {
+function createDashboardLink(operationsMode) {
   return Object.freeze({
     id: "dashboard",
     label: "Operations",
     path: "/dashboard",
+    operationsMode,
     sourceSurface: "operational_spine",
   });
 }
 
-function createMyWorkLink() {
+function createMyWorkLink(operationsMode) {
   return Object.freeze({
     id: "my_work",
     label: "My Work",
     path: "/my-work",
+    operationsMode,
     sourceSurface: "operational_spine",
   });
 }
@@ -297,6 +337,7 @@ export default function TopNav() {
   const { pathname }     = useLocation();
   const [open, setOpen]  = useState(false); // mobile sheet
   const [pal, setPal]    = useState(false); // command palette
+  const { operationsMode } = useOperationsMode();
   const shellProfilePresentation = useShellProfile();
   const effectivePermissions = useEffectivePermissions();
   const hasPermission = (permissionKey) => effectivePermissions.hasPermission(permissionKey);
@@ -334,18 +375,22 @@ export default function TopNav() {
     canReadAssignments: showAssignmentsNav,
     canReadRelationships: showScopedRelationshipsNav,
     canReadUsers: showUsersNav,
+  }, {
+    operationsMode,
   });
-  const myWorkNavLinks = showMyWorkNav ? [createMyWorkLink()] : [];
+  const myWorkNavLinks = showMyWorkNav ? [createMyWorkLink(operationsMode)] : [];
   const mobileNavLinks = getCurrentShellMobileNavigationLinks(
     [...myWorkNavLinks, ...primaryNavLinks],
     shellProfileId,
+    { operationsMode },
   );
   const railNavLinks = isInternalAppraiserShell
     ? [...myWorkNavLinks, ...primaryNavLinks]
-    : [createDashboardLink(), ...myWorkNavLinks, ...primaryNavLinks];
+    : [createDashboardLink(operationsMode), ...myWorkNavLinks, ...primaryNavLinks];
   const railNavSections = getCurrentShellNavigationSections(
     railNavLinks,
     shellProfileId,
+    { operationsMode },
   );
   const shellModeCue = getShellWorkModeCue(shellProfilePresentation);
   const userIdentity = resolveShellUserIdentity(shellProfilePresentation?.appContext, null);
@@ -421,6 +466,12 @@ export default function TopNav() {
         {open && (
           <div className="border-t border-slate-800 bg-slate-950/95 shadow-lg backdrop-blur-xl md:hidden">
             <nav aria-label="Mobile operational navigation" className="px-3 py-3 flex flex-col gap-1">
+              <OperationalModeContext
+                shellModeCue={shellModeCue}
+                appContext={shellProfilePresentation?.appContext}
+                placement="mobile"
+              />
+              <div className="h-px bg-slate-800 my-2" />
               {mobileNavLinks.map((link) => (
                 <NavItem key={link.id} to={link.path} onClick={() => setOpen(false)}>
                   {link.label}

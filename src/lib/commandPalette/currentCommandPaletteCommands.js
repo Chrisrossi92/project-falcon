@@ -3,6 +3,7 @@ import {
   CURRENT_COMMAND_STATUS,
   getCurrentLiveCommandEntry,
 } from './currentCommandRegistry.js';
+import { normalizeOperationsMode } from '../operations/operationsMode.js';
 import { PERMISSIONS } from '../permissions/constants.js';
 
 export const CURRENT_COMMAND_PALETTE_COMMAND_IDS = Object.freeze([
@@ -45,6 +46,8 @@ const shouldUseLegacyFallback = (options = {}) =>
 
 const permissionInputs = (options = {}) => options.permissions ?? options;
 
+const resolveOperationsMode = (options = {}) => normalizeOperationsMode(options.operationsMode);
+
 const canUseAnyPermission = (permissions, keys = []) =>
   keys.some((permissionKey) => bool(permissions[permissionKey]));
 
@@ -77,6 +80,7 @@ const commandDefinition = (entry, options = {}) =>
     label: entry.label,
     hint: entry.hint ?? '',
     to: resolveEntryPath(entry, options),
+    operationsMode: resolveOperationsMode(options),
     gate: entry.gate,
     status: entry.status,
     metadataAuthority: entry.metadataAuthority,
@@ -113,6 +117,7 @@ export const getCurrentOrderSearchFallback = (options = {}) => {
     id: entry.id,
     label: entry.label,
     routeTemplate: entry.path,
+    operationsMode: resolveOperationsMode(options),
     gate: entry.gate,
     status: CURRENT_COMMAND_STATUS.FALLBACK_LIVE,
     metadataAuthority: entry.metadataAuthority,

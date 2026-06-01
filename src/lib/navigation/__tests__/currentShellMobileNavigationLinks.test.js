@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { OPERATIONS_MODES } from '../../operations/operationsMode.js';
 import { SHELL_PROFILE_IDS } from '../../shell/resolveShellProfile.js';
 import { getCurrentPrimaryNavLinks } from '../currentPrimaryNavLinks.js';
 import { getCurrentShellMobileNavigationLinks } from '../currentShellMobileNavigationLinks.js';
@@ -95,6 +96,28 @@ describe('current shell mobile navigation links', () => {
     expect(ids(mobileLinks)).toEqual(['assignments', 'orders', 'calendar']);
     expect(labels(mobileLinks)).toEqual(['Assignments', 'Orders', 'Calendar']);
     expect(new Set(ids(mobileLinks))).toEqual(new Set(ids(visibleLinks)));
+  });
+
+  it('accepts operations mode without changing mobile routes or ordering', () => {
+    const visibleLinks = fullyVisibleLinks();
+    const internalLinks = getCurrentShellMobileNavigationLinks(
+      visibleLinks,
+      SHELL_PROFILE_IDS.OPERATIONS,
+      { operationsMode: OPERATIONS_MODES.INTERNAL_OPERATIONS },
+    );
+    const amcLinks = getCurrentShellMobileNavigationLinks(
+      visibleLinks,
+      SHELL_PROFILE_IDS.OPERATIONS,
+      { operationsMode: OPERATIONS_MODES.AMC_OPERATIONS },
+    );
+
+    expect(ids(amcLinks)).toEqual(ids(internalLinks));
+    expect(labels(amcLinks)).toEqual(labels(internalLinks));
+    expect(paths(amcLinks)).toEqual(paths(internalLinks));
+    expect(amcLinks.every((link) => link.operationsMode === OPERATIONS_MODES.AMC_OPERATIONS)).toBe(
+      true,
+    );
+    expect(paths(amcLinks).some((path) => path.startsWith('/amc'))).toBe(false);
   });
 
   it('falls back to current flat order for unknown, fallback, and future profiles', () => {

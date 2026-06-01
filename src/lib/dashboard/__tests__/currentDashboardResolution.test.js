@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { OPERATIONS_MODES } from '../../operations/operationsMode.js';
 import { PERMISSIONS } from '../../permissions/constants.js';
 import {
   CURRENT_DASHBOARD_AUTHORITY,
@@ -7,6 +8,7 @@ import {
 } from '../currentDashboardRegistry.js';
 import {
   CURRENT_DASHBOARD_RESOLUTION_STATES,
+  getCurrentDashboardCapabilities,
   resolveCurrentDashboard,
 } from '../currentDashboardResolution.js';
 
@@ -87,6 +89,55 @@ describe('current dashboard resolution helper', () => {
         'dashboard.assignment.owner-sent',
       ]),
     );
+  });
+
+  it('accepts operations mode without changing dashboard resolution', () => {
+    const permissionKeys = [PERMISSIONS.NAVIGATION_ORDERS_VIEW];
+    const internalResolution = resolveCurrentDashboard({
+      operationsMode: OPERATIONS_MODES.INTERNAL_OPERATIONS,
+      permissionKeys,
+    });
+    const amcResolution = resolveCurrentDashboard({
+      operationsMode: OPERATIONS_MODES.AMC_OPERATIONS,
+      permissionKeys,
+    });
+
+    expect(amcResolution.state).toBe(internalResolution.state);
+    expect(amcResolution.componentHint).toBe(internalResolution.componentHint);
+    expect(amcResolution.route).toBe('/dashboard');
+    expect(amcResolution.operationsMode).toBe(OPERATIONS_MODES.AMC_OPERATIONS);
+    expect(amcResolution.operationsModeLabel).toBe('AMC Operations');
+    expect(conceptIds(amcResolution)).toEqual(conceptIds(internalResolution));
+    expect(JSON.stringify(amcResolution)).not.toContain('/amc');
+  });
+
+  it('does not let operations mode alter permission capability output', () => {
+    const permissionKeys = [
+      PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_OWNER,
+      PERMISSIONS.ORDERS_READ_ASSIGNED,
+    ];
+    const internalCapabilities = getCurrentDashboardCapabilities({
+      operationsMode: OPERATIONS_MODES.INTERNAL_OPERATIONS,
+      permissionKeys,
+    });
+    const amcCapabilities = getCurrentDashboardCapabilities({
+      operationsMode: OPERATIONS_MODES.AMC_OPERATIONS,
+      permissionKeys,
+    });
+
+    expect({
+      canViewOrderDashboard: amcCapabilities.canViewOrderDashboard,
+      canViewAssignmentDashboard: amcCapabilities.canViewAssignmentDashboard,
+      canReadAssignedAssignments: amcCapabilities.canReadAssignedAssignments,
+      canReadOwnerAssignments: amcCapabilities.canReadOwnerAssignments,
+      permissionKeys: amcCapabilities.permissionKeys,
+    }).toEqual({
+      canViewOrderDashboard: internalCapabilities.canViewOrderDashboard,
+      canViewAssignmentDashboard: internalCapabilities.canViewAssignmentDashboard,
+      canReadAssignedAssignments: internalCapabilities.canReadAssignedAssignments,
+      canReadOwnerAssignments: internalCapabilities.canReadOwnerAssignments,
+      permissionKeys: internalCapabilities.permissionKeys,
+    });
   });
 
   it('resolves users with no dashboard capability to unavailable state metadata', () => {

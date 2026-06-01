@@ -5,6 +5,7 @@ import {
 } from "@/lib/commandPalette/currentCommandPaletteCommands";
 import { getCurrentShellCommandPaletteCommands } from "@/lib/commandPalette/currentShellCommandPaletteCommands";
 import { useEffectivePermissions } from "@/lib/hooks/usePermissions";
+import { useOperationsMode } from "@/lib/operations/OperationsModeProvider";
 import { PERMISSIONS } from "@/lib/permissions/constants";
 import { useShellProfile } from "@/lib/shell/useShellProfile";
 
@@ -26,6 +27,7 @@ export default function CommandPalette({ open, onClose, onNavigate, clientsPath 
   const [idx, setI] = useState(0);
   const inputRef    = useRef(null);
   const { loading, error, hasPermission } = useEffectivePermissions();
+  const { operationsMode } = useOperationsMode();
   const shellProfilePresentation = useShellProfile();
 
   const commandPermissions = useMemo(
@@ -45,9 +47,10 @@ export default function CommandPalette({ open, onClose, onNavigate, clientsPath 
         clientsPath,
         error,
         loading,
+        operationsMode,
         permissions: commandPermissions,
       }),
-    [clientsPath, commandPermissions, error, loading],
+    [clientsPath, commandPermissions, error, loading, operationsMode],
   );
   const shellProfileId = !loading && !error
     ? shellProfilePresentation?.profileId ?? shellProfilePresentation?.id
@@ -74,9 +77,10 @@ export default function CommandPalette({ open, onClose, onNavigate, clientsPath 
       getCurrentOrderSearchFallback({
         error,
         loading,
+        operationsMode,
         permissions: commandPermissions,
       }),
-    [commandPermissions, error, loading],
+    [commandPermissions, error, loading, operationsMode],
   );
 
   const canUseAssignments = visibleCommands.some((command) => command.id === "assignments");

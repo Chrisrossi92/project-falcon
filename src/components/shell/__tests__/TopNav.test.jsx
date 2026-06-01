@@ -1,9 +1,13 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import {
+  OperationsModeProvider,
+  OPERATIONS_MODE_STORAGE_KEY,
+} from "@/lib/operations/OperationsModeProvider";
 import { PERMISSIONS } from "@/lib/permissions/constants";
 
 const permissionState = vi.hoisted(() => ({
@@ -73,13 +77,22 @@ vi.mock("@/components/ui/AvatarBadge", () => ({
 
 const { default: TopNav } = await import("../TopNav.jsx");
 
+function LocationProbe() {
+  const location = useLocation();
+
+  return <span data-testid="current-path">{location.pathname}</span>;
+}
+
 const renderTopNav = (initialPath = "/dashboard") =>
   render(
     <MemoryRouter
       initialEntries={[initialPath]}
       future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
     >
-      <TopNav />
+      <OperationsModeProvider>
+        <TopNav />
+        <LocationProbe />
+      </OperationsModeProvider>
     </MemoryRouter>,
   );
 
@@ -100,6 +113,7 @@ const openMobileNav = (container) => {
 
 describe("TopNav desktop operational spine navigation", () => {
   beforeEach(() => {
+    window.localStorage.clear();
     permissionState.allowed = new Set();
     permissionState.useEffectivePermissions.mockClear();
     shellProfileState.profileId = "operations";
@@ -109,6 +123,84 @@ describe("TopNav desktop operational spine navigation", () => {
 
   afterEach(() => {
     cleanup();
+    window.localStorage.clear();
+  });
+
+  it("renders the current operations mode in the desktop shell context", () => {
+    const { container } = renderTopNav();
+    const desktopContext = container.querySelector('aside [data-testid="operations-mode-switcher"]');
+
+    expect(within(desktopContext).getByRole("button", { name: "Internal Operations" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(within(desktopContext).getByRole("button", { name: "AMC Operations" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    expect(container.querySelector('aside [data-testid="operations-mode-current"]')).toHaveTextContent(
+      "Internal Operations",
+    );
+  });
+
+  it("switches operations mode without navigating", () => {
+    const { container } = renderTopNav("/orders");
+    const desktopContext = container.querySelector('aside [data-testid="operations-mode-switcher"]');
+    const linksBeforeSwitch = desktopLinks(container).map((link) => link.textContent);
+
+    fireEvent.click(within(desktopContext).getByRole("button", { name: "AMC Operations" }));
+
+    expect(within(desktopContext).getByRole("button", { name: "AMC Operations" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(container.querySelector('aside [data-testid="operations-mode-current"]')).toHaveTextContent(
+      "AMC Operations",
+    );
+    expect(window.localStorage.getItem(OPERATIONS_MODE_STORAGE_KEY)).toBe("amc_operations");
+    expect(screen.getByTestId("current-path")).toHaveTextContent("/orders");
+    expect(desktopLinks(container).map((link) => link.textContent)).toEqual(linksBeforeSwitch);
+  });
+
+  it("renders the operations mode switcher in mobile navigation", () => {
+    const { container } = renderTopNav();
+    const mobileNav = openMobileNav(container);
+
+    expect(within(mobileNav).getByTestId("operations-mode-switcher")).toBeInTheDocument();
+    expect(within(mobileNav).getByRole("button", { name: "Internal Operations" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    fireEvent.click(within(mobileNav).getByRole("button", { name: "AMC Operations" }));
+
+    expect(within(mobileNav).getByRole("button", { name: "AMC Operations" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByTestId("current-path")).toHaveTextContent("/dashboard");
+  });
+
+  it("keeps desktop and mobile operations mode switchers synchronized", () => {
+    const { container } = renderTopNav();
+    const desktopContext = container.querySelector('aside [data-testid="operations-mode-switcher"]');
+
+    fireEvent.click(within(desktopContext).getByRole("button", { name: "AMC Operations" }));
+
+    const mobileNav = openMobileNav(container);
+
+    expect(within(mobileNav).getByRole("button", { name: "AMC Operations" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    fireEvent.click(within(mobileNav).getByRole("button", { name: "Internal Operations" }));
+
+    expect(within(desktopContext).getByRole("button", { name: "Internal Operations" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(window.localStorage.getItem(OPERATIONS_MODE_STORAGE_KEY)).toBe("internal_operations");
   });
 
   it("renders desktop operational spine nav from the current registry helper with current order and paths", () => {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { OPERATIONS_MODES } from '../../operations/operationsMode.js';
 import { PERMISSIONS } from '../../permissions/constants.js';
 import { CURRENT_NAV_SURFACES } from '../currentNavigationRegistry.js';
 import {
@@ -74,6 +75,30 @@ describe('current primary nav links', () => {
 
     expect(idsFor(links)).toEqual(['orders', 'calendar']);
     expect(pathsFor(links)).toEqual(['/orders', '/calendar']);
+  });
+
+  it('accepts operations mode without changing the current route set', () => {
+    const permissions = {
+      canReadAllClients: true,
+      canReadAssignedClients: true,
+      canReadAssignments: true,
+      canReadRelationships: true,
+      canReadUsers: true,
+    };
+    const internalLinks = getCurrentPrimaryNavLinks(permissions, {
+      operationsMode: OPERATIONS_MODES.INTERNAL_OPERATIONS,
+    });
+    const amcLinks = getCurrentPrimaryNavLinks(permissions, {
+      operationsMode: OPERATIONS_MODES.AMC_OPERATIONS,
+    });
+
+    expect(idsFor(internalLinks)).toEqual(idsFor(amcLinks));
+    expect(labelsFor(internalLinks)).toEqual(labelsFor(amcLinks));
+    expect(pathsFor(internalLinks)).toEqual(pathsFor(amcLinks));
+    expect(amcLinks.every((link) => link.operationsMode === OPERATIONS_MODES.AMC_OPERATIONS)).toBe(
+      true,
+    );
+    expect(pathsFor(amcLinks).some((path) => path.startsWith('/amc'))).toBe(false);
   });
 
   it('treats missing, loading, or errored permission inputs as false', () => {

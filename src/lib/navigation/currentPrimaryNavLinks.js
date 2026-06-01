@@ -2,6 +2,7 @@ import {
   CURRENT_NAV_SURFACES,
   getCurrentLiveNavigationEntry,
 } from './currentNavigationRegistry.js';
+import { normalizeOperationsMode } from '../operations/operationsMode.js';
 import { PERMISSIONS } from '../permissions/constants.js';
 
 export const CURRENT_PRIMARY_NAV_LINK_IDS = Object.freeze([
@@ -45,11 +46,17 @@ const resolveClientsPath = (entry, permissions) => {
   return null;
 };
 
-const primaryLink = (entry, path = entry.path) =>
+const resolveOperationsMode = (options = {}) =>
+  normalizeOperationsMode(
+    typeof options === 'string' ? options : options.operationsMode,
+  );
+
+const primaryLink = (entry, path = entry.path, operationsMode) =>
   Object.freeze({
     id: entry.id,
     label: entry.label,
     path,
+    operationsMode,
     routeGate: entry.routeGate,
     visibilityGate: entry.visibilityGate,
     sourceSurface: CURRENT_NAV_SURFACES.DESKTOP,
@@ -81,7 +88,8 @@ const resolvePrimaryPath = (entry, permissions) => {
   return entry.path;
 };
 
-export const getCurrentPrimaryNavLinks = (permissions = {}) => {
+export const getCurrentPrimaryNavLinks = (permissions = {}, options = {}) => {
+  const operationsMode = resolveOperationsMode(options);
   const links = CURRENT_PRIMARY_NAV_LINK_IDS.flatMap((entryId) => {
     if (!REQUIRED_ENTRY_IDS.has(entryId) || !shouldShowEntry(entryId, permissions)) {
       return [];
@@ -94,7 +102,7 @@ export const getCurrentPrimaryNavLinks = (permissions = {}) => {
       return [];
     }
 
-    return [primaryLink(entry, path)];
+    return [primaryLink(entry, path, operationsMode)];
   });
 
   return freezeArray(links);
