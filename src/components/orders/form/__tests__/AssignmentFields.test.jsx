@@ -5,11 +5,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const isOrderNumberAvailableV2Mock = vi.hoisted(() => vi.fn());
 const overrideOrderNumberMock = vi.hoisted(() => vi.fn());
-
-vi.mock("@/features/company-members/assignableUsersApi", () => ({
-  listCompanyAssignableAppraisers: vi.fn().mockResolvedValue([]),
-  listCompanyAssignableReviewers: vi.fn().mockResolvedValue([]),
+const assignableUsersMock = vi.hoisted(() => ({
+  listCompanyAssignableAppraisers: vi.fn(),
+  listCompanyAssignableReviewers: vi.fn(),
 }));
+
+vi.mock("@/features/company-members/assignableUsersApi", () => assignableUsersMock);
 
 vi.mock("@/lib/services/ordersService", () => ({
   isOrderNumberAvailableV2: isOrderNumberAvailableV2Mock,
@@ -30,6 +31,10 @@ describe("AssignmentFields order number state", () => {
       status: "updated",
       new_order_number: "2025124",
     });
+    assignableUsersMock.listCompanyAssignableAppraisers.mockReset();
+    assignableUsersMock.listCompanyAssignableReviewers.mockReset();
+    assignableUsersMock.listCompanyAssignableAppraisers.mockResolvedValue([]);
+    assignableUsersMock.listCompanyAssignableReviewers.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -80,6 +85,23 @@ describe("AssignmentFields order number state", () => {
     await waitFor(() => {
       expect(screen.getByText("No active appraisers found.")).toBeInTheDocument();
     });
+  });
+
+  it("renders assignable operational user names with full_name before display_name", async () => {
+    assignableUsersMock.listCompanyAssignableAppraisers.mockResolvedValue([
+      {
+        id: "user-kady",
+        full_name: "Kady Weith",
+        display_name: "Kady",
+        email: "kady@example.test",
+      },
+    ]);
+    assignableUsersMock.listCompanyAssignableReviewers.mockResolvedValue([]);
+
+    render(<AssignmentFields value={{}} onChange={vi.fn()} isEdit={false} />);
+
+    expect(await screen.findByRole("option", { name: "Kady Weith" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Kady" })).not.toBeInTheDocument();
   });
 
   it("shows the existing order number as read-only with an explicit override action in edit mode", () => {

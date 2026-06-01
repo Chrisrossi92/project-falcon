@@ -1,5 +1,6 @@
 // src/lib/services/ordersService.js
 import supabase from "@/lib/supabaseClient";
+import { listCompanyAssignableUsers } from "@/features/company-members/assignableUsersApi";
 import {
   emitNotification,
   fetchAdminRecipients,
@@ -7,6 +8,10 @@ import {
 } from "@/lib/services/notificationsService";
 import { resolveOrderParticipants } from "@/lib/orders/resolveOrderParticipants";
 import { assertOrderWorkflowTransition } from "@/lib/workflow/orderWorkflowGuards";
+import {
+  applyOperationalOrderUserNames,
+  buildOperationalUserNameMap,
+} from "@/lib/utils/userDisplayName";
 
 /** Source of truth */
 const ORDERS_TABLE = "orders";
@@ -210,7 +215,17 @@ export async function getOrder(orderId) {
 
   if (viewError) throw viewError;
   if (ordersError) throw ordersError;
-  return viewRow || ordersRow ? { ...(viewRow || {}), ...(ordersRow || {}) } : null;
+
+  const order = viewRow || ordersRow ? { ...(viewRow || {}), ...(ordersRow || {}) } : null;
+  if (!order || !(order.appraiser_id || order.reviewer_id || order.assigned_to)) return order;
+
+  try {
+    const users = await listCompanyAssignableUsers("all");
+    return applyOperationalOrderUserNames(order, buildOperationalUserNameMap(users));
+  } catch (error) {
+    console.warn("[ordersService] failed to load operational user names", error);
+    return order;
+  }
 }
 
 /* ============================================================================

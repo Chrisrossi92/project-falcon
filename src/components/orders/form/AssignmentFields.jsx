@@ -7,6 +7,7 @@ import {
   isOrderNumberAvailableV2,
   overrideOrderNumber,
 } from "@/lib/services/ordersService";
+import { operationalUserName } from "@/lib/utils/userDisplayName";
 
 function Label({ children }) { return <label className="block text-xs font-medium text-gray-600 mb-1">{children}</label>; }
 function MoneyInput(props){ return <input type="number" step="0.01" min="0" {...props} className={"w-full border rounded px-2 py-1 text-sm "+(props.className||"")} />; }
@@ -284,20 +285,20 @@ export default function AssignmentFields({ value, onChange, isEdit, orderId = nu
 
         setAppraisers(
           (appraiserRows || [])
-            .filter((u) => !!(u.full_name || u.display_name || u.name))
+            .filter((u) => !!operationalUserName(u))
             .map((u) => ({
               id: u.id,
-              name: u.display_name || u.full_name || u.name || u.email || u.id,
+              name: operationalUserName(u, u.id),
               default_split_pct: u.default_split_pct ?? u.fee_split ?? u.split ?? null,
             }))
         );
 
         setReviewers(
           (reviewerRows || [])
-            .filter((u) => !!(u.full_name || u.display_name || u.name))
+            .filter((u) => !!operationalUserName(u))
             .map((u) => ({
               id: u.id,
-              name: u.display_name || u.full_name || u.name || u.email || u.id,
+              name: operationalUserName(u, u.id),
               email: u.email,
               is_active: u.is_active,
               status: u.status,

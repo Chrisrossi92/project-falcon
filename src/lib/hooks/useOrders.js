@@ -1,8 +1,10 @@
 // src/lib/hooks/useOrders.js
 import { useEffect, useMemo, useState } from "react";
 import { fetchOrdersWithFilters } from "@/lib/api/orders";
+import { listCompanyAssignableUsers } from "@/features/company-members/assignableUsersApi";
 import { ORDER_STATUS } from "@/lib/constants/orderStatus";
 import { mapOrderRows } from "@/lib/mappers/orderMapper";
+import { applyOperationalOrderUserNamesToRows } from "@/lib/utils/userDisplayName";
 
 const DEFAULT_FILTERS = {
   page: 0,
@@ -28,6 +30,21 @@ const ACTIVE_STATUSES = new Set([
   ORDER_STATUS.IN_PROGRESS,
   ORDER_STATUS.IN_REVIEW,
 ]);
+
+async function mapOperationalOrderRows(rows = []) {
+  const mappedRows = mapOrderRows(rows || []);
+  const hasAssignedUsers = mappedRows.some((row) => row?.appraiser_id || row?.reviewer_id || row?.assigned_to);
+
+  if (!hasAssignedUsers) return mappedRows;
+
+  try {
+    const users = await listCompanyAssignableUsers("all");
+    return applyOperationalOrderUserNamesToRows(mappedRows, users);
+  } catch (error) {
+    console.warn("[useOrders] failed to load operational user names", error);
+    return mappedRows;
+  }
+}
 
 /**
  * useOrders
@@ -95,7 +112,9 @@ export function useOrders(initialSeed = {}, options = {}) {
           setCount(0);
           return;
         }
-        setData(mapOrderRows(rows || []));
+        const mappedRows = await mapOperationalOrderRows(rows || []);
+        if (cancelled) return;
+        setData(mappedRows);
         setCount(count ?? (rows ? rows.length : 0));
       } catch (e) {
         if (cancelled) return;
@@ -162,7 +181,9 @@ export function useOrdersSummary(filters = {}, { enabled = true, scope = null, r
         });
         if (fetchErr) throw fetchErr;
         if (cancelled) return;
-        setRows(mapOrderRows(rows || []));
+        const mappedRows = await mapOperationalOrderRows(rows || []);
+        if (cancelled) return;
+        setRows(mappedRows);
         setCount(count ?? (rows ? rows.length : 0));
       } catch (e) {
         if (cancelled) return;

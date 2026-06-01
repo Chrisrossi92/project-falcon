@@ -64,4 +64,29 @@ describe("mapOrderRow", () => {
       }),
     );
   });
+
+  it("prefers nested operational full names when profile data is present", () => {
+    expect(
+      mapOrderRow({
+        id: "order-4",
+        appraiser_name: "Kady",
+        reviewer_name: "Pam",
+        appraiser: {
+          full_name: "Kady Weith",
+          display_name: "Kady",
+          email: "kady@example.test",
+        },
+        reviewer: {
+          name: "Pam Casper",
+          display_name: "Pam",
+          email: "pam@example.test",
+        },
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        appraiser_name: "Kady Weith",
+        reviewer_name: "Pam Casper",
+      }),
+    );
+  });
 });

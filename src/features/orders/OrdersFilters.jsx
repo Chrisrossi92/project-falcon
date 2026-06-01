@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { WorkspaceSurface } from "@/components/workspace/WorkspaceSurface";
 import { listCompanyAssignableAppraisers } from "@/features/company-members/assignableUsersApi";
 import { listOrderFilterClients } from "@/features/orders/orderFilterOptionsApi";
+import { operationalUserName } from "@/lib/utils/userDisplayName";
 
 const STATUS = [
   ["", "All"],
@@ -165,7 +166,7 @@ export default function OrdersFilters({
               <option value="">All</option>
               {users.map((u) => (
                 <option key={u.id} value={u.id}>
-                  {u.display_name || u.full_name || u.id}
+                  {operationalUserName(u, u.id)}
                 </option>
               ))}
             </select>

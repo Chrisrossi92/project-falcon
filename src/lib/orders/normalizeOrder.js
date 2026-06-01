@@ -1,3 +1,5 @@
+import { operationalUserName } from "@/lib/utils/userDisplayName";
+
 export function num(val) {
   if (val === null || val === undefined || val === "") return null;
   const n = Number(val);
@@ -31,8 +33,8 @@ export default function normalizeOrder(o = {}) {
     propertyType: o.property_type ?? null,
     reportType: o.report_type ?? null,
 
-    appraiserName: o.appraiser_name ?? o.assigned_appraiser_name ?? o.appraiser?.full_name ?? null,
-    reviewerName: o.reviewer_name ?? o.current_reviewer_name ?? o.reviewer?.full_name ?? null,
+    appraiserName: operationalUserName(o.appraiser, o.appraiser_name ?? o.assigned_appraiser_name ?? null) || null,
+    reviewerName: operationalUserName(o.reviewer, o.reviewer_name ?? o.current_reviewer_name ?? null) || null,
 
     feeAmount:     num(o.fee_amount ?? o.fee ?? o.base_fee),
     baseFee:       num(o.base_fee),

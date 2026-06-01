@@ -10,12 +10,14 @@ import { WorkspaceSection } from "@/components/workspace/WorkspaceSection";
 import { WorkspaceErrorState, WorkspaceLoadingState } from "@/components/workspace/WorkspaceState";
 import supabase from "@/lib/supabaseClient";
 import { useCurrentUserAppContext } from "@/features/auth/useCurrentUserAppContext";
+import { listCompanyAssignableUsers } from "@/features/company-members/assignableUsersApi";
 import {
   calendarEventsFromOrder,
   filterCalendarEventsByRange,
   normalizeCalendarEventType,
 } from "@/lib/calendar/normalizeCalendarEvent";
 import { DEFAULT_CALENDAR_POLICY } from "@/lib/policies/defaultCalendarPolicy";
+import { applyOperationalOrderUserNamesToRows } from "@/lib/utils/userDisplayName";
 
 function sameId(a, b) {
   if (!a || !b) return false;
@@ -131,7 +133,18 @@ export default function CalendarPage() {
 
         const { data, error } = await q;
         if (error) throw error;
-        if (ok) setOrders(data || []);
+
+        let rows = data || [];
+        if (rows.some((row) => row?.appraiser_id || row?.reviewer_id)) {
+          try {
+            const users = await listCompanyAssignableUsers("all");
+            rows = applyOperationalOrderUserNamesToRows(rows, users);
+          } catch (nameError) {
+            console.warn("[CalendarPage] failed to load operational user names", nameError);
+          }
+        }
+
+        if (ok) setOrders(rows);
       } catch (e) {
         if (ok) setError(e?.message || "Failed to load calendar");
       } finally {

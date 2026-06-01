@@ -1,6 +1,7 @@
 // src/lib/mappers/orderMapper.js
 import { normalizeOrderStatus } from "@/lib/constants/orderStatus";
 import { formatPhoneForDisplay } from "@/lib/utils/phoneFormat";
+import { operationalUserName } from "@/lib/utils/userDisplayName";
 
 /**
  * @typedef {Object} OrderFrontend
@@ -153,9 +154,9 @@ export function mapOrderRow(row = {}) {
     amc_name: row.amc_name ?? null,
     managing_amc_id: row.managing_amc_id ?? null,
     appraiser_id: row.appraiser_id || null,
-    appraiser_name: row.appraiser_name || null,
+    appraiser_name: operationalUserName(row.appraiser, row.appraiser_name) || null,
     reviewer_id: row.reviewer_id || row.current_reviewer_id || null,
-    reviewer_name: row.reviewer_name || null,
+    reviewer_name: operationalUserName(row.reviewer, row.reviewer_name) || null,
     assigned_to: row.assigned_to ?? row.appraiser_id ?? null,
     address_line1: addressLine1,
     address: addressLine1,
