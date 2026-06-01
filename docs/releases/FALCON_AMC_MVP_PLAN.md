@@ -303,6 +303,22 @@ Phase 3: AMC operational expansion.
 
 Phase 4: Multi-tenant AMC platform.
 
+## AMC Doctrine Documents
+
+Each AMC subsystem should be planned through doctrine before implementation. These documents define the operating model, customization posture, shared-platform expectations, and competitive differentiation goals for the AMC layer:
+
+- [AMC Vendor Assignment Engine](../amc/AMC_VENDOR_ASSIGNMENT_ENGINE.md)
+- [AMC Customization Framework](../amc/AMC_CUSTOMIZATION_FRAMEWORK.md)
+- [AMC Vendor Performance Model](../amc/AMC_VENDOR_PERFORMANCE_MODEL.md)
+- [AMC Vendor Directory](../amc/AMC_VENDOR_DIRECTORY.md)
+- [AMC Financial Model](../amc/AMC_FINANCIAL_MODEL.md)
+- [AMC Order Lifecycle](../amc/AMC_ORDER_LIFECYCLE.md)
+- [AMC Operations Command](../amc/AMC_OPERATIONS_COMMAND.md)
+
+All AMC implementation should preserve Falcon as one platform, reuse existing infrastructure wherever possible, avoid a second disconnected system, support company-by-company customization over time, and avoid hardcoding one AMC operating philosophy.
+
+Falcon's AMC layer should outperform competitor portals through presentation, ease of use, workflow clarity, fewer clicks, better operational visibility, reduced manual communication, earlier operational insights, and easier assignment decisions.
+
 ## Implementation Guardrails
 
 - Documentation only in this slice.
