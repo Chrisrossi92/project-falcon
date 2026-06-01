@@ -3,7 +3,8 @@ import {
   getShellNavigationGroups,
 } from './shellNavigationGroups.js';
 import { applyShellNavigationLabels } from './shellNavigationLabels.js';
-import { normalizeOperationsMode } from '../operations/operationsMode.js';
+import { OPERATIONS_MODES, normalizeOperationsMode } from '../operations/operationsMode.js';
+import { SHELL_PROFILE_IDS } from '../shell/resolveShellProfile.js';
 
 const freezeArray = (items = []) => Object.freeze([...items]);
 
@@ -18,9 +19,41 @@ const withOperationsMode = (link, operationsMode) =>
     operationsMode,
   });
 
+const AMC_OPERATIONS_MOBILE_LINK_IDS = Object.freeze([
+  'dashboard',
+  'orders',
+  'calendar',
+  'vendors',
+  'clients.primary',
+]);
+
+const getAmcOperationsMobileLinks = (links, operationsMode) => {
+  const visibleLinksById = new Map(links.map((link) => [link.id, link]));
+  const orderedLinkIds = new Set();
+  const prioritizedLinks = AMC_OPERATIONS_MOBILE_LINK_IDS.flatMap((navEntryId) => {
+    const link = visibleLinksById.get(navEntryId);
+
+    if (!link) return [];
+
+    orderedLinkIds.add(navEntryId);
+    return [withOperationsMode(applyShellNavigationLabels(link, SHELL_PROFILE_IDS.OPERATIONS, operationsMode), operationsMode)];
+  });
+
+  const remainingLinks = links
+    .filter((link) => !orderedLinkIds.has(link.id))
+    .map((link) => withOperationsMode(applyShellNavigationLabels(link, SHELL_PROFILE_IDS.OPERATIONS, operationsMode), operationsMode));
+
+  return freezeArray([...prioritizedLinks, ...remainingLinks]);
+};
+
 export function getCurrentShellMobileNavigationLinks(visibleLinks = [], profileId, options = {}) {
   const links = Array.isArray(visibleLinks) ? visibleLinks : [];
   const operationsMode = resolveOperationsMode(options);
+
+  if (operationsMode === OPERATIONS_MODES.AMC_OPERATIONS && profileId === SHELL_PROFILE_IDS.OPERATIONS) {
+    return getAmcOperationsMobileLinks(links, operationsMode);
+  }
+
   const profileGroups = getShellNavigationGroups(profileId);
 
   if (!profileGroups || profileGroups.status !== SHELL_NAVIGATION_GROUP_STATUSES.ACTIVE) {

@@ -147,9 +147,13 @@ describe("TopNav desktop operational spine navigation", () => {
   });
 
   it("switches operations mode without navigating", () => {
+    permissionState.allowed = new Set([
+      PERMISSIONS.CLIENTS_READ_ALL,
+      PERMISSIONS.RELATIONSHIPS_READ,
+      PERMISSIONS.USERS_READ,
+    ]);
     const { container } = renderTopNav("/orders");
     const desktopContext = container.querySelector('aside [data-testid="operations-mode-switcher"]');
-    const linksBeforeSwitch = desktopLinks(container).map((link) => link.textContent);
 
     fireEvent.click(within(desktopContext).getByRole("button", { name: "AMC Operations" }));
 
@@ -165,7 +169,13 @@ describe("TopNav desktop operational spine navigation", () => {
     );
     expect(window.localStorage.getItem(OPERATIONS_MODE_STORAGE_KEY)).toBe("amc_operations");
     expect(screen.getByTestId("current-path")).toHaveTextContent("/orders");
-    expect(desktopLinks(container).map((link) => link.textContent)).toEqual(linksBeforeSwitch);
+    expect(desktopLinks(container).map((link) => link.textContent)).toEqual([
+      "Operations",
+      "Orders",
+      "Calendar",
+      "Vendors",
+      "Clients",
+    ]);
   });
 
   it("restores the stored operations mode as the visible selected value", () => {
@@ -181,6 +191,58 @@ describe("TopNav desktop operational spine navigation", () => {
     expect(within(desktopContext).getByTestId("operations-mode-selected-label")).toHaveTextContent(
       "AMC Operations",
     );
+  });
+
+  it("shows Vendors only in AMC Operations nav when relationship read access is available", () => {
+    permissionState.allowed = new Set([
+      PERMISSIONS.CLIENTS_READ_ALL,
+      PERMISSIONS.RELATIONSHIPS_READ,
+      PERMISSIONS.USERS_READ,
+      PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_OWNER,
+    ]);
+    window.localStorage.setItem(OPERATIONS_MODE_STORAGE_KEY, "amc_operations");
+
+    const { container } = renderTopNav();
+    const desktopNav = getDesktopPrimaryNav(container);
+    const links = desktopLinks(container);
+
+    expect(within(desktopNav).getByText("Network")).toBeInTheDocument();
+    expect(links.map((link) => link.textContent)).toEqual([
+      "Operations",
+      "Orders",
+      "Calendar",
+      "Vendors",
+      "Clients",
+    ]);
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "/dashboard",
+      "/orders",
+      "/calendar",
+      "/vendors",
+      "/clients",
+    ]);
+    expect(within(desktopNav).queryByRole("link", { name: "Users" })).toBeNull();
+    expect(within(desktopNav).queryByRole("link", { name: "Assignments" })).toBeNull();
+    expect(within(desktopNav).queryByRole("link", { name: "Relationships" })).toBeNull();
+  });
+
+  it("does not show Vendors in AMC Operations without relationship read access", () => {
+    permissionState.allowed = new Set([
+      PERMISSIONS.CLIENTS_READ_ALL,
+    ]);
+    window.localStorage.setItem(OPERATIONS_MODE_STORAGE_KEY, "amc_operations");
+
+    const { container } = renderTopNav();
+    const desktopNav = getDesktopPrimaryNav(container);
+    const links = desktopLinks(container);
+
+    expect(links.map((link) => link.textContent)).toEqual([
+      "Operations",
+      "Orders",
+      "Calendar",
+      "Clients",
+    ]);
+    expect(within(desktopNav).queryByRole("link", { name: "Vendors" })).toBeNull();
   });
 
   it("renders the operations mode switcher in mobile navigation", () => {

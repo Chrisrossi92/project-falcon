@@ -47,6 +47,7 @@ describe('current live navigation registry', () => {
         'clients.primary',
         'assignments',
         'relationships',
+        'vendors',
         'users',
         'settings',
         'settings.notifications',
@@ -71,6 +72,8 @@ describe('current live navigation registry', () => {
     expect(getCurrentLiveNavigationEntry('relationships.detail').path).toBe(
       '/relationships/:relationshipId',
     );
+    expect(getCurrentLiveNavigationEntry('vendors').path).toBe('/vendors');
+    expect(getCurrentLiveNavigationEntry('vendors.detail').path).toBe('/vendors/:vendorProfileId');
     expect(getCurrentLiveNavigationEntry('users').path).toBe('/users');
     expect(getCurrentLiveNavigationEntry('settings').path).toBe('/settings');
     expect(getCurrentLiveNavigationEntry('settings.notifications').path).toBe(
@@ -113,6 +116,10 @@ describe('current live navigation registry', () => {
     expect(getCurrentLiveNavigationEntry('relationships').visibilityGate.permissions).toEqual([
       PERMISSIONS.RELATIONSHIPS_READ,
     ]);
+    expect(getCurrentLiveNavigationEntry('vendors').visibilityGate.permissions).toEqual([
+      PERMISSIONS.RELATIONSHIPS_READ,
+    ]);
+    expect(getCurrentLiveNavigationEntry('vendors').command).toBeNull();
     expect(getCurrentLiveNavigationEntry('users').routeGate.permissions).toEqual([
       PERMISSIONS.USERS_READ,
     ]);
@@ -147,6 +154,7 @@ describe('current live navigation registry', () => {
         'orders',
         'assignments',
         'relationships',
+        'vendors',
         'calendar',
         'clients.primary',
         'users',
@@ -230,7 +238,7 @@ describe('current live navigation registry', () => {
     });
   });
 
-  it('does not include Vendor or Client Portal future-only entries', () => {
+  it('does not include Vendor Portal or Client Portal future-only entries', () => {
     const serialized = JSON.stringify(currentLiveNavigationEntries).toLowerCase();
 
     expect(ids).not.toEqual(expect.arrayContaining(['vendor.portal', 'client.portal']));

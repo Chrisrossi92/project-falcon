@@ -248,16 +248,15 @@ describe('shadow route composition diagnostics', () => {
     expect(activeRoutes).not.toContain('path="/amc/');
   });
 
-  it('keeps the Vendor Directory route hidden from current live navigation', () => {
+  it('keeps the Vendor Directory out of the command palette while preserving shared nav routes', () => {
     const activeRoutes = readFileSync('src/routes/index.jsx', 'utf8');
     const navRegistry = readFileSync('src/lib/navigation/currentNavigationRegistry.js', 'utf8');
     const commandRegistry = readFileSync('src/lib/commandPalette/currentCommandRegistry.js', 'utf8');
 
     expect(activeRoutes).toContain('path="/vendors"');
     expect(activeRoutes).toContain('path="/vendors/:vendorProfileId"');
-    expect(navRegistry).not.toContain("path: '/vendors'");
-    expect(navRegistry).not.toContain("path: '/vendors/:vendorProfileId'");
-    expect(navRegistry).not.toContain('Vendor Directory');
+    expect(navRegistry).toContain("path: '/vendors'");
+    expect(navRegistry).toContain("path: '/vendors/:vendorProfileId'");
     expect(commandRegistry).not.toContain("path: '/vendors'");
     expect(commandRegistry).not.toContain("path: '/vendors/:vendorProfileId'");
     expect(commandRegistry).not.toContain('Vendor Directory');

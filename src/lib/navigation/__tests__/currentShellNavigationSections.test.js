@@ -9,9 +9,10 @@ const fullyVisibleLinks = () =>
   getCurrentPrimaryNavLinks({
     canReadAllClients: true,
     canReadAssignedClients: true,
-    canReadAssignments: true,
-    canReadRelationships: true,
-    canReadUsers: true,
+      canReadAssignments: true,
+      canReadRelationships: true,
+      canReadVendors: true,
+      canReadUsers: true,
   });
 
 describe('current shell navigation sections', () => {
@@ -82,25 +83,52 @@ describe('current shell navigation sections', () => {
     ).toBe('Staff Directory');
   });
 
-  it('carries operations mode metadata without changing shell grouping', () => {
+  it('uses a distinct AMC Operations grouping while preserving shared route paths', () => {
     const visibleLinks = fullyVisibleLinks();
+    const amcVisibleLinks = getCurrentPrimaryNavLinks({
+      canReadAllClients: true,
+      canReadAssignedClients: true,
+      canReadAssignments: true,
+      canReadRelationships: true,
+      canReadVendors: true,
+      canReadUsers: true,
+    }, {
+      operationsMode: OPERATIONS_MODES.AMC_OPERATIONS,
+    });
     const internalSections = getCurrentShellNavigationSections(
       visibleLinks,
       SHELL_PROFILE_IDS.OPERATIONS,
       { operationsMode: OPERATIONS_MODES.INTERNAL_OPERATIONS },
     );
     const amcSections = getCurrentShellNavigationSections(
-      visibleLinks,
+      amcVisibleLinks,
       SHELL_PROFILE_IDS.OPERATIONS,
       { operationsMode: OPERATIONS_MODES.AMC_OPERATIONS },
     );
 
-    expect(amcSections.map(({ id, label }) => [id, label])).toEqual(
-      internalSections.map(({ id, label }) => [id, label]),
-    );
-    expect(amcSections.flatMap((section) => section.links.map((link) => link.path))).toEqual(
-      internalSections.flatMap((section) => section.links.map((link) => link.path)),
-    );
+    expect(internalSections.map(({ id, label }) => [id, label])).toEqual([
+      ['operations', 'Operations'],
+      ['management', 'Management'],
+    ]);
+    expect(amcSections.map(({ id, label }) => [id, label])).toEqual([
+      ['operations', 'AMC Operations'],
+      ['network', 'Network'],
+    ]);
+    expect(amcSections.flatMap((section) => section.links.map((link) => link.id))).toEqual([
+      'orders',
+      'calendar',
+      'vendors',
+      'clients.primary',
+    ]);
+    expect(amcSections.flatMap((section) => section.links.map((link) => link.path))).toEqual([
+      '/orders',
+      '/calendar',
+      '/vendors',
+      '/clients',
+    ]);
+    expect(
+      amcSections.flatMap((section) => section.links.map((link) => link.path)).some((path) => path.startsWith('/amc')),
+    ).toBe(false);
     expect(amcSections.every((section) => section.operationsMode === OPERATIONS_MODES.AMC_OPERATIONS)).toBe(
       true,
     );

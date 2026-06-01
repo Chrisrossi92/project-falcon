@@ -179,10 +179,18 @@ describe('passive shell navigation groups', () => {
       'assignments',
       'relationships',
       'calendar',
+      'vendors',
       'clients.primary',
       'users',
     ]);
-    expect(links.map(({ id }) => id)).toEqual(CURRENT_PRIMARY_NAV_LINK_IDS);
+    expect(links.map(({ id }) => id)).toEqual([
+      'orders',
+      'assignments',
+      'relationships',
+      'calendar',
+      'clients.primary',
+      'users',
+    ]);
     expect(links.map(({ label }) => label)).toEqual([
       'Orders',
       'Assignments',

@@ -359,6 +359,7 @@ export default function TopNav() {
     PERMISSIONS.ORDERS_READ_ASSIGNED,
   ]);
   const canReadRelationships = hasPermission(PERMISSIONS.RELATIONSHIPS_READ);
+  const canReadVendors = canReadRelationships;
   const canReadUsers = hasPermission(PERMISSIONS.USERS_READ);
   const canViewSettings = hasPermission(PERMISSIONS.SETTINGS_VIEW);
   const clientsPath = canReadAllClients ? "/clients" : "/clients/cards";
@@ -380,6 +381,7 @@ export default function TopNav() {
     canReadAssignedClients,
     canReadAssignments: showAssignmentsNav,
     canReadRelationships: showScopedRelationshipsNav,
+    canReadVendors,
     canReadUsers: showUsersNav,
   }, {
     operationsMode,

@@ -38,6 +38,12 @@ No mutation UI, mutation RPCs, assignment candidate RPCs, assignment behavior, v
 
 The next AMC-2 slice should decide whether to seed explicit vendor permissions and expose AMC-mode navigation, or first add read-only vendor data seeding/dev fixtures for validation.
 
+## AMC-2N Implementation Status
+
+AMC-2N exposes `Vendors` in AMC Operations navigation only.
+
+The surface still uses the shared `/vendors` and `/vendors/:vendorProfileId` routes and remains read-only. Visibility is gated by AMC Operations mode plus the existing temporary `relationships.read` permission until explicit vendor permissions are approved. Internal Operations navigation does not show Vendors, and Users, raw Relationships, Assignments, vendor mutations, vendor roles, assignment behavior, and `/amc/*` routes remain deferred.
+
 ## Framework Reuse Doctrine
 
 Vendor Directory records should build on the existing company framework wherever possible:

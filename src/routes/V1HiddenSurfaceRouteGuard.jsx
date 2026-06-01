@@ -1,8 +1,11 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 
 import { useShellProfile } from "@/lib/shell/useShellProfile";
+import { OPERATIONS_MODES } from "@/lib/operations/operationsMode";
+import { useOperationsMode } from "@/lib/operations/OperationsModeProvider";
 import {
   V1_HIDDEN_ENTERPRISE_SURFACE_FALLBACK_PATH,
+  isAmcOperationsVendorSurfacePath,
   isStaffAppraisalHiddenEnterpriseSurfaceBlocked,
 } from "@/lib/routes/v1HiddenSurfacePolicy";
 
@@ -22,15 +25,20 @@ export default function V1HiddenSurfaceRouteGuard({
   fallbackPath = V1_HIDDEN_ENTERPRISE_SURFACE_FALLBACK_PATH,
 }) {
   const shellProfilePresentation = useShellProfile();
+  const { operationsMode } = useOperationsMode();
+  const { pathname } = useLocation();
 
   if (shellProfilePresentation.loading) {
     return <RouteLoadingState />;
   }
 
-  if (isStaffAppraisalHiddenEnterpriseSurfaceBlocked(shellProfilePresentation)) {
+  const allowAmcVendorSurface =
+    operationsMode === OPERATIONS_MODES.AMC_OPERATIONS &&
+    isAmcOperationsVendorSurfacePath(pathname);
+
+  if (!allowAmcVendorSurface && isStaffAppraisalHiddenEnterpriseSurfaceBlocked(shellProfilePresentation)) {
     return <Navigate to={fallbackPath} replace />;
   }
 
   return <>{children}</>;
 }
-

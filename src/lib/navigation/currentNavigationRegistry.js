@@ -272,6 +272,35 @@ export const currentLiveNavigationEntries = freezeArray([
   }),
 
   createEntry({
+    id: 'vendors',
+    label: 'Vendors',
+    path: '/vendors',
+    order: 45,
+    surfaces: [
+      CURRENT_NAV_SURFACES.DESKTOP,
+      CURRENT_NAV_SURFACES.MOBILE,
+      CURRENT_NAV_SURFACES.ROUTE,
+    ],
+    visibilityGate: gate(CURRENT_NAV_GATE_TYPES.PERMISSION, [PERMISSIONS.RELATIONSHIPS_READ]),
+    routeGate: gate(CURRENT_NAV_GATE_TYPES.PERMISSION, [PERMISSIONS.RELATIONSHIPS_READ]),
+    notes: [
+      'AMC Operations read-only Vendor Directory surface. Temporarily gated by relationships.read until vendors.read is approved.',
+      'Vendor Directory wraps vendor language and does not expose raw relationship management UX.',
+    ],
+  }),
+
+  createEntry({
+    id: 'vendors.detail',
+    label: 'Vendor Profile',
+    path: '/vendors/:vendorProfileId',
+    order: 46,
+    surfaces: [CURRENT_NAV_SURFACES.ROUTE],
+    routeGate: gate(CURRENT_NAV_GATE_TYPES.PERMISSION, [PERMISSIONS.RELATIONSHIPS_READ]),
+    status: CURRENT_NAV_ENTRY_STATUS.ACTIVE_ROUTE_ONLY,
+    notes: ['Read-only Vendor Profile detail route linked from the Vendor Directory.'],
+  }),
+
+  createEntry({
     id: 'calendar',
     label: 'Calendar',
     path: '/calendar',

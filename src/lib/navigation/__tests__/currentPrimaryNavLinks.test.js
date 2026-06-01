@@ -27,10 +27,18 @@ describe('current primary nav links', () => {
       'assignments',
       'relationships',
       'calendar',
+      'vendors',
       'clients.primary',
       'users',
     ]);
-    expect(idsFor(links)).toEqual(CURRENT_PRIMARY_NAV_LINK_IDS);
+    expect(idsFor(links)).toEqual([
+      'orders',
+      'assignments',
+      'relationships',
+      'calendar',
+      'clients.primary',
+      'users',
+    ]);
     expect(labelsFor(links)).toEqual([
       'Orders',
       'Assignments',
@@ -77,28 +85,79 @@ describe('current primary nav links', () => {
     expect(pathsFor(links)).toEqual(['/orders', '/calendar']);
   });
 
-  it('accepts operations mode without changing the current route set', () => {
+  it('keeps Internal Operations on the existing route set', () => {
     const permissions = {
       canReadAllClients: true,
       canReadAssignedClients: true,
       canReadAssignments: true,
       canReadRelationships: true,
+      canReadVendors: true,
       canReadUsers: true,
     };
     const internalLinks = getCurrentPrimaryNavLinks(permissions, {
       operationsMode: OPERATIONS_MODES.INTERNAL_OPERATIONS,
     });
+
+    expect(idsFor(internalLinks)).toEqual([
+      'orders',
+      'assignments',
+      'relationships',
+      'calendar',
+      'clients.primary',
+      'users',
+    ]);
+    expect(pathsFor(internalLinks)).toEqual([
+      '/orders',
+      '/assignments',
+      '/relationships',
+      '/calendar',
+      '/clients',
+      '/users',
+    ]);
+    expect(pathsFor(internalLinks).some((path) => path.startsWith('/amc'))).toBe(false);
+  });
+
+  it('switches AMC Operations to a vendor-centered nav slate without using amc route forks', () => {
+    const permissions = {
+      canReadAllClients: true,
+      canReadAssignedClients: true,
+      canReadAssignments: true,
+      canReadRelationships: true,
+      canReadVendors: true,
+      canReadUsers: true,
+    };
     const amcLinks = getCurrentPrimaryNavLinks(permissions, {
       operationsMode: OPERATIONS_MODES.AMC_OPERATIONS,
     });
 
-    expect(idsFor(internalLinks)).toEqual(idsFor(amcLinks));
-    expect(labelsFor(internalLinks)).toEqual(labelsFor(amcLinks));
-    expect(pathsFor(internalLinks)).toEqual(pathsFor(amcLinks));
+    expect(idsFor(amcLinks)).toEqual([
+      'orders',
+      'calendar',
+      'vendors',
+      'clients.primary',
+    ]);
+    expect(labelsFor(amcLinks)).toEqual(['Orders', 'Calendar', 'Vendors', 'Clients']);
+    expect(pathsFor(amcLinks)).toEqual(['/orders', '/calendar', '/vendors', '/clients']);
+    expect(idsFor(amcLinks)).not.toContain('users');
+    expect(idsFor(amcLinks)).not.toContain('assignments');
+    expect(idsFor(amcLinks)).not.toContain('relationships');
     expect(amcLinks.every((link) => link.operationsMode === OPERATIONS_MODES.AMC_OPERATIONS)).toBe(
       true,
     );
     expect(pathsFor(amcLinks).some((path) => path.startsWith('/amc'))).toBe(false);
+  });
+
+  it('requires vendor read visibility input before showing Vendors in AMC Operations', () => {
+    const links = getCurrentPrimaryNavLinks({
+      canReadAllClients: true,
+      canReadRelationships: true,
+      canReadVendors: false,
+    }, {
+      operationsMode: OPERATIONS_MODES.AMC_OPERATIONS,
+    });
+
+    expect(idsFor(links)).toEqual(['orders', 'calendar', 'clients.primary']);
+    expect(pathsFor(links)).not.toContain('/vendors');
   });
 
   it('treats missing, loading, or errored permission inputs as false', () => {
@@ -134,6 +193,13 @@ describe('current primary nav links', () => {
     expect(links.find(({ id }) => id === 'relationships')?.visibilityGate.permissions).toEqual([
       PERMISSIONS.RELATIONSHIPS_READ,
     ]);
+    expect(
+      getCurrentPrimaryNavLinks({
+        canReadVendors: true,
+      }, {
+        operationsMode: OPERATIONS_MODES.AMC_OPERATIONS,
+      }).find(({ id }) => id === 'vendors')?.visibilityGate.permissions,
+    ).toEqual([PERMISSIONS.RELATIONSHIPS_READ]);
     expect(links.find(({ id }) => id === 'users')?.visibilityGate.permissions).toEqual([
       PERMISSIONS.USERS_READ,
     ]);
@@ -142,7 +208,7 @@ describe('current primary nav links', () => {
     });
   });
 
-  it('does not include mobile-only, route-only, diagnostics, Activity, Vendor, or Client Portal concepts', () => {
+  it('does not include mobile-only, route-only, diagnostics, future Vendor Portal, or Client Portal concepts', () => {
     const links = getCurrentPrimaryNavLinks({
       canReadAllClients: true,
       canReadAssignedClients: true,

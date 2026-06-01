@@ -9,12 +9,22 @@ const shellProfileState = vi.hoisted(() => ({
   loading: false,
 }));
 
+const operationsModeState = vi.hoisted(() => ({
+  operationsMode: "internal_operations",
+}));
+
 vi.mock("@/lib/shell/useShellProfile", () => ({
   useShellProfile: () => ({
     profileId: shellProfileState.profileId,
     loading: shellProfileState.loading,
     metadataAuthority: "presentation_only",
     isPresentationOnly: true,
+  }),
+}));
+
+vi.mock("@/lib/operations/OperationsModeProvider", () => ({
+  useOperationsMode: () => ({
+    operationsMode: operationsModeState.operationsMode,
   }),
 }));
 
@@ -74,6 +84,7 @@ describe("V1HiddenSurfaceRouteGuard", () => {
   beforeEach(() => {
     shellProfileState.profileId = "operations";
     shellProfileState.loading = false;
+    operationsModeState.operationsMode = "internal_operations";
   });
 
   afterEach(() => {
@@ -106,6 +117,24 @@ describe("V1HiddenSurfaceRouteGuard", () => {
 
     expect(screen.getByTestId("location")).toHaveTextContent("/orders");
     expect(screen.queryByTestId("hidden-surface")).toBeNull();
+  });
+
+  it("allows hidden Vendor Directory access in AMC Operations mode to remain permission governed", () => {
+    operationsModeState.operationsMode = "amc_operations";
+
+    renderGuardedRoute("/vendors");
+
+    expect(screen.getByTestId("hidden-surface")).toHaveTextContent("Vendors");
+    expect(screen.queryByTestId("location")).toBeNull();
+  });
+
+  it("allows hidden Vendor Profile access in AMC Operations mode to remain permission governed", () => {
+    operationsModeState.operationsMode = "amc_operations";
+
+    renderGuardedRoute("/vendors/profile-1");
+
+    expect(screen.getByTestId("hidden-surface")).toHaveTextContent("Vendor profile");
+    expect(screen.queryByTestId("location")).toBeNull();
   });
 
   it("does not flash restricted content while shell profile is loading", () => {

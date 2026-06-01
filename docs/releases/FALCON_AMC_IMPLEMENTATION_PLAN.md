@@ -67,7 +67,7 @@ Success Criteria:
 
 ### AMC-2: Vendor Directory
 
-Status: read-only Vendor Directory foundation closed out through AMC-2L; hidden directory/profile routes exist, with no navigation exposure, permission seed, role, mutation, assignment candidate, or assignment behavior exposure yet.
+Status: read-only Vendor Directory foundation exposed in AMC Operations navigation through AMC-2N; no permission seed, role, mutation, assignment candidate, assignment behavior, or `/amc/*` route exposure yet.
 
 Purpose: create the vendor management foundation.
 
@@ -86,6 +86,7 @@ Deliverables:
 - Frontend read API wrappers.
 - Hidden read-only Vendor Directory route.
 - Hidden read-only Vendor Profile detail route.
+- AMC Operations-only Vendors navigation exposure gated by temporary `relationships.read`.
 - Vendor CRUD.
 - Coverage areas.
 - Vendor contacts.

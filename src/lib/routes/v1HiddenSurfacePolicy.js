@@ -8,6 +8,10 @@ export const V1_HIDDEN_ENTERPRISE_ROUTE_PREFIXES = Object.freeze([
   "/vendors",
 ]);
 
+const AMC_OPERATIONS_VENDOR_ROUTE_PREFIXES = Object.freeze([
+  "/vendors",
+]);
+
 const STAFF_APPRAISAL_OPERATIONAL_SHELLS = new Set([
   SHELL_PROFILE_IDS.OPERATIONS,
   SHELL_PROFILE_IDS.MY_WORK,
@@ -28,4 +32,10 @@ export function isStaffAppraisalHiddenEnterpriseSurfaceBlocked(shellProfilePrese
   return STAFF_APPRAISAL_OPERATIONAL_SHELLS.has(
     getShellProfileId(shellProfilePresentation),
   );
+}
+
+export function isAmcOperationsVendorSurfacePath(pathname = "") {
+  return AMC_OPERATIONS_VENDOR_ROUTE_PREFIXES.some((prefix) => (
+    pathname === prefix || pathname.startsWith(`${prefix}/`)
+  ));
 }

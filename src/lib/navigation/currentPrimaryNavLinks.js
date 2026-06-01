@@ -10,6 +10,7 @@ export const CURRENT_PRIMARY_NAV_LINK_IDS = Object.freeze([
   'assignments',
   'relationships',
   'calendar',
+  'vendors',
   'clients.primary',
   'users',
 ]);
@@ -62,18 +63,25 @@ const primaryLink = (entry, path = entry.path, operationsMode) =>
     sourceSurface: CURRENT_NAV_SURFACES.DESKTOP,
   });
 
-const shouldShowEntry = (entryId, permissions) => {
+const shouldShowEntry = (entryId, permissions, operationsMode) => {
+  const isAmcOperations = operationsMode === 'amc_operations';
+
   switch (entryId) {
     case 'orders':
     case 'calendar':
       return true;
     case 'assignments':
+      if (isAmcOperations) return false;
       return bool(permissions.canReadAssignments);
     case 'relationships':
+      if (isAmcOperations) return false;
       return bool(permissions.canReadRelationships);
+    case 'vendors':
+      return isAmcOperations && bool(permissions.canReadVendors);
     case 'clients.primary':
       return bool(permissions.canReadAllClients) || bool(permissions.canReadAssignedClients);
     case 'users':
+      if (isAmcOperations) return false;
       return bool(permissions.canReadUsers);
     default:
       return false;
@@ -91,7 +99,7 @@ const resolvePrimaryPath = (entry, permissions) => {
 export const getCurrentPrimaryNavLinks = (permissions = {}, options = {}) => {
   const operationsMode = resolveOperationsMode(options);
   const links = CURRENT_PRIMARY_NAV_LINK_IDS.flatMap((entryId) => {
-    if (!REQUIRED_ENTRY_IDS.has(entryId) || !shouldShowEntry(entryId, permissions)) {
+    if (!REQUIRED_ENTRY_IDS.has(entryId) || !shouldShowEntry(entryId, permissions, operationsMode)) {
       return [];
     }
 

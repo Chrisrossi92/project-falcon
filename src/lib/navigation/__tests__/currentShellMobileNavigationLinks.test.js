@@ -9,9 +9,10 @@ const fullyVisibleLinks = () =>
   getCurrentPrimaryNavLinks({
     canReadAllClients: true,
     canReadAssignedClients: true,
-    canReadAssignments: true,
-    canReadRelationships: true,
-    canReadUsers: true,
+      canReadAssignments: true,
+      canReadRelationships: true,
+      canReadVendors: true,
+      canReadUsers: true,
   });
 
 const ids = (links) => links.map((link) => link.id);
@@ -98,22 +99,45 @@ describe('current shell mobile navigation links', () => {
     expect(new Set(ids(mobileLinks))).toEqual(new Set(ids(visibleLinks)));
   });
 
-  it('accepts operations mode without changing mobile routes or ordering', () => {
+  it('switches mobile ordering to the AMC Operations slate without changing routes to amc forks', () => {
     const visibleLinks = fullyVisibleLinks();
+    const amcVisibleLinks = getCurrentPrimaryNavLinks({
+      canReadAllClients: true,
+      canReadAssignedClients: true,
+      canReadAssignments: true,
+      canReadRelationships: true,
+      canReadVendors: true,
+      canReadUsers: true,
+    }, {
+      operationsMode: OPERATIONS_MODES.AMC_OPERATIONS,
+    });
     const internalLinks = getCurrentShellMobileNavigationLinks(
       visibleLinks,
       SHELL_PROFILE_IDS.OPERATIONS,
       { operationsMode: OPERATIONS_MODES.INTERNAL_OPERATIONS },
     );
     const amcLinks = getCurrentShellMobileNavigationLinks(
-      visibleLinks,
+      amcVisibleLinks,
       SHELL_PROFILE_IDS.OPERATIONS,
       { operationsMode: OPERATIONS_MODES.AMC_OPERATIONS },
     );
 
-    expect(ids(amcLinks)).toEqual(ids(internalLinks));
-    expect(labels(amcLinks)).toEqual(labels(internalLinks));
-    expect(paths(amcLinks)).toEqual(paths(internalLinks));
+    expect(ids(internalLinks)).toEqual([
+      'orders',
+      'calendar',
+      'assignments',
+      'clients.primary',
+      'relationships',
+      'users',
+    ]);
+    expect(ids(amcLinks)).toEqual([
+      'orders',
+      'calendar',
+      'vendors',
+      'clients.primary',
+    ]);
+    expect(labels(amcLinks)).toEqual(['Orders', 'Calendar', 'Vendors', 'Clients']);
+    expect(paths(amcLinks)).toEqual(['/orders', '/calendar', '/vendors', '/clients']);
     expect(amcLinks.every((link) => link.operationsMode === OPERATIONS_MODES.AMC_OPERATIONS)).toBe(
       true,
     );
