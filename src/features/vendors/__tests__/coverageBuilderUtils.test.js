@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   formatCoverageRowPreview,
   generateCoverageRows,
+  summarizeCoverageRows,
   validateCoverageBlock,
   VENDOR_COVERAGE_MODES,
 } from "../coverage/coverageBuilderUtils";
@@ -111,5 +112,28 @@ describe("vendor coverage builder utilities", () => {
         product_type: "multifamily",
       }),
     ).toBe("OH · Franklin County · Multifamily");
+  });
+
+  it("summarizes generated rows by geography and product count", () => {
+    expect(
+      summarizeCoverageRows(
+        generateCoverageRows({
+          state: "OH",
+          mode: VENDOR_COVERAGE_MODES.ENTIRE_STATE,
+          productTypes: ["commercial", "multifamily", "land"],
+        }),
+      ),
+    ).toBe("OH · Statewide · 3 products");
+
+    expect(
+      summarizeCoverageRows(
+        generateCoverageRows({
+          state: "MI",
+          mode: VENDOR_COVERAGE_MODES.SELECTED_COUNTIES,
+          counties: ["Wayne", "Oakland"],
+          productTypes: ["commercial", "review"],
+        }),
+      ),
+    ).toBe("MI · 2 counties · 2 products");
   });
 });

@@ -423,7 +423,7 @@ describe("VendorDirectoryPage", () => {
     });
     fireEvent.click(within(dialog).getByLabelText("Commercial"));
     fireEvent.click(within(dialog).getByLabelText("Multifamily"));
-    expect(within(dialog).getByText("OH · Statewide · Commercial")).toBeInTheDocument();
+    expect(within(dialog).getByText("OH · Statewide · 2 products")).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole("button", { name: "Add coverage" }));
     fireEvent.click(within(dialog).getByRole("button", { name: "Add Vendor" }));
 
@@ -557,6 +557,50 @@ describe("VendorDirectoryPage", () => {
     expect(companyName).toHaveValue("Duplicate Vendor");
     expect(screen.getByRole("dialog", { name: "Add Vendor" })).toBeInTheDocument();
     expect(routeState.navigate).not.toHaveBeenCalled();
+  });
+
+  it("logs Add Vendor diagnostics in development without changing user-facing errors", async () => {
+    const debugSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+    permissionState.allowed = new Set(["vendors.create"]);
+    vendorApiState.listVendorDirectory.mockResolvedValue([]);
+    vendorApiState.createVendorProfile.mockRejectedValue(Object.assign(new Error("vendor_payload_invalid"), {
+      code: "22023",
+      details: "service area row 12 failed validation",
+      hint: "Check coverage payload shape",
+    }));
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Add Vendor" }));
+    const dialog = screen.getByRole("dialog", { name: "Add Vendor" });
+    fireEvent.change(within(dialog).getByLabelText("Vendor company name"), {
+      target: { value: "Diagnostics Vendor" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Coverage mode"), {
+      target: { value: "selected_counties" },
+    });
+    fireEvent.click(within(dialog).getByLabelText("Franklin"));
+    fireEvent.click(within(dialog).getByLabelText("Delaware"));
+    fireEvent.click(within(dialog).getByLabelText("Commercial"));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add coverage" }));
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add Vendor" }));
+
+    expect(await within(dialog).findByText("Some vendor details are invalid. Review the form and try again.")).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Vendor company name")).toHaveValue("Diagnostics Vendor");
+    expect(debugSpy).toHaveBeenCalledWith("Vendor create failed", expect.objectContaining({
+      code: "22023",
+      message: "vendor_payload_invalid",
+      details: "service area row 12 failed validation",
+      hint: "Check coverage payload shape",
+      serviceAreaCount: 2,
+      serviceAreaSample: [
+        expect.objectContaining({ state: "OH", county: "Franklin", product_type: "commercial", status: "active" }),
+        expect.objectContaining({ state: "OH", county: "Delaware", product_type: "commercial", status: "active" }),
+      ],
+      payloadKeys: expect.arrayContaining(["vendor_company", "create_relationship", "vendor_status", "service_areas"]),
+    }));
+    debugSpy.mockRestore();
   });
 
   it("shows a self-vendor message for relationship-invalid create errors", async () => {

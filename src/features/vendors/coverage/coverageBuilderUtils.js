@@ -182,3 +182,35 @@ export function formatCoverageRowPreview(row = {}) {
   const productLabel = getVendorProductTypeLabel(row.product_type);
   return [state, ...geography, productLabel].filter(Boolean).join(" · ");
 }
+
+export function summarizeCoverageRows(rows = []) {
+  const safeRows = Array.isArray(rows) ? rows.filter(Boolean) : [];
+  if (!safeRows.length) return "No coverage";
+
+  const firstRow = safeRows[0] || {};
+  const state = normalizeStateCode(firstRow.state);
+  const products = new Set(safeRows.map((row) => normalizeVendorProductType(row.product_type)).filter(Boolean));
+  const counties = new Set(safeRows.map((row) => normalizeText(row.county)).filter(Boolean));
+  const zips = new Set(safeRows.map((row) => normalizeText(row.zip)).filter(Boolean));
+  const markets = new Set(safeRows.map((row) => normalizeText(row.market)).filter(Boolean));
+  const radii = new Set(
+    safeRows
+      .map((row) => row.radius_miles)
+      .filter((radius) => radius !== null && radius !== undefined && radius !== ""),
+  );
+
+  let geography = "Statewide";
+  if (counties.size) {
+    geography = `${counties.size} ${counties.size === 1 ? "county" : "counties"}`;
+  } else if (zips.size) {
+    geography = `${zips.size} ${zips.size === 1 ? "ZIP" : "ZIPs"}`;
+  } else if (markets.size || radii.size) {
+    const marketLabel = markets.size === 1 ? [...markets][0] : `${markets.size} markets`;
+    const radiusLabel = radii.size === 1 ? `${[...radii][0]} mi` : radii.size ? `${radii.size} radii` : "";
+    geography = [markets.size ? marketLabel : null, radiusLabel].filter(Boolean).join(" · ");
+  }
+
+  const productCount = products.size || safeRows.length;
+  const productLabel = `${productCount} ${productCount === 1 ? "product" : "products"}`;
+  return [state, geography, productLabel].filter(Boolean).join(" · ");
+}

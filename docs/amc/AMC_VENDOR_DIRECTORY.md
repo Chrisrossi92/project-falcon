@@ -211,6 +211,16 @@ The existing single-row add/edit workflow remains in place as secondary coverage
 
 AMC-3E.4 does not add bulk edit, delete/hard-delete, mapping/geocoding, assignment candidate logic, assignment behavior, backend RPC/API changes, schema/RLS changes, permission changes, route/navigation changes, order behavior changes, raw relationship/assignment UX exposure, or `/amc/*` routes.
 
+## AMC-3E.5 Coverage Preview Compression and Save Diagnostics
+
+AMC-3E.5 compresses CoverageBuilder previews so coverage-heavy selections do not render every generated county/product or ZIP/product row inline.
+
+CoverageBuilder now shows summarized coverage selections by default, such as statewide coverage with product counts or selected-county counts with product counts. Generated rows remain available through an optional View generated rows detail area, and the generated payload rows are unchanged.
+
+Add Vendor now keeps owner-facing error copy stable while logging development/test diagnostics with the RPC code, message, details, hint, service-area count, and a small service-area sample. Production users should not see raw SQL or backend diagnostic text.
+
+AMC-3E.5 does not change backend RPC/API behavior, generated row semantics, schema/RLS, permissions, route/navigation exposure, assignment behavior, order behavior, vendor roles, archive/delete behavior, raw relationship/assignment UX exposure, or `/amc/*` routes.
+
 ## AMC-3F.1 Vendor Copy and Terminology Polish
 
 AMC-3F.1 polishes owner-facing Vendor Directory terminology without changing behavior or data flow.

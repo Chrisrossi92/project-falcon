@@ -8,6 +8,7 @@ import { VENDOR_COVERAGE_STATES } from "./states";
 import {
   formatCoverageRowPreview,
   generateCoverageRows,
+  summarizeCoverageRows,
   validateCoverageBlock,
   VENDOR_COVERAGE_MODES,
   VENDOR_COVERAGE_MODE_OPTIONS,
@@ -31,6 +32,8 @@ export default function CoverageBuilder({ onRowsChange, onAddCoverageBlock }) {
   const [radiusMiles, setRadiusMiles] = useState("");
   const [productTypes, setProductTypes] = useState([]);
   const [previewRows, setPreviewRows] = useState([]);
+  const [previewBlocks, setPreviewBlocks] = useState([]);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [errors, setErrors] = useState([]);
 
   const availableCounties = useMemo(() => getCountiesForState(state), [state]);
@@ -49,6 +52,7 @@ export default function CoverageBuilder({ onRowsChange, onAddCoverageBlock }) {
   );
 
   const pendingRows = useMemo(() => generateCoverageRows(currentBlock), [currentBlock]);
+  const pendingSummary = useMemo(() => summarizeCoverageRows(pendingRows), [pendingRows]);
 
   function handleStateChange(nextState) {
     setState(nextState);
@@ -66,7 +70,13 @@ export default function CoverageBuilder({ onRowsChange, onAddCoverageBlock }) {
 
     const nextRows = generateCoverageRows(currentBlock);
     const allRows = [...previewRows, ...nextRows];
+    const nextBlock = {
+      id: `${Date.now()}-${previewBlocks.length}`,
+      summary: summarizeCoverageRows(nextRows),
+      rows: nextRows,
+    };
     setPreviewRows(allRows);
+    setPreviewBlocks((current) => [...current, nextBlock]);
     setErrors([]);
     onAddCoverageBlock?.(nextRows);
     onRowsChange?.(allRows);
@@ -196,13 +206,9 @@ export default function CoverageBuilder({ onRowsChange, onAddCoverageBlock }) {
         <div>
           <h3 className="text-sm font-semibold text-slate-800">Coverage to add</h3>
           {pendingRows.length ? (
-            <ul className="mt-2 space-y-1 text-sm text-slate-700">
-              {pendingRows.map((row, index) => (
-                <li key={`${formatCoverageRowPreview(row)}-${index}`}>
-                  {formatCoverageRowPreview(row)}
-                </li>
-              ))}
-            </ul>
+            <p className="mt-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+              {pendingSummary}
+            </p>
           ) : (
             <p className="mt-2 text-sm text-slate-500">Complete this coverage selection to preview what will be added.</p>
           )}
@@ -214,14 +220,35 @@ export default function CoverageBuilder({ onRowsChange, onAddCoverageBlock }) {
 
         <div>
           <h3 className="text-sm font-semibold text-slate-800">Added coverage</h3>
-          {previewRows.length ? (
-            <ul className="mt-2 space-y-1 text-sm text-slate-700">
-              {previewRows.map((row, index) => (
-                <li key={`${formatCoverageRowPreview(row)}-${index}`}>
-                  {formatCoverageRowPreview(row)}
-                </li>
-              ))}
-            </ul>
+          {previewBlocks.length ? (
+            <div className="mt-2 space-y-3">
+              <ul className="space-y-1 text-sm text-slate-700">
+                {previewBlocks.map((block) => (
+                  <li key={block.id} className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+                    {block.summary}
+                  </li>
+                ))}
+              </ul>
+              <button
+                type="button"
+                onClick={() => setDetailsOpen((current) => !current)}
+                className="text-sm font-medium text-slate-700 underline-offset-2 hover:underline"
+                aria-expanded={detailsOpen}
+              >
+                {detailsOpen ? "Hide generated rows" : "View generated rows"}
+              </button>
+              {detailsOpen ? (
+                <div className="max-h-56 overflow-auto rounded-md border border-slate-200 bg-white p-3">
+                  <ul className="space-y-1 text-sm text-slate-700">
+                    {previewRows.map((row, index) => (
+                      <li key={`${formatCoverageRowPreview(row)}-${index}`}>
+                        {formatCoverageRowPreview(row)}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
           ) : (
             <p className="mt-2 text-sm text-slate-500">No coverage added yet.</p>
           )}

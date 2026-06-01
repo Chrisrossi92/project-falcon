@@ -38,8 +38,9 @@ describe("CoverageBuilder", () => {
     expect(screen.queryByText("Pending rows")).toBeNull();
     expect(screen.queryByText("Coverage preview")).toBeNull();
     expect(screen.queryByRole("button", { name: "Add Coverage Block" })).toBeNull();
-    expect(screen.getByText("OH · Statewide · Commercial")).toBeInTheDocument();
-    expect(screen.getByText("OH · Statewide · Multifamily")).toBeInTheDocument();
+    expect(screen.getByText("OH · Statewide · 2 products")).toBeInTheDocument();
+    expect(screen.queryByText("OH · Statewide · Commercial")).toBeNull();
+    expect(screen.queryByText("OH · Statewide · Multifamily")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Add coverage" }));
 
@@ -47,6 +48,7 @@ describe("CoverageBuilder", () => {
       expect.objectContaining({ state: "OH", product_type: "commercial" }),
       expect.objectContaining({ state: "OH", product_type: "multifamily" }),
     ]);
+    expect(screen.getAllByText("OH · Statewide · 2 products").length).toBeGreaterThan(0);
     expect(vendorApiState.createVendorServiceArea).not.toHaveBeenCalled();
     expect(vendorApiState.updateVendorServiceArea).not.toHaveBeenCalled();
   });
@@ -74,8 +76,11 @@ describe("CoverageBuilder", () => {
       expect.objectContaining({ state: "MI", county: "Oakland", product_type: "commercial" }),
       expect.objectContaining({ state: "MI", county: "Oakland", product_type: "review" }),
     ]);
-    expect(screen.getAllByText("MI · Wayne County · Commercial").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("MI · Oakland County · Review").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("MI · 2 counties · 2 products").length).toBeGreaterThan(0);
+    expect(screen.queryByText("MI · Wayne County · Commercial")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "View generated rows" }));
+    expect(screen.getByText("MI · Wayne County · Commercial")).toBeInTheDocument();
+    expect(screen.getByText("MI · Oakland County · Review")).toBeInTheDocument();
   });
 
   it("generates ZIP/product combinations", () => {
@@ -94,7 +99,9 @@ describe("CoverageBuilder", () => {
       expect.objectContaining({ state: "OH", zip: "43215", product_type: "residential" }),
       expect.objectContaining({ state: "OH", zip: "43212", product_type: "residential" }),
     ]);
-    expect(screen.getAllByText("OH · ZIP 43215 · Residential").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("OH · 2 ZIPs · 1 product").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "View generated rows" }));
+    expect(screen.getByText("OH · ZIP 43215 · Residential")).toBeInTheDocument();
   });
 
   it("generates market/radius rows", () => {
@@ -118,7 +125,9 @@ describe("CoverageBuilder", () => {
         product_type: "commercial",
       }),
     ]);
-    expect(screen.getAllByText("OH · Columbus · 25 mi · Commercial").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("OH · Columbus · 25 mi · 1 product").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "View generated rows" }));
+    expect(screen.getByText("OH · Columbus · 25 mi · Commercial")).toBeInTheDocument();
   });
 
   it("prevents empty or incomplete blocks", () => {

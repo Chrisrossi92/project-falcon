@@ -662,7 +662,7 @@ describe("VendorProfilePage", () => {
     fireEvent.click(within(dialog).getByLabelText("Multifamily"));
     fireEvent.click(within(dialog).getByRole("button", { name: "Add coverage" }));
 
-    expect(within(dialog).getAllByText("OH · Franklin County · Commercial").length).toBeGreaterThan(0);
+    expect(within(dialog).getAllByText("OH · 2 counties · 2 products").length).toBeGreaterThan(0);
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Save Coverage" }));
 
@@ -711,7 +711,7 @@ describe("VendorProfilePage", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Save Coverage" }));
 
     expect(await within(dialog).findByText("You do not have permission to manage vendor coverage.")).toBeInTheDocument();
-    expect(within(dialog).getAllByText("OH · Statewide · Commercial").length).toBeGreaterThan(0);
+    expect(within(dialog).getAllByText("OH · Statewide · 1 product").length).toBeGreaterThan(0);
     expect(screen.getByRole("dialog", { name: "Add Coverage" })).toBeInTheDocument();
   });
 

@@ -139,6 +139,28 @@ function assignIfPresent(target, key, value) {
   }
 }
 
+function shouldLogVendorDiagnostics() {
+  return import.meta.env?.DEV || import.meta.env?.MODE === "test";
+}
+
+function logVendorCreateFailure(error, payload) {
+  const serviceAreas = Array.isArray(payload?.service_areas) ? payload.service_areas : [];
+  const diagnostics = {
+    code: error?.code,
+    message: error?.message,
+  };
+
+  if (shouldLogVendorDiagnostics()) {
+    diagnostics.details = error?.details;
+    diagnostics.hint = error?.hint;
+    diagnostics.serviceAreaCount = serviceAreas.length;
+    diagnostics.serviceAreaSample = serviceAreas.slice(0, 3);
+    diagnostics.payloadKeys = Object.keys(payload || {});
+  }
+
+  console.debug("Vendor create failed", diagnostics);
+}
+
 function AddVendorModal({ open, onClose, onCreated }) {
   const [form, setForm] = useState(EMPTY_VENDOR_FORM);
   const [formError, setFormError] = useState("");
@@ -235,10 +257,7 @@ function AddVendorModal({ open, onClose, onCreated }) {
       setForm(EMPTY_VENDOR_FORM);
       setCoverageRows([]);
     } catch (error) {
-      console.debug("Vendor create failed", {
-        code: error?.code,
-        message: error?.message,
-      });
+      logVendorCreateFailure(error, payload);
       setSubmitError(getVendorErrorMessage(error, {
         selfVendorMessage: true,
         permissionMessage: "You do not have permission to add vendors.",
