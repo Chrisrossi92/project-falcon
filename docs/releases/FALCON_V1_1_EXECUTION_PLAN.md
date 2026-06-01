@@ -59,6 +59,7 @@ Nice-to-have items may be implemented only after required V1.1 items are complet
 - Workload heatmap and pressure forecasting.
 - Advanced hold/resume workflow.
 - Configurable order numbering system if not handled in V1.1.
+- AMC strategy and MVP planning, tracked in [FALCON_AMC_MVP_PLAN.md](./FALCON_AMC_MVP_PLAN.md).
 
 These items are not part of required V1.1 stabilization. They should remain in backlog unless explicitly pulled into a later approved phase.
 
@@ -73,7 +74,67 @@ These items are not part of required V1.1 stabilization. They should remain in b
 - No owner-configurable platform expansion unless a required V1.1 item is explicitly approved to need it.
 - No broad refactors unrelated to the required V1.1 stabilization items.
 
-## 7. Implementation slices
+## 7. Workflow Doctrine Decisions
+
+### New to In Progress
+
+Definition: an order moves from New to In Progress when the assigned appraiser has acknowledged or begun meaningful work.
+
+Approved triggers:
+
+- Appraiser clicks Start Work / Acknowledge Assignment.
+- Site visit / appointment date is entered.
+- Admin/owner manually marks In Progress.
+
+Do not trigger from:
+
+- generic notes
+- passive viewing
+- fee edits
+- client/contact edits
+- due date edits
+
+### On Hold
+
+Decision: needed, but not implemented in this slice.
+
+Future behavior:
+
+- On Hold should pause an order without losing prior lifecycle state.
+- Store hold reason, hold note, hold started date, and prior status.
+- Clearing hold should return order to prior lifecycle status.
+- On Hold is not the same as Needs Revisions or In Review.
+
+### Order Number Governance
+
+Decision: needed, but not implemented in this slice unless separately approved.
+
+Future behavior:
+
+- Owner/admin can configure next order number.
+- Admin may need controlled override for legacy/current in-house order numbers.
+- Auto-generated numbers should remain default.
+- Duplicate/copy order should always generate a fresh number.
+
+### Calendar Overflow
+
+Decision: keep existing individual event-chip calendar pattern.
+
+Future improvement:
+
+- Make `+X More` clickable.
+- Open day detail popover/drawer grouped by Site / Review / Final.
+
+### Duplicate Order
+
+Decision: useful V1.1/V1.2 backlog, not implemented now.
+
+Future behavior:
+
+- Copied order should reset status, history, files, and notifications.
+- Copied order should receive a fresh order number.
+
+## 8. Implementation slices
 
 ### Slice 1: Documentation lock
 
@@ -98,9 +159,12 @@ These items are not part of required V1.1 stabilization. They should remain in b
 
 ### Slice 4: Workflow doctrine
 
+- Status: implemented as documentation-only doctrine lock.
 - Document the New to In Progress doctrine before implementation.
 - Document the On Hold workflow need and implementation risks.
 - Document order number governance and decide whether V1.1 needs a small policy fix or only a future configurable system.
+- Document calendar overflow and duplicate-order backlog decisions.
+- Do not change runtime code, backend behavior, schema, auth, roles, permissions, or memberships in this slice.
 
 ### Slice 5: Approved required implementation
 
@@ -113,7 +177,7 @@ These items are not part of required V1.1 stabilization. They should remain in b
 - Consider nice-to-have V1.1 UI polish only after required items are complete.
 - Keep optional work isolated from workflow, notification, and schema foundations.
 
-## 8. Validation checklist
+## 9. Validation checklist
 
 - Documentation-only slice created or updated.
 - `git diff --check` passes.
@@ -122,6 +186,8 @@ These items are not part of required V1.1 stabilization. They should remain in b
 - New to In Progress doctrine documented before related implementation.
 - On Hold workflow need documented and not implemented without approval.
 - Order number governance documented before related implementation.
+- Calendar overflow decision documented and not implemented in this slice.
+- Duplicate Order decision documented and not implemented in this slice.
 - No V2 architecture introduced.
 - No public launch changes introduced.
 - No schema redesign introduced.
