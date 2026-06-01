@@ -141,6 +141,9 @@ describe("TopNav desktop operational spine navigation", () => {
     expect(container.querySelector('aside [data-testid="operations-mode-current"]')).toHaveTextContent(
       "Internal Operations",
     );
+    expect(within(desktopContext).getByTestId("operations-mode-selected-label")).toHaveTextContent(
+      "Internal Operations",
+    );
   });
 
   it("switches operations mode without navigating", () => {
@@ -157,9 +160,27 @@ describe("TopNav desktop operational spine navigation", () => {
     expect(container.querySelector('aside [data-testid="operations-mode-current"]')).toHaveTextContent(
       "AMC Operations",
     );
+    expect(within(desktopContext).getByTestId("operations-mode-selected-label")).toHaveTextContent(
+      "AMC Operations",
+    );
     expect(window.localStorage.getItem(OPERATIONS_MODE_STORAGE_KEY)).toBe("amc_operations");
     expect(screen.getByTestId("current-path")).toHaveTextContent("/orders");
     expect(desktopLinks(container).map((link) => link.textContent)).toEqual(linksBeforeSwitch);
+  });
+
+  it("restores the stored operations mode as the visible selected value", () => {
+    window.localStorage.setItem(OPERATIONS_MODE_STORAGE_KEY, "amc_operations");
+
+    const { container } = renderTopNav();
+    const desktopContext = container.querySelector('aside [data-testid="operations-mode-switcher"]');
+
+    expect(within(desktopContext).getByRole("button", { name: "AMC Operations" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(within(desktopContext).getByTestId("operations-mode-selected-label")).toHaveTextContent(
+      "AMC Operations",
+    );
   });
 
   it("renders the operations mode switcher in mobile navigation", () => {
@@ -178,6 +199,9 @@ describe("TopNav desktop operational spine navigation", () => {
       "aria-pressed",
       "true",
     );
+    expect(within(mobileNav).getByTestId("operations-mode-selected-label")).toHaveTextContent(
+      "AMC Operations",
+    );
     expect(screen.getByTestId("current-path")).toHaveTextContent("/dashboard");
   });
 
@@ -193,12 +217,18 @@ describe("TopNav desktop operational spine navigation", () => {
       "aria-pressed",
       "true",
     );
+    expect(within(mobileNav).getByTestId("operations-mode-selected-label")).toHaveTextContent(
+      "AMC Operations",
+    );
 
     fireEvent.click(within(mobileNav).getByRole("button", { name: "Internal Operations" }));
 
     expect(within(desktopContext).getByRole("button", { name: "Internal Operations" })).toHaveAttribute(
       "aria-pressed",
       "true",
+    );
+    expect(within(desktopContext).getByTestId("operations-mode-selected-label")).toHaveTextContent(
+      "Internal Operations",
     );
     expect(window.localStorage.getItem(OPERATIONS_MODE_STORAGE_KEY)).toBe("internal_operations");
   });

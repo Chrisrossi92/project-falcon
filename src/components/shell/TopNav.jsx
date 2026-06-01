@@ -126,8 +126,14 @@ function OperationalModeContext({ shellModeCue, appContext, placement = "rail" }
         {shellModeCue.label}
       </div>
       <div className="mt-3" aria-label="Operations Command" data-testid="operations-mode-switcher">
-        <div className="mb-1 truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-          Mode
+        <div className="mb-1 flex items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+          <span className="truncate">Mode</span>
+          <span
+            className="truncate text-slate-300"
+            data-testid="operations-mode-selected-label"
+          >
+            {operationsModeLabel}
+          </span>
         </div>
         <div className="grid grid-cols-1 gap-1 rounded-xl border border-slate-800 bg-slate-950/55 p-1">
           {availableOperationsModes.map((mode) => {
