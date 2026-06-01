@@ -67,6 +67,8 @@ Success Criteria:
 
 ### AMC-2: Vendor Directory
 
+Status: read-only Vendor Directory foundation closed out through AMC-2L; hidden directory/profile routes exist, with no navigation exposure, permission seed, role, mutation, assignment candidate, or assignment behavior exposure yet.
+
 Purpose: create the vendor management foundation.
 
 Dependencies:
@@ -74,9 +76,16 @@ Dependencies:
 - AMC-1 mode architecture.
 - Permissions model for vendor visibility and management.
 - Vendor Company first doctrine.
+- Existing company relationship and order-company assignment framework audit.
 
 Deliverables:
 
+- Existing AMC/company-assignment framework audit.
+- Lean vendor profile/contact/service-area schema foundation.
+- Read-only Vendor Directory RPC layer.
+- Frontend read API wrappers.
+- Hidden read-only Vendor Directory route.
+- Hidden read-only Vendor Profile detail route.
 - Vendor CRUD.
 - Coverage areas.
 - Vendor contacts.
@@ -93,6 +102,9 @@ Success Criteria:
 - Vendor records can be managed independently from internal users.
 - Vendor Company is the primary assignment unit.
 - Individual vendor appraiser contacts can be represented without requiring individual assignment.
+- Vendor assignment uses assignment records, not `orders.appraiser_id`, `orders.reviewer_id`, or `orders.assigned_to`.
+- Existing company relationship and order-company assignment infrastructure is reused where sufficient before new vendor tables are introduced.
+- AMC surfaces extend shared Falcon routes and shell patterns rather than forking into a separate AMC route tree.
 
 ### AMC-3: AMC Financial Layer
 

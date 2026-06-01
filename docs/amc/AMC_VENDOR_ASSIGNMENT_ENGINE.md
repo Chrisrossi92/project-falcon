@@ -21,6 +21,31 @@ MVP may use simple defaults, but those defaults should be documented as defaults
 - Assignment action writes order activity and supports notifications.
 - Vendor Company is the primary MVP assignment unit; individual vendor appraisers can be layered in later.
 
+## Assignment Record Doctrine
+
+Vendor assignment should use an assignment record, not internal order participant columns.
+
+Do not write vendor-company or external vendor-user assignment into:
+
+- `orders.appraiser_id`
+- `orders.reviewer_id`
+- `orders.assigned_to`
+
+Those fields are internal production assignment fields for appraisers, reviewers, and current company work routing.
+
+The existing company relationship and order-company assignment infrastructure may already be the canonical AMC assignment foundation:
+
+- `company_relationships`
+- `company_relationship_types`
+- `order_company_assignments`
+- `order_company_assignment_activity`
+- assignment lifecycle RPCs
+- assignment packet notifications
+
+AMC-2 should audit and reuse that framework before creating any new vendor-specific assignment table.
+
+If new vendor assignment entities are ever needed, they should extend or wrap the existing assignment packet model rather than compete with it.
+
 ## Vendor Matching Inputs
 
 Vendor matching may eventually use:

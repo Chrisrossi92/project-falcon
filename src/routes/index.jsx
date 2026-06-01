@@ -26,6 +26,8 @@ import Activity from "@/pages/Activity";
 import AssignmentsPage, { ASSIGNMENT_NAV_PERMISSIONS } from "@/features/assignments/AssignmentsPage";
 import AssignmentDetail from "@/features/assignments/AssignmentDetail";
 import RelationshipsPage, { RELATIONSHIP_NAV_PERMISSION } from "@/features/relationships/RelationshipsPage";
+import VendorDirectoryPage from "@/features/vendors/VendorDirectoryPage";
+import VendorProfilePage from "@/features/vendors/VendorProfilePage";
 
 // Clients (legacy admin pages kept)
 import ClientsDashboard from "@/pages/clients/ClientsDashboard";
@@ -203,6 +205,28 @@ export default function AppRoutes() {
             <ProtectedRoute requiredPermission={RELATIONSHIP_NAV_PERMISSION}>
               <V1HiddenSurfaceRouteGuard>
                 <RelationshipsPage />
+              </V1HiddenSurfaceRouteGuard>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Vendors */}
+        <Route
+          path="/vendors"
+          element={
+            <ProtectedRoute requiredPermission={PERMISSIONS.RELATIONSHIPS_READ}>
+              <V1HiddenSurfaceRouteGuard>
+                <VendorDirectoryPage />
+              </V1HiddenSurfaceRouteGuard>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/vendors/:vendorProfileId"
+          element={
+            <ProtectedRoute requiredPermission={PERMISSIONS.RELATIONSHIPS_READ}>
+              <V1HiddenSurfaceRouteGuard>
+                <VendorProfilePage />
               </V1HiddenSurfaceRouteGuard>
             </ProtectedRoute>
           }

@@ -48,6 +48,22 @@ function renderGuardedRoute(initialPath = "/assignments") {
             </V1HiddenSurfaceRouteGuard>
           }
         />
+        <Route
+          path="/vendors"
+          element={
+            <V1HiddenSurfaceRouteGuard>
+              <div data-testid="hidden-surface">Vendors</div>
+            </V1HiddenSurfaceRouteGuard>
+          }
+        />
+        <Route
+          path="/vendors/:vendorProfileId"
+          element={
+            <V1HiddenSurfaceRouteGuard>
+              <div data-testid="hidden-surface">Vendor profile</div>
+            </V1HiddenSurfaceRouteGuard>
+          }
+        />
         <Route path="/orders" element={<LocationProbe />} />
       </Routes>
     </MemoryRouter>,
@@ -78,6 +94,20 @@ describe("V1HiddenSurfaceRouteGuard", () => {
     expect(screen.queryByTestId("hidden-surface")).toBeNull();
   });
 
+  it("redirects Staff Appraisal users away from the hidden Vendor Directory", () => {
+    renderGuardedRoute("/vendors");
+
+    expect(screen.getByTestId("location")).toHaveTextContent("/orders");
+    expect(screen.queryByTestId("hidden-surface")).toBeNull();
+  });
+
+  it("redirects Staff Appraisal users away from hidden Vendor Profile details", () => {
+    renderGuardedRoute("/vendors/profile-1");
+
+    expect(screen.getByTestId("location")).toHaveTextContent("/orders");
+    expect(screen.queryByTestId("hidden-surface")).toBeNull();
+  });
+
   it("does not flash restricted content while shell profile is loading", () => {
     shellProfileState.loading = true;
 
@@ -93,6 +123,24 @@ describe("V1HiddenSurfaceRouteGuard", () => {
     renderGuardedRoute("/assignments");
 
     expect(screen.getByTestId("hidden-surface")).toHaveTextContent("Assignments");
+    expect(screen.queryByTestId("location")).toBeNull();
+  });
+
+  it("allows non-Staff hidden Vendor Directory access to remain permission governed", () => {
+    shellProfileState.profileId = "received_work";
+
+    renderGuardedRoute("/vendors");
+
+    expect(screen.getByTestId("hidden-surface")).toHaveTextContent("Vendors");
+    expect(screen.queryByTestId("location")).toBeNull();
+  });
+
+  it("allows non-Staff hidden Vendor Profile details to remain permission governed", () => {
+    shellProfileState.profileId = "received_work";
+
+    renderGuardedRoute("/vendors/profile-1");
+
+    expect(screen.getByTestId("hidden-surface")).toHaveTextContent("Vendor profile");
     expect(screen.queryByTestId("location")).toBeNull();
   });
 });

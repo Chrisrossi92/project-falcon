@@ -5,6 +5,7 @@ export const V1_HIDDEN_ENTERPRISE_SURFACE_FALLBACK_PATH = "/orders";
 export const V1_HIDDEN_ENTERPRISE_ROUTE_PREFIXES = Object.freeze([
   "/assignments",
   "/relationships",
+  "/vendors",
 ]);
 
 const STAFF_APPRAISAL_OPERATIONAL_SHELLS = new Set([
@@ -28,4 +29,3 @@ export function isStaffAppraisalHiddenEnterpriseSurfaceBlocked(shellProfilePrese
     getShellProfileId(shellProfilePresentation),
   );
 }
-

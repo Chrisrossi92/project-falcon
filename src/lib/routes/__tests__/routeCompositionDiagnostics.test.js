@@ -242,7 +242,24 @@ describe('shadow route composition diagnostics', () => {
     const activeRoutes = readFileSync('src/routes/index.jsx', 'utf8');
 
     expect(activeRoutes).toContain('path="/dashboard"');
+    expect(activeRoutes).toContain('path="/vendors"');
+    expect(activeRoutes).toContain('path="/vendors/:vendorProfileId"');
     expect(activeRoutes).not.toContain('path="/amc');
     expect(activeRoutes).not.toContain('path="/amc/');
+  });
+
+  it('keeps the Vendor Directory route hidden from current live navigation', () => {
+    const activeRoutes = readFileSync('src/routes/index.jsx', 'utf8');
+    const navRegistry = readFileSync('src/lib/navigation/currentNavigationRegistry.js', 'utf8');
+    const commandRegistry = readFileSync('src/lib/commandPalette/currentCommandRegistry.js', 'utf8');
+
+    expect(activeRoutes).toContain('path="/vendors"');
+    expect(activeRoutes).toContain('path="/vendors/:vendorProfileId"');
+    expect(navRegistry).not.toContain("path: '/vendors'");
+    expect(navRegistry).not.toContain("path: '/vendors/:vendorProfileId'");
+    expect(navRegistry).not.toContain('Vendor Directory');
+    expect(commandRegistry).not.toContain("path: '/vendors'");
+    expect(commandRegistry).not.toContain("path: '/vendors/:vendorProfileId'");
+    expect(commandRegistry).not.toContain('Vendor Directory');
   });
 });

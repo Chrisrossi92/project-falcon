@@ -74,6 +74,16 @@ AMC-1 Operations Command foundation is complete for MVP plumbing:
 
 AMC-2 may begin later as vendor directory/domain work. AMC-2 should build on this shared mode context without duplicating screens or introducing separate AMC platform infrastructure.
 
+## AMC-2 Vendor Trajectory
+
+AMC-2 should preserve the Operations Command doctrine:
+
+- vendors are primarily companies
+- vendor users are members or contacts of vendor companies
+- vendor assignment uses assignment records, not internal order participant columns
+- existing company relationship and order-company assignment infrastructure should be audited and reused before new vendor tables are introduced
+- AMC Operations Mode should extend shared Falcon routes and shell surfaces instead of creating a separate `/amc/*` route tree
+
 ## Cross-Mode Attention Indicators
 
 Operations Command should eventually surface attention indicators from the other mode.
