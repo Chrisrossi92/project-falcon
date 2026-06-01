@@ -4,6 +4,8 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { OPERATIONS_MODES } from "@/lib/operations/operationsMode";
+
 const summaryState = vi.hoisted(() => ({
   current: null,
 }));
@@ -199,10 +201,10 @@ function buildSummary(overrides = {}) {
   };
 }
 
-function renderDashboard(shellProfilePresentation) {
+function renderDashboard(shellProfilePresentation, props = {}) {
   return render(
     <MemoryRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
-      <DashboardPage shellProfilePresentation={shellProfilePresentation} />
+      <DashboardPage shellProfilePresentation={shellProfilePresentation} {...props} />
     </MemoryRouter>,
   );
 }
@@ -231,7 +233,7 @@ describe("DashboardPage operational polish", () => {
   });
 
   it("renders the polished operational sections from existing summary data", () => {
-    renderDashboard(operationsShell);
+    renderDashboard(operationsShell, { operationsMode: OPERATIONS_MODES.INTERNAL_OPERATIONS });
 
     expect(screen.getByText("Operations Command")).toBeInTheDocument();
     expect(screen.getByText("Operations Dashboard")).toBeInTheDocument();
@@ -276,6 +278,30 @@ describe("DashboardPage operational polish", () => {
     expect(screen.getByRole("button", { name: /new/i })).toHaveClass("bg-blue-50");
     expect(screen.getByRole("button", { name: /in review/i })).toHaveClass("bg-indigo-50");
     expect(screen.queryByText("Operational Attention")).not.toBeInTheDocument();
+
+    expect(calendarMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ orders: summaryState.current.ordersRows }),
+    );
+    expect(tableMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        rowsOverride: summaryState.current.ordersRows,
+        scope: "dashboard",
+      }),
+    );
+  });
+
+  it("renders AMC Operations dashboard context without changing dashboard reads", () => {
+    renderDashboard(operationsShell, { operationsMode: OPERATIONS_MODES.AMC_OPERATIONS });
+
+    expect(
+      screen.getByRole("heading", { name: "AMC Operations Dashboard", level: 1 }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Manage vendor network visibility, shared orders, calendar pressure, and client/vendor coordination.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Operations Dashboard", level: 1 })).toBeNull();
 
     expect(calendarMock).toHaveBeenLastCalledWith(
       expect.objectContaining({ orders: summaryState.current.ordersRows }),

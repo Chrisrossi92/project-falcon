@@ -11,6 +11,7 @@ import {
 import { useCan } from "@/lib/hooks/usePermissions";
 import { PERMISSIONS } from "@/lib/permissions/constants";
 import { ORDER_STATUS, normalizeOrderStatus } from "@/lib/constants/orderStatus";
+import { OPERATIONS_MODES } from "@/lib/operations/operationsMode";
 import { getShellWorkModeCue } from "@/lib/shell/shellWorkMode";
 import { useCallback, useMemo, useState } from "react";
 
@@ -70,6 +71,9 @@ function roleContextLabel({ isAdmin, isReviewer, role }) {
 const OPERATIONS_DASHBOARD_SUBTITLE =
   "Track active work, review handoffs, due pressure, and workflow coordination.";
 
+const AMC_OPERATIONS_DASHBOARD_SUBTITLE =
+  "Manage vendor network visibility, shared orders, calendar pressure, and client/vendor coordination.";
+
 const REVIEWER_DASHBOARD_SUBTITLE =
   "Active review work, revision follow-up, and calendar context for your queue.";
 
@@ -114,12 +118,14 @@ function reviewerReviewsTitle(appContext) {
 
 function resolveDashboardPresentation({
   shellProfilePresentation,
+  operationsMode,
   isAdmin,
   isReviewer,
   appContext,
 }) {
   const profileId = getShellProfilePresentationId(shellProfilePresentation);
   const isOperations = profileId === "operations";
+  const isAmcOperations = operationsMode === OPERATIONS_MODES.AMC_OPERATIONS;
 
   if (isReviewer && !isAdmin) {
     return {
@@ -129,6 +135,13 @@ function resolveDashboardPresentation({
   }
 
   if (isOperations) {
+    if (isAmcOperations) {
+      return {
+        title: "AMC Operations Dashboard",
+        subtitle: AMC_OPERATIONS_DASHBOARD_SUBTITLE,
+      };
+    }
+
     return {
       title:
         shellProfilePresentation?.profile?.dashboardTitle ??
@@ -146,7 +159,7 @@ function resolveDashboardPresentation({
   };
 }
 
-export default function DashboardPage({ shellProfilePresentation } = {}) {
+export default function DashboardPage({ shellProfilePresentation, operationsMode } = {}) {
   const nav = useNavigate();
   const [dashboardRefreshKey, setDashboardRefreshKey] = useState(0);
   const summary = useDashboardSummary({ refreshKey: dashboardRefreshKey });
@@ -220,6 +233,7 @@ export default function DashboardPage({ shellProfilePresentation } = {}) {
 
   const { title, subtitle } = resolveDashboardPresentation({
     shellProfilePresentation,
+    operationsMode,
     isAdmin,
     isReviewer,
     appContext,
