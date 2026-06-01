@@ -21,7 +21,7 @@ AMC-2H implements the first read-only Vendor Directory RPC layer:
 
 The implementation is read-only. It does not add assignment candidate RPCs, mutation RPCs, permission seeds, vendor roles, UI, navigation, route exposure, assignment behavior, order behavior, or `/amc/*` routes.
 
-Because `vendors.read` is not approved or seeded yet, AMC-2H uses active current-company membership plus existing `relationships.read` as a temporary read gate. This preserves RPC-only access and avoids broad table exposure while vendor-specific permissions remain deferred.
+AMC-2H originally used active current-company membership plus existing `relationships.read` as a temporary read gate while vendor-specific permissions were deferred.
 
 ## AMC-2I Implementation Status
 
@@ -37,6 +37,19 @@ The implementation is frontend API plumbing only. It does not add UI, routes, na
 ## AMC-2L Closeout Status
 
 AMC-2L keeps the Vendor Directory read model read-only and hidden while hardening null handling, route diagnostics, and UI empty states. The closeout does not add navigation exposure, vendor permissions, vendor roles, mutation RPCs, assignment candidate RPCs, assignment behavior, order behavior, or `/amc/*` routes.
+
+## AMC-2T Authorization Status
+
+AMC-2T retires the temporary `relationships.read` bridge for Vendor Directory reads.
+
+The read RPCs now require active current-company membership plus `vendors.read`:
+
+- `rpc_vendor_directory_list`
+- `rpc_vendor_profile_detail`
+- `rpc_vendor_profile_contacts`
+- `rpc_vendor_profile_service_areas`
+
+`relationships.read` remains scoped to framework relationship lifecycle visibility. It no longer grants Vendor Directory read access by itself.
 
 ## Guardrails
 

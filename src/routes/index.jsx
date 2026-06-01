@@ -214,7 +214,7 @@ export default function AppRoutes() {
         <Route
           path="/vendors"
           element={
-            <ProtectedRoute requiredPermission={PERMISSIONS.RELATIONSHIPS_READ}>
+            <ProtectedRoute requiredPermission={PERMISSIONS.VENDORS_READ}>
               <V1HiddenSurfaceRouteGuard>
                 <VendorDirectoryPage />
               </V1HiddenSurfaceRouteGuard>
@@ -224,7 +224,7 @@ export default function AppRoutes() {
         <Route
           path="/vendors/:vendorProfileId"
           element={
-            <ProtectedRoute requiredPermission={PERMISSIONS.RELATIONSHIPS_READ}>
+            <ProtectedRoute requiredPermission={PERMISSIONS.VENDORS_READ}>
               <V1HiddenSurfaceRouteGuard>
                 <VendorProfilePage />
               </V1HiddenSurfaceRouteGuard>

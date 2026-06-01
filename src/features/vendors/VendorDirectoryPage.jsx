@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Search } from "lucide-react";
-import { Link } from "react-router-dom";
+import { AlertTriangle, Plus, Search, X } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 
-import { listVendorDirectory } from "./api";
+import { useCan } from "@/lib/hooks/usePermissions";
+import { PERMISSIONS } from "@/lib/permissions/constants";
+import { createVendorProfile, listVendorDirectory } from "./api";
 
 const VENDOR_STATUS_OPTIONS = Object.freeze([
   { value: "", label: "All statuses" },
@@ -95,6 +97,341 @@ function ErrorState({ onRetry }) {
   );
 }
 
+const EMPTY_VENDOR_FORM = Object.freeze({
+  vendorCompanyName: "",
+  website: "",
+  publicPhone: "",
+  vendorStatus: "active",
+  contactName: "",
+  contactEmail: "",
+  contactPhone: "",
+  contactRoleLabel: "",
+  serviceState: "",
+  serviceCounty: "",
+  serviceZip: "",
+  serviceMarket: "",
+  serviceRadiusMiles: "",
+  serviceProductType: "",
+  tags: "",
+  defaultAssignmentInstructions: "",
+  internalNotes: "",
+});
+
+function textOrNull(value) {
+  const nextValue = String(value || "").trim();
+  return nextValue || null;
+}
+
+function tagsFromText(value) {
+  return [...new Set(
+    String(value || "")
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean)
+  )];
+}
+
+function assignIfPresent(target, key, value) {
+  if (value !== null && value !== undefined && value !== "") {
+    target[key] = value;
+  }
+}
+
+function vendorCreateErrorMessage(error) {
+  const code = String(error?.message || error?.code || "").toLowerCase();
+  if (code.includes("vendor_profile_duplicate") || code.includes("duplicate")) {
+    return "A vendor profile already exists for this company.";
+  }
+  if (code.includes("vendor_company_name_required")) {
+    return "Vendor company name is required.";
+  }
+  if (code.includes("permission") || code.includes("42501")) {
+    return "You do not have permission to add vendors from this company context.";
+  }
+  return "Vendor could not be added. Review the details and try again.";
+}
+
+function AddVendorModal({ open, onClose, onCreated }) {
+  const [form, setForm] = useState(EMPTY_VENDOR_FORM);
+  const [formError, setFormError] = useState("");
+  const [submitError, setSubmitError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setForm(EMPTY_VENDOR_FORM);
+    setFormError("");
+    setSubmitError("");
+  }, [open]);
+
+  if (!open) return null;
+
+  const updateField = (field) => (event) => {
+    setForm((current) => ({ ...current, [field]: event.target.value }));
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (submitting) return;
+
+    setFormError("");
+    setSubmitError("");
+
+    const vendorCompanyName = textOrNull(form.vendorCompanyName);
+    if (!vendorCompanyName) {
+      setFormError("Vendor company name is required.");
+      return;
+    }
+
+    const hasContactDetail = [
+      form.contactName,
+      form.contactEmail,
+      form.contactPhone,
+      form.contactRoleLabel,
+    ].some((value) => textOrNull(value));
+    const contactName = textOrNull(form.contactName);
+    if (hasContactDetail && !contactName) {
+      setFormError("Primary contact name is required when contact details are entered.");
+      return;
+    }
+
+    const serviceArea = {};
+    assignIfPresent(serviceArea, "state", textOrNull(form.serviceState)?.toUpperCase() || null);
+    assignIfPresent(serviceArea, "county", textOrNull(form.serviceCounty));
+    assignIfPresent(serviceArea, "zip", textOrNull(form.serviceZip));
+    assignIfPresent(serviceArea, "market", textOrNull(form.serviceMarket));
+    assignIfPresent(serviceArea, "radius_miles", textOrNull(form.serviceRadiusMiles));
+    assignIfPresent(serviceArea, "product_type", textOrNull(form.serviceProductType));
+    const hasServiceArea = Object.keys(serviceArea).length > 0;
+    const tags = tagsFromText(form.tags);
+
+    const payload = {
+      vendor_company: {
+        name: vendorCompanyName,
+      },
+      create_relationship: true,
+      vendor_status: form.vendorStatus || "active",
+    };
+    assignIfPresent(payload, "website", textOrNull(form.website));
+    assignIfPresent(payload, "public_phone", textOrNull(form.publicPhone));
+    assignIfPresent(
+      payload,
+      "default_assignment_instructions",
+      textOrNull(form.defaultAssignmentInstructions),
+    );
+    assignIfPresent(payload, "internal_notes", textOrNull(form.internalNotes));
+    if (tags.length > 0) {
+      payload.tags = tags;
+    }
+
+    if (hasContactDetail) {
+      const primaryContact = {
+        name: contactName,
+      };
+      assignIfPresent(primaryContact, "email", textOrNull(form.contactEmail));
+      assignIfPresent(primaryContact, "phone", textOrNull(form.contactPhone));
+      assignIfPresent(primaryContact, "role_label", textOrNull(form.contactRoleLabel));
+      payload.primary_contact = primaryContact;
+    }
+
+    if (hasServiceArea) {
+      payload.service_areas = [serviceArea];
+    }
+
+    setSubmitting(true);
+    try {
+      const created = await createVendorProfile(payload);
+      await onCreated?.(created);
+      setForm(EMPTY_VENDOR_FORM);
+    } catch (error) {
+      console.debug("Vendor create failed", {
+        code: error?.code,
+        message: error?.message,
+      });
+      setSubmitError(vendorCreateErrorMessage(error));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/40 px-4 py-8"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !submitting) onClose?.();
+      }}
+    >
+      <form
+        onSubmit={handleSubmit}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="add-vendor-title"
+        className="w-full max-w-4xl rounded-lg border border-slate-200 bg-white shadow-xl"
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Vendor Network</div>
+            <h2 id="add-vendor-title" className="mt-1 text-xl font-semibold text-slate-950">Add Vendor</h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={submitting}
+            className="rounded-md border border-slate-200 p-2 text-slate-500 hover:bg-slate-50 disabled:opacity-60"
+            aria-label="Close Add Vendor"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="grid gap-5 px-5 py-5">
+          {(formError || submitError) && (
+            <div className="flex gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+              <div>{formError || submitError}</div>
+            </div>
+          )}
+
+          <section className="grid gap-3" aria-labelledby="vendor-company-section-title">
+            <h3 id="vendor-company-section-title" className="text-sm font-semibold text-slate-950">Vendor company</h3>
+            <div className="grid gap-3 md:grid-cols-2">
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium text-slate-700">Vendor company name</span>
+                <input
+                  value={form.vendorCompanyName}
+                  onChange={updateField("vendorCompanyName")}
+                  className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100"
+                />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium text-slate-700">Vendor status</span>
+                <select
+                  value={form.vendorStatus}
+                  onChange={updateField("vendorStatus")}
+                  className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100"
+                >
+                  {VENDOR_STATUS_OPTIONS.filter((option) => option.value).map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium text-slate-700">Website</span>
+                <input
+                  value={form.website}
+                  onChange={updateField("website")}
+                  className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100"
+                />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium text-slate-700">Public phone</span>
+                <input
+                  value={form.publicPhone}
+                  onChange={updateField("publicPhone")}
+                  className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100"
+                />
+              </label>
+            </div>
+          </section>
+
+          <section className="grid gap-3" aria-labelledby="primary-contact-section-title">
+            <h3 id="primary-contact-section-title" className="text-sm font-semibold text-slate-950">Primary contact</h3>
+            <div className="grid gap-3 md:grid-cols-2">
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium text-slate-700">Contact name</span>
+                <input value={form.contactName} onChange={updateField("contactName")} className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100" />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium text-slate-700">Contact email</span>
+                <input value={form.contactEmail} onChange={updateField("contactEmail")} className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100" />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium text-slate-700">Contact phone</span>
+                <input value={form.contactPhone} onChange={updateField("contactPhone")} className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100" />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium text-slate-700">Role label</span>
+                <input value={form.contactRoleLabel} onChange={updateField("contactRoleLabel")} className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100" />
+              </label>
+            </div>
+          </section>
+
+          <section className="grid gap-3" aria-labelledby="coverage-section-title">
+            <h3 id="coverage-section-title" className="text-sm font-semibold text-slate-950">Coverage</h3>
+            <div className="grid gap-3 md:grid-cols-3">
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium text-slate-700">State</span>
+                <input value={form.serviceState} onChange={updateField("serviceState")} className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100" />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium text-slate-700">County</span>
+                <input value={form.serviceCounty} onChange={updateField("serviceCounty")} className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100" />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium text-slate-700">ZIP</span>
+                <input value={form.serviceZip} onChange={updateField("serviceZip")} className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100" />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium text-slate-700">Market</span>
+                <input value={form.serviceMarket} onChange={updateField("serviceMarket")} className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100" />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium text-slate-700">Radius miles</span>
+                <input value={form.serviceRadiusMiles} onChange={updateField("serviceRadiusMiles")} className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100" />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium text-slate-700">Product type</span>
+                <input value={form.serviceProductType} onChange={updateField("serviceProductType")} className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100" />
+              </label>
+            </div>
+          </section>
+
+          <section className="grid gap-3">
+            <h3 id="internal-notes-section-title" className="text-sm font-semibold text-slate-950">Internal notes</h3>
+            <label className="grid gap-1 text-sm">
+              <span className="font-medium text-slate-700">Tags</span>
+              <input
+                value={form.tags}
+                onChange={updateField("tags")}
+                placeholder="preferred, commercial"
+                className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100"
+              />
+            </label>
+            <label className="grid gap-1 text-sm">
+              <span className="font-medium text-slate-700">Default assignment instructions</span>
+              <textarea value={form.defaultAssignmentInstructions} onChange={updateField("defaultAssignmentInstructions")} rows={3} className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100" />
+            </label>
+            <label className="grid gap-1 text-sm">
+              <span className="font-medium text-slate-700">Internal notes</span>
+              <textarea value={form.internalNotes} onChange={updateField("internalNotes")} rows={3} className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100" />
+            </label>
+          </section>
+        </div>
+
+        <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 px-5 py-4">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={submitting}
+            className="inline-flex h-9 items-center justify-center rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={submitting}
+            className="inline-flex h-9 items-center justify-center rounded-md border border-slate-950 bg-slate-950 px-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
+          >
+            {submitting ? "Adding..." : "Add Vendor"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 function VendorDirectoryRow({ vendor }) {
   const tags = Array.isArray(vendor.tags) ? vendor.tags.filter(Boolean) : [];
   const contact = [
@@ -157,11 +494,14 @@ function VendorDirectoryRow({ vendor }) {
 }
 
 export default function VendorDirectoryPage() {
+  const navigate = useNavigate();
+  const canCreateVendor = useCan(PERMISSIONS.VENDORS_CREATE);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("");
   const [vendors, setVendors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [addVendorOpen, setAddVendorOpen] = useState(false);
   const filters = useMemo(() => ({ status: status || null, query: query || null }), [query, status]);
 
   const loadVendors = useCallback(async () => {
@@ -186,11 +526,31 @@ export default function VendorDirectoryPage() {
     loadVendors();
   }, [loadVendors]);
 
+  const handleVendorCreated = async (created) => {
+    setAddVendorOpen(false);
+    await loadVendors();
+    if (created?.vendor_profile_id) {
+      navigate(`/vendors/${created.vendor_profile_id}`);
+    }
+  };
+
   return (
     <main className="mx-auto grid w-full max-w-7xl gap-4 px-3 py-4 sm:px-4">
-      <div className="rounded-lg border border-slate-200 bg-white px-5 py-4 shadow-sm">
-        <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Vendor Network</div>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">Vendor Directory</h1>
+      <div className="flex flex-wrap items-end justify-between gap-3 rounded-lg border border-slate-200 bg-white px-5 py-4 shadow-sm">
+        <div className="min-w-0">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Vendor Network</div>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">Vendor Directory</h1>
+        </div>
+        {canCreateVendor.allowed && (
+          <button
+            type="button"
+            onClick={() => setAddVendorOpen(true)}
+            className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-slate-950 bg-slate-950 px-3 text-sm font-semibold text-white hover:bg-slate-800"
+          >
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Add Vendor
+          </button>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
@@ -236,6 +596,12 @@ export default function VendorDirectoryPage() {
           ))}
         </section>
       )}
+
+      <AddVendorModal
+        open={addVendorOpen}
+        onClose={() => setAddVendorOpen(false)}
+        onCreated={handleVendorCreated}
+      />
     </main>
   );
 }

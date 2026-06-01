@@ -117,7 +117,13 @@ describe('current live navigation registry', () => {
       PERMISSIONS.RELATIONSHIPS_READ,
     ]);
     expect(getCurrentLiveNavigationEntry('vendors').visibilityGate.permissions).toEqual([
-      PERMISSIONS.RELATIONSHIPS_READ,
+      PERMISSIONS.VENDORS_READ,
+    ]);
+    expect(getCurrentLiveNavigationEntry('vendors').routeGate.permissions).toEqual([
+      PERMISSIONS.VENDORS_READ,
+    ]);
+    expect(getCurrentLiveNavigationEntry('vendors.detail').routeGate.permissions).toEqual([
+      PERMISSIONS.VENDORS_READ,
     ]);
     expect(getCurrentLiveNavigationEntry('vendors').command).toBeNull();
     expect(getCurrentLiveNavigationEntry('users').routeGate.permissions).toEqual([

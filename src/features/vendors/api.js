@@ -84,3 +84,44 @@ export async function getVendorProfileServiceAreas(vendorProfileId) {
   });
   return Array.isArray(data) ? data.map(normalizeVendorServiceArea) : [];
 }
+
+export async function createVendorProfile(payload) {
+  return firstRow(await rpc("rpc_vendor_profile_create", {
+    p_payload: payload || {},
+  }));
+}
+
+export async function updateVendorProfile(vendorProfileId, patch) {
+  return rpc("rpc_vendor_profile_update", {
+    p_vendor_profile_id: vendorProfileId,
+    p_patch: patch || {},
+  });
+}
+
+export async function createVendorContact(vendorProfileId, payload) {
+  return rpc("rpc_vendor_contact_create", {
+    p_vendor_profile_id: vendorProfileId,
+    p_payload: payload || {},
+  });
+}
+
+export async function updateVendorContact(contactId, patch) {
+  return rpc("rpc_vendor_contact_update", {
+    p_contact_id: contactId,
+    p_patch: patch || {},
+  });
+}
+
+export async function createVendorServiceArea(vendorProfileId, payload) {
+  return rpc("rpc_vendor_service_area_create", {
+    p_vendor_profile_id: vendorProfileId,
+    p_payload: payload || {},
+  });
+}
+
+export async function updateVendorServiceArea(serviceAreaId, patch) {
+  return rpc("rpc_vendor_service_area_update", {
+    p_service_area_id: serviceAreaId,
+    p_patch: patch || {},
+  });
+}

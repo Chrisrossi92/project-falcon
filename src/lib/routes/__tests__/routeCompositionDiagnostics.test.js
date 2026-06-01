@@ -255,8 +255,13 @@ describe('shadow route composition diagnostics', () => {
 
     expect(activeRoutes).toContain('path="/vendors"');
     expect(activeRoutes).toContain('path="/vendors/:vendorProfileId"');
+    expect(activeRoutes).toContain('requiredPermission={PERMISSIONS.VENDORS_READ}');
+    expect(activeRoutes).not.toContain(
+      'requiredPermission={PERMISSIONS.RELATIONSHIPS_READ}>\n              <V1HiddenSurfaceRouteGuard>\n                <Vendor',
+    );
     expect(navRegistry).toContain("path: '/vendors'");
     expect(navRegistry).toContain("path: '/vendors/:vendorProfileId'");
+    expect(navRegistry).toContain('PERMISSIONS.VENDORS_READ');
     expect(commandRegistry).not.toContain("path: '/vendors'");
     expect(commandRegistry).not.toContain("path: '/vendors/:vendorProfileId'");
     expect(commandRegistry).not.toContain('Vendor Directory');

@@ -73,6 +73,12 @@ export const PERMISSIONS = Object.freeze({
   RELATIONSHIPS_MANAGE_COMPLIANCE: "relationships.manage_compliance",
   RELATIONSHIPS_ASSIGN_WORK: "relationships.assign_work",
 
+  VENDORS_READ: "vendors.read",
+  VENDORS_CREATE: "vendors.create",
+  VENDORS_UPDATE: "vendors.update",
+  VENDORS_CONTACTS_MANAGE: "vendors.contacts.manage",
+  VENDORS_SERVICE_AREAS_MANAGE: "vendors.service_areas.manage",
+
   WORKFLOW_STATUS_SUBMIT_TO_REVIEW: "workflow.status.submit_to_review",
   WORKFLOW_STATUS_REQUEST_REVISIONS: "workflow.status.request_revisions",
   WORKFLOW_STATUS_RESUBMIT: "workflow.status.resubmit",

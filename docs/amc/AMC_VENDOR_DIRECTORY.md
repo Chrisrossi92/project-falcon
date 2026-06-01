@@ -44,6 +44,127 @@ AMC-2N exposes `Vendors` in AMC Operations navigation only.
 
 The surface still uses the shared `/vendors` and `/vendors/:vendorProfileId` routes and remains read-only. Visibility is gated by AMC Operations mode plus the existing temporary `relationships.read` permission until explicit vendor permissions are approved. Internal Operations navigation does not show Vendors, and Users, raw Relationships, Assignments, vendor mutations, vendor roles, assignment behavior, and `/amc/*` routes remain deferred.
 
+## AMC-2P Demo Seed Data
+
+AMC-2P adds local/demo seed data in `supabase/manual/20260601_amc_vendor_demo_seed.sql` for visual validation of the read-only Vendor Directory and Vendor Profile pages.
+
+The script uses the existing `falcon_default` owner company and creates five demo vendor companies with `amc_vendor` relationships, vendor profiles, primary contacts, service areas, product eligibility, and tags:
+
+- ABC Valuation
+- Columbus Valuation Group
+- Midwest Commercial Appraisal
+- Buckeye Valuation Partners
+- Cleveland Review Services
+
+Load it only in local/dev/demo databases after migrations have been applied:
+
+```sh
+psql -v ON_ERROR_STOP=1 "postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
+  -f supabase/manual/20260601_amc_vendor_demo_seed.sql
+```
+
+The script is not a production migration and does not create vendor mutations, vendor permissions, vendor roles, assignments, order changes, or `/amc/*` routes.
+
+## AMC-2S Vendor Permission Seeds
+
+AMC-2S adds the MVP vendor permission constants and permission catalog seed rows:
+
+- `vendors.read`
+- `vendors.create`
+- `vendors.update`
+- `vendors.contacts.manage`
+- `vendors.service_areas.manage`
+
+Owner and Admin template roles receive these MVP vendor permissions by default. Reviewer, Appraiser, Billing, and future vendor-user roles do not receive vendor directory permissions in this slice.
+
+Vendor Directory route, navigation, and read RPC gates still temporarily use `relationships.read` until AMC-2T switches those gates to `vendors.read`. AMC-2S does not add vendor mutation RPCs, mutation UI, vendor roles, assignment candidate behavior, assignment behavior, order behavior, schema/RLS changes beyond permission seed records, or `/amc/*` routes.
+
+## AMC-2T Vendor Read Gate
+
+AMC-2T retires the temporary `relationships.read` bridge for Vendor Directory reads.
+
+The shared `/vendors` and `/vendors/:vendorProfileId` routes, AMC Operations Vendors navigation item, and read-only Vendor Directory RPCs now require `vendors.read`. `relationships.read` remains the framework/network relationship permission and no longer grants Vendor Directory read access by itself.
+
+AMC-2T does not add vendor mutation RPCs, mutation UI, vendor roles, assignment candidate behavior, assignment behavior, order behavior, schema/RLS table changes, raw relationship/assignment UX exposure, or `/amc/*` routes.
+
+## AMC-2V Vendor Mutation RPCs
+
+AMC-2V implements the first Vendor Directory mutation RPC layer:
+
+- `rpc_vendor_profile_create`
+- `rpc_vendor_profile_update`
+- `rpc_vendor_contact_create`
+- `rpc_vendor_contact_update`
+- `rpc_vendor_service_area_create`
+- `rpc_vendor_service_area_update`
+
+The mutation RPCs use active current-company membership plus vendor-specific permissions: `vendors.create`, `vendors.update`, `vendors.contacts.manage`, and `vendors.service_areas.manage`. They keep Vendor Directory mutations RPC-owned and table access remains blocked for app roles.
+
+AMC-2V does not add frontend mutation wrappers, mutation UI, vendor roles, assignment candidate RPCs, assignment behavior, order behavior, route/navigation changes, raw relationship/assignment UX exposure, or `/amc/*` routes.
+
+## AMC-2W Frontend Mutation API Wrappers
+
+AMC-2W adds frontend API wrappers for the AMC-2V mutation RPCs:
+
+- `createVendorProfile`
+- `updateVendorProfile`
+- `createVendorContact`
+- `updateVendorContact`
+- `createVendorServiceArea`
+- `updateVendorServiceArea`
+
+These wrappers call the approved Vendor Directory mutation RPCs and surface RPC errors consistently with the existing read API layer.
+
+AMC-2W does not add mutation UI, optimistic updates, assignment candidate calls, delete/archive wrappers, route/navigation changes, vendor roles, assignment behavior, order behavior, schema/RLS changes, permission changes, raw relationship/assignment UX exposure, or `/amc/*` routes.
+
+## AMC-2X Add Vendor UI
+
+AMC-2X adds the first owner-side create workflow to the shared `/vendors` surface.
+
+Users with `vendors.create` can open an Add Vendor modal, enter vendor company details, optional primary contact details, optional coverage, tags, default assignment instructions, and internal notes. The workflow calls `createVendorProfile` with `create_relationship: true` by default, refreshes the Vendor Directory after success, and navigates to the created Vendor Profile when the RPC returns a profile id.
+
+Users with only `vendors.read` keep the read-only Vendor Directory experience and do not see Add Vendor controls.
+
+AMC-2X does not add edit/archive/delete workflows, assignment actions, assignment candidate UI/RPCs, vendor portal behavior, route/navigation changes, vendor roles, order behavior, schema/RLS changes, raw relationship/assignment UX exposure, or `/amc/*` routes.
+
+## AMC-2Y Add Vendor Workflow Hardening
+
+AMC-2Y hardens the first Add Vendor workflow before edit/archive/assignment work begins.
+
+The modal now prevents duplicate submits while saving, sends a compact create payload that omits empty optional sections, preserves entered data after create errors, resets cleanly after close/success, refreshes the Vendor Directory after successful create, and safely skips navigation when a create response does not include a Vendor Profile id.
+
+AMC-2Y does not add edit/archive/delete workflows, assignment actions, assignment candidate UI/RPCs, vendor portal behavior, route/navigation changes, vendor roles, order behavior, schema/RLS changes, raw relationship/assignment UX exposure, or `/amc/*` routes.
+
+## AMC-2Z Vendor Profile Metadata Editing
+
+AMC-2Z adds the first Vendor Profile edit workflow on `/vendors/:vendorProfileId`.
+
+Users with `vendors.update` can edit vendor profile metadata: status, website, public phone, address, default assignment instructions, capabilities, product eligibility, tags, and internal notes. The workflow calls `updateVendorProfile`, refreshes the profile after success, and preserves form values after update errors.
+
+Users without `vendors.update` keep the read-only Vendor Profile experience.
+
+AMC-2Z does not add contact editing, service-area editing, archive/delete workflows, assignment actions, assignment candidate UI/RPCs, vendor portal behavior, route/navigation changes, vendor roles, order behavior, schema/RLS changes, raw relationship/assignment UX exposure, or `/amc/*` routes.
+
+## AMC-3A Vendor Contact Management
+
+AMC-3A adds create/update UI for vendor contacts on `/vendors/:vendorProfileId`.
+
+Users with `vendors.contacts.manage` can add contacts and edit existing contacts, including name, email, phone, role label, primary-contact flag, informational future assignment-notification flag, and notes. The workflow calls `createVendorContact` and `updateVendorContact`, refreshes the Vendor Profile after success, and preserves form values after save errors.
+
+Users without `vendors.contacts.manage` keep the read-only contacts experience.
+
+AMC-3A does not add contact delete/archive workflows, vendor portal invitations, user-linking UI, assignment notification routing, assignment behavior, route/navigation changes, vendor roles, order behavior, schema/RLS changes, raw relationship/assignment UX exposure, or `/amc/*` routes.
+
+## AMC-3B Vendor Service Area Management
+
+AMC-3B adds create/update UI for vendor service areas on `/vendors/:vendorProfileId`.
+
+Users with `vendors.service_areas.manage` can add service areas and edit existing service areas, including state, county, ZIP, market, radius miles, product type, and active/inactive status. The workflow calls `createVendorServiceArea` and `updateVendorServiceArea`, requires at least one coverage or product field, refreshes the Vendor Profile after success, and preserves form values after save errors.
+
+Users without `vendors.service_areas.manage` keep the read-only service-area experience.
+
+AMC-3B does not add service-area delete/hard-delete workflows, assignment candidate logic, automatic coverage matching, mapping/geocoding, assignment behavior, route/navigation changes, vendor roles, order behavior, schema/RLS changes, raw relationship/assignment UX exposure, or `/amc/*` routes.
+
 ## Framework Reuse Doctrine
 
 Vendor Directory records should build on the existing company framework wherever possible:

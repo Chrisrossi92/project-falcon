@@ -199,7 +199,7 @@ describe('current primary nav links', () => {
       }, {
         operationsMode: OPERATIONS_MODES.AMC_OPERATIONS,
       }).find(({ id }) => id === 'vendors')?.visibilityGate.permissions,
-    ).toEqual([PERMISSIONS.RELATIONSHIPS_READ]);
+    ).toEqual([PERMISSIONS.VENDORS_READ]);
     expect(links.find(({ id }) => id === 'users')?.visibilityGate.permissions).toEqual([
       PERMISSIONS.USERS_READ,
     ]);

@@ -67,7 +67,7 @@ Success Criteria:
 
 ### AMC-2: Vendor Directory
 
-Status: read-only Vendor Directory foundation exposed in AMC Operations navigation through AMC-2N; no permission seed, role, mutation, assignment candidate, assignment behavior, or `/amc/*` route exposure yet.
+Status: Vendor Directory foundation implemented through AMC-3B with schema, read RPCs, read-only UI, AMC Operations navigation exposure, vendor permission gates, mutation RPCs, frontend mutation API wrappers, first Add Vendor UI, create-workflow hardening, Vendor Profile metadata editing, vendor contact create/update UI, and vendor service-area create/update UI; no service-area delete, archive workflow, vendor role, assignment candidate, assignment behavior, or `/amc/*` route exposure yet.
 
 Purpose: create the vendor management foundation.
 
@@ -86,7 +86,17 @@ Deliverables:
 - Frontend read API wrappers.
 - Hidden read-only Vendor Directory route.
 - Hidden read-only Vendor Profile detail route.
-- AMC Operations-only Vendors navigation exposure gated by temporary `relationships.read`.
+- AMC Operations-only Vendors navigation exposure gated by `vendors.read`.
+- Local/demo vendor seed data for visual validation.
+- MVP vendor permission constants and Owner/Admin permission catalog grants.
+- Vendor Directory read route/RPC/nav gate migration from `relationships.read` to `vendors.read`.
+- Vendor mutation RPC layer for profile, contact, and service-area CRUD foundations.
+- Frontend mutation API wrappers for vendor profile, contact, and service-area CRUD foundations.
+- Add Vendor UI for first owner-side create workflow.
+- Add Vendor workflow hardening for duplicate-submit prevention, compact payloads, reset/error behavior, and no-id success responses.
+- Vendor Profile metadata edit UI gated by `vendors.update`.
+- Vendor contact create/update UI gated by `vendors.contacts.manage`.
+- Vendor service-area create/update UI gated by `vendors.service_areas.manage`.
 - Vendor CRUD.
 - Coverage areas.
 - Vendor contacts.

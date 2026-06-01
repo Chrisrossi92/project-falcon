@@ -186,15 +186,108 @@ describe("vendor directory API", () => {
     await expect(vendorApi.listVendorDirectory()).rejects.toBe(error);
   });
 
-  it("exports only read wrappers and no mutation or assignment candidate functions", () => {
+  it("creates Vendor Profile records through the mutation RPC and returns the first row", async () => {
+    const payload = {
+      vendor_company: { name: "ABC Valuation" },
+      create_relationship: true,
+    };
+    const row = {
+      vendor_profile_id: "profile-1",
+      vendor_company_id: "company-2",
+      relationship_id: "relationship-3",
+    };
+    supabase.rpc.mockResolvedValue({ data: [row], error: null });
+
+    await expect(vendorApi.createVendorProfile(payload)).resolves.toEqual(row);
+
+    expect(supabase.rpc).toHaveBeenCalledWith("rpc_vendor_profile_create", {
+      p_payload: payload,
+    });
+  });
+
+  it("updates Vendor Profile metadata through the mutation RPC", async () => {
+    const patch = { vendor_status: "preferred", tags: ["commercial"] };
+    supabase.rpc.mockResolvedValue({ data: "profile-1", error: null });
+
+    await expect(vendorApi.updateVendorProfile("profile-1", patch)).resolves.toBe("profile-1");
+
+    expect(supabase.rpc).toHaveBeenCalledWith("rpc_vendor_profile_update", {
+      p_vendor_profile_id: "profile-1",
+      p_patch: patch,
+    });
+  });
+
+  it("creates Vendor Contacts through the mutation RPC", async () => {
+    const payload = { name: "Mary Jones", email: "mary@example.com", is_primary: true };
+    supabase.rpc.mockResolvedValue({ data: "contact-1", error: null });
+
+    await expect(vendorApi.createVendorContact("profile-1", payload)).resolves.toBe("contact-1");
+
+    expect(supabase.rpc).toHaveBeenCalledWith("rpc_vendor_contact_create", {
+      p_vendor_profile_id: "profile-1",
+      p_payload: payload,
+    });
+  });
+
+  it("updates Vendor Contacts through the mutation RPC", async () => {
+    const patch = { phone: "614-555-0100", is_primary: false };
+    supabase.rpc.mockResolvedValue({ data: "contact-1", error: null });
+
+    await expect(vendorApi.updateVendorContact("contact-1", patch)).resolves.toBe("contact-1");
+
+    expect(supabase.rpc).toHaveBeenCalledWith("rpc_vendor_contact_update", {
+      p_contact_id: "contact-1",
+      p_patch: patch,
+    });
+  });
+
+  it("creates Vendor Service Areas through the mutation RPC", async () => {
+    const payload = { state: "OH", county: "Franklin", product_type: "commercial" };
+    supabase.rpc.mockResolvedValue({ data: "service-area-1", error: null });
+
+    await expect(vendorApi.createVendorServiceArea("profile-1", payload)).resolves.toBe("service-area-1");
+
+    expect(supabase.rpc).toHaveBeenCalledWith("rpc_vendor_service_area_create", {
+      p_vendor_profile_id: "profile-1",
+      p_payload: payload,
+    });
+  });
+
+  it("updates Vendor Service Areas through the mutation RPC", async () => {
+    const patch = { status: "inactive" };
+    supabase.rpc.mockResolvedValue({ data: "service-area-1", error: null });
+
+    await expect(vendorApi.updateVendorServiceArea("service-area-1", patch)).resolves.toBe("service-area-1");
+
+    expect(supabase.rpc).toHaveBeenCalledWith("rpc_vendor_service_area_update", {
+      p_service_area_id: "service-area-1",
+      p_patch: patch,
+    });
+  });
+
+  it("surfaces mutation RPC errors for callers to handle", async () => {
+    const error = Object.assign(new Error("vendor create denied"), { code: "42501" });
+    supabase.rpc.mockResolvedValue({ data: null, error });
+
+    await expect(vendorApi.createVendorProfile({ vendor_company: { name: "ABC" } })).rejects.toBe(error);
+  });
+
+  it("exports only read and approved mutation wrappers with no assignment candidate, delete, or archive functions", () => {
     expect(Object.keys(vendorApi).sort()).toEqual([
+      "createVendorContact",
+      "createVendorProfile",
+      "createVendorServiceArea",
       "getVendorProfileContacts",
       "getVendorProfileDetail",
       "getVendorProfileServiceAreas",
       "listVendorDirectory",
+      "updateVendorContact",
+      "updateVendorProfile",
+      "updateVendorServiceArea",
     ]);
-    expect(vendorApi.createVendorProfile).toBeUndefined();
-    expect(vendorApi.updateVendorProfile).toBeUndefined();
     expect(vendorApi.getVendorAssignmentCandidates).toBeUndefined();
+    expect(vendorApi.deleteVendorContact).toBeUndefined();
+    expect(vendorApi.deleteVendorServiceArea).toBeUndefined();
+    expect(vendorApi.archiveVendorProfile).toBeUndefined();
   });
 });
