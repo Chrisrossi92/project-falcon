@@ -8,6 +8,7 @@ import {
   OperationsModeProvider,
   OPERATIONS_MODE_STORAGE_KEY,
 } from "@/lib/operations/OperationsModeProvider";
+import { OPERATIONS_MODES } from "@/lib/operations/operationsMode";
 import { PERMISSIONS } from "@/lib/permissions/constants";
 
 const permissionState = vi.hoisted(() => ({
@@ -83,13 +84,24 @@ function LocationProbe() {
   return <span data-testid="current-path">{location.pathname}</span>;
 }
 
+const availableOperationsModesForTest = () => {
+  const appContext = shellProfileState.appContext || {};
+  const canUseAmc =
+    Boolean(appContext.is_owner || appContext.is_admin_role) &&
+    permissionState.allowed.has(PERMISSIONS.VENDORS_READ);
+
+  return canUseAmc
+    ? [OPERATIONS_MODES.INTERNAL_OPERATIONS, OPERATIONS_MODES.AMC_OPERATIONS]
+    : [OPERATIONS_MODES.INTERNAL_OPERATIONS];
+};
+
 const renderTopNav = (initialPath = "/dashboard") =>
   render(
     <MemoryRouter
       initialEntries={[initialPath]}
       future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
     >
-      <OperationsModeProvider>
+      <OperationsModeProvider availableOperationsModes={availableOperationsModesForTest()}>
         <TopNav />
         <LocationProbe />
       </OperationsModeProvider>
@@ -134,10 +146,7 @@ describe("TopNav desktop operational spine navigation", () => {
       "aria-pressed",
       "true",
     );
-    expect(within(desktopContext).getByRole("button", { name: "AMC Operations" })).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
+    expect(within(desktopContext).queryByRole("button", { name: "AMC Operations" })).not.toBeInTheDocument();
     expect(container.querySelector('aside [data-testid="operations-mode-current"]')).toHaveTextContent(
       "Internal Operations",
     );
@@ -147,6 +156,7 @@ describe("TopNav desktop operational spine navigation", () => {
   });
 
   it("switches operations mode without navigating", () => {
+    shellProfileState.appContext = { is_admin_role: true };
     permissionState.allowed = new Set([
       PERMISSIONS.CLIENTS_READ_ALL,
       PERMISSIONS.RELATIONSHIPS_READ,
@@ -180,6 +190,8 @@ describe("TopNav desktop operational spine navigation", () => {
   });
 
   it("restores the stored operations mode as the visible selected value", () => {
+    shellProfileState.appContext = { is_owner: true };
+    permissionState.allowed = new Set([PERMISSIONS.VENDORS_READ]);
     window.localStorage.setItem(OPERATIONS_MODE_STORAGE_KEY, "amc_operations");
 
     const { container } = renderTopNav();
@@ -195,6 +207,7 @@ describe("TopNav desktop operational spine navigation", () => {
   });
 
   it("shows Vendors only in AMC Operations nav when vendor read access is available", () => {
+    shellProfileState.appContext = { is_admin_role: true };
     permissionState.allowed = new Set([
       PERMISSIONS.CLIENTS_READ_ALL,
       PERMISSIONS.RELATIONSHIPS_READ,
@@ -239,6 +252,10 @@ describe("TopNav desktop operational spine navigation", () => {
     const desktopNav = getDesktopPrimaryNav(container);
     const links = desktopLinks(container);
 
+    expect(within(desktopNav).queryByRole("button", { name: "AMC Operations" })).not.toBeInTheDocument();
+    expect(container.querySelector('aside [data-testid="operations-mode-current"]')).toHaveTextContent(
+      "Internal Operations",
+    );
     expect(links.map((link) => link.textContent)).toEqual([
       "Operations",
       "Orders",
@@ -248,7 +265,28 @@ describe("TopNav desktop operational spine navigation", () => {
     expect(within(desktopNav).queryByRole("link", { name: "Vendors" })).toBeNull();
   });
 
+  it("does not expose AMC Operations to non-owner staff even with vendor read access", () => {
+    shellProfileState.profileId = "my_work";
+    shellProfileState.appContext = { is_owner: false, is_admin_role: false };
+    permissionState.allowed = new Set([PERMISSIONS.VENDORS_READ]);
+    window.localStorage.setItem(OPERATIONS_MODE_STORAGE_KEY, "amc_operations");
+
+    const { container } = renderTopNav();
+    const desktopContext = container.querySelector('aside [data-testid="operations-mode-switcher"]');
+
+    expect(within(desktopContext).queryByRole("button", { name: "AMC Operations" })).not.toBeInTheDocument();
+    expect(within(desktopContext).getByRole("button", { name: "Internal Operations" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(container.querySelector('aside [data-testid="operations-mode-current"]')).toHaveTextContent(
+      "Internal Operations",
+    );
+  });
+
   it("renders the operations mode switcher in mobile navigation", () => {
+    shellProfileState.appContext = { is_owner: true };
+    permissionState.allowed = new Set([PERMISSIONS.VENDORS_READ]);
     const { container } = renderTopNav();
     const mobileNav = openMobileNav(container);
 
@@ -271,6 +309,8 @@ describe("TopNav desktop operational spine navigation", () => {
   });
 
   it("keeps desktop and mobile operations mode switchers synchronized", () => {
+    shellProfileState.appContext = { is_admin_role: true };
+    permissionState.allowed = new Set([PERMISSIONS.VENDORS_READ]);
     const { container } = renderTopNav();
     const desktopContext = container.querySelector('aside [data-testid="operations-mode-switcher"]');
 

@@ -104,6 +104,30 @@ describe("VendorAssignmentCandidatesPanel", () => {
     expect(await screen.findByRole("heading", { name: "ABC Valuation" })).toBeInTheDocument();
   });
 
+  it("shows an active vendor assignment note without adding offer actions", async () => {
+    vendorApiState.listVendorAssignmentCandidates.mockResolvedValue(candidateRows);
+
+    render(
+      <VendorAssignmentCandidatesPanel
+        orderId="order-1"
+        enabled
+        activeVendorAssignment={{
+          id: "assignment-1",
+          assignment_type: "vendor_appraisal",
+          status: "offered",
+          assigned_company_name: "ABC Valuation",
+        }}
+      />,
+    );
+
+    expect(
+      screen.getByText("This order already has an active vendor offer or assignment."),
+    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "ABC Valuation" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /offer assignment/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /bid/i })).toBeNull();
+  });
+
   it("renders loading state while candidates load", () => {
     vendorApiState.listVendorAssignmentCandidates.mockImplementation(() => new Promise(() => {}));
 

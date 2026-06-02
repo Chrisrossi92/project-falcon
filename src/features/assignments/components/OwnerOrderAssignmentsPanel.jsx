@@ -36,34 +36,48 @@ export default function OwnerOrderAssignmentsPanel({
   orderId,
   canOfferAssignment,
   onOfferAssignment,
+  assignmentRows,
+  assignmentsLoading,
+  assignmentsError,
+  onRefreshAssignments,
 }) {
   const permissions = useEffectivePermissions();
   const canReadOwner = !permissions.loading &&
     !permissions.error &&
     permissions.hasPermission(PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_OWNER);
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const isControlled = Array.isArray(assignmentRows);
+  const [internalItems, setInternalItems] = useState([]);
+  const [internalLoading, setInternalLoading] = useState(false);
+  const [internalError, setInternalError] = useState(null);
 
   const load = useCallback(async () => {
+    if (isControlled) {
+      onRefreshAssignments?.();
+      return;
+    }
     if (!orderId || !canReadOwner) return;
-    setLoading(true);
-    setError(null);
+    setInternalLoading(true);
+    setInternalError(null);
     try {
       const rows = await listOwnerAssignmentsForOrder(orderId);
-      setItems(Array.isArray(rows) ? rows : []);
+      setInternalItems(Array.isArray(rows) ? rows : []);
     } catch (err) {
-      setItems([]);
-      setError(err);
+      setInternalItems([]);
+      setInternalError(err);
     } finally {
-      setLoading(false);
+      setInternalLoading(false);
     }
-  }, [canReadOwner, orderId]);
+  }, [canReadOwner, isControlled, onRefreshAssignments, orderId]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (!isControlled) {
+      load();
+    }
+  }, [isControlled, load]);
 
+  const items = isControlled ? assignmentRows : internalItems;
+  const loading = isControlled ? Boolean(assignmentsLoading) : internalLoading;
+  const error = isControlled ? assignmentsError : internalError;
   const counts = useMemo(() => statusCounts(items), [items]);
 
   if (!canReadOwner) return null;

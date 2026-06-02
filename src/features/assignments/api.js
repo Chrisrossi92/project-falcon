@@ -58,6 +58,26 @@ export async function offerAssignment(payload = {}) {
   });
 }
 
+export async function offerOrderToVendor(payload = {}) {
+  return offerAssignment({
+    orderId: payload.orderId,
+    assignedCompanyId: payload.vendorCompanyId,
+    relationshipId: payload.relationshipId,
+    assignmentType: "vendor_appraisal",
+    instructions: payload.note,
+    terms: payload.terms || {},
+    handoffPayload: {
+      ...(payload.candidateSnapshot || {}),
+      vendor_profile_id: payload.vendorProfileId,
+      vendor_company_id: payload.vendorCompanyId,
+      relationship_id: payload.relationshipId,
+    },
+    dueAt: payload.dueAt || null,
+    reviewDueAt: payload.reviewDueAt || null,
+    expiresAt: payload.expiresAt || null,
+  });
+}
+
 export async function getOwnerAssignmentPacket(assignmentId) {
   return firstRow(await rpc("rpc_order_company_assignment_owner_packet", { p_assignment_id: assignmentId }));
 }

@@ -276,6 +276,7 @@ function CandidateCard({ candidate }) {
 export default function VendorAssignmentCandidatesPanel({
   orderId,
   enabled = true,
+  activeVendorAssignment = null,
   className = "",
 }) {
   const [candidates, setCandidates] = useState([]);
@@ -318,6 +319,11 @@ export default function VendorAssignmentCandidatesPanel({
           <p className="mt-1 text-sm text-slate-500">
             This does not assign work automatically.
           </p>
+          {activeVendorAssignment && (
+            <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              This order already has an active vendor offer or assignment.
+            </div>
+          )}
         </div>
         {orderId && (
           <button

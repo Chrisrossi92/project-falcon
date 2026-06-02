@@ -29,6 +29,7 @@ import {
   canCancelOrder,
   canVoidOrder,
 } from "@/features/orders/orderArchiveReadiness";
+import { listOwnerAssignmentsForOrder } from "@/features/assignments/api";
 import OfferAssignmentModal from "@/features/assignments/components/OfferAssignmentModal";
 import OwnerOrderAssignmentsPanel from "@/features/assignments/components/OwnerOrderAssignmentsPanel";
 import OrderPrintPacket from "@/features/orders/print/OrderPrintPacket";
@@ -123,6 +124,12 @@ const LIFECYCLE_HISTORY_NOTICE = Object.freeze({
       "This order is preserved for history. It is hidden from active operational queues and voiding does not delete the order, release the order number, or remove documents/activity.",
   },
 });
+const ACTIVE_VENDOR_ASSIGNMENT_STATUSES = new Set([
+  "offered",
+  "accepted",
+  "in_progress",
+  "submitted",
+]);
 const categoryLabel = (value) =>
   String(value || "")
     .split("_")
@@ -559,6 +566,9 @@ export default function OrderDetail() {
   const [printPacketOpen, setPrintPacketOpen] = useState(false);
   const [orderFiles, setOrderFiles] = useState([]);
   const [orderFilesLoaded, setOrderFilesLoaded] = useState(false);
+  const [ownerAssignments, setOwnerAssignments] = useState([]);
+  const [ownerAssignmentsLoading, setOwnerAssignmentsLoading] = useState(false);
+  const [ownerAssignmentsError, setOwnerAssignmentsError] = useState(null);
   const {
     inputs: operationalInputs,
     loading: operationalInputsLoading,
@@ -622,6 +632,10 @@ export default function OrderDetail() {
       PERMISSIONS.RELATIONSHIPS_ASSIGN_WORK,
       PERMISSIONS.RELATIONSHIPS_READ,
     ]);
+  const canReadOwnerAssignments =
+    !permissions.loading &&
+    !permissions.error &&
+    permissions.hasPermission(PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_OWNER);
   const canArchiveDocuments =
     !permissions.loading &&
     !permissions.error &&
@@ -642,6 +656,19 @@ export default function OrderDetail() {
     !permissions.error &&
     permissions.hasPermission(PERMISSIONS.VENDORS_READ) &&
     Boolean(order?.id);
+  const shouldLoadOwnerAssignments =
+    Boolean(order?.id) &&
+    canReadOwnerAssignments &&
+    (showAssignmentSurfaces || showVendorCandidatePanel);
+  const activeVendorAssignment = useMemo(
+    () =>
+      ownerAssignments.find(
+        (assignment) =>
+          assignment?.assignment_type === "vendor_appraisal" &&
+          ACTIVE_VENDOR_ASSIGNMENT_STATUSES.has(String(assignment?.status || "")),
+      ) || null,
+    [ownerAssignments],
+  );
   const lifecycleCopy = lifecycleAction ? LIFECYCLE_ACTION_COPY[lifecycleAction] : null;
   const lifecycleReasonTrimmed = lifecycleReason.trim();
   const lifecycleHistoryNotice =
@@ -656,6 +683,31 @@ export default function OrderDetail() {
     }
     refresh();
   }
+
+  const loadOwnerAssignments = React.useCallback(async () => {
+    if (!shouldLoadOwnerAssignments) {
+      setOwnerAssignments([]);
+      setOwnerAssignmentsError(null);
+      setOwnerAssignmentsLoading(false);
+      return;
+    }
+
+    setOwnerAssignmentsLoading(true);
+    setOwnerAssignmentsError(null);
+    try {
+      const rows = await listOwnerAssignmentsForOrder(order.id);
+      setOwnerAssignments(Array.isArray(rows) ? rows : []);
+    } catch (error) {
+      setOwnerAssignments([]);
+      setOwnerAssignmentsError(error);
+    } finally {
+      setOwnerAssignmentsLoading(false);
+    }
+  }, [order?.id, shouldLoadOwnerAssignments]);
+
+  useEffect(() => {
+    loadOwnerAssignments();
+  }, [loadOwnerAssignments]);
 
   async function handleArchiveOrder() {
     if (!order?.id || archiveSubmitting) return;
@@ -962,6 +1014,10 @@ export default function OrderDetail() {
             orderId={order.id}
             canOfferAssignment={canOfferAssignment}
             onOfferAssignment={() => setOfferAssignmentOpen(true)}
+            assignmentRows={ownerAssignments}
+            assignmentsLoading={ownerAssignmentsLoading}
+            assignmentsError={ownerAssignmentsError}
+            onRefreshAssignments={loadOwnerAssignments}
           />
         )}
 
@@ -969,6 +1025,7 @@ export default function OrderDetail() {
           <VendorAssignmentCandidatesPanel
             orderId={order.id}
             enabled={showVendorCandidatePanel}
+            activeVendorAssignment={activeVendorAssignment}
           />
         )}
 

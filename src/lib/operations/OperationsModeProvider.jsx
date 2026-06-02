@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 import {
   DEFAULT_OPERATIONS_MODE,
@@ -47,26 +47,48 @@ function persistOperationsMode(mode) {
 }
 
 function normalizeAvailableOperationsModes(availableOperationsModes) {
-  const modes = Array.isArray(availableOperationsModes)
+  const suppliedModes = Array.isArray(availableOperationsModes)
     ? availableOperationsModes.filter(isValidOperationsMode)
     : DEFAULT_AVAILABLE_OPERATIONS_MODES;
-  const uniqueModes = [...new Set(modes)];
+  const uniqueModes = [
+    OPERATIONS_MODES.INTERNAL_OPERATIONS,
+    ...new Set(suppliedModes),
+  ].filter(isValidOperationsMode);
 
-  return Object.freeze(uniqueModes.length > 0 ? uniqueModes : [...DEFAULT_AVAILABLE_OPERATIONS_MODES]);
+  return Object.freeze([...new Set(uniqueModes)]);
+}
+
+function coerceOperationsModeForAvailability(mode, availableOperationsModes) {
+  const normalizedMode = normalizeOperationsMode(mode);
+  return availableOperationsModes.includes(normalizedMode)
+    ? normalizedMode
+    : DEFAULT_OPERATIONS_MODE;
 }
 
 export function OperationsModeProvider({ children, availableOperationsModes = DEFAULT_AVAILABLE_OPERATIONS_MODES }) {
-  const [operationsMode, setOperationsModeState] = useState(readStoredOperationsMode);
   const normalizedAvailableOperationsModes = useMemo(
     () => normalizeAvailableOperationsModes(availableOperationsModes),
     [availableOperationsModes],
   );
+  const [operationsMode, setOperationsModeState] = useState(() =>
+    coerceOperationsModeForAvailability(readStoredOperationsMode(), normalizedAvailableOperationsModes)
+  );
 
   const setOperationsMode = useCallback((mode) => {
-    const nextMode = normalizeOperationsMode(mode);
+    const nextMode = coerceOperationsModeForAvailability(mode, normalizedAvailableOperationsModes);
     setOperationsModeState(nextMode);
     persistOperationsMode(nextMode);
-  }, []);
+  }, [normalizedAvailableOperationsModes]);
+
+  useEffect(() => {
+    setOperationsModeState((currentMode) => {
+      const nextMode = coerceOperationsModeForAvailability(currentMode, normalizedAvailableOperationsModes);
+      if (nextMode !== currentMode) {
+        persistOperationsMode(nextMode);
+      }
+      return nextMode;
+    });
+  }, [normalizedAvailableOperationsModes]);
 
   const value = useMemo(() => ({
     operationsMode,

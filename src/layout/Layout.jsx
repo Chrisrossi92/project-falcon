@@ -1,10 +1,32 @@
 import { Outlet } from "react-router-dom";
 import TopNav from "@/components/shell/TopNav";
 import { OperationsModeProvider } from "@/lib/operations/OperationsModeProvider";
+import { OPERATIONS_MODES } from "@/lib/operations/operationsMode";
+import { useEffectivePermissions } from "@/lib/hooks/usePermissions";
+import { PERMISSIONS } from "@/lib/permissions/constants";
+import { useShellProfile } from "@/lib/shell/useShellProfile";
+
+function resolveAvailableOperationsModes(permissions, shellProfile) {
+  const appContext = shellProfile?.appContext || {};
+  const isOwnerOrAdmin = Boolean(appContext.is_owner || appContext.is_admin_role);
+  const canAccessAmcOperations =
+    !permissions.loading &&
+    !permissions.error &&
+    isOwnerOrAdmin &&
+    permissions.hasPermission(PERMISSIONS.VENDORS_READ);
+
+  return canAccessAmcOperations
+    ? [OPERATIONS_MODES.INTERNAL_OPERATIONS, OPERATIONS_MODES.AMC_OPERATIONS]
+    : [OPERATIONS_MODES.INTERNAL_OPERATIONS];
+}
 
 export default function Layout() {
+  const permissions = useEffectivePermissions();
+  const shellProfile = useShellProfile();
+  const availableOperationsModes = resolveAvailableOperationsModes(permissions, shellProfile);
+
   return (
-    <OperationsModeProvider>
+    <OperationsModeProvider availableOperationsModes={availableOperationsModes}>
       <div className="relative flex min-h-screen flex-col overflow-x-hidden bg-slate-950 text-slate-950">
         <div
           aria-hidden

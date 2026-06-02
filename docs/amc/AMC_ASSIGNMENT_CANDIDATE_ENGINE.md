@@ -651,6 +651,879 @@ The panel now:
 
 AMC-5I remains read-only. It does not add assign buttons, bid requests, assignment creation, notifications, backend/RPC/schema changes, permission changes, route/nav changes, order behavior changes, assignment behavior changes, or `/amc/*` routes.
 
+## AMC-6A: Assignment Offer Workflow Doctrine
+
+AMC-6A is documentation/proposal only. It does not implement assignment actions, create migrations, create RPCs, create UI, send notifications, change schema/RLS, change permissions, change order behavior, or create `/amc/*` routes.
+
+### What Is An Assignment Offer?
+
+An Assignment Offer is the explicit handoff step between a candidate vendor recommendation and a scoped assignment packet.
+
+Recommended lifecycle:
+
+```text
+Order
+-> Candidate Vendor
+-> Offer
+-> Accept / Decline
+-> Assignment Packet Lifecycle
+```
+
+Candidate matching answers "who appears to fit this order?" An offer answers "which vendor is being asked to take this work?" Acceptance converts that request into active assigned work inside the existing assignment packet lifecycle. Candidate results alone must never grant vendor order visibility, create a packet, send a vendor notification, or mutate order assignment columns.
+
+### Relationship To Existing Infrastructure
+
+The existing `order_company_assignments` architecture should be reused for assignment offers. It already models the owner-company to assigned-company packet boundary and is guarded by active `company_relationships`.
+
+Existing reusable pieces:
+
+- `order_company_assignments` stores the assignment packet record, owner company, assigned company, active relationship, assignment type, instructions, terms, handoff payload, due/review/expiration dates, lifecycle status, and actor timestamps.
+- `rpc_order_company_assignment_offer(...)` already creates an `offered` packet and requires owner order authority, `order_company_assignments.offer`, and `relationships.assign_work`.
+- `rpc_order_company_assignment_accept(uuid)` and `rpc_order_company_assignment_decline(uuid, text)` already govern vendor-side response from the assigned company.
+- `rpc_order_company_assignment_start`, `submit`, `complete`, `cancel`, and `revoke` already cover the downstream packet lifecycle.
+- Assignment packet activity and notifications are backend-owned through assignment lifecycle RPCs.
+- `company_relationships` enforces active relationship compatibility; for `amc_vendor`, the expected packet assignment type is `vendor_appraisal`.
+
+Reuse recommendation: do not create a parallel "vendor offers" table for MVP. The first offer implementation should bridge selected candidate rows into `rpc_order_company_assignment_offer(...)`, passing the candidate's `vendor_company_id`, `relationship_id`, and assignment type `vendor_appraisal`. Any candidate-specific context needed for audit or display can be copied into `handoff_payload` or terms, not into a new lifecycle store.
+
+### Lifecycle States
+
+Canonical current packet states from existing infrastructure:
+
+- `offered`: owner has offered work to a vendor/company.
+- `accepted`: assigned company accepted the offer.
+- `declined`: assigned company declined the offer.
+- `in_progress`: assigned company started work.
+- `submitted`: assigned company submitted work back to the owner.
+- `completed`: owner completed/closed the packet.
+- `cancelled`: owner cancelled an offered/accepted/in-progress packet.
+- `revoked`: owner revoked a current packet, including submitted work.
+
+Doctrine labels for future product language:
+
+- `draft`: future UI-only preparation state before calling the offer RPC; do not persist as a packet unless a separate draft-offer feature is approved.
+- `viewed`: future telemetry/event state; do not make it a core lifecycle gate until vendor portal read receipts are implemented.
+- `withdrawn`: owner-facing copy can map to existing `cancelled` for offered/accepted/in-progress packets or `revoked` when stronger owner withdrawal semantics are needed.
+- `expired`: future scheduled transition for `offered` packets after `expires_at`; existing table has `expires_at`, but automatic expiration behavior should be designed separately.
+
+MVP should use current persisted states rather than adding new statuses.
+
+### Vendor Selection Workflow
+
+Supported future workflows:
+
+- Manual single-vendor offer.
+- Manual multi-vendor offer.
+- Bid request to one or many vendors.
+- Availability request before formal offer.
+- Future ranked/top-N outreach.
+
+First implementation recommendation: single-vendor offer only.
+
+Rationale:
+
+- It reuses existing assignment packet RPCs directly.
+- It avoids competing active vendors for the same work.
+- It avoids bid, availability, and first-to-accept policy complexity.
+- It keeps candidate recommendations advisory and makes the owner/admin choose intentionally.
+
+MVP should not introduce bidding, automated routing, top-N fanout, or first-to-accept behavior. Those require separate doctrine for duplicate offers, vendor communications, fee terms, response deadlines, and fairness/audit rules.
+
+### Permissions
+
+Existing permissions should remain authoritative for MVP offer creation:
+
+- `order_company_assignments.offer`: owner-side permission to create assignment offers.
+- `relationships.assign_work`: permission to assign work through a relationship.
+- existing order read/update authority enforced by `rpc_order_company_assignment_offer(...)`.
+
+Candidate visibility remains governed by `vendors.read` plus order read authority. Offer creation should not be authorized by candidate visibility alone.
+
+Proposed future permission:
+
+- `vendors.assign`: optional future product-level permission if Falcon needs to separate "manage vendor directory" from "offer vendor work."
+
+Recommendation: do not add `vendors.assign` until the workflow boundary is clear. For the first implementation, require the existing packet offer permissions and active relationship guard. If `vendors.assign` is later introduced, it should be an additional requirement, not a replacement for packet/relationship permissions.
+
+### Notifications
+
+Notifications are part of the offer lifecycle but remain deferred for this doctrine slice.
+
+Existing `rpc_order_company_assignment_offer(...)` already calls assignment packet notification behavior. Future implementation must decide whether the candidate-origin offer UI uses that existing notification fanout immediately or stages offer creation before sending.
+
+Future notification requirements:
+
+- in-app notification for the assigned vendor/company
+- email notification for assignment offer
+- owner notification for accept/decline
+- reminder before `expires_at`
+- overdue/no-response escalation
+- cancellation/revocation notification
+
+Do not add new notification channels or reminder jobs until the offer UI and vendor response flow are explicitly approved.
+
+### Risks
+
+- Duplicate offers: existing unique index blocks duplicate current packets for the same order, assigned company, and assignment type, but multi-vendor offers need explicit product policy.
+- Competing vendors: multi-vendor offers can create fairness and cancellation problems if more than one accepts.
+- Withdrawn offers: owner-facing "withdraw" must map carefully to `cancelled` or `revoked`.
+- Expired offers: `expires_at` exists, but automatic expiration should not be implied until a scheduled transition is implemented.
+- Reassignment: after decline/cancel/revoke, a new offer may be valid, but audit history must remain intact.
+- Relationship changes: an offer requires an active relationship; suspended/archived relationships should block new offers and may block responses depending on lifecycle policy.
+- Order mutation confusion: vendor offers must not write `orders.appraiser_id`, `orders.reviewer_id`, `orders.assigned_to`, or `orders.current_reviewer_id`.
+- Client visibility: client-facing status must not expose vendor identity or packet lifecycle by default.
+
+## AMC-6B: Assignment Offer RPC/API Proposal
+
+AMC-6B is proposal/inspection only. It does not create migrations, create RPCs, create UI, change schema/RLS, change permissions, change routes/nav, change order behavior, change assignment behavior, or create `/amc/*` routes.
+
+### Reuse Assessment
+
+Existing `order_company_assignments` can support MVP assignment offers without new lifecycle tables.
+
+Reasons:
+
+- It already stores the owner order, owner company, assigned company, active relationship, assignment type, instructions, terms, handoff payload, due/review/expiration dates, status, actor ids, and lifecycle timestamps.
+- It already enforces assignment-type compatibility with relationship type. For `amc_vendor`, the compatible assignment type is `vendor_appraisal`.
+- It already requires active relationships and matching owner/assigned companies through the table guard and offer RPC.
+- It already has lifecycle RPCs for offer, accept, decline, start, submit, complete, cancel, and revoke.
+- It already writes assignment-scoped activity and notification events through lifecycle RPCs.
+
+Recommendation: reuse `rpc_order_company_assignment_offer(...)` for MVP. Do not create a new `vendor_assignment_offers` table or a separate vendor-offer lifecycle.
+
+### Existing RPC To Reuse
+
+Existing RPC:
+
+```sql
+public.rpc_order_company_assignment_offer(
+  p_order_id uuid,
+  p_assigned_company_id uuid,
+  p_relationship_id uuid,
+  p_assignment_type text,
+  p_instructions text default null,
+  p_terms jsonb default '{}'::jsonb,
+  p_handoff_payload jsonb default '{}'::jsonb,
+  p_due_at timestamptz default null,
+  p_review_due_at timestamptz default null,
+  p_expires_at timestamptz default null
+)
+returns uuid
+```
+
+Required vendor-candidate payload mapping:
+
+| RPC argument | Candidate/order source | MVP value |
+|---|---|---|
+| `p_order_id` | current order | selected order id |
+| `p_assigned_company_id` | candidate | `vendor_company_id` |
+| `p_relationship_id` | candidate | `relationship_id` |
+| `p_assignment_type` | relationship doctrine | `vendor_appraisal` |
+| `p_instructions` | owner/admin input | offer message / assignment instructions |
+| `p_terms` | owner/admin input | structured terms, default `{}` |
+| `p_handoff_payload` | candidate/order context | selected candidate metadata, default `{}` |
+| `p_due_at` | owner/admin input | optional due date |
+| `p_review_due_at` | owner/admin input | optional review due date |
+| `p_expires_at` | owner/admin input | optional response deadline |
+
+Validation behavior already enforced by the RPC:
+
+- authenticated current app user
+- active current-company membership
+- `order_company_assignments.offer`
+- `relationships.assign_work`
+- order belongs to current company
+- current user can read and update the order row
+- relationship exists and is active
+- relationship source matches current/order owner company
+- relationship target matches assigned company
+- assignment type matches the relationship type
+- insert into `order_company_assignments` with status `offered`
+- assignment activity and notification fanout through existing lifecycle functions
+
+Return shape: assignment id `uuid`.
+
+### Frontend API Proposal
+
+Existing generic wrapper:
+
+```js
+offerAssignment({
+  orderId,
+  assignedCompanyId,
+  relationshipId,
+  assignmentType,
+  instructions,
+  terms,
+  handoffPayload,
+  dueAt,
+  reviewDueAt,
+  expiresAt,
+})
+```
+
+Recommended vendor-candidate wrapper:
+
+```js
+offerOrderToVendor({
+  orderId,
+  vendorProfileId,
+  vendorCompanyId,
+  relationshipId,
+  note,
+  terms,
+  dueAt,
+  reviewDueAt,
+  expiresAt,
+  candidateSnapshot,
+})
+```
+
+The wrapper should call the existing assignment API wrapper, not the database directly:
+
+- `assignedCompanyId = vendorCompanyId`
+- `assignmentType = "vendor_appraisal"`
+- `instructions = note`
+- `handoffPayload` should include a compact candidate snapshot such as `vendor_profile_id`, `match_score`, `match_reasons`, `coverage_matches`, and `warning_flags`
+
+Do not use `vendorProfileId` as authority. It is useful for audit/display and stale-candidate validation, but the packet RPC authorizes through order ownership, relationship, assigned company, and existing permissions.
+
+### Pre-Offer Validations
+
+Before showing or submitting "Offer Assignment", the frontend should confirm:
+
+- order id exists
+- selected candidate has `vendor_profile_id`, `vendor_company_id`, and `relationship_id`
+- candidate relationship/network status is active
+- candidate vendor status is not `inactive` or `do_not_use`
+- user has the existing assignment-offer permissions before showing the action, where available in frontend permission context
+- no known current active assignment/offer blocks the MVP flow, if order-scoped assignment summaries are loaded
+
+The backend must remain authoritative and revalidate:
+
+- current-company membership
+- order ownership and order read/update authority
+- `order_company_assignments.offer`
+- `relationships.assign_work`
+- active relationship
+- relationship target/source correctness
+- assignment-type compatibility
+- current packet uniqueness constraints
+
+### One-Active-Offer Rule
+
+MVP recommendation: allow only one active vendor assignment packet per order.
+
+For candidate-origin vendor offers, "active" should include:
+
+- `offered`
+- `accepted`
+- `in_progress`
+- `submitted`
+
+The existing unique index blocks duplicate current packets for the same order, assigned company, and assignment type. It does not by itself block multiple different vendors from receiving active offers for the same order. MVP product behavior should add an owner-side rule or wrapper validation that blocks a second current `vendor_appraisal` packet for the order unless a later multi-vendor/bid workflow is explicitly approved.
+
+Declined, cancelled, revoked, and completed packets should remain historical and should not block a new offer unless product policy adds reassignment restrictions.
+
+### Permission Recommendation
+
+MVP should use existing permissions:
+
+- `order_company_assignments.offer`
+- `relationships.assign_work`
+- existing order read/update authority enforced by the RPC
+
+Candidate visibility still requires:
+
+- `vendors.read`
+- order read authority
+
+`vendors.assign` remains optional future policy. If introduced, it should be an additional guard for vendor-origin offer UI, not a replacement for `order_company_assignments.offer` or `relationships.assign_work`.
+
+### Future UI Behavior
+
+Future owner/admin UI should:
+
+- show an `Offer Assignment` button on eligible candidate rows
+- open a confirmation modal
+- require or strongly encourage an offer note/instructions
+- allow optional terms, due date, review due date, and response deadline
+- show a clear warning that this creates an assignment offer packet
+- refresh candidate and current assignment panels after success
+
+MVP UI should not add:
+
+- bids
+- multi-vendor offers
+- first-to-accept routing
+- automated offer creation
+- notification customization beyond existing RPC fanout
+
+Because the existing RPC already triggers assignment-scoped notifications, future UI copy should tell users that sending the offer may notify the assigned vendor/company when notification delivery is enabled.
+
+### Revoke / Decline
+
+Existing lifecycle supports:
+
+- vendor/company decline through `rpc_order_company_assignment_decline(uuid, text)`
+- owner cancel for offered/accepted/in-progress packets through `rpc_order_company_assignment_cancel(uuid, text)`
+- owner revoke for offered/accepted/in-progress/submitted packets through `rpc_order_company_assignment_revoke(uuid, text)`
+
+MVP candidate-offer UI can defer revoke/decline controls if the existing assignment packet surfaces already expose them. If surfaced on Order Detail later, use owner-facing copy:
+
+- `Cancel offer` for `offered`
+- `Revoke assignment` for accepted/in-progress/submitted work
+
+### Risks
+
+- Duplicate offers across multiple vendors if no order-level one-active-vendor rule is added.
+- Stale candidate results after vendor status, coverage, relationship, or order data changes.
+- Offering to a staged vendor if candidate data is bypassed; backend active relationship checks should block this.
+- Offering without active relationship; backend checks already block this.
+- Order already assigned through another vendor packet or internal assignment path.
+- Users may confuse candidate recommendation with automatic assignment; UI must keep the action explicit.
+- Existing generic offer modal can offer through any active relationship; candidate-origin UI should be narrower and vendor-specific.
+
+### Recommended Next Slice
+
+AMC-6C should define implementation mechanics for the one-active-vendor-offer rule and frontend API shape:
+
+- decide whether to add a small candidate-aware SQL wrapper or rely entirely on existing `rpc_order_company_assignment_offer(...)`
+- if no SQL wrapper is added, add `offerOrderToVendor(...)` as a frontend wrapper over `offerAssignment(...)`
+- include preflight checks against `listOwnerAssignmentsForOrder(orderId)` where practical
+- do not add UI until the wrapper and single-active-offer behavior are tested
+
+## AMC-6C: Candidate-Aware Assignment Offer API Wrapper
+
+Implemented frontend API support for offering an order to a selected vendor candidate using the existing assignment packet RPC path. No UI, assignment buttons, backend/RPC changes, schema/RLS changes, permission changes, route/nav changes, order behavior changes, assignment behavior changes, or `/amc/*` routes were introduced.
+
+Added wrapper:
+
+```js
+offerOrderToVendor({
+  orderId,
+  vendorProfileId,
+  vendorCompanyId,
+  relationshipId,
+  note,
+  terms,
+  dueAt,
+  reviewDueAt,
+  expiresAt,
+  candidateSnapshot,
+})
+```
+
+The wrapper delegates to existing `offerAssignment(...)`, which calls `rpc_order_company_assignment_offer(...)`.
+
+Mapping:
+
+| Vendor wrapper field | Existing assignment field |
+|---|---|
+| `orderId` | `orderId` / `p_order_id` |
+| `vendorCompanyId` | `assignedCompanyId` / `p_assigned_company_id` |
+| `relationshipId` | `relationshipId` / `p_relationship_id` |
+| constant `vendor_appraisal` | `assignmentType` / `p_assignment_type` |
+| `note` | `instructions` / `p_instructions` |
+| `terms` | `terms` / `p_terms` |
+| `candidateSnapshot` plus vendor ids | `handoffPayload` / `p_handoff_payload` |
+| `dueAt` | `dueAt` / `p_due_at` |
+| `reviewDueAt` | `reviewDueAt` / `p_review_due_at` |
+| `expiresAt` | `expiresAt` / `p_expires_at` |
+
+Conflict handling note:
+
+- Existing backend uniqueness prevents duplicate current packets for the same `order_id`, `assigned_company_id`, and `assignment_type`.
+- Existing backend behavior does not enforce the broader MVP rule of only one active vendor assignment packet across all vendors for a given order.
+- AMC-6D/6E must add server-side or approved backend-backed enforcement before exposing an `Offer Assignment` UI action.
+
+## AMC-6D: One Active Vendor Offer Enforcement Proposal
+
+AMC-6D is proposal/inspection only. It does not create migrations, create RPCs, create UI, change schema/RLS, change permissions, change routes/nav, change order behavior, change assignment behavior, or create `/amc/*` routes.
+
+### Active Vendor Assignment Statuses
+
+For MVP vendor-offer enforcement, "active" means an `order_company_assignments` row where:
+
+- `assignment_type = 'vendor_appraisal'`
+- `status in ('offered', 'accepted', 'in_progress', 'submitted')`
+
+Terminal or historical statuses should not block a later offer:
+
+- `declined`
+- `completed`
+- `cancelled`
+- `revoked`
+
+### Scope
+
+The MVP rule is:
+
+> One active vendor appraisal offer/assignment per order, regardless of assigned vendor company.
+
+Scope details:
+
+- same `order_id`
+- `assignment_type = 'vendor_appraisal'`
+- any `assigned_company_id`
+- only current active packet statuses: `offered`, `accepted`, `in_progress`, `submitted`
+
+This rule does not apply to other assignment types such as `review_provider`, `staff_overflow`, `enterprise_delegated`, `billing_managed`, or `support_managed`.
+
+### Enforcement Options
+
+Option A: SQL partial unique index
+
+```sql
+create unique index order_company_assignments_one_active_vendor_per_order
+  on public.order_company_assignments (order_id)
+  where assignment_type = 'vendor_appraisal'
+    and status in ('offered', 'accepted', 'in_progress', 'submitted');
+```
+
+Pros:
+
+- strongest race-condition protection
+- protects every write path, including future wrappers
+- simple invariant tied directly to the table
+
+Cons:
+
+- requires preflight audit for existing conflicting rows before migration
+- generic unique-violation error needs friendly mapping
+- would block future multi-vendor bid/first-to-accept workflows until deliberately replaced or narrowed
+
+Option B: RPC-level check only
+
+Pros:
+
+- easier custom error message
+- can be scoped only to current offer RPC behavior
+- easier to bypass later for approved bid workflows
+
+Cons:
+
+- weaker race-condition protection unless combined with locks
+- future write paths can accidentally bypass the rule
+- still needs careful transaction design
+
+Option C: both partial unique index and RPC-level check
+
+Pros:
+
+- best protection and best user-facing error path
+- RPC can raise a stable code before insert
+- unique index remains a final concurrency backstop
+
+Cons:
+
+- requires both migration/index validation and RPC patch
+- future multi-vendor workflows must intentionally change both the RPC policy and table invariant
+
+Recommendation: use Option C for MVP.
+
+### Race Condition Handling
+
+The offer RPC already locks the source order row with `for update`. A patched RPC-level check should run after that order lock and before the insert:
+
+```sql
+if v_assignment_type = 'vendor_appraisal'
+   and exists (
+     select 1
+       from public.order_company_assignments oca
+      where oca.order_id = p_order_id
+        and oca.assignment_type = 'vendor_appraisal'
+        and oca.status in ('offered', 'accepted', 'in_progress', 'submitted')
+   ) then
+  raise exception 'order_vendor_assignment_active_exists'
+    using errcode = '23505';
+end if;
+```
+
+The partial unique index should still be added as the final race-condition backstop. If two offer paths somehow reach insert at the same time, the index preserves the one-active-vendor invariant.
+
+### Error Code
+
+Recommended stable error message:
+
+```text
+order_vendor_assignment_active_exists
+```
+
+Reasoning:
+
+- order-scoped
+- vendor-assignment specific
+- clear that an active packet already exists
+
+Alternative:
+
+```text
+vendor_assignment_active_offer_exists
+```
+
+Use the recommended code unless product wants to distinguish offered-only packets from accepted/in-progress/submitted packets. MVP should cover all active statuses, so `order_vendor_assignment_active_exists` is more accurate.
+
+Frontend copy should map it to:
+
+```text
+This order already has an active vendor offer or assignment.
+```
+
+### Internal / Staff Assignment Interaction
+
+This slice should not interact with internal/staff assignment fields:
+
+- `orders.appraiser_id`
+- `orders.assigned_to`
+- `orders.reviewer_id`
+- `orders.current_reviewer_id`
+
+It should also not block non-vendor assignment packet types. Parallel review-provider or staff-overflow packet policy should be decided separately.
+
+### Future Exceptions
+
+Future workflows may intentionally relax or replace the one-active-vendor rule:
+
+- multi-vendor bid requests
+- first-to-accept workflows
+- availability-only outreach
+- parallel review assignment
+- reassignment after decline/cancel/revoke
+- emergency override by privileged owner/admin
+
+Those should be implemented with explicit workflow state and audit semantics, not by silently bypassing the MVP guard.
+
+## AMC-6E: One Active Vendor Offer Enforcement
+
+Implemented backend-backed enforcement in additive migration `20260601142000_amc_one_active_vendor_offer_guard.sql`.
+
+The migration:
+
+- runs a preflight conflict audit and fails with `order_vendor_assignment_active_conflict` if existing data has multiple active `vendor_appraisal` packets for the same order
+- adds partial unique index `order_company_assignments_one_active_vendor_per_order`
+- patches `rpc_order_company_assignment_offer(...)` to raise `order_vendor_assignment_active_exists` before insert when an active vendor packet already exists for the order
+- keeps non-vendor assignment types unaffected
+- preserves existing same-order/same-assigned-company/same-assignment-type uniqueness from `order_company_assignments_current_unique`
+- does not write `orders.appraiser_id`, `orders.assigned_to`, `orders.reviewer_id`, or `orders.current_reviewer_id`
+
+AMC-6E does not add UI, assignment buttons, new permissions, route/nav changes, order behavior changes beyond the assignment-offer guard, or `/amc/*` routes.
+
+### Recommended Next Slice
+
+AMC-6F should add the first explicit `Offer Assignment` UI after enforcing permission visibility and active-offer display:
+
+- show action only on eligible candidate rows
+- require explicit owner/admin confirmation
+- surface `order_vendor_assignment_active_exists` with friendly copy
+- refresh candidate and order assignment panels on success
+- keep bidding, multi-vendor offers, automated routing, and first-to-accept deferred
+
+## AMC-6F: Offer Assignment UI Proposal
+
+AMC-6F is proposal/inspection only. It does not implement UI, create assignment offers, create migrations, create RPCs, change schema/RLS, change permissions, change routes/nav, change order behavior, change assignment behavior, or create `/amc/*` routes.
+
+### Recommended Button Placement
+
+The first `Offer Assignment` action should appear inside each eligible candidate card in the read-only Vendor Candidates panel on Order Detail.
+
+Display rules:
+
+- show only in AMC Operations mode
+- show only when an order id is present
+- show only when the user has `vendors.read`
+- show only when the user also has the existing assignment-offer permissions required by the canonical RPC path
+- hide or disable when the order already has an active vendor offer/assignment if that state is available to the page
+- never show in Internal Operations mode
+- never show solely because AMC Operations mode is active
+
+The button label should be:
+
+```text
+Offer Assignment
+```
+
+The candidate card is the right placement because the owner/admin is choosing one suggested vendor. A separate top-level button would force users to reselect a vendor and would be easier to confuse with generic relationship assignment.
+
+### Confirmation Modal
+
+The candidate offer modal should be narrower than the existing generic relationship offer modal. It should be vendor-candidate aware and should avoid raw JSON editing.
+
+Recommended fields:
+
+- Vendor name: read-only summary from the candidate row.
+- Order summary: read-only order number, property address/city/state/ZIP, report or product context, and due date when available.
+- Message/note: optional owner-facing instructions mapped to `p_instructions`.
+- Due date: optional or required depending on existing assignment policy; if order due date exists, prefill conservatively.
+- Review due date: optional.
+- Offer expiration date: optional.
+
+Do not expose:
+
+- `relationship_id`
+- `vendor_profile_id`
+- `vendor_company_id`
+- `assignment_type`
+- raw `terms` JSON
+- raw `handoff_payload` JSON
+- candidate snapshot JSON
+
+The candidate snapshot should be included silently through `offerOrderToVendor(...)` so the assignment packet can preserve why the vendor was selected. Terms should not be exposed as a JSON editor in this candidate-specific MVP. If fee/terms are needed later, use structured fields such as fee, payment terms, or special conditions.
+
+Recommended modal copy:
+
+```text
+This will send an assignment offer to the vendor.
+```
+
+```text
+This does not automatically mark the vendor as accepted.
+```
+
+### Permission Recommendation
+
+The button should require all existing authorization already enforced by the backend offer RPC:
+
+- `order_company_assignments.offer`
+- `relationships.assign_work`
+- current-company order read/update authority as enforced by `rpc_order_company_assignment_offer(...)`
+- active current-company membership
+- active compatible `amc_vendor` relationship
+
+The candidate panel itself remains gated by `vendors.read`, but `vendors.read` must not be enough to offer work.
+
+Recommended MVP: do not introduce `vendors.assign` in AMC-6F. If product later needs a vendor-specific assignment permission, add `vendors.assign` as an additional gate in a separate permission slice. It should not replace the packet lifecycle permissions.
+
+### Active Offer Handling
+
+If active offer state is detectable from existing order assignment data, the UI should avoid showing active `Offer Assignment` buttons and instead show owner-friendly copy near the candidate panel:
+
+```text
+This order already has an active vendor offer or assignment.
+```
+
+If the user still reaches the backend conflict, map `order_vendor_assignment_active_exists` to the same message. The modal should preserve entered note/date values after the error so the user does not lose context.
+
+The UI should not attempt to enforce the one-active-offer rule on its own. Frontend visibility is a convenience; AMC-6E backend enforcement remains authoritative.
+
+### Success Behavior
+
+On successful offer creation:
+
+- close the confirmation modal
+- show a success toast or inline confirmation such as `Assignment offer sent.`
+- refresh vendor candidates so the panel reflects current eligibility/warnings
+- refresh the Order Detail assignment packet section so the active offer is visible
+- consider replacing candidate action buttons with `Offer sent` if the active assignment summary is available
+
+The success state should not imply acceptance. The vendor remains in offered status until the existing assignment lifecycle records acceptance.
+
+### Deferred Behavior
+
+AMC-6F should not include:
+
+- multi-vendor offers
+- bid requests
+- availability requests
+- first-to-accept workflows
+- notification customization
+- vendor portal acceptance changes
+- assignment automation
+- fee negotiation
+- revoke/cancel UI unless already present in the existing assignment packet section
+- new `/amc/*` routes
+
+### Tests Needed
+
+Implementation tests should cover:
+
+- `Offer Assignment` appears on candidate cards in AMC Operations mode with required permissions.
+- The button is hidden in Internal Operations mode.
+- The button is hidden without `vendors.read`.
+- The button is hidden or disabled without assignment-offer permissions.
+- The modal renders vendor and order summaries.
+- The modal does not expose raw relationship ids, assignment type, terms JSON, handoff JSON, or candidate snapshot JSON.
+- Submit calls `offerOrderToVendor(...)` with order id, vendor ids, relationship id, note/date fields, and hidden candidate snapshot.
+- `order_vendor_assignment_active_exists` displays `This order already has an active vendor offer or assignment.`
+- Success refreshes candidates and assignment packet/order detail data.
+- No assign/bid/multi-vendor controls are introduced.
+
+### Implementation Slices
+
+Recommended follow-up slices:
+
+1. AMC-6F.1: active vendor offer visibility audit on Order Detail using existing owner assignment packet data.
+2. AMC-6F.2: isolated candidate offer modal component wired to `offerOrderToVendor(...)` in tests only.
+3. AMC-6F.3: candidate card button integration with permission gates and refresh callbacks.
+4. AMC-6G: active offer/assignment display polish on Order Detail.
+5. AMC-6H: owner-side revoke/cancel proposal and implementation only where the existing lifecycle supports it.
+
+## AMC-6F.1: Active Vendor Offer Visibility Audit
+
+AMC-6F.1 is inspection/documentation only. It does not modify runtime code, create migrations, create RPCs, create UI, change schema/RLS, change permissions, change routes/nav, change order behavior, change assignment behavior, or create `/amc/*` routes.
+
+### Existing Data Availability
+
+Order Detail already has the backend read needed to detect active vendor offers/assignments.
+
+Existing frontend/API path:
+
+- `src/pages/orders/OrderDetail.jsx` renders `OwnerOrderAssignmentsPanel` near the company-assignment context.
+- `src/features/assignments/components/OwnerOrderAssignmentsPanel.jsx` calls `listOwnerAssignmentsForOrder(orderId)`.
+- `src/features/assignments/api.js` maps that call to `rpc_order_company_assignment_list_for_order`.
+- `supabase/migrations/20260518035000_order_company_assignment_order_list_rpc.sql` defines the order-scoped summary RPC.
+
+The RPC returns the fields needed for active vendor-offer detection:
+
+- `id`
+- `order_id`
+- `assigned_company_id`
+- `assigned_company_name`
+- `relationship_id`
+- `relationship_type`
+- `relationship_status`
+- `assignment_type`
+- `status`
+- `instructions`
+- `offered_at`
+- `accepted_at`
+- `started_at`
+- `submitted_at`
+- `completed_at`
+- `cancelled_at`
+- `revoked_at`
+- `due_at`
+- `review_due_at`
+- `expires_at`
+
+Authorization is already owner/order scoped. The RPC requires current-company membership, `order_company_assignments.read_owner`, current-company order ownership, and `current_app_user_can_read_order(p_order_id)`.
+
+### Detection Rule
+
+An active vendor offer/assignment is any order-scoped assignment summary row where:
+
+- `assignment_type = 'vendor_appraisal'`
+- `status in ('offered', 'accepted', 'in_progress', 'submitted')`
+
+This aligns with AMC-6E backend enforcement and the partial unique index. No additional read RPC is required for MVP.
+
+The frontend gap is state sharing, not data availability. Today, `OwnerOrderAssignmentsPanel` loads assignment rows internally, while `VendorAssignmentCandidatesPanel` loads candidate rows independently. To hide candidate offer actions, the next implementation should either:
+
+- lift `listOwnerAssignmentsForOrder(orderId)` into `OrderDetail` and pass active vendor assignment state into both panels, or
+- create a small shared hook such as `useOwnerAssignmentsForOrder(orderId)` that both panels can consume without duplicate policy logic.
+
+Recommended MVP: lift the read into `OrderDetail` first if the change is small; otherwise add a shared hook. Do not create another RPC solely for active vendor offer detection.
+
+### Display Recommendation
+
+If an active vendor assignment exists, Order Detail should show a compact vendor assignment card near the candidate/assignment context instead of candidate offer buttons.
+
+Example display:
+
+```text
+Vendor Assignment
+Offered to:
+ABC Valuation
+
+Status:
+Offered
+
+Sent:
+2026-06-01
+```
+
+Additional fields to show when available:
+
+- due date
+- review due date
+- expiration date for offered packets
+- network status as owner-friendly copy
+- `Open Packet` link to the existing assignment packet page
+
+Owner-facing status copy:
+
+| Stored status | Display guidance |
+|---|---|
+| `offered` | Offer sent |
+| `accepted` | Accepted |
+| `in_progress` | In progress |
+| `submitted` | Submitted |
+
+Do not expose raw `vendor_appraisal`, relationship ids, or relationship terminology in the candidate action area.
+
+### Terminal / Historical Statuses
+
+Terminal or historical vendor packets should not block new candidate offer actions:
+
+- `declined`
+- `revoked`
+- `completed`
+- `cancelled`
+
+Recommended display:
+
+- Keep historical rows visible in the existing Company Assignments panel or a historical assignment section.
+- Do not show them as the active Vendor Assignment card.
+- Do not suppress candidate `Offer Assignment` actions solely because a terminal vendor assignment exists.
+- If several historical vendor packets exist, show the most recent historical state only as context, not as a blocker.
+
+### Safest UI Rule
+
+Use this rule before exposing candidate offer actions:
+
+```text
+If active vendor assignment exists:
+  show active Vendor Assignment card
+  hide candidate Offer Assignment actions
+  keep candidate matching read-only if useful
+
+If no active vendor assignment exists:
+  show candidate Offer Assignment actions for eligible candidates
+```
+
+The backend remains authoritative. Even if frontend data is stale, AMC-6E will raise `order_vendor_assignment_active_exists`.
+
+### Recommended Next Slice
+
+AMC-6F.2 should implement active vendor assignment state plumbing without adding the candidate offer button yet:
+
+- centralize or lift `listOwnerAssignmentsForOrder(orderId)` state in Order Detail
+- derive `activeVendorAssignment`
+- render or prepare a compact active Vendor Assignment summary
+- pass `activeVendorAssignment` or `hasActiveVendorAssignment` to the candidate panel
+- keep candidate actions hidden because the offer button is still deferred
+
+AMC-6F.3 can then add the candidate-specific offer modal and button with the active-offer guard already in place.
+
+## AMC-6F.2: Active Vendor Assignment State Sharing
+
+AMC-6F.2 implements frontend state sharing only. It does not add offer buttons, bid requests, assignment actions, backend/API/schema/RLS changes, permission changes, route/nav changes, order behavior changes, assignment behavior changes, or `/amc/*` routes.
+
+Implementation result:
+
+- `OrderDetail` now reuses `listOwnerAssignmentsForOrder(orderId)` when the user has owner assignment read access and either the existing assignment panel or AMC vendor candidate panel is visible.
+- `OrderDetail` derives `activeVendorAssignment` from existing rows where `assignment_type = 'vendor_appraisal'` and status is `offered`, `accepted`, `in_progress`, or `submitted`.
+- Historical vendor packet statuses `declined`, `revoked`, `completed`, and `cancelled` do not produce an active assignment blocker.
+- `OwnerOrderAssignmentsPanel` can receive controlled assignment rows/loading/error/refresh props while preserving its existing self-loading fallback.
+- `VendorAssignmentCandidatesPanel` receives `activeVendorAssignment` and displays a read-only note: `This order already has an active vendor offer or assignment.`
+
+No active candidate offer action exists yet. The note is advisory UI state; AMC-6E backend enforcement remains authoritative.
+
+### AMC-6 Roadmap
+
+- AMC-6B: Assignment Offer RPC/API proposal. Reuse existing assignment packet RPCs; define vendor-candidate wrapper and one-active-offer doctrine.
+- AMC-6C: Assignment Offer API implementation. Candidate-aware frontend wrapper added.
+- AMC-6D: One-active-vendor-offer enforcement proposal. Recommend RPC check plus SQL partial unique index.
+- AMC-6E: One-active-vendor-offer enforcement implementation before UI exposure.
+- AMC-6F: Offer Assignment UI proposal. Recommend candidate-card button and candidate-specific confirmation modal; implementation still deferred.
+- AMC-6F.1: Active offer visibility audit before exposing the button. Existing order-scoped assignment summary data is sufficient; frontend state sharing is the implementation gap.
+- AMC-6F.2: Active vendor assignment state sharing between Order Detail, the existing assignments panel, and the candidate panel.
+- AMC-6F.3: Candidate-specific offer modal implementation.
+- AMC-6F.4: Candidate-card button integration.
+- AMC-6G: Active offer/assignment display on Order Detail. Make current offer state visible before adding broader controls.
+- AMC-6H: Revoke/cancel handling. Add owner-side cancel/revoke controls only where existing lifecycle supports them.
+- AMC-6I: Bid workflow. Future multi-vendor bid/availability request doctrine and implementation.
+
 ### AMC-5J: Assignment Offer Integration Proposal
 
 Connect selected candidates to the existing assignment-offer flow using `order_company_assignments`. Assignment packet creation remains an explicit user action.

@@ -12,6 +12,7 @@ const listOrderDocumentsMock = vi.hoisted(() => vi.fn());
 const createOrderDocumentDownloadUrlMock = vi.hoisted(() => vi.fn());
 const archiveOrderDocumentMock = vi.hoisted(() => vi.fn());
 const uploadOrderDocumentMock = vi.hoisted(() => vi.fn());
+const listOwnerAssignmentsForOrderMock = vi.hoisted(() => vi.fn());
 const createOrderOperationalInputMock = vi.hoisted(() => vi.fn());
 const clearOrderOperationalInputMock = vi.hoisted(() => vi.fn());
 const operationalInputsMock = vi.hoisted(() => []);
@@ -109,6 +110,10 @@ vi.mock("@/features/order-documents/api", () => ({
   uploadOrderDocument: uploadOrderDocumentMock,
 }));
 
+vi.mock("@/features/assignments/api", () => ({
+  listOwnerAssignmentsForOrder: listOwnerAssignmentsForOrderMock,
+}));
+
 vi.mock("@/features/orders/operational-inputs/useOrderOperationalInputs", () => ({
   default: () => ({
     inputs: operationalInputsMock,
@@ -155,13 +160,29 @@ vi.mock("@/features/assignments/components/OfferAssignmentModal", () => ({
 }));
 
 vi.mock("@/features/assignments/components/OwnerOrderAssignmentsPanel", () => ({
-  default: () => <div data-testid="assignments-panel" />,
+  default: ({ assignmentRows = [], assignmentsLoading, onRefreshAssignments }) => (
+    <div
+      data-testid="assignments-panel"
+      data-row-count={String(assignmentRows.length)}
+      data-loading={String(Boolean(assignmentsLoading))}
+    >
+      <button type="button" onClick={onRefreshAssignments}>Refresh assignments</button>
+    </div>
+  ),
 }));
 
 vi.mock("@/features/vendors/components/VendorAssignmentCandidatesPanel", () => ({
-  default: ({ orderId, enabled }) => (
-    <section aria-label="Vendor candidates" data-enabled={String(enabled)} data-order-id={orderId}>
+  default: ({ orderId, enabled, activeVendorAssignment }) => (
+    <section
+      aria-label="Vendor candidates"
+      data-enabled={String(enabled)}
+      data-order-id={orderId}
+      data-active-assignment-id={activeVendorAssignment?.id || ""}
+    >
       <div>Suggested vendors</div>
+      {activeVendorAssignment && (
+        <div>This order already has an active vendor offer or assignment.</div>
+      )}
     </section>
   ),
 }));
@@ -240,6 +261,8 @@ describe("OrderDetail site visit save", () => {
     });
     toastSuccessMock.mockReset();
     toastErrorMock.mockReset();
+    listOwnerAssignmentsForOrderMock.mockReset();
+    listOwnerAssignmentsForOrderMock.mockResolvedValue([]);
     listOrderDocumentsMock.mockReset();
     listOrderDocumentsMock.mockResolvedValue([
       {
@@ -569,6 +592,109 @@ describe("OrderDetail site visit save", () => {
     expect(within(candidates).getByText("Suggested vendors")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /assign/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /bid/i })).not.toBeInTheDocument();
+  });
+
+  it("derives active vendor assignment state and passes it to vendor candidates", async () => {
+    operationsModeMock.operationsMode = "amc_operations";
+    permissionKeysMock.push("vendors.read", "order_company_assignments.read_owner");
+    listOwnerAssignmentsForOrderMock.mockResolvedValue([
+      {
+        id: "assignment-1",
+        assignment_type: "vendor_appraisal",
+        status: "offered",
+        assigned_company_name: "ABC Valuation",
+        offered_at: "2026-06-01T12:00:00.000Z",
+      },
+    ]);
+
+    render(<OrderDetail />);
+
+    await waitFor(() => {
+      expect(listOwnerAssignmentsForOrderMock).toHaveBeenCalledWith("order-1");
+    });
+    expect(screen.queryByTestId("assignments-panel")).not.toBeInTheDocument();
+
+    const candidates = screen.getByLabelText("Vendor candidates");
+    expect(candidates).toHaveAttribute("data-active-assignment-id", "assignment-1");
+    expect(
+      within(candidates).getByText("This order already has an active vendor offer or assignment."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /offer assignment/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /bid/i })).not.toBeInTheDocument();
+  });
+
+  it("does not treat historical vendor assignment statuses as active candidate blockers", async () => {
+    operationsModeMock.operationsMode = "amc_operations";
+    permissionKeysMock.push("vendors.read", "order_company_assignments.read_owner");
+    listOwnerAssignmentsForOrderMock.mockResolvedValue([
+      {
+        id: "assignment-1",
+        assignment_type: "vendor_appraisal",
+        status: "declined",
+        assigned_company_name: "ABC Valuation",
+        declined_at: "2026-06-01T12:00:00.000Z",
+      },
+      {
+        id: "assignment-2",
+        assignment_type: "vendor_appraisal",
+        status: "revoked",
+        assigned_company_name: "Beta Valuation",
+        revoked_at: "2026-06-02T12:00:00.000Z",
+      },
+      {
+        id: "assignment-3",
+        assignment_type: "review_provider",
+        status: "offered",
+        assigned_company_name: "Review Co",
+        offered_at: "2026-06-03T12:00:00.000Z",
+      },
+    ]);
+
+    render(<OrderDetail />);
+
+    await waitFor(() => {
+      expect(listOwnerAssignmentsForOrderMock).toHaveBeenCalledWith("order-1");
+    });
+
+    const candidates = screen.getByLabelText("Vendor candidates");
+    expect(candidates).toHaveAttribute("data-active-assignment-id", "");
+    expect(
+      within(candidates).queryByText("This order already has an active vendor offer or assignment."),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps the existing assignments panel rendering with shared assignment rows", async () => {
+    Object.assign(shellProfileMock, {
+      profileId: "assignment_management",
+      appContext: {},
+      loading: false,
+      error: null,
+    });
+    permissionKeysMock.push(
+      "order_company_assignments.read_owner",
+      "order_company_assignments.offer",
+      "relationships.assign_work",
+      "relationships.read",
+    );
+    listOwnerAssignmentsForOrderMock.mockResolvedValue([
+      {
+        id: "assignment-1",
+        assignment_type: "vendor_appraisal",
+        status: "offered",
+        assigned_company_name: "ABC Valuation",
+      },
+    ]);
+
+    render(<OrderDetail />);
+
+    await waitFor(() => {
+      expect(listOwnerAssignmentsForOrderMock).toHaveBeenCalledWith("order-1");
+    });
+
+    const assignmentsPanel = screen.getByTestId("assignments-panel");
+    expect(assignmentsPanel).toHaveAttribute("data-row-count", "1");
+    expect(assignmentsPanel).toHaveAttribute("data-loading", "false");
+    expect(screen.getByRole("button", { name: "Refresh assignments" })).toBeInTheDocument();
   });
 
   it("hides vendor candidates outside AMC Operations mode", () => {

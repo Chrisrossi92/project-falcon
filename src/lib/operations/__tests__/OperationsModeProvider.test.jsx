@@ -115,17 +115,44 @@ describe("OperationsModeProvider", () => {
       </OperationsModeProvider>,
     );
 
-    expect(screen.getByTestId("available")).toHaveTextContent("amc_operations");
+    expect(screen.getByTestId("available")).toHaveTextContent("internal_operations,amc_operations");
   });
 
-  it("falls back to both modes when future entitlement logic supplies no valid modes", () => {
+  it("falls back to internal mode when future entitlement logic supplies no valid modes", () => {
     render(
       <OperationsModeProvider availableOperationsModes={["bad-mode"]}>
         <OperationsModeProbe />
       </OperationsModeProvider>,
     );
 
-    expect(screen.getByTestId("available")).toHaveTextContent("internal_operations,amc_operations");
+    expect(screen.getByTestId("available")).toHaveTextContent("internal_operations");
+  });
+
+  it("prevents switching to AMC Operations when AMC is unavailable", () => {
+    render(
+      <OperationsModeProvider availableOperationsModes={[OPERATIONS_MODES.INTERNAL_OPERATIONS]}>
+        <OperationsModeProbe />
+      </OperationsModeProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "AMC" }));
+
+    expect(screen.getByTestId("mode")).toHaveTextContent(OPERATIONS_MODES.INTERNAL_OPERATIONS);
+    expect(screen.getByTestId("label")).toHaveTextContent("Internal Operations");
+    expect(window.localStorage.getItem(OPERATIONS_MODE_STORAGE_KEY)).toBe(OPERATIONS_MODES.INTERNAL_OPERATIONS);
+  });
+
+  it("falls back from stored AMC Operations when AMC is unavailable", () => {
+    window.localStorage.setItem(OPERATIONS_MODE_STORAGE_KEY, OPERATIONS_MODES.AMC_OPERATIONS);
+
+    render(
+      <OperationsModeProvider availableOperationsModes={[OPERATIONS_MODES.INTERNAL_OPERATIONS]}>
+        <OperationsModeProbe />
+      </OperationsModeProvider>,
+    );
+
+    expect(screen.getByTestId("mode")).toHaveTextContent(OPERATIONS_MODES.INTERNAL_OPERATIONS);
+    expect(screen.getByTestId("label")).toHaveTextContent("Internal Operations");
   });
 
   it("handles localStorage read and write failures without changing access behavior", () => {

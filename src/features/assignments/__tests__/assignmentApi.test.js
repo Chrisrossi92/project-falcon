@@ -15,6 +15,7 @@ const {
   completeAssignment,
   declineAssignment,
   offerAssignment,
+  offerOrderToVendor,
   revokeAssignment,
   startAssignment,
   submitAssignment,
@@ -56,6 +57,68 @@ describe("assignment packet API mutations", () => {
       p_review_due_at: "2026-05-23T12:00:00.000Z",
       p_expires_at: "2026-05-21T12:00:00.000Z",
     });
+    expect(supabaseMock.from).not.toHaveBeenCalled();
+  });
+
+  it("offers an order to a vendor candidate through the existing assignment offer RPC", async () => {
+    supabaseMock.rpc.mockResolvedValue({ data: "assignment-vendor-1", error: null });
+
+    await expect(
+      offerOrderToVendor({
+        orderId: "order-1",
+        vendorProfileId: "vendor-profile-1",
+        vendorCompanyId: "vendor-company-1",
+        relationshipId: "relationship-1",
+        note: "Please complete this assignment.",
+        terms: { fee: 700 },
+        dueAt: "2026-06-10T12:00:00.000Z",
+        reviewDueAt: "2026-06-11T12:00:00.000Z",
+        expiresAt: "2026-06-04T12:00:00.000Z",
+        candidateSnapshot: {
+          match_score: 95,
+          match_reasons: { geography: { best_match: "zip" } },
+          coverage_matches: [{ state: "OH", zip: "43215", product_type: "commercial" }],
+          warning_flags: ["missing_order_market"],
+        },
+      }),
+    ).resolves.toBe("assignment-vendor-1");
+
+    expect(supabaseMock.rpc).toHaveBeenCalledWith("rpc_order_company_assignment_offer", {
+      p_order_id: "order-1",
+      p_assigned_company_id: "vendor-company-1",
+      p_relationship_id: "relationship-1",
+      p_assignment_type: "vendor_appraisal",
+      p_instructions: "Please complete this assignment.",
+      p_terms: { fee: 700 },
+      p_handoff_payload: {
+        vendor_profile_id: "vendor-profile-1",
+        vendor_company_id: "vendor-company-1",
+        relationship_id: "relationship-1",
+        match_score: 95,
+        match_reasons: { geography: { best_match: "zip" } },
+        coverage_matches: [{ state: "OH", zip: "43215", product_type: "commercial" }],
+        warning_flags: ["missing_order_market"],
+      },
+      p_due_at: "2026-06-10T12:00:00.000Z",
+      p_review_due_at: "2026-06-11T12:00:00.000Z",
+      p_expires_at: "2026-06-04T12:00:00.000Z",
+    });
+    expect(supabaseMock.from).not.toHaveBeenCalled();
+  });
+
+  it("throws vendor candidate offer errors for callers to handle", async () => {
+    const error = Object.assign(new Error("active assignment already exists"), { code: "23505" });
+    supabaseMock.rpc.mockResolvedValue({ data: null, error });
+
+    await expect(
+      offerOrderToVendor({
+        orderId: "order-1",
+        vendorProfileId: "vendor-profile-1",
+        vendorCompanyId: "vendor-company-1",
+        relationshipId: "relationship-1",
+        note: "Please complete this assignment.",
+      }),
+    ).rejects.toBe(error);
     expect(supabaseMock.from).not.toHaveBeenCalled();
   });
 

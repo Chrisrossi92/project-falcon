@@ -38,7 +38,7 @@ AMC should extend Falcon, not replace Falcon.
 
 ### AMC-1: Operations Command
 
-Status: foundation complete through AMC-1E closeout.
+Status: foundation complete through AMC-1F mode availability permissions.
 
 Purpose: enable switching between Internal Operations and AMC Operations without leaving Falcon.
 
@@ -54,16 +54,21 @@ Deliverables:
 - Mode switching.
 - Mode-aware navigation.
 - Cross-mode notification indicators.
+- AMC Operations mode availability restricted to owner/admin users with `vendors.read`; Internal Operations remains always available.
+- Stored AMC mode safely falls back to Internal Operations when AMC is unavailable.
 
 Testing Strategy:
 
 - Unit tests for mode resolution and navigation composition.
 - Browser smoke tests for switching modes without losing session.
 - Permission tests for users with and without AMC access.
+- Shell tests for hidden AMC toggle, denied switch attempts, and stored-mode fallback.
 
 Success Criteria:
 
 - User can switch operational context without leaving Falcon.
+- Only explicitly authorized owner/admin vendor users see AMC Operations Mode.
+- Appraiser/reviewer/staff users remain in Internal Operations by default.
 - Internal Operations remains stable.
 - No vendor functionality is introduced yet.
 
@@ -235,14 +240,66 @@ Success Criteria:
 - Coverage acts as a primary eligibility gate.
 - Users retain control over final vendor selection.
 
-### AMC-6: Vendor Performance System
+### AMC-6: Assignment Offer Workflow
+
+Status: AMC-6A assignment-offer workflow doctrine, AMC-6B assignment offer RPC/API proposal, AMC-6C candidate-aware assignment offer frontend API wrapper, AMC-6D one-active-vendor-offer enforcement proposal, AMC-6E backend one-active-vendor-offer guard, AMC-6F Offer Assignment UI proposal, AMC-6F.1 active vendor offer visibility audit, and AMC-6F.2 active vendor assignment state sharing completed. No assignment buttons/UI, notifications, permission changes, route/navigation changes, order behavior changes outside the assignment-offer guard, or `/amc/*` routes have been introduced.
+
+Purpose: define and implement the explicit owner/admin action that turns a selected candidate vendor into an offered assignment packet.
+
+Dependencies:
+
+- AMC-2 Vendor Directory.
+- AMC-5 candidate engine and read-only candidate panel.
+- Existing `order_company_assignments` packet lifecycle.
+- Active `company_relationships`.
+
+Deliverables:
+
+- AMC-6A assignment offer lifecycle doctrine.
+- Reuse recommendation for existing `order_company_assignments` and `rpc_order_company_assignment_offer(...)`.
+- Single-vendor offer MVP recommendation.
+- AMC-6B RPC/API proposal for reusing `rpc_order_company_assignment_offer(...)`.
+- Candidate-aware frontend wrapper proposal: `offerOrderToVendor(...)`.
+- Candidate-aware frontend wrapper implementation over the existing `offerAssignment(...)` RPC path.
+- One-active-vendor-offer MVP rule proposal.
+- AMC-6D backend enforcement proposal: RPC-level check plus SQL partial unique index.
+- Recommended stable error code: `order_vendor_assignment_active_exists`.
+- AMC-6E additive migration `20260601142000_amc_one_active_vendor_offer_guard.sql`.
+- Preflight conflict audit for existing active vendor packet conflicts.
+- Partial unique index `order_company_assignments_one_active_vendor_per_order`.
+- Patched `rpc_order_company_assignment_offer(...)` stable error `order_vendor_assignment_active_exists`.
+- AMC-6F UI proposal for a candidate-card `Offer Assignment` action and candidate-specific confirmation modal.
+- Permission recommendation to require existing assignment-offer authority, not `vendors.read` alone.
+- Active-offer UI error copy: `This order already has an active vendor offer or assignment.`
+- AMC-6F.1 active vendor offer visibility audit confirming existing `rpc_order_company_assignment_list_for_order(uuid)` data can detect active `vendor_appraisal` packets without a new read RPC.
+- Recommended active-state rule: `vendor_appraisal` plus `offered`, `accepted`, `in_progress`, or `submitted`.
+- AMC-6F.2 Order Detail state sharing for owner assignment rows, `activeVendorAssignment` derivation, controlled assignment panel rows, and candidate-panel active-offer note.
+- Deferred implementation slices for active Vendor Assignment summary display, candidate-specific offer modal, and candidate-card button integration.
+- Future lifecycle roadmap for offer RPC/API/UI, vendor response, and bid workflows.
+
+Testing Strategy:
+
+- Permission tests for offer authority.
+- Regression tests that candidate visibility alone cannot create offers.
+- Assignment packet lifecycle tests for offer, accept, decline, cancel, revoke, and complete paths.
+- UI tests for explicit owner/admin offer action after implementation is approved.
+- UI tests should verify candidate-card button visibility in AMC Operations mode, assignment-offer permission gates, hidden raw ids/JSON, candidate snapshot submission, active-offer error mapping, success refresh behavior, and absence of bid/multi-vendor controls.
+- UI tests should verify active vendor assignments hide candidate offer actions while declined, revoked, completed, and cancelled vendor packets remain historical context and do not block a new offer.
+
+Success Criteria:
+
+- Assignment offers are explicit user actions.
+- Candidate recommendations do not create assignments automatically.
+- Offer creation reuses packet lifecycle infrastructure instead of creating a parallel vendor-offer system.
+
+### AMC-7: Vendor Performance System
 
 Purpose: track vendor metrics that can inform assignment decisions and reporting.
 
 Dependencies:
 
 - AMC-2 Vendor Directory.
-- AMC-5 assignment workflow.
+- AMC-6 assignment offer workflow.
 - Order lifecycle and completion signals.
 
 Deliverables:
@@ -264,14 +321,15 @@ Success Criteria:
 - Vendor metrics are explainable and auditable.
 - Raw metrics can be shown before any composite score is introduced.
 
-### AMC-7: Assignment Automation
+### AMC-8: Assignment Automation
 
 Purpose: support configurable assignment models.
 
 Dependencies:
 
 - AMC-5 Vendor Assignment Engine MVP.
-- AMC-6 Vendor Performance System.
+- AMC-6 Assignment Offer Workflow.
+- AMC-7 Vendor Performance System.
 - AMC Customization Framework.
 
 Deliverables:
@@ -294,13 +352,13 @@ Success Criteria:
 - Falcon does not hardcode one AMC operating model.
 - Automation remains explainable and overrideable.
 
-### AMC-8: Advanced AMC Features
+### AMC-9: Advanced AMC Features
 
 Purpose: future expansion after AMC MVP foundations are stable.
 
 Dependencies:
 
-- AMC-1 through AMC-7.
+- AMC-1 through AMC-8.
 - Validated pilot usage and operational feedback.
 - Approved scope for portal, bidding, payment, or analytics work.
 
@@ -311,6 +369,24 @@ Deliverables:
 - Bidding.
 - Capacity management.
 - Advanced analytics.
+- Future cross-platform lender correction / revision request workflow for both Internal Operations Mode and AMC Operations Mode.
+
+Deferred correction/revision roadmap:
+
+- correction request lifecycle
+- revision status handling
+- notifications and reminders
+- appraiser/vendor response tracking
+- audit trail and history
+- client-facing correction communication
+
+Recommended correction/revision doctrine:
+
+- Normal corrections and revisions stay attached to the existing order.
+- A correction/revision cycle record should be linked to the order.
+- Original completion, delivery, and submission history should be preserved.
+- Requested items, requester, due date, assigned user/vendor, status, and resubmission timestamp should be tracked.
+- A new order should be created only when scope, property, client engagement, or fee basis materially changes.
 
 Testing Strategy:
 
@@ -328,9 +404,10 @@ Success Criteria:
 
 ```text
 AMC-1 -> AMC-2 -> AMC-5
+AMC-5 -> AMC-6
+AMC-6 -> AMC-7 -> AMC-8
 AMC-3 -> AMC-4
-AMC-6 -> AMC-7
-AMC-8 depends on AMC-1 through AMC-7
+AMC-9 depends on AMC-1 through AMC-8
 ```
 
 Operational notes:
@@ -339,7 +416,8 @@ Operational notes:
 - AMC-2 should precede vendor assignment.
 - AMC-3 can proceed in parallel with AMC-2 if financial visibility and permissions are scoped.
 - AMC-4 depends on enough data from AMC-2 and AMC-3 to be operationally useful.
-- AMC-6 depends on real assignment/completion signals from AMC-5.
+- AMC-6 depends on candidate selection and existing assignment packet lifecycle.
+- AMC-7 depends on real assignment/completion signals from AMC-6.
 
 ## Parallel RC1/V1.1 Work
 

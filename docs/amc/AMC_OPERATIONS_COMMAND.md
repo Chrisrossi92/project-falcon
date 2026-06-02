@@ -74,6 +74,20 @@ AMC-1 Operations Command foundation is complete for MVP plumbing:
 
 AMC-2 may begin later as vendor directory/domain work. AMC-2 should build on this shared mode context without duplicating screens or introducing separate AMC platform infrastructure.
 
+## AMC-1F Mode Availability Permissions
+
+AMC-1F restricts AMC Operations Mode availability without adding new permissions, schema, routes, or `/amc/*` surfaces.
+
+Availability rule:
+
+- Internal Operations Mode is always available.
+- AMC Operations Mode is available only when the current user is in an owner/admin shell context and has `vendors.read`.
+- Appraiser, reviewer, and staff users do not see the AMC Operations toggle by default, even if they can use normal internal work surfaces.
+- If stored browser state says AMC Operations but AMC is not currently available, Falcon safely falls back to Internal Operations and persists the fallback.
+- Attempts to switch to an unavailable mode resolve to Internal Operations.
+
+This is a visibility and context-selection guard only. Backend permissions remain authoritative for every route, API, RPC, and mutation. AMC-1F does not grant or revoke vendor permissions, change vendor access, create a new `vendors.assign` permission, change schema/RLS, add assignment UI, or introduce `/amc/*` routes.
+
 ## AMC-2 Vendor Trajectory
 
 AMC-2 should preserve the Operations Command doctrine:
