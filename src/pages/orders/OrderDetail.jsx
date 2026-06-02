@@ -32,6 +32,7 @@ import {
 import OfferAssignmentModal from "@/features/assignments/components/OfferAssignmentModal";
 import OwnerOrderAssignmentsPanel from "@/features/assignments/components/OwnerOrderAssignmentsPanel";
 import OrderPrintPacket from "@/features/orders/print/OrderPrintPacket";
+import VendorAssignmentCandidatesPanel from "@/features/vendors/components/VendorAssignmentCandidatesPanel";
 import {
   archiveOrderViaRpc,
   cancelOrderViaRpc,
@@ -40,6 +41,8 @@ import {
 } from "@/lib/services/ordersService";
 import { formatPhoneForDisplay } from "@/lib/utils/phoneFormat";
 import { formatOperationalDate } from "@/lib/utils/dateOnly";
+import { useOperationsMode } from "@/lib/operations/OperationsModeProvider";
+import { OPERATIONS_MODES } from "@/lib/operations/operationsMode";
 
 /* ---------- helpers ---------- */
 const fmtDate = (s) => (s ? new Date(s).toLocaleDateString() : "-");
@@ -542,6 +545,7 @@ export default function OrderDetail() {
   const { order, loading, error: loadErr, refresh } = useOrder(id);
   const permissions = useEffectivePermissions();
   const shellProfile = useShellProfile();
+  const { operationsMode } = useOperationsMode();
   const { success, error: toastError } = useToast();
   const [offerAssignmentOpen, setOfferAssignmentOpen] = useState(false);
   const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false);
@@ -632,6 +636,12 @@ export default function OrderDetail() {
   const canArchiveThisOrder = showManagementSurfaces && canArchiveOrder(order, permissions);
   const canCancelThisOrder = showManagementSurfaces && canCancelOrder(order, permissions);
   const canVoidThisOrder = showManagementSurfaces && canVoidOrder(order, permissions);
+  const showVendorCandidatePanel =
+    operationsMode === OPERATIONS_MODES.AMC_OPERATIONS &&
+    !permissions.loading &&
+    !permissions.error &&
+    permissions.hasPermission(PERMISSIONS.VENDORS_READ) &&
+    Boolean(order?.id);
   const lifecycleCopy = lifecycleAction ? LIFECYCLE_ACTION_COPY[lifecycleAction] : null;
   const lifecycleReasonTrimmed = lifecycleReason.trim();
   const lifecycleHistoryNotice =
@@ -952,6 +962,13 @@ export default function OrderDetail() {
             orderId={order.id}
             canOfferAssignment={canOfferAssignment}
             onOfferAssignment={() => setOfferAssignmentOpen(true)}
+          />
+        )}
+
+        {showVendorCandidatePanel && (
+          <VendorAssignmentCandidatesPanel
+            orderId={order.id}
+            enabled={showVendorCandidatePanel}
           />
         )}
 

@@ -186,6 +186,44 @@ describe("vendor directory API", () => {
     await expect(vendorApi.listVendorDirectory()).rejects.toBe(error);
   });
 
+  it("lists Vendor Assignment candidates through the read-only candidate RPC", async () => {
+    const rows = [
+      {
+        vendor_profile_id: "profile-1",
+        vendor_company_id: "company-2",
+        vendor_company_name: "ABC Valuation",
+        vendor_status: "preferred",
+        relationship_id: "relationship-3",
+        relationship_status: "active",
+        match_score: 100,
+        match_reasons: { geography: { best_match: "zip" } },
+        coverage_matches: [{ state: "OH", zip: "43215", product_type: "commercial" }],
+        primary_contact: { name: "Mary Jones" },
+        warning_flags: [],
+      },
+    ];
+    supabase.rpc.mockResolvedValue({ data: rows, error: null });
+
+    await expect(vendorApi.listVendorAssignmentCandidates("order-1")).resolves.toEqual(rows);
+
+    expect(supabase.rpc).toHaveBeenCalledWith("rpc_vendor_assignment_candidates", {
+      p_order_id: "order-1",
+    });
+  });
+
+  it("returns an empty candidate list when the candidate RPC returns a non-array payload", async () => {
+    supabase.rpc.mockResolvedValue({ data: null, error: null });
+
+    await expect(vendorApi.listVendorAssignmentCandidates("order-1")).resolves.toEqual([]);
+  });
+
+  it("surfaces candidate RPC errors for callers to handle", async () => {
+    const error = Object.assign(new Error("candidate lookup denied"), { code: "42501" });
+    supabase.rpc.mockResolvedValue({ data: null, error });
+
+    await expect(vendorApi.listVendorAssignmentCandidates("order-1")).rejects.toBe(error);
+  });
+
   it("creates Vendor Profile records through the mutation RPC and returns the first row", async () => {
     const payload = {
       vendor_company: { name: "ABC Valuation" },
@@ -272,11 +310,12 @@ describe("vendor directory API", () => {
     await expect(vendorApi.createVendorProfile({ vendor_company: { name: "ABC" } })).rejects.toBe(error);
   });
 
-  it("exports only read and approved mutation wrappers with no assignment candidate, delete, or archive functions", () => {
+  it("exports only read, candidate lookup, and approved mutation wrappers with no assignment offer, delete, or archive functions", () => {
     expect(Object.keys(vendorApi).sort()).toEqual([
       "createVendorContact",
       "createVendorProfile",
       "createVendorServiceArea",
+      "listVendorAssignmentCandidates",
       "getVendorProfileContacts",
       "getVendorProfileDetail",
       "getVendorProfileServiceAreas",
@@ -284,8 +323,11 @@ describe("vendor directory API", () => {
       "updateVendorContact",
       "updateVendorProfile",
       "updateVendorServiceArea",
-    ]);
+    ].sort());
     expect(vendorApi.getVendorAssignmentCandidates).toBeUndefined();
+    expect(vendorApi.createVendorAssignmentOffer).toBeUndefined();
+    expect(vendorApi.createVendorBidRequest).toBeUndefined();
+    expect(vendorApi.notifyVendorCandidate).toBeUndefined();
     expect(vendorApi.deleteVendorContact).toBeUndefined();
     expect(vendorApi.deleteVendorServiceArea).toBeUndefined();
     expect(vendorApi.archiveVendorProfile).toBeUndefined();

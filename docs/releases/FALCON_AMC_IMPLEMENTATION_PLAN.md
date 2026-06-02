@@ -15,6 +15,7 @@ Source doctrine:
 - [AMC Vendor Directory](../amc/AMC_VENDOR_DIRECTORY.md)
 - [AMC Vendor Coverage Doctrine](../amc/AMC_VENDOR_COVERAGE_DOCTRINE.md)
 - [AMC Vendor Assignment Engine](../amc/AMC_VENDOR_ASSIGNMENT_ENGINE.md)
+- [AMC Assignment Candidate Engine](../amc/AMC_ASSIGNMENT_CANDIDATE_ENGINE.md)
 - [AMC Vendor Performance Model](../amc/AMC_VENDOR_PERFORMANCE_MODEL.md)
 - [AMC Financial Model](../amc/AMC_FINANCIAL_MODEL.md)
 - [AMC Order Lifecycle](../amc/AMC_ORDER_LIFECYCLE.md)
@@ -193,6 +194,8 @@ Success Criteria:
 
 ### AMC-5: Vendor Assignment Engine MVP
 
+Status: AMC-5A candidate-engine proposal, AMC-5B order/vendor field audit, AMC-5C product/location normalization helper proposal, AMC-5D backend-only candidate SQL helpers/RPC, AMC-5D.1 SQL validation/product-mapping patch, AMC-5E frontend candidate API wrapper, AMC-5F candidate panel placement proposal, AMC-5G isolated read-only candidate panel component, AMC-5H read-only Order Detail integration, and AMC-5I candidate panel explainability polish completed. No assignment creation, schema table/RLS, permission, route/navigation, order behavior, assignment behavior, or `/amc/*` route changes have been introduced.
+
 Purpose: implement the first AMC assignment workflow.
 
 Dependencies:
@@ -204,6 +207,16 @@ Dependencies:
 
 Deliverables:
 
+- Assignment Candidate Engine proposal and read-only candidate RPC shape.
+- Read-only candidate panel with explainable match strength, grouped reasons, warning copy, and expandable coverage details.
+- Order/vendor field audit for geography, product, timing, and authorization inputs.
+- Product/location normalization helper proposal for state, county, ZIP, market text, and order-to-vendor product slug mapping before candidate SQL implementation.
+- Backend-only SQL normalization helpers and read-only `rpc_vendor_assignment_candidates(p_order_id uuid)`.
+- AMC-5D.1 isolated SQL validation and product mapping patch for literal commercial order property types.
+- Frontend read-only `listVendorAssignmentCandidates(orderId)` API wrapper.
+- Candidate panel placement proposal recommending a read-only Order Detail panel for AMC Operations users with `vendors.read` and order read access.
+- Isolated read-only `VendorAssignmentCandidatesPanel` component for suggested vendor display.
+- Read-only Order Detail integration of `VendorAssignmentCandidatesPanel` in AMC Operations mode with `vendors.read`.
 - Coverage matching.
 - Vendor recommendation list.
 - Manual assignment.

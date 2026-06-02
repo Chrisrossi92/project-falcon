@@ -17,6 +17,9 @@ const clearOrderOperationalInputMock = vi.hoisted(() => vi.fn());
 const operationalInputsMock = vi.hoisted(() => []);
 const refreshOperationalInputsMock = vi.hoisted(() => vi.fn());
 const permissionKeysMock = vi.hoisted(() => []);
+const operationsModeMock = vi.hoisted(() => ({
+  operationsMode: "internal_operations",
+}));
 const shellProfileMock = vi.hoisted(() => ({
   profileId: "operations",
   appContext: {},
@@ -95,6 +98,10 @@ vi.mock("@/lib/shell/useShellProfile", () => ({
   useShellProfile: () => shellProfileMock,
 }));
 
+vi.mock("@/lib/operations/OperationsModeProvider", () => ({
+  useOperationsMode: () => operationsModeMock,
+}));
+
 vi.mock("@/features/order-documents/api", () => ({
   listOrderDocuments: listOrderDocumentsMock,
   createOrderDocumentDownloadUrl: createOrderDocumentDownloadUrlMock,
@@ -149,6 +156,14 @@ vi.mock("@/features/assignments/components/OfferAssignmentModal", () => ({
 
 vi.mock("@/features/assignments/components/OwnerOrderAssignmentsPanel", () => ({
   default: () => <div data-testid="assignments-panel" />,
+}));
+
+vi.mock("@/features/vendors/components/VendorAssignmentCandidatesPanel", () => ({
+  default: ({ orderId, enabled }) => (
+    <section aria-label="Vendor candidates" data-enabled={String(enabled)} data-order-id={orderId}>
+      <div>Suggested vendors</div>
+    </section>
+  ),
 }));
 
 const { default: OrderDetail } = await import("../OrderDetail.jsx");
@@ -216,6 +231,7 @@ describe("OrderDetail site visit save", () => {
       "documents.delete",
       "documents.upload.all",
     );
+    operationsModeMock.operationsMode = "internal_operations";
     Object.assign(shellProfileMock, {
       profileId: "operations",
       appContext: {},
@@ -539,6 +555,37 @@ describe("OrderDetail site visit save", () => {
     expect(screen.getByLabelText("Operational context controls")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Edit" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Archive order" })).toBeInTheDocument();
+  });
+
+  it("shows read-only vendor candidates in AMC Operations with vendor read access", () => {
+    operationsModeMock.operationsMode = "amc_operations";
+    permissionKeysMock.push("vendors.read");
+
+    render(<OrderDetail />);
+
+    const candidates = screen.getByLabelText("Vendor candidates");
+    expect(candidates).toHaveAttribute("data-order-id", "order-1");
+    expect(candidates).toHaveAttribute("data-enabled", "true");
+    expect(within(candidates).getByText("Suggested vendors")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /assign/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /bid/i })).not.toBeInTheDocument();
+  });
+
+  it("hides vendor candidates outside AMC Operations mode", () => {
+    operationsModeMock.operationsMode = "internal_operations";
+    permissionKeysMock.push("vendors.read");
+
+    render(<OrderDetail />);
+
+    expect(screen.queryByLabelText("Vendor candidates")).not.toBeInTheDocument();
+  });
+
+  it("hides vendor candidates without vendor read access", () => {
+    operationsModeMock.operationsMode = "amc_operations";
+
+    render(<OrderDetail />);
+
+    expect(screen.queryByLabelText("Vendor candidates")).not.toBeInTheDocument();
   });
 
   it("uses overview first, then map, activity, and support detail zones", () => {

@@ -85,6 +85,13 @@ export async function getVendorProfileServiceAreas(vendorProfileId) {
   return Array.isArray(data) ? data.map(normalizeVendorServiceArea) : [];
 }
 
+export async function listVendorAssignmentCandidates(orderId) {
+  const data = await rpc("rpc_vendor_assignment_candidates", {
+    p_order_id: orderId,
+  });
+  return Array.isArray(data) ? data : [];
+}
+
 export async function createVendorProfile(payload) {
   return firstRow(await rpc("rpc_vendor_profile_create", {
     p_payload: payload || {},
