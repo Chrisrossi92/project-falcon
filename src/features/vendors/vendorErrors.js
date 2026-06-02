@@ -11,6 +11,14 @@ const VENDOR_ERROR_MESSAGES = Object.freeze({
   vendor_contact_not_found_or_not_authorized: "That contact could not be found or you do not have access to it.",
   vendor_service_area_not_found_or_not_authorized: "That coverage could not be found or you do not have access to it.",
   vendor_profile_not_found_or_not_authorized: "That vendor could not be found or you do not have access to it.",
+  vendor_directory_vendors_read_permission_required: "You do not have permission to view vendor suggestions.",
+  order_scope_not_amc_operations: "Suggested vendors are available only for AMC Operations orders.",
+  order_not_found_or_not_authorized: "That order could not be found or you do not have access to it.",
+  order_not_found: "That order could not be found or you do not have access to it.",
+  app_user_not_found: "Your user profile could not be verified. Sign out and back in, then try again.",
+  current_company_membership_required: "Your current workspace membership could not be verified.",
+  company_not_found: "Your current workspace could not be verified.",
+  company_inactive: "Your current workspace is inactive.",
 });
 
 const KNOWN_VENDOR_ERROR_CODES = Object.keys(VENDOR_ERROR_MESSAGES);

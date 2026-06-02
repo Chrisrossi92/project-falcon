@@ -14,9 +14,14 @@ const productMappingPatchPath = resolve(
   repoRoot,
   'supabase/migrations/20260601141000_amc_vendor_candidate_product_mapping_fix.sql',
 );
+const helperReinstallPatchPath = resolve(
+  repoRoot,
+  'supabase/migrations/20260602151000_amc_candidate_helper_reinstall.sql',
+);
 
 const migrationSql = readFileSync(migrationPath, 'utf8');
 const productMappingPatchSql = readFileSync(productMappingPatchPath, 'utf8');
+const helperReinstallPatchSql = readFileSync(helperReinstallPatchPath, 'utf8');
 
 const helperFunctions = Object.freeze([
   'amc_candidate_normalized_text',
@@ -117,5 +122,24 @@ describe('AMC vendor assignment candidate RPC migration', () => {
     expect(productMappingPatchSql).not.toContain('update public.orders');
     expect(productMappingPatchSql).not.toContain('create table');
     expect(productMappingPatchSql).not.toContain('alter table');
+  });
+
+  it('reinstalls candidate helpers idempotently without changing assignment behavior', () => {
+    helperFunctions.forEach((helperName) => {
+      expect(helperReinstallPatchSql).toContain(`create or replace function public.${helperName}`);
+      expect(helperReinstallPatchSql).toContain(`revoke all on function public.${helperName}`);
+    });
+
+    expect(helperReinstallPatchSql).toContain("when 'commercial' then 'commercial'");
+    expect(helperReinstallPatchSql).toContain(
+      "if v_report_key in ('appraisal', 'narrative', 'narrative_appraisal', 'form', 'form_appraisal')",
+    );
+    expect(helperReinstallPatchSql).not.toContain('create or replace function public.rpc_vendor_assignment_candidates');
+    expect(helperReinstallPatchSql).not.toContain('insert into public.order_company_assignments');
+    expect(helperReinstallPatchSql).not.toContain('update public.order_company_assignments');
+    expect(helperReinstallPatchSql).not.toContain('insert into public.orders');
+    expect(helperReinstallPatchSql).not.toContain('update public.orders');
+    expect(helperReinstallPatchSql).not.toContain('create table');
+    expect(helperReinstallPatchSql).not.toContain('alter table');
   });
 });

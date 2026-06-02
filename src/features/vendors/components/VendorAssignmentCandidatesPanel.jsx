@@ -4,6 +4,7 @@ import { AlertTriangle, RefreshCw, X } from "lucide-react";
 import { offerOrderToVendor } from "@/features/assignments/api";
 import { listVendorAssignmentCandidates } from "../api";
 import { getVendorProductTypeLabel } from "../coverage/productTypes";
+import { getVendorErrorMessage } from "../vendorErrors";
 
 const ACTIVE_VENDOR_OFFER_ERROR = "order_vendor_assignment_active_exists";
 
@@ -547,6 +548,14 @@ export default function VendorAssignmentCandidatesPanel({
       const rows = await listVendorAssignmentCandidates(orderId);
       setCandidates(Array.isArray(rows) ? rows : []);
     } catch (candidateError) {
+      if (import.meta.env.DEV || import.meta.env.MODE === "test") {
+        console.warn("[VendorAssignmentCandidatesPanel] candidate load failed", {
+          code: candidateError?.code,
+          message: candidateError?.message,
+          details: candidateError?.details,
+          hint: candidateError?.hint,
+        });
+      }
       setCandidates([]);
       setError(candidateError);
     } finally {
@@ -608,7 +617,12 @@ export default function VendorAssignmentCandidatesPanel({
       {!loading && error && (
         <div role="alert" className="mt-3 rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
           <div className="font-semibold">Suggested vendors could not load.</div>
-          <p className="mt-1">Review the order details and try again.</p>
+          <p className="mt-1">
+            {getVendorErrorMessage(error, {
+              permissionMessage: "You do not have permission to view vendor suggestions.",
+              fallback: "Review the order details and try again.",
+            })}
+          </p>
         </div>
       )}
 

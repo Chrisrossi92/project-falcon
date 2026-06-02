@@ -15,6 +15,10 @@ describe("vendor error messages", () => {
     expect(getVendorErrorMessage(new Error("vendor_contact_not_found_or_not_authorized"))).toBe("That contact could not be found or you do not have access to it.");
     expect(getVendorErrorMessage(new Error("vendor_service_area_not_found_or_not_authorized"))).toBe("That coverage could not be found or you do not have access to it.");
     expect(getVendorErrorMessage(new Error("vendor_profile_not_found_or_not_authorized"))).toBe("That vendor could not be found or you do not have access to it.");
+    expect(getVendorErrorMessage(new Error("vendor_directory_vendors_read_permission_required"))).toBe("You do not have permission to view vendor suggestions.");
+    expect(getVendorErrorMessage(new Error("order_scope_not_amc_operations"))).toBe("Suggested vendors are available only for AMC Operations orders.");
+    expect(getVendorErrorMessage(new Error("order_not_found_or_not_authorized"))).toBe("That order could not be found or you do not have access to it.");
+    expect(getVendorErrorMessage(new Error("app_user_not_found"))).toBe("Your user profile could not be verified. Sign out and back in, then try again.");
   });
 
   it("uses self-vendor copy for Add Vendor relationship-invalid errors", () => {

@@ -275,12 +275,25 @@ describe("VendorAssignmentCandidatesPanel", () => {
   });
 
   it("renders error state when candidate loading fails", async () => {
-    vendorApiState.listVendorAssignmentCandidates.mockRejectedValue(new Error("denied"));
+    const warningSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vendorApiState.listVendorAssignmentCandidates.mockRejectedValue(
+      Object.assign(new Error("vendor_directory_vendors_read_permission_required"), {
+        code: "42501",
+      }),
+    );
 
     render(<VendorAssignmentCandidatesPanel orderId="order-1" enabled />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Suggested vendors could not load.");
-    expect(screen.getByText("Review the order details and try again.")).toBeInTheDocument();
+    expect(screen.getByText("You do not have permission to view vendor suggestions.")).toBeInTheDocument();
+    expect(warningSpy).toHaveBeenCalledWith(
+      "[VendorAssignmentCandidatesPanel] candidate load failed",
+      expect.objectContaining({
+        code: "42501",
+        message: "vendor_directory_vendors_read_permission_required",
+      }),
+    );
+    warningSpy.mockRestore();
   });
 
   it("renders empty state when no candidates are returned", async () => {
