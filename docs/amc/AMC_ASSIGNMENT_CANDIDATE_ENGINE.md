@@ -1713,6 +1713,110 @@ Implementation result:
 
 This slice does not add bids, multi-vendor offers, notification customization, vendor portal acceptance UI, revoke UI, new assignment tables, routes/nav, schema/RLS changes, order behavior changes, or `/amc/*` routes.
 
+## AMC-6J: Multi-Vendor Bid Request Workflow Doctrine
+
+AMC-6J is documentation/proposal only. It does not implement code, migrations, RPCs, UI, schema/RLS changes, permissions, route/nav changes, order behavior changes, assignment behavior changes, or `/amc/*` routes.
+
+### Doctrine
+
+Candidate matching, bid requests, and assignment offers are three distinct stages:
+
+1. Candidate matching recommends vendors based on coverage, product fit, vendor status, network status, and warnings.
+2. Bid request asks one or more candidate vendors for availability, proposed fee, proposed turn time/date, and comments.
+3. Assignment offer creates or reuses the canonical assignment packet lifecycle only after an owner/admin selects a vendor or accepted bid.
+
+A bid request is not an assignment. It should not create an active `vendor_appraisal` assignment packet, should not count as assigned work, and should not satisfy assignment acceptance/completion lifecycle requirements.
+
+The current `Offer Assignment` action is still valid as a direct-award MVP path, but it should be visually secondary once bid requests exist. Future copy should make the distinction explicit:
+
+- `Request Bids` or `Request Availability` for multi-vendor outreach.
+- `Offer Assignment` for direct vendor selection after a decision has been made.
+
+### Candidate Card Behavior
+
+Future candidate cards should support multi-select for bid workflows, but not for assignment offers:
+
+- Multi-select candidates for `Request Bids`.
+- Single-select one vendor for `Offer Assignment`.
+- Hide or disable direct `Offer Assignment` when a bid request or active assignment state means the order is already in outreach/assignment workflow.
+
+The candidate panel should not make lowest fee or fastest turn time the automatic winner. Owner/admin selection remains explicit until a later automation policy is approved.
+
+### Bid Request Definition
+
+A Bid Request is an owner/admin outreach record or packet asking vendors to respond with availability and commercial terms before assignment. It should capture:
+
+- order id
+- requested candidate vendor ids / vendor company ids
+- requested due date from client
+- requested report due-to-AMC date
+- optional internal review due date
+- expiration deadline for bid response
+- requester and request timestamp
+- message/instructions visible to vendors
+- vendor proposed fee
+- vendor proposed turn time or proposed due date
+- vendor comments
+- vendor response status
+- selected/declined/expired outcome state
+
+The response model should support no response, declined/unavailable, available with fee/turn time, and owner/admin selected.
+
+### Client Review / Approval
+
+Two selection modes should be supported later:
+
+- AMC selects directly: owner/admin chooses a vendor from bid responses and converts that selected bid into an assignment offer.
+- Client review: owner/admin presents bid options to the client for approval before assignment. This should remain deferred until client-facing correction/communication and portal policy are defined.
+
+Client review must not expose internal scoring details, raw relationship ids, candidate snapshot JSON, or vendor compliance internals unless explicitly approved.
+
+### Dates
+
+Bid workflow needs clearer date separation than the direct assignment offer MVP:
+
+- client delivery due date: when the completed report is due to the client
+- vendor report due date: when the vendor must submit to the AMC
+- internal review due date: when AMC review/QC should be completed
+- bid response expiration: deadline for vendor fee/turn-time response
+
+The assignment offer created after vendor selection should use the selected vendor report due date, preserve review/client dates, and include the selected bid snapshot in handoff metadata where appropriate.
+
+### Deferred Behavior
+
+AMC-6J defers:
+
+- vendor portal bid response UI
+- email/in-app notification fanout and reminders
+- automatic lowest-bid or fastest-turn selection
+- first-to-accept workflows
+- multi-vendor assignment offers
+- client-facing bid approval UI
+- vendor capacity/workload scoring
+- compliance-expiration gating
+
+### Recommended Roadmap
+
+Recommended bid workflow slices:
+
+1. AMC-6K: Bid request schema/RPC proposal.
+2. AMC-6L: Bid request backend implementation with read-only comparison surfaces.
+3. AMC-6M: Multi-select candidate UI for `Request Bids`.
+4. AMC-6N: Bid comparison panel showing fee, turn time/date, response status, comments, warnings, and selected vendor.
+5. AMC-6O: Convert selected bid to assignment offer through the existing `rpc_order_company_assignment_offer(...)` path.
+6. AMC-6P: Vendor/client response workflow proposal, including notifications and portal considerations.
+
+## AMC-6J.1: Candidate Action Copy Reset
+
+AMC-6J.1 adjusts current candidate-panel copy without changing assignment behavior.
+
+Implementation result:
+
+- `Offer Assignment` remains functional for direct-award scenarios.
+- Candidate cards present it under a secondary `Direct award` action area rather than as the primary long-term AMC workflow.
+- Helper copy states: `Direct assignment is available for known vendors. Multi-vendor bid requests are planned.`
+- No `Request Bids` button, multi-select candidate behavior, bid request schema, backend changes, assignment behavior changes, routes/nav changes, or `/amc/*` routes are introduced.
+
 ### AMC-6 Roadmap
 
 - AMC-6B: Assignment Offer RPC/API proposal. Reuse existing assignment packet RPCs; define vendor-candidate wrapper and one-active-offer doctrine.
@@ -1726,7 +1830,10 @@ This slice does not add bids, multi-vendor offers, notification customization, v
 - AMC-6F.4: Active Vendor Assignment summary card polish after offers are sent.
 - AMC-6G: Active offer/assignment display on Order Detail. Make current offer state visible before adding broader controls.
 - AMC-6H: Revoke/cancel handling. Add owner-side cancel/revoke controls only where existing lifecycle supports them.
-- AMC-6I: Bid workflow. Future multi-vendor bid/availability request doctrine and implementation.
+- AMC-6I: Candidate load failure diagnostics and helper alignment.
+- AMC-6J: Multi-vendor bid request workflow doctrine. Keep bid requests separate from assignment offers and assignment packet lifecycle.
+- AMC-6J.1: Candidate action copy reset. Keep direct `Offer Assignment` available but frame it as secondary while bid requests remain planned.
+- AMC-6K+: Bid request schema/RPC, multi-select candidate UI, bid comparison, and selected-bid-to-assignment conversion.
 
 ### AMC-5J: Assignment Offer Integration Proposal
 

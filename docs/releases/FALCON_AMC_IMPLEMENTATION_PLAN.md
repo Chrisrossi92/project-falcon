@@ -242,7 +242,7 @@ Success Criteria:
 
 ### AMC-6: Assignment Offer Workflow
 
-Status: AMC-6A assignment-offer workflow doctrine, AMC-6B assignment offer RPC/API proposal, AMC-6C candidate-aware assignment offer frontend API wrapper, AMC-6D one-active-vendor-offer enforcement proposal, AMC-6E backend one-active-vendor-offer guard, AMC-6F Offer Assignment UI proposal, AMC-6F.1 active vendor offer visibility audit, AMC-6F.2 active vendor assignment state sharing, AMC-6F.3 candidate-card offer button/modal, AMC-6H order scope doctrine/audit, AMC-6H.1 compliance-sensitive order scope doctrine, AMC-6H.2 order scope migration proposal, AMC-6H.3 order operations scope foundation, AMC-6H.4 mode-aware Orders/Dashboard filtering, AMC-6H.5 AMC test order data plan, and AMC-6H.6 manual AMC test order seed completed. No notifications, permission changes, route/navigation changes, order creation UI changes, or `/amc/*` routes have been introduced.
+Status: AMC-6A assignment-offer workflow doctrine, AMC-6B assignment offer RPC/API proposal, AMC-6C candidate-aware assignment offer frontend API wrapper, AMC-6D one-active-vendor-offer enforcement proposal, AMC-6E backend one-active-vendor-offer guard, AMC-6F Offer Assignment UI proposal, AMC-6F.1 active vendor offer visibility audit, AMC-6F.2 active vendor assignment state sharing, AMC-6F.3 candidate-card offer button/modal, AMC-6H order scope doctrine/audit, AMC-6H.1 compliance-sensitive order scope doctrine, AMC-6H.2 order scope migration proposal, AMC-6H.3 order operations scope foundation, AMC-6H.4 mode-aware Orders/Dashboard filtering, AMC-6H.5 AMC test order data plan, AMC-6H.6 manual AMC test order seed, AMC-6J multi-vendor bid request workflow doctrine, and AMC-6J.1 candidate action copy reset completed. No notifications, permission changes, route/navigation changes, order creation UI changes, or `/amc/*` routes have been introduced.
 
 Purpose: define and implement the explicit owner/admin action that turns a selected candidate vendor into an offered assignment packet.
 
@@ -302,11 +302,17 @@ Deliverables:
 - AMC-6H.6 adds `supabase/manual/20260602_amc_test_order_seed.sql`, a manual/local seed for one AMC-scoped order `AMC-DEMO-001` and one matching demo vendor `Franklin Commercial Valuation`.
 - AMC-6H.6 load command: `psql -v ON_ERROR_STOP=1 "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -f supabase/manual/20260602_amc_test_order_seed.sql`.
 - AMC-6H.6 creates no assignments/offers, does not backfill existing orders, and is not for production use.
+- AMC-6J bid request doctrine: candidate matching recommends vendors, bid request outreach asks multiple vendors for fee/turn time/availability, and assignment offer happens only after a vendor or bid is selected.
+- AMC-6J keeps bid requests separate from assignment packets; bid requests should not create active `vendor_appraisal` assignment packets or count as assigned work.
+- AMC-6J recommends future `Request Bids` / `Request Availability` multi-select candidate workflow, bid comparison panel, and selected-bid-to-assignment conversion through the canonical assignment offer RPC.
+- AMC-6J defers vendor portal response UI, notifications/reminders, automatic lowest-bid selection, first-to-accept, client-facing bid approval, and multi-vendor assignment offers.
+- AMC-6J.1 keeps `Offer Assignment` functional but moves candidate-card copy toward `Direct award`, with helper copy that multi-vendor bid requests are planned.
+- AMC-6J.1 does not add `Request Bids`, multi-select, bid schema/RPCs, backend changes, assignment behavior changes, routes/nav changes, or `/amc/*` routes.
 - Same `/orders` route should remain; order/dashboard reads should become mode-aware through explicit scope filters rather than `/amc/*` routes.
 - Existing Continental internal orders should default to Internal Operations until a human-reviewed backfill identifies real AMC-managed orders.
 - Candidate and Offer Assignment UI should be guarded by AMC-scoped order data before product testing.
 - Deferred implementation slices for active Vendor Assignment summary display and broader vendor response/revoke handling.
-- Future lifecycle roadmap for offer RPC/API/UI, vendor response, and bid workflows.
+- Future lifecycle roadmap for bid request schema/RPC, multi-select candidate UI, bid comparison, selected-bid-to-assignment conversion, vendor response, and client approval workflows.
 
 Testing Strategy:
 

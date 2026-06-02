@@ -423,14 +423,24 @@ function CandidateCard({ candidate, canOfferAssignment, activeVendorAssignment, 
       </div>
 
       {canOfferThisCandidate && (
-        <div className="mt-3 flex justify-end">
-          <button
-            type="button"
-            onClick={() => setOfferModalOpen(true)}
-            className="rounded-md border border-slate-950 bg-slate-950 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-800"
-          >
-            Offer Assignment
-          </button>
+        <div className="mt-3 rounded-md border border-slate-200 bg-slate-50/80 p-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                Direct award
+              </div>
+              <p className="mt-1 text-xs leading-5 text-slate-600">
+                Direct assignment is available for known vendors. Multi-vendor bid requests are planned.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setOfferModalOpen(true)}
+              className="inline-flex h-9 shrink-0 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 hover:border-slate-400 hover:bg-slate-100"
+            >
+              Offer Assignment
+            </button>
+          </div>
         </div>
       )}
 

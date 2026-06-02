@@ -642,6 +642,12 @@ AMC-6F.2 shares active vendor assignment state on Order Detail without adding of
 
 AMC-6F.3 adds the candidate-card `Offer Assignment` button and confirmation modal on Order Detail. The action uses the existing `offerOrderToVendor(...)` wrapper and canonical `rpc_order_company_assignment_offer(...)` lifecycle path, includes a hidden candidate snapshot, refreshes owner assignment rows after success, and maps `order_vendor_assignment_active_exists` to "This order already has an active vendor offer or assignment." The modal does not expose raw relationship ids, vendor profile ids, assignment type, terms JSON, handoff JSON, or candidate snapshot JSON. No new lifecycle tables, routes/nav, schema/RLS changes, bid workflow, revoke UI, vendor portal acceptance UI, or `/amc/*` routes are introduced.
 
+AMC-6J defines future multi-vendor bid request doctrine. Candidate matching recommends vendors; bid request outreach asks multiple vendors for availability, fee, turn time/date, and comments; assignment offer happens only after an owner/admin selects a vendor or bid. Bid requests are not assignments and should not create active `vendor_appraisal` assignment packets. The current `Offer Assignment` action remains a direct-award MVP path, but once bidding exists it should be visually secondary to `Request Bids` / `Request Availability` for orders where vendor selection is still open.
+
+Future bid request records should track requested client due date, requested vendor report due-to-AMC date, optional internal review due date, response expiration, requester, vendor responses, proposed fee, proposed turn time/date, vendor comments, and selected/declined/expired outcomes. AMC may either select directly from responses or later present bid options to the client for approval. Client-facing bid approval, vendor portal response, notifications/reminders, automatic lowest-bid selection, first-to-accept, and multi-vendor assignment offers remain deferred.
+
+AMC-6J.1 resets current candidate action copy so direct assignment does not read as the primary long-term AMC workflow. The `Offer Assignment` action remains available for known-vendor direct awards, but candidate cards label that area as `Direct award` and state that multi-vendor bid requests are planned. This copy change does not add bid requests, multi-select, backend changes, route/nav changes, or assignment behavior changes.
+
 ## Delivery State
 
 Delivery state may include:

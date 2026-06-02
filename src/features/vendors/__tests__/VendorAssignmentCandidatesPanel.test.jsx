@@ -149,6 +149,9 @@ describe("VendorAssignmentCandidatesPanel", () => {
 
     expect(await screen.findByRole("heading", { name: "ABC Valuation" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Offer Assignment" })).toBeInTheDocument();
+    expect(screen.getByText("Direct award")).toBeInTheDocument();
+    expect(screen.getByText("Direct assignment is available for known vendors. Multi-vendor bid requests are planned.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /request bids/i })).toBeNull();
   });
 
   it("hides Offer Assignment for incomplete candidate data", async () => {
