@@ -150,6 +150,7 @@ describe("TopNav desktop operational spine navigation", () => {
     permissionState.allowed = new Set([
       PERMISSIONS.CLIENTS_READ_ALL,
       PERMISSIONS.RELATIONSHIPS_READ,
+      PERMISSIONS.VENDORS_READ,
       PERMISSIONS.USERS_READ,
     ]);
     const { container } = renderTopNav("/orders");
@@ -193,10 +194,11 @@ describe("TopNav desktop operational spine navigation", () => {
     );
   });
 
-  it("shows Vendors only in AMC Operations nav when relationship read access is available", () => {
+  it("shows Vendors only in AMC Operations nav when vendor read access is available", () => {
     permissionState.allowed = new Set([
       PERMISSIONS.CLIENTS_READ_ALL,
       PERMISSIONS.RELATIONSHIPS_READ,
+      PERMISSIONS.VENDORS_READ,
       PERMISSIONS.USERS_READ,
       PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_OWNER,
     ]);
@@ -226,9 +228,10 @@ describe("TopNav desktop operational spine navigation", () => {
     expect(within(desktopNav).queryByRole("link", { name: "Relationships" })).toBeNull();
   });
 
-  it("does not show Vendors in AMC Operations without relationship read access", () => {
+  it("does not show Vendors in AMC Operations without vendor read access", () => {
     permissionState.allowed = new Set([
       PERMISSIONS.CLIENTS_READ_ALL,
+      PERMISSIONS.RELATIONSHIPS_READ,
     ]);
     window.localStorage.setItem(OPERATIONS_MODE_STORAGE_KEY, "amc_operations");
 

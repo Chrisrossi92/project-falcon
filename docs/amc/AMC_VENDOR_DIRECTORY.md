@@ -221,6 +221,16 @@ Add Vendor now keeps owner-facing error copy stable while logging development/te
 
 AMC-3E.5 does not change backend RPC/API behavior, generated row semantics, schema/RLS, permissions, route/navigation exposure, assignment behavior, order behavior, vendor roles, archive/delete behavior, raw relationship/assignment UX exposure, or `/amc/*` routes.
 
+## AMC-3E.6 Vendor Profile Coverage Display Compression
+
+AMC-3E.6 compresses the Vendor Profile Coverage section so generated coverage rows do not create a giant always-visible table.
+
+Vendor Profile coverage now groups rows by geography type, state, and product summary. Examples include statewide coverage, county coverage, ZIP coverage, and market/radius coverage summaries such as `MI · Statewide · 5 products` or `OH · ZIP coverage · 12 ZIPs · 2 products`.
+
+Expanded row detail remains available through View rows, and the existing single-row Edit coverage row workflow is preserved inside the expanded details for cleanup and correction.
+
+AMC-3E.6 does not change backend RPC/API behavior, generated payload semantics, schema/RLS, permissions, route/navigation exposure, assignment matching, assignment behavior, order behavior, vendor roles, archive/delete behavior, raw relationship/assignment UX exposure, or `/amc/*` routes.
+
 ## AMC-3F.1 Vendor Copy and Terminology Polish
 
 AMC-3F.1 polishes owner-facing Vendor Directory terminology without changing behavior or data flow.

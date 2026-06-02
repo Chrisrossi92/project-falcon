@@ -96,6 +96,53 @@ const serviceAreas = [
   },
 ];
 
+const generatedCoverageRows = [
+  ...["commercial", "multifamily", "land", "review", "industrial"].map((productType, index) => ({
+    vendor_service_area_id: `mi-state-${index}`,
+    status: "active",
+    state: "MI",
+    county: null,
+    zip: null,
+    market: null,
+    product_type: productType,
+    radius_miles: null,
+  })),
+  ...["Adams", "Allen", "Hamilton"].flatMap((county) =>
+    ["commercial", "multifamily"].map((productType) => ({
+      vendor_service_area_id: `in-${county}-${productType}`,
+      status: "active",
+      state: "IN",
+      county,
+      zip: null,
+      market: null,
+      product_type: productType,
+      radius_miles: null,
+    })),
+  ),
+  ...["43215", "43212", "43210"].flatMap((zip) =>
+    ["residential", "restricted_appraisal"].map((productType) => ({
+      vendor_service_area_id: `oh-${zip}-${productType}`,
+      status: "active",
+      state: "OH",
+      county: null,
+      zip,
+      market: null,
+      product_type: productType,
+      radius_miles: null,
+    })),
+  ),
+  ...["commercial", "review"].map((productType) => ({
+    vendor_service_area_id: `oh-market-${productType}`,
+    status: "active",
+    state: "OH",
+    county: null,
+    zip: null,
+    market: "Columbus",
+    product_type: productType,
+    radius_miles: 25,
+  })),
+];
+
 function renderPage() {
   return render(
     <MemoryRouter
@@ -151,6 +198,9 @@ describe("VendorProfilePage", () => {
     expect(screen.getByText(/Multifamily: Yes/)).toBeInTheDocument();
     expect(screen.getByText(/Restricted: \{"reason":"review"\}/)).toBeInTheDocument();
     expect(screen.getByText("Mary Jones")).toBeInTheDocument();
+    expect(screen.getByText("NY · 1 county · Commercial")).toBeInTheDocument();
+    expect(screen.queryByText(/Westchester/)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "View rows" }));
     expect(screen.getByText(/Westchester/)).toBeInTheDocument();
     expect(screen.getByText("Reliable preferred panel vendor.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /create|save|assign|invite|add|delete|archive|edit/i })).toBeNull();
@@ -621,7 +671,26 @@ describe("VendorProfilePage", () => {
 
     expect(await screen.findByRole("button", { name: "Add Coverage" })).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Add single coverage row" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "View rows" }));
     expect(screen.getByRole("button", { name: "Edit coverage row" })).toBeInTheDocument();
+  });
+
+  it("summarizes generated coverage rows by state and geography type", async () => {
+    vendorApiState.getVendorProfileDetail.mockResolvedValue(profile);
+    vendorApiState.getVendorProfileContacts.mockResolvedValue(contacts);
+    vendorApiState.getVendorProfileServiceAreas.mockResolvedValue(generatedCoverageRows);
+
+    renderPage();
+
+    expect(await screen.findByText("MI · Statewide · 5 products")).toBeInTheDocument();
+    expect(screen.getByText("IN · 3 counties · 2 products")).toBeInTheDocument();
+    expect(screen.getByText("OH · ZIP coverage · 3 ZIPs · 2 products")).toBeInTheDocument();
+    expect(screen.getByText("OH · Columbus · 25 mi · 2 products")).toBeInTheDocument();
+    expect(screen.queryByText("Adams")).toBeNull();
+
+    fireEvent.click(screen.getAllByRole("button", { name: "View rows" })[1]);
+    expect(screen.getAllByText("Adams")).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: "View rows" }).length).toBe(3);
   });
 
   it("validates bulk Add Coverage requires generated rows", async () => {
@@ -791,7 +860,8 @@ describe("VendorProfilePage", () => {
 
     renderPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Edit coverage row" }));
+    fireEvent.click(await screen.findByRole("button", { name: "View rows" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit coverage row" }));
     const dialog = screen.getByRole("dialog", { name: "Edit coverage row" });
 
     expect(within(dialog).getByLabelText("State")).toHaveValue("NY");
@@ -863,7 +933,8 @@ describe("VendorProfilePage", () => {
 
     renderPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Edit coverage row" }));
+    fireEvent.click(await screen.findByRole("button", { name: "View rows" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit coverage row" }));
     const dialog = screen.getByRole("dialog", { name: "Edit coverage row" });
     const market = within(dialog).getByLabelText("Market");
     fireEvent.change(market, { target: { value: "Preserved Market" } });
@@ -930,7 +1001,7 @@ describe("VendorProfilePage", () => {
     renderPage();
 
     expect(await screen.findByRole("heading", { name: "ABC Valuation" })).toBeInTheDocument();
-    expect(screen.getByText("custom legacy product")).toBeInTheDocument();
+    expect(screen.getByText(/custom legacy product/)).toBeInTheDocument();
   });
 
   it("renders an error state for unauthorized or missing profiles", async () => {

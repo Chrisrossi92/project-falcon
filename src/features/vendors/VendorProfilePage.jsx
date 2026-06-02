@@ -941,50 +941,172 @@ function ContactsList({ contacts, canManage = false, onEditContact }) {
   );
 }
 
+function coverageGeographyType(area = {}) {
+  if (area.county) return "county";
+  if (area.zip) return "zip";
+  if (
+    area.market ||
+    (area.radius_miles !== null && area.radius_miles !== undefined && area.radius_miles !== "")
+  ) {
+    return "market_radius";
+  }
+  return "statewide";
+}
+
+function coverageGroupKey(area = {}) {
+  const state = area.state || "Any";
+  const type = coverageGeographyType(area);
+  if (type === "market_radius") {
+    return [state, type, area.market || "", area.radius_miles ?? ""].join("|");
+  }
+  return [state, type].join("|");
+}
+
+function formatProductSummary(products) {
+  const labels = [...products].filter(Boolean).map((product) => getVendorProductTypeLabel(product));
+  if (labels.length === 0) return "Any product";
+  if (labels.length === 1) return labels[0];
+  return `${labels.length} products`;
+}
+
+function summarizeCoverageGroup(rows = []) {
+  const first = rows[0] || {};
+  const state = first.state || "Any";
+  const type = coverageGeographyType(first);
+  const products = new Set(rows.map((area) => area.product_type).filter(Boolean));
+  const productSummary = formatProductSummary(products);
+
+  if (type === "county") {
+    const counties = new Set(rows.map((area) => area.county).filter(Boolean));
+    const count = counties.size;
+    return `${state} · ${count} ${count === 1 ? "county" : "counties"} · ${productSummary}`;
+  }
+
+  if (type === "zip") {
+    const zips = new Set(rows.map((area) => area.zip).filter(Boolean));
+    const count = zips.size;
+    return `${state} · ZIP coverage · ${count} ${count === 1 ? "ZIP" : "ZIPs"} · ${productSummary}`;
+  }
+
+  if (type === "market_radius") {
+    const market = first.market || "Market coverage";
+    const radius = first.radius_miles !== null && first.radius_miles !== undefined && first.radius_miles !== ""
+      ? `${first.radius_miles} mi`
+      : null;
+    return [state, market, radius, productSummary].filter(Boolean).join(" · ");
+  }
+
+  return `${state} · Statewide · ${productSummary}`;
+}
+
+function groupCoverageAreas(serviceAreas = []) {
+  const groupsByKey = new Map();
+
+  serviceAreas.forEach((area) => {
+    const key = coverageGroupKey(area);
+    const existing = groupsByKey.get(key);
+    if (existing) {
+      existing.rows.push(area);
+    } else {
+      groupsByKey.set(key, {
+        key,
+        rows: [area],
+      });
+    }
+  });
+
+  return [...groupsByKey.values()].map((group) => ({
+    ...group,
+    summary: summarizeCoverageGroup(group.rows),
+  }));
+}
+
 function ServiceAreasList({ serviceAreas, canManage = false, onEditServiceArea }) {
   const safeServiceAreas = Array.isArray(serviceAreas) ? serviceAreas : [];
+  const [expandedGroups, setExpandedGroups] = useState(() => new Set());
   if (safeServiceAreas.length === 0) return <div>No coverage listed.</div>;
 
+  const coverageGroups = groupCoverageAreas(safeServiceAreas);
+  const toggleGroup = (key) => {
+    setExpandedGroups((current) => {
+      const next = new Set(current);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full text-left text-sm">
-        <thead className="text-xs uppercase tracking-[0.12em] text-slate-400">
-          <tr>
-            <th className="px-2 py-2 font-semibold">Status</th>
-            <th className="px-2 py-2 font-semibold">State</th>
-            <th className="px-2 py-2 font-semibold">County</th>
-            <th className="px-2 py-2 font-semibold">ZIP</th>
-            <th className="px-2 py-2 font-semibold">Market</th>
-            <th className="px-2 py-2 font-semibold">Product</th>
-            <th className="px-2 py-2 font-semibold">Radius</th>
-            {canManage && <th className="px-2 py-2 font-semibold">Actions</th>}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {safeServiceAreas.map((area) => (
-            <tr key={area.vendor_service_area_id || area.id}>
-              <td className="px-2 py-2">{formatStatus(area.status)}</td>
-              <td className="px-2 py-2">{area.state || "Any"}</td>
-              <td className="px-2 py-2">{area.county || "Any"}</td>
-              <td className="px-2 py-2">{area.zip || "Any"}</td>
-              <td className="px-2 py-2">{area.market || "Any"}</td>
-              <td className="px-2 py-2">{area.product_type ? getVendorProductTypeLabel(area.product_type) : "Any"}</td>
-              <td className="px-2 py-2">{area.radius_miles ? `${area.radius_miles} mi` : "Not set"}</td>
-              {canManage && (
-                <td className="px-2 py-2">
-                  <button
-                    type="button"
-                    onClick={() => onEditServiceArea?.(area)}
-                    className="inline-flex h-8 items-center justify-center rounded-md border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-                  >
-                    Edit coverage row
-                  </button>
-                </td>
-              )}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="grid gap-3">
+      {coverageGroups.map((group) => {
+        const expanded = expandedGroups.has(group.key);
+        return (
+          <div key={group.key} className="rounded-md border border-slate-100 bg-slate-50 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="font-medium text-slate-900">{group.summary}</div>
+                <div className="mt-1 text-xs text-slate-500">
+                  {group.rows.length} coverage {group.rows.length === 1 ? "entry" : "entries"}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => toggleGroup(group.key)}
+                className="inline-flex h-8 items-center justify-center rounded-md border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                aria-expanded={expanded}
+              >
+                {expanded ? "Hide rows" : "View rows"}
+              </button>
+            </div>
+
+            {expanded ? (
+              <div className="mt-3 max-h-72 overflow-auto rounded-md border border-slate-200 bg-white">
+                <table className="min-w-full text-left text-sm">
+                  <thead className="text-xs uppercase tracking-[0.12em] text-slate-400">
+                    <tr>
+                      <th className="px-2 py-2 font-semibold">Status</th>
+                      <th className="px-2 py-2 font-semibold">State</th>
+                      <th className="px-2 py-2 font-semibold">County</th>
+                      <th className="px-2 py-2 font-semibold">ZIP</th>
+                      <th className="px-2 py-2 font-semibold">Market</th>
+                      <th className="px-2 py-2 font-semibold">Product</th>
+                      <th className="px-2 py-2 font-semibold">Radius</th>
+                      {canManage && <th className="px-2 py-2 font-semibold">Actions</th>}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {group.rows.map((area) => (
+                      <tr key={area.vendor_service_area_id || area.id}>
+                        <td className="px-2 py-2">{formatStatus(area.status)}</td>
+                        <td className="px-2 py-2">{area.state || "Any"}</td>
+                        <td className="px-2 py-2">{area.county || "Any"}</td>
+                        <td className="px-2 py-2">{area.zip || "Any"}</td>
+                        <td className="px-2 py-2">{area.market || "Any"}</td>
+                        <td className="px-2 py-2">{area.product_type ? getVendorProductTypeLabel(area.product_type) : "Any"}</td>
+                        <td className="px-2 py-2">{area.radius_miles ? `${area.radius_miles} mi` : "Not set"}</td>
+                        {canManage && (
+                          <td className="px-2 py-2">
+                            <button
+                              type="button"
+                              onClick={() => onEditServiceArea?.(area)}
+                              className="inline-flex h-8 items-center justify-center rounded-md border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                            >
+                              Edit coverage row
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -89,6 +89,8 @@ AMC-3E.3 integrates the isolated CoverageBuilder into the Add Vendor workflow on
 
 AMC-3E.4 adds a Vendor Profile bulk Add Coverage workflow using the same CoverageBuilder. Bulk Add Coverage creates generated positive coverage rows through the existing `createVendorServiceArea` wrapper, while the existing single-row service-area edit workflow remains available for cleanup and correction.
 
+AMC-3E.6 compresses Vendor Profile coverage display by grouping existing `vendor_service_areas` rows into state/geography/product summaries. Expanded row detail preserves individual row inspection and the existing single-row edit action, but collapsed summaries avoid rendering coverage-heavy county/product or ZIP/product combinations as a giant table.
+
 Service-area edit replacement, backend reference tables, assignment matching, mapping/geocoding, bulk edit/delete, and normalized coverage-region tables remain deferred.
 
 ## MVP Data Strategy

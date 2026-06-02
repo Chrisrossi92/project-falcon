@@ -19,6 +19,11 @@ const permissions = Object.freeze([
     permission_category: "relationships",
   },
   {
+    role_id: "role-admin",
+    permission_key: "vendors.read",
+    permission_category: "vendors",
+  },
+  {
     role_id: "role-reviewer",
     permission_key: "orders.assignable_as_reviewer",
     permission_category: "orders",
@@ -35,7 +40,8 @@ describe("permission override visibility", () => {
     expect(isV1VisiblePermissionOverride(permissions[0])).toBe(true);
     expect(isV1VisiblePermissionOverride(permissions[1])).toBe(false);
     expect(isV1VisiblePermissionOverride(permissions[2])).toBe(false);
-    expect(isV1VisiblePermissionOverride(permissions[3])).toBe(true);
+    expect(isV1VisiblePermissionOverride(permissions[3])).toBe(false);
+    expect(isV1VisiblePermissionOverride(permissions[4])).toBe(true);
   });
 
   it("normalizes read rows to visible permission keys only", () => {
@@ -43,6 +49,7 @@ describe("permission override visibility", () => {
       [
         { permission_key: "orders.read.all", effect: "revoke" },
         { permission_key: "relationships.read", effect: "grant" },
+        { permission_key: "vendors.read", effect: "grant" },
         { permission_key: "orders.assignable_as_reviewer", effect: "grant" },
         { permission_key: "workflow.status.approve_review", effect: "grant" },
       ],
@@ -59,6 +66,7 @@ describe("permission override visibility", () => {
     const overrides = new Map([
       ["orders.read.all", "revoke"],
       ["relationships.read", "grant"],
+      ["vendors.read", "grant"],
       ["orders.assignable_as_reviewer", "grant"],
       ["workflow.status.approve_review", "grant"],
     ]);
