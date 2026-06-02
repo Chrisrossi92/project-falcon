@@ -244,7 +244,13 @@ describe("VendorProfilePage", () => {
     expect(within(dialog).getByLabelText("Address line 1")).toHaveValue("100 Main St");
     expect(within(dialog).getByLabelText("City")).toHaveValue("White Plains");
     expect(within(dialog).getByLabelText("Tags")).toHaveValue("preferred, ny-metro");
-    expect(within(dialog).getByLabelText("Capabilities").value).toContain('"commercial": true');
+    const capabilities = within(dialog).getByRole("group", { name: "Capabilities" });
+    const productEligibility = within(dialog).getByRole("group", { name: "Product eligibility" });
+    expect(within(capabilities).getByLabelText("Commercial")).toBeChecked();
+    expect(within(capabilities).getByLabelText("Rush Orders")).not.toBeChecked();
+    expect(within(productEligibility).getByLabelText("Multifamily")).toBeChecked();
+    expect(within(dialog).queryByDisplayValue(/"commercial"/)).toBeNull();
+    expect(within(dialog).queryByDisplayValue(/"multifamily"/)).toBeNull();
   });
 
   it("submits allowed profile fields only and refreshes detail on success", async () => {
@@ -277,12 +283,14 @@ describe("VendorProfilePage", () => {
     fireEvent.change(within(dialog).getByLabelText("Default coordination instructions"), {
       target: { value: " Updated instructions. " },
     });
-    fireEvent.change(within(dialog).getByLabelText("Capabilities"), {
-      target: { value: '{"commercial":true,"rush":"limited"}' },
-    });
-    fireEvent.change(within(dialog).getByLabelText("Product eligibility"), {
-      target: { value: '{"multifamily":true}' },
-    });
+    const capabilities = within(dialog).getByRole("group", { name: "Capabilities" });
+    const productEligibility = within(dialog).getByRole("group", { name: "Product eligibility" });
+    fireEvent.click(within(capabilities).getByLabelText("Commercial"));
+    fireEvent.click(within(capabilities).getByLabelText("Rush Orders"));
+    fireEvent.click(within(capabilities).getByLabelText("Tax Appeals"));
+    fireEvent.click(within(productEligibility).getByLabelText("Multifamily"));
+    fireEvent.click(within(productEligibility).getByLabelText("Commercial"));
+    fireEvent.click(within(productEligibility).getByLabelText("Review"));
     fireEvent.change(within(dialog).getByLabelText("Tags"), {
       target: { value: " preferred, ohio, preferred " },
     });
@@ -305,11 +313,12 @@ describe("VendorProfilePage", () => {
         },
         default_assignment_instructions: "Updated instructions.",
         capabilities: {
-          commercial: true,
-          rush: "limited",
+          rush_orders: true,
+          tax_appeals: true,
         },
         product_eligibility: {
-          multifamily: true,
+          commercial: true,
+          review: true,
         },
         internal_notes: "Updated notes.",
         tags: ["preferred", "ohio"],
@@ -402,7 +411,7 @@ describe("VendorProfilePage", () => {
     });
   });
 
-  it("validates JSON profile metadata before saving", async () => {
+  it("does not render raw JSON profile metadata textareas", async () => {
     permissionState.allowed = new Set(["vendors.update"]);
     vendorApiState.getVendorProfileDetail.mockResolvedValue(profile);
     vendorApiState.getVendorProfileContacts.mockResolvedValue(contacts);
@@ -412,13 +421,11 @@ describe("VendorProfilePage", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Edit Profile" }));
     const dialog = screen.getByRole("dialog", { name: "Edit Profile" });
-    fireEvent.change(within(dialog).getByLabelText("Capabilities"), {
-      target: { value: "not-json" },
-    });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Save Profile" }));
 
-    expect(await within(dialog).findByText("Capabilities must be valid JSON.")).toBeInTheDocument();
-    expect(vendorApiState.updateVendorProfile).not.toHaveBeenCalled();
+    expect(within(dialog).getByRole("group", { name: "Capabilities" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("group", { name: "Product eligibility" })).toBeInTheDocument();
+    expect(within(dialog).queryByText("Capabilities must be valid JSON.")).toBeNull();
+    expect(within(dialog).queryByDisplayValue(/not-json|^\s*\{/)).toBeNull();
   });
 
   it("shows contact management controls only with vendors.contacts.manage permission", async () => {

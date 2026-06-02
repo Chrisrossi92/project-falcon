@@ -32,6 +32,31 @@ const SERVICE_AREA_STATUS_OPTIONS = Object.freeze([
   { value: "inactive", label: "Inactive" },
 ]);
 
+const VENDOR_CAPABILITY_OPTIONS = Object.freeze([
+  { slug: "commercial", label: "Commercial" },
+  { slug: "industrial", label: "Industrial" },
+  { slug: "multifamily", label: "Multifamily" },
+  { slug: "land", label: "Land" },
+  { slug: "review", label: "Review" },
+  { slug: "construction_draw", label: "Construction Draw" },
+  { slug: "short_term_rental", label: "Short-Term Rental" },
+  { slug: "residential", label: "Residential" },
+  { slug: "rush_orders", label: "Rush Orders" },
+  { slug: "portfolio_work", label: "Portfolio Work" },
+  { slug: "litigation_support", label: "Litigation Support" },
+  { slug: "expert_witness", label: "Expert Witness" },
+  { slug: "tax_appeals", label: "Tax Appeals" },
+  { slug: "review_assignments", label: "Review Assignments" },
+]);
+
+const VENDOR_CAPABILITY_LABELS = new Map(
+  VENDOR_CAPABILITY_OPTIONS.map((option) => [option.slug, option.label]),
+);
+
+const VENDOR_PRODUCT_TYPE_LABELS = new Map(
+  VENDOR_PRODUCT_TYPES.map((option) => [option.slug, option.label]),
+);
+
 function formatStatus(value) {
   if (!value) return "Unknown";
   return String(value)
@@ -51,8 +76,16 @@ function formatDate(value) {
   }).format(date);
 }
 
-function renderJsonSummary(value) {
-  if (!value || typeof value !== "object" || Object.keys(value).length === 0) return "None listed";
+function labelForMetadataKey(key, labelMap) {
+  const normalizedProduct = normalizeVendorProductType(key);
+  if (labelMap?.has(key)) return labelMap.get(key);
+  if (normalizedProduct && labelMap?.has(normalizedProduct)) return labelMap.get(normalizedProduct);
+  if (normalizedProduct) return getVendorProductTypeLabel(normalizedProduct);
+  return formatStatus(key);
+}
+
+function renderMetadataSummary(value, labelMap) {
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).length === 0) return "None listed";
 
   const entries = Object.entries(value)
     .filter(([, entryValue]) => entryValue !== null && entryValue !== undefined && entryValue !== false && entryValue !== "")
@@ -69,7 +102,7 @@ function renderJsonSummary(value) {
             ? JSON.stringify(entryValue)
             : String(entryValue);
 
-      return `${formatStatus(key)}: ${renderedValue}`;
+      return `${labelForMetadataKey(key, labelMap)}: ${renderedValue}`;
     })
     .join(" · ");
 }
@@ -106,25 +139,22 @@ function compactObject(value = {}) {
   );
 }
 
-function stableJson(value = {}) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return "{}";
-  return JSON.stringify(value, null, 2);
+function metadataObjectToSelection(value = {}, options = []) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const allowed = new Set(options.map((option) => option.slug));
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([key, entryValue]) => allowed.has(key) && entryValue !== null && entryValue !== undefined && entryValue !== false && entryValue !== "")
+      .map(([key]) => [key, true]),
+  );
 }
 
-function parseJsonObject(value, label) {
-  const nextValue = textOrNull(value);
-  if (!nextValue) return {};
-
-  try {
-    const parsed = JSON.parse(nextValue);
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      throw new Error(`${label} must be a JSON object.`);
-    }
-    return parsed;
-  } catch (error) {
-    if (error.message === `${label} must be a JSON object.`) throw error;
-    throw new Error(`${label} must be valid JSON.`);
-  }
+function selectionToMetadataObject(selection = {}) {
+  return Object.fromEntries(
+    Object.entries(selection)
+      .filter(([, selected]) => selected === true)
+      .map(([key]) => [key, true]),
+  );
 }
 
 function profileToEditForm(profile = {}) {
@@ -139,8 +169,8 @@ function profileToEditForm(profile = {}) {
     addressState: address.state || "",
     addressZip: address.zip || address.postal_code || "",
     defaultAssignmentInstructions: profile.default_assignment_instructions || "",
-    capabilities: stableJson(profile.capabilities),
-    productEligibility: stableJson(profile.product_eligibility),
+    capabilities: metadataObjectToSelection(profile.capabilities, VENDOR_CAPABILITY_OPTIONS),
+    productEligibility: metadataObjectToSelection(profile.product_eligibility, VENDOR_PRODUCT_TYPES),
     tags: Array.isArray(profile.tags) ? profile.tags.join(", ") : "",
     internalNotes: profile.internal_notes || "",
   };
@@ -680,22 +710,22 @@ function EditProfileModal({ open, profile, onClose, onSaved }) {
     setForm((current) => ({ ...current, [field]: event.target.value }));
   };
 
+  const toggleSelection = (field, key) => (event) => {
+    setForm((current) => ({
+      ...current,
+      [field]: {
+        ...current[field],
+        [key]: event.target.checked,
+      },
+    }));
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (saving) return;
 
     setFormError("");
     setSubmitError("");
-
-    let capabilities;
-    let productEligibility;
-    try {
-      capabilities = parseJsonObject(form.capabilities, "Capabilities");
-      productEligibility = parseJsonObject(form.productEligibility, "Product eligibility");
-    } catch (error) {
-      setFormError(error.message);
-      return;
-    }
 
     const primaryAddress = compactObject({
       line1: form.addressLine1,
@@ -711,8 +741,8 @@ function EditProfileModal({ open, profile, onClose, onSaved }) {
       public_phone: textOrNull(form.publicPhone),
       primary_address: primaryAddress,
       default_assignment_instructions: textOrNull(form.defaultAssignmentInstructions),
-      capabilities,
-      product_eligibility: productEligibility,
+      capabilities: selectionToMetadataObject(form.capabilities),
+      product_eligibility: selectionToMetadataObject(form.productEligibility),
       internal_notes: textOrNull(form.internalNotes),
       tags: tagsFromText(form.tags),
     };
@@ -831,14 +861,38 @@ function EditProfileModal({ open, profile, onClose, onSaved }) {
               <textarea value={form.defaultAssignmentInstructions} onChange={updateField("defaultAssignmentInstructions")} rows={3} className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100" />
             </label>
             <div className="grid gap-3 md:grid-cols-2">
-              <label className="grid gap-1 text-sm">
-                <span className="font-medium text-slate-700">Capabilities</span>
-                <textarea value={form.capabilities} onChange={updateField("capabilities")} rows={6} className="font-mono rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100" />
-              </label>
-              <label className="grid gap-1 text-sm">
-                <span className="font-medium text-slate-700">Product eligibility</span>
-                <textarea value={form.productEligibility} onChange={updateField("productEligibility")} rows={6} className="font-mono rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100" />
-              </label>
+              <fieldset className="grid gap-2 rounded-md border border-slate-200 p-3">
+                <legend className="px-1 text-sm font-medium text-slate-700">Capabilities</legend>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {VENDOR_CAPABILITY_OPTIONS.map((option) => (
+                    <label key={option.slug} className="flex min-h-8 items-center gap-2 text-sm text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={form.capabilities?.[option.slug] === true}
+                        onChange={toggleSelection("capabilities", option.slug)}
+                        className="h-4 w-4 rounded border-slate-300 text-slate-950 focus:ring-slate-300"
+                      />
+                      <span>{option.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              <fieldset className="grid gap-2 rounded-md border border-slate-200 p-3">
+                <legend className="px-1 text-sm font-medium text-slate-700">Product eligibility</legend>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {VENDOR_PRODUCT_TYPES.map((option) => (
+                    <label key={option.slug} className="flex min-h-8 items-center gap-2 text-sm text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={form.productEligibility?.[option.slug] === true}
+                        onChange={toggleSelection("productEligibility", option.slug)}
+                        className="h-4 w-4 rounded border-slate-300 text-slate-950 focus:ring-slate-300"
+                      />
+                      <span>{option.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
             </div>
             <label className="grid gap-1 text-sm">
               <span className="font-medium text-slate-700">Internal notes</span>
@@ -1264,11 +1318,11 @@ export default function VendorProfilePage() {
               </div>
               <div>
                 <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Capabilities</div>
-                <div className="mt-1">{renderJsonSummary(profile.capabilities)}</div>
+                <div className="mt-1">{renderMetadataSummary(profile.capabilities, VENDOR_CAPABILITY_LABELS)}</div>
               </div>
               <div>
                 <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Product eligibility</div>
-                <div className="mt-1">{renderJsonSummary(profile.product_eligibility)}</div>
+                <div className="mt-1">{renderMetadataSummary(profile.product_eligibility, VENDOR_PRODUCT_TYPE_LABELS)}</div>
               </div>
             </div>
           </DetailCard>

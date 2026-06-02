@@ -247,6 +247,42 @@ Add Vendor, Vendor Profile edit, contact management, service-area management, an
 
 AMC-3G does not change backend RPC behavior, schema/RLS, permissions, route/navigation exposure, assignment behavior, order behavior, vendor roles, coverage builder behavior, product taxonomy, raw relationship/assignment UX exposure, or `/amc/*` routes.
 
+## AMC-3F.2 Vendor Profile Future Modules And Structured Metadata Proposal
+
+AMC-3F.2 locks the future Vendor Profile module roadmap and proposes cleanup for raw JSON metadata editing. This is documentation only; no runtime behavior, schema, permissions, routes, or assignment behavior changes are introduced.
+
+Future Vendor Profile modules:
+
+- Orders: vendor-related order history and active work once assignment behavior exists.
+- Bid History: bid/outreach responses, quoted fees, turn times, declines, and selected/non-selected history.
+- Performance Metrics / Scores: delivery timeliness, revision rate, quality scores, acceptance rate, responsiveness, and future recommendation signals.
+- Compliance: licensing, insurance, W-9, engagement letters, approved-panel status, and expiration tracking.
+- Financial Terms: default fees, product-specific fees, payment terms, split/margin context, and exceptions.
+- Activity / Notes: internal notes, audit/activity timeline, outreach notes, and operational follow-up.
+- Coverage / Eligibility: geography/product coverage, status, relationship status, compliance state, and future matching eligibility.
+- Contacts: primary and secondary contacts, role labels, communication preferences, portal invitation state, and future user linkage.
+
+Structured metadata cleanup proposal:
+
+- Capabilities and product eligibility should not remain raw JSON editing surfaces for ordinary owner/admin users.
+- For the next UI cleanup slice, hide `capabilities` and `product_eligibility` from Edit Profile until structured controls exist. Continue rendering existing read-only summaries where useful so legacy data is not lost.
+- Product eligibility should eventually be derived primarily from coverage/product rows, with explicit exception controls only where the product is eligible in general but constrained by compliance, geography, capacity, or policy.
+- Capabilities should become structured checkboxes/tags or controlled option groups, such as rush availability, commercial specialty, review capacity, construction draw support, inspection availability, language/region support, or specialty flags.
+- Editable profile metadata should remain limited to owner-facing fields that have clear form controls: status, website, public phone, address, default coordination instructions, tags, and internal notes.
+- Deferred work includes structured capability taxonomy, eligibility exception model, compliance-backed eligibility checks, performance-backed recommendation scoring, and assignment matching integration.
+
+Proposed next implementation slice: AMC-3F.3 should remove raw JSON textareas from the Vendor Profile edit modal, keep read-only display of existing capability/product-eligibility summaries, and leave structured capability/eligibility controls deferred to a later taxonomy/model slice.
+
+## AMC-3F.3 Structured Vendor Profile Metadata
+
+AMC-3F.3 replaces raw JSON-style Vendor Profile metadata editing with owner-friendly structured controls.
+
+The Edit Profile modal now uses checkbox-style controls for capabilities and product eligibility instead of JSON textareas. Capabilities include appraisal-domain attributes such as Commercial, Industrial, Multifamily, Land, Review, Construction Draw, Short-Term Rental, Residential, Rush Orders, Portfolio Work, Litigation Support, Expert Witness, Tax Appeals, and Review Assignments. Product eligibility uses the existing controlled vendor product taxonomy.
+
+The frontend still sends backend-compatible JSON objects to `updateVendorProfile`: `capabilities` is keyed by stable capability slugs and `product_eligibility` is keyed by stable product slugs. The Vendor Profile display renders friendly labels for known keys and preserves safe fallback rendering for older/unknown legacy keys.
+
+AMC-3F.3 does not change backend RPC behavior, schema/RLS, permissions, route/navigation exposure, assignment behavior, order behavior, future Orders/Bid History/Performance/Compliance/Financial modules, raw relationship/assignment UX exposure, or `/amc/*` routes.
+
 ## Framework Reuse Doctrine
 
 Vendor Directory records should build on the existing company framework wherever possible:

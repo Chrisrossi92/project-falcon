@@ -56,6 +56,22 @@ The taxonomy can expand later, but new values should be introduced through contr
 
 AMC-3D adds the first frontend controlled taxonomy constants for these product types. The database remains text-backed for MVP, and the UI submits stable slugs while rendering display labels. County coverage builder work remains deferred.
 
+## Product Eligibility Metadata
+
+Coverage/product rows should become the primary source for product eligibility in future assignment matching. A vendor that has active positive coverage for `commercial` in Ohio is eligible for commercial Ohio consideration only after future matching also evaluates vendor status, relationship status, compliance, assignment permissions, and any product-specific exceptions.
+
+The current `company_vendor_profiles.product_eligibility` JSON field should be treated as interim metadata, not the long-term primary eligibility source. Future UI should avoid raw JSON editing and should use structured controls only for exceptions or constraints that cannot be expressed by coverage rows alone.
+
+Examples of future product eligibility exceptions:
+
+- product temporarily paused
+- product allowed only after compliance review
+- product allowed only for selected clients
+- product requires manual approval before assignment
+- product not eligible despite broad geographic coverage
+
+Do not infer assignment eligibility from product metadata alone. Coverage rows, vendor status, relationship status, compliance state, product taxonomy, and future assignment workflow rules must all be evaluated before any vendor candidate is recommended.
+
 ## State And County Constants
 
 AMC-3E.1 adds frontend static state and county constants for the first Coverage Builder phase.

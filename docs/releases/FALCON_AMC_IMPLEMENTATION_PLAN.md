@@ -68,7 +68,7 @@ Success Criteria:
 
 ### AMC-2: Vendor Directory
 
-Status: Vendor Directory foundation implemented through AMC-3G with schema, read RPCs, read-only UI, AMC Operations navigation exposure, vendor permission gates, mutation RPCs, frontend mutation API wrappers, first Add Vendor UI, create-workflow hardening, Vendor Profile metadata editing, vendor contact create/update UI, vendor service-area create/update UI, controlled frontend product taxonomy, frontend static OH/MI/IN state-county constants, isolated reusable CoverageBuilder utilities/component, Add Vendor CoverageBuilder integration, Vendor Profile bulk Add Coverage, compressed CoverageBuilder previews, Vendor Profile coverage display compression, Add Vendor save diagnostics, long-term vendor coverage doctrine, owner-facing terminology polish, and hardened owner-facing vendor error messages; no service-area bulk edit/delete, archive workflow, vendor role, assignment candidate, assignment behavior, or `/amc/*` route exposure yet.
+Status: Vendor Directory foundation implemented through AMC-3G with schema, read RPCs, read-only UI, AMC Operations navigation exposure, vendor permission gates, mutation RPCs, frontend mutation API wrappers, first Add Vendor UI, create-workflow hardening, Vendor Profile metadata editing, vendor contact create/update UI, vendor service-area create/update UI, controlled frontend product taxonomy, frontend static OH/MI/IN state-county constants, isolated reusable CoverageBuilder utilities/component, Add Vendor CoverageBuilder integration, Vendor Profile bulk Add Coverage, compressed CoverageBuilder previews, Vendor Profile coverage display compression, Add Vendor save diagnostics, long-term vendor coverage doctrine, owner-facing terminology polish, hardened owner-facing vendor error messages, Vendor Profile future-module roadmap, and structured Vendor Profile metadata controls; no service-area bulk edit/delete, archive workflow, vendor role, assignment candidate, assignment behavior, or `/amc/*` route exposure yet.
 
 Purpose: create the vendor management foundation.
 
@@ -108,6 +108,8 @@ Deliverables:
 - Vendor coverage doctrine for commercial and residential geography/product coverage.
 - Owner-facing Vendor Directory terminology polish for CoverageBuilder, network status, coverage-row cleanup, and Operational Notes labels.
 - Centralized owner-facing vendor error message mapping for stable backend error codes.
+- Vendor Profile future-module roadmap covering Orders, Bid History, Performance Metrics / Scores, Compliance, Financial Terms, Activity / Notes, Coverage / Eligibility, and Contacts.
+- Structured Vendor Profile metadata controls for `capabilities` and `product_eligibility` that preserve backend-compatible JSON object payloads without exposing raw JSON editing.
 - Vendor CRUD.
 - Coverage areas.
 - Vendor contacts.
