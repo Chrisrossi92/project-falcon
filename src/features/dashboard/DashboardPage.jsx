@@ -162,7 +162,7 @@ function resolveDashboardPresentation({
 export default function DashboardPage({ shellProfilePresentation, operationsMode } = {}) {
   const nav = useNavigate();
   const [dashboardRefreshKey, setDashboardRefreshKey] = useState(0);
-  const summary = useDashboardSummary({ refreshKey: dashboardRefreshKey });
+  const summary = useDashboardSummary({ operationsMode, refreshKey: dashboardRefreshKey });
   const {
     role: summaryRole,
     isAdmin: summaryIsAdmin,
@@ -453,6 +453,7 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
               mode={selectedDashboardMode}
               reviewerId={selectedDashboardReviewerId}
               filters={appliedFilters}
+              operationsScope={summary.operationsScope}
               rowsOverride={filteredOrdersRows}
               pageSize={10}
               scope="dashboard"

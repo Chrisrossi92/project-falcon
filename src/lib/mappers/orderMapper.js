@@ -9,6 +9,7 @@ import { operationalUserName } from "@/lib/utils/userDisplayName";
  * @property {string|null} order_number        Canonical order number (falls back to order_no or id prefix)
  * @property {string|null} order_no            Alias of order_number for legacy callers
  * @property {string|null} order_id            Alias of id for callers that still expect order_id
+ * @property {string|null} operations_scope
  * @property {string|null} status              Raw status from backend
  * @property {string|null} status_normalized   Normalized status (snake-case uppercase)
  * @property {boolean} is_archived
@@ -56,6 +57,7 @@ const emptyOrder = {
   order_id: null,
   order_number: null,
   order_no: null,
+  operations_scope: null,
   status: null,
   status_normalized: null,
   is_archived: false,
@@ -141,6 +143,7 @@ export function mapOrderRow(row = {}) {
     order_id: orderId,
     order_number: orderNumber,
     order_no: orderNumber,
+    operations_scope: row.operations_scope ?? null,
     status,
     status_normalized: statusNormalized,
     is_archived: row.is_archived === true,

@@ -242,7 +242,7 @@ Success Criteria:
 
 ### AMC-6: Assignment Offer Workflow
 
-Status: AMC-6A assignment-offer workflow doctrine, AMC-6B assignment offer RPC/API proposal, AMC-6C candidate-aware assignment offer frontend API wrapper, AMC-6D one-active-vendor-offer enforcement proposal, AMC-6E backend one-active-vendor-offer guard, AMC-6F Offer Assignment UI proposal, AMC-6F.1 active vendor offer visibility audit, and AMC-6F.2 active vendor assignment state sharing completed. No assignment buttons/UI, notifications, permission changes, route/navigation changes, order behavior changes outside the assignment-offer guard, or `/amc/*` routes have been introduced.
+Status: AMC-6A assignment-offer workflow doctrine, AMC-6B assignment offer RPC/API proposal, AMC-6C candidate-aware assignment offer frontend API wrapper, AMC-6D one-active-vendor-offer enforcement proposal, AMC-6E backend one-active-vendor-offer guard, AMC-6F Offer Assignment UI proposal, AMC-6F.1 active vendor offer visibility audit, AMC-6F.2 active vendor assignment state sharing, AMC-6F.3 candidate-card offer button/modal, AMC-6H order scope doctrine/audit, AMC-6H.1 compliance-sensitive order scope doctrine, AMC-6H.2 order scope migration proposal, AMC-6H.3 order operations scope foundation, AMC-6H.4 mode-aware Orders/Dashboard filtering, AMC-6H.5 AMC test order data plan, and AMC-6H.6 manual AMC test order seed completed. No notifications, permission changes, route/navigation changes, order creation UI changes, or `/amc/*` routes have been introduced.
 
 Purpose: define and implement the explicit owner/admin action that turns a selected candidate vendor into an offered assignment packet.
 
@@ -274,7 +274,38 @@ Deliverables:
 - AMC-6F.1 active vendor offer visibility audit confirming existing `rpc_order_company_assignment_list_for_order(uuid)` data can detect active `vendor_appraisal` packets without a new read RPC.
 - Recommended active-state rule: `vendor_appraisal` plus `offered`, `accepted`, `in_progress`, or `submitted`.
 - AMC-6F.2 Order Detail state sharing for owner assignment rows, `activeVendorAssignment` derivation, controlled assignment panel rows, and candidate-panel active-offer note.
-- Deferred implementation slices for active Vendor Assignment summary display, candidate-specific offer modal, and candidate-card button integration.
+- AMC-6F.3 candidate-card `Offer Assignment` button and confirmation modal.
+- Candidate offer submit path through `offerOrderToVendor(...)` with hidden candidate snapshot and owner assignment refresh on success.
+- Candidate offer modal hides raw relationship ids, vendor profile ids, assignment type, terms JSON, handoff JSON, and candidate snapshot JSON.
+- AMC-6H order scope doctrine: Internal Operations orders are internally fulfilled production work; AMC Operations orders are externally managed/vendor-fulfilled work.
+- AMC-6H schema gap: current `orders.company_id`, `client_id`, `managing_amc_id`, `amc_id`, internal assignment columns, and `order_company_assignments` do not provide a single authoritative Internal-vs-AMC order-scope discriminator.
+- Recommended future field/model: explicit `orders.operations_scope` or `orders.fulfillment_model` with at least `internal_operations` and `amc_operations`.
+- AMC-6H.1 schema recommendation: prefer `orders.operations_scope` because the boundary controls visibility, workflow, assignment eligibility, audit posture, and compliance lane separation; `fulfillment_model` is too narrow for the primary lane.
+- Recommended `operations_scope` MVP values: `internal_operations` and `amc_operations`; defer `hybrid`.
+- Backfill doctrine: default existing orders to `internal_operations`; only move existing orders to `amc_operations` after human-reviewed audit/backfill.
+- Order creation doctrine: Internal create defaults to `internal_operations`; AMC create defaults to `amc_operations`; backend RPCs must persist and validate explicit scope.
+- Backend guard proposal: candidate RPC and `vendor_appraisal` offer RPC should reject non-`amc_operations` orders with stable error `order_scope_not_amc_operations`.
+- Audit doctrine: preserve scope changes, actor, timestamp, reason, candidate snapshot, packet lifecycle, internal assignment history, activity, files, and client communications.
+- AMC-6H.2 migration proposal: add `orders.operations_scope text not null default 'internal_operations'` with check constraint for `internal_operations` and `amc_operations`, backfill existing rows to internal, comment the compliance lane, and add at least a `(company_id, operations_scope)` index.
+- AMC-6H.2 read impact: project `operations_scope` through order list/detail views and filter Orders/Dashboard reads by operations mode using the explicit scope.
+- AMC-6H.2 guard impact: candidate RPC and `vendor_appraisal` offer RPC must reject non-AMC orders before product offer testing.
+- AMC-6H.2 testing plan: schema/default/check/comment/index tests, mode-aware query tests, candidate/offer guard tests, and UI hidden-action tests for internal-scoped orders.
+- AMC-6H.3 migration `20260601143000_amc_order_operations_scope_foundation.sql` adds `orders.operations_scope`, allowed-value constraint, existing-order internal backfill, `(company_id, operations_scope)` index, comments, read projection, and backend candidate/offer guards.
+- AMC-6H.3 projects `operations_scope` through current order list/detail reads without adding mode-aware filtering yet.
+- AMC-6H.3 candidate and vendor-appraisal offer guards raise `order_scope_not_amc_operations` for non-AMC orders; non-vendor assignment offer behavior is preserved.
+- AMC-6H.4 applies mode-derived `operations_scope` filters to shared `/orders` reads, queue-derived Orders reads, dashboard order rows, and dashboard order-based KPI counts.
+- AMC-6H.4 hides the Vendor Candidates panel on internal-scoped orders even when AMC Operations mode is active.
+- AMC-6H.4 intentionally leaves AMC Operations order queues empty until explicit AMC-scoped test orders are created; existing orders remain internal by default.
+- AMC-6H.5 recommends a future manual/demo seed for one clearly labeled AMC-scoped test order rather than bulk backfill or scope-edit UI.
+- AMC-6H.5 minimum test order fields: `operations_scope = 'amc_operations'`, state, county when county matching is tested, ZIP/postal code when ZIP matching is tested, `property_type`, `report_type`, active-list status, and current-company ownership.
+- AMC-6H.5 defers order creation lane selection and any admin-only scope toggle until audit, permission, and history requirements are defined.
+- AMC-6H.6 adds `supabase/manual/20260602_amc_test_order_seed.sql`, a manual/local seed for one AMC-scoped order `AMC-DEMO-001` and one matching demo vendor `Franklin Commercial Valuation`.
+- AMC-6H.6 load command: `psql -v ON_ERROR_STOP=1 "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -f supabase/manual/20260602_amc_test_order_seed.sql`.
+- AMC-6H.6 creates no assignments/offers, does not backfill existing orders, and is not for production use.
+- Same `/orders` route should remain; order/dashboard reads should become mode-aware through explicit scope filters rather than `/amc/*` routes.
+- Existing Continental internal orders should default to Internal Operations until a human-reviewed backfill identifies real AMC-managed orders.
+- Candidate and Offer Assignment UI should be guarded by AMC-scoped order data before product testing.
+- Deferred implementation slices for active Vendor Assignment summary display and broader vendor response/revoke handling.
 - Future lifecycle roadmap for offer RPC/API/UI, vendor response, and bid workflows.
 
 Testing Strategy:
@@ -285,6 +316,7 @@ Testing Strategy:
 - UI tests for explicit owner/admin offer action after implementation is approved.
 - UI tests should verify candidate-card button visibility in AMC Operations mode, assignment-offer permission gates, hidden raw ids/JSON, candidate snapshot submission, active-offer error mapping, success refresh behavior, and absence of bid/multi-vendor controls.
 - UI tests should verify active vendor assignments hide candidate offer actions while declined, revoked, completed, and cancelled vendor packets remain historical context and do not block a new offer.
+- Before testing offers as product behavior, fixtures must include explicit AMC-scoped and internal-scoped orders, and candidate/offer actions must be absent for internal-scoped orders.
 
 Success Criteria:
 

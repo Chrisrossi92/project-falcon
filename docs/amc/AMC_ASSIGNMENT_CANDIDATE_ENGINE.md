@@ -23,6 +23,195 @@ The engine should reuse existing Falcon primitives:
 
 `order_company_assignments` remains the canonical assignment table. Candidate matching must not write to `orders.appraiser_id`, `orders.reviewer_id`, `orders.assigned_to`, or assignment lifecycle tables.
 
+## AMC-6H: Candidate Scope Guard Doctrine
+
+AMC-6H audits order scope separation before further assignment-offer testing. It does not change runtime code, migrations, queries, UI, route/nav, or assignment behavior.
+
+Current candidate assumptions:
+
+- `rpc_vendor_assignment_candidates(p_order_id)` verifies current-company order ownership and `vendors.read`.
+- The frontend candidate panel appears in AMC Operations mode with `vendors.read`.
+- Order Detail can derive active vendor packet state from `order_company_assignments`.
+
+Gap:
+
+- The order read model does not yet expose an authoritative Internal Operations vs AMC Operations scope.
+- Current AMC mode can show the same internal order list/dashboard records as Internal Operations.
+- Candidate/offer UI can therefore appear on an internal production order if the user has AMC mode and vendor permissions.
+
+Doctrine:
+
+- Candidate matching is only valid for AMC-scoped orders: orders the current company manages for external vendor fulfillment through Vendor Directory and assignment packets.
+- Internal production orders should not show vendor candidates or `Offer Assignment` actions, even when the user can see AMC Operations mode.
+- Do not infer candidate eligibility solely from `orders.managing_amc_id`, `orders.amc_id`, company type, operations mode, or vendor availability.
+- Add an explicit order scope or fulfillment-model field before treating candidate offers as ready for production testing.
+
+Recommended candidate gate after order-scope implementation:
+
+```text
+show candidates when:
+  operationsMode = AMC Operations
+  user has vendors.read
+  order.operations_scope = amc_operations
+  order belongs to current company
+
+show Offer Assignment when additionally:
+  user has assignment-offer authority
+  no active vendor_appraisal packet exists
+  candidate has complete vendor/relationship ids
+```
+
+Until that scope exists, candidate offers remain technically wired but should be treated as pre-scope workflow plumbing, not final AMC order behavior.
+
+## AMC-6H.1: Candidate and Offer Scope Guardrail
+
+AMC-6H.1 strengthens the candidate doctrine for compliance-sensitive lane separation.
+
+Recommended order-scope source:
+
+```text
+orders.operations_scope in ('internal_operations', 'amc_operations')
+```
+
+Candidate search and vendor offer behavior must use this explicit order scope. They must not infer eligibility from UI mode, role, `managing_amc_id`, `amc_id`, client category, company type, or vendor coverage alone.
+
+Required backend guard before product offer testing:
+
+- `rpc_vendor_assignment_candidates(p_order_id)` should reject non-`amc_operations` orders.
+- `rpc_order_company_assignment_offer(...)` should reject `vendor_appraisal` offers for non-`amc_operations` orders.
+- Both guards should use stable backend errors so frontend copy can be owner-friendly.
+
+Recommended stable error:
+
+```text
+order_scope_not_amc_operations
+```
+
+Recommended frontend copy:
+
+```text
+Vendor offers are only available for AMC Operations orders.
+```
+
+The candidate panel can still require AMC Operations mode and `vendors.read`, but mode/permission checks are not sufficient. The order itself must be AMC-scoped.
+
+## AMC-6H.2: Candidate Guard Migration Proposal
+
+AMC-6H.2 proposes, but does not implement, the runtime changes needed after `orders.operations_scope` is added.
+
+Candidate RPC impact:
+
+- Select `orders.operations_scope` with the existing order load.
+- Reject when `operations_scope <> 'amc_operations'`.
+- Use stable error `order_scope_not_amc_operations`.
+- Preserve existing current-company, `vendors.read`, active relationship, vendor status, geography, and product matching rules.
+
+Assignment offer RPC impact:
+
+- For `p_assignment_type = 'vendor_appraisal'`, reject orders where `operations_scope <> 'amc_operations'`.
+- Use the same stable error `order_scope_not_amc_operations`.
+- Do not alter non-vendor assignment offer behavior in this slice.
+- Preserve the existing one-active-vendor-offer guard for AMC-scoped orders.
+
+Read/UI impact:
+
+- Candidate panel should receive order scope from Order Detail or the order read model.
+- Candidate panel should not fetch candidates for internal-scoped orders.
+- `Offer Assignment` should remain hidden for internal-scoped orders even if candidate data exists in stale state.
+
+Test impact:
+
+- candidate RPC rejects internal orders
+- candidate RPC allows AMC orders under existing permissions
+- vendor-appraisal offer RPC rejects internal orders
+- panel does not fetch or render candidate actions for internal orders
+- active-offer errors and one-active-offer behavior still work on AMC-scoped orders
+
+## AMC-6H.3: Candidate and Offer Scope Guard Implementation
+
+AMC-6H.3 implements the backend scope guard foundation:
+
+- Candidate matching now requires the order to have `operations_scope = 'amc_operations'`.
+- Vendor-appraisal assignment offers now require the order to have `operations_scope = 'amc_operations'`.
+- Both paths use stable error `order_scope_not_amc_operations`.
+- Non-vendor assignment offer behavior is preserved.
+
+This slice does not add UI filtering. Candidate/offer frontend visibility should still be tightened in a later slice so internal-scoped orders do not fetch candidate data or show candidate actions.
+
+## AMC-6H.4: Mode-Aware Order Surface Filtering
+
+AMC-6H.4 wires the explicit order scope into the existing shared order surfaces:
+
+- Internal Operations order list reads request `operations_scope = 'internal_operations'`.
+- AMC Operations order list reads request `operations_scope = 'amc_operations'`.
+- Dashboard order rows and order-based KPI counts use the same mode-derived scope.
+- Order Detail only renders the read/write candidate panel for AMC-scoped orders in AMC Operations mode.
+
+Because existing orders default to `internal_operations`, AMC Operations order lists and dashboard counts can legitimately be empty until explicit AMC-scoped test orders are created. That empty state is preferred over showing internal production orders as AMC work.
+
+This slice does not change order creation, add AMC order creation, add routes/nav, change permissions, or create `/amc/*` routes. Backend candidate and vendor-appraisal offer guards from AMC-6H.3 remain authoritative.
+
+## AMC-6H.5: Candidate Test Order Data Plan
+
+AMC-6H.5 proposes safe AMC candidate test data without implementation.
+
+Recommendation:
+
+- Use one future manual/demo AMC-scoped order seed for local validation.
+- Do not bulk-backfill existing internal orders.
+- Do not expose an order-scope edit UI yet.
+- Do not test assignment offers against internal-scoped orders.
+
+Minimum test order fields for candidate matching:
+
+- `operations_scope = 'amc_operations'`
+- `state`, normalized to a 2-letter code such as `OH`
+- `county`, when county coverage should match, such as `Franklin`
+- `postal_code` or `zip`, when ZIP coverage should match, such as `43215`
+- `property_type`, such as `Commercial`, `Multifamily`, `Industrial`, `Land`, or `Residential`
+- `report_type`, such as `Appraisal`, `Restricted Appraisal`, `Construction Draw`, or `Review`
+
+Recommended candidate validation matrix:
+
+- statewide vendor coverage plus `Commercial`/`Appraisal`
+- county vendor coverage plus `Multifamily` or `Commercial`
+- ZIP vendor coverage plus `Residential`
+- product mismatch negative case
+- internal-scoped order negative case, expecting no frontend candidate panel and backend `order_scope_not_amc_operations`
+
+The test order should be paired with an existing demo vendor whose `vendor_service_areas.product_type` uses controlled product slugs, and whose coverage row geography matches the order state/county/ZIP being tested.
+
+## AMC-6H.6: Candidate Test Seed Implementation
+
+AMC-6H.6 adds a manual/local demo seed:
+
+```text
+supabase/manual/20260602_amc_test_order_seed.sql
+```
+
+Load locally:
+
+```bash
+psql -v ON_ERROR_STOP=1 "postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
+  -f supabase/manual/20260602_amc_test_order_seed.sql
+```
+
+Candidate validation data:
+
+- order number: `AMC-DEMO-001`
+- order scope: `amc_operations`
+- geography: `OH`, `Franklin`, `43215`
+- order product inputs: `property_type = 'Commercial'`, `report_type = 'Appraisal'`
+- expected matching vendor: `Franklin Commercial Valuation`
+- expected matching coverage rows: Franklin County/ZIP `43215` with `commercial` and `appraisal` product slugs
+
+Expected candidate behavior:
+
+- Internal-scoped orders continue to produce no candidate UI and backend `order_scope_not_amc_operations`.
+- `AMC-DEMO-001` should be visible in AMC Operations order surfaces and eligible for candidate search.
+- Candidate matching should have both a county/ZIP geography path and exact product slug path available.
+- The seed does not create assignments or offers automatically; offer testing remains a separate explicit action.
+
 ## Candidate Matching Inputs
 
 ### Order Inputs
@@ -1509,6 +1698,21 @@ Implementation result:
 
 No active candidate offer action exists yet. The note is advisory UI state; AMC-6E backend enforcement remains authoritative.
 
+## AMC-6F.3: Candidate Offer Button and Confirmation Modal
+
+AMC-6F.3 adds the first candidate-specific write action on Order Detail while preserving the existing assignment packet lifecycle.
+
+Implementation result:
+
+- Eligible candidate cards can show `Offer Assignment` only when the panel is enabled, no active vendor assignment exists, candidate ids are complete, and the user has existing assignment-offer authority.
+- The confirmation modal shows owner-facing vendor, match strength, score, best coverage match, optional message, and optional date fields.
+- The modal copy states that the action sends an offer and that the vendor must accept before work is considered assigned.
+- The UI does not expose relationship ids, vendor profile ids, assignment type, terms JSON, handoff payload JSON, or candidate snapshot JSON.
+- Submit uses `offerOrderToVendor(...)`, includes a hidden candidate snapshot, closes on success, and refreshes Order Detail owner assignment rows so the active-assignment note can appear.
+- Backend `order_vendor_assignment_active_exists` is mapped to `This order already has an active vendor offer or assignment.` and preserves modal input.
+
+This slice does not add bids, multi-vendor offers, notification customization, vendor portal acceptance UI, revoke UI, new assignment tables, routes/nav, schema/RLS changes, order behavior changes, or `/amc/*` routes.
+
 ### AMC-6 Roadmap
 
 - AMC-6B: Assignment Offer RPC/API proposal. Reuse existing assignment packet RPCs; define vendor-candidate wrapper and one-active-offer doctrine.
@@ -1518,8 +1722,8 @@ No active candidate offer action exists yet. The note is advisory UI state; AMC-
 - AMC-6F: Offer Assignment UI proposal. Recommend candidate-card button and candidate-specific confirmation modal; implementation still deferred.
 - AMC-6F.1: Active offer visibility audit before exposing the button. Existing order-scoped assignment summary data is sufficient; frontend state sharing is the implementation gap.
 - AMC-6F.2: Active vendor assignment state sharing between Order Detail, the existing assignments panel, and the candidate panel.
-- AMC-6F.3: Candidate-specific offer modal implementation.
-- AMC-6F.4: Candidate-card button integration.
+- AMC-6F.3: Candidate-specific offer button and confirmation modal implementation.
+- AMC-6F.4: Active Vendor Assignment summary card polish after offers are sent.
 - AMC-6G: Active offer/assignment display on Order Detail. Make current offer state visible before adding broader controls.
 - AMC-6H: Revoke/cancel handling. Add owner-side cancel/revoke controls only where existing lifecycle supports them.
 - AMC-6I: Bid workflow. Future multi-vendor bid/availability request doctrine and implementation.

@@ -9,6 +9,7 @@ import { OPERATIONS_MODES } from "@/lib/operations/operationsMode";
 const summaryState = vi.hoisted(() => ({
   current: null,
 }));
+const useDashboardSummaryMock = vi.hoisted(() => vi.fn());
 
 const permissionState = vi.hoisted(() => ({
   settingsView: false,
@@ -33,7 +34,7 @@ const calendarMock = vi.hoisted(() => vi.fn());
 const DOCUMENT_POSITION_FOLLOWING = 4;
 
 vi.mock("@/lib/hooks/useDashboardSummary", () => ({
-  useDashboardSummary: () => summaryState.current,
+  useDashboardSummary: useDashboardSummaryMock,
 }));
 
 vi.mock("@/lib/hooks/usePermissions", () => ({
@@ -144,6 +145,7 @@ function buildSummary(overrides = {}) {
       inspectedAwaitingReport: 1,
       dueToClient2: 1,
     },
+    operationsScope: "internal_operations",
     ordersRows: [
       {
         id: "order-new",
@@ -224,12 +226,14 @@ describe("DashboardPage operational polish", () => {
       permissionDenied: false,
       refetch: vi.fn(),
     };
+    useDashboardSummaryMock.mockImplementation(() => summaryState.current);
     tableMock.mockClear();
     calendarMock.mockClear();
   });
 
   afterEach(() => {
     cleanup();
+    useDashboardSummaryMock.mockReset();
   });
 
   it("renders the polished operational sections from existing summary data", () => {
@@ -290,7 +294,9 @@ describe("DashboardPage operational polish", () => {
     );
   });
 
-  it("renders AMC Operations dashboard context without changing dashboard reads", () => {
+  it("renders AMC Operations dashboard context with AMC-scoped dashboard reads", () => {
+    summaryState.current = buildSummary({ operationsScope: "amc_operations" });
+
     renderDashboard(operationsShell, { operationsMode: OPERATIONS_MODES.AMC_OPERATIONS });
 
     expect(
@@ -309,7 +315,13 @@ describe("DashboardPage operational polish", () => {
     expect(tableMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
         rowsOverride: summaryState.current.ordersRows,
+        operationsScope: "amc_operations",
         scope: "dashboard",
+      }),
+    );
+    expect(useDashboardSummaryMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        operationsMode: OPERATIONS_MODES.AMC_OPERATIONS,
       }),
     );
   });

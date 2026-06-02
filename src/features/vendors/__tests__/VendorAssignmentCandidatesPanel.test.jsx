@@ -6,9 +6,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const vendorApiState = vi.hoisted(() => ({
   listVendorAssignmentCandidates: vi.fn(),
 }));
+const assignmentApiState = vi.hoisted(() => ({
+  offerOrderToVendor: vi.fn(),
+}));
 
 vi.mock("../api", () => ({
   listVendorAssignmentCandidates: vendorApiState.listVendorAssignmentCandidates,
+}));
+vi.mock("@/features/assignments/api", () => ({
+  offerOrderToVendor: assignmentApiState.offerOrderToVendor,
 }));
 
 const { default: VendorAssignmentCandidatesPanel } = await import(
@@ -19,6 +25,7 @@ const candidateRows = [
   {
     vendor_profile_id: "profile-1",
     vendor_company_id: "company-1",
+    relationship_id: "relationship-1",
     vendor_company_name: "ABC Valuation",
     vendor_status: "preferred",
     relationship_status: "active",
@@ -68,6 +75,7 @@ const candidateRows = [
 describe("VendorAssignmentCandidatesPanel", () => {
   beforeEach(() => {
     vendorApiState.listVendorAssignmentCandidates.mockReset();
+    assignmentApiState.offerOrderToVendor.mockReset();
   });
 
   afterEach(() => {
@@ -126,6 +134,136 @@ describe("VendorAssignmentCandidatesPanel", () => {
     expect(await screen.findByRole("heading", { name: "ABC Valuation" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /offer assignment/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /bid/i })).toBeNull();
+  });
+
+  it("shows Offer Assignment for an eligible candidate with no active vendor assignment", async () => {
+    vendorApiState.listVendorAssignmentCandidates.mockResolvedValue(candidateRows);
+
+    render(
+      <VendorAssignmentCandidatesPanel
+        orderId="order-1"
+        enabled
+        canOfferAssignment
+      />,
+    );
+
+    expect(await screen.findByRole("heading", { name: "ABC Valuation" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Offer Assignment" })).toBeInTheDocument();
+  });
+
+  it("hides Offer Assignment for incomplete candidate data", async () => {
+    vendorApiState.listVendorAssignmentCandidates.mockResolvedValue([
+      {
+        ...candidateRows[0],
+        relationship_id: null,
+      },
+    ]);
+
+    render(
+      <VendorAssignmentCandidatesPanel
+        orderId="order-1"
+        enabled
+        canOfferAssignment
+      />,
+    );
+
+    expect(await screen.findByRole("heading", { name: "ABC Valuation" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Offer Assignment" })).toBeNull();
+  });
+
+  it("opens offer modal with vendor and match details without raw ids", async () => {
+    vendorApiState.listVendorAssignmentCandidates.mockResolvedValue(candidateRows);
+
+    render(
+      <VendorAssignmentCandidatesPanel
+        orderId="order-1"
+        enabled
+        canOfferAssignment
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Offer Assignment" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Offer Assignment" });
+    expect(within(dialog).getByText("ABC Valuation")).toBeInTheDocument();
+    expect(within(dialog).getByText("Strong match · 100 score")).toBeInTheDocument();
+    expect(within(dialog).getByText("OH · ZIP 43215 · Commercial · Zip")).toBeInTheDocument();
+    expect(within(dialog).getByText("This will send an assignment offer to the vendor.")).toBeInTheDocument();
+    expect(within(dialog).getByText("The vendor still needs to accept before work is considered assigned.")).toBeInTheDocument();
+    expect(within(dialog).queryByText("relationship-1")).toBeNull();
+    expect(within(dialog).queryByText("profile-1")).toBeNull();
+    expect(within(dialog).queryByText("candidateSnapshot")).toBeNull();
+  });
+
+  it("submits candidate offer with mapped payload and refresh callback", async () => {
+    vendorApiState.listVendorAssignmentCandidates.mockResolvedValue(candidateRows);
+    assignmentApiState.offerOrderToVendor.mockResolvedValue("assignment-1");
+    const handleOfferSuccess = vi.fn();
+
+    render(
+      <VendorAssignmentCandidatesPanel
+        orderId="order-1"
+        enabled
+        canOfferAssignment
+        orderDueAt="2026-06-10T12:00:00.000Z"
+        onOfferSuccess={handleOfferSuccess}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Offer Assignment" }));
+    fireEvent.change(screen.getByLabelText("Message to vendor"), {
+      target: { value: "Please confirm availability." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send offer" }));
+
+    await waitFor(() => {
+      expect(assignmentApiState.offerOrderToVendor).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderId: "order-1",
+          vendorProfileId: "profile-1",
+          vendorCompanyId: "company-1",
+          relationshipId: "relationship-1",
+          note: "Please confirm availability.",
+          dueAt: "2026-06-10T12:00:00.000Z",
+          candidateSnapshot: expect.objectContaining({
+            vendor_profile_id: "profile-1",
+            vendor_company_id: "company-1",
+            relationship_id: "relationship-1",
+            match_score: 100,
+          }),
+        }),
+      );
+    });
+    await waitFor(() => {
+      expect(handleOfferSuccess).toHaveBeenCalledWith("assignment-1");
+    });
+    expect(screen.queryByRole("dialog", { name: "Offer Assignment" })).toBeNull();
+  });
+
+  it("shows active-offer error and preserves modal input", async () => {
+    vendorApiState.listVendorAssignmentCandidates.mockResolvedValue(candidateRows);
+    assignmentApiState.offerOrderToVendor.mockRejectedValue(
+      new Error("order_vendor_assignment_active_exists"),
+    );
+
+    render(
+      <VendorAssignmentCandidatesPanel
+        orderId="order-1"
+        enabled
+        canOfferAssignment
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Offer Assignment" }));
+    fireEvent.change(screen.getByLabelText("Message to vendor"), {
+      target: { value: "Keep this note." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send offer" }));
+
+    expect(
+      await screen.findByText("This order already has an active vendor offer or assignment."),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Message to vendor")).toHaveValue("Keep this note.");
   });
 
   it("renders loading state while candidates load", () => {
@@ -256,7 +394,7 @@ describe("VendorAssignmentCandidatesPanel", () => {
     render(<VendorAssignmentCandidatesPanel orderId="order-1" enabled />);
 
     expect(await screen.findByRole("heading", { name: "ABC Valuation" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /assign/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^assign$/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /bid/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /notify|notification/i })).toBeNull();
   });

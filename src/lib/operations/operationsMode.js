@@ -28,3 +28,7 @@ export function getOperationsModeLabel(mode) {
 export function getAvailableOperationsModes() {
   return AVAILABLE_OPERATIONS_MODES;
 }
+
+export function getOperationsScopeForMode(mode) {
+  return normalizeOperationsMode(mode);
+}

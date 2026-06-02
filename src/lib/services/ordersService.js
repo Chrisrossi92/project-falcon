@@ -79,6 +79,7 @@ export async function listOrders({
   orderBy = "created_at",
   ascending = false,
   appraiserId = null,
+  operationsScope = null,
 } = {}) {
   const fromIdx = page * pageSize;
   const toIdx   = fromIdx + pageSize - 1;
@@ -88,6 +89,7 @@ export async function listOrders({
     .select(
       `
         id,
+        operations_scope,
         order_no:order_number,
         order_number,
         status,
@@ -143,6 +145,7 @@ export async function listOrders({
   }
 
   if (statusIn?.length) q = q.in("status", statusIn);
+  if (operationsScope) q = q.eq("operations_scope", operationsScope);
 
   // Pin to appraiser when provided (appraiser dashboards/tables)
   if (appraiserId) q = q.eq("appraiser_id", String(appraiserId));
@@ -163,6 +166,7 @@ export async function getOrder(orderId) {
     .select(
       `
         id,
+        operations_scope,
         order_number,
         status,
         is_archived,

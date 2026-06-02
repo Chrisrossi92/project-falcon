@@ -65,6 +65,19 @@ describe("mapOrderRow", () => {
     );
   });
 
+  it("preserves projected operations scope for mode-aware order lanes", () => {
+    expect(
+      mapOrderRow({
+        id: "order-scope",
+        operations_scope: "amc_operations",
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        operations_scope: "amc_operations",
+      }),
+    );
+  });
+
   it("prefers nested operational full names when profile data is present", () => {
     expect(
       mapOrderRow({

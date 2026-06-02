@@ -1,8 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, RefreshCw } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AlertTriangle, RefreshCw, X } from "lucide-react";
 
+import { offerOrderToVendor } from "@/features/assignments/api";
 import { listVendorAssignmentCandidates } from "../api";
 import { getVendorProductTypeLabel } from "../coverage/productTypes";
+
+const ACTIVE_VENDOR_OFFER_ERROR = "order_vendor_assignment_active_exists";
 
 function humanize(value) {
   return String(value || "")
@@ -40,6 +43,45 @@ function formatCoverageMatch(match = {}) {
   if (match.product_type) parts.push(getVendorProductTypeLabel(match.product_type));
   if (match.match_type) parts.push(humanize(match.match_type));
   return parts.length ? parts.join(" · ") : "Coverage match";
+}
+
+function compactCandidateSnapshot(candidate = {}) {
+  return {
+    vendor_profile_id: candidate.vendor_profile_id || null,
+    vendor_company_id: candidate.vendor_company_id || null,
+    vendor_company_name: candidate.vendor_company_name || null,
+    relationship_id: candidate.relationship_id || null,
+    relationship_status: candidate.relationship_status || null,
+    vendor_status: candidate.vendor_status || null,
+    match_score: candidate.match_score ?? null,
+    match_reasons: candidate.match_reasons || {},
+    coverage_matches: Array.isArray(candidate.coverage_matches) ? candidate.coverage_matches : [],
+    primary_contact: candidate.primary_contact || {},
+    warning_flags: Array.isArray(candidate.warning_flags) ? candidate.warning_flags : [],
+  };
+}
+
+function toIsoDateTime(value) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toISOString();
+}
+
+function formatCandidateOfferError(error) {
+  const message = String(error?.message || "");
+  const code = String(error?.code || "");
+  if (message.includes(ACTIVE_VENDOR_OFFER_ERROR) || code === ACTIVE_VENDOR_OFFER_ERROR) {
+    return "This order already has an active vendor offer or assignment.";
+  }
+  if (/permission|not authorized|42501/i.test(message) || code === "42501") {
+    return "You do not have permission to offer this assignment.";
+  }
+  return "Assignment offer could not be sent. Review the details and try again.";
+}
+
+function hasCandidateOfferFields(candidate = {}) {
+  return Boolean(candidate.vendor_profile_id && candidate.vendor_company_id && candidate.relationship_id);
 }
 
 function formatGeographyReason(matchType) {
@@ -156,7 +198,186 @@ function PrimaryContact({ contact }) {
   );
 }
 
-function CandidateCard({ candidate }) {
+function CandidateOfferModal({
+  candidate,
+  orderId,
+  orderDueAt,
+  onClose,
+  onSuccess,
+}) {
+  const closeButtonRef = useRef(null);
+  const [note, setNote] = useState("");
+  const [dueAt, setDueAt] = useState("");
+  const [reviewDueAt, setReviewDueAt] = useState("");
+  const [expiresAt, setExpiresAt] = useState("");
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const coverageMatches = Array.isArray(candidate?.coverage_matches) ? candidate.coverage_matches : [];
+  const bestCoverageMatch = coverageMatches[0] || null;
+  const matchStrength = getMatchStrength(candidate?.match_score);
+
+  useEffect(() => {
+    closeButtonRef.current?.focus();
+  }, []);
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (submitting) return;
+
+    setError("");
+    setSubmitting(true);
+    try {
+      const assignmentId = await offerOrderToVendor({
+        orderId,
+        vendorProfileId: candidate.vendor_profile_id,
+        vendorCompanyId: candidate.vendor_company_id,
+        relationshipId: candidate.relationship_id,
+        note: note.trim() || null,
+        dueAt: toIsoDateTime(dueAt || orderDueAt),
+        reviewDueAt: toIsoDateTime(reviewDueAt),
+        expiresAt: toIsoDateTime(expiresAt),
+        candidateSnapshot: compactCandidateSnapshot(candidate),
+      });
+      await onSuccess?.(assignmentId);
+    } catch (offerError) {
+      setError(formatCandidateOfferError(offerError));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/40 px-4 py-8"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !submitting) onClose?.();
+      }}
+    >
+      <form
+        onSubmit={handleSubmit}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="vendor-offer-assignment-title"
+        className="w-full max-w-2xl rounded-lg border border-slate-200 bg-white shadow-xl"
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Vendor offer</div>
+            <h2 id="vendor-offer-assignment-title" className="mt-1 text-xl font-semibold text-slate-950">
+              Offer Assignment
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              This will send an assignment offer to the vendor.
+            </p>
+          </div>
+          <button
+            type="button"
+            ref={closeButtonRef}
+            onClick={onClose}
+            disabled={submitting}
+            className="rounded-md border border-slate-200 p-2 text-slate-500 hover:bg-slate-50 disabled:opacity-60"
+            aria-label="Close offer assignment modal"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="grid gap-4 px-5 py-5">
+          <div className="rounded-md border border-slate-100 bg-slate-50/70 p-3">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Vendor</div>
+            <div className="mt-1 text-base font-semibold text-slate-950">
+              {candidate.vendor_company_name || "Vendor"}
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold text-slate-600">
+              <span className="rounded-full border border-slate-200 bg-white px-2 py-1">
+                {matchStrength}
+                {candidate.match_score !== null && candidate.match_score !== undefined
+                  ? ` · ${candidate.match_score} score`
+                  : ""}
+              </span>
+              {bestCoverageMatch && (
+                <span className="rounded-full border border-slate-200 bg-white px-2 py-1">
+                  {formatCoverageMatch(bestCoverageMatch)}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-md border border-blue-100 bg-blue-50/70 px-3 py-2 text-sm text-blue-900">
+            The vendor still needs to accept before work is considered assigned.
+          </div>
+
+          {error && (
+            <div role="alert" className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+              {error}
+            </div>
+          )}
+
+          <label className="grid gap-1 text-sm font-semibold text-slate-700">
+            Message to vendor
+            <textarea
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              rows={4}
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+              placeholder="Optional note or assignment instructions"
+            />
+          </label>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <label className="grid gap-1 text-sm font-semibold text-slate-700">
+              Due date
+              <input
+                type="datetime-local"
+                value={dueAt}
+                onChange={(event) => setDueAt(event.target.value)}
+                className="rounded-md border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+              />
+            </label>
+            <label className="grid gap-1 text-sm font-semibold text-slate-700">
+              Review due date
+              <input
+                type="datetime-local"
+                value={reviewDueAt}
+                onChange={(event) => setReviewDueAt(event.target.value)}
+                className="rounded-md border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+              />
+            </label>
+            <label className="grid gap-1 text-sm font-semibold text-slate-700">
+              Expiration date
+              <input
+                type="datetime-local"
+                value={expiresAt}
+                onChange={(event) => setExpiresAt(event.target.value)}
+                className="rounded-md border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+              />
+            </label>
+          </div>
+        </div>
+
+        <div className="flex flex-col-reverse gap-2 border-t border-slate-200 px-5 py-4 sm:flex-row sm:justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={submitting}
+            className="rounded-md border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={submitting}
+            className="rounded-md border border-slate-950 bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
+          >
+            {submitting ? "Sending..." : "Send offer"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function CandidateCard({ candidate, canOfferAssignment, activeVendorAssignment, orderId, orderDueAt, onOfferSuccess }) {
   const matchReasons = formatReasonGroups(candidate.match_reasons);
   const coverageMatches = Array.isArray(candidate.coverage_matches)
     ? candidate.coverage_matches
@@ -164,6 +385,12 @@ function CandidateCard({ candidate }) {
   const [bestCoverageMatch, ...otherCoverageMatches] = coverageMatches;
   const warningFlags = Array.isArray(candidate.warning_flags) ? candidate.warning_flags : [];
   const matchStrength = getMatchStrength(candidate.match_score);
+  const [offerModalOpen, setOfferModalOpen] = useState(false);
+  const canOfferThisCandidate =
+    canOfferAssignment &&
+    !activeVendorAssignment &&
+    orderId &&
+    hasCandidateOfferFields(candidate);
 
   return (
     <article className="rounded-md border border-slate-200 bg-white p-3 shadow-sm">
@@ -193,6 +420,18 @@ function CandidateCard({ candidate }) {
           </div>
         </div>
       </div>
+
+      {canOfferThisCandidate && (
+        <div className="mt-3 flex justify-end">
+          <button
+            type="button"
+            onClick={() => setOfferModalOpen(true)}
+            className="rounded-md border border-slate-950 bg-slate-950 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-800"
+          >
+            Offer Assignment
+          </button>
+        </div>
+      )}
 
       {matchReasons.length > 0 && (
         <div className="mt-3 rounded-md border border-blue-100 bg-blue-50/60 p-3">
@@ -269,6 +508,19 @@ function CandidateCard({ candidate }) {
           </ul>
         </div>
       )}
+
+      {offerModalOpen && (
+        <CandidateOfferModal
+          candidate={candidate}
+          orderId={orderId}
+          orderDueAt={orderDueAt}
+          onClose={() => setOfferModalOpen(false)}
+          onSuccess={async (assignmentId) => {
+            setOfferModalOpen(false);
+            await onOfferSuccess?.(assignmentId);
+          }}
+        />
+      )}
     </article>
   );
 }
@@ -277,6 +529,9 @@ export default function VendorAssignmentCandidatesPanel({
   orderId,
   enabled = true,
   activeVendorAssignment = null,
+  canOfferAssignment = false,
+  orderDueAt = null,
+  onOfferSuccess,
   className = "",
 }) {
   const [candidates, setCandidates] = useState([]);
@@ -372,6 +627,11 @@ export default function VendorAssignmentCandidatesPanel({
             <CandidateCard
               key={candidate.vendor_profile_id || `${candidate.vendor_company_id}-${candidate.match_score}`}
               candidate={candidate}
+              canOfferAssignment={canOfferAssignment}
+              activeVendorAssignment={activeVendorAssignment}
+              orderId={orderId}
+              orderDueAt={orderDueAt}
+              onOfferSuccess={onOfferSuccess}
             />
           ))}
         </div>

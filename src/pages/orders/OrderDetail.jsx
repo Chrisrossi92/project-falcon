@@ -652,10 +652,18 @@ export default function OrderDetail() {
   const canVoidThisOrder = showManagementSurfaces && canVoidOrder(order, permissions);
   const showVendorCandidatePanel =
     operationsMode === OPERATIONS_MODES.AMC_OPERATIONS &&
+    order?.operations_scope === "amc_operations" &&
     !permissions.loading &&
     !permissions.error &&
     permissions.hasPermission(PERMISSIONS.VENDORS_READ) &&
     Boolean(order?.id);
+  const canOfferVendorCandidateAssignment =
+    showVendorCandidatePanel &&
+    permissions.hasAllPermissions([
+      PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_OFFER,
+      PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_OWNER,
+      PERMISSIONS.RELATIONSHIPS_ASSIGN_WORK,
+    ]);
   const shouldLoadOwnerAssignments =
     Boolean(order?.id) &&
     canReadOwnerAssignments &&
@@ -1026,6 +1034,12 @@ export default function OrderDetail() {
             orderId={order.id}
             enabled={showVendorCandidatePanel}
             activeVendorAssignment={activeVendorAssignment}
+            canOfferAssignment={canOfferVendorCandidateAssignment}
+            orderDueAt={order.final_due_at ?? order.due_date ?? null}
+            onOfferSuccess={async () => {
+              success("Assignment offer sent.");
+              await loadOwnerAssignments();
+            }}
           />
         )}
 

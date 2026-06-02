@@ -133,6 +133,19 @@ describe("fetchOrdersWithFilters archived visibility", () => {
     }
   });
 
+  it("filters order list queries by explicit operations scope when provided", async () => {
+    await fetchOrdersWithFilters({
+      scope: "orders",
+      operationsScope: "amc_operations",
+    });
+
+    for (const builder of builders) {
+      expect(builder.eq).toHaveBeenCalledWith("operations_scope", "amc_operations");
+      expect(builder.or).toHaveBeenCalledWith("is_archived.is.null,is_archived.eq.false");
+      expect(builder.not).toHaveBeenCalledWith("status", "in", "(cancelled,voided)");
+    }
+  });
+
   it("filters My Work orders by appraiser or reviewer assignment", async () => {
     await fetchOrdersWithFilters({ scope: "orders", assignedToMeUserId: "user-1" });
 

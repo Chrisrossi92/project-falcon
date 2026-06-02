@@ -97,6 +97,7 @@ export default function UnifiedOrdersTable({
   activeQueue = null,
   activeQueueAction = null,
   scope = null,
+  operationsScope = null,
   onOrderDatesChanged,
   tableEyebrow = "Orders Table",
   tableLabel: tableLabelOverride = null,
@@ -175,6 +176,7 @@ export default function UnifiedOrdersTable({
     useMemo(() => ({ ...seedFinal, _tick: refreshTick }), [seedFinal, refreshTick]),
     {
       mode,
+      operationsScope,
       reviewerId,
       scope,
       enabled: !hasRowsOverride && !appContextLoading && (isAdminLike || isReviewer || (isAppraiser && Boolean(internalUserId))),

@@ -172,16 +172,30 @@ vi.mock("@/features/assignments/components/OwnerOrderAssignmentsPanel", () => ({
 }));
 
 vi.mock("@/features/vendors/components/VendorAssignmentCandidatesPanel", () => ({
-  default: ({ orderId, enabled, activeVendorAssignment }) => (
+  default: ({
+    orderId,
+    enabled,
+    activeVendorAssignment,
+    canOfferAssignment,
+    orderDueAt,
+    onOfferSuccess,
+  }) => (
     <section
       aria-label="Vendor candidates"
       data-enabled={String(enabled)}
       data-order-id={orderId}
       data-active-assignment-id={activeVendorAssignment?.id || ""}
+      data-can-offer={String(Boolean(canOfferAssignment))}
+      data-order-due-at={orderDueAt || ""}
     >
       <div>Suggested vendors</div>
       {activeVendorAssignment && (
         <div>This order already has an active vendor offer or assignment.</div>
+      )}
+      {canOfferAssignment && (
+        <button type="button" onClick={() => onOfferSuccess?.("assignment-new")}>
+          Mock candidate offer success
+        </button>
       )}
     </section>
   ),
@@ -195,6 +209,7 @@ describe("OrderDetail site visit save", () => {
       id: "order-1",
       order_number: "2026001",
       status: "new",
+      operations_scope: "internal_operations",
       is_archived: false,
       client_name: "Acme Lending",
       amc_name: "Northstar AMC",
@@ -582,6 +597,7 @@ describe("OrderDetail site visit save", () => {
 
   it("shows read-only vendor candidates in AMC Operations with vendor read access", () => {
     operationsModeMock.operationsMode = "amc_operations";
+    orderMock.operations_scope = "amc_operations";
     permissionKeysMock.push("vendors.read");
 
     render(<OrderDetail />);
@@ -594,8 +610,37 @@ describe("OrderDetail site visit save", () => {
     expect(screen.queryByRole("button", { name: /bid/i })).not.toBeInTheDocument();
   });
 
+  it("passes candidate offer authority and refresh callback to vendor candidates", async () => {
+    operationsModeMock.operationsMode = "amc_operations";
+    orderMock.operations_scope = "amc_operations";
+    permissionKeysMock.push(
+      "vendors.read",
+      "order_company_assignments.offer",
+      "order_company_assignments.read_owner",
+      "relationships.assign_work",
+    );
+
+    render(<OrderDetail />);
+
+    await waitFor(() => {
+      expect(listOwnerAssignmentsForOrderMock).toHaveBeenCalledWith("order-1");
+    });
+
+    const candidates = screen.getByLabelText("Vendor candidates");
+    expect(candidates).toHaveAttribute("data-can-offer", "true");
+    expect(candidates).toHaveAttribute("data-order-due-at", "2026-05-29T12:00:00.000Z");
+
+    fireEvent.click(screen.getByRole("button", { name: "Mock candidate offer success" }));
+
+    await waitFor(() => {
+      expect(toastSuccessMock).toHaveBeenCalledWith("Assignment offer sent.");
+      expect(listOwnerAssignmentsForOrderMock).toHaveBeenCalledTimes(2);
+    });
+  });
+
   it("derives active vendor assignment state and passes it to vendor candidates", async () => {
     operationsModeMock.operationsMode = "amc_operations";
+    orderMock.operations_scope = "amc_operations";
     permissionKeysMock.push("vendors.read", "order_company_assignments.read_owner");
     listOwnerAssignmentsForOrderMock.mockResolvedValue([
       {
@@ -625,6 +670,7 @@ describe("OrderDetail site visit save", () => {
 
   it("does not treat historical vendor assignment statuses as active candidate blockers", async () => {
     operationsModeMock.operationsMode = "amc_operations";
+    orderMock.operations_scope = "amc_operations";
     permissionKeysMock.push("vendors.read", "order_company_assignments.read_owner");
     listOwnerAssignmentsForOrderMock.mockResolvedValue([
       {
@@ -706,8 +752,20 @@ describe("OrderDetail site visit save", () => {
     expect(screen.queryByLabelText("Vendor candidates")).not.toBeInTheDocument();
   });
 
+  it("hides vendor candidates for internal-scoped orders even in AMC Operations mode", () => {
+    operationsModeMock.operationsMode = "amc_operations";
+    orderMock.operations_scope = "internal_operations";
+    permissionKeysMock.push("vendors.read");
+
+    render(<OrderDetail />);
+
+    expect(screen.queryByLabelText("Vendor candidates")).not.toBeInTheDocument();
+    expect(listOwnerAssignmentsForOrderMock).not.toHaveBeenCalled();
+  });
+
   it("hides vendor candidates without vendor read access", () => {
     operationsModeMock.operationsMode = "amc_operations";
+    orderMock.operations_scope = "amc_operations";
 
     render(<OrderDetail />);
 

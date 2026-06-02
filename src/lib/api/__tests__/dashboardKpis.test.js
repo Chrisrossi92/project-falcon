@@ -70,4 +70,12 @@ describe("fetchDashboardKpis", () => {
     expect(builders[7].not).toHaveBeenCalledWith("final_due_date", "is", null);
     expect(supabaseMock.rpc).not.toHaveBeenCalled();
   });
+
+  it("filters dashboard KPI counts by explicit operations scope", async () => {
+    await fetchDashboardKpis({ operationsScope: "amc_operations" });
+
+    for (const builder of builders) {
+      expect(builder.eq).toHaveBeenCalledWith("operations_scope", "amc_operations");
+    }
+  });
 });

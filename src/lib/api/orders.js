@@ -45,6 +45,7 @@ function throwDeprecatedOrderAssignmentHelper() {
 const BASE_SELECT = `
   id,
   order_id,
+  operations_scope,
   order_number,
   status,
   is_archived,
@@ -88,10 +89,11 @@ function applyCommonFilters(
     assignedAppraiserId = null,
     assignedToMeUserId = null,
     inspectedAwaitingReport = false,
-    finalDueWithinDays = null,
-    dueWindow = "",
-    from = null,
-    to = null,
+  finalDueWithinDays = null,
+  dueWindow = "",
+  from = null,
+  to = null,
+  operationsScope = null,
   search = "",
   includeArchived = false,
   includeRetiredLifecycle = false,
@@ -106,6 +108,7 @@ function applyCommonFilters(
   }
 
   if (statusIn?.length) q = q.in("status", statusIn);
+  if (operationsScope) q = q.eq("operations_scope", operationsScope);
   if (clientId) q = q.eq("client_id", clientId);
   const targetAppraiserId = assignedAppraiserId || appraiserId;
   if (targetAppraiserId) q = q.eq("appraiser_id", targetAppraiserId);
@@ -175,6 +178,7 @@ export async function fetchOrdersWithFilters(filters = {}) {
     to = null,
     includeArchived = false,
     includeRetiredLifecycle = false,
+    operationsScope = null,
     page = 0,
     pageSize = 50,
     orderBy = "created_at",
@@ -203,6 +207,7 @@ export async function fetchOrdersWithFilters(filters = {}) {
     dueWindow,
     from,
     to,
+    operationsScope,
     search,
   });
 
@@ -245,6 +250,7 @@ export async function fetchOrdersWithFilters(filters = {}) {
     dueWindow,
     from,
     to,
+    operationsScope,
     search,
   });
 

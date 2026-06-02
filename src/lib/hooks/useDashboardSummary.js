@@ -5,6 +5,7 @@ import { useOrdersSummary } from "./useOrders";
 import { ORDER_STATUS } from "@/lib/constants/orderStatus";
 import useDashboardKpis from "./useDashboardKpis";
 import { useCurrentUserAppContext } from "@/features/auth/useCurrentUserAppContext";
+import { getOperationsScopeForMode } from "@/lib/operations/operationsMode";
 
 export const REVIEWER_DASHBOARD_STATUSES = Object.freeze([
   ORDER_STATUS.IN_REVIEW,
@@ -107,7 +108,7 @@ export function deriveReviewerHybridAppraisalFilters({ appContext, userId } = {}
  * - high-level order stats (count, in-progress, due-in-7) from the view
  * - review stats (stubbed for now)
  */
-export function useDashboardSummary({ refreshKey = 0 } = {}) {
+export function useDashboardSummary({ operationsMode = null, refreshKey = 0 } = {}) {
   const { user, loading: userLoading } = useCurrentUser();
   const {
     context: appContext,
@@ -123,6 +124,7 @@ export function useDashboardSummary({ refreshKey = 0 } = {}) {
     isReviewer,
     isAppraiser,
   };
+  const operationsScope = getOperationsScopeForMode(operationsMode);
 
   // Build role-aware filters for both summary and table
   const tableFilters = useMemo(() => {
@@ -135,10 +137,16 @@ export function useDashboardSummary({ refreshKey = 0 } = {}) {
   const hasIdForRole =
     (!isAppraiser || Boolean(tableFilters.appraiserId || tableFilters.assignedAppraiserId)) &&
     (!isReviewer || Boolean(tableFilters.reviewerId));
-  const summary = useOrdersSummary(tableFilters, { enabled: hasIdForRole && !userLoading && !appContextLoading, scope: "dashboard", refreshKey });
+  const summary = useOrdersSummary(tableFilters, {
+    enabled: hasIdForRole && !userLoading && !appContextLoading,
+    scope: "dashboard",
+    operationsScope,
+    refreshKey,
+  });
   const reviewerHybridAppraisalSummary = useOrdersSummary(reviewerHybridAppraisalFilters || {}, {
     enabled: Boolean(reviewerHybridAppraisalFilters) && !userLoading && !appContextLoading,
     scope: "dashboard",
+    operationsScope,
     refreshKey,
   });
   const kpis = useDashboardKpis(
@@ -149,6 +157,7 @@ export function useDashboardSummary({ refreshKey = 0 } = {}) {
       clientId: role === "client" ? (user?.client_id || user?.managing_amc_id || null) : null,
       managingAmcId: role === "client" ? user?.managing_amc_id || null : null,
       statusIn: tableFilters.statusIn || [],
+      operationsScope,
     },
     { enabled: hasIdForRole && !userLoading && !appContextLoading }
   );
@@ -158,6 +167,7 @@ export function useDashboardSummary({ refreshKey = 0 } = {}) {
     userId: publicUserId,
     appContext,
     appContextError,
+    operationsScope,
     ...caps,
     loading:
       userLoading ||

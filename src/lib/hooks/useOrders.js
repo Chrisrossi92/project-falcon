@@ -53,7 +53,13 @@ async function mapOperationalOrderRows(rows = []) {
  * Filters are sent to the API; paging/sorting happen server-side.
  */
 export function useOrders(initialSeed = {}, options = {}) {
-  const { mode = null, reviewerId = null, scope = null, enabled = true } = options || {};
+  const {
+    mode = null,
+    reviewerId = null,
+    scope = null,
+    operationsScope = null,
+    enabled = true,
+  } = options || {};
   const seed = useMemo(
     () => ({ ...DEFAULT_FILTERS, ...(initialSeed || {}) }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -103,6 +109,7 @@ export function useOrders(initialSeed = {}, options = {}) {
           ascending: filters.ascending ?? false,
           mode,
           scope,
+          operationsScope,
         });
 
         if (cancelled) return;
@@ -130,7 +137,7 @@ export function useOrders(initialSeed = {}, options = {}) {
     return () => {
       cancelled = true;
     };
-  }, [JSON.stringify(filters), enabled, mode, reviewerId, scope]);
+  }, [JSON.stringify(filters), enabled, mode, operationsScope, reviewerId, scope]);
 
   return {
     data,
@@ -150,7 +157,10 @@ export function useOrders(initialSeed = {}, options = {}) {
  * - inProgress: status === in_progress
  * - dueIn7: final_due_at/due_date within next 7 days (>= today)
  */
-export function useOrdersSummary(filters = {}, { enabled = true, scope = null, refreshKey = 0 } = {}) {
+export function useOrdersSummary(
+  filters = {},
+  { enabled = true, scope = null, operationsScope = null, refreshKey = 0 } = {},
+) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [rows, setRows] = useState([]);
@@ -178,6 +188,7 @@ export function useOrdersSummary(filters = {}, { enabled = true, scope = null, r
           orderBy: filters.orderBy || "order_number",
           ascending: filters.ascending ?? false,
           scope,
+          operationsScope,
         });
         if (fetchErr) throw fetchErr;
         if (cancelled) return;
@@ -200,7 +211,7 @@ export function useOrdersSummary(filters = {}, { enabled = true, scope = null, r
     return () => {
       cancelled = true;
     };
-  }, [enabled, JSON.stringify(filters), refreshKey]);
+  }, [enabled, JSON.stringify(filters), operationsScope, refreshKey, scope]);
 
   const inProgress = rows.filter((o) => o.status_normalized === ORDER_STATUS.IN_PROGRESS).length;
 

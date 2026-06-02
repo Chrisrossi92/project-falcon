@@ -930,6 +930,7 @@ describe("getOrder archived readback", () => {
     expect(supabaseMock.from).toHaveBeenCalledWith("v_orders_frontend_v4");
     expect(supabaseMock.from).toHaveBeenCalledWith("orders");
     expect(viewSelect.mock.calls[0][0]).toContain("is_archived");
+    expect(viewSelect.mock.calls[0][0]).toContain("operations_scope");
     expect(viewEq).toHaveBeenCalledWith("id", "order-1");
     expect(ordersEq).toHaveBeenCalledWith("id", "order-1");
   });

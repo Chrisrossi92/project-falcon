@@ -19,6 +19,9 @@ const shellProfileState = vi.hoisted(() => ({
     isPresentationOnly: true,
   },
 }));
+const operationsModeState = vi.hoisted(() => ({
+  operationsMode: "internal_operations",
+}));
 
 vi.mock("@/components/orders/NewOrderButton", () => ({
   default: () => <a href="/orders/new">New Order</a>,
@@ -78,6 +81,10 @@ vi.mock("@/lib/shell/useShellProfile", () => ({
   useShellProfile: () => shellProfileState.exposure,
 }));
 
+vi.mock("@/lib/operations/OperationsModeProvider", () => ({
+  useOperationsMode: () => operationsModeState,
+}));
+
 function renderPage(initialEntries = ["/orders"]) {
   return render(
     <MemoryRouter
@@ -96,6 +103,7 @@ describe("OrdersPage historical access", () => {
       metadataAuthority: "presentation_only",
       isPresentationOnly: true,
     };
+    operationsModeState.operationsMode = "internal_operations";
     useOrdersSummaryMock.mockReturnValue({
       rows: [],
       count: 0,
@@ -145,8 +153,28 @@ describe("OrdersPage historical access", () => {
           queueId: "",
         }),
         rowsOverride: null,
+        operationsScope: "internal_operations",
         tableLabel: "Orders",
         tableSummary: "Company order records.",
+      }),
+    );
+  });
+
+  it("passes AMC operations scope to the order list and queue summary in AMC mode", () => {
+    operationsModeState.operationsMode = "amc_operations";
+
+    renderPage(["/orders?queue=unassigned_orders"]);
+
+    expect(useOrdersSummaryMock).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({
+        scope: "orders",
+        operationsScope: "amc_operations",
+      }),
+    );
+    expect(tableMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        operationsScope: "amc_operations",
       }),
     );
   });

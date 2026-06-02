@@ -10,6 +10,8 @@ import { OPERATIONAL_QUEUE_DEFINITIONS } from "@/features/queues/queueDefinition
 import { orderHasQueue } from "@/features/queues/queueEvaluator";
 import { getQueueSummaryById, summarizeOperationalQueues } from "@/features/queues/queueSummary";
 import { useOrdersSummary } from "@/lib/hooks/useOrders";
+import { useOperationsMode } from "@/lib/operations/OperationsModeProvider";
+import { getOperationsScopeForMode } from "@/lib/operations/operationsMode";
 import { useShellProfile } from "@/lib/shell/useShellProfile";
 import { getShellWorkModeCue } from "@/lib/shell/shellWorkMode";
 import {
@@ -463,6 +465,8 @@ function SavedViewsPanel({ filters, onApply }) {
 export default function OrdersPage() {
   const navigate = useNavigate();
   const qs = useQuery();
+  const { operationsMode } = useOperationsMode();
+  const operationsScope = getOperationsScopeForMode(operationsMode);
   const shellProfilePresentation = useShellProfile();
   const shellWorkMode = getShellWorkModeCue(shellProfilePresentation);
   const currentUserId = shellProfilePresentation?.appContext?.user_id || "";
@@ -492,6 +496,7 @@ export default function OrdersPage() {
   const queueSource = useOrdersSummary(queueSourceFilters, {
     enabled: Boolean(queueId),
     scope: "orders",
+    operationsScope,
   });
   const queueRows = useMemo(() => {
     if (!queueId) return null;
@@ -611,6 +616,7 @@ export default function OrdersPage() {
           ps: filters.pageSize,
         })}
         filters={tableFilters}
+        operationsScope={operationsScope}
         pageSize={filters.pageSize || 15}
         rowsOverride={queueId ? queueRows || [] : null}
         activeQueue={activeQueue}
