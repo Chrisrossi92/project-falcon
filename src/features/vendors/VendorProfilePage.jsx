@@ -185,6 +185,16 @@ function DetailCard({ title, children }) {
   );
 }
 
+function SummaryCard({ label, value, detail }) {
+  return (
+    <div className="rounded-md border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
+      <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">{label}</div>
+      <div className="mt-1.5 text-lg font-semibold text-slate-950">{value}</div>
+      {detail ? <div className="mt-1 text-xs text-slate-500">{detail}</div> : null}
+    </div>
+  );
+}
+
 const EMPTY_CONTACT_FORM = Object.freeze({
   name: "",
   email: "",
@@ -1075,6 +1085,31 @@ function groupCoverageAreas(serviceAreas = []) {
   }));
 }
 
+function buildVendorProfileSummary(profile, contacts = [], serviceAreas = []) {
+  const safeContacts = Array.isArray(contacts) ? contacts : [];
+  const safeServiceAreas = Array.isArray(serviceAreas) ? serviceAreas : [];
+  const coverageGroups = groupCoverageAreas(safeServiceAreas);
+  const products = new Set(safeServiceAreas.map((area) => area.product_type).filter(Boolean));
+  const primaryContact = safeContacts.find((contact) => contact?.is_primary === true);
+
+  return {
+    status: formatStatus(profile?.vendor_status),
+    contacts: {
+      value: String(safeContacts.length),
+      detail: primaryContact ? "Primary listed" : "No primary contact",
+    },
+    coverage: {
+      value: `${coverageGroups.length} ${coverageGroups.length === 1 ? "Region" : "Regions"}`,
+      detail: safeServiceAreas.length === 0 ? "No coverage listed" : `${safeServiceAreas.length} coverage ${safeServiceAreas.length === 1 ? "entry" : "entries"}`,
+    },
+    products: {
+      value: `${products.size} ${products.size === 1 ? "Product" : "Products"}`,
+      detail: products.size === 0 ? "No products listed" : "From coverage",
+    },
+    network: profile?.relationship_status ? formatStatus(profile.relationship_status) : "Staged",
+  };
+}
+
 function ServiceAreasList({ serviceAreas, canManage = false, onEditServiceArea }) {
   const safeServiceAreas = Array.isArray(serviceAreas) ? serviceAreas : [];
   const [expandedGroups, setExpandedGroups] = useState(() => new Set());
@@ -1222,6 +1257,10 @@ export default function VendorProfilePage() {
   }, [loadProfile]);
 
   const tags = useMemo(() => (Array.isArray(profile?.tags) ? profile.tags.filter(Boolean) : []), [profile]);
+  const profileSummary = useMemo(
+    () => buildVendorProfileSummary(profile, contacts, serviceAreas),
+    [profile, contacts, serviceAreas],
+  );
 
   const openAddContact = () => {
     setEditingContact(null);
@@ -1291,6 +1330,14 @@ export default function VendorProfilePage() {
         </div>
       </div>
 
+      <section aria-label="Vendor summary" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <SummaryCard label="Status" value={profileSummary.status} />
+        <SummaryCard label="Contacts" value={profileSummary.contacts.value} detail={profileSummary.contacts.detail} />
+        <SummaryCard label="Coverage" value={profileSummary.coverage.value} detail={profileSummary.coverage.detail} />
+        <SummaryCard label="Products" value={profileSummary.products.value} detail={profileSummary.products.detail} />
+        <SummaryCard label="Network" value={profileSummary.network} />
+      </section>
+
       <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="grid gap-4">
           <DetailCard title="Profile">
@@ -1308,23 +1355,6 @@ export default function VendorProfilePage() {
                 <dd className="mt-1">{formatAddress(profile.primary_address)}</dd>
               </div>
             </dl>
-          </DetailCard>
-
-          <DetailCard title="Operational Notes">
-            <div className="grid gap-4">
-              <div>
-                <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Default coordination instructions</div>
-                <div className="mt-1 whitespace-pre-wrap">{profile.default_assignment_instructions || "No default instructions listed."}</div>
-              </div>
-              <div>
-                <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Capabilities</div>
-                <div className="mt-1">{renderMetadataSummary(profile.capabilities, VENDOR_CAPABILITY_LABELS)}</div>
-              </div>
-              <div>
-                <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Product eligibility</div>
-                <div className="mt-1">{renderMetadataSummary(profile.product_eligibility, VENDOR_PRODUCT_TYPE_LABELS)}</div>
-              </div>
-            </div>
           </DetailCard>
 
           <DetailCard title="Contacts">
@@ -1349,21 +1379,6 @@ export default function VendorProfilePage() {
         </div>
 
         <div className="grid gap-4 content-start">
-          <DetailCard title="Tags and Notes">
-            {tags.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {tags.map((tag) => (
-                  <span key={tag} className="rounded-full bg-slate-50 px-2 py-1 text-xs font-medium text-slate-500">
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <div>No tags listed.</div>
-            )}
-            <div className="mt-4 whitespace-pre-wrap">{profile.internal_notes || "No internal notes listed."}</div>
-          </DetailCard>
-
           <DetailCard title="Coverage">
             {canManageServiceAreas.allowed && (
               <div className="mb-3 flex flex-wrap gap-2">
@@ -1390,6 +1405,38 @@ export default function VendorProfilePage() {
               canManage={canManageServiceAreas.allowed}
               onEditServiceArea={openEditServiceArea}
             />
+          </DetailCard>
+
+          <DetailCard title="Tags and Notes">
+            {tags.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {tags.map((tag) => (
+                  <span key={tag} className="rounded-full bg-slate-50 px-2 py-1 text-xs font-medium text-slate-500">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <div>No tags listed.</div>
+            )}
+            <div className="mt-4 whitespace-pre-wrap">{profile.internal_notes || "No internal notes listed."}</div>
+          </DetailCard>
+
+          <DetailCard title="Operational Notes">
+            <div className="grid gap-3">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Default coordination instructions</div>
+                <div className="mt-1 whitespace-pre-wrap">{profile.default_assignment_instructions || "No default instructions listed."}</div>
+              </div>
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Capabilities</div>
+                <div className="mt-1">{renderMetadataSummary(profile.capabilities, VENDOR_CAPABILITY_LABELS)}</div>
+              </div>
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Product eligibility</div>
+                <div className="mt-1">{renderMetadataSummary(profile.product_eligibility, VENDOR_PRODUCT_TYPE_LABELS)}</div>
+              </div>
+            </div>
           </DetailCard>
         </div>
       </div>

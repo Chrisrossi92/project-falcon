@@ -283,6 +283,24 @@ The frontend still sends backend-compatible JSON objects to `updateVendorProfile
 
 AMC-3F.3 does not change backend RPC behavior, schema/RLS, permissions, route/navigation exposure, assignment behavior, order behavior, future Orders/Bid History/Performance/Compliance/Financial modules, raw relationship/assignment UX exposure, or `/amc/*` routes.
 
+## AMC-4A Vendor Profile Summary Cards
+
+AMC-4A adds a compact Vendor Profile summary strip below the Vendor Profile header.
+
+The summary uses data already loaded by the page and does not introduce new API calls. Current cards show owner-friendly at-a-glance values for Status, Contacts, Coverage, Products, and Network. Contacts summarize total contacts and primary-contact presence. Coverage summarizes grouped coverage regions. Products summarizes distinct covered product types from existing coverage rows. Network shows the current network status or Staged when no relationship status is present.
+
+Future Orders, Bid History, Performance Metrics / Scores, Compliance, and Financial Terms cards remain deferred until those modules exist.
+
+AMC-4A does not change backend RPC/API behavior, schema/RLS, permissions, route/navigation exposure, assignment behavior, order behavior, vendor roles, future Orders/Bid History/Performance/Compliance/Financial modules, raw relationship/assignment UX exposure, or `/amc/*` routes.
+
+## AMC-4B Vendor Profile Layout Polish
+
+AMC-4B improves Vendor Profile visual hierarchy after the summary cards were added.
+
+The header and summary strip are tightened into a more cohesive first scan. Profile and Contacts remain the primary left-column content, Coverage stays prominent in the right column, and Tags/Notes plus Operational Notes are visually secondary so sparse metadata does not dominate the page. The layout remains responsive and uses existing loaded profile, contact, and coverage data only.
+
+AMC-4B does not add Orders, Bid History, Performance Metrics / Scores, Compliance, Financial Terms, assignment behavior, backend RPC/API behavior, schema/RLS, permissions, route/navigation exposure, order behavior, vendor roles, raw relationship/assignment UX exposure, or `/amc/*` routes.
+
 ## Framework Reuse Doctrine
 
 Vendor Directory records should build on the existing company framework wherever possible:
