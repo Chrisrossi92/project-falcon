@@ -524,9 +524,11 @@ function BidRequestCard({
 export default function BidRequestsPanel({
   orderId,
   enabled = true,
+  hasActiveVendorAssignment = false,
   canRecordResponses = false,
   canSelectResponses = false,
   refreshToken = 0,
+  onBidRequestsChange,
   className = "",
 }) {
   const [requests, setRequests] = useState([]);
@@ -542,7 +544,9 @@ export default function BidRequestsPanel({
 
     try {
       const rows = await listOrderVendorBidRequests(orderId);
-      setRequests(Array.isArray(rows) ? rows : []);
+      const nextRequests = Array.isArray(rows) ? rows : [];
+      setRequests(nextRequests);
+      onBidRequestsChange?.(nextRequests);
     } catch (loadError) {
       if (import.meta.env.DEV || import.meta.env.MODE === "test") {
         console.warn("[BidRequestsPanel] bid request load failed", {
@@ -553,11 +557,12 @@ export default function BidRequestsPanel({
         });
       }
       setRequests([]);
+      onBidRequestsChange?.([]);
       setError(loadError);
     } finally {
       setLoading(false);
     }
-  }, [enabled, orderId]);
+  }, [enabled, onBidRequestsChange, orderId]);
 
   useEffect(() => {
     if (!enabled || !orderId) return;
@@ -624,6 +629,11 @@ export default function BidRequestsPanel({
           <p className="mt-1 leading-6">
             No vendor bid outreach has been recorded for this order.
           </p>
+          {hasActiveVendorAssignment && (
+            <p className="mt-1 leading-6">
+              No bid requests were recorded before this assignment.
+            </p>
+          )}
         </div>
       )}
 

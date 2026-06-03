@@ -692,6 +692,55 @@ AMC-6T adds bid response selection in the Bid Requests panel for users with `bid
 
 AMC-6U proposes selected-bid conversion into the canonical assignment packet lifecycle. The conversion action should live on the selected response in the Bid Requests panel as `Create assignment offer` or `Offer assignment from selected bid`. Conversion should map the selected recipient/vendor relationship plus response fee, currency, turn time, proposed due date, bid request id, recipient id, response id, and selected bid snapshot into `offerOrderToVendor(...)` / `rpc_order_company_assignment_offer(...)`. The safer implementation path is a backend selected-bid conversion wrapper that loads the selected response server-side, verifies AMC order scope, selected status, no active vendor assignment, assignment-offer authority, active `amc_vendor` relationship, and vendor profile eligibility, then creates the assignment offer through the existing guarded assignment packet path. After success, the assignment packet becomes canonical, active assignment state refreshes, Bid Requests remains historical, and no further responses should be accepted for the closed request. This is docs/proposal only and does not create UI, RPCs, assignments, notifications, backend/schema changes, route/nav changes, or `/amc/*` routes.
 
+AMC-6V.2 proposes a compact AMC order-level bid status summary without implementation. The summary should describe procurement/outreach state separately from the appraisal lifecycle status. It should answer whether the order has not been sent for bid, is out for bid, has responses, has a selected bid, has an assignment offer, is assigned, has no viable bids because outreach expired, or has cancelled bid outreach.
+
+Recommended MVP status labels:
+
+- `Not sent for bid`: no bid request rows and no active vendor assignment.
+- `Out for bid`: at least one open request has pending/sent/viewed recipients and no selected response.
+- `Bids received`: at least one response exists, no selected response, and outreach is still open or partially responded.
+- `Bid selected`: a selected response exists, but no assignment offer has been created from it yet.
+- `Assignment offered`: an active `vendor_appraisal` assignment packet exists in `offered` status.
+- `Assigned`: an active `vendor_appraisal` assignment packet exists in `accepted`, `in_progress`, or `submitted` status.
+- `No bids / expired`: the latest bid request is expired or closed with no responses or no selected response.
+- `Cancelled`: all relevant bid request outreach for the order was cancelled and no active assignment exists.
+
+These labels should be derived for MVP from bid request rows, recipient statuses, selected responses, and active assignment packet state. They should not be stored directly on `orders` unless later reporting or performance requirements prove that a materialized summary is needed. Derived state prevents drift between bid request history, selected response state, and canonical `order_company_assignments` lifecycle.
+
+The summary should show useful operational facts when available:
+
+- number of vendors contacted
+- number of vendors responded
+- lowest fee
+- fastest turn time or earliest proposed due date
+- selected vendor
+- bid response deadline
+- client due date from the request/order
+- assignment status if an assignment packet exists
+
+Recommended surfaces:
+
+- Order Detail top summary card, near lane/status/date context.
+- Orders list compact AMC bid/procurement status chip.
+- AMC dashboard procurement queue later.
+
+This status must not replace the existing order/appraisal lifecycle status. It is a separate AMC procurement/bid status that helps operators understand vendor outreach and selection at a glance.
+
+Recommended implementation slices:
+
+1. AMC-6V.3: derive helper/util from bid request list data plus active assignment state.
+2. AMC-6V.4: compact Bid Status card on Order Detail.
+3. AMC-6V.5: Orders list AMC bid status chip proposal and batched read-model recommendation.
+4. AMC-6V.6: AMC dashboard procurement queue.
+
+AMC-6V.2 is docs/proposal only. It does not add runtime code, stored order fields, migrations, RPCs, UI, route/nav changes, assignment behavior changes, notifications, order mutations, or `/amc/*` routes.
+
+AMC-6V.3 implements the pure frontend derivation helper only. `deriveOrderBidStatus({ bidRequests, activeVendorAssignment })` maps already-loaded bid request rows and active vendor assignment state into status, label, counts, selected vendor, lowest fee, fastest turn time, earliest proposed due date, response due date, client due date, assignment status, and display tone. Assignment offer/assigned state takes precedence over bid outreach state; selected bids take precedence over open/terminal outreach. This slice adds no UI, API calls, backend/schema changes, route/nav changes, assignment behavior changes, order mutations, notifications, or `/amc/*` routes.
+
+AMC-6V.4 adds the first read-only Order Detail bid status summary card for AMC-scoped orders. The card appears only in AMC Operations mode, only for `amc_operations` orders, and only when the user has `bid_requests.read`. It reuses bid request rows loaded by the Bid Requests panel, so no second bid request API call is introduced. The card shows procurement status, contacted/responded counts, lowest fee, fastest turn time or earliest proposed due date, selected vendor, response/client due dates, and assignment status when applicable. It adds no write controls and does not create bids, record/select responses, create assignments, mutate orders, change backend/schema/routes/nav, send notifications, or create `/amc/*` routes.
+
+AMC-6V.5 proposes the Orders list AMC bid status chip but recommends deferring the chip until a lightweight batched read model exists. The Orders list currently reads order rows from the frontend order views and should not fetch bid request history per row. The future list chip should be compact and limited to `Not sent for bid`, `Out for bid`, `Bids received`, `Bid selected`, `Assignment offered`, and `Assigned`. It should be backed by a server-side projection such as `rpc_amc_order_procurement_summaries(order_ids uuid[])`, derived from bid requests, recipients, responses, selected response state, and active `vendor_appraisal` assignment packets. Client-side per-order bid fetches are rejected for MVP because they create N+1 queries, stale derivation risk, and performance issues. This slice is docs/proposal only and adds no runtime code, UI, API calls, migrations, RPCs, backend/schema changes, order mutations, route/nav changes, assignment behavior changes, notifications, stored order status, or `/amc/*` routes.
+
 ## Delivery State
 
 Delivery state may include:

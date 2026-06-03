@@ -141,13 +141,15 @@ describe("VendorAssignmentCandidatesPanel", () => {
       />,
     );
 
+    expect(screen.getByText("Vendor assignment already active")).toBeInTheDocument();
     expect(
-      screen.getByText("This order already has an active vendor offer or assignment."),
+      screen.getByText("This order already has an active vendor offer or assignment, so new bid requests and direct awards are disabled."),
     ).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "ABC Valuation" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /offer assignment/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /bid/i })).toBeNull();
     expect(screen.getByRole("checkbox", { name: /select abc valuation for bid request/i })).toBeDisabled();
+    expect(screen.getAllByText("Vendor assignment already active")).toHaveLength(1);
   });
 
   it("shows Offer Assignment for an eligible candidate with no active vendor assignment", async () => {
@@ -397,9 +399,13 @@ describe("VendorAssignmentCandidatesPanel", () => {
 
     expect(checkbox).toBeDisabled();
     expect(screen.getByRole("button", { name: "Select all eligible" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Request bids" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Offer Assignment" })).toBeNull();
+    expect(screen.getAllByText("Vendor assignment already active")).toHaveLength(1);
     expect(
-      screen.getAllByText("This order already has an active vendor offer or assignment.").length,
-    ).toBeGreaterThanOrEqual(1);
+      screen.queryByText("This order already has an active vendor offer or assignment."),
+    ).toBeNull();
+    expect(screen.getByText("Selection disabled while a vendor assignment is active.")).toBeInTheDocument();
     expect(bidApiState.createOrderVendorBidRequest).not.toHaveBeenCalled();
   });
 

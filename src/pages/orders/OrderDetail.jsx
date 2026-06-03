@@ -33,6 +33,7 @@ import { listOwnerAssignmentsForOrder } from "@/features/assignments/api";
 import OfferAssignmentModal from "@/features/assignments/components/OfferAssignmentModal";
 import OwnerOrderAssignmentsPanel from "@/features/assignments/components/OwnerOrderAssignmentsPanel";
 import BidRequestsPanel from "@/features/bids/components/BidRequestsPanel";
+import { deriveOrderBidStatus } from "@/features/bids/bidStatus";
 import OrderPrintPacket from "@/features/orders/print/OrderPrintPacket";
 import VendorAssignmentCandidatesPanel from "@/features/vendors/components/VendorAssignmentCandidatesPanel";
 import {
@@ -131,6 +132,13 @@ const ACTIVE_VENDOR_ASSIGNMENT_STATUSES = new Set([
   "in_progress",
   "submitted",
 ]);
+const BID_STATUS_TONE_CLASSES = Object.freeze({
+  neutral: "border-slate-200 bg-slate-50 text-slate-700",
+  info: "border-sky-200 bg-sky-50 text-sky-800",
+  success: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  warning: "border-amber-200 bg-amber-50 text-amber-900",
+  muted: "border-slate-200 bg-slate-100 text-slate-600",
+});
 const categoryLabel = (value) =>
   String(value || "")
     .split("_")
@@ -205,6 +213,56 @@ function OverviewSection({ title, children, className = "" }) {
       </div>
       <div className="grid gap-3 sm:grid-cols-2">{children}</div>
     </WorkspaceSurface>
+  );
+}
+
+function BidStatusSummaryCard({ summary }) {
+  if (!summary) return null;
+
+  const toneClass = BID_STATUS_TONE_CLASSES[summary.tone] || BID_STATUS_TONE_CLASSES.neutral;
+  const turnTimeValue = summary.fastestTurnTimeDays != null
+    ? `${summary.fastestTurnTimeDays} day${Number(summary.fastestTurnTimeDays) === 1 ? "" : "s"}`
+    : formatOperationalDate(summary.earliestProposedDueAt);
+
+  return (
+    <section
+      aria-label="AMC bid status"
+      className="mt-4 rounded-md border border-slate-200 bg-white p-3 shadow-sm"
+    >
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div className="min-w-0">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+            AMC bid status
+          </div>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <span className={`inline-flex rounded-full border px-2 py-1 text-xs font-semibold ${toneClass}`}>
+              {summary.label}
+            </span>
+            <span className="text-sm text-slate-500">
+              {summary.contactedCount} contacted / {summary.respondedCount} responded
+            </span>
+          </div>
+        </div>
+        {summary.assignmentStatus && (
+          <div className="text-left md:text-right">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              Assignment status
+            </div>
+            <div className="mt-1 text-sm font-semibold text-slate-800">
+              {categoryLabel(summary.assignmentStatus)}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <SummaryField label="Lowest Fee" value={summary.lowestFee != null ? money(summary.lowestFee) : "-"} />
+        <SummaryField label="Fastest Turn" value={turnTimeValue || "-"} />
+        <SummaryField label="Selected Vendor" value={summary.selectedVendorName || "-"} />
+        <SummaryField label="Response Deadline" value={formatOperationalDate(summary.responseDueAt)} />
+        <SummaryField label="Client Due" value={formatOperationalDate(summary.clientDueAt)} />
+      </div>
+    </section>
   );
 }
 
@@ -570,6 +628,7 @@ export default function OrderDetail() {
   const [ownerAssignments, setOwnerAssignments] = useState([]);
   const [ownerAssignmentsLoading, setOwnerAssignmentsLoading] = useState(false);
   const [ownerAssignmentsError, setOwnerAssignmentsError] = useState(null);
+  const [bidRequestRows, setBidRequestRows] = useState([]);
   const [bidRequestsRefreshToken, setBidRequestsRefreshToken] = useState(0);
   const {
     inputs: operationalInputs,
@@ -692,6 +751,13 @@ export default function OrderDetail() {
       ) || null,
     [ownerAssignments],
   );
+  const bidStatusSummary = useMemo(
+    () => deriveOrderBidStatus({
+      bidRequests: bidRequestRows,
+      activeVendorAssignment,
+    }),
+    [activeVendorAssignment, bidRequestRows],
+  );
   const lifecycleCopy = lifecycleAction ? LIFECYCLE_ACTION_COPY[lifecycleAction] : null;
   const lifecycleReasonTrimmed = lifecycleReason.trim();
   const lifecycleHistoryNotice =
@@ -731,6 +797,16 @@ export default function OrderDetail() {
   useEffect(() => {
     loadOwnerAssignments();
   }, [loadOwnerAssignments]);
+
+  useEffect(() => {
+    if (!showBidRequestsPanel) {
+      setBidRequestRows([]);
+    }
+  }, [order?.id, showBidRequestsPanel]);
+
+  const handleBidRequestsChange = React.useCallback((rows) => {
+    setBidRequestRows(Array.isArray(rows) ? rows : []);
+  }, []);
 
   async function handleArchiveOrder() {
     if (!order?.id || archiveSubmitting) return;
@@ -887,6 +963,9 @@ export default function OrderDetail() {
             <div className="font-semibold">{lifecycleHistoryNotice.title}</div>
             <div className="mt-1">{lifecycleHistoryNotice.notice}</div>
           </div>
+        )}
+        {showBidRequestsPanel && (
+          <BidStatusSummaryCard summary={bidStatusSummary} />
         )}
         {showDerivedContextSurfaces && (
           <OrderAttentionSummaryPanel
@@ -1066,9 +1145,11 @@ export default function OrderDetail() {
           <BidRequestsPanel
             orderId={order.id}
             enabled={showBidRequestsPanel}
+            hasActiveVendorAssignment={Boolean(activeVendorAssignment)}
             canRecordResponses={canRecordBidResponses}
             canSelectResponses={canSelectBidResponses}
             refreshToken={bidRequestsRefreshToken}
+            onBidRequestsChange={handleBidRequestsChange}
           />
         )}
 

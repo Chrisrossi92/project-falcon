@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
+import { useEffect } from "react";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -18,6 +19,7 @@ const clearOrderOperationalInputMock = vi.hoisted(() => vi.fn());
 const operationalInputsMock = vi.hoisted(() => []);
 const refreshOperationalInputsMock = vi.hoisted(() => vi.fn());
 const permissionKeysMock = vi.hoisted(() => []);
+const bidRequestsPanelRowsMock = vi.hoisted(() => []);
 const operationsModeMock = vi.hoisted(() => ({
   operationsMode: "internal_operations",
 }));
@@ -172,18 +174,35 @@ vi.mock("@/features/assignments/components/OwnerOrderAssignmentsPanel", () => ({
 }));
 
 vi.mock("@/features/bids/components/BidRequestsPanel", () => ({
-  default: ({ orderId, enabled, canRecordResponses, canSelectResponses, refreshToken }) => (
-    <section
-      aria-label="Bid requests"
-      data-enabled={String(enabled)}
-      data-order-id={orderId}
-      data-can-record-responses={String(Boolean(canRecordResponses))}
-      data-can-select-responses={String(Boolean(canSelectResponses))}
-      data-refresh-token={String(refreshToken)}
-    >
-      <div>Bid requests</div>
-    </section>
-  ),
+  default: function MockBidRequestsPanel({
+    orderId,
+    enabled,
+    hasActiveVendorAssignment,
+    canRecordResponses,
+    canSelectResponses,
+    refreshToken,
+    onBidRequestsChange,
+  }) {
+    useEffect(() => {
+      if (enabled) {
+        onBidRequestsChange?.(bidRequestsPanelRowsMock);
+      }
+    }, [enabled, onBidRequestsChange, refreshToken]);
+
+    return (
+      <section
+        aria-label="Bid requests"
+        data-enabled={String(enabled)}
+        data-order-id={orderId}
+        data-has-active-vendor-assignment={String(Boolean(hasActiveVendorAssignment))}
+        data-can-record-responses={String(Boolean(canRecordResponses))}
+        data-can-select-responses={String(Boolean(canSelectResponses))}
+        data-refresh-token={String(refreshToken)}
+      >
+        <div>Bid requests</div>
+      </section>
+    );
+  },
 }));
 
 vi.mock("@/features/vendors/components/VendorAssignmentCandidatesPanel", () => ({
@@ -206,7 +225,10 @@ vi.mock("@/features/vendors/components/VendorAssignmentCandidatesPanel", () => (
     >
       <div>Suggested vendors</div>
       {activeVendorAssignment && (
-        <div>This order already has an active vendor offer or assignment.</div>
+        <div>
+          <div>Vendor assignment already active</div>
+          <div>This order already has an active vendor offer or assignment, so new bid requests and direct awards are disabled.</div>
+        </div>
       )}
       {canOfferAssignment && (
         <button type="button" onClick={() => onOfferSuccess?.("assignment-new")}>
@@ -288,6 +310,7 @@ describe("OrderDetail site visit save", () => {
       "documents.delete",
       "documents.upload.all",
     );
+    bidRequestsPanelRowsMock.splice(0, bidRequestsPanelRowsMock.length);
     operationsModeMock.operationsMode = "internal_operations";
     Object.assign(shellProfileMock, {
       profileId: "operations",
@@ -641,6 +664,7 @@ describe("OrderDetail site visit save", () => {
     const bidRequests = screen.getByLabelText("Bid requests");
     expect(bidRequests).toHaveAttribute("data-order-id", "order-1");
     expect(bidRequests).toHaveAttribute("data-enabled", "true");
+    expect(bidRequests).toHaveAttribute("data-has-active-vendor-assignment", "false");
     expect(bidRequests).toHaveAttribute("data-can-record-responses", "false");
     expect(bidRequests).toHaveAttribute("data-can-select-responses", "false");
     expect(within(bidRequests).getByText("Bid requests")).toBeInTheDocument();
@@ -648,6 +672,108 @@ describe("OrderDetail site visit save", () => {
     expect(screen.queryByRole("button", { name: /record response/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /select/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /offer assignment/i })).not.toBeInTheDocument();
+
+    const bidStatus = screen.getByLabelText("AMC bid status");
+    expect(within(bidStatus).getByText("Not sent for bid")).toBeInTheDocument();
+    expect(within(bidStatus).getByText("0 contacted / 0 responded")).toBeInTheDocument();
+    expect(within(bidStatus).queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("renders the AMC bid status summary from loaded bid request rows", async () => {
+    operationsModeMock.operationsMode = "amc_operations";
+    orderMock.operations_scope = "amc_operations";
+    permissionKeysMock.push("bid_requests.read");
+    bidRequestsPanelRowsMock.push({
+      bid_request_id: "bid-request-1",
+      status: "partially_responded",
+      response_due_at: "2026-06-03T20:00:00.000Z",
+      client_due_at: "2026-06-10T20:00:00.000Z",
+      created_at: "2026-06-02T15:00:00.000Z",
+      recipients: [
+        {
+          recipient_id: "recipient-1",
+          vendor_company_name: "Franklin Commercial Valuation",
+          status: "responded",
+          response: {
+            response_id: "response-1",
+            fee_amount: 1450,
+            proposed_due_at: "2026-06-08T20:00:00.000Z",
+            turn_time_days: 5,
+            submitted_at: "2026-06-02T16:00:00.000Z",
+          },
+        },
+        {
+          recipient_id: "recipient-2",
+          vendor_company_name: "Metro Valuation Group",
+          status: "responded",
+          response: {
+            response_id: "response-2",
+            fee_amount: 1250,
+            proposed_due_at: "2026-06-07T20:00:00.000Z",
+            turn_time_days: 4,
+            submitted_at: "2026-06-02T17:00:00.000Z",
+          },
+        },
+      ],
+    });
+
+    render(<OrderDetail />);
+
+    const bidStatus = screen.getByLabelText("AMC bid status");
+    expect(await within(bidStatus).findByText("Bids received")).toBeInTheDocument();
+    expect(within(bidStatus).getByText("2 contacted / 2 responded")).toBeInTheDocument();
+    expect(within(bidStatus).getByText("$1,250.00")).toBeInTheDocument();
+    expect(within(bidStatus).getByText("4 days")).toBeInTheDocument();
+    expect(within(bidStatus).queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("renders selected bid details in the AMC bid status summary", async () => {
+    operationsModeMock.operationsMode = "amc_operations";
+    orderMock.operations_scope = "amc_operations";
+    permissionKeysMock.push("bid_requests.read");
+    bidRequestsPanelRowsMock.push({
+      bid_request_id: "bid-request-1",
+      status: "closed",
+      recipients: [
+        {
+          recipient_id: "recipient-1",
+          vendor_company_name: "Franklin Commercial Valuation",
+          status: "selected",
+          response: {
+            response_id: "response-1",
+            fee_amount: 1450,
+            proposed_due_at: "2026-06-08T20:00:00.000Z",
+            turn_time_days: 5,
+            selected_at: "2026-06-02T18:00:00.000Z",
+          },
+        },
+      ],
+    });
+
+    render(<OrderDetail />);
+
+    const bidStatus = screen.getByLabelText("AMC bid status");
+    expect(await within(bidStatus).findByText("Bid selected")).toBeInTheDocument();
+    expect(within(bidStatus).getByText("Franklin Commercial Valuation")).toBeInTheDocument();
+  });
+
+  it("hides the AMC bid status summary outside bid-readable AMC order context", () => {
+    render(<OrderDetail />);
+    expect(screen.queryByLabelText("AMC bid status")).not.toBeInTheDocument();
+
+    cleanup();
+    operationsModeMock.operationsMode = "amc_operations";
+    orderMock.operations_scope = "internal_operations";
+    permissionKeysMock.push("bid_requests.read");
+    render(<OrderDetail />);
+    expect(screen.queryByLabelText("AMC bid status")).not.toBeInTheDocument();
+
+    cleanup();
+    operationsModeMock.operationsMode = "amc_operations";
+    orderMock.operations_scope = "amc_operations";
+    permissionKeysMock.splice(0, permissionKeysMock.length);
+    render(<OrderDetail />);
+    expect(screen.queryByLabelText("AMC bid status")).not.toBeInTheDocument();
   });
 
   it("passes bid response recording authority to bid requests when update access exists", () => {
@@ -723,7 +849,22 @@ describe("OrderDetail site visit save", () => {
   it("derives active vendor assignment state and passes it to vendor candidates", async () => {
     operationsModeMock.operationsMode = "amc_operations";
     orderMock.operations_scope = "amc_operations";
-    permissionKeysMock.push("vendors.read", "order_company_assignments.read_owner");
+    permissionKeysMock.push("vendors.read", "bid_requests.read", "order_company_assignments.read_owner");
+    bidRequestsPanelRowsMock.push({
+      bid_request_id: "bid-request-1",
+      status: "closed",
+      recipients: [
+        {
+          recipient_id: "recipient-1",
+          vendor_company_name: "Franklin Commercial Valuation",
+          status: "selected",
+          response: {
+            response_id: "response-1",
+            selected_at: "2026-06-02T18:00:00.000Z",
+          },
+        },
+      ],
+    });
     listOwnerAssignmentsForOrderMock.mockResolvedValue([
       {
         id: "assignment-1",
@@ -743,8 +884,13 @@ describe("OrderDetail site visit save", () => {
 
     const candidates = screen.getByLabelText("Vendor candidates");
     expect(candidates).toHaveAttribute("data-active-assignment-id", "assignment-1");
+    expect(screen.getByLabelText("Bid requests")).toHaveAttribute("data-has-active-vendor-assignment", "true");
+    const bidStatus = screen.getByLabelText("AMC bid status");
+    expect(within(bidStatus).getByText("Assignment offered")).toBeInTheDocument();
+    expect(within(bidStatus).getByText("Offered")).toBeInTheDocument();
+    expect(within(candidates).getByText("Vendor assignment already active")).toBeInTheDocument();
     expect(
-      within(candidates).getByText("This order already has an active vendor offer or assignment."),
+      within(candidates).getByText("This order already has an active vendor offer or assignment, so new bid requests and direct awards are disabled."),
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /offer assignment/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /bid/i })).not.toBeInTheDocument();

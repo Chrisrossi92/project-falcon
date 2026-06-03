@@ -115,7 +115,7 @@ function getCandidateBidSelectionBlocker({
   activeVendorAssignment = null,
 }) {
   if (!enabled) return "Vendor selection is unavailable right now.";
-  if (activeVendorAssignment) return "This order already has an active vendor offer or assignment.";
+  if (activeVendorAssignment) return "Selection disabled while a vendor assignment is active.";
   if (!candidate.vendor_profile_id) return "Vendor profile is required before this vendor can receive a bid request.";
   if (!candidate.vendor_company_id) return "Vendor company is required before this vendor can receive a bid request.";
   if (!candidate.relationship_id) return "Active vendor relationship is required before this vendor can receive a bid request.";
@@ -901,7 +901,10 @@ export default function VendorAssignmentCandidatesPanel({
           </p>
           {activeVendorAssignment && (
             <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-              This order already has an active vendor offer or assignment.
+              <div className="font-semibold">Vendor assignment already active</div>
+              <p className="mt-1">
+                This order already has an active vendor offer or assignment, so new bid requests and direct awards are disabled.
+              </p>
             </div>
           )}
         </div>

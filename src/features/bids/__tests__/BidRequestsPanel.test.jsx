@@ -89,8 +89,9 @@ describe("BidRequestsPanel", () => {
 
   it("loads and renders bid requests with recipient and response summaries", async () => {
     bidApiState.listOrderVendorBidRequests.mockResolvedValue(bidRequests);
+    const handleBidRequestsChange = vi.fn();
 
-    render(<BidRequestsPanel orderId="order-1" enabled />);
+    render(<BidRequestsPanel orderId="order-1" enabled onBidRequestsChange={handleBidRequestsChange} />);
 
     expect(screen.getByText("Bid requests")).toBeInTheDocument();
     expect(screen.getByText("Vendor fee and turn-time outreach for this order.")).toBeInTheDocument();
@@ -108,6 +109,7 @@ describe("BidRequestsPanel", () => {
     expect(screen.getByText("Available next week.")).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument();
     expect(screen.getByText("1")).toBeInTheDocument();
+    expect(handleBidRequestsChange).toHaveBeenCalledWith(bidRequests);
   });
 
   it("renders selected response details when present", async () => {
@@ -148,6 +150,17 @@ describe("BidRequestsPanel", () => {
 
     expect(await screen.findByText("No bid requests")).toBeInTheDocument();
     expect(screen.getByText("No vendor bid outreach has been recorded for this order.")).toBeInTheDocument();
+    expect(screen.queryByText("No bid requests were recorded before this assignment.")).toBeNull();
+  });
+
+  it("adds active assignment context to the empty bid request state", async () => {
+    bidApiState.listOrderVendorBidRequests.mockResolvedValue([]);
+
+    render(<BidRequestsPanel orderId="order-1" enabled hasActiveVendorAssignment />);
+
+    expect(await screen.findByText("No bid requests")).toBeInTheDocument();
+    expect(screen.getByText("No vendor bid outreach has been recorded for this order.")).toBeInTheDocument();
+    expect(screen.getByText("No bid requests were recorded before this assignment.")).toBeInTheDocument();
   });
 
   it("reloads bid requests when refresh token changes", async () => {
@@ -169,14 +182,16 @@ describe("BidRequestsPanel", () => {
 
   it("shows error state when bid requests fail to load", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const handleBidRequestsChange = vi.fn();
     bidApiState.listOrderVendorBidRequests.mockRejectedValue(
       Object.assign(new Error("denied"), { code: "42501" }),
     );
 
-    render(<BidRequestsPanel orderId="order-1" enabled />);
+    render(<BidRequestsPanel orderId="order-1" enabled onBidRequestsChange={handleBidRequestsChange} />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Bid requests could not load.");
     expect(screen.getByText("Review permissions and order details, then try again.")).toBeInTheDocument();
+    expect(handleBidRequestsChange).toHaveBeenCalledWith([]);
     warnSpy.mockRestore();
   });
 
