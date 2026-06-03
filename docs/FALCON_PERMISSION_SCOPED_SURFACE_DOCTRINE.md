@@ -10,6 +10,7 @@ Core doctrine:
 - role defines the default persona;
 - permissions define actual allowed actions;
 - module and product scope define which operational worlds the user can access;
+- workspace context defines the active operational world and must reset stale workspace state when changed;
 - owners control grants;
 - admin does not automatically imply AMC access;
 - the Internal Staff Appraiser Platform remains the Falcon v1 default;
@@ -63,6 +64,21 @@ create many one-off roles.
 Owner-protected role safeguards remain backend-authoritative. The UI may explain owner protection,
 but the database/RPC layer must continue to enforce owner-grant, owner-revoke, and last-owner
 invariants.
+
+## Workspace Context Doctrine
+
+Falcon is one platform with multiple role-native workspaces. Workspace doctrine is locked in
+`docs/FALCON_WORKSPACE_DOCTRINE_NAVIGATION_ARCHITECTURE.md`.
+
+Primary workspaces:
+
+- Internal Operations Workspace
+- AMC Operations Workspace
+- future Vendor Workspace
+
+Workspace switching is a context reset, not a table filter. When users switch between Internal Operations and AMC Operations, the runtime should clear workspace-specific filters, selections, queue state, and unsafe persisted detail context, then navigate to the target workspace dashboard and reload scoped data.
+
+This matters because permissions can authorize broad read access while workspace context still determines which operational lane is active. A user must not see an Internal Operations order inside AMC Operations because the route persisted across a mode switch.
 
 ## Internal Staff Operations Scope
 

@@ -144,6 +144,45 @@ describe('current shell mobile navigation links', () => {
     expect(paths(amcLinks).some((path) => path.startsWith('/amc'))).toBe(false);
   });
 
+  it('orders only visible AMC mobile links from the workspace definition', () => {
+    const amcVisibleLinks = getCurrentPrimaryNavLinks({
+      canReadVendors: true,
+    }, {
+      operationsMode: OPERATIONS_MODES.AMC_OPERATIONS,
+    });
+    const amcLinks = getCurrentShellMobileNavigationLinks(
+      amcVisibleLinks,
+      SHELL_PROFILE_IDS.OPERATIONS,
+      { operationsMode: OPERATIONS_MODES.AMC_OPERATIONS },
+    );
+
+    expect(ids(amcLinks)).toEqual(['orders', 'calendar', 'vendors']);
+    expect(labels(amcLinks)).toEqual(['Orders', 'Calendar', 'Vendors']);
+    expect(ids(amcLinks)).not.toContain('dashboard');
+    expect(ids(amcLinks)).not.toContain('settings');
+    expect(ids(amcLinks)).not.toContain('clients.primary');
+  });
+
+  it('does not leak future workspace placeholders into AMC mobile ordering', () => {
+    const amcVisibleLinks = getCurrentPrimaryNavLinks({
+      canReadAllClients: true,
+      canReadVendors: true,
+    }, {
+      operationsMode: OPERATIONS_MODES.AMC_OPERATIONS,
+    });
+    const amcLinks = getCurrentShellMobileNavigationLinks(
+      amcVisibleLinks,
+      SHELL_PROFILE_IDS.OPERATIONS,
+      { operationsMode: OPERATIONS_MODES.AMC_OPERATIONS },
+    );
+    const serialized = JSON.stringify(amcLinks).toLowerCase();
+
+    expect(serialized).not.toContain('vendor.available_work');
+    expect(serialized).not.toContain('vendor.my_bids');
+    expect(serialized).not.toContain('client.orders');
+    expect(serialized).not.toContain('client.documents');
+  });
+
   it('falls back to current flat order for unknown, fallback, and future profiles', () => {
     [SHELL_PROFILE_IDS.UNAVAILABLE, SHELL_PROFILE_IDS.REQUESTS, 'unknown_profile'].forEach(
       (profileId) => {

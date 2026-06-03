@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { MemoryRouter, useLocation } from "react-router-dom";
+import { MemoryRouter, useLocation, useNavigationType } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -80,8 +80,15 @@ const { default: TopNav } = await import("../TopNav.jsx");
 
 function LocationProbe() {
   const location = useLocation();
+  const navigationType = useNavigationType();
 
-  return <span data-testid="current-path">{location.pathname}</span>;
+  return (
+    <>
+      <span data-testid="current-path">{location.pathname}</span>
+      <span data-testid="current-search">{location.search}</span>
+      <span data-testid="current-navigation-type">{navigationType}</span>
+    </>
+  );
 }
 
 const availableOperationsModesForTest = () => {
@@ -155,7 +162,7 @@ describe("TopNav desktop operational spine navigation", () => {
     );
   });
 
-  it("switches operations mode without navigating", () => {
+  it("switches Internal Operations to AMC Operations and resets order detail to the dashboard", () => {
     shellProfileState.appContext = { is_admin_role: true };
     permissionState.allowed = new Set([
       PERMISSIONS.CLIENTS_READ_ALL,
@@ -163,7 +170,7 @@ describe("TopNav desktop operational spine navigation", () => {
       PERMISSIONS.VENDORS_READ,
       PERMISSIONS.USERS_READ,
     ]);
-    const { container } = renderTopNav("/orders");
+    const { container } = renderTopNav("/orders/order-123");
     const desktopContext = container.querySelector('aside [data-testid="operations-mode-switcher"]');
 
     fireEvent.click(within(desktopContext).getByRole("button", { name: "AMC Operations" }));
@@ -179,7 +186,9 @@ describe("TopNav desktop operational spine navigation", () => {
       "AMC Operations",
     );
     expect(window.localStorage.getItem(OPERATIONS_MODE_STORAGE_KEY)).toBe("amc_operations");
-    expect(screen.getByTestId("current-path")).toHaveTextContent("/orders");
+    expect(screen.getByTestId("current-path")).toHaveTextContent("/dashboard");
+    expect(screen.getByTestId("current-search")).toHaveTextContent("");
+    expect(screen.getByTestId("current-navigation-type")).toHaveTextContent("REPLACE");
     expect(desktopLinks(container).map((link) => link.textContent)).toEqual([
       "Operations",
       "Orders",
@@ -187,6 +196,32 @@ describe("TopNav desktop operational spine navigation", () => {
       "Vendors",
       "Clients",
     ]);
+  });
+
+  it("switches AMC Operations to Internal Operations and resets order detail to the dashboard", () => {
+    shellProfileState.appContext = { is_owner: true };
+    permissionState.allowed = new Set([
+      PERMISSIONS.CLIENTS_READ_ALL,
+      PERMISSIONS.RELATIONSHIPS_READ,
+      PERMISSIONS.VENDORS_READ,
+    ]);
+    window.localStorage.setItem(OPERATIONS_MODE_STORAGE_KEY, "amc_operations");
+    const { container } = renderTopNav("/orders/amc-order-123");
+    const desktopContext = container.querySelector('aside [data-testid="operations-mode-switcher"]');
+
+    fireEvent.click(within(desktopContext).getByRole("button", { name: "Internal Operations" }));
+
+    expect(within(desktopContext).getByRole("button", { name: "Internal Operations" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(within(desktopContext).getByTestId("operations-mode-selected-label")).toHaveTextContent(
+      "Internal Operations",
+    );
+    expect(window.localStorage.getItem(OPERATIONS_MODE_STORAGE_KEY)).toBe("internal_operations");
+    expect(screen.getByTestId("current-path")).toHaveTextContent("/dashboard");
+    expect(screen.getByTestId("current-search")).toHaveTextContent("");
+    expect(screen.getByTestId("current-navigation-type")).toHaveTextContent("REPLACE");
   });
 
   it("restores the stored operations mode as the visible selected value", () => {
@@ -221,7 +256,10 @@ describe("TopNav desktop operational spine navigation", () => {
     const desktopNav = getDesktopPrimaryNav(container);
     const links = desktopLinks(container);
 
-    expect(within(desktopNav).getByText("Network")).toBeInTheDocument();
+    expect(within(desktopNav).getByText("Procurement")).toBeInTheDocument();
+    expect(within(desktopNav).getAllByText("Vendors")).toHaveLength(2);
+    expect(within(desktopNav).getAllByText("Clients")).toHaveLength(2);
+    expect(within(desktopNav).queryByText("Network")).toBeNull();
     expect(links.map((link) => link.textContent)).toEqual([
       "Operations",
       "Orders",
@@ -336,6 +374,38 @@ describe("TopNav desktop operational spine navigation", () => {
       "Internal Operations",
     );
     expect(window.localStorage.getItem(OPERATIONS_MODE_STORAGE_KEY)).toBe("internal_operations");
+  });
+
+  it("keeps AMC mobile navigation ordered from visible workspace links and preserves Settings placement", () => {
+    shellProfileState.appContext = { is_owner: true };
+    permissionState.allowed = new Set([
+      PERMISSIONS.CLIENTS_READ_ALL,
+      PERMISSIONS.VENDORS_READ,
+      PERMISSIONS.SETTINGS_VIEW,
+    ]);
+    window.localStorage.setItem(OPERATIONS_MODE_STORAGE_KEY, "amc_operations");
+
+    const { container } = renderTopNav();
+    const mobileNav = openMobileNav(container);
+    const links = within(mobileNav).getAllByRole("link");
+
+    expect(links.map((link) => link.textContent)).toEqual([
+      "Orders",
+      "Calendar",
+      "Vendors",
+      "Clients",
+      "Settings",
+    ]);
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "/orders",
+      "/calendar",
+      "/vendors",
+      "/clients",
+      "/settings",
+    ]);
+    expect(within(mobileNav).queryByRole("link", { name: "Assignments" })).toBeNull();
+    expect(within(mobileNav).queryByRole("link", { name: "Relationships" })).toBeNull();
+    expect(within(mobileNav).queryByRole("link", { name: "Users" })).toBeNull();
   });
 
   it("renders desktop operational spine nav from the current registry helper with current order and paths", () => {
@@ -563,6 +633,14 @@ describe("TopNav desktop operational spine navigation", () => {
     expect(ordersLink).toHaveAttribute("aria-current", "page");
     expect(ordersLink).toHaveClass("bg-white", "text-slate-950", "shadow-md");
     expect(ordersLink.className).toContain("after:bg-slate-900/80");
+  });
+
+  it("keeps normal operational navigation links on their existing routes", () => {
+    const { container } = renderTopNav("/dashboard");
+
+    fireEvent.click(within(getDesktopPrimaryNav(container)).getByRole("link", { name: "Orders" }));
+
+    expect(screen.getByTestId("current-path")).toHaveTextContent("/orders");
   });
 
   it("renders desktop nav without crashing while shell profile exposure is unresolved", () => {

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import OrdersPage from "../Orders";
 
@@ -85,15 +85,26 @@ vi.mock("@/lib/operations/OperationsModeProvider", () => ({
   useOperationsMode: () => operationsModeState,
 }));
 
-function renderPage(initialEntries = ["/orders"]) {
-  return render(
+function LocationProbe() {
+  const location = useLocation();
+
+  return <span data-testid="current-search">{location.search}</span>;
+}
+
+function ordersPageTree(initialEntries = ["/orders"]) {
+  return (
     <MemoryRouter
       initialEntries={initialEntries}
       future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
     >
       <OrdersPage />
-    </MemoryRouter>,
+      <LocationProbe />
+    </MemoryRouter>
   );
+}
+
+function renderPage(initialEntries = ["/orders"]) {
+  return render(ordersPageTree(initialEntries));
 }
 
 describe("OrdersPage historical access", () => {
@@ -454,6 +465,65 @@ describe("OrdersPage historical access", () => {
         }),
       }),
     );
+  });
+
+  it("does not clear URL filters on initial mount", () => {
+    renderPage(["/orders?status=in_review&reviewerId=reviewer-1&pageSize=25"]);
+
+    expect(screen.getByTestId("current-search")).toHaveTextContent(
+      "?status=in_review&reviewerId=reviewer-1&pageSize=25",
+    );
+    expect(tableMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        filters: expect.objectContaining({
+          statusIn: ["in_review"],
+          reviewerId: "reviewer-1",
+          pageSize: 25,
+        }),
+      }),
+    );
+  });
+
+  it("clears Orders URL filters when operations mode changes while mounted", async () => {
+    const { rerender } = renderPage([
+      "/orders?status=in_review&q=main&reviewerId=reviewer-1&due=overdue&page=3&pageSize=25",
+    ]);
+
+    expect(tableMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        filters: expect.objectContaining({
+          statusIn: ["in_review"],
+          search: "main",
+          reviewerId: "reviewer-1",
+          dueWindow: "overdue",
+          page: 3,
+          pageSize: 25,
+        }),
+      }),
+    );
+
+    operationsModeState.operationsMode = "amc_operations";
+    rerender(ordersPageTree([
+      "/orders?status=in_review&q=main&reviewerId=reviewer-1&due=overdue&page=3&pageSize=25",
+    ]));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("current-search")).toHaveTextContent("");
+      expect(tableMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          filters: expect.objectContaining({
+            statusIn: [],
+            search: "",
+            reviewerId: "",
+            dueWindow: "",
+            page: 0,
+            pageSize: 15,
+          }),
+          operationsScope: "amc_operations",
+        }),
+      );
+    });
+    expect(savedViewsApiMock.listOrderSavedViews).not.toHaveBeenCalled();
   });
 
   it("renders active filter chips from supported URL state", () => {

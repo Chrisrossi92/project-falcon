@@ -34,6 +34,18 @@ Source doctrine:
 
 AMC should extend Falcon, not replace Falcon.
 
+Falcon workspace doctrine is locked in
+`../FALCON_WORKSPACE_DOCTRINE_NAVIGATION_ARCHITECTURE.md`. Internal Operations, AMC Operations, and
+the future Vendor Workspace are role-native workspaces. Switching workspaces is a context reset,
+not a view filter. Runtime now navigates Internal/AMC workspace switches to `/dashboard`, uses
+replace navigation so the browser back button does not immediately revive the prior workspace
+route, does not preserve query/search state on workspace switch, and clears Orders URL filters when
+`operationsMode` changes while Orders is mounted. Active-mode clicks do nothing. Workspace-native
+navigation definitions now drive primary desktop visibility, AMC desktop/sidebar grouping, and AMC
+mobile ordering while preserving route paths, permissions, dashboard routing, command palette
+behavior, workflow reachability, and Internal mobile/profile grouping. Saved views are unchanged
+and deferred for workspace scoping in WS-3.4.
+
 ## Phase Overview
 
 ### AMC-1: Operations Command
@@ -435,6 +447,12 @@ Success Criteria:
 
 ### AMC-7: Vendor Self-Service Bidding and Performance System
 
+Status: planning after initial workspace-boundary runtime enforcement. WS-2, WS-3.1, and WS-3.2
+are complete for Internal/AMC route and Orders URL filter bleed prevention. WS-4.1 through WS-4.5
+are complete for workspace-native navigation architecture documentation and active Internal/AMC
+navigation wiring. AMC-7 should still preserve the Vendor Workspace doctrine so vendor work does
+not get modeled as an AMC submenu or throwaway public form.
+
 Purpose: add the first vendor-facing bid response path and track vendor metrics that can inform assignment decisions and reporting.
 
 Dependencies:
@@ -447,7 +465,8 @@ Dependencies:
 Deliverables:
 
 - Secure/tokenized bid response link tied to a bid request recipient.
-- Minimal vendor-facing response page.
+- Limited vendor-facing order detail page with transparent order context for bid decisions.
+- `Submit Bid` action from that limited order detail.
 - First version does not require a full vendor account.
 - Vendor response form for fee, turn time, proposed due date, and comments.
 - Expiration handling for stale or invalid bid response links.
@@ -457,6 +476,39 @@ Deliverables:
 - Turn time.
 - Revision rate.
 - Completion rate.
+
+Workspace and navigation prerequisites before AMC-7 runtime:
+
+- WS-1: workspace doctrine docs.
+- WS-2: complete; mode switch navigates to `/dashboard`.
+- WS-3.1: complete; workspace switch uses replace navigation and does not preserve query/search state.
+- WS-3.2: complete; Orders clears URL filters on mounted `operationsMode` change.
+- WS-3.4: deferred; saved view workspace scoping design/migration.
+- WS-4.1: complete; workspace-native navigation architecture locked in documentation.
+- WS-4.2: complete; `workspaceNavigationDefinitions.js` added active Internal/AMC definitions and inactive future Vendor/Client placeholders.
+- WS-4.3a: complete; primary desktop nav visibility derives from workspace definitions with behavior preserved.
+- WS-4.3b: complete; AMC desktop/sidebar sections derive from workspace definitions and render Procurement, Vendors, and Clients labels; Internal profile grouping remains unchanged.
+- WS-4.4: complete; AMC mobile ordering derives from workspace definitions with behavior preserved; Internal mobile ordering remains unchanged.
+- WS-4.5: complete; tests and closeout docs.
+- WS-5: workspace visual identity pass.
+- WS-6: vendor workbench doctrine.
+- WS-7: AMC-7 tokenized vendor order detail.
+
+Workspace navigation doctrine:
+
+- Internal Operations: Operations, Management, Reporting, System.
+- AMC Operations: Procurement, Vendors, Clients, Analytics, System.
+- Future Vendor Workspace: Work, Documents, Financials, Profile.
+- Future Client Workspace: Orders, Documents, Messages, Billing, Profile.
+- Shared routes such as `/dashboard`, `/orders`, `/calendar`, `/clients`, and `/settings` may
+  remain physically shared while workspace context controls meaning, data scope, labels, and actions.
+- Hidden workflow routes may remain reachable through contextual links. AMC may hide direct
+  Assignments navigation while assignment packets remain reachable from Order Detail after selected
+  bid conversion.
+
+AMC-7 tokenized bid links should open a limited-access Vendor Order Detail page. That page should be
+designed as the constrained version of the future authenticated Vendor Workspace order detail, not
+as a disposable standalone bid form.
 
 Testing Strategy:
 
@@ -628,7 +680,8 @@ Minimum success means:
 Current AMC procurement MVP status:
 
 - Complete for the internal coordinator workflow as of AMC-6X.
-- Deferred: AMC-7 vendor self-service bidding, procurement dashboard queue, client-facing bid review, procurement filters, and explicit converted bid row marker.
+- Workspace boundary runtime is enforced for switch-to-dashboard behavior and mounted Orders URL filter resets.
+- Deferred: AMC-7 vendor self-service bidding, procurement dashboard queue, client-facing bid review, procurement filters, explicit converted bid row marker, and WS-3.4 saved view workspace scoping.
 
 ## Validation
 

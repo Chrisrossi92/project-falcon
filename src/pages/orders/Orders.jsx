@@ -1,5 +1,5 @@
 // src/pages/Orders.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import OrdersFilters from "@/features/orders/OrdersFilters";
 import UnifiedOrdersTable from "@/features/orders/UnifiedOrdersTable";
@@ -474,8 +474,17 @@ export default function OrdersPage() {
   const reviewerOrdersView = isReviewerOrdersProfile(shellProfilePresentation);
   const roleFocusedOrdersView = appraiserOrdersView || reviewerOrdersView;
   const [filters, setFilters] = useState(() => readFilters(qs));
+  const previousOperationsModeRef = useRef(operationsMode);
 
   useEffect(() => setFilters(readFilters(qs)), [qs]);
+
+  useEffect(() => {
+    if (previousOperationsModeRef.current === operationsMode) return;
+
+    previousOperationsModeRef.current = operationsMode;
+    setFilters(readFilters(new URLSearchParams()));
+    navigate({ search: "" }, { replace: true });
+  }, [navigate, operationsMode]);
 
   const queueId = filters.queueId || "";
   const queueSourceFilters = useMemo(() => {

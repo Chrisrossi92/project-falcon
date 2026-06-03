@@ -10,6 +10,21 @@ AMC orders should use Falcon's shared order infrastructure wherever possible.
 
 The goal is one order engine with different operational lenses, not a disconnected AMC order system.
 
+## Workspace Boundary Doctrine
+
+AMC Operations is a workspace context, not a view filter over Internal Operations. The platform-wide
+workspace doctrine lives in `docs/FALCON_WORKSPACE_DOCTRINE_NAVIGATION_ARCHITECTURE.md`.
+
+When users switch between Internal Operations and AMC Operations, Falcon should reset workspace
+context, clear workspace-specific filters/selections, navigate to that workspace's dashboard, and
+reload scoped data. Route persistence must not show an Internal Operations order inside AMC
+Operations or an AMC Operations order inside Internal Operations.
+
+AMC Operations should use procurement/vendor language and visual identity cues that distinguish it
+from Internal Operations while preserving the shared Falcon platform. Future Vendor Workspace
+surfaces are not AMC subpages; AMC-7 tokenized vendor bid links should be designed as the
+limited-access version of a future Vendor Order Detail screen.
+
 ## AMC-6H: Order Scope Doctrine and Data Separation Audit
 
 AMC-6H is inspection/documentation only. It does not change code, migrations, queries, UI, schema/RLS, route/navigation, or assignment behavior.

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { NavLink, Link, useNavigate, useLocation } from "react-router-dom";
 import falconWordmark from "@/assets/branding/falcon-wordmark-dark-shell.png";
 import supabase from "@/lib/supabaseClient";
@@ -38,7 +38,27 @@ const DESKTOP_SECTION_STYLES = Object.freeze({
     label: "text-slate-300",
     item: "operational",
   },
+  procurement: {
+    shell: "border-slate-600 bg-slate-900 shadow-sm shadow-slate-950/25",
+    label: "text-slate-300",
+    item: "operational",
+  },
   management: {
+    shell: "border-slate-700 bg-slate-950/50",
+    label: "text-slate-400",
+    item: "secondary",
+  },
+  vendors: {
+    shell: "border-slate-700 bg-slate-950/50",
+    label: "text-slate-400",
+    item: "secondary",
+  },
+  clients: {
+    shell: "border-slate-700 bg-slate-950/50",
+    label: "text-slate-400",
+    item: "secondary",
+  },
+  analytics: {
     shell: "border-slate-700 bg-slate-950/50",
     label: "text-slate-400",
     item: "secondary",
@@ -58,6 +78,11 @@ const DESKTOP_SECTION_STYLES = Object.freeze({
     label: "text-slate-400",
     item: "secondary",
   },
+  system: {
+    shell: "border-slate-700 bg-slate-950/40",
+    label: "text-slate-500",
+    item: "quiet",
+  },
   other_visible_links: {
     shell: "border-slate-700 bg-slate-950/40",
     label: "text-slate-500",
@@ -70,6 +95,8 @@ const DEFAULT_DESKTOP_SECTION_STYLE = Object.freeze({
   label: "text-slate-400",
   item: "operational",
 });
+
+const WORKSPACE_DASHBOARD_PATH = "/dashboard";
 
 function BrandWordmark({ shellModeCue, className = "" }) {
   return (
@@ -98,6 +125,7 @@ function workspaceContextLabel(appContext) {
 }
 
 function OperationalModeContext({ shellModeCue, appContext, placement = "rail" }) {
+  const navigate = useNavigate();
   const {
     operationsMode,
     setOperationsMode,
@@ -109,6 +137,12 @@ function OperationalModeContext({ shellModeCue, appContext, placement = "rail" }
       ? "rounded-2xl border border-slate-800 bg-slate-900/80 px-3 py-3"
       : "rounded-2xl border border-slate-800 bg-slate-900/80 px-3 py-3";
   const contextLabel = workspaceContextLabel(appContext);
+  const handleOperationsModeSelect = useCallback((mode) => {
+    if (mode === operationsMode) return;
+
+    setOperationsMode(mode);
+    navigate(WORKSPACE_DASHBOARD_PATH, { replace: true });
+  }, [navigate, operationsMode, setOperationsMode]);
 
   return (
     <div
@@ -150,7 +184,7 @@ function OperationalModeContext({ shellModeCue, appContext, placement = "rail" }
                     : "text-slate-300 hover:bg-white/10 hover:text-white"
                 }`}
                 aria-pressed={isActive ? "true" : "false"}
-                onClick={() => setOperationsMode(mode)}
+                onClick={() => handleOperationsModeSelect(mode)}
               >
                 {label}
               </button>

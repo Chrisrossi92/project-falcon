@@ -14,6 +14,31 @@ navigation behavior changes, workflow features, dashboard data changes, backend 
 permission changes, Supabase changes, AMC features, Client Portal behavior, automation, or
 notifications.
 
+This v1 plan is subordinate to the multi-workspace doctrine in
+`docs/FALCON_WORKSPACE_DOCTRINE_NAVIGATION_ARCHITECTURE.md`. Falcon is one platform with
+role-native workspaces. Internal Operations, AMC Operations, and future Vendor Workspace should
+have distinct navigation language and workspace identity. Switching workspaces should reset context
+and navigate to that workspace's dashboard rather than preserving the current route as if the
+switch were only a filter.
+
+Runtime boundary status:
+
+- WS-2 complete: Internal Operations / AMC Operations switching navigates to `/dashboard`.
+- WS-3.1 complete: workspace switch navigation uses replace semantics and does not preserve
+  query/search state.
+- WS-3.2 complete: mounted Orders pages clear URL filters when `operationsMode` changes.
+- WS-4.1 complete: workspace-native navigation architecture is locked in documentation.
+- WS-4.2 complete: workspace navigation definitions exist for active Internal/AMC workspaces, with
+  inactive future Vendor/Client placeholders.
+- WS-4.3a complete: primary desktop nav visibility derives from workspace definitions with behavior
+  preserved.
+- WS-4.3b complete: AMC desktop/sidebar grouping derives from workspace definitions and uses
+  Procurement, Vendors, and Clients labels; Internal grouping remains unchanged.
+- WS-4.4 complete: AMC mobile ordering derives from workspace definitions with behavior preserved;
+  Internal mobile ordering remains unchanged.
+- Active-mode clicks do nothing.
+- Saved views are unchanged and deferred for WS-3.4 workspace scoping design/migration.
+
 ## Current Shell / Navigation Findings
 
 ### Current Top Nav Structure
@@ -211,6 +236,17 @@ Owner/admin broad access should feel governed and organized, not cluttered.
 
 ## Navigation Grouping Proposal
 
+Navigation grouping should come from workspace definitions. Permission checks remain authority,
+but the workspace definition decides which section a permissioned link belongs to and whether that
+link is part of the workspace's primary navigation at all.
+
+Recommended definition model:
+
+- Internal Operations: Operations, Management, Reporting, System.
+- AMC Operations: Procurement, Vendors, Clients, Analytics, System.
+- Future Vendor Workspace: Work, Documents, Financials, Profile.
+- Future Client Workspace: Orders, Documents, Messages, Billing, Profile.
+
 ### Operational Group
 
 Purpose:
@@ -287,6 +323,33 @@ Examples:
 Visual direction:
 
 - do not render live nav entries before authority, routes, data contracts, and v1 relevance exist.
+
+### AMC Operations Groups
+
+AMC Operations should not reuse the Internal Operations sidebar with a few hidden links. It should
+present procurement and vendor management as first-class lanes.
+
+Recommended AMC groups:
+
+- Procurement: Dashboard, Orders, Calendar, future Procurement Queue, future standalone Bid Requests.
+- Vendors: Vendor Directory, future Coverage, future Performance, future Compliance.
+- Clients: Clients.
+- Analytics: Reports / AMC analytics when implemented.
+- System: Settings.
+
+AMC Operations should hide direct My Work, Internal Assignments, Relationships, Users / Staff
+Directory, and internal production-only surfaces unless a later admin requirement explicitly brings
+one of those surfaces back under System.
+
+### Hidden But Reachable Routes
+
+Primary navigation does not have to expose every route that a workflow can reach. Some routes
+remain valid destinations from contextual links while staying absent from the workspace sidebar.
+
+Example:
+
+- AMC Operations can hide direct Assignments navigation while assignment packets remain reachable
+  from Order Detail after selected bid conversion.
 
 ## Recommended Navigation Presentation
 
@@ -626,3 +689,38 @@ A4.2 direction:
 A4.2 remains planning only. It adds no runtime shell code, route removals, permission changes,
 workflow changes, dashboard data changes, backend/Supabase changes, AMC work, Client Portal work,
 automation, AI work, or production data changes.
+
+## WS-4.5 Navigation Runtime Closeout
+
+WS-4.5 records the completed workspace-native navigation wiring after the WS-4.1 doctrine lock.
+
+Runtime files involved:
+
+- `src/lib/navigation/workspaceNavigationDefinitions.js`;
+- `src/lib/navigation/currentPrimaryNavLinks.js`;
+- `src/lib/navigation/currentShellNavigationSections.js`;
+- `src/lib/navigation/currentShellMobileNavigationLinks.js`;
+- `src/components/shell/TopNav.jsx`;
+- related navigation and shell tests.
+
+Completed behavior:
+
+- active Internal Operations and AMC Operations workspace navigation definitions exist;
+- future Vendor Workspace and Client Workspace definitions exist only as inactive placeholders;
+- primary desktop nav visibility uses workspace definitions while preserving previous behavior;
+- AMC desktop/sidebar grouping uses workspace definitions and now renders Procurement, Vendors, and
+  Clients section labels;
+- Internal desktop/sidebar profile grouping remains unchanged;
+- AMC mobile ordering uses workspace definitions while preserving the existing Orders, Calendar,
+  Vendors, Clients order;
+- Internal mobile ordering remains unchanged;
+- route paths, permissions, command palette behavior, dashboard routing, workflow reachability, and
+  future Vendor/Client hidden boundaries remain unchanged.
+
+Deferred items:
+
+- WS-3.4 saved view workspace scoping design/migration;
+- optional future Internal mobile definition migration if it can remain behavior-preserving;
+- WS-5 workspace visual identity pass;
+- WS-6 Vendor Workbench doctrine;
+- WS-7 AMC-7 tokenized vendor order detail.

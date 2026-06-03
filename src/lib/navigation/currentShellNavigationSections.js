@@ -3,6 +3,7 @@ import {
   getShellNavigationGroups,
 } from './shellNavigationGroups.js';
 import { applyShellNavigationLabels } from './shellNavigationLabels.js';
+import { getWorkspaceNavigationSections } from './workspaceNavigationDefinitions.js';
 import { OPERATIONS_MODES, normalizeOperationsMode } from '../operations/operationsMode.js';
 import { SHELL_PROFILE_IDS } from '../shell/resolveShellProfile.js';
 
@@ -33,18 +34,7 @@ const flatSection = (links, operationsMode) =>
 const amcOperationsSections = (links, operationsMode) => {
   const visibleLinksById = new Map(links.map((link) => [link.id, link]));
   const groupedLinkIds = new Set();
-  const groups = [
-    {
-      id: 'operations',
-      label: 'AMC Operations',
-      navEntryIds: ['dashboard', 'orders', 'calendar'],
-    },
-    {
-      id: 'network',
-      label: 'Network',
-      navEntryIds: ['vendors', 'clients.primary'],
-    },
-  ];
+  const groups = getWorkspaceNavigationSections(operationsMode);
 
   const sections = groups.flatMap((group) => {
     const groupLinks = group.navEntryIds.flatMap((navEntryId) => {

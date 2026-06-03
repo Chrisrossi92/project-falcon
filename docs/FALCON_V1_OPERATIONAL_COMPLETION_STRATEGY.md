@@ -63,6 +63,11 @@ define allowed actions, and module/product scope defines which operational world
 access. Internal Staff Appraiser Platform remains the v1 default; AMC Operations, Vendor Portal,
 and Client Portal remain v2+ unless explicitly scoped and implemented.
 
+Workspace boundaries are locked in `docs/FALCON_WORKSPACE_DOCTRINE_NAVIGATION_ARCHITECTURE.md`.
+Falcon v1 remains the Internal Operations Workspace. AMC Operations is a separate workspace context,
+not an Internal Operations view filter, and future Vendor Workspace surfaces should be vendor-native
+workbenches rather than hidden menu items inside AMC.
+
 ## Explicit v2+ Deferred Scope
 
 The following are deferred beyond Falcon v1 unless a specific item is required to fix a verified
@@ -148,6 +153,11 @@ role cues for `My Work`, `Review Queue`, and `Operations Command`.
 Phase A2 is planning only. It does not authorize route removals, permission changes, workflow
 features, AMC features, Client Portal work, automation, notifications, dashboard data rewrites, or
 backend changes.
+
+Multi-workspace transition behavior is outside the original v1 shell refactor and should follow
+the workspace architecture lock: switching workspaces should navigate to the target workspace
+dashboard, clear workspace-specific state, and prevent stale route persistence across Internal and
+AMC order contexts.
 
 #### Phase A3: Surface / Elevation System Plan
 

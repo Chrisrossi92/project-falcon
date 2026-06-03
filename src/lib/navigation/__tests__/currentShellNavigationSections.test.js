@@ -83,7 +83,7 @@ describe('current shell navigation sections', () => {
     ).toBe('Staff Directory');
   });
 
-  it('uses a distinct AMC Operations grouping while preserving shared route paths', () => {
+  it('uses workspace-native AMC Operations grouping while preserving shared route paths', () => {
     const visibleLinks = fullyVisibleLinks();
     const amcVisibleLinks = getCurrentPrimaryNavLinks({
       canReadAllClients: true,
@@ -111,9 +111,11 @@ describe('current shell navigation sections', () => {
       ['management', 'Management'],
     ]);
     expect(amcSections.map(({ id, label }) => [id, label])).toEqual([
-      ['operations', 'AMC Operations'],
-      ['network', 'Network'],
+      ['procurement', 'Procurement'],
+      ['vendors', 'Vendors'],
+      ['clients', 'Clients'],
     ]);
+    expect(amcSections.map(({ id }) => id)).not.toContain('network');
     expect(amcSections.flatMap((section) => section.links.map((link) => link.id))).toEqual([
       'orders',
       'calendar',
@@ -132,6 +134,29 @@ describe('current shell navigation sections', () => {
     expect(amcSections.every((section) => section.operationsMode === OPERATIONS_MODES.AMC_OPERATIONS)).toBe(
       true,
     );
+  });
+
+  it('skips empty AMC workspace sections when visible links are unavailable', () => {
+    const amcVisibleLinks = getCurrentPrimaryNavLinks({}, {
+      operationsMode: OPERATIONS_MODES.AMC_OPERATIONS,
+    });
+    const amcSections = getCurrentShellNavigationSections(
+      amcVisibleLinks,
+      SHELL_PROFILE_IDS.OPERATIONS,
+      { operationsMode: OPERATIONS_MODES.AMC_OPERATIONS },
+    );
+
+    expect(amcSections.map(({ id, label }) => [id, label])).toEqual([
+      ['procurement', 'Procurement'],
+    ]);
+    expect(amcSections.flatMap((section) => section.links.map((link) => link.id))).toEqual([
+      'orders',
+      'calendar',
+    ]);
+    expect(amcSections.map(({ id }) => id)).not.toContain('vendors');
+    expect(amcSections.map(({ id }) => id)).not.toContain('clients');
+    expect(amcSections.map(({ id }) => id)).not.toContain('analytics');
+    expect(amcSections.map(({ id }) => id)).not.toContain('system');
   });
 
   it('falls back to current flat nav for unknown and fallback profiles', () => {

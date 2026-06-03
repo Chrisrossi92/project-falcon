@@ -16,6 +16,20 @@ The long-term model is:
 
 This model lets Falcon become a configurable appraisal operations platform that can be reset, seeded, and sold to other appraisal companies without rewriting application logic for each firm.
 
+## Workspace Boundary Doctrine
+
+Workspace context is separate from role and permission authority. Roles define the user's default persona, permissions define allowed actions, and workspace context defines the operational world in which those actions and surfaces can appear.
+
+Falcon's primary workspace model is documented in `docs/FALCON_WORKSPACE_DOCTRINE_NAVIGATION_ARCHITECTURE.md`:
+
+- Internal Operations Workspace
+- AMC Operations Workspace
+- future Vendor Workspace
+
+Switching workspaces is a context reset, not a view filter. Runtime implementation should update workspace context, clear workspace-specific filters/selections, clear persisted detail context where needed, navigate to the target workspace dashboard, reload scoped data, and prevent route persistence from showing an order from the previous workspace.
+
+Vendor Workspace must be modeled as a future role-native workspace, not as an AMC submenu. AMC-7 tokenized bid links should be the limited-access version of the future Vendor Order Detail experience.
+
 ## Product Goals
 
 1. Let each company configure its own staff structure without developer involvement.

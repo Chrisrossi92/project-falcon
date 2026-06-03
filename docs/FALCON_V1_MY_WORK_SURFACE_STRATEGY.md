@@ -203,6 +203,14 @@ Shell relationship:
 The shell should communicate that My Work is one station inside the same Falcon environment, not a
 separate app.
 
+## Relationship To Workspace Doctrine
+
+My Work belongs to the Internal Operations Workspace. It should not become a generic cross-workspace task inbox unless a future doctrine explicitly defines how work is federated across operational worlds.
+
+The broader workspace reset and navigation doctrine lives in `docs/FALCON_WORKSPACE_DOCTRINE_NAVIGATION_ARCHITECTURE.md`. Switching from Internal Operations to AMC Operations should reset Internal Operations filters/selections and navigate to the AMC dashboard rather than preserving My Work, Orders filters, or an Internal Operations order detail route.
+
+Future Vendor Workspace surfaces should use vendor-native labels such as `Available Work`, `My Bids`, `Assigned Orders`, `Documents`, `Invoices`, and `Profile`; they should not reuse My Work language as a vendor portal shortcut.
+
 ## Permission-Scoped Surface Relationship
 
 My Work should follow the permission-scoped surface doctrine in

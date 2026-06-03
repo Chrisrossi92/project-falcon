@@ -2,6 +2,7 @@ import {
   CURRENT_NAV_SURFACES,
   getCurrentLiveNavigationEntry,
 } from './currentNavigationRegistry.js';
+import { getWorkspaceNavigationDefinition } from './workspaceNavigationDefinitions.js';
 import { normalizeOperationsMode } from '../operations/operationsMode.js';
 import { PERMISSIONS } from '../permissions/constants.js';
 
@@ -52,6 +53,18 @@ const resolveOperationsMode = (options = {}) =>
     typeof options === 'string' ? options : options.operationsMode,
   );
 
+const workspacePrimaryNavEntryIds = (operationsMode) => {
+  const definition = getWorkspaceNavigationDefinition(operationsMode);
+  const sectionNavEntryIds = new Set(
+    definition.sections.flatMap((section) => section.navEntryIds),
+  );
+  const hiddenNavEntryIds = new Set(definition.hiddenPrimaryNavEntryIds);
+
+  return CURRENT_PRIMARY_NAV_LINK_IDS.filter(
+    (entryId) => sectionNavEntryIds.has(entryId) && !hiddenNavEntryIds.has(entryId),
+  );
+};
+
 const primaryLink = (entry, path = entry.path, operationsMode) =>
   Object.freeze({
     id: entry.id,
@@ -63,25 +76,20 @@ const primaryLink = (entry, path = entry.path, operationsMode) =>
     sourceSurface: CURRENT_NAV_SURFACES.DESKTOP,
   });
 
-const shouldShowEntry = (entryId, permissions, operationsMode) => {
-  const isAmcOperations = operationsMode === 'amc_operations';
-
+const shouldShowEntry = (entryId, permissions) => {
   switch (entryId) {
     case 'orders':
     case 'calendar':
       return true;
     case 'assignments':
-      if (isAmcOperations) return false;
       return bool(permissions.canReadAssignments);
     case 'relationships':
-      if (isAmcOperations) return false;
       return bool(permissions.canReadRelationships);
     case 'vendors':
-      return isAmcOperations && bool(permissions.canReadVendors);
+      return bool(permissions.canReadVendors);
     case 'clients.primary':
       return bool(permissions.canReadAllClients) || bool(permissions.canReadAssignedClients);
     case 'users':
-      if (isAmcOperations) return false;
       return bool(permissions.canReadUsers);
     default:
       return false;
@@ -98,8 +106,9 @@ const resolvePrimaryPath = (entry, permissions) => {
 
 export const getCurrentPrimaryNavLinks = (permissions = {}, options = {}) => {
   const operationsMode = resolveOperationsMode(options);
-  const links = CURRENT_PRIMARY_NAV_LINK_IDS.flatMap((entryId) => {
-    if (!REQUIRED_ENTRY_IDS.has(entryId) || !shouldShowEntry(entryId, permissions, operationsMode)) {
+  const workspaceEntryIds = workspacePrimaryNavEntryIds(operationsMode);
+  const links = workspaceEntryIds.flatMap((entryId) => {
+    if (!REQUIRED_ENTRY_IDS.has(entryId) || !shouldShowEntry(entryId, permissions)) {
       return [];
     }
 

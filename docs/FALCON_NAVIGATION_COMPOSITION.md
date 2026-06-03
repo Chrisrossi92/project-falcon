@@ -99,6 +99,53 @@ Future composition should resolve surfaces from these inputs:
 
 The output should be a coherent workspace, not a list of everything Falcon could theoretically do.
 
+Workspace transition doctrine is defined in
+`docs/FALCON_WORKSPACE_DOCTRINE_NAVIGATION_ARCHITECTURE.md`. Navigation composition must treat a
+workspace switch as a context reset, not as a label-only or table-filter change. Active runtime
+behavior now navigates Internal/AMC workspace switches to `/dashboard`, uses replace navigation so
+the back button does not immediately revive the prior workspace route, drops query/search state on
+workspace switch, and clears Orders URL filters when `operationsMode` changes while Orders is
+mounted. Active-mode clicks do nothing. Saved views remain unchanged and are deferred for explicit
+workspace scoping in WS-3.4.
+
+Workspace-native navigation should be derived from workspace definitions, not scattered
+mode-specific conditionals. The current route registry should remain canonical for route IDs,
+paths, and permission metadata. Workspace definitions should own section IDs, section labels, link
+ordering, mobile ordering, and workspace-specific labels.
+
+Initial workspace definition model:
+
+- `INTERNAL_OPERATIONS`: Operations, Management, Reporting, System.
+- `AMC_OPERATIONS`: Procurement, Vendors, Clients, Analytics, System.
+- Future `VENDOR_WORKSPACE`: Work, Documents, Financials, Profile.
+- Future `CLIENT_WORKSPACE`: Orders, Documents, Messages, Billing, Profile.
+
+Current runtime wiring:
+
+- WS-4.2 added `src/lib/navigation/workspaceNavigationDefinitions.js` with active Internal
+  Operations and AMC Operations definitions.
+- Future Vendor Workspace and Client Workspace placeholders are defined but inactive and do not
+  appear in active navigation.
+- WS-4.3a migrated primary desktop navigation visibility to workspace definitions while preserving
+  current Internal/AMC visible output, route paths, and permission/profile filtering.
+- WS-4.3b migrated AMC desktop/sidebar section grouping to workspace definitions and intentionally
+  changed AMC section labels to Procurement, Vendors, and Clients. Internal profile grouping is
+  unchanged.
+- WS-4.4 migrated AMC mobile ordering to workspace definitions while preserving current mobile
+  behavior. Internal mobile ordering is unchanged.
+
+Shared physical routes may remain shared when they are interpreted by workspace context:
+
+- `/dashboard`
+- `/orders`
+- `/calendar`
+- `/clients`
+- `/settings`
+
+Primary navigation should be workspace-native even when workflow routes remain reachable. For
+example, AMC Operations may hide direct Assignments navigation while assignment packets remain
+reachable from Order Detail after selected bid conversion.
+
 ## Navigation Composition Doctrine
 
 Navigation should be assembled in this order:
@@ -107,7 +154,7 @@ Navigation should be assembled in this order:
 2. Resolve enabled modules and required dependencies.
 3. Collect navigation entries registered by enabled modules.
 4. Filter entries by route/nav permissions.
-5. Apply mode-specific labels, grouping, and ordering.
+5. Apply workspace definition labels, grouping, desktop ordering, and mobile ordering.
 6. Apply object-count or attention metadata only after visibility is resolved.
 7. Add contextual upgrade prompts only where the current lane has a natural reason to care.
 

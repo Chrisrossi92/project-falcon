@@ -3,6 +3,7 @@ import {
   getShellNavigationGroups,
 } from './shellNavigationGroups.js';
 import { applyShellNavigationLabels } from './shellNavigationLabels.js';
+import { getWorkspaceNavigationMobileOrder } from './workspaceNavigationDefinitions.js';
 import { OPERATIONS_MODES, normalizeOperationsMode } from '../operations/operationsMode.js';
 import { SHELL_PROFILE_IDS } from '../shell/resolveShellProfile.js';
 
@@ -19,18 +20,11 @@ const withOperationsMode = (link, operationsMode) =>
     operationsMode,
   });
 
-const AMC_OPERATIONS_MOBILE_LINK_IDS = Object.freeze([
-  'dashboard',
-  'orders',
-  'calendar',
-  'vendors',
-  'clients.primary',
-]);
-
 const getAmcOperationsMobileLinks = (links, operationsMode) => {
+  const mobileLinkIds = getWorkspaceNavigationMobileOrder(operationsMode);
   const visibleLinksById = new Map(links.map((link) => [link.id, link]));
   const orderedLinkIds = new Set();
-  const prioritizedLinks = AMC_OPERATIONS_MOBILE_LINK_IDS.flatMap((navEntryId) => {
+  const prioritizedLinks = mobileLinkIds.flatMap((navEntryId) => {
     const link = visibleLinksById.get(navEntryId);
 
     if (!link) return [];

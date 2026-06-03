@@ -160,6 +160,30 @@ describe('current primary nav links', () => {
     expect(pathsFor(links)).not.toContain('/vendors');
   });
 
+  it('keeps unknown operations mode on the safe Internal Operations default', () => {
+    const permissions = {
+      canReadAllClients: true,
+      canReadAssignedClients: true,
+      canReadAssignments: true,
+      canReadRelationships: true,
+      canReadVendors: true,
+      canReadUsers: true,
+    };
+    const links = getCurrentPrimaryNavLinks(permissions, {
+      operationsMode: 'vendor_workspace',
+    });
+
+    expect(idsFor(links)).toEqual([
+      'orders',
+      'assignments',
+      'relationships',
+      'calendar',
+      'clients.primary',
+      'users',
+    ]);
+    expect(idsFor(links)).not.toContain('vendors');
+  });
+
   it('treats missing, loading, or errored permission inputs as false', () => {
     const missingLinks = getCurrentPrimaryNavLinks();
     const unresolvedLinks = getCurrentPrimaryNavLinks({
@@ -226,8 +250,17 @@ describe('current primary nav links', () => {
         'settings',
         'settings.notifications',
         'settings.productMetadataDiagnostics',
-        'vendor.portal',
-        'client.portal',
+        'vendor.available_work',
+        'vendor.my_bids',
+        'vendor.assigned_orders',
+        'vendor.documents',
+        'vendor.invoices',
+        'vendor.profile',
+        'client.orders',
+        'client.documents',
+        'client.messages',
+        'client.billing',
+        'client.profile',
       ]),
     );
     expect(serialized).not.toContain('vendor workspace');
