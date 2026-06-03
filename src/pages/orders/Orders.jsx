@@ -14,6 +14,7 @@ import { useOperationsMode } from "@/lib/operations/OperationsModeProvider";
 import { getOperationsScopeForMode } from "@/lib/operations/operationsMode";
 import { useShellProfile } from "@/lib/shell/useShellProfile";
 import { getShellWorkModeCue } from "@/lib/shell/shellWorkMode";
+import { getWorkspaceIdentity } from "@/lib/workspace/workspaceIdentity";
 import {
   createOrderSavedView,
   deleteOrderSavedView,
@@ -467,6 +468,7 @@ export default function OrdersPage() {
   const qs = useQuery();
   const { operationsMode } = useOperationsMode();
   const operationsScope = getOperationsScopeForMode(operationsMode);
+  const workspaceIdentity = getWorkspaceIdentity(operationsMode);
   const shellProfilePresentation = useShellProfile();
   const shellWorkMode = getShellWorkModeCue(shellProfilePresentation);
   const currentUserId = shellProfilePresentation?.appContext?.user_id || "";
@@ -560,7 +562,11 @@ export default function OrdersPage() {
     ? "Orders assigned to you."
     : reviewerOrdersView
       ? "Review and track orders assigned to your queue."
-      : "Manage company orders, workflow handoffs, and order records.";
+      : workspaceIdentity.ordersDescription || "Manage company orders, workflow handoffs, and order records.";
+  const ordersEyebrow = workspaceIdentity.ordersEyebrow || "Operations";
+  const ordersWorkMode = workspaceIdentity.ordersWorkMode || shellWorkMode.label;
+  const ordersWorkModeClass =
+    workspaceIdentity.accentClasses.eyebrow || "border-slate-200 bg-slate-50 text-slate-500";
 
   return (
     <div className="space-y-4">
@@ -572,9 +578,9 @@ export default function OrdersPage() {
         <div className="min-w-0">
           {roleFocusedOrdersView ? null : (
             <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em]">
-              <span className="text-slate-400">Operations</span>
-              <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] tracking-[0.12em] text-slate-500">
-                {shellWorkMode.label}
+              <span className="text-slate-400">{ordersEyebrow}</span>
+              <span className={`rounded-full border px-2 py-0.5 text-[10px] tracking-[0.12em] ${ordersWorkModeClass}`}>
+                {ordersWorkMode}
               </span>
             </div>
           )}

@@ -241,6 +241,20 @@ describe("TopNav desktop operational spine navigation", () => {
     );
   });
 
+  it("uses the AMC workspace shell cue in AMC Operations", () => {
+    shellProfileState.appContext = { is_owner: true };
+    permissionState.allowed = new Set([PERMISSIONS.VENDORS_READ]);
+    window.localStorage.setItem(OPERATIONS_MODE_STORAGE_KEY, "amc_operations");
+
+    renderTopNav();
+
+    expect(shellWorkModeCues()[0]).toHaveTextContent("Procurement Command");
+    expect(shellWorkModeCues()[0]).toHaveAttribute(
+      "title",
+      "Vendor procurement and AMC operations",
+    );
+  });
+
   it("shows Vendors only in AMC Operations nav when vendor read access is available", () => {
     shellProfileState.appContext = { is_admin_role: true };
     permissionState.allowed = new Set([

@@ -43,8 +43,12 @@ route, does not preserve query/search state on workspace switch, and clears Orde
 `operationsMode` changes while Orders is mounted. Active-mode clicks do nothing. Workspace-native
 navigation definitions now drive primary desktop visibility, AMC desktop/sidebar grouping, and AMC
 mobile ordering while preserving route paths, permissions, dashboard routing, command palette
-behavior, workflow reachability, and Internal mobile/profile grouping. Saved views are unchanged
-and deferred for workspace scoping in WS-3.4.
+behavior, workflow reachability, and Internal mobile/profile grouping. WS-5.1 adds a narrow AMC
+visual/copy identity layer through `getWorkspaceIdentity(operationsMode)`: TopNav uses
+`Procurement Command`, Dashboard and Orders use procurement/vendor-management copy, and restrained
+cyan accents appear in the shell context panel/sidebar ring and Orders eyebrow chip. Internal
+identity remains unchanged/default. Saved views are unchanged and deferred for workspace scoping in
+WS-3.4.
 
 ## Phase Overview
 
@@ -490,7 +494,11 @@ Workspace and navigation prerequisites before AMC-7 runtime:
 - WS-4.3b: complete; AMC desktop/sidebar sections derive from workspace definitions and render Procurement, Vendors, and Clients labels; Internal profile grouping remains unchanged.
 - WS-4.4: complete; AMC mobile ordering derives from workspace definitions with behavior preserved; Internal mobile ordering remains unchanged.
 - WS-4.5: complete; tests and closeout docs.
-- WS-5: workspace visual identity pass.
+- WS-5.1: complete; AMC visual/copy identity layer added through `getWorkspaceIdentity`, with
+  Internal identity unchanged/default and no route, permission, data, workflow, command palette,
+  saved view, or navigation composition behavior changes.
+- WS-5.2: complete; documentation closeout.
+- WS-5.3: deferred; optional broader workspace frame accent after visual review.
 - WS-6: vendor workbench doctrine.
 - WS-7: AMC-7 tokenized vendor order detail.
 

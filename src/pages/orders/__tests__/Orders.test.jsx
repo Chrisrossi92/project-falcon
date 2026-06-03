@@ -190,6 +190,24 @@ describe("OrdersPage historical access", () => {
     );
   });
 
+  it("renders AMC Orders with procurement workspace identity copy", () => {
+    operationsModeState.operationsMode = "amc_operations";
+
+    renderPage();
+
+    expect(screen.getByRole("heading", { name: "Orders" })).toBeInTheDocument();
+    expect(screen.getByText("Procurement")).toBeInTheDocument();
+    expect(screen.getByText("AMC Operations")).toBeInTheDocument();
+    expect(
+      screen.getByText("Manage AMC orders, vendor procurement context, and client coordination."),
+    ).toBeInTheDocument();
+    expect(tableMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        operationsScope: "amc_operations",
+      }),
+    );
+  });
+
   it("renders appraiser Orders as a focused assigned-work list", () => {
     shellProfileState.exposure = {
       role: "appraiser",

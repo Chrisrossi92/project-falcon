@@ -36,6 +36,8 @@ Runtime boundary status:
   Procurement, Vendors, and Clients labels; Internal grouping remains unchanged.
 - WS-4.4 complete: AMC mobile ordering derives from workspace definitions with behavior preserved;
   Internal mobile ordering remains unchanged.
+- WS-5.1 complete: AMC visual/copy identity layer added through `getWorkspaceIdentity`; Internal
+  identity remains unchanged/default.
 - Active-mode clicks do nothing.
 - Saved views are unchanged and deferred for WS-3.4 workspace scoping design/migration.
 
@@ -721,6 +723,53 @@ Deferred items:
 
 - WS-3.4 saved view workspace scoping design/migration;
 - optional future Internal mobile definition migration if it can remain behavior-preserving;
-- WS-5 workspace visual identity pass;
+- WS-5.3 optional broader workspace frame accent after visual review;
 - WS-6 Vendor Workbench doctrine;
 - WS-7 AMC-7 tokenized vendor order detail.
+
+## WS-5.2 AMC Visual Identity Closeout
+
+WS-5.2 records the completed WS-5.1 AMC visual/copy identity pass. The pass stays intentionally
+narrow: Falcon remains one shared platform, with AMC Operations receiving only enough presentation
+language and accent treatment to feel like a procurement/vendor-management workspace.
+
+Runtime files involved:
+
+- `src/lib/workspace/workspaceIdentity.js`;
+- `src/components/shell/TopNav.jsx`;
+- `src/features/dashboard/DashboardPage.jsx`;
+- `src/pages/orders/Orders.jsx`;
+- related helper, shell, dashboard, and Orders tests.
+
+Completed behavior:
+
+- `getWorkspaceIdentity(operationsMode)` provides workspace presentation identity.
+- Internal Operations returns default/empty overrides, preserving existing Internal copy and visual
+  treatment.
+- AMC Operations now uses `Procurement Command` in TopNav.
+- AMC shell cue title is `Vendor procurement and AMC operations`.
+- AMC Dashboard subtitle is `Track procurement queues, vendor response, client orders, and SLA
+  pressure.`
+- AMC Dashboard stat reads `Workspace / AMC Operations`.
+- AMC Orders header reads `Procurement / AMC Operations`.
+- AMC Orders description is `Manage AMC orders, vendor procurement context, and client
+  coordination.`
+- AMC receives restrained cyan accent treatment in the shell context panel/sidebar ring and Orders
+  eyebrow chip.
+
+WS-5.1 preserves:
+
+- all route paths and route behavior;
+- all permission checks and route guards;
+- data fetching and operations-scope behavior;
+- workflow/lifecycle behavior;
+- command palette behavior;
+- saved view behavior;
+- navigation composition and link visibility/order behavior.
+
+Deferred items:
+
+- WS-5.3 optional broader workspace frame accent, only after visual review;
+- WS-6 Vendor Workbench doctrine;
+- WS-7 AMC-7 tokenized vendor order detail;
+- WS-3.4 saved view workspace scoping.

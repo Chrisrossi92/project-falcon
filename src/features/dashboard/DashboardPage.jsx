@@ -13,6 +13,7 @@ import { PERMISSIONS } from "@/lib/permissions/constants";
 import { ORDER_STATUS, normalizeOrderStatus } from "@/lib/constants/orderStatus";
 import { OPERATIONS_MODES } from "@/lib/operations/operationsMode";
 import { getShellWorkModeCue } from "@/lib/shell/shellWorkMode";
+import { getWorkspaceIdentity } from "@/lib/workspace/workspaceIdentity";
 import { useCallback, useMemo, useState } from "react";
 
 const DASHBOARD_CONFIG = {
@@ -72,7 +73,7 @@ const OPERATIONS_DASHBOARD_SUBTITLE =
   "Track active work, review handoffs, due pressure, and workflow coordination.";
 
 const AMC_OPERATIONS_DASHBOARD_SUBTITLE =
-  "Manage vendor network visibility, shared orders, calendar pressure, and client/vendor coordination.";
+  "Track procurement queues, vendor response, client orders, and SLA pressure.";
 
 const REVIEWER_DASHBOARD_SUBTITLE =
   "Active review work, revision follow-up, and calendar context for your queue.";
@@ -238,11 +239,14 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
     isReviewer,
     appContext,
   });
+  const workspaceIdentity = getWorkspaceIdentity(operationsMode);
   const shellWorkMode = getShellWorkModeCue(shellProfilePresentation);
   const shellProfileId = getShellProfilePresentationId(shellProfilePresentation);
   const showAppraiserWorkbenchPreview = shellProfileId === "my_work" && !isAdmin;
   const companyLabel = displayName(appContext?.company_name, "Current company");
   const roleLabel = roleContextLabel({ isAdmin, isReviewer, role: normalizedRole });
+  const dashboardStatLabel = workspaceIdentity.dashboardStatLabel || "Work View";
+  const dashboardStatValue = workspaceIdentity.dashboardStatValue || roleLabel;
   const ordersCount = summary.orders.count ?? 0;
   const patchedOrdersRows = useMemo(
     () =>
@@ -332,10 +336,10 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
             </div>
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
               <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                Work View
+                {dashboardStatLabel}
               </div>
               <div className="mt-1 truncate text-sm font-semibold text-slate-950">
-                {roleLabel}
+                {dashboardStatValue}
               </div>
             </div>
             <div className="rounded-xl border border-slate-900 bg-slate-950 px-3 py-2 text-white">

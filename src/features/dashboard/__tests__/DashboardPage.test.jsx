@@ -304,9 +304,11 @@ describe("DashboardPage operational polish", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Manage vendor network visibility, shared orders, calendar pressure, and client/vendor coordination.",
+        "Track procurement queues, vendor response, client orders, and SLA pressure.",
       ),
     ).toBeInTheDocument();
+    expect(screen.getByText("Workspace")).toBeInTheDocument();
+    expect(screen.getByText("AMC Operations")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Operations Dashboard", level: 1 })).toBeNull();
 
     expect(calendarMock).toHaveBeenLastCalledWith(

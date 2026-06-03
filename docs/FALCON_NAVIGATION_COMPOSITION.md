@@ -133,6 +133,15 @@ Current runtime wiring:
   unchanged.
 - WS-4.4 migrated AMC mobile ordering to workspace definitions while preserving current mobile
   behavior. Internal mobile ordering is unchanged.
+- WS-5.1 added `src/lib/workspace/workspaceIdentity.js` for narrow workspace copy and accent
+  identity. Internal identity remains unchanged/default. AMC identity now drives the TopNav
+  `Procurement Command` cue, Dashboard procurement subtitle and `Workspace / AMC Operations` stat,
+  Orders `Procurement / AMC Operations` header, AMC Orders description, and restrained cyan accents
+  in the shell context panel/sidebar ring and Orders eyebrow chip.
+
+WS-5.1 did not change routes, permissions, data fetching, workflow behavior, command palette,
+saved views, or navigation composition. Layout frame accenting remains deferred to avoid broad
+shell churn before visual review.
 
 Shared physical routes may remain shared when they are interpreted by workspace context:
 

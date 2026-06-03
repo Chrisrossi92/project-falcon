@@ -15,6 +15,7 @@ import { getOperationsModeLabel } from "@/lib/operations/operationsMode";
 import { PERMISSIONS } from "@/lib/permissions/constants";
 import { useShellProfile } from "@/lib/shell/useShellProfile";
 import { getShellWorkModeCue } from "@/lib/shell/shellWorkMode";
+import { getWorkspaceIdentity } from "@/lib/workspace/workspaceIdentity";
 import { Menu, Search } from "lucide-react";
 
 const DESKTOP_SECTION_STYLES = Object.freeze({
@@ -124,7 +125,7 @@ function workspaceContextLabel(appContext) {
   );
 }
 
-function OperationalModeContext({ shellModeCue, appContext, placement = "rail" }) {
+function OperationalModeContext({ shellModeCue, appContext, workspaceIdentity, placement = "rail" }) {
   const navigate = useNavigate();
   const {
     operationsMode,
@@ -132,10 +133,11 @@ function OperationalModeContext({ shellModeCue, appContext, placement = "rail" }
     operationsModeLabel,
     availableOperationsModes,
   } = useOperationsMode();
+  const accentClass = workspaceIdentity?.accentClasses?.shellPanel || "";
   const placementClass =
     placement === "rail"
-      ? "rounded-2xl border border-slate-800 bg-slate-900/80 px-3 py-3"
-      : "rounded-2xl border border-slate-800 bg-slate-900/80 px-3 py-3";
+      ? `rounded-2xl border border-slate-800 bg-slate-900/80 px-3 py-3 ${accentClass}`
+      : `rounded-2xl border border-slate-800 bg-slate-900/80 px-3 py-3 ${accentClass}`;
   const contextLabel = workspaceContextLabel(appContext);
   const handleOperationsModeSelect = useCallback((mode) => {
     if (mode === operationsMode) return;
@@ -434,8 +436,15 @@ export default function TopNav() {
     shellProfileId,
     { operationsMode },
   );
-  const shellModeCue = getShellWorkModeCue(shellProfilePresentation);
+  const workspaceIdentity = getWorkspaceIdentity(operationsMode);
+  const baseShellModeCue = getShellWorkModeCue(shellProfilePresentation);
+  const shellModeCue = {
+    ...baseShellModeCue,
+    label: workspaceIdentity.shellCueLabel || baseShellModeCue.label,
+    context: workspaceIdentity.shellCueDescription || baseShellModeCue.context,
+  };
   const userIdentity = resolveShellUserIdentity(shellProfilePresentation?.appContext, null);
+  const workspaceShellAccentClass = workspaceIdentity.accentClasses.shell || "";
 
   // ⌘K / Ctrl+K
   useEffect(() => {
@@ -452,10 +461,11 @@ export default function TopNav() {
 
   return (
     <>
-      <aside className="fixed inset-y-0 left-0 z-50 hidden w-[17rem] flex-col border-r border-slate-800 bg-[radial-gradient(circle_at_18%_100%,rgba(51,65,85,0.32),transparent_40%),linear-gradient(180deg,#020617_0%,#07111f_36%,#111827_100%)] px-3 py-3 shadow-[18px_0_48px_rgba(2,6,23,0.36)] md:flex">
+      <aside className={`fixed inset-y-0 left-0 z-50 hidden w-[17rem] flex-col border-r border-slate-800 bg-[radial-gradient(circle_at_18%_100%,rgba(51,65,85,0.32),transparent_40%),linear-gradient(180deg,#020617_0%,#07111f_36%,#111827_100%)] px-3 py-3 shadow-[18px_0_48px_rgba(2,6,23,0.36)] md:flex ${workspaceShellAccentClass}`}>
         <OperationalModeContext
           shellModeCue={shellModeCue}
           appContext={shellProfilePresentation?.appContext}
+          workspaceIdentity={workspaceIdentity}
         />
         <nav
           aria-label="Operational spine navigation"
@@ -511,6 +521,7 @@ export default function TopNav() {
               <OperationalModeContext
                 shellModeCue={shellModeCue}
                 appContext={shellProfilePresentation?.appContext}
+                workspaceIdentity={workspaceIdentity}
                 placement="mobile"
               />
               <div className="h-px bg-slate-800 my-2" />

@@ -360,7 +360,12 @@ Recommended sequence:
    - WS-4.5 complete: tests and closeout docs.
 
 5. WS-5: workspace visual identity pass.
-   - Add distinct AMC header/accent/sidebar treatment without creating a separate app or breaking Falcon's shared design system.
+   - WS-5.1 complete: `getWorkspaceIdentity(operationsMode)` added a narrow presentation identity
+     layer. Internal identity remains unchanged/default. AMC identity adds Procurement Command
+     shell copy, procurement-focused Dashboard and Orders copy, and restrained cyan accents in the
+     shell context panel/sidebar ring and Orders eyebrow chip.
+   - WS-5.2 complete: documentation closeout.
+   - WS-5.3 deferred: optional broader workspace frame accent after visual review.
 
 6. WS-6: vendor workbench doctrine.
    - Define authenticated Vendor Workspace routes, labels, role/access model, and reuse expectations for the vendor-facing order detail.
@@ -378,3 +383,5 @@ Recommended sequence:
 - Vendor Workspace authentication and vendor-company user mapping are not yet defined.
 - Tokenized vendor order detail must avoid leaking internal order data, client fee, margin, other bids, and candidate scoring.
 - Visual identity changes must stay restrained enough to preserve one Falcon platform rather than fragmenting into unrelated apps.
+- Layout frame styling is intentionally deferred after WS-5.1 to avoid broad shell churn before
+  visual review.
