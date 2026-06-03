@@ -731,6 +731,13 @@ export default function OrderDetail() {
   const canSelectBidResponses =
     showBidRequestsPanel &&
     permissions.hasPermission(PERMISSIONS.BID_REQUESTS_SELECT);
+  const canCreateBidAssignmentOffer =
+    showBidRequestsPanel &&
+    permissions.hasAllPermissions([
+      PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_OFFER,
+      PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_OWNER,
+      PERMISSIONS.RELATIONSHIPS_ASSIGN_WORK,
+    ]);
   const canOfferVendorCandidateAssignment =
     showVendorCandidatePanel &&
     permissions.hasAllPermissions([
@@ -741,7 +748,7 @@ export default function OrderDetail() {
   const shouldLoadOwnerAssignments =
     Boolean(order?.id) &&
     canReadOwnerAssignments &&
-    (showAssignmentSurfaces || showVendorCandidatePanel);
+    (showAssignmentSurfaces || showVendorCandidatePanel || showBidRequestsPanel);
   const activeVendorAssignment = useMemo(
     () =>
       ownerAssignments.find(
@@ -807,6 +814,12 @@ export default function OrderDetail() {
   const handleBidRequestsChange = React.useCallback((rows) => {
     setBidRequestRows(Array.isArray(rows) ? rows : []);
   }, []);
+
+  const handleBidAssignmentOfferCreated = React.useCallback(async () => {
+    success("Assignment offer created.");
+    await loadOwnerAssignments();
+    setBidRequestsRefreshToken((value) => value + 1);
+  }, [loadOwnerAssignments, success]);
 
   async function handleArchiveOrder() {
     if (!order?.id || archiveSubmitting) return;
@@ -1148,8 +1161,10 @@ export default function OrderDetail() {
             hasActiveVendorAssignment={Boolean(activeVendorAssignment)}
             canRecordResponses={canRecordBidResponses}
             canSelectResponses={canSelectBidResponses}
+            canCreateAssignmentOffer={canCreateBidAssignmentOffer}
             refreshToken={bidRequestsRefreshToken}
             onBidRequestsChange={handleBidRequestsChange}
+            onAssignmentOfferCreated={handleBidAssignmentOfferCreated}
           />
         )}
 

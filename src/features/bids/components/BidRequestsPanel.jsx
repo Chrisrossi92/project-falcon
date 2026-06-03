@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw, X } from "lucide-react";
 
 import {
+  convertSelectedBidToAssignmentOffer,
   listOrderVendorBidRequests,
   recordOrderVendorBidResponse,
   selectOrderVendorBidResponse,
@@ -106,6 +107,21 @@ function formatSelectResponseError(error) {
   }
 
   return "Bid response could not be selected. Review the bid status and try again.";
+}
+
+function formatConvertAssignmentOfferError(error) {
+  const code = String(error?.code || "");
+  const message = String(error?.message || "");
+
+  if (code === "42501" || /permission|not authorized|authorization/i.test(message)) {
+    return "You do not have permission to create assignment offers.";
+  }
+
+  if (/active_vendor_assignment|active vendor|assignment already/i.test(message)) {
+    return "This order already has an active vendor offer or assignment.";
+  }
+
+  return "Assignment offer could not be created from the selected bid. Review the bid status and try again.";
 }
 
 function normalizeCurrency(value) {
@@ -451,13 +467,20 @@ function BidRequestCard({
   request,
   canRecordResponses,
   canSelectResponses,
+  canCreateAssignmentOffer,
+  convertingResponseId,
+  conversionMessage,
   onRecordResponse,
   onSelectResponse,
+  onCreateAssignmentOffer,
 }) {
   const recipients = getRecipients(request);
   const selectedRecipient = getSelectedRecipient(request);
+  const selectedResponseId = getResponseId(selectedRecipient?.response);
   const recipientCount = recipients.length;
   const respondedCount = getRespondedCount(request);
+  const isConvertingSelectedResponse = Boolean(selectedResponseId && convertingResponseId === selectedResponseId);
+  const conversionMessageApplies = conversionMessage?.responseId === selectedResponseId;
 
   return (
     <article className="rounded-md border border-slate-200 bg-slate-50 p-3">
@@ -498,8 +521,32 @@ function BidRequestCard({
 
       {selectedRecipient?.response && (
         <div className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
-          <div className="font-semibold">Selected response: {selectedRecipient.vendor_company_name || "Vendor"}</div>
-          <ResponseSummary response={selectedRecipient.response} />
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div className="min-w-0">
+              <div className="font-semibold">Selected response: {selectedRecipient.vendor_company_name || "Vendor"}</div>
+              <ResponseSummary response={selectedRecipient.response} />
+            </div>
+            {canCreateAssignmentOffer && selectedResponseId && (
+              <button
+                type="button"
+                onClick={() => onCreateAssignmentOffer?.(selectedRecipient)}
+                disabled={isConvertingSelectedResponse}
+                className="inline-flex h-9 shrink-0 items-center justify-center rounded-md border border-emerald-200 bg-white px-3 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 disabled:opacity-60"
+              >
+                {isConvertingSelectedResponse ? "Creating..." : "Create Assignment Offer"}
+              </button>
+            )}
+          </div>
+          {conversionMessageApplies && conversionMessage?.success && (
+            <div role="status" className="mt-3 rounded-md border border-emerald-200 bg-white px-3 py-2 text-sm text-emerald-800">
+              {conversionMessage.success}
+            </div>
+          )}
+          {conversionMessageApplies && conversionMessage?.error && (
+            <div role="alert" className="mt-3 rounded-md border border-rose-200 bg-white px-3 py-2 text-sm text-rose-700">
+              {conversionMessage.error}
+            </div>
+          )}
         </div>
       )}
 
@@ -527,8 +574,10 @@ export default function BidRequestsPanel({
   hasActiveVendorAssignment = false,
   canRecordResponses = false,
   canSelectResponses = false,
+  canCreateAssignmentOffer = false,
   refreshToken = 0,
   onBidRequestsChange,
+  onAssignmentOfferCreated,
   className = "",
 }) {
   const [requests, setRequests] = useState([]);
@@ -536,6 +585,8 @@ export default function BidRequestsPanel({
   const [error, setError] = useState(null);
   const [recordResponseRecipient, setRecordResponseRecipient] = useState(null);
   const [selectResponseRecipient, setSelectResponseRecipient] = useState(null);
+  const [convertingResponseId, setConvertingResponseId] = useState(null);
+  const [conversionMessage, setConversionMessage] = useState(null);
 
   const loadBidRequests = useCallback(async () => {
     if (!enabled || !orderId) return;
@@ -574,6 +625,36 @@ export default function BidRequestsPanel({
       return String(b.created_at || "").localeCompare(String(a.created_at || ""));
     });
   }, [requests]);
+
+  const handleCreateAssignmentOffer = useCallback(async (recipient) => {
+    const responseId = getResponseId(recipient?.response);
+    if (!responseId || convertingResponseId) return;
+
+    setConvertingResponseId(responseId);
+    setConversionMessage(null);
+
+    try {
+      const result = await convertSelectedBidToAssignmentOffer(responseId);
+      setConversionMessage({
+        responseId,
+        success: "Assignment offer created from the selected bid.",
+        error: "",
+      });
+      if (onAssignmentOfferCreated) {
+        await onAssignmentOfferCreated(result);
+      } else {
+        await loadBidRequests();
+      }
+    } catch (conversionError) {
+      setConversionMessage({
+        responseId,
+        success: "",
+        error: formatConvertAssignmentOfferError(conversionError),
+      });
+    } finally {
+      setConvertingResponseId(null);
+    }
+  }, [convertingResponseId, loadBidRequests, onAssignmentOfferCreated]);
 
   if (!enabled) return null;
 
@@ -645,8 +726,12 @@ export default function BidRequestsPanel({
               request={request}
               canRecordResponses={canRecordResponses}
               canSelectResponses={canSelectResponses}
+              canCreateAssignmentOffer={canCreateAssignmentOffer && !hasActiveVendorAssignment}
+              convertingResponseId={convertingResponseId}
+              conversionMessage={conversionMessage}
               onRecordResponse={setRecordResponseRecipient}
               onSelectResponse={setSelectResponseRecipient}
+              onCreateAssignmentOffer={handleCreateAssignmentOffer}
             />
           ))}
         </div>

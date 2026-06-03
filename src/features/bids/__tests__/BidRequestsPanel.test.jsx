@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const bidApiState = vi.hoisted(() => ({
+  convertSelectedBidToAssignmentOffer: vi.fn(),
   listOrderVendorBidRequests: vi.fn(),
   recordOrderVendorBidResponse: vi.fn(),
   selectOrderVendorBidResponse: vi.fn(),
@@ -14,6 +15,7 @@ const assignmentApiState = vi.hoisted(() => ({
 }));
 
 vi.mock("../api", () => ({
+  convertSelectedBidToAssignmentOffer: bidApiState.convertSelectedBidToAssignmentOffer,
   listOrderVendorBidRequests: bidApiState.listOrderVendorBidRequests,
   recordOrderVendorBidResponse: bidApiState.recordOrderVendorBidResponse,
   selectOrderVendorBidResponse: bidApiState.selectOrderVendorBidResponse,
@@ -60,8 +62,32 @@ const bidRequests = [
   },
 ];
 
+function selectedBidRequests() {
+  return [
+    {
+      ...bidRequests[0],
+      status: "closed",
+      recipients: [
+        {
+          ...bidRequests[0].recipients[0],
+          status: "selected",
+          response: {
+            ...bidRequests[0].recipients[0].response,
+            selected_at: "2026-06-02T18:00:00.000Z",
+          },
+        },
+        {
+          ...bidRequests[0].recipients[1],
+          status: "not_selected",
+        },
+      ],
+    },
+  ];
+}
+
 describe("BidRequestsPanel", () => {
   beforeEach(() => {
+    bidApiState.convertSelectedBidToAssignmentOffer.mockReset();
     bidApiState.listOrderVendorBidRequests.mockReset();
     bidApiState.recordOrderVendorBidResponse.mockReset();
     bidApiState.selectOrderVendorBidResponse.mockReset();
@@ -113,26 +139,7 @@ describe("BidRequestsPanel", () => {
   });
 
   it("renders selected response details when present", async () => {
-    bidApiState.listOrderVendorBidRequests.mockResolvedValue([
-      {
-        ...bidRequests[0],
-        status: "closed",
-        recipients: [
-          {
-            ...bidRequests[0].recipients[0],
-            status: "selected",
-            response: {
-              ...bidRequests[0].recipients[0].response,
-              selected_at: "2026-06-02T18:00:00.000Z",
-            },
-          },
-          {
-            ...bidRequests[0].recipients[1],
-            status: "not_selected",
-          },
-        ],
-      },
-    ]);
+    bidApiState.listOrderVendorBidRequests.mockResolvedValue(selectedBidRequests());
 
     render(<BidRequestsPanel orderId="order-1" enabled />);
 
@@ -229,17 +236,9 @@ describe("BidRequestsPanel", () => {
   it("hides select bid for already selected, not selected, and closed responses", async () => {
     bidApiState.listOrderVendorBidRequests.mockResolvedValue([
       {
-        ...bidRequests[0],
-        status: "closed",
+        ...selectedBidRequests()[0],
         recipients: [
-          {
-            ...bidRequests[0].recipients[0],
-            status: "selected",
-            response: {
-              ...bidRequests[0].recipients[0].response,
-              selected_at: "2026-06-02T18:00:00.000Z",
-            },
-          },
+          selectedBidRequests()[0].recipients[0],
           {
             ...bidRequests[0].recipients[1],
             status: "not_selected",
@@ -447,6 +446,104 @@ describe("BidRequestsPanel", () => {
     expect(dialog).toBeInTheDocument();
     expect(within(dialog).getByText("Franklin Commercial Valuation")).toBeInTheDocument();
     expect(within(dialog).getByText("Selecting this bid does not create an assignment yet.")).toBeInTheDocument();
+    expect(assignmentApiState.offerOrderToVendor).not.toHaveBeenCalled();
+  });
+
+  it("shows create assignment offer only for selected responses with assignment offer access", async () => {
+    bidApiState.listOrderVendorBidRequests.mockResolvedValue(selectedBidRequests());
+
+    render(<BidRequestsPanel orderId="order-1" enabled canCreateAssignmentOffer />);
+
+    expect(await screen.findByText("Selected response: Franklin Commercial Valuation")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create Assignment Offer" })).toBeInTheDocument();
+    expect(screen.queryByText("Selected response: Metro Valuation Group")).toBeNull();
+  });
+
+  it("does not show create assignment offer for unselected bid responses", async () => {
+    bidApiState.listOrderVendorBidRequests.mockResolvedValue(bidRequests);
+
+    render(<BidRequestsPanel orderId="order-1" enabled canCreateAssignmentOffer />);
+
+    expect(await screen.findByRole("heading", { name: "Bid request" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Create Assignment Offer" })).toBeNull();
+  });
+
+  it("does not show create assignment offer when an active vendor assignment exists", async () => {
+    bidApiState.listOrderVendorBidRequests.mockResolvedValue(selectedBidRequests());
+
+    render(<BidRequestsPanel orderId="order-1" enabled canCreateAssignmentOffer hasActiveVendorAssignment />);
+
+    expect(await screen.findByText("Selected response: Franklin Commercial Valuation")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Create Assignment Offer" })).toBeNull();
+  });
+
+  it("converts a selected bid to an assignment offer and refreshes", async () => {
+    const handleAssignmentOfferCreated = vi.fn();
+    const result = {
+      assignment_id: "assignment-1",
+      bid_response_id: "response-1",
+    };
+    bidApiState.listOrderVendorBidRequests.mockResolvedValue(selectedBidRequests());
+    bidApiState.convertSelectedBidToAssignmentOffer.mockResolvedValue(result);
+
+    render(
+      <BidRequestsPanel
+        orderId="order-1"
+        enabled
+        canCreateAssignmentOffer
+        onAssignmentOfferCreated={handleAssignmentOfferCreated}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Create Assignment Offer" }));
+
+    await waitFor(() => {
+      expect(bidApiState.convertSelectedBidToAssignmentOffer).toHaveBeenCalledWith("response-1");
+    });
+    await waitFor(() => {
+      expect(handleAssignmentOfferCreated).toHaveBeenCalledWith(result);
+    });
+    expect(bidApiState.listOrderVendorBidRequests).toHaveBeenCalledTimes(1);
+    expect(await screen.findByRole("status")).toHaveTextContent("Assignment offer created from the selected bid.");
+    expect(assignmentApiState.offerOrderToVendor).not.toHaveBeenCalled();
+  });
+
+  it("disables create assignment offer while conversion is submitting", async () => {
+    let resolveConversion;
+    const conversionPromise = new Promise((resolve) => {
+      resolveConversion = resolve;
+    });
+    bidApiState.listOrderVendorBidRequests.mockResolvedValue(selectedBidRequests());
+    bidApiState.convertSelectedBidToAssignmentOffer.mockReturnValue(conversionPromise);
+
+    render(<BidRequestsPanel orderId="order-1" enabled canCreateAssignmentOffer />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Create Assignment Offer" }));
+
+    const creatingButton = await screen.findByRole("button", { name: "Creating..." });
+    expect(creatingButton).toBeDisabled();
+
+    resolveConversion({ assignment_id: "assignment-1" });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Create Assignment Offer" })).toBeEnabled();
+    });
+  });
+
+  it("shows an error when selected bid conversion fails", async () => {
+    bidApiState.listOrderVendorBidRequests.mockResolvedValue(selectedBidRequests());
+    bidApiState.convertSelectedBidToAssignmentOffer.mockRejectedValue(
+      Object.assign(new Error("denied"), { code: "42501" }),
+    );
+
+    render(<BidRequestsPanel orderId="order-1" enabled canCreateAssignmentOffer />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Create Assignment Offer" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "You do not have permission to create assignment offers.",
+    );
+    expect(bidApiState.listOrderVendorBidRequests).toHaveBeenCalledTimes(1);
     expect(assignmentApiState.offerOrderToVendor).not.toHaveBeenCalled();
   });
 });

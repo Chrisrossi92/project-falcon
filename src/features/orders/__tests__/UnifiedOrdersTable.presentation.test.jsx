@@ -9,6 +9,7 @@ import UnifiedOrdersTable from "../UnifiedOrdersTable";
 const useOrdersMock = vi.hoisted(() => vi.fn());
 const useColumnsConfigMock = vi.hoisted(() => vi.fn());
 const updateSiteVisitAtMock = vi.hoisted(() => vi.fn());
+const fetchAmcOrderProcurementSummariesMock = vi.hoisted(() => vi.fn());
 const sendOrderToReviewMock = vi.hoisted(() => vi.fn());
 const orderWorkflowMocks = vi.hoisted(() => ({
   sendOrderBackToAppraiser: vi.fn(),
@@ -50,6 +51,10 @@ vi.mock("@/lib/hooks/useToast", () => ({
 
 vi.mock("@/lib/api/orders", () => ({
   updateSiteVisitAt: updateSiteVisitAtMock,
+}));
+
+vi.mock("@/features/bids/api", () => ({
+  fetchAmcOrderProcurementSummaries: fetchAmcOrderProcurementSummariesMock,
 }));
 
 vi.mock("@/lib/services/ordersService", () => ({
@@ -155,6 +160,7 @@ describe("UnifiedOrdersTable presentation", () => {
         cell: (order) => order.client_name,
       },
     ]);
+    fetchAmcOrderProcurementSummariesMock.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -162,6 +168,7 @@ describe("UnifiedOrdersTable presentation", () => {
     useOrdersMock.mockReset();
     useColumnsConfigMock.mockReset();
     updateSiteVisitAtMock.mockReset();
+    fetchAmcOrderProcurementSummariesMock.mockReset();
     sendOrderToReviewMock.mockReset();
     Object.values(orderWorkflowMocks).forEach((mock) => mock.mockReset());
     logNoteMock.mockReset();
@@ -178,6 +185,81 @@ describe("UnifiedOrdersTable presentation", () => {
     expect(screen.getAllByText("2 total")[0]).toBeInTheDocument();
     expect(screen.getByText("2026001")).toBeInTheDocument();
     expect(screen.getByText("Acme Lending")).toBeInTheDocument();
+  });
+
+  it("fetches AMC procurement summaries once for visible AMC order rows and renders backend labels", async () => {
+    fetchAmcOrderProcurementSummariesMock.mockResolvedValue([
+      {
+        order_id: "order-1",
+        label: "Responses Received",
+        tone: "info",
+        contacted_count: 3,
+        responded_count: 2,
+      },
+    ]);
+
+    renderTable({
+      operationsScope: "amc_operations",
+      rowsOverride: [
+        { ...rows[0], operations_scope: "amc_operations" },
+        { ...rows[1], operations_scope: "amc_operations" },
+        {
+          id: "internal-order-1",
+          order_number: "2026003",
+          client_name: "Internal Bank",
+          status: "new",
+          operations_scope: "internal_operations",
+        },
+      ],
+    });
+
+    await waitFor(() =>
+      expect(fetchAmcOrderProcurementSummariesMock).toHaveBeenCalledWith(["order-1", "order-2"]),
+    );
+    expect(fetchAmcOrderProcurementSummariesMock).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText("Responses Received")).toBeInTheDocument();
+    expect(screen.queryByText("No Bids")).not.toBeInTheDocument();
+  });
+
+  it("does not fetch or render AMC procurement chips for internal operations rows", async () => {
+    renderTable({
+      operationsScope: "amc_operations",
+      rowsOverride: [{ ...rows[0], operations_scope: "internal_operations" }],
+    });
+
+    await waitFor(() => expect(screen.getByText("2026001")).toBeInTheDocument());
+    expect(fetchAmcOrderProcurementSummariesMock).not.toHaveBeenCalled();
+    expect(screen.queryByText("Bids Requested")).not.toBeInTheDocument();
+  });
+
+  it("does not fetch AMC procurement summaries outside AMC operations scope", async () => {
+    renderTable({
+      operationsScope: "internal_operations",
+      rowsOverride: [{ ...rows[0], operations_scope: "amc_operations" }],
+    });
+
+    await waitFor(() => expect(screen.getByText("2026001")).toBeInTheDocument());
+    expect(fetchAmcOrderProcurementSummariesMock).not.toHaveBeenCalled();
+  });
+
+  it("handles AMC procurement summary fetch errors without breaking the table", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    fetchAmcOrderProcurementSummariesMock.mockRejectedValue(new Error("summary load failed"));
+
+    renderTable({
+      operationsScope: "amc_operations",
+      rowsOverride: [{ ...rows[0], operations_scope: "amc_operations" }],
+    });
+
+    expect(screen.getByText("2026001")).toBeInTheDocument();
+    await waitFor(() => expect(fetchAmcOrderProcurementSummariesMock).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText("Bids Requested")).not.toBeInTheDocument();
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "Failed to load AMC procurement summaries",
+      expect.any(Error),
+    );
+
+    consoleErrorSpy.mockRestore();
   });
 
   it("renders read-only next-step support copy from visible row data", () => {

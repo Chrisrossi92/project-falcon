@@ -27,6 +27,8 @@ import useColumnsConfig from "@/features/orders/columns/useColumnsConfig";
 import { useToast } from "@/lib/hooks/useToast";
 import { useCurrentUserAppContext } from "@/features/auth/useCurrentUserAppContext";
 import { deriveDashboardRoleFlags } from "@/lib/hooks/useDashboardSummary";
+import { fetchAmcOrderProcurementSummaries } from "@/features/bids/api";
+import { OPERATIONS_MODES } from "@/lib/operations/operationsMode";
 
 /* helpers */
 const feeOf = (r) => [r?.base_fee, r?.appraiser_fee].find((v) => v != null);
@@ -44,6 +46,36 @@ const orderNumberOf = (row) => {
 
 function orderPkOf(o) {
   return o?.id || o?.order_id || null;
+}
+
+const PROCUREMENT_TONE_CLASSES = {
+  neutral: "border-slate-200 bg-slate-50 text-slate-600",
+  info: "border-blue-200 bg-blue-50 text-blue-700",
+  warning: "border-amber-200 bg-amber-50 text-amber-700",
+  success: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  danger: "border-rose-200 bg-rose-50 text-rose-700",
+  default: "border-slate-200 bg-white text-slate-600",
+};
+
+function ProcurementStatusChip({ summary }) {
+  if (!summary?.label) return null;
+
+  const titleParts = [
+    summary.contacted_count != null ? `Contacted: ${summary.contacted_count}` : "",
+    summary.responded_count != null ? `Responded: ${summary.responded_count}` : "",
+    summary.selected_vendor_name ? `Selected: ${summary.selected_vendor_name}` : "",
+    summary.response_due_at ? `Response due: ${fmtDate(summary.response_due_at)}` : "",
+  ].filter(Boolean);
+  const toneClass = PROCUREMENT_TONE_CLASSES[summary.tone] || PROCUREMENT_TONE_CLASSES.default;
+
+  return (
+    <span
+      className={`inline-flex w-fit items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold leading-4 shadow-sm ${toneClass}`}
+      title={titleParts.length ? titleParts.join(" · ") : summary.label}
+    >
+      {summary.label}
+    </span>
+  );
 }
 
 function withSiteVisit(order, siteVisitAt, serverPatch = {}) {
@@ -214,6 +246,56 @@ export default function UnifiedOrdersTable({
   const displayData = hasRowsOverride ? filteredTableData.slice(pageStart, pageEnd) : filteredTableData;
   const totalPages = Math.max(1, Math.ceil((tableCount || 0) / (tableFilters.pageSize || pageSize)));
   const [expandedId, setExpandedId] = useState(null);
+  const [procurementSummariesByOrderId, setProcurementSummariesByOrderId] = useState({});
+  const isAmcOperationsTable =
+    operationsScope === OPERATIONS_MODES.AMC_OPERATIONS || mode === OPERATIONS_MODES.AMC_OPERATIONS;
+  const visibleAmcOrderIds = useMemo(() => {
+    if (!isAmcOperationsTable || tableLoading) return [];
+
+    return [
+      ...new Set(
+        (displayData || [])
+          .filter((row) => row?.operations_scope === OPERATIONS_MODES.AMC_OPERATIONS)
+          .map(orderPkOf)
+          .filter(Boolean),
+      ),
+    ];
+  }, [displayData, isAmcOperationsTable, tableLoading]);
+  const visibleAmcOrderIdsKey = visibleAmcOrderIds.join("|");
+
+  useEffect(() => {
+    let cancelled = false;
+    const orderIds = visibleAmcOrderIdsKey ? visibleAmcOrderIdsKey.split("|") : [];
+
+    if (orderIds.length === 0) {
+      setProcurementSummariesByOrderId({});
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setProcurementSummariesByOrderId({});
+    fetchAmcOrderProcurementSummaries(orderIds)
+      .then((rows) => {
+        if (cancelled) return;
+        setProcurementSummariesByOrderId(
+          Object.fromEntries(
+            (Array.isArray(rows) ? rows : [])
+              .filter((row) => row?.order_id)
+              .map((row) => [row.order_id, row]),
+          ),
+        );
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error("Failed to load AMC procurement summaries", err);
+        setProcurementSummariesByOrderId({});
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [visibleAmcOrderIdsKey]);
 
   const refresh = useCallback(() => setRefreshTick((x) => x + 1), []);
   const go = (p) => setTableFilters((f) => ({ ...f, page: Math.min(Math.max(0, p), totalPages - 1) }));
@@ -719,6 +801,10 @@ export default function UnifiedOrdersTable({
             displayData.map((o, idx) => {
               const rowKey = o.order_id || o.id || o.order_number || `row-${tableFilters?.page ?? 0}-${idx}`;
               const orderPk = orderPkOf(o);
+              const procurementSummary =
+                isAmcOperationsTable && o?.operations_scope === OPERATIONS_MODES.AMC_OPERATIONS && orderPk
+                  ? procurementSummariesByOrderId[orderPk]
+                  : null;
 
               const drawerNode = (
                 <div data-no-drawer>
@@ -739,6 +825,17 @@ export default function UnifiedOrdersTable({
                       style={{ display: "grid", gridTemplateColumns: template, columnGap: isDashboardWorklist ? ".5rem" : ".25rem" }}
                     >
                       {columns.map((c, cIdx) => {
+                        if (c.key === "order") {
+                          return (
+                            <div key={c.key} className={`${cIdx === 0 ? stickyCell : ""} ${c.align === "center" ? "text-center" : ""}`}>
+                              {c.cell(o)}
+                              <div className="mt-1.5">
+                                <ProcurementStatusChip summary={procurementSummary} />
+                              </div>
+                            </div>
+                          );
+                        }
+
                         // Status column special rendering
                         if (c.key === "status") {
                           const rawStatus = normalizeOrderStatus(o.status_normalized || o.status);
@@ -751,6 +848,7 @@ export default function UnifiedOrdersTable({
                           return (
                             <div key={c.key} className="flex flex-col gap-1">
                               <OrderStatusBadge status={rawStatus} />
+                              <ProcurementStatusChip summary={procurementSummary} />
                               {dueDates.length > 0 && (
                                 <div className="text-[11px] leading-4 text-slate-500">
                                   {dueDates.join(" · ")}

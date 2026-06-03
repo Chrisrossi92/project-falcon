@@ -67,6 +67,16 @@ export async function listOrderVendorBidRequests(orderId) {
   return Array.isArray(data) ? data : [];
 }
 
+export async function fetchAmcOrderProcurementSummaries(orderIds = []) {
+  const normalizedOrderIds = Array.isArray(orderIds) ? orderIds.filter(Boolean) : [];
+  if (normalizedOrderIds.length === 0) return [];
+
+  const data = await rpc("rpc_amc_order_procurement_summaries", {
+    p_order_ids: normalizedOrderIds,
+  });
+  return Array.isArray(data) ? data : [];
+}
+
 export async function recordOrderVendorBidResponse(recipientId, payload = {}) {
   return rpc("rpc_order_vendor_bid_response_record", {
     p_recipient_id: recipientId,
@@ -77,5 +87,12 @@ export async function recordOrderVendorBidResponse(recipientId, payload = {}) {
 export async function selectOrderVendorBidResponse(responseId) {
   return rpc("rpc_order_vendor_bid_response_select", {
     p_response_id: responseId,
+  });
+}
+
+export async function convertSelectedBidToAssignmentOffer(responseId, payload = {}) {
+  return rpc("rpc_order_vendor_bid_response_convert_to_assignment_offer", {
+    p_response_id: responseId,
+    p_payload: payload || {},
   });
 }

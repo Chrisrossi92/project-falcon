@@ -2998,7 +2998,8 @@ AMC bid status is a separate procurement/bid status. It must not replace apprais
 1. AMC-6V.3: derive helper/util from bid request list data plus active assignment packet state.
 2. AMC-6V.4: compact Bid Status card on Order Detail.
 3. AMC-6V.5: Orders list AMC bid status chip proposal and batched read-model recommendation.
-4. AMC-6V.6: AMC dashboard procurement queue.
+4. AMC-6V.6: bid workflow validation closeout and AMC-7 vendor self-service deferral.
+5. Future: AMC dashboard procurement queue after a batched procurement summary read model exists.
 
 ### AMC-6V.3 Bid Status Derivation Helper
 
@@ -3148,6 +3149,89 @@ The RPC should derive from bid request rows, recipient statuses, response/select
 3. AMC-6V.5.3: frontend wrapper plus Orders list chip using one batched request for visible AMC order ids.
 4. AMC-6V.5.4: reuse the same projection for the future AMC dashboard procurement queue.
 
+### AMC-6V.6 Bid Workflow Validation Closeout
+
+AMC-6V.6 is documentation/light-validation only. It adds no runtime code, vendor portal, routes/nav, schema/RLS changes, bid behavior changes, assignment behavior changes, notifications, order mutations, or `/amc/*` routes.
+
+Manual coordinator-driven AMC bid workflow is now validated through the current backend and shared Order Detail surfaces:
+
+- AMC-scoped orders appear in AMC Operations mode.
+- Vendor candidates load for AMC-scoped orders.
+- Multiple eligible vendor candidates can be selected.
+- `Request bids` creates bid request and recipient rows.
+- Bid Requests history displays requested vendors and recipient state.
+- Owner/admin coordinators can manually record vendor responses with fee, currency, proposed due date, turn time, and comments.
+
+This closes the internal/coordinator-entered bid workflow through response entry. Vendor self-service bidding is intentionally deferred to future AMC-7. AMC-6 remains an internal operations workflow: coordinators request bids, receive vendor answers out-of-band, and record those answers manually.
+
+#### AMC-7 Vendor Self-Service Bidding Roadmap
+
+AMC-7 should define the first vendor-facing response workflow without requiring a full vendor account in the first version:
+
+- secure/tokenized bid response link tied to a bid request recipient
+- minimal vendor-facing response page
+- no full vendor account required for the first version
+- fee amount, turn time days, proposed due date, and comments form
+- expiration handling for stale or invalid response links
+- audit trail for link creation, access, submission, expiration, and coordinator overrides
+- later authenticated vendor portal for richer vendor account workflows
+
+AMC-7 must preserve AMC-6 boundaries: vendor responses are bid responses, not assignment acceptances; selecting a bid does not create an assignment; assignment packets remain created only through the canonical assignment-offer lifecycle.
+
+### AMC-6W Selected Bid To Assignment Offer Conversion
+
+AMC-6W completes the internal selected-bid conversion path. A selected bid is still not an assignment. It is a procurement decision recorded on bid request history until an authorized owner/admin explicitly creates an assignment offer.
+
+The completed path is:
+
+1. `BidRequestsPanel` shows `Create Assignment Offer` on the selected response.
+2. The UI calls `convertSelectedBidToAssignmentOffer(responseId)`.
+3. The wrapper calls `rpc_order_vendor_bid_response_convert_to_assignment_offer(...)`.
+4. The selected-bid conversion RPC loads the selected response server-side, revalidates selected-bid and vendor eligibility facts, and delegates to `rpc_order_company_assignment_offer(...)`.
+5. The existing assignment packet lifecycle creates the canonical `order_company_assignments` offer.
+
+The selected-bid wrapper delegates to the existing assignment-offer RPC rather than introducing a second assignment engine. It preserves the canonical active-offer guard, AMC order-scope guard, assignment-offer authority checks, notification/activity behavior owned by the assignment RPC, and assignment packet state model.
+
+Request Bids -> Select Bid -> Create Assignment Offer is now the primary AMC procurement flow. Direct Award remains available as the secondary path for known-vendor single-vendor awards where no active vendor assignment blocks action.
+
+Bid request rows remain historical. They are not deleted, rewritten into assignment rows, or marked converted yet. The selected bid remains the procurement audit trail, while the assignment packet becomes the operational work boundary after conversion.
+
+After conversion, Order Detail refreshes owner assignment rows. The existing Company Assignments panel is sufficient for MVP visibility because it shows the offered vendor packet, status, due/review/expiration dates, and `Open Packet` link. No redesign is required for this slice.
+
+Vendor self-service bidding remains deferred to AMC-7. AMC-7 should still cover secure/tokenized response links, a minimal vendor-facing response page without full account requirement for the first version, expiration handling, audit trail, and later authenticated vendor portal workflows.
+
+### AMC-6X Orders List Procurement Chip And Read Model
+
+AMC-6X completes the smallest safe procurement visibility layer for AMC Orders list rows. The Orders table now uses one batched read-model RPC for visible AMC order ids instead of fetching bid history per row.
+
+Runtime path:
+
+1. `UnifiedOrdersTable` collects visible order ids for rows where `operations_scope = 'amc_operations'`.
+2. The table calls `fetchAmcOrderProcurementSummaries(orderIds)`.
+3. The wrapper calls `rpc_amc_order_procurement_summaries(p_order_ids uuid[])`.
+4. The table renders the returned `label` as a compact procurement chip in the `Order / Status` cell beneath the normal appraisal lifecycle status.
+
+The procurement chip is an AMC Operations overlay. It does not replace order lifecycle status, assignment packet status, Bid Requests history, or Order Detail bid comparison data.
+
+Status precedence:
+
+1. `Assigned`
+2. `Assignment Offered`
+3. `Bid Selected`
+4. `Responses Received`
+5. `Bids Requested`
+6. `No Bids`
+
+Visibility and failure behavior:
+
+- Chips render only for AMC Operations rows.
+- Internal Operations rows are excluded and never show AMC procurement chips.
+- Missing backend summaries render no chip; the frontend does not invent `No Bids` without a returned row.
+- Fetch errors are logged and do not break the Orders table.
+- The implementation avoids N+1 bid/order queries from the Orders table.
+
+AMC procurement MVP is now complete for the internal coordinator workflow: candidate discovery, Request Bids, manual response entry, Select Bid, Create Assignment Offer, assignment packet lifecycle handoff, Order Detail bid status, and Orders list procurement chip. Remaining procurement items are intentionally deferred: AMC-7 vendor self-service bidding, procurement dashboard queue, client-facing bid review, procurement filters, and an explicit converted bid row marker.
+
 ### Migration Risks
 
 - Over-constraining status transitions before the response UI exists could require noisy patch migrations.
@@ -3156,6 +3240,7 @@ The RPC should derive from bid request rows, recipient statuses, response/select
 - Fee fields need clear currency/precision semantics before client-facing comparison screens.
 - Selecting a bid must never bypass `order_company_assignments` active-offer and AMC-scope guards.
 - Selected-bid conversion must never trust browser-provided vendor/fee/due-date identity when server-side selected bid state can be loaded by response id.
+- Bid rows are not marked converted yet, so future reporting must infer conversion from the assignment handoff payload until an explicit converted marker is approved.
 
 ### Implementation Sequencing Recommendation
 
@@ -3171,8 +3256,10 @@ Recommended next slices:
 8. AMC-6R.3: create bid request integration plus BidRequestsPanel refresh.
 9. AMC-6S: manual bid response recording UI.
 10. AMC-6T: selected-bid decision UI.
-11. AMC-6U: selected-bid-to-assignment conversion proposal and guarded implementation slices.
-12. AMC-6V: bid comparison panel refinements.
+11. AMC-6U: selected-bid-to-assignment conversion proposal.
+12. AMC-6V: bid status, validation, and Orders list chip proposals.
+13. AMC-6W: selected-bid-to-assignment-offer backend wrapper, frontend wrapper, Bid Requests panel action, and documentation lock.
+14. AMC-6X: batched procurement summary read model, frontend wrapper, Orders table chip, and documentation closeout.
 
 ### AMC-6 Roadmap
 
@@ -3203,6 +3290,8 @@ Recommended next slices:
 - AMC-6R: Request Bids UI proposal. Recommends candidate-panel multi-select, a Request Bids modal, secondary direct award, and no assignment creation until a bid is selected.
 - AMC-6R.1+: Multi-select candidate UI, Request Bids modal, create integration, manual response recording, selected-bid decision UI, selected-bid-to-assignment conversion, bid comparison, and vendor portal response.
 - AMC-6V.2: Order bid status summary proposal. Derive compact AMC procurement status from bid requests, responses, selected bid state, and active assignment packets; do not store on `orders` for MVP.
+- AMC-6W: Selected bid to assignment offer conversion. Adds a backend wrapper that delegates to `rpc_order_company_assignment_offer(...)`, a frontend wrapper, and a `BidRequestsPanel` action for selected responses. Selected bid is still not an assignment until `Create Assignment Offer` succeeds; bid rows remain historical and unmarked as converted.
+- AMC-6X: Orders list procurement chip/read model. Adds `rpc_amc_order_procurement_summaries(p_order_ids uuid[])`, `fetchAmcOrderProcurementSummaries(orderIds)`, and a compact AMC-only chip in the `Order / Status` cell using one batched request for visible AMC rows.
 
 ### AMC-5J: Assignment Offer Integration Proposal
 

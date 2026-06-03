@@ -10,7 +10,9 @@ vi.mock("@/lib/supabaseClient", () => ({
 }));
 
 const {
+  convertSelectedBidToAssignmentOffer,
   createOrderVendorBidRequest,
+  fetchAmcOrderProcurementSummaries,
   listOrderVendorBidRequests,
   recordOrderVendorBidResponse,
   selectOrderVendorBidResponse,
@@ -144,6 +146,71 @@ describe("bid request API wrappers", () => {
     await expect(listOrderVendorBidRequests("order-1")).resolves.toEqual([]);
   });
 
+  it("exports AMC order procurement summary wrapper", () => {
+    expect(fetchAmcOrderProcurementSummaries).toEqual(expect.any(Function));
+  });
+
+  it("fetches AMC order procurement summaries through the batched backend RPC", async () => {
+    const rows = [
+      {
+        order_id: "order-1",
+        status: "bids_requested",
+        label: "Bids Requested",
+        tone: "info",
+      },
+      {
+        order_id: "order-2",
+        status: "assigned",
+        label: "Assigned",
+        tone: "success",
+      },
+    ];
+    supabaseMock.rpc.mockResolvedValue({ data: rows, error: null });
+
+    await expect(fetchAmcOrderProcurementSummaries(["order-1", "order-2"])).resolves.toEqual(rows);
+
+    expect(supabaseMock.rpc).toHaveBeenCalledWith("rpc_amc_order_procurement_summaries", {
+      p_order_ids: ["order-1", "order-2"],
+    });
+    expect(supabaseMock.from).not.toHaveBeenCalled();
+  });
+
+  it("returns an empty AMC procurement summary list without RPC for default empty input", async () => {
+    await expect(fetchAmcOrderProcurementSummaries()).resolves.toEqual([]);
+
+    expect(supabaseMock.rpc).not.toHaveBeenCalled();
+  });
+
+  it("returns an empty AMC procurement summary list without RPC for null or non-array input", async () => {
+    await expect(fetchAmcOrderProcurementSummaries(null)).resolves.toEqual([]);
+    await expect(fetchAmcOrderProcurementSummaries("order-1")).resolves.toEqual([]);
+
+    expect(supabaseMock.rpc).not.toHaveBeenCalled();
+  });
+
+  it("filters empty AMC procurement summary ids before calling the RPC", async () => {
+    supabaseMock.rpc.mockResolvedValue({ data: [], error: null });
+
+    await fetchAmcOrderProcurementSummaries(["order-1", "", null, "order-2"]);
+
+    expect(supabaseMock.rpc).toHaveBeenCalledWith("rpc_amc_order_procurement_summaries", {
+      p_order_ids: ["order-1", "order-2"],
+    });
+  });
+
+  it("returns an empty AMC procurement summary list for non-array RPC payloads", async () => {
+    supabaseMock.rpc.mockResolvedValue({ data: null, error: null });
+
+    await expect(fetchAmcOrderProcurementSummaries(["order-1"])).resolves.toEqual([]);
+  });
+
+  it("surfaces AMC procurement summary RPC errors for callers to handle", async () => {
+    const error = Object.assign(new Error("procurement summaries denied"), { code: "42501" });
+    supabaseMock.rpc.mockResolvedValue({ data: null, error });
+
+    await expect(fetchAmcOrderProcurementSummaries(["order-1"])).rejects.toBe(error);
+  });
+
   it("records vendor bid responses through the backend RPC", async () => {
     const payload = {
       fee_amount: 1450,
@@ -181,6 +248,78 @@ describe("bid request API wrappers", () => {
       p_response_id: "response-1",
     });
     expect(supabaseMock.from).not.toHaveBeenCalled();
+  });
+
+  it("exports selected bid conversion wrapper", () => {
+    expect(convertSelectedBidToAssignmentOffer).toEqual(expect.any(Function));
+  });
+
+  it("converts selected bid responses to assignment offers with an empty default payload", async () => {
+    const result = {
+      assignment_id: "assignment-1",
+      bid_response_id: "response-1",
+      status: "offered",
+    };
+    supabaseMock.rpc.mockResolvedValue({ data: result, error: null });
+
+    await expect(convertSelectedBidToAssignmentOffer("response-1")).resolves.toEqual(result);
+
+    expect(supabaseMock.rpc).toHaveBeenCalledWith(
+      "rpc_order_vendor_bid_response_convert_to_assignment_offer",
+      {
+        p_response_id: "response-1",
+        p_payload: {},
+      },
+    );
+    expect(supabaseMock.from).not.toHaveBeenCalled();
+  });
+
+  it("passes custom selected bid conversion payload through to the backend RPC", async () => {
+    const payload = {
+      note: "Use selected bid terms.",
+      due_at: "2026-06-08T20:00:00.000Z",
+      review_due_at: "2026-06-09T20:00:00.000Z",
+      expires_at: "2026-06-04T20:00:00.000Z",
+      terms: { rush: true },
+      handoff_payload: { source: "bid_panel" },
+    };
+    const result = {
+      assignment_id: "assignment-1",
+      result: "assignment_offer_created",
+    };
+    supabaseMock.rpc.mockResolvedValue({ data: result, error: null });
+
+    await expect(convertSelectedBidToAssignmentOffer("response-1", payload)).resolves.toEqual(result);
+
+    expect(supabaseMock.rpc).toHaveBeenCalledWith(
+      "rpc_order_vendor_bid_response_convert_to_assignment_offer",
+      {
+        p_response_id: "response-1",
+        p_payload: payload,
+      },
+    );
+    expect(supabaseMock.from).not.toHaveBeenCalled();
+  });
+
+  it("uses a safe empty selected bid conversion payload for null payload input", async () => {
+    supabaseMock.rpc.mockResolvedValue({ data: { assignment_id: "assignment-1" }, error: null });
+
+    await convertSelectedBidToAssignmentOffer("response-1", null);
+
+    expect(supabaseMock.rpc).toHaveBeenCalledWith(
+      "rpc_order_vendor_bid_response_convert_to_assignment_offer",
+      {
+        p_response_id: "response-1",
+        p_payload: {},
+      },
+    );
+  });
+
+  it("surfaces selected bid conversion RPC errors for callers to handle", async () => {
+    const error = Object.assign(new Error("selected bid conversion denied"), { code: "42501" });
+    supabaseMock.rpc.mockResolvedValue({ data: null, error });
+
+    await expect(convertSelectedBidToAssignmentOffer("response-1")).rejects.toBe(error);
   });
 
   it("surfaces RPC errors for callers to handle", async () => {
