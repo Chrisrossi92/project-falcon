@@ -6,6 +6,33 @@ async function rpc(name, args = {}) {
   return data;
 }
 
+function normalizeBidRequestRecipient(recipient = {}) {
+  return {
+    vendor_profile_id: recipient.vendor_profile_id || recipient.vendorProfileId || null,
+    vendor_company_id: recipient.vendor_company_id || recipient.vendorCompanyId || null,
+    relationship_id: recipient.relationship_id || recipient.relationshipId || null,
+    candidate_snapshot: recipient.candidate_snapshot || recipient.candidateSnapshot || {},
+  };
+}
+
+function logBidRequestPayloadDiagnostics(payload) {
+  if (import.meta.env?.DEV !== true) return;
+  if (import.meta.env?.MODE === "test") return;
+
+  const recipients = Array.isArray(payload?.recipients) ? payload.recipients : [];
+  const sampleRecipient = recipients[0] || null;
+
+  console.debug("[bids] rpc_order_vendor_bid_request_create payload diagnostics", {
+    payloadKeys: Object.keys(payload || {}),
+    recipientCount: recipients.length,
+    sampleRecipient,
+    sampleRecipientKeys: sampleRecipient ? Object.keys(sampleRecipient) : [],
+    responseDueAt: payload?.response_due_at || null,
+    desiredVendorDueAt: payload?.desired_vendor_due_at || null,
+    clientDueAt: payload?.client_due_at || null,
+  });
+}
+
 export async function createOrderVendorBidRequest({
   orderId,
   recipients = [],
@@ -15,16 +42,21 @@ export async function createOrderVendorBidRequest({
   desiredVendorDueAt = null,
   metadata = {},
 } = {}) {
+  const payload = {
+    recipients: recipients.map(normalizeBidRequestRecipient),
+    request_message: message || null,
+    response_due_at: responseDueAt || null,
+    client_due_at: clientDueAt || null,
+    desired_vendor_due_at: desiredVendorDueAt || null,
+    candidate_snapshot: metadata?.candidate_snapshot || {},
+    metadata: metadata || {},
+  };
+
+  logBidRequestPayloadDiagnostics(payload);
+
   return rpc("rpc_order_vendor_bid_request_create", {
     p_order_id: orderId,
-    p_payload: {
-      recipients,
-      request_message: message || null,
-      response_due_at: responseDueAt || null,
-      client_due_at: clientDueAt || null,
-      desired_vendor_due_at: desiredVendorDueAt || null,
-      metadata: metadata || {},
-    },
+    p_payload: payload,
   });
 }
 

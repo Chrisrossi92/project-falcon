@@ -33,11 +33,13 @@ describe("bid request API wrappers", () => {
         vendor_profile_id: "profile-1",
         vendor_company_id: "company-1",
         relationship_id: "relationship-1",
+        candidate_snapshot: {},
       },
       {
         vendor_profile_id: "profile-2",
         vendor_company_id: "company-2",
         relationship_id: "relationship-2",
+        candidate_snapshot: {},
       },
     ];
     supabaseMock.rpc.mockResolvedValue({ data: result, error: null });
@@ -62,10 +64,41 @@ describe("bid request API wrappers", () => {
         response_due_at: "2026-06-03T20:00:00.000Z",
         client_due_at: "2026-06-10T20:00:00.000Z",
         desired_vendor_due_at: "2026-06-08T20:00:00.000Z",
+        candidate_snapshot: {},
         metadata: { source: "candidate_panel" },
       },
     });
     expect(supabaseMock.from).not.toHaveBeenCalled();
+  });
+
+  it("normalizes camelCase recipient ids to the RPC snake_case payload", async () => {
+    supabaseMock.rpc.mockResolvedValue({ data: { bid_request_id: "bid-request-1" }, error: null });
+
+    await createOrderVendorBidRequest({
+      orderId: "order-1",
+      recipients: [
+        {
+          vendorProfileId: "profile-1",
+          vendorCompanyId: "company-1",
+          relationshipId: "relationship-1",
+          candidateSnapshot: { vendor_profile_id: "profile-1" },
+        },
+      ],
+    });
+
+    expect(supabaseMock.rpc).toHaveBeenCalledWith("rpc_order_vendor_bid_request_create", {
+      p_order_id: "order-1",
+      p_payload: expect.objectContaining({
+        recipients: [
+          {
+            vendor_profile_id: "profile-1",
+            vendor_company_id: "company-1",
+            relationship_id: "relationship-1",
+            candidate_snapshot: { vendor_profile_id: "profile-1" },
+          },
+        ],
+      }),
+    });
   });
 
   it("uses safe empty create payload defaults", async () => {
@@ -81,6 +114,7 @@ describe("bid request API wrappers", () => {
         response_due_at: null,
         client_due_at: null,
         desired_vendor_due_at: null,
+        candidate_snapshot: {},
         metadata: {},
       },
     });
