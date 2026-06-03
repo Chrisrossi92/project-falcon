@@ -97,6 +97,13 @@ export async function readOrderVendorBidInvitation(token) {
   });
 }
 
+export async function submitOrderVendorBidInvitation(token, payload = {}) {
+  return rpc("rpc_order_vendor_bid_invitation_submit", {
+    p_token: String(token || "").trim(),
+    p_payload: payload || {},
+  });
+}
+
 export async function selectOrderVendorBidResponse(responseId) {
   return rpc("rpc_order_vendor_bid_response_select", {
     p_response_id: responseId,

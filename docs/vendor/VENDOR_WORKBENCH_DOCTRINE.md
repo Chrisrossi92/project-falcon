@@ -195,6 +195,50 @@ Current manual testing flow:
 6. Vendor still contacts the coordinator or uses the manual response path until AMC-7D adds token
    submit behavior.
 
+### AMC-7D Public Vendor Bid Submission
+
+AMC-7D completes the first token-based vendor self-service bid submission path.
+
+AMC-7D.1 adds the public submit RPC:
+
+- `public.rpc_order_vendor_bid_invitation_submit(p_token text, p_payload jsonb)` validates the
+  tokenized invitation and bid lifecycle server-side.
+- Invalid, expired, revoked, submitted, closed, or otherwise unavailable token states return the
+  constant response `{ ok: false, error: "bid_invitation_invalid_or_expired" }`.
+- Valid-token payload errors return
+  `{ ok: false, error: "bid_submission_invalid", field_errors: {...} }`.
+- Successful submission writes a bid response, marks the recipient `responded`, sets invitation
+  `submitted_at`, and advances the bid request to `partially_responded` or `closed`.
+- The submit RPC does not mutate the order, select a bid, create an assignment packet, send email,
+  or create notifications.
+
+AMC-7D.2 adds the frontend submit wrapper:
+
+- `submitOrderVendorBidInvitation(token, payload = {})` calls the token submit RPC.
+- Business responses are returned as-is.
+- Supabase transport/RPC errors still throw through the shared API helper.
+
+AMC-7D.3 enables the public page form:
+
+- `/vendor/bid-invitations/:token` now includes a working Submit Bid form.
+- The form captures fee amount, currency, turn time days, proposed due date, comments, contact
+  name, contact email, and contact phone.
+- Successful submission shows `Your bid has been submitted.` and does not re-read the token,
+  because submitted token reads currently resolve to the generic unavailable state.
+- Invalid/expired submit responses show the generic unavailable state.
+- Backend `field_errors` display in the form.
+
+Current AMC-7D end-to-end flow:
+
+1. AMC coordinator creates a bid request.
+2. Coordinator clicks `Generate Bid Link` for an open recipient.
+3. Coordinator manually copies or opens `/vendor/bid-invitations/<token>`.
+4. Vendor opens the public link and reviews the safe limited Vendor Order Detail.
+5. Vendor submits fee, timing, comments, and contact details.
+6. The bid response appears in the existing internal bid lifecycle.
+7. Coordinator can select the bid and create an assignment offer through the existing internal
+   selected-bid conversion path.
+
 ## Authenticated Vendor Doctrine
 
 Future authenticated vendor flow:
@@ -339,9 +383,12 @@ authorization boundary.
    - Complete. Submit is represented by a disabled placeholder until AMC-7D.
 
 5. AMC-7D: Submit Bid modal/RPC.
-   - Submit fee, turn time, proposed due date, and comments through the existing bid response
+   - Complete. Public token submit writes bid responses through the existing bid response
      lifecycle.
-   - Preserve existing response status, request status, and audit rules.
+   - Complete. The public Vendor Bid Invitation page now supports fee, timing, comments, and
+     contact field submission.
+   - Complete. Submission preserves order boundaries and does not select a bid, create an
+     assignment, send email, or create notifications.
 
 6. AMC-7E: email link generation/send.
    - Generate tokenized invitation links and send vendor-safe email copy.

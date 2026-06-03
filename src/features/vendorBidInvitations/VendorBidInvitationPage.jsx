@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 
-import { readOrderVendorBidInvitation } from "@/features/bids/api";
+import { readOrderVendorBidInvitation, submitOrderVendorBidInvitation } from "@/features/bids/api";
 
 const unavailableTitle = "This bid invitation is unavailable.";
 const unavailableMessage =
@@ -37,6 +37,10 @@ function formatSiteVisit(order = {}) {
 
 function joinLocation(order = {}) {
   return [order.city, order.state, order.postal_code].filter(Boolean).join(", ");
+}
+
+function normalizeCurrency(value) {
+  return String(value || "USD").trim().toUpperCase() || "USD";
 }
 
 function PublicShell({ children }) {
@@ -106,7 +110,224 @@ function Panel({ title, children }) {
   );
 }
 
-function VendorOrderDetail({ payload }) {
+function FieldError({ errors, name }) {
+  const message = errors?.[name];
+  if (!message) return null;
+
+  return <div className="text-xs font-medium text-rose-700">{message}</div>;
+}
+
+function SubmittedConfirmation({ result }) {
+  return (
+    <section className="rounded-lg border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+      <div className="text-base font-semibold text-emerald-950">Your bid has been submitted.</div>
+      {result?.submitted_at && (
+        <p className="mt-2 text-sm leading-6 text-emerald-800">Submitted {formatDateTime(result.submitted_at)}</p>
+      )}
+      <p className="mt-2 text-sm leading-6 text-emerald-800">
+        The AMC coordinator can now review your response.
+      </p>
+    </section>
+  );
+}
+
+function SubmitBidPanel({ token, vendor, onUnavailable }) {
+  const [feeAmount, setFeeAmount] = useState("");
+  const [currency, setCurrency] = useState("USD");
+  const [turnTimeDays, setTurnTimeDays] = useState("");
+  const [proposedDueAt, setProposedDueAt] = useState("");
+  const [comments, setComments] = useState("");
+  const [contactName, setContactName] = useState(vendor?.contact_name || "");
+  const [contactEmail, setContactEmail] = useState(vendor?.contact_email || "");
+  const [contactPhone, setContactPhone] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [submittedResult, setSubmittedResult] = useState(null);
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    if (submitting || submittedResult) return;
+
+    const nextFieldErrors = {};
+    if (!feeAmount.trim()) {
+      nextFieldErrors.fee_amount = "Fee amount is required.";
+    }
+    if (!turnTimeDays.trim() && !proposedDueAt.trim()) {
+      nextFieldErrors.timing = "Provide either turn time days or a proposed due date.";
+    }
+
+    if (Object.keys(nextFieldErrors).length > 0) {
+      setFieldErrors(nextFieldErrors);
+      setFormError("Review the highlighted fields before submitting.");
+      return;
+    }
+
+    setSubmitting(true);
+    setFormError("");
+    setFieldErrors({});
+
+    try {
+      const result = await submitOrderVendorBidInvitation(token, {
+        fee_amount: feeAmount,
+        currency: normalizeCurrency(currency),
+        turn_time_days: turnTimeDays,
+        proposed_due_at: proposedDueAt,
+        comments,
+        contact_name: contactName,
+        contact_email: contactEmail,
+        contact_phone: contactPhone,
+      });
+
+      if (result?.ok) {
+        setSubmittedResult(result);
+        return;
+      }
+
+      if (result?.error === "bid_invitation_invalid_or_expired") {
+        onUnavailable?.();
+        return;
+      }
+
+      if (result?.error === "bid_submission_invalid") {
+        setFieldErrors(result.field_errors || {});
+        setFormError("Bid submission could not be accepted. Review the fields and try again.");
+        return;
+      }
+
+      setFormError("Bid submission failed. Review the fields and try again.");
+    } catch {
+      setFormError("Bid submission failed. Try again or contact the AMC coordinator.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (submittedResult) return <SubmittedConfirmation result={submittedResult} />;
+
+  return (
+    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+      <h2 className="text-base font-semibold text-slate-950">Submit Bid</h2>
+      <form onSubmit={handleSubmit} className="mt-4 grid gap-4">
+        {formError && (
+          <div role="alert" className="rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+            {formError}
+          </div>
+        )}
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            Fee amount
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={feeAmount}
+              onChange={(event) => setFeeAmount(event.target.value)}
+              className="h-10 rounded-md border border-slate-200 px-3 text-sm text-slate-900"
+            />
+            <FieldError errors={fieldErrors} name="fee_amount" />
+          </label>
+
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            Currency
+            <input
+              type="text"
+              maxLength={3}
+              value={currency}
+              onChange={(event) => setCurrency(event.target.value)}
+              className="h-10 rounded-md border border-slate-200 px-3 text-sm uppercase text-slate-900"
+            />
+            <FieldError errors={fieldErrors} name="currency" />
+          </label>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            Turn time days
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={turnTimeDays}
+              onChange={(event) => setTurnTimeDays(event.target.value)}
+              className="h-10 rounded-md border border-slate-200 px-3 text-sm text-slate-900"
+            />
+            <FieldError errors={fieldErrors} name="turn_time_days" />
+          </label>
+
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            Proposed due date
+            <input
+              type="datetime-local"
+              value={proposedDueAt}
+              onChange={(event) => setProposedDueAt(event.target.value)}
+              className="h-10 rounded-md border border-slate-200 px-3 text-sm text-slate-900"
+            />
+            <FieldError errors={fieldErrors} name="proposed_due_at" />
+          </label>
+        </div>
+        <FieldError errors={fieldErrors} name="timing" />
+
+        <label className="grid gap-1 text-sm font-medium text-slate-700">
+          Comments
+          <textarea
+            value={comments}
+            onChange={(event) => setComments(event.target.value)}
+            rows={4}
+            className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-900"
+          />
+          <FieldError errors={fieldErrors} name="comments" />
+        </label>
+
+        <div className="grid gap-3">
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            Contact name
+            <input
+              type="text"
+              value={contactName}
+              onChange={(event) => setContactName(event.target.value)}
+              className="h-10 rounded-md border border-slate-200 px-3 text-sm text-slate-900"
+            />
+            <FieldError errors={fieldErrors} name="contact_name" />
+          </label>
+
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            Contact email
+            <input
+              type="email"
+              value={contactEmail}
+              onChange={(event) => setContactEmail(event.target.value)}
+              className="h-10 rounded-md border border-slate-200 px-3 text-sm text-slate-900"
+            />
+            <FieldError errors={fieldErrors} name="contact_email" />
+          </label>
+
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            Contact phone
+            <input
+              type="tel"
+              value={contactPhone}
+              onChange={(event) => setContactPhone(event.target.value)}
+              className="h-10 rounded-md border border-slate-200 px-3 text-sm text-slate-900"
+            />
+            <FieldError errors={fieldErrors} name="contact_phone" />
+          </label>
+        </div>
+
+        <button
+          type="submit"
+          disabled={submitting}
+          className="inline-flex h-10 w-full items-center justify-center rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {submitting ? "Submitting..." : "Submit Bid"}
+        </button>
+      </form>
+    </section>
+  );
+}
+
+function VendorOrderDetail({ payload, token, onUnavailable }) {
   const invitation = payload.invitation || {};
   const vendor = payload.vendor || {};
   const order = payload.order || {};
@@ -195,18 +416,7 @@ function VendorOrderDetail({ payload }) {
               </dl>
             </Panel>
 
-            <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <button
-                type="button"
-                disabled
-                className="inline-flex h-10 w-full cursor-not-allowed items-center justify-center rounded-md border border-slate-200 bg-slate-100 px-4 text-sm font-semibold text-slate-400"
-              >
-                Submit Bid
-              </button>
-              <p className="mt-3 text-sm leading-6 text-slate-600">
-                Bid submission is not available yet. Contact the coordinator to submit your response for now.
-              </p>
-            </section>
+            <SubmitBidPanel token={token} vendor={vendor} onUnavailable={onUnavailable} />
           </aside>
         </div>
       </div>
@@ -244,5 +454,11 @@ export default function VendorBidInvitationPage() {
   if (state.status === "loading") return <LoadingState />;
   if (state.status !== "valid") return <UnavailableState />;
 
-  return <VendorOrderDetail payload={state.payload} />;
+  return (
+    <VendorOrderDetail
+      payload={state.payload}
+      token={token}
+      onUnavailable={() => setState({ status: "unavailable", payload: null })}
+    />
+  );
 }

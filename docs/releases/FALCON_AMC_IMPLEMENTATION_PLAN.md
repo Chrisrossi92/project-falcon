@@ -512,7 +512,8 @@ AMC-7 implementation roadmap:
 - AMC-7B: complete; token read RPC for limited Vendor Order Detail.
 - AMC-7B.1: complete; frontend token read wrapper.
 - AMC-7C: complete; public Vendor Bid Invitation route at `/vendor/bid-invitations/:token`.
-- AMC-7D: Submit Bid modal/RPC that uses the existing bid response lifecycle.
+- AMC-7D: complete; public token submit RPC, frontend wrapper, and Vendor Bid Invitation submit
+  form using the existing bid response lifecycle.
 - AMC-7E: email link generation/send.
 - AMC-8 or later: authenticated Vendor Workbench.
 
@@ -579,14 +580,52 @@ AMC-7C completed:
 - No submit behavior, email send, authenticated Vendor Workbench, response creation, recipient
   lifecycle mutation, order mutation, or request lifecycle mutation was added.
 
-Current manual testing flow:
+AMC-7D.1 completed:
+
+- `public.rpc_order_vendor_bid_invitation_submit(p_token text, p_payload jsonb)` was added.
+- The RPC supports public token-based bid submission.
+- Token and lifecycle failures return the constant response
+  `{ ok: false, error: "bid_invitation_invalid_or_expired" }`.
+- Valid-token bad payloads return
+  `{ ok: false, error: "bid_submission_invalid", field_errors: {...} }`.
+- Successful submission writes a bid response, marks the recipient `responded`, sets invitation
+  `submitted_at`, and advances the request to `partially_responded` or `closed`.
+- The submit RPC does not mutate orders, select bids, create assignments, send email, or create
+  notifications.
+
+AMC-7D.2 completed:
+
+- `submitOrderVendorBidInvitation(token, payload = {})` wraps the submit RPC.
+- Business responses are returned as-is.
+- Supabase transport/RPC errors still throw through the shared helper.
+
+AMC-7D.3 completed:
+
+- The public Vendor Bid Invitation page now has a working Submit Bid form.
+- The form captures fee amount, currency, turn time days, proposed due date, comments, contact
+  name, contact email, and contact phone.
+- Successful submission shows `Your bid has been submitted.` and does not re-read the token.
+- Invalid/expired submit responses show the generic unavailable state.
+- Backend `field_errors` display in the form.
+
+Current end-to-end flow:
 
 1. Coordinator creates a bid request.
 2. Coordinator clicks `Generate Bid Link`.
-3. Coordinator manually copies the displayed `/vendor/bid-invitations/<token>` path.
-4. Coordinator or vendor opens the public route.
-5. The vendor-facing page loads safe order detail.
-6. Vendor still contacts the coordinator or uses manual response entry until AMC-7D.
+3. Coordinator shares or opens the displayed `/vendor/bid-invitations/<token>` path.
+4. Vendor opens the public route.
+5. Vendor reviews the safe limited Vendor Order Detail.
+6. Vendor submits the bid.
+7. The bid response appears in the existing internal bid lifecycle.
+8. Coordinator can select the bid and create an assignment offer.
+
+Deferred AMC-7 items:
+
+- AMC-7E email generation/send.
+- Copy-to-clipboard polish.
+- Submitted/closed token read state.
+- Authenticated Vendor Workbench.
+- Potential shared SQL helper for manual/token response semantics if duplication grows.
 
 Testing Strategy:
 

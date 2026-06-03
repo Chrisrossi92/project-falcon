@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 const apiMock = vi.hoisted(() => ({
   readOrderVendorBidInvitation: vi.fn(),
+  submitOrderVendorBidInvitation: vi.fn(),
 }));
 
 vi.mock("@/features/bids/api", () => apiMock);
@@ -80,6 +81,7 @@ const validPayload = {
 describe("VendorBidInvitationPage", () => {
   beforeEach(() => {
     apiMock.readOrderVendorBidInvitation.mockReset();
+    apiMock.submitOrderVendorBidInvitation.mockReset();
   });
 
   afterEach(() => {
@@ -145,18 +147,144 @@ describe("VendorBidInvitationPage", () => {
     expect(screen.getByText("Please provide fee and turn time.")).not.toBeNull();
   });
 
-  it("renders a disabled Submit Bid placeholder", async () => {
+  it("renders the Submit Bid form with vendor contact defaults", async () => {
     apiMock.readOrderVendorBidInvitation.mockResolvedValue(validPayload);
 
     renderPage();
 
     const submitButton = await screen.findByRole("button", { name: "Submit Bid" });
-    expect(submitButton.disabled).toBe(true);
-    expect(
-      screen.getByText(
-        "Bid submission is not available yet. Contact the coordinator to submit your response for now.",
-      ),
-    ).not.toBeNull();
+    expect(submitButton.disabled).toBe(false);
+    expect(screen.getByLabelText("Fee amount")).not.toBeNull();
+    expect(screen.getByLabelText("Currency").value).toBe("USD");
+    expect(screen.getByLabelText("Turn time days")).not.toBeNull();
+    expect(screen.getByLabelText("Proposed due date")).not.toBeNull();
+    expect(screen.getByLabelText("Comments")).not.toBeNull();
+    expect(screen.getByLabelText("Contact name").value).toBe("Pat Vendor");
+    expect(screen.getByLabelText("Contact email").value).toBe("pat.vendor@example.test");
+    expect(screen.getByLabelText("Contact phone")).not.toBeNull();
+  });
+
+  it("requires fee amount and one timing field before submitting", async () => {
+    apiMock.readOrderVendorBidInvitation.mockResolvedValue(validPayload);
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Submit Bid" }));
+
+    expect(screen.getByText("Fee amount is required.")).not.toBeNull();
+    expect(screen.getByText("Provide either turn time days or a proposed due date.")).not.toBeNull();
+    expect(apiMock.submitOrderVendorBidInvitation).not.toHaveBeenCalled();
+  });
+
+  it("submits the vendor bid invitation payload by token", async () => {
+    apiMock.readOrderVendorBidInvitation.mockResolvedValue(validPayload);
+    apiMock.submitOrderVendorBidInvitation.mockResolvedValue({
+      ok: true,
+      status: "bid_submitted",
+      submitted_at: "2026-06-03T16:00:00.000Z",
+      message: "Your bid has been submitted.",
+    });
+
+    renderPage("/vendor/bid-invitations/token-submit");
+
+    await screen.findByLabelText("Fee amount");
+
+    fireEvent.change(screen.getByLabelText("Fee amount"), { target: { value: "1450" } });
+    fireEvent.change(screen.getByLabelText("Currency"), { target: { value: "usd" } });
+    fireEvent.change(screen.getByLabelText("Turn time days"), { target: { value: "5" } });
+    fireEvent.change(screen.getByLabelText("Proposed due date"), {
+      target: { value: "2026-06-08T12:30" },
+    });
+    fireEvent.change(screen.getByLabelText("Comments"), { target: { value: "Available next week." } });
+    fireEvent.change(screen.getByLabelText("Contact name"), { target: { value: "Alex Vendor" } });
+    fireEvent.change(screen.getByLabelText("Contact email"), { target: { value: "alex@example.test" } });
+    fireEvent.change(screen.getByLabelText("Contact phone"), { target: { value: "555-0100" } });
+    fireEvent.click(screen.getByRole("button", { name: "Submit Bid" }));
+
+    await waitFor(() => {
+      expect(apiMock.submitOrderVendorBidInvitation).toHaveBeenCalledWith("token-submit", {
+        fee_amount: "1450",
+        currency: "USD",
+        turn_time_days: "5",
+        proposed_due_at: "2026-06-08T12:30",
+        comments: "Available next week.",
+        contact_name: "Alex Vendor",
+        contact_email: "alex@example.test",
+        contact_phone: "555-0100",
+      });
+    });
+
+    expect(await screen.findByText("Your bid has been submitted.")).not.toBeNull();
+    expect(screen.queryByRole("button", { name: "Submit Bid" })).toBeNull();
+  });
+
+  it("disables submit while submitting", async () => {
+    const deferred = createDeferred();
+    apiMock.readOrderVendorBidInvitation.mockResolvedValue(validPayload);
+    apiMock.submitOrderVendorBidInvitation.mockReturnValue(deferred.promise);
+
+    renderPage();
+
+    fireEvent.change(await screen.findByLabelText("Fee amount"), { target: { value: "1450" } });
+    fireEvent.change(screen.getByLabelText("Turn time days"), { target: { value: "5" } });
+    fireEvent.click(screen.getByRole("button", { name: "Submit Bid" }));
+
+    expect((await screen.findByRole("button", { name: "Submitting..." })).disabled).toBe(true);
+
+    deferred.resolve({ ok: true, submitted_at: "2026-06-03T16:00:00.000Z" });
+    expect(await screen.findByText("Your bid has been submitted.")).not.toBeNull();
+  });
+
+  it("shows backend field errors for invalid bid submission payloads", async () => {
+    apiMock.readOrderVendorBidInvitation.mockResolvedValue(validPayload);
+    apiMock.submitOrderVendorBidInvitation.mockResolvedValue({
+      ok: false,
+      error: "bid_submission_invalid",
+      field_errors: {
+        currency: "Currency must be a three-letter code.",
+        contact_email: "Contact email must be valid.",
+      },
+    });
+
+    renderPage();
+
+    fireEvent.change(await screen.findByLabelText("Fee amount"), { target: { value: "1450" } });
+    fireEvent.change(screen.getByLabelText("Turn time days"), { target: { value: "5" } });
+    fireEvent.click(screen.getByRole("button", { name: "Submit Bid" }));
+
+    expect(await screen.findByText("Bid submission could not be accepted. Review the fields and try again.")).not.toBeNull();
+    expect(screen.getByText("Currency must be a three-letter code.")).not.toBeNull();
+    expect(screen.getByText("Contact email must be valid.")).not.toBeNull();
+  });
+
+  it("shows the unavailable state when submit returns an invalid or expired token response", async () => {
+    apiMock.readOrderVendorBidInvitation.mockResolvedValue(validPayload);
+    apiMock.submitOrderVendorBidInvitation.mockResolvedValue({
+      ok: false,
+      error: "bid_invitation_invalid_or_expired",
+    });
+
+    renderPage();
+
+    fireEvent.change(await screen.findByLabelText("Fee amount"), { target: { value: "1450" } });
+    fireEvent.change(screen.getByLabelText("Turn time days"), { target: { value: "5" } });
+    fireEvent.click(screen.getByRole("button", { name: "Submit Bid" }));
+
+    expect(await screen.findByText("This bid invitation is unavailable.")).not.toBeNull();
+    expect(screen.queryByLabelText("Fee amount")).toBeNull();
+  });
+
+  it("shows a form error for submit transport errors", async () => {
+    apiMock.readOrderVendorBidInvitation.mockResolvedValue(validPayload);
+    apiMock.submitOrderVendorBidInvitation.mockRejectedValue(new Error("network failed"));
+
+    renderPage();
+
+    fireEvent.change(await screen.findByLabelText("Fee amount"), { target: { value: "1450" } });
+    fireEvent.change(screen.getByLabelText("Turn time days"), { target: { value: "5" } });
+    fireEvent.click(screen.getByRole("button", { name: "Submit Bid" }));
+
+    expect(await screen.findByText("Bid submission failed. Try again or contact the AMC coordinator.")).not.toBeNull();
   });
 
   it("does not render hidden or internal fields even if present in the payload", async () => {

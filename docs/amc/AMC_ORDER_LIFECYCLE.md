@@ -817,6 +817,31 @@ manually copies the displayed `/vendor/bid-invitations/<token>` path, and opens 
 vendor-facing page loads safe order detail. The vendor still contacts the coordinator or uses the
 manual response path until AMC-7D adds token submit behavior.
 
+AMC-7D.1 adds token-based public bid submission. The new
+`rpc_order_vendor_bid_invitation_submit(p_token text, p_payload jsonb)` RPC validates tokenized
+invitations, returns the constant invalid/expired response
+`{ ok: false, error: "bid_invitation_invalid_or_expired" }` for token and lifecycle failures, and
+returns `{ ok: false, error: "bid_submission_invalid", field_errors: {...} }` for valid-token bad
+payloads. On success, it writes a bid response, marks the recipient `responded`, sets invitation
+`submitted_at`, and advances the parent request to `partially_responded` or `closed`. It does not
+mutate orders, select bids, create assignment packets, send email, or create notifications.
+
+AMC-7D.2 adds the frontend submit wrapper.
+`submitOrderVendorBidInvitation(token, payload = {})` calls the public token submit RPC and returns
+business responses as-is. Supabase transport/RPC errors still throw through the shared API helper.
+
+AMC-7D.3 enables the public Vendor Bid Invitation page submit form. The page now captures fee
+amount, currency, turn time days, proposed due date, comments, contact name, contact email, and
+contact phone. Successful submission shows `Your bid has been submitted.` and does not re-read the
+token because the current read RPC treats submitted tokens as unavailable. Invalid/expired submit
+responses show the generic unavailable state, while backend `field_errors` render in the form.
+
+Current AMC-7D end-to-end flow: coordinator creates a bid request, clicks `Generate Bid Link`, and
+shares or opens `/vendor/bid-invitations/<token>`. The vendor reviews the safe limited Vendor Order
+Detail and submits fee, timing, comments, and contact details. The submitted response appears in the
+existing internal bid lifecycle, where the coordinator can select the bid and create an assignment
+offer through the selected-bid conversion path.
+
 ## Delivery State
 
 Delivery state may include:

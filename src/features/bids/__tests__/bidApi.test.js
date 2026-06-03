@@ -18,6 +18,7 @@ const {
   readOrderVendorBidInvitation,
   recordOrderVendorBidResponse,
   selectOrderVendorBidResponse,
+  submitOrderVendorBidInvitation,
 } = await import("../api.js");
 
 describe("bid request API wrappers", () => {
@@ -326,6 +327,101 @@ describe("bid request API wrappers", () => {
     supabaseMock.rpc.mockResolvedValue({ data: null, error });
 
     await expect(readOrderVendorBidInvitation("token-1")).rejects.toBe(error);
+  });
+
+  it("exports vendor bid invitation submit wrapper", () => {
+    expect(submitOrderVendorBidInvitation).toEqual(expect.any(Function));
+  });
+
+  it("submits vendor bid invitations through the public token RPC with a default payload", async () => {
+    const result = {
+      ok: true,
+      status: "bid_submitted",
+      submitted_at: "2026-06-03T16:00:00.000Z",
+      message: "Your bid has been submitted.",
+    };
+    supabaseMock.rpc.mockResolvedValue({ data: result, error: null });
+
+    await expect(submitOrderVendorBidInvitation("token-1")).resolves.toEqual(result);
+
+    expect(supabaseMock.rpc).toHaveBeenCalledWith("rpc_order_vendor_bid_invitation_submit", {
+      p_token: "token-1",
+      p_payload: {},
+    });
+    expect(supabaseMock.from).not.toHaveBeenCalled();
+  });
+
+  it("trims vendor bid invitation tokens before submitting", async () => {
+    supabaseMock.rpc.mockResolvedValue({ data: { ok: true }, error: null });
+
+    await submitOrderVendorBidInvitation("  token-1  ");
+
+    expect(supabaseMock.rpc).toHaveBeenCalledWith("rpc_order_vendor_bid_invitation_submit", {
+      p_token: "token-1",
+      p_payload: {},
+    });
+  });
+
+  it("uses a safe empty vendor bid invitation submit payload for null payload input", async () => {
+    supabaseMock.rpc.mockResolvedValue({ data: { ok: true }, error: null });
+
+    await submitOrderVendorBidInvitation("token-1", null);
+
+    expect(supabaseMock.rpc).toHaveBeenCalledWith("rpc_order_vendor_bid_invitation_submit", {
+      p_token: "token-1",
+      p_payload: {},
+    });
+  });
+
+  it("passes custom vendor bid invitation submit payloads through to the backend RPC", async () => {
+    const payload = {
+      fee_amount: 1450,
+      currency: "USD",
+      proposed_due_at: "2026-06-08T20:00:00.000Z",
+      turn_time_days: 5,
+      comments: "Available next week.",
+      contact_name: "Alex Vendor",
+      contact_email: "alex@example.test",
+      contact_phone: "555-0100",
+    };
+    supabaseMock.rpc.mockResolvedValue({ data: { ok: true, status: "bid_submitted" }, error: null });
+
+    await submitOrderVendorBidInvitation("token-1", payload);
+
+    expect(supabaseMock.rpc).toHaveBeenCalledWith("rpc_order_vendor_bid_invitation_submit", {
+      p_token: "token-1",
+      p_payload: payload,
+    });
+  });
+
+  it("returns invalid or expired vendor bid invitation submit payloads without throwing", async () => {
+    const result = {
+      ok: false,
+      error: "bid_invitation_invalid_or_expired",
+    };
+    supabaseMock.rpc.mockResolvedValue({ data: result, error: null });
+
+    await expect(submitOrderVendorBidInvitation("invalid-token")).resolves.toEqual(result);
+  });
+
+  it("returns vendor bid invitation submit validation payloads without throwing", async () => {
+    const result = {
+      ok: false,
+      error: "bid_submission_invalid",
+      field_errors: {
+        fee_amount: "Fee amount is required.",
+      },
+    };
+    supabaseMock.rpc.mockResolvedValue({ data: result, error: null });
+
+    await expect(submitOrderVendorBidInvitation("token-1", {})).resolves.toEqual(result);
+  });
+
+  it("surfaces vendor bid invitation submit transport errors for callers to handle", async () => {
+    const error = Object.assign(new Error("token submit transport failed"), { code: "500" });
+    supabaseMock.rpc.mockResolvedValue({ data: null, error });
+
+    await expect(submitOrderVendorBidInvitation("token-1", { fee_amount: 1450 })).rejects.toBe(error);
   });
 
   it("records vendor bid responses through the backend RPC", async () => {
