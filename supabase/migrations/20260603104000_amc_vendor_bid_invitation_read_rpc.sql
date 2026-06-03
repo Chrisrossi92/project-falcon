@@ -30,7 +30,7 @@ begin
     return v_failure;
   end if;
 
-  v_token_hash := encode(digest(v_token, 'sha256'), 'hex');
+  v_token_hash := encode(extensions.digest(v_token, 'sha256'), 'hex');
 
   select inv.*
     into v_invitation

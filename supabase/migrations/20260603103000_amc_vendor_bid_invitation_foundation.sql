@@ -350,8 +350,8 @@ begin
       using errcode = '22023';
   end if;
 
-  v_token := encode(gen_random_bytes(32), 'hex');
-  v_token_hash := encode(digest(v_token, 'sha256'), 'hex');
+  v_token := encode(extensions.gen_random_bytes(32), 'hex');
+  v_token_hash := encode(extensions.digest(v_token, 'sha256'), 'hex');
   v_token_last_four := right(v_token, 4);
 
   update public.order_vendor_bid_request_recipient_invitations

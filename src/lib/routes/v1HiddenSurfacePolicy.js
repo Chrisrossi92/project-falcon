@@ -12,6 +12,8 @@ const AMC_OPERATIONS_VENDOR_ROUTE_PREFIXES = Object.freeze([
   "/vendors",
 ]);
 
+const AMC_OPERATIONS_ASSIGNMENT_DETAIL_PATTERN = /^\/assignments\/[^/]+$/;
+
 const STAFF_APPRAISAL_OPERATIONAL_SHELLS = new Set([
   SHELL_PROFILE_IDS.OPERATIONS,
   SHELL_PROFILE_IDS.MY_WORK,
@@ -37,5 +39,5 @@ export function isStaffAppraisalHiddenEnterpriseSurfaceBlocked(shellProfilePrese
 export function isAmcOperationsVendorSurfacePath(pathname = "") {
   return AMC_OPERATIONS_VENDOR_ROUTE_PREFIXES.some((prefix) => (
     pathname === prefix || pathname.startsWith(`${prefix}/`)
-  ));
+  )) || AMC_OPERATIONS_ASSIGNMENT_DETAIL_PATTERN.test(pathname);
 }

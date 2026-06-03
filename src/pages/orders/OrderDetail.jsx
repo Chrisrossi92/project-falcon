@@ -216,10 +216,13 @@ function OverviewSection({ title, children, className = "" }) {
   );
 }
 
-function BidStatusSummaryCard({ summary }) {
+function BidStatusSummaryCard({ summary, activeVendorAssignment }) {
   if (!summary) return null;
 
   const toneClass = BID_STATUS_TONE_CLASSES[summary.tone] || BID_STATUS_TONE_CLASSES.neutral;
+  const assignmentPacketPath = activeVendorAssignment?.id
+    ? `/assignments/${activeVendorAssignment.id}`
+    : null;
   const turnTimeValue = summary.fastestTurnTimeDays != null
     ? `${summary.fastestTurnTimeDays} day${Number(summary.fastestTurnTimeDays) === 1 ? "" : "s"}`
     : formatOperationalDate(summary.earliestProposedDueAt);
@@ -251,6 +254,14 @@ function BidStatusSummaryCard({ summary }) {
             <div className="mt-1 text-sm font-semibold text-slate-800">
               {categoryLabel(summary.assignmentStatus)}
             </div>
+            {assignmentPacketPath && (
+              <Link
+                to={assignmentPacketPath}
+                className="mt-2 inline-flex h-8 items-center justify-center rounded-md border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Open Packet
+              </Link>
+            )}
           </div>
         )}
       </div>
@@ -978,7 +989,10 @@ export default function OrderDetail() {
           </div>
         )}
         {showBidRequestsPanel && (
-          <BidStatusSummaryCard summary={bidStatusSummary} />
+          <BidStatusSummaryCard
+            summary={bidStatusSummary}
+            activeVendorAssignment={activeVendorAssignment}
+          />
         )}
         {showDerivedContextSurfaces && (
           <OrderAttentionSummaryPanel

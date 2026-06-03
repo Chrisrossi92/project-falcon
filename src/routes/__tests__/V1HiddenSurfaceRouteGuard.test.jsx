@@ -51,6 +51,14 @@ function renderGuardedRoute(initialPath = "/assignments") {
           }
         />
         <Route
+          path="/assignments/:assignmentId"
+          element={
+            <V1HiddenSurfaceRouteGuard>
+              <div data-testid="hidden-surface">Assignment detail</div>
+            </V1HiddenSurfaceRouteGuard>
+          }
+        />
+        <Route
           path="/relationships"
           element={
             <V1HiddenSurfaceRouteGuard>
@@ -135,6 +143,24 @@ describe("V1HiddenSurfaceRouteGuard", () => {
 
     expect(screen.getByTestId("hidden-surface")).toHaveTextContent("Vendor profile");
     expect(screen.queryByTestId("location")).toBeNull();
+  });
+
+  it("allows contextual assignment packet details in AMC Operations mode", () => {
+    operationsModeState.operationsMode = "amc_operations";
+
+    renderGuardedRoute("/assignments/assignment-1");
+
+    expect(screen.getByTestId("hidden-surface")).toHaveTextContent("Assignment detail");
+    expect(screen.queryByTestId("location")).toBeNull();
+  });
+
+  it("does not expose the broad Assignments index in AMC Operations mode", () => {
+    operationsModeState.operationsMode = "amc_operations";
+
+    renderGuardedRoute("/assignments");
+
+    expect(screen.getByTestId("location")).toHaveTextContent("/orders");
+    expect(screen.queryByTestId("hidden-surface")).toBeNull();
   });
 
   it("does not flash restricted content while shell profile is loading", () => {

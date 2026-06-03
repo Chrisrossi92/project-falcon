@@ -888,6 +888,10 @@ describe("OrderDetail site visit save", () => {
     const bidStatus = screen.getByLabelText("AMC bid status");
     expect(within(bidStatus).getByText("Assignment offered")).toBeInTheDocument();
     expect(within(bidStatus).getByText("Offered")).toBeInTheDocument();
+    expect(within(bidStatus).getByRole("link", { name: "Open Packet" })).toHaveAttribute(
+      "href",
+      "/assignments/assignment-1",
+    );
     expect(within(candidates).getByText("Vendor assignment already active")).toBeInTheDocument();
     expect(
       within(candidates).getByText("This order already has an active vendor offer or assignment, so new bid requests and direct awards are disabled."),
@@ -932,6 +936,7 @@ describe("OrderDetail site visit save", () => {
 
     const candidates = screen.getByLabelText("Vendor candidates");
     expect(candidates).toHaveAttribute("data-active-assignment-id", "");
+    expect(screen.queryByRole("link", { name: "Open Packet" })).not.toBeInTheDocument();
     expect(
       within(candidates).queryByText("This order already has an active vendor offer or assignment."),
     ).not.toBeInTheDocument();
