@@ -1162,6 +1162,12 @@ export default function OrderDetail() {
             canRecordResponses={canRecordBidResponses}
             canSelectResponses={canSelectBidResponses}
             canCreateAssignmentOffer={canCreateBidAssignmentOffer}
+            orderSummary={{
+              order_number: titleNo,
+              city: order.city,
+              state: order.state,
+              report_type: order.report_type,
+            }}
             refreshToken={bidRequestsRefreshToken}
             onBidRequestsChange={handleBidRequestsChange}
             onAssignmentOfferCreated={handleBidAssignmentOfferCreated}

@@ -514,7 +514,10 @@ AMC-7 implementation roadmap:
 - AMC-7C: complete; public Vendor Bid Invitation route at `/vendor/bid-invitations/:token`.
 - AMC-7D: complete; public token submit RPC, frontend wrapper, and Vendor Bid Invitation submit
   form using the existing bid response lifecycle.
-- AMC-7E: email link generation/send.
+- AMC-7E.1: complete; coordinator-side `Copy Link` and `Copy Email Text` helpers for manual
+  vendor email outreach.
+- AMC-7E.2: deferred; contact targeting / selected vendor contact UX if needed.
+- AMC-7E.3: deferred; real email queue/send integration.
 - AMC-8 or later: authenticated Vendor Workbench.
 
 Workspace navigation doctrine:
@@ -608,21 +611,48 @@ AMC-7D.3 completed:
 - Invalid/expired submit responses show the generic unavailable state.
 - Backend `field_errors` display in the form.
 
+AMC-7E.1 completed:
+
+- Generated bid links now expose `Copy Link`.
+- Generated bid links now expose `Copy Email Text`.
+- `Copy Email Text` creates a ready-to-paste vendor bid request email draft.
+- No actual email send occurs.
+- No `email_queue`, Resend, Edge Function, notification, or backend behavior was added.
+- Clipboard unavailable/failure fallback leaves the generated link visible and tells the
+  coordinator to select the text manually.
+- This supports manual Gmail testing with safe test vendor contacts.
+
 Current end-to-end flow:
 
 1. Coordinator creates a bid request.
 2. Coordinator clicks `Generate Bid Link`.
-3. Coordinator shares or opens the displayed `/vendor/bid-invitations/<token>` path.
-4. Vendor opens the public route.
-5. Vendor reviews the safe limited Vendor Order Detail.
-6. Vendor submits the bid.
-7. The bid response appears in the existing internal bid lifecycle.
-8. Coordinator can select the bid and create an assignment offer.
+3. Coordinator copies the generated link or clicks `Copy Email Text`.
+4. Coordinator manually pastes/sends the email text through Gmail or another external mail client.
+5. Vendor opens the public route.
+6. Vendor reviews the safe limited Vendor Order Detail.
+7. Vendor submits the bid.
+8. The bid response appears in the existing internal bid lifecycle.
+9. Coordinator can select the bid and create an assignment offer.
+
+Current AMC-7E.1 manual Gmail testing flow:
+
+1. Add a test vendor contact using one of the approved test emails:
+   - `chris@therossicompany.com`
+   - `chrisrossi92@gmail.com`
+2. Create a bid request.
+3. Generate a bid link.
+4. Click `Copy Email Text`.
+5. Paste and send manually from Gmail.
+6. Open the public vendor link.
+7. Submit the bid.
+8. Confirm the bid appears internally.
 
 Deferred AMC-7 items:
 
-- AMC-7E email generation/send.
-- Copy-to-clipboard polish.
+- AMC-7E.2 contact targeting / selected vendor contact UX if needed.
+- AMC-7E.3 real email queue/send integration.
+- Reply-to, sender, and template infrastructure.
+- Email delivery status tracking.
 - Submitted/closed token read state.
 - Authenticated Vendor Workbench.
 - Potential shared SQL helper for manual/token response semantics if duplication grows.

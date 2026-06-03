@@ -32,6 +32,51 @@ function formatDateTime(value) {
   }).format(parsed);
 }
 
+function safeText(value, fallback = "Not provided") {
+  const text = String(value || "").trim();
+  return text || fallback;
+}
+
+function buildBidInvitationEmailDraft({ recipient = {}, request = {}, orderSummary = {}, bidLink = "" } = {}) {
+  const orderNumber = safeText(orderSummary.order_number || orderSummary.orderNumber);
+  const propertyCity = safeText(orderSummary.property_city || orderSummary.city);
+  const propertyState = safeText(orderSummary.property_state || orderSummary.state);
+  const reportType = safeText(orderSummary.report_type || orderSummary.reportType);
+  const responseDueAt = formatDateTime(request.response_due_at);
+  const contactName = safeText(
+    recipient.contact_name || recipient.vendor_contact_name || recipient.primary_contact_name,
+    "Vendor",
+  );
+
+  return [
+    `Subject: Bid request for order ${orderNumber}`,
+    "",
+    `Hello ${contactName},`,
+    "",
+    "Continental is requesting your bid for an appraisal order.",
+    "",
+    `Order: ${orderNumber}`,
+    `Property: ${propertyCity}, ${propertyState}`,
+    `Report type: ${reportType}`,
+    `Response due: ${responseDueAt}`,
+    "",
+    "Open the secure bid invitation:",
+    safeText(bidLink, "Link not available"),
+    "",
+    "Please submit your fee, turn time, proposed due date, and comments through the link. If you have questions or cannot access the page, contact the AMC coordinator.",
+    "",
+    "Thank you,",
+    "Continental Real Estate Solutions",
+  ].join("\n");
+}
+
+async function copyToClipboard(text) {
+  const clipboard = globalThis.navigator?.clipboard;
+  if (!clipboard?.writeText) return false;
+  await clipboard.writeText(text);
+  return true;
+}
+
 function formatMoney(amount, currency = "USD") {
   if (amount === null || amount === undefined || amount === "") return null;
   const numericAmount = Number(amount);
@@ -439,6 +484,8 @@ function SelectBidModal({ recipient, onClose, onSuccess }) {
 
 function RecipientRow({
   recipient,
+  request,
+  orderSummary,
   canRecordResponse,
   canCreateInvitation,
   invitationMessage,
@@ -446,9 +493,12 @@ function RecipientRow({
   canSelectResponse,
   onRecordResponse,
   onCreateInvitation,
+  onCopyInvitationText,
   onSelectResponse,
 }) {
   const inviteLink = invitationMessage?.link || invitationMessage?.path || "";
+  const copyStatus = invitationMessage?.copyStatus || "";
+  const emailDraft = buildBidInvitationEmailDraft({ recipient, request, orderSummary, bidLink: inviteLink });
 
   return (
     <li className="rounded-md border border-slate-200 bg-white px-3 py-2">
@@ -500,6 +550,23 @@ function RecipientRow({
         <div role="status" className="mt-2 rounded-md border border-cyan-200 bg-cyan-50 px-3 py-2 text-xs text-cyan-900">
           <div className="font-semibold">Bid link generated</div>
           <div className="mt-1 break-all font-mono text-[11px]">{inviteLink}</div>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onCopyInvitationText?.(inviteLink, "Link copied.")}
+              className="inline-flex h-7 items-center justify-center rounded-md border border-cyan-200 bg-white px-2 text-xs font-semibold text-cyan-800 hover:bg-cyan-100"
+            >
+              Copy Link
+            </button>
+            <button
+              type="button"
+              onClick={() => onCopyInvitationText?.(emailDraft, "Email text copied.")}
+              className="inline-flex h-7 items-center justify-center rounded-md border border-cyan-200 bg-white px-2 text-xs font-semibold text-cyan-800 hover:bg-cyan-100"
+            >
+              Copy Email Text
+            </button>
+            {copyStatus && <span className="text-xs font-semibold text-cyan-700">{copyStatus}</span>}
+          </div>
         </div>
       )}
       {invitationMessage?.error && (
@@ -513,6 +580,7 @@ function RecipientRow({
 
 function BidRequestCard({
   request,
+  orderSummary,
   canRecordResponses,
   canSelectResponses,
   canCreateAssignmentOffer,
@@ -522,6 +590,7 @@ function BidRequestCard({
   creatingInvitationRecipientId,
   onRecordResponse,
   onCreateInvitation,
+  onCopyInvitationText,
   onSelectResponse,
   onCreateAssignmentOffer,
 }) {
@@ -607,6 +676,8 @@ function BidRequestCard({
             <RecipientRow
               key={getRecipientId(recipient) || recipient.vendor_profile_id}
               recipient={recipient}
+              request={request}
+              orderSummary={orderSummary}
               canRecordResponse={canRecordResponses && canRecordRecipientResponse(request, recipient)}
               canCreateInvitation={canRecordResponses && canCreateRecipientInvitation(request, recipient)}
               invitationMessage={
@@ -616,6 +687,7 @@ function BidRequestCard({
               canSelectResponse={canSelectResponses && canSelectRecipientResponse(request, recipient)}
               onRecordResponse={() => onRecordResponse?.(recipient)}
               onCreateInvitation={() => onCreateInvitation?.(recipient)}
+              onCopyInvitationText={(text, copiedLabel) => onCopyInvitationText?.(getRecipientId(recipient), text, copiedLabel)}
               onSelectResponse={() => onSelectResponse?.(recipient)}
             />
           ))}
@@ -632,6 +704,7 @@ export default function BidRequestsPanel({
   canRecordResponses = false,
   canSelectResponses = false,
   canCreateAssignmentOffer = false,
+  orderSummary = {},
   refreshToken = 0,
   onBidRequestsChange,
   onAssignmentOfferCreated,
@@ -646,6 +719,24 @@ export default function BidRequestsPanel({
   const [conversionMessage, setConversionMessage] = useState(null);
   const [creatingInvitationRecipientId, setCreatingInvitationRecipientId] = useState(null);
   const [invitationMessage, setInvitationMessage] = useState(null);
+
+  const setInvitationCopyStatus = useCallback((recipientId, copyStatus) => {
+    setInvitationMessage((current) => {
+      if (!current || current.recipientId !== recipientId) return current;
+      return { ...current, copyStatus };
+    });
+  }, []);
+
+  const handleCopyInvitationText = useCallback(async (recipientId, text, copiedLabel) => {
+    if (!recipientId || !text) return;
+
+    try {
+      const didCopy = await copyToClipboard(text);
+      setInvitationCopyStatus(recipientId, didCopy ? copiedLabel : "Select the text to copy.");
+    } catch {
+      setInvitationCopyStatus(recipientId, "Select the text to copy.");
+    }
+  }, [setInvitationCopyStatus]);
 
   const loadBidRequests = useCallback(async () => {
     if (!enabled || !orderId) return;
@@ -730,6 +821,7 @@ export default function BidRequestsPanel({
         error: "",
         path: result?.path || result?.link || "",
         link: result?.link || result?.path || "",
+        copyStatus: "",
       });
     } catch (invitationError) {
       setInvitationMessage({
@@ -738,6 +830,7 @@ export default function BidRequestsPanel({
         error: formatBidInvitationError(invitationError),
         path: "",
         link: "",
+        copyStatus: "",
       });
     } finally {
       setCreatingInvitationRecipientId(null);
@@ -812,6 +905,7 @@ export default function BidRequestsPanel({
             <BidRequestCard
               key={request.bid_request_id || request.id}
               request={request}
+              orderSummary={orderSummary}
               canRecordResponses={canRecordResponses}
               canSelectResponses={canSelectResponses}
               canCreateAssignmentOffer={canCreateAssignmentOffer && !hasActiveVendorAssignment}
@@ -821,6 +915,7 @@ export default function BidRequestsPanel({
               creatingInvitationRecipientId={creatingInvitationRecipientId}
               onRecordResponse={setRecordResponseRecipient}
               onCreateInvitation={handleCreateInvitation}
+              onCopyInvitationText={handleCopyInvitationText}
               onSelectResponse={setSelectResponseRecipient}
               onCreateAssignmentOffer={handleCreateAssignmentOffer}
             />

@@ -95,6 +95,12 @@ describe("BidRequestsPanel", () => {
     bidApiState.recordOrderVendorBidResponse.mockReset();
     bidApiState.selectOrderVendorBidResponse.mockReset();
     assignmentApiState.offerOrderToVendor.mockReset();
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: vi.fn().mockResolvedValue(undefined),
+      },
+    });
   });
 
   afterEach(() => {
@@ -333,10 +339,103 @@ describe("BidRequestsPanel", () => {
 
     expect(await screen.findByRole("status")).toHaveTextContent("Bid link generated");
     expect(screen.getByText("/vendor/bid-invitations/token-1")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy Link" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy Email Text" })).toBeInTheDocument();
     expect(bidApiState.listOrderVendorBidRequests).toHaveBeenCalledTimes(1);
     expect(bidApiState.recordOrderVendorBidResponse).not.toHaveBeenCalled();
     expect(bidApiState.selectOrderVendorBidResponse).not.toHaveBeenCalled();
     expect(assignmentApiState.offerOrderToVendor).not.toHaveBeenCalled();
+  });
+
+  it("copies a generated bid invitation link to the clipboard", async () => {
+    bidApiState.listOrderVendorBidRequests.mockResolvedValue(bidRequests);
+    bidApiState.createOrderVendorBidInvitation.mockResolvedValue({
+      invitation_id: "invitation-1",
+      recipient_id: "recipient-2",
+      path: "/vendor/bid-invitations/token-1",
+    });
+
+    render(<BidRequestsPanel orderId="order-1" enabled canRecordResponses />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Generate bid link for Metro Valuation Group" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Copy Link" }));
+
+    await waitFor(() => {
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith("/vendor/bid-invitations/token-1");
+    });
+    expect(screen.getByText("Link copied.")).toBeInTheDocument();
+  });
+
+  it("copies a safe ready-to-paste bid invitation email draft", async () => {
+    bidApiState.listOrderVendorBidRequests.mockResolvedValue([
+      {
+        ...bidRequests[0],
+        recipients: [
+          bidRequests[0].recipients[0],
+          {
+            ...bidRequests[0].recipients[1],
+            vendor_contact_name: "Jordan Franklin",
+          },
+        ],
+      },
+    ]);
+    bidApiState.createOrderVendorBidInvitation.mockResolvedValue({
+      invitation_id: "invitation-1",
+      recipient_id: "recipient-2",
+      path: "/vendor/bid-invitations/token-1",
+    });
+
+    render(
+      <BidRequestsPanel
+        orderId="order-1"
+        enabled
+        canRecordResponses
+        orderSummary={{
+          order_number: "AMC-DEMO-001",
+          city: "Columbus",
+          state: "OH",
+          report_type: "Commercial appraisal",
+        }}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Generate bid link for Metro Valuation Group" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Copy Email Text" }));
+
+    await waitFor(() => {
+      expect(navigator.clipboard.writeText).toHaveBeenCalledTimes(1);
+    });
+    const draft = navigator.clipboard.writeText.mock.calls[0][0];
+    expect(draft).toContain("Subject: Bid request for order AMC-DEMO-001");
+    expect(draft).toContain("Hello Jordan Franklin,");
+    expect(draft).toContain("Order: AMC-DEMO-001");
+    expect(draft).toContain("Property: Columbus, OH");
+    expect(draft).toContain("Report type: Commercial appraisal");
+    expect(draft).toContain("Response due: Jun 3, 2026");
+    expect(draft).toContain("/vendor/bid-invitations/token-1");
+    expect(draft).not.toMatch(/client fee|AMC margin|internal id/i);
+    expect(screen.getByText("Email text copied.")).toBeInTheDocument();
+  });
+
+  it("keeps the generated link visible when clipboard is unavailable", async () => {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: undefined,
+    });
+    bidApiState.listOrderVendorBidRequests.mockResolvedValue(bidRequests);
+    bidApiState.createOrderVendorBidInvitation.mockResolvedValue({
+      invitation_id: "invitation-1",
+      recipient_id: "recipient-2",
+      path: "/vendor/bid-invitations/token-1",
+    });
+
+    render(<BidRequestsPanel orderId="order-1" enabled canRecordResponses />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Generate bid link for Metro Valuation Group" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Copy Link" }));
+
+    expect(screen.getByText("/vendor/bid-invitations/token-1")).toBeInTheDocument();
+    expect(await screen.findByText("Select the text to copy.")).toBeInTheDocument();
   });
 
   it("shows an inline error when vendor bid invitation generation fails", async () => {

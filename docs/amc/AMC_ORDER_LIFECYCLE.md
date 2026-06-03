@@ -842,6 +842,31 @@ Detail and submits fee, timing, comments, and contact details. The submitted res
 existing internal bid lifecycle, where the coordinator can select the bid and create an assignment
 offer through the selected-bid conversion path.
 
+AMC-7E.1 adds coordinator-side copy helpers for generated vendor bid invitation links. After a link
+is generated, `BidRequestsPanel` now exposes `Copy Link` and `Copy Email Text`. `Copy Link` copies
+the generated `/vendor/bid-invitations/<token>` path or link. `Copy Email Text` creates a
+ready-to-paste vendor bid request email draft using safe order/request fields and the generated bid
+link. No actual email send occurs, and no `email_queue`, Resend, Edge Function, notification, or
+backend behavior is added. If the browser clipboard API is unavailable or fails, the generated link
+remains visible and the coordinator is told to select the text manually.
+
+Current AMC-7E.1 manual Gmail testing flow:
+
+1. Add a test vendor contact using one of the approved test emails:
+   - `chris@therossicompany.com`
+   - `chrisrossi92@gmail.com`
+2. Create a bid request.
+3. Generate a bid link.
+4. Click `Copy Email Text`.
+5. Paste and send manually from Gmail.
+6. Open the public vendor link.
+7. Submit the bid.
+8. Confirm the bid appears internally.
+
+AMC-7E.1 leaves contact targeting / selected vendor contact UX, real email queue/send integration,
+reply-to/sender/template infrastructure, email delivery status tracking, and authenticated Vendor
+Workbench deferred.
+
 ## Delivery State
 
 Delivery state may include:

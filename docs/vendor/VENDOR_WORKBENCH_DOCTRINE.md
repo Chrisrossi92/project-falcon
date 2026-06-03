@@ -239,6 +239,42 @@ Current AMC-7D end-to-end flow:
 7. Coordinator can select the bid and create an assignment offer through the existing internal
    selected-bid conversion path.
 
+### AMC-7E.1 Coordinator Copy Helpers
+
+AMC-7E.1 adds coordinator-side copy helpers for generated vendor bid invitation links.
+
+Completed:
+
+- Generated bid links now expose `Copy Link`.
+- Generated bid links now expose `Copy Email Text`.
+- `Copy Email Text` creates a ready-to-paste vendor bid request email draft.
+- No actual email send occurs.
+- No `email_queue`, Resend, Edge Function, notification, or backend behavior is added.
+- If the browser clipboard API is unavailable or fails, the generated link remains visible and the
+  coordinator is told to select the text manually.
+- This supports manual Gmail testing with safe test vendor contacts.
+
+Current AMC-7E.1 manual email testing flow:
+
+1. Add a test vendor contact using one of the approved test emails:
+   - `chris@therossicompany.com`
+   - `chrisrossi92@gmail.com`
+2. Create a bid request.
+3. Generate a bid link.
+4. Click `Copy Email Text`.
+5. Paste and send manually from Gmail.
+6. Open the public vendor link.
+7. Submit the bid.
+8. Confirm the bid appears internally.
+
+Deferred:
+
+- AMC-7E.2 contact targeting / selected vendor contact UX if needed.
+- AMC-7E.3 real email queue/send integration.
+- Reply-to, sender, and template infrastructure.
+- Email delivery status tracking.
+- Authenticated Vendor Workbench.
+
 ## Authenticated Vendor Doctrine
 
 Future authenticated vendor flow:
@@ -391,7 +427,10 @@ authorization boundary.
      assignment, send email, or create notifications.
 
 6. AMC-7E: email link generation/send.
-   - Generate tokenized invitation links and send vendor-safe email copy.
+   - AMC-7E.1 complete. Coordinator-side `Copy Link` and `Copy Email Text` helpers support manual
+     vendor email outreach without sending email from Falcon.
+   - Future AMC-7E slices may add contact targeting and real vendor-safe email queue/send
+     integration.
    - Do not expose raw internal ids or internal procurement details in email content.
 
 7. AMC-8 or later: authenticated Vendor Workbench.
