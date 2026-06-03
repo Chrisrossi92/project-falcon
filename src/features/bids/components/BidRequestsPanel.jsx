@@ -3,6 +3,7 @@ import { RefreshCw, X } from "lucide-react";
 
 import {
   convertSelectedBidToAssignmentOffer,
+  createOrderVendorBidInvitation,
   listOrderVendorBidRequests,
   recordOrderVendorBidResponse,
   selectOrderVendorBidResponse,
@@ -87,6 +88,10 @@ function canSelectRecipientResponse(request = {}, recipient = {}) {
   );
 }
 
+function canCreateRecipientInvitation(request = {}, recipient = {}) {
+  return canRecordRecipientResponse(request, recipient);
+}
+
 function formatRecordResponseError(error) {
   const code = String(error?.code || "");
   const message = String(error?.message || "");
@@ -107,6 +112,21 @@ function formatSelectResponseError(error) {
   }
 
   return "Bid response could not be selected. Review the bid status and try again.";
+}
+
+function formatBidInvitationError(error) {
+  const code = String(error?.code || "");
+  const message = String(error?.message || "");
+
+  if (code === "42501" || /permission|not authorized|authorization/i.test(message)) {
+    return "You do not have permission to generate bid links.";
+  }
+
+  if (/email|required/i.test(message)) {
+    return "A vendor email is required before a bid link can be generated.";
+  }
+
+  return "Bid link could not be generated. Review the vendor contact and bid status, then try again.";
 }
 
 function formatConvertAssignmentOfferError(error) {
@@ -420,10 +440,16 @@ function SelectBidModal({ recipient, onClose, onSuccess }) {
 function RecipientRow({
   recipient,
   canRecordResponse,
+  canCreateInvitation,
+  invitationMessage,
+  isCreatingInvitation,
   canSelectResponse,
   onRecordResponse,
+  onCreateInvitation,
   onSelectResponse,
 }) {
+  const inviteLink = invitationMessage?.link || invitationMessage?.path || "";
+
   return (
     <li className="rounded-md border border-slate-200 bg-white px-3 py-2">
       <div className="flex flex-col gap-1 md:flex-row md:items-start md:justify-between">
@@ -434,6 +460,17 @@ function RecipientRow({
           <ResponseSummary response={recipient.response} />
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {canCreateInvitation && (
+            <button
+              type="button"
+              onClick={onCreateInvitation}
+              disabled={isCreatingInvitation}
+              className="inline-flex h-8 items-center justify-center rounded-md border border-cyan-200 bg-cyan-50 px-3 text-xs font-semibold text-cyan-800 hover:bg-cyan-100 disabled:opacity-60"
+              aria-label={`Generate bid link for ${recipient.vendor_company_name || "vendor"}`}
+            >
+              {isCreatingInvitation ? "Generating..." : "Generate Bid Link"}
+            </button>
+          )}
           {canRecordResponse && (
             <button
               type="button"
@@ -459,6 +496,17 @@ function RecipientRow({
           </span>
         </div>
       </div>
+      {invitationMessage?.success && inviteLink && (
+        <div role="status" className="mt-2 rounded-md border border-cyan-200 bg-cyan-50 px-3 py-2 text-xs text-cyan-900">
+          <div className="font-semibold">Bid link generated</div>
+          <div className="mt-1 break-all font-mono text-[11px]">{inviteLink}</div>
+        </div>
+      )}
+      {invitationMessage?.error && (
+        <div role="alert" className="mt-2 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+          {invitationMessage.error}
+        </div>
+      )}
     </li>
   );
 }
@@ -470,7 +518,10 @@ function BidRequestCard({
   canCreateAssignmentOffer,
   convertingResponseId,
   conversionMessage,
+  invitationMessage,
+  creatingInvitationRecipientId,
   onRecordResponse,
+  onCreateInvitation,
   onSelectResponse,
   onCreateAssignmentOffer,
 }) {
@@ -557,8 +608,14 @@ function BidRequestCard({
               key={getRecipientId(recipient) || recipient.vendor_profile_id}
               recipient={recipient}
               canRecordResponse={canRecordResponses && canRecordRecipientResponse(request, recipient)}
+              canCreateInvitation={canRecordResponses && canCreateRecipientInvitation(request, recipient)}
+              invitationMessage={
+                invitationMessage?.recipientId === getRecipientId(recipient) ? invitationMessage : null
+              }
+              isCreatingInvitation={creatingInvitationRecipientId === getRecipientId(recipient)}
               canSelectResponse={canSelectResponses && canSelectRecipientResponse(request, recipient)}
               onRecordResponse={() => onRecordResponse?.(recipient)}
+              onCreateInvitation={() => onCreateInvitation?.(recipient)}
               onSelectResponse={() => onSelectResponse?.(recipient)}
             />
           ))}
@@ -587,6 +644,8 @@ export default function BidRequestsPanel({
   const [selectResponseRecipient, setSelectResponseRecipient] = useState(null);
   const [convertingResponseId, setConvertingResponseId] = useState(null);
   const [conversionMessage, setConversionMessage] = useState(null);
+  const [creatingInvitationRecipientId, setCreatingInvitationRecipientId] = useState(null);
+  const [invitationMessage, setInvitationMessage] = useState(null);
 
   const loadBidRequests = useCallback(async () => {
     if (!enabled || !orderId) return;
@@ -655,6 +714,35 @@ export default function BidRequestsPanel({
       setConvertingResponseId(null);
     }
   }, [convertingResponseId, loadBidRequests, onAssignmentOfferCreated]);
+
+  const handleCreateInvitation = useCallback(async (recipient) => {
+    const recipientId = getRecipientId(recipient);
+    if (!recipientId || creatingInvitationRecipientId) return;
+
+    setCreatingInvitationRecipientId(recipientId);
+    setInvitationMessage(null);
+
+    try {
+      const result = await createOrderVendorBidInvitation(recipientId);
+      setInvitationMessage({
+        recipientId,
+        success: "Bid link generated.",
+        error: "",
+        path: result?.path || result?.link || "",
+        link: result?.link || result?.path || "",
+      });
+    } catch (invitationError) {
+      setInvitationMessage({
+        recipientId,
+        success: "",
+        error: formatBidInvitationError(invitationError),
+        path: "",
+        link: "",
+      });
+    } finally {
+      setCreatingInvitationRecipientId(null);
+    }
+  }, [creatingInvitationRecipientId]);
 
   if (!enabled) return null;
 
@@ -729,7 +817,10 @@ export default function BidRequestsPanel({
               canCreateAssignmentOffer={canCreateAssignmentOffer && !hasActiveVendorAssignment}
               convertingResponseId={convertingResponseId}
               conversionMessage={conversionMessage}
+              invitationMessage={invitationMessage}
+              creatingInvitationRecipientId={creatingInvitationRecipientId}
               onRecordResponse={setRecordResponseRecipient}
+              onCreateInvitation={handleCreateInvitation}
               onSelectResponse={setSelectResponseRecipient}
               onCreateAssignmentOffer={handleCreateAssignmentOffer}
             />

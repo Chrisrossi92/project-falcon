@@ -451,11 +451,12 @@ Success Criteria:
 
 ### AMC-7: Vendor Self-Service Bidding and Performance System
 
-Status: planning after initial workspace-boundary runtime enforcement. WS-2, WS-3.1, and WS-3.2
+Status: initial token invitation foundation complete through AMC-7A.2. WS-2, WS-3.1, and WS-3.2
 are complete for Internal/AMC route and Orders URL filter bleed prevention. WS-4.1 through WS-4.5
 are complete for workspace-native navigation architecture documentation and active Internal/AMC
-navigation wiring. AMC-7 should still preserve the Vendor Workspace doctrine so vendor work does
-not get modeled as an AMC submenu or throwaway public form.
+navigation wiring. WS-6 is complete in `../vendor/VENDOR_WORKBENCH_DOCTRINE.md`. AMC-7 should
+preserve the Vendor Workspace doctrine so vendor work does not get modeled as an AMC submenu or
+throwaway public form.
 
 Purpose: add the first vendor-facing bid response path and track vendor metrics that can inform assignment decisions and reporting.
 
@@ -499,8 +500,20 @@ Workspace and navigation prerequisites before AMC-7 runtime:
   saved view, or navigation composition behavior changes.
 - WS-5.2: complete; documentation closeout.
 - WS-5.3: deferred; optional broader workspace frame accent after visual review.
-- WS-6: vendor workbench doctrine.
+- WS-6: complete; Vendor Workbench doctrine defines vendor worldview, navigation, dashboard,
+  Vendor Order Detail, token versus authenticated access, vendor-facing statuses, documents/tasks,
+  billing labels, hidden data, security doctrine, and AMC-7/AMC-8 sequencing.
 - WS-7: AMC-7 tokenized vendor order detail.
+
+AMC-7 implementation roadmap:
+
+- AMC-7A: complete through AMC-7A.2; token/invitation backend model and coordinator-side link
+  generation.
+- AMC-7B: token read RPC for limited Vendor Order Detail.
+- AMC-7C: public Vendor Bid Invitation route at `/vendor/bid-invitations/:token`.
+- AMC-7D: Submit Bid modal/RPC that uses the existing bid response lifecycle.
+- AMC-7E: email link generation/send.
+- AMC-8 or later: authenticated Vendor Workbench.
 
 Workspace navigation doctrine:
 
@@ -517,6 +530,33 @@ Workspace navigation doctrine:
 AMC-7 tokenized bid links should open a limited-access Vendor Order Detail page. That page should be
 designed as the constrained version of the future authenticated Vendor Workspace order detail, not
 as a disposable standalone bid form.
+
+AMC-7A.1 completed:
+
+- `public.order_vendor_bid_request_recipient_invitations` stores bid-recipient-scoped invitation
+  records.
+- `public.rpc_order_vendor_bid_invitation_create(p_recipient_id uuid, p_payload jsonb default '{}')`
+  creates invitations for authenticated coordinators with bid update authority.
+- Plaintext tokens are returned once and never stored.
+- Stored token data is limited to the SHA-256 token hash and last four.
+- The create RPC returns `/vendor/bid-invitations/<token>`.
+- No public read/submit RPC, public route, email send, or recipient lifecycle mutation was added.
+
+AMC-7A.2 completed:
+
+- `createOrderVendorBidInvitation(recipientId, payload = {})` wraps the invitation create RPC.
+- `BidRequestsPanel` exposes `Generate Bid Link` for open/invitable recipients.
+- Generated paths display inline as selectable text.
+- No copy helper, email send, response recording, bid selection, assignment conversion, or manual
+  workflow change was added.
+
+Current internal testing flow:
+
+1. Coordinator creates a bid request.
+2. Coordinator clicks `Generate Bid Link`.
+3. Coordinator manually copies the displayed path.
+4. The public vendor page does not exist yet.
+5. AMC-7B must add the public token read RPC before the link becomes usable.
 
 Testing Strategy:
 

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const bidApiState = vi.hoisted(() => ({
   convertSelectedBidToAssignmentOffer: vi.fn(),
+  createOrderVendorBidInvitation: vi.fn(),
   listOrderVendorBidRequests: vi.fn(),
   recordOrderVendorBidResponse: vi.fn(),
   selectOrderVendorBidResponse: vi.fn(),
@@ -16,6 +17,7 @@ const assignmentApiState = vi.hoisted(() => ({
 
 vi.mock("../api", () => ({
   convertSelectedBidToAssignmentOffer: bidApiState.convertSelectedBidToAssignmentOffer,
+  createOrderVendorBidInvitation: bidApiState.createOrderVendorBidInvitation,
   listOrderVendorBidRequests: bidApiState.listOrderVendorBidRequests,
   recordOrderVendorBidResponse: bidApiState.recordOrderVendorBidResponse,
   selectOrderVendorBidResponse: bidApiState.selectOrderVendorBidResponse,
@@ -88,6 +90,7 @@ function selectedBidRequests() {
 describe("BidRequestsPanel", () => {
   beforeEach(() => {
     bidApiState.convertSelectedBidToAssignmentOffer.mockReset();
+    bidApiState.createOrderVendorBidInvitation.mockReset();
     bidApiState.listOrderVendorBidRequests.mockReset();
     bidApiState.recordOrderVendorBidResponse.mockReset();
     bidApiState.selectOrderVendorBidResponse.mockReset();
@@ -273,6 +276,16 @@ describe("BidRequestsPanel", () => {
     expect(screen.queryByRole("button", { name: "Record response for Franklin Commercial Valuation" })).toBeNull();
   });
 
+  it("shows generate bid link only for eligible recipients when update access is enabled", async () => {
+    bidApiState.listOrderVendorBidRequests.mockResolvedValue(bidRequests);
+
+    render(<BidRequestsPanel orderId="order-1" enabled canRecordResponses />);
+
+    expect(await screen.findByRole("heading", { name: "Bid request" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Generate bid link for Metro Valuation Group" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Generate bid link for Franklin Commercial Valuation" })).toBeNull();
+  });
+
   it("hides record response for selected and closed recipient states", async () => {
     bidApiState.listOrderVendorBidRequests.mockResolvedValue([
       {
@@ -299,6 +312,46 @@ describe("BidRequestsPanel", () => {
 
     expect(await screen.findByRole("heading", { name: "Bid request" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /record response/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /generate bid link/i })).toBeNull();
+  });
+
+  it("generates a vendor bid invitation link without refreshing bid requests", async () => {
+    bidApiState.listOrderVendorBidRequests.mockResolvedValue(bidRequests);
+    bidApiState.createOrderVendorBidInvitation.mockResolvedValue({
+      invitation_id: "invitation-1",
+      recipient_id: "recipient-2",
+      path: "/vendor/bid-invitations/token-1",
+    });
+
+    render(<BidRequestsPanel orderId="order-1" enabled canRecordResponses />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Generate bid link for Metro Valuation Group" }));
+
+    await waitFor(() => {
+      expect(bidApiState.createOrderVendorBidInvitation).toHaveBeenCalledWith("recipient-2");
+    });
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Bid link generated");
+    expect(screen.getByText("/vendor/bid-invitations/token-1")).toBeInTheDocument();
+    expect(bidApiState.listOrderVendorBidRequests).toHaveBeenCalledTimes(1);
+    expect(bidApiState.recordOrderVendorBidResponse).not.toHaveBeenCalled();
+    expect(bidApiState.selectOrderVendorBidResponse).not.toHaveBeenCalled();
+    expect(assignmentApiState.offerOrderToVendor).not.toHaveBeenCalled();
+  });
+
+  it("shows an inline error when vendor bid invitation generation fails", async () => {
+    bidApiState.listOrderVendorBidRequests.mockResolvedValue(bidRequests);
+    bidApiState.createOrderVendorBidInvitation.mockRejectedValue(
+      Object.assign(new Error("denied"), { code: "42501" }),
+    );
+
+    render(<BidRequestsPanel orderId="order-1" enabled canRecordResponses />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Generate bid link for Metro Valuation Group" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("You do not have permission to generate bid links.");
+    expect(bidApiState.recordOrderVendorBidResponse).not.toHaveBeenCalled();
+    expect(bidApiState.selectOrderVendorBidResponse).not.toHaveBeenCalled();
   });
 
   it("records a response, closes the modal, and refreshes bid requests", async () => {

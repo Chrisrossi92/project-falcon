@@ -120,6 +120,14 @@ Initial workspace definition model:
 - Future `VENDOR_WORKSPACE`: Work, Documents, Financials, Profile.
 - Future `CLIENT_WORKSPACE`: Orders, Documents, Messages, Billing, Profile.
 
+Vendor Workbench doctrine is defined in `docs/vendor/VENDOR_WORKBENCH_DOCTRINE.md`. Vendor
+Workspace is a peer workspace, not an AMC subpage. Future Vendor navigation should use Dashboard,
+Available Work, My Bids, Assigned Orders, Documents / Tasks, Invoices, and Profile. Future Vendor
+Dashboard should summarize Available Bid Requests, Pending Bids, Assignment Offers, Active Assigned
+Orders, Due Soon, Documents Needed, and Invoices / Payment Status. AMC-7 tokenized bid invitations
+should render a limited Vendor Order Detail, while authenticated Vendor Workbench should later reuse
+the same Vendor Order Detail concept with a relationship/company-scoped access boundary.
+
 Current runtime wiring:
 
 - WS-4.2 added `src/lib/navigation/workspaceNavigationDefinitions.js` with active Internal

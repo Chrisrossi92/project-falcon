@@ -11,6 +11,7 @@ vi.mock("@/lib/supabaseClient", () => ({
 
 const {
   convertSelectedBidToAssignmentOffer,
+  createOrderVendorBidInvitation,
   createOrderVendorBidRequest,
   fetchAmcOrderProcurementSummaries,
   listOrderVendorBidRequests,
@@ -209,6 +210,61 @@ describe("bid request API wrappers", () => {
     supabaseMock.rpc.mockResolvedValue({ data: null, error });
 
     await expect(fetchAmcOrderProcurementSummaries(["order-1"])).rejects.toBe(error);
+  });
+
+  it("exports vendor bid invitation create wrapper", () => {
+    expect(createOrderVendorBidInvitation).toEqual(expect.any(Function));
+  });
+
+  it("creates vendor bid invitations through the backend RPC with a default payload", async () => {
+    const result = {
+      invitation_id: "invitation-1",
+      recipient_id: "recipient-1",
+      path: "/vendor/bid-invitations/token-1",
+    };
+    supabaseMock.rpc.mockResolvedValue({ data: result, error: null });
+
+    await expect(createOrderVendorBidInvitation("recipient-1")).resolves.toEqual(result);
+
+    expect(supabaseMock.rpc).toHaveBeenCalledWith("rpc_order_vendor_bid_invitation_create", {
+      p_recipient_id: "recipient-1",
+      p_payload: {},
+    });
+    expect(supabaseMock.from).not.toHaveBeenCalled();
+  });
+
+  it("passes custom vendor bid invitation payloads through to the backend RPC", async () => {
+    const payload = {
+      vendor_contact_id: "contact-1",
+      sent_to_email: "vendor@example.test",
+      expires_at: "2026-06-05T20:00:00.000Z",
+    };
+    supabaseMock.rpc.mockResolvedValue({ data: { invitation_id: "invitation-1" }, error: null });
+
+    await createOrderVendorBidInvitation("recipient-1", payload);
+
+    expect(supabaseMock.rpc).toHaveBeenCalledWith("rpc_order_vendor_bid_invitation_create", {
+      p_recipient_id: "recipient-1",
+      p_payload: payload,
+    });
+  });
+
+  it("uses a safe empty vendor bid invitation payload for null payload input", async () => {
+    supabaseMock.rpc.mockResolvedValue({ data: { invitation_id: "invitation-1" }, error: null });
+
+    await createOrderVendorBidInvitation("recipient-1", null);
+
+    expect(supabaseMock.rpc).toHaveBeenCalledWith("rpc_order_vendor_bid_invitation_create", {
+      p_recipient_id: "recipient-1",
+      p_payload: {},
+    });
+  });
+
+  it("surfaces vendor bid invitation RPC errors for callers to handle", async () => {
+    const error = Object.assign(new Error("bid invitation denied"), { code: "42501" });
+    supabaseMock.rpc.mockResolvedValue({ data: null, error });
+
+    await expect(createOrderVendorBidInvitation("recipient-1")).rejects.toBe(error);
   });
 
   it("records vendor bid responses through the backend RPC", async () => {

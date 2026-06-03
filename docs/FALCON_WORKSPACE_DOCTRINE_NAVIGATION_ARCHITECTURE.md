@@ -177,6 +177,8 @@ Visual identity should remain recognizably Falcon but use a distinct AMC accent/
 
 The Vendor Workspace is a future role-native workspace, not an AMC subpage.
 
+Canonical doctrine: `docs/vendor/VENDOR_WORKBENCH_DOCTRINE.md`.
+
 Vendor-native labels:
 
 - Available Work
@@ -197,6 +199,18 @@ Primary workflows:
 - view billing/payment/task status.
 
 The AMC-7 tokenized bid invitation page should be designed as a limited-access rendering of the future Vendor Order Detail screen. It should not be a throwaway standalone form.
+
+WS-6 complete: Vendor Workbench doctrine defines the vendor worldview, navigation, dashboard,
+Vendor Order Detail, token versus authenticated access model, vendor-facing status model,
+documents/tasks model, billing labels, hidden internal data, security doctrine, and AMC-7/AMC-8
+roadmap. Vendor Workbench remains future runtime scope.
+
+AMC-7A complete through AMC-7A.2: backend tokenized bid invitation storage, authenticated
+coordinator invitation creation, and coordinator-side `Generate Bid Link` display now exist for open
+bid recipients. Generated paths use `/vendor/bid-invitations/<token>`, but public vendor
+route/read/submit behavior is still deferred. Vendor Workspace runtime access remains future scope
+until AMC-7B/7C/7D add the public token read RPC, limited Vendor Order Detail route, and submit bid
+flow.
 
 ## Sidebar And Navigation Differences
 
@@ -368,7 +382,9 @@ Recommended sequence:
    - WS-5.3 deferred: optional broader workspace frame accent after visual review.
 
 6. WS-6: vendor workbench doctrine.
-   - Define authenticated Vendor Workspace routes, labels, role/access model, and reuse expectations for the vendor-facing order detail.
+   - Complete. `docs/vendor/VENDOR_WORKBENCH_DOCTRINE.md` defines Vendor Workbench as a peer
+     workspace, not an AMC subpage, and locks limited token invitation plus future authenticated
+     vendor access doctrine before AMC-7.
 
 7. WS-7: AMC-7 tokenized vendor order detail.
    - Build the tokenized bid invitation page as the limited-access version of the future Vendor Order Detail screen.

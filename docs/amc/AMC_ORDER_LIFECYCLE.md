@@ -23,7 +23,8 @@ Operations or an AMC Operations order inside Internal Operations.
 AMC Operations should use procurement/vendor language and visual identity cues that distinguish it
 from Internal Operations while preserving the shared Falcon platform. Future Vendor Workspace
 surfaces are not AMC subpages; AMC-7 tokenized vendor bid links should be designed as the
-limited-access version of a future Vendor Order Detail screen.
+limited-access version of a future Vendor Order Detail screen. Vendor Workbench doctrine lives in
+`docs/vendor/VENDOR_WORKBENCH_DOCTRINE.md`.
 
 ## AMC-6H: Order Scope Doctrine and Data Separation Audit
 
@@ -757,7 +758,7 @@ AMC-6V.4 adds the first read-only Order Detail bid status summary card for AMC-s
 
 AMC-6V.5 proposes the Orders list AMC bid status chip but recommends deferring the chip until a lightweight batched read model exists. The Orders list currently reads order rows from the frontend order views and should not fetch bid request history per row. The future list chip should be compact and limited to `Not sent for bid`, `Out for bid`, `Bids received`, `Bid selected`, `Assignment offered`, and `Assigned`. It should be backed by a server-side projection such as `rpc_amc_order_procurement_summaries(order_ids uuid[])`, derived from bid requests, recipients, responses, selected response state, and active `vendor_appraisal` assignment packets. Client-side per-order bid fetches are rejected for MVP because they create N+1 queries, stale derivation risk, and performance issues. This slice is docs/proposal only and adds no runtime code, UI, API calls, migrations, RPCs, backend/schema changes, order mutations, route/nav changes, assignment behavior changes, notifications, stored order status, or `/amc/*` routes.
 
-AMC-6V.6 closes out the current internal bid workflow validation. Manual coordinator workflow is validated through AMC-scoped order visibility, candidate loading, multi-vendor selection, bid request/recipient creation, Bid Requests history display, and owner/admin manual response recording. Vendor self-service bid response remains deferred to future AMC-7. AMC-7 should cover secure/tokenized bid response links, a minimal vendor-facing response page, no full vendor account requirement for the first version, fee/turn-time/proposed-due-date/comments submission, expiration handling, audit trail, and later authenticated vendor portal workflows. AMC-6V.6 is documentation/light-validation only and adds no runtime code, vendor portal, routes/nav, schema/RLS changes, bid behavior changes, assignment behavior changes, notifications, order mutations, or `/amc/*` routes.
+AMC-6V.6 closes out the current internal bid workflow validation. Manual coordinator workflow is validated through AMC-scoped order visibility, candidate loading, multi-vendor selection, bid request/recipient creation, Bid Requests history display, and owner/admin manual response recording. Vendor self-service bid response remains deferred to future AMC-7. AMC-7 should cover secure/tokenized bid response links, a limited Vendor Order Detail, no full vendor account requirement for the first version, fee/turn-time/proposed-due-date/comments submission, expiration handling, audit trail, and later authenticated Vendor Workbench workflows. AMC-6V.6 is documentation/light-validation only and adds no runtime code, vendor portal, routes/nav, schema/RLS changes, bid behavior changes, assignment behavior changes, notifications, order mutations, or `/amc/*` routes.
 
 AMC-6W completes selected-bid to assignment-offer conversion. A selected bid is still not an assignment; it becomes an assignment offer only when an authorized user clicks `Create Assignment Offer` in `BidRequestsPanel`. The runtime path is `BidRequestsPanel` -> `convertSelectedBidToAssignmentOffer(responseId)` -> `rpc_order_vendor_bid_response_convert_to_assignment_offer(...)` -> `rpc_order_company_assignment_offer(...)` -> the existing `order_company_assignments` packet lifecycle. The selected-bid wrapper delegates to the existing assignment-offer RPC, so the canonical active-offer guard, AMC order-scope guard, assignment-offer authorization, notification/activity behavior, and assignment packet state model remain centralized.
 
@@ -775,6 +776,25 @@ AMC-6X status precedence:
 6. `No Bids`
 
 AMC procurement MVP is now complete for the internal coordinator path: candidate vendors, Request Bids, manual response entry, Select Bid, Create Assignment Offer, assignment packet lifecycle handoff, Order Detail procurement summary, and Orders list procurement chip. Deferred items remain AMC-7 vendor self-service bidding, procurement dashboard queue, client-facing bid review, procurement filters, and an explicit converted bid row marker.
+
+AMC-7A.1 adds backend tokenized bid invitation infrastructure. The new
+`order_vendor_bid_request_recipient_invitations` table stores recipient-scoped invitation delivery
+and access records. The authenticated `rpc_order_vendor_bid_invitation_create(...)` RPC creates an
+invitation for a bid recipient, returns the plaintext token once, stores only a SHA-256 token hash
+and token last four, and returns the relative path `/vendor/bid-invitations/<token>`. This slice
+does not add public token read/submit RPCs, public vendor UI, email send, response recording,
+assignment conversion, order mutation, or recipient lifecycle mutation.
+
+AMC-7A.2 adds internal coordinator link generation. The frontend wrapper
+`createOrderVendorBidInvitation(recipientId, payload = {})` calls the invitation create RPC, and
+`BidRequestsPanel` shows `Generate Bid Link` for open/invitable recipients when the coordinator has
+bid update authority. The generated path displays inline as selectable text. There is no
+copy-to-clipboard helper yet. Manual response entry, bid selection, selected-bid assignment
+conversion, and existing procurement summary behavior remain unchanged.
+
+Current AMC-7A testing flow: coordinator creates a bid request, clicks `Generate Bid Link`, and
+manually copies the displayed path. The path is not yet usable by vendors because the public token
+read RPC and public route remain deferred to AMC-7B and AMC-7C.
 
 ## Delivery State
 
