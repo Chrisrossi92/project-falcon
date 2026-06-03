@@ -1800,11 +1800,14 @@ AMC-6J defers:
 Recommended bid workflow slices:
 
 1. AMC-6K: Bid request schema/RPC proposal.
-2. AMC-6L: Bid request backend implementation with read-only comparison surfaces.
-3. AMC-6M: Multi-select candidate UI for `Request Bids`.
-4. AMC-6N: Bid comparison panel showing fee, turn time/date, response status, comments, warnings, and selected vendor.
-5. AMC-6O: Convert selected bid to assignment offer through the existing `rpc_order_company_assignment_offer(...)` path.
-6. AMC-6P: Vendor/client response workflow proposal, including notifications and portal considerations.
+2. AMC-6L/6M: Bid request permission and schema foundation.
+3. AMC-6N: Bid request RPC proposal.
+4. AMC-6O: Bid request RPC implementation.
+5. AMC-6P: Frontend API wrappers.
+6. AMC-6Q: Multi-select candidate UI for `Request Bids`.
+7. AMC-6R: Bid comparison panel showing fee, turn time/date, response status, comments, warnings, and selected vendor.
+8. AMC-6S: Convert selected bid to assignment offer through the existing `rpc_order_company_assignment_offer(...)` path.
+9. AMC-6T: Vendor/client response workflow proposal, including notifications and portal considerations.
 
 ## AMC-6J.1: Candidate Action Copy Reset
 
@@ -1816,6 +1819,1144 @@ Implementation result:
 - Candidate cards present it under a secondary `Direct award` action area rather than as the primary long-term AMC workflow.
 - Helper copy states: `Direct assignment is available for known vendors. Multi-vendor bid requests are planned.`
 - No `Request Bids` button, multi-select candidate behavior, bid request schema, backend changes, assignment behavior changes, routes/nav changes, or `/amc/*` routes are introduced.
+
+## AMC-6K: Bid Request Schema Proposal
+
+AMC-6K is proposal/inspection only. It does not create migrations, RPCs, UI, schema/RLS changes, permission changes, route/nav changes, order behavior changes, assignment behavior changes, or `/amc/*` routes.
+
+### Core Doctrine
+
+Bid request workflow must preserve these boundaries:
+
+- Bid request is not an assignment.
+- Bid response is not acceptance of an assignment.
+- Assignment packet is created only after an owner/admin selects a vendor or selected bid.
+- Candidate matching may seed recipients, but the bid request record owns outreach state.
+- Existing `order_company_assignments` remains canonical after vendor selection.
+
+### Proposed Tables
+
+Recommended normalized MVP model:
+
+```text
+order_vendor_bid_requests
+order_vendor_bid_request_recipients
+order_vendor_bid_responses
+```
+
+`order_vendor_bid_requests` is the parent outreach event for one order and one request cycle.
+
+Recommended fields:
+
+| Field | Purpose |
+|---|---|
+| `id` | Bid request id. |
+| `company_id` | Owner/current company scope. |
+| `order_id` | AMC-scoped order being bid. |
+| `requested_by_user_id` | App user who created/sent the request. |
+| `request_message` | Owner-facing/vendor-facing instructions. |
+| `response_due_at` | Deadline for vendors to respond. |
+| `client_due_at` | Client delivery due date at time of request. |
+| `desired_vendor_due_at` | Desired vendor report due-to-AMC date. |
+| `review_due_at` | Optional internal AMC review/QC due date. |
+| `status` | `draft`, `sent`, `partially_responded`, `closed`, `cancelled`, or `expired`. |
+| `candidate_snapshot` | Optional JSON snapshot of selected candidate state at request time. |
+| `created_at` / `updated_at` | Audit timestamps. |
+
+`order_vendor_bid_request_recipients` stores one row per vendor target.
+
+Recommended fields:
+
+| Field | Purpose |
+|---|---|
+| `id` | Recipient id. |
+| `bid_request_id` | Parent bid request. |
+| `vendor_profile_id` | Vendor Directory profile. |
+| `vendor_company_id` | Vendor company selected for outreach. |
+| `relationship_id` | Active `amc_vendor` relationship used at send time. |
+| `status` | `pending`, `sent`, `viewed`, `responded`, `declined`, `expired`, `cancelled`, `selected`, or `not_selected`. |
+| `sent_at` | Timestamp when outreach was sent. |
+| `viewed_at` | Timestamp when vendor viewed request, if available later. |
+| `created_at` / `updated_at` | Audit timestamps. |
+
+`order_vendor_bid_responses` stores vendor commercial response data. Keep responses separate from recipients so later revisions or multiple response versions can be supported without changing recipient identity.
+
+Recommended fields:
+
+| Field | Purpose |
+|---|---|
+| `id` | Response id. |
+| `recipient_id` | Recipient row responding. |
+| `fee_amount` | Vendor proposed fee. |
+| `currency` | ISO-style currency, default `USD`. |
+| `proposed_due_at` | Vendor proposed report due date. |
+| `turn_time_days` | Vendor proposed turn time if date is not enough. |
+| `comments` | Vendor comments / conditions. |
+| `submitted_at` | Response submission timestamp. |
+| `selected_at` | Timestamp owner/admin selected this response. |
+| `selected_by_user_id` | App user who selected the response. |
+| `created_at` / `updated_at` | Audit timestamps. |
+
+### Lifecycle States
+
+Request-level statuses:
+
+| Status | Meaning |
+|---|---|
+| `draft` | Request is being prepared; no vendor outreach has been sent. |
+| `sent` | Outreach has been sent to at least one recipient. |
+| `partially_responded` | At least one vendor responded, but request remains open. |
+| `closed` | Request is finished, usually because a vendor was selected or owner/admin closed it. |
+| `cancelled` | Owner/admin cancelled outreach before completion. |
+| `expired` | Response deadline passed without active selection. |
+
+Recipient-level statuses:
+
+| Status | Meaning |
+|---|---|
+| `pending` | Recipient selected but outreach not sent. |
+| `sent` | Request sent to this vendor. |
+| `viewed` | Vendor viewed the request. |
+| `responded` | Vendor submitted fee/turn-time response. |
+| `declined` | Vendor declined or is unavailable. |
+| `expired` | Vendor did not respond before deadline. |
+| `cancelled` | Outreach to this vendor was cancelled. |
+| `selected` | This recipient/response was selected for assignment offer. |
+| `not_selected` | Request closed with another vendor selected. |
+
+### Selection Flow
+
+1. Owner/admin opens Vendor Candidates.
+2. Owner/admin selects multiple candidate vendors for `Request Bids`.
+3. Bid request is created in draft or sent state.
+4. Vendors respond with fee, proposed due date/turn time, and comments.
+5. Owner/admin compares bids.
+6. Owner/admin may optionally check with the client before final selection.
+7. Selected response becomes an assignment offer using existing `rpc_order_company_assignment_offer(...)`.
+8. Handoff payload should include candidate snapshot and selected bid snapshot.
+9. Non-selected recipients are marked `not_selected`; the request is closed.
+
+### Permissions
+
+Recommended MVP permissions are explicit bid permissions:
+
+- `bid_requests.read`
+- `bid_requests.create`
+- `bid_requests.update`
+- `bid_requests.select`
+
+This is cleaner than reusing only assignment permissions because bid outreach is not assignment creation. For initial implementation, these can be granted to Owner/Admin templates alongside existing AMC assignment permissions. If product wants to minimize new permissions, `order_company_assignments.offer` plus `vendors.read` can be used temporarily, but that should be documented as a bridge rather than the long-term permission model.
+
+### Constraints / Guards
+
+Backend guards should enforce:
+
+- Bid requests only for `orders.operations_scope = 'amc_operations'`.
+- Requesting company must own/read the order.
+- Each recipient vendor profile must belong to the current owner company.
+- Recipient relationship must be active `amc_vendor`.
+- Vendor profile must not be `inactive` or `do_not_use`.
+- No assignment packet is created during bid request creation or vendor response.
+- No duplicate open bid request recipient for the same order/vendor while prior recipient status is `pending`, `sent`, `viewed`, or `responded`.
+- Selection must fail if an active `vendor_appraisal` assignment already exists for the order.
+- Selected bid conversion should still go through existing assignment-offer guardrails.
+
+### Deferred Behavior
+
+AMC-6K defers:
+
+- vendor portal response UI
+- email/custom notification templates
+- client-facing bid approval portal
+- automatic lowest-bid or fastest-turn selection
+- first-to-accept workflows
+- compliance document gating
+- capacity/workload scoring
+- payment/fee settlement
+
+### Recommended MVP Path
+
+Recommended implementation path:
+
+1. AMC-6L: bid request schema migration implementation with status constraints, indexes, comments, and no assignment writes.
+2. AMC-6M: bid request read/write RPCs with AMC-scope, vendor relationship, and duplicate-open-recipient guards.
+3. AMC-6N: bid request RPC proposal.
+4. AMC-6O: bid request RPC implementation.
+5. AMC-6P: frontend API wrappers.
+6. AMC-6Q: candidate multi-select `Request Bids` UI.
+7. AMC-6R: bid comparison panel.
+8. AMC-6S: convert selected bid to assignment offer through `offerOrderToVendor(...)` / `rpc_order_company_assignment_offer(...)`.
+
+## AMC-6L: Bid Request Schema Migration Proposal
+
+AMC-6L is proposal/inspection only. It does not create migrations, RPCs, UI, schema/RLS changes, permission changes, route/nav changes, order behavior changes, assignment behavior changes, or `/amc/*` routes.
+
+Existing schema conventions to follow:
+
+- Assignment/vendor tables are additive, UUID-primary-key tables with explicit status check constraints.
+- Foreign keys are usually added with `not valid` in additive migrations.
+- Lifecycle tables use guard triggers for immutable identity fields and consistency checks.
+- `updated_at` is maintained by a small table-specific or shared trigger.
+- RLS is enabled, direct privileges are revoked from `public`, `anon`, and `authenticated`, and `service_role` receives direct table privileges.
+- Runtime app access should go through security-definer RPCs that check current company, active membership, order readability, and explicit permissions.
+- Permission catalog seeds are separate from schema foundation migrations when the permission surface is meaningful.
+
+### Concrete Table DDL Proposal
+
+`order_vendor_bid_requests` should be the parent request cycle for one AMC-scoped order:
+
+| Column | Proposed definition |
+|---|---|
+| `id` | `uuid primary key default gen_random_uuid()` |
+| `company_id` | `uuid not null references public.companies(id) on delete restrict not valid` |
+| `order_id` | `uuid not null references public.orders(id) on delete cascade not valid` |
+| `requested_by_user_id` | `uuid null references public.users(id) on delete set null not valid` |
+| `request_message` | `text null` |
+| `response_due_at` | `timestamptz null` |
+| `client_due_at` | `timestamptz null` |
+| `desired_vendor_due_at` | `timestamptz null` |
+| `review_due_at` | `timestamptz null` |
+| `status` | `text not null default 'draft'` |
+| `metadata` | `jsonb not null default '{}'::jsonb` |
+| `cancelled_at` | `timestamptz null` |
+| `closed_at` | `timestamptz null` |
+| `created_at` / `updated_at` | `timestamptz not null default now()` |
+
+Request status check:
+
+```sql
+status in ('draft', 'sent', 'partially_responded', 'closed', 'cancelled', 'expired')
+```
+
+`metadata` is the right place for candidate snapshots and future request context. It should not drive authorization.
+
+`order_vendor_bid_request_recipients` should store one vendor target per request:
+
+| Column | Proposed definition |
+|---|---|
+| `id` | `uuid primary key default gen_random_uuid()` |
+| `bid_request_id` | `uuid not null references public.order_vendor_bid_requests(id) on delete cascade not valid` |
+| `vendor_profile_id` | `uuid not null references public.company_vendor_profiles(id) on delete restrict not valid` |
+| `vendor_company_id` | `uuid not null references public.companies(id) on delete restrict not valid` |
+| `relationship_id` | `uuid not null references public.company_relationships(id) on delete restrict not valid` |
+| `status` | `text not null default 'pending'` |
+| `sent_at` | `timestamptz null` |
+| `viewed_at` | `timestamptz null` |
+| `responded_at` | `timestamptz null` |
+| `declined_at` | `timestamptz null` |
+| `expired_at` | `timestamptz null` |
+| `cancelled_at` | `timestamptz null` |
+| `metadata` | `jsonb not null default '{}'::jsonb` |
+| `created_at` / `updated_at` | `timestamptz not null default now()` |
+
+Recipient status check:
+
+```sql
+status in ('pending', 'sent', 'viewed', 'responded', 'declined', 'expired', 'cancelled', 'selected', 'not_selected')
+```
+
+`order_vendor_bid_responses` should store the vendor's commercial response:
+
+| Column | Proposed definition |
+|---|---|
+| `id` | `uuid primary key default gen_random_uuid()` |
+| `recipient_id` | `uuid not null references public.order_vendor_bid_request_recipients(id) on delete cascade not valid` |
+| `fee_amount` | `numeric null` |
+| `currency` | `text not null default 'USD'` |
+| `proposed_due_at` | `timestamptz null` |
+| `turn_time_days` | `integer null` |
+| `comments` | `text null` |
+| `submitted_at` | `timestamptz null` |
+| `selected_at` | `timestamptz null` |
+| `selected_by_user_id` | `uuid null references public.users(id) on delete set null not valid` |
+| `metadata` | `jsonb not null default '{}'::jsonb` |
+| `created_at` / `updated_at` | `timestamptz not null default now()` |
+
+Response checks:
+
+- `fee_amount is null or fee_amount >= 0`
+- `turn_time_days is null or turn_time_days >= 0`
+- `currency ~ '^[A-Z]{3}$'`
+- `jsonb_typeof(metadata) = 'object'`
+
+For MVP, use one response row per recipient with `unique (recipient_id)`. If response revisions are needed later, add response versioning rather than overbuilding it now.
+
+### Guard And Constraint Proposal
+
+Schema-level constraints should handle stable structural guarantees:
+
+- `order_vendor_bid_requests_status_valid`
+- `order_vendor_bid_request_recipients_status_valid`
+- non-negative fee/turn-time checks
+- object-shaped `metadata`
+- `unique (bid_request_id, vendor_profile_id)` to prevent duplicate recipients inside the same request
+- optional guard trigger ensuring `order_vendor_bid_requests.company_id` matches `orders.company_id`
+- optional guard trigger ensuring recipient `vendor_profile_id`, `vendor_company_id`, and `relationship_id` point to the same owner/vendor relationship
+
+RPC-level guards should handle workflow and authorization guarantees:
+
+- order must be `operations_scope = 'amc_operations'`
+- current company must own/read the order
+- caller must have bid-request permission
+- vendor profile must belong to current company
+- relationship must be active `amc_vendor`
+- vendor profile must not be `inactive` or `do_not_use`
+- no duplicate open bid recipient for the same order/vendor across active requests
+- selecting a response must still pass the existing one-active-`vendor_appraisal` assignment guard
+
+Do not enforce the cross-request duplicate-open vendor rule with a partial unique index unless recipient rows denormalize `order_id`. MVP should avoid that denormalization and enforce the cross-request rule in RPCs.
+
+### Index Proposal
+
+Recommended indexes:
+
+```sql
+create index idx_order_vendor_bid_requests_company_order
+  on public.order_vendor_bid_requests (company_id, order_id);
+
+create index idx_order_vendor_bid_requests_company_status
+  on public.order_vendor_bid_requests (company_id, status);
+
+create index idx_order_vendor_bid_requests_order_status
+  on public.order_vendor_bid_requests (order_id, status);
+
+create index idx_order_vendor_bid_requests_response_due
+  on public.order_vendor_bid_requests (response_due_at)
+  where status in ('sent', 'partially_responded');
+
+create unique index order_vendor_bid_request_recipients_request_vendor_unique
+  on public.order_vendor_bid_request_recipients (bid_request_id, vendor_profile_id);
+
+create index idx_order_vendor_bid_request_recipients_request_status
+  on public.order_vendor_bid_request_recipients (bid_request_id, status);
+
+create index idx_order_vendor_bid_request_recipients_vendor_profile_status
+  on public.order_vendor_bid_request_recipients (vendor_profile_id, status);
+
+create index idx_order_vendor_bid_request_recipients_vendor_company_status
+  on public.order_vendor_bid_request_recipients (vendor_company_id, status);
+
+create index idx_order_vendor_bid_request_recipients_relationship
+  on public.order_vendor_bid_request_recipients (relationship_id);
+
+create unique index order_vendor_bid_responses_recipient_unique
+  on public.order_vendor_bid_responses (recipient_id);
+
+create index idx_order_vendor_bid_responses_selected
+  on public.order_vendor_bid_responses (selected_at)
+  where selected_at is not null;
+
+create index idx_order_vendor_bid_responses_submitted
+  on public.order_vendor_bid_responses (submitted_at desc);
+```
+
+### RLS, Grants, And Comments
+
+Migration should:
+
+- `alter table ... enable row level security` for all three tables
+- `revoke all privileges on table ... from public, anon, authenticated`
+- `grant all privileges on table ... to service_role`
+- revoke app execution on guard/touch trigger functions and grant execution to `service_role`
+- comment each table and key column
+
+No direct authenticated table writes should be granted. Bid reads/writes should be added later through explicit RPCs.
+
+### Permission Seed Proposal
+
+Seed bid permissions in a separate permission migration, following the Vendor Directory permission seed pattern:
+
+| Permission | Label | Purpose |
+|---|---|---|
+| `bid_requests.read` | Read bid requests | View bid request cycles, recipients, and responses for current-company AMC orders. |
+| `bid_requests.create` | Create bid requests | Create/send bid outreach to eligible vendors. |
+| `bid_requests.update` | Update bid requests | Cancel/expire/close requests and update recipient lifecycle state. |
+| `bid_requests.select` | Select bid responses | Select a vendor response for conversion to an assignment offer. |
+
+Default grants should go to system Owner/Admin templates only. Do not seed vendor-side roles yet. Vendor response permissions and portal behavior remain deferred.
+
+### AMC-6M.1 Bid Request Permission Seeds
+
+AMC-6M.1 implements the bid permission seed only:
+
+- `bid_requests.read`
+- `bid_requests.create`
+- `bid_requests.update`
+- `bid_requests.select`
+
+Owner and Admin system template roles receive all four permissions by default. Reviewer, Appraiser, Billing, and future vendor-side roles receive none in this slice.
+
+This slice adds frontend permission constants and a permission seed migration only. It does not create bid request tables, create bid request RPCs, create UI, change routes/nav, change assignment behavior, change order behavior, or create `/amc/*` routes.
+
+### AMC-6M.2 Bid Request Schema Foundation
+
+AMC-6M.2 adds the bid request schema foundation only:
+
+- `order_vendor_bid_requests`
+- `order_vendor_bid_request_recipients`
+- `order_vendor_bid_responses`
+
+The migration follows existing assignment/vendor table posture: additive UUID tables, status check constraints, metadata object checks, lifecycle timestamps, `updated_at` triggers, structural guard triggers, indexes, RLS enabled, direct app table privileges revoked, `service_role` direct grants, and table/column/function comments.
+
+Structural guards enforce stable consistency only:
+
+- bid request `company_id` must match `orders.company_id`
+- bid request company/order identity is immutable after insert
+- recipient vendor profile must belong to the bid request company
+- recipient vendor company must match the vendor profile
+- recipient relationship source/target must match the owner/vendor companies
+- recipient relationship type must be `amc_vendor`
+
+Workflow guards remain deferred to future RPCs:
+
+- active relationship status at send time
+- `orders.operations_scope = 'amc_operations'`
+- caller permissions
+- vendor status eligibility
+- duplicate open outreach for the same order/vendor across requests
+- selected bid conversion into an assignment offer
+
+AMC-6M.2 does not create bid request RPCs, frontend APIs, UI, assignment packets, order mutations, route/nav changes, assignment behavior changes, or `/amc/*` routes.
+
+## AMC-6N: Bid Request RPC Proposal
+
+AMC-6N is proposal/inspection only. It does not create migrations, RPCs, frontend APIs, UI, route/nav changes, assignment behavior changes, order behavior changes, or `/amc/*` routes.
+
+Bid request RPCs should keep three boundaries clear:
+
+- Bid request creation is vendor outreach, not assignment creation.
+- Bid response recording is not vendor acceptance of an assignment.
+- Bid selection prepares a selected-bid snapshot for assignment-offer conversion, but does not create an assignment packet by itself.
+
+### RPC Set
+
+Recommended MVP RPCs:
+
+```sql
+public.rpc_order_vendor_bid_request_create(
+  p_order_id uuid,
+  p_payload jsonb
+)
+
+public.rpc_order_vendor_bid_requests_for_order(
+  p_order_id uuid
+)
+
+public.rpc_order_vendor_bid_response_record(
+  p_recipient_id uuid,
+  p_payload jsonb
+)
+
+public.rpc_order_vendor_bid_response_select(
+  p_response_id uuid
+)
+```
+
+Vendor self-service response submission remains deferred. For MVP, `rpc_order_vendor_bid_response_record(...)` is an owner/admin-entered response path.
+
+### Create RPC
+
+`rpc_order_vendor_bid_request_create(p_order_id uuid, p_payload jsonb)` should create one bid request and selected recipient rows.
+
+Proposed payload:
+
+```json
+{
+  "request_message": "Please provide fee and turn time.",
+  "response_due_at": "2026-06-05T21:00:00Z",
+  "client_due_at": "2026-06-14T21:00:00Z",
+  "desired_vendor_due_at": "2026-06-10T21:00:00Z",
+  "review_due_at": "2026-06-12T21:00:00Z",
+  "send_now": true,
+  "candidate_snapshot": {},
+  "recipients": [
+    {
+      "vendor_profile_id": "uuid",
+      "vendor_company_id": "uuid",
+      "relationship_id": "uuid",
+      "candidate_snapshot": {}
+    }
+  ]
+}
+```
+
+Recommended behavior:
+
+- Create `order_vendor_bid_requests` with status `sent` when `send_now = true`; otherwise `draft`.
+- Create one `order_vendor_bid_request_recipients` row per recipient.
+- Recipient status should be `sent` when request is sent, otherwise `pending`.
+- Set `sent_at = now()` for sent recipients.
+- Store candidate/request snapshots in `metadata`.
+- Return the created request with nested recipients, or at minimum the created `bid_request_id`.
+
+Required authorization and guards:
+
+- authenticated app user
+- active current-company membership
+- `bid_requests.create`
+- `vendors.read`
+- current user can read the order
+- order belongs to current company
+- order has `operations_scope = 'amc_operations'`
+- vendor profile belongs to current company
+- vendor profile status is not `inactive` or `do_not_use`
+- relationship is active `amc_vendor`
+- relationship source/target match owner/vendor companies
+- no duplicate recipient in payload
+- no duplicate open bid recipient for the same order/vendor while an existing recipient is `pending`, `sent`, `viewed`, or `responded`
+- no assignment packet writes
+
+Recommended return shape:
+
+```json
+{
+  "bid_request_id": "uuid",
+  "order_id": "uuid",
+  "status": "sent",
+  "recipient_count": 3,
+  "recipients": [
+    {
+      "recipient_id": "uuid",
+      "vendor_profile_id": "uuid",
+      "vendor_company_id": "uuid",
+      "relationship_id": "uuid",
+      "status": "sent"
+    }
+  ]
+}
+```
+
+### Read RPC
+
+`rpc_order_vendor_bid_requests_for_order(p_order_id uuid)` should return bid requests for one order with recipients and responses.
+
+Required authorization:
+
+- authenticated app user
+- active current-company membership
+- `bid_requests.read`
+- current user can read the order
+- order belongs to current company
+
+Recommended return shape:
+
+```json
+[
+  {
+    "bid_request_id": "uuid",
+    "order_id": "uuid",
+    "status": "sent",
+    "request_message": "Please provide fee and turn time.",
+    "response_due_at": "2026-06-05T21:00:00Z",
+    "client_due_at": "2026-06-14T21:00:00Z",
+    "desired_vendor_due_at": "2026-06-10T21:00:00Z",
+    "review_due_at": "2026-06-12T21:00:00Z",
+    "created_at": "2026-06-02T14:00:00Z",
+    "updated_at": "2026-06-02T14:00:00Z",
+    "recipients": [
+      {
+        "recipient_id": "uuid",
+        "vendor_profile_id": "uuid",
+        "vendor_company_id": "uuid",
+        "vendor_company_name": "Franklin Commercial Valuation",
+        "relationship_id": "uuid",
+        "status": "responded",
+        "sent_at": "2026-06-02T14:00:00Z",
+        "viewed_at": null,
+        "responded_at": "2026-06-03T16:00:00Z",
+        "response": {
+          "response_id": "uuid",
+          "fee_amount": 1800,
+          "currency": "USD",
+          "proposed_due_at": "2026-06-10T21:00:00Z",
+          "turn_time_days": 5,
+          "comments": "Can complete by requested date.",
+          "submitted_at": "2026-06-03T16:00:00Z",
+          "selected_at": null
+        }
+      }
+    ]
+  }
+]
+```
+
+### Response Recording RPC
+
+`rpc_order_vendor_bid_response_record(p_recipient_id uuid, p_payload jsonb)` should record or update an owner/admin-entered vendor response for a recipient.
+
+Proposed payload:
+
+```json
+{
+  "fee_amount": 1800,
+  "currency": "USD",
+  "proposed_due_at": "2026-06-10T21:00:00Z",
+  "turn_time_days": 5,
+  "comments": "Can complete by requested date."
+}
+```
+
+Required authorization and guards:
+
+- authenticated app user
+- active current-company membership
+- `bid_requests.update`
+- current user can read/update the parent order according to existing order authority
+- parent bid request belongs to current company
+- recipient status is `sent`, `viewed`, or `responded`
+- request status is `sent` or `partially_responded`
+- fee and turn-time checks match table constraints
+- no assignment packet writes
+
+Recommended behavior:
+
+- Upsert one `order_vendor_bid_responses` row per recipient.
+- Set `submitted_at = now()` when first recorded.
+- Set recipient status to `responded` and `responded_at = now()`.
+- Set parent request status to `partially_responded` unless all recipients are terminal and a future close rule applies.
+
+Recommended return shape:
+
+```json
+{
+  "response_id": "uuid",
+  "recipient_id": "uuid",
+  "bid_request_id": "uuid",
+  "recipient_status": "responded",
+  "request_status": "partially_responded"
+}
+```
+
+### Response Selection RPC
+
+`rpc_order_vendor_bid_response_select(p_response_id uuid)` should mark one response as selected for future assignment-offer conversion.
+
+Required authorization and guards:
+
+- authenticated app user
+- active current-company membership
+- `bid_requests.select`
+- current user can read/update the parent order according to existing order authority
+- order has `operations_scope = 'amc_operations'`
+- response belongs to a current-company bid request
+- response is submitted
+- recipient status is `responded`
+- no active `vendor_appraisal` assignment exists for the order
+- no other response is already selected for the same request/order unless future reselection is explicitly implemented
+- no assignment packet writes
+
+Recommended behavior:
+
+- Set selected response `selected_at = now()` and `selected_by_user_id = current_app_user_id()`.
+- Set selected recipient status to `selected`.
+- Set sibling recipients to `not_selected` when their status is `pending`, `sent`, `viewed`, or `responded`.
+- Set parent request status to `closed` and `closed_at = now()`.
+- Return enough selected-bid context for the frontend to call the existing assignment-offer wrapper later.
+
+Recommended return shape:
+
+```json
+{
+  "bid_request_id": "uuid",
+  "response_id": "uuid",
+  "recipient_id": "uuid",
+  "vendor_profile_id": "uuid",
+  "vendor_company_id": "uuid",
+  "relationship_id": "uuid",
+  "request_status": "closed",
+  "recipient_status": "selected",
+  "selected_bid_snapshot": {
+    "fee_amount": 1800,
+    "currency": "USD",
+    "proposed_due_at": "2026-06-10T21:00:00Z",
+    "turn_time_days": 5,
+    "comments": "Can complete by requested date."
+  }
+}
+```
+
+### Stable Error Codes
+
+Recommended stable error messages:
+
+| Error | Use |
+|---|---|
+| `bid_request_create_permission_required` | Missing `bid_requests.create`. |
+| `bid_request_read_permission_required` | Missing `bid_requests.read`. |
+| `bid_request_update_permission_required` | Missing `bid_requests.update`. |
+| `bid_request_select_permission_required` | Missing `bid_requests.select`. |
+| `order_scope_not_amc_operations` | Order is not AMC-scoped. |
+| `bid_request_order_not_found_or_not_authorized` | Order is missing or not readable by current user/company. |
+| `bid_request_recipients_required` | Create payload has no recipients. |
+| `bid_request_recipient_duplicate` | Payload repeats a vendor/profile. |
+| `bid_request_vendor_not_found_or_not_authorized` | Vendor profile/company/relationship does not belong to current company. |
+| `bid_request_vendor_ineligible` | Vendor profile is inactive/do-not-use or relationship is not active `amc_vendor`. |
+| `bid_request_open_recipient_exists` | Existing open request/recipient already targets that order/vendor. |
+| `bid_request_not_found_or_not_authorized` | Parent request or recipient is missing/not authorized. |
+| `bid_response_not_found_or_not_authorized` | Response is missing/not authorized. |
+| `bid_response_not_submitted` | Selection attempted before response was recorded. |
+| `bid_response_already_selected` | A selected response already exists for the request/order. |
+| `order_vendor_assignment_active_exists` | Existing active vendor assignment blocks selected-bid conversion. |
+
+### Lifecycle Transitions
+
+Allowed MVP transitions:
+
+- Request: `draft` -> `sent`
+- Request: `sent` -> `partially_responded`
+- Request: `partially_responded` -> `closed`
+- Request: `draft` / `sent` / `partially_responded` -> `cancelled`
+- Request: `sent` / `partially_responded` -> `expired`
+- Recipient: `pending` -> `sent`
+- Recipient: `sent` -> `viewed`
+- Recipient: `sent` / `viewed` -> `responded`
+- Recipient: `sent` / `viewed` -> `declined`
+- Recipient: `pending` / `sent` / `viewed` / `responded` -> `cancelled` or `expired`
+- Recipient: `responded` -> `selected`
+- Recipient: `pending` / `sent` / `viewed` / `responded` -> `not_selected` when a sibling response is selected
+
+Do not allow selected/closed state to create assignment packets automatically.
+
+### Deferred RPCs / Behavior
+
+Deferred:
+
+- vendor-authenticated response submission
+- vendor portal bid views
+- email/in-app notification fanout
+- client-facing bid approval
+- bid request cancellation/expiration dedicated RPCs
+- response revisions/versioning
+- automatic lowest-fee/fastest-turn selection
+- first-to-accept workflows
+- selected-bid-to-assignment RPC wrapper
+
+### Recommended Implementation Slices
+
+Recommended next slices:
+
+1. AMC-6O: implement read/write bid request RPC migration with text tests and no assignment writes.
+2. AMC-6P: frontend API wrappers for create/list/record/select RPCs.
+3. AMC-6Q: read-only bid request display on Order Detail.
+4. AMC-6R: candidate multi-select `Request Bids` UI.
+5. AMC-6S: bid comparison panel.
+6. AMC-6T: selected-bid direct-award conversion through existing assignment-offer RPC.
+
+### AMC-6O.1 Bid Request Create/List RPCs
+
+AMC-6O.1 implements the first backend bid request RPCs only:
+
+- `rpc_order_vendor_bid_request_create(p_order_id uuid, p_payload jsonb)`
+- `rpc_order_vendor_bid_requests_for_order(p_order_id uuid)`
+
+Create behavior:
+
+- requires authenticated current app user and active current-company membership
+- requires `bid_requests.create`
+- requires `vendors.read`
+- requires current-company order read authority
+- rejects non-`amc_operations` orders with `order_scope_not_amc_operations`
+- validates recipient payload
+- validates vendor profile ownership and status
+- validates active `amc_vendor` relationships
+- rejects duplicate open bid outreach for the same order/vendor
+- creates one parent request and recipient rows only
+
+List behavior:
+
+- requires `bid_requests.read`
+- requires current-company order read authority
+- returns request rows with nested recipients, vendor company names, and response summaries
+
+AMC-6O.1 does not implement response recording, response selection, frontend APIs, UI, notifications, assignment packet creation, order mutations, route/nav changes, assignment behavior changes, or `/amc/*` routes.
+
+### AMC-6O.2 Bid Response Record/Select RPCs
+
+AMC-6O.2 implements the backend response record/select RPCs:
+
+- `rpc_order_vendor_bid_response_record(p_recipient_id uuid, p_payload jsonb)`
+- `rpc_order_vendor_bid_response_select(p_response_id uuid)`
+
+Record behavior:
+
+- requires authenticated current app user and active current-company membership
+- requires `bid_requests.update`
+- requires current-company order read authority
+- rejects non-`amc_operations` orders with `order_scope_not_amc_operations`
+- validates open request/recipient state
+- records or updates one response for a recipient
+- captures fee amount, currency, proposed due date, turn time days, comments, and submitted timestamp
+- marks the recipient `responded`
+- marks the request `partially_responded` while pending/sent/viewed recipients remain, or `closed` when all recipients are terminal/responded
+
+Select behavior:
+
+- requires authenticated current app user and active current-company membership
+- requires `bid_requests.select`
+- requires current-company order read authority
+- rejects non-`amc_operations` orders with `order_scope_not_amc_operations`
+- rejects cancelled/expired requests, declined/expired/cancelled/not-selected recipients, and unsubmitted responses
+- marks one response selected
+- marks the selected recipient `selected`
+- marks sibling pending/sent/viewed/responded/selected recipients `not_selected`
+- closes the bid request
+- returns selected response/request summary JSON
+
+AMC-6O.2 still does not create assignment packets, call assignment-offer RPCs, mutate orders, create frontend APIs/UI, send notifications, change route/nav behavior, or create `/amc/*` routes. Selected-bid-to-assignment conversion remains a later explicit implementation slice through the existing assignment-offer lifecycle.
+
+### AMC-6P Bid Request Frontend API Wrappers
+
+AMC-6P adds frontend API wrappers only:
+
+- `createOrderVendorBidRequest({ orderId, recipients, message, responseDueAt, clientDueAt, desiredVendorDueAt, metadata })`
+- `listOrderVendorBidRequests(orderId)`
+- `recordOrderVendorBidResponse(recipientId, payload)`
+- `selectOrderVendorBidResponse(responseId)`
+
+Wrapper mapping:
+
+- create maps to `rpc_order_vendor_bid_request_create` with `p_order_id` and a JSON payload containing recipients, request message, response deadline, client due date, desired vendor due date, and metadata
+- list maps to `rpc_order_vendor_bid_requests_for_order`
+- response record maps to `rpc_order_vendor_bid_response_record`
+- response select maps to `rpc_order_vendor_bid_response_select`
+
+The wrappers surface Supabase RPC errors directly for UI callers to map later. AMC-6P adds no UI, no routes/nav, no assignment-offer calls, no selected-bid-to-assignment conversion, no order mutations, no notification behavior, and no `/amc/*` routes.
+
+### AMC-6Q Bid Requests Panel Read-Only
+
+AMC-6Q adds an isolated read-only `BidRequestsPanel` component for future Order Detail integration. The panel:
+
+- accepts `orderId`, `enabled`, and optional `className`
+- returns `null` when disabled
+- loads bid request rows through `listOrderVendorBidRequests(orderId)`
+- handles loading, error, empty, and populated states
+- renders request status and due dates
+- renders recipient count and responded count
+- renders recipient vendor names/statuses
+- renders recorded response fee, turn time, proposed due date, comments, and selected response summary when present
+
+AMC-6Q intentionally adds no `Request Bids` button, response record controls, response selection controls, assignment conversion controls, assignment-offer calls, route/nav changes, order mutations, notification behavior, or `/amc/*` routes. It is display-only until the request-bids and bid-comparison workflows are explicitly approved.
+
+### AMC-6Q.1 Bid Requests Panel Order Detail Integration
+
+AMC-6Q.1 integrates the read-only `BidRequestsPanel` into shared Order Detail near the vendor candidate and assignment context. Visibility is limited to:
+
+- AMC Operations mode
+- `order.operations_scope = 'amc_operations'`
+- users with `bid_requests.read`
+- loaded orders with an `orderId`
+
+The integration is read-only. It does not add Request Bids, response record/select controls, assignment conversion controls, assignment-offer calls, backend/schema changes, route/nav changes, order mutations, notifications, or `/amc/*` routes.
+
+### AMC-6R Request Bids UI Proposal
+
+AMC-6R is proposal/inspection only. It does not add runtime code, bid creation UI, response recording UI, response selection UI, assignment conversion, backend/schema changes, route/nav changes, order mutations, notifications, or `/amc/*` routes.
+
+Recommended placement:
+
+- Put `Request bids` as the top action in `VendorAssignmentCandidatesPanel`.
+- Keep it visually above candidate cards because the standard AMC workflow is multi-vendor outreach before direct award.
+- Keep `Offer Assignment` as a secondary per-candidate direct-award action for known vendors.
+- Keep read-only `BidRequestsPanel` on Order Detail as the history/status companion for created bid requests.
+
+Candidate selection:
+
+- Add a checkbox/select control to each candidate card.
+- Show selected count in the candidate panel header/action bar.
+- Add `Select all recommended vendors` for currently loaded, eligible candidates.
+- Only complete/eligible candidates are selectable.
+- A candidate is complete/eligible when it has `vendor_profile_id`, `vendor_company_id`, `relationship_id`, active/eligible relationship context, and no active vendor assignment blocker.
+- Ineligible candidates should remain visible for transparency but should not be selectable.
+
+Request Bids modal:
+
+- Title: `Request bids`
+- Primary copy: `Ask selected vendors for fee and turnaround.`
+- Guard copy: `No assignment is created until a bid is selected.`
+- Fields:
+  - message to vendors
+  - response due date
+  - desired vendor report due date
+  - client delivery due date
+- Do not expose fee entry in this modal because vendors respond with fee.
+- Do not expose raw relationship ids, vendor profile ids, candidate snapshots, or JSON payloads.
+- Attach candidate snapshots automatically per recipient so bid outreach preserves match context.
+
+Submit behavior:
+
+- Call `createOrderVendorBidRequest(...)`.
+- Map selected candidates to `recipients` with `vendor_profile_id`, `vendor_company_id`, `relationship_id`, and candidate snapshot metadata.
+- Create only the bid request and recipient rows.
+- Refresh `BidRequestsPanel` after success.
+- Clear candidate selection after successful create.
+- Do not create assignment packets.
+- Do not call assignment-offer RPCs.
+- Preserve selected vendors and modal input on error.
+
+Active assignment guard:
+
+- If `activeVendorAssignment` exists, hide `Request bids` and direct-award actions.
+- Continue showing candidate and bid history context read-only.
+- Use existing active status rule: `vendor_appraisal` plus `offered`, `accepted`, `in_progress`, or `submitted`.
+
+Recommended UX copy:
+
+- Button: `Request bids`
+- Header/helper: `Ask selected vendors for fee and turnaround.`
+- Modal guard: `No assignment is created until a bid is selected.`
+- Empty selection error: `Select at least one eligible vendor.`
+- Success: `Bid request sent.`
+- Duplicate/open request error: `One or more selected vendors already have an open bid request for this order.`
+
+Tests needed:
+
+- Request Bids action appears in AMC mode for AMC-scoped orders with `bid_requests.create` and no active vendor assignment.
+- Request Bids action is hidden in Internal mode.
+- Request Bids action is hidden for internal-scoped orders.
+- Request Bids action is hidden without bid request create permission.
+- Candidate checkboxes render only for complete/eligible candidates.
+- Selected count updates as candidates are selected/unselected.
+- Select all selects only eligible candidates.
+- Active vendor assignment hides Request Bids and direct-award actions.
+- Modal renders message/date fields and no fee field.
+- Submit calls `createOrderVendorBidRequest(...)` with selected recipients and candidate snapshots.
+- Success refreshes BidRequestsPanel/order bid request state and clears selection.
+- Errors preserve modal input and selection.
+- No assignment-offer RPCs are called.
+- No response record/select controls are introduced.
+
+Implementation slices:
+
+1. AMC-6R.1: candidate multi-select state and selectable/ineligible candidate presentation.
+2. AMC-6R.2: Request Bids modal with message and date fields.
+3. AMC-6R.3: create bid request integration plus BidRequestsPanel refresh.
+4. AMC-6R.4: bid response recording UI later.
+5. AMC-6S: bid comparison and selected-bid decision UI.
+6. AMC-6T: selected-bid-to-assignment conversion through existing assignment-offer guardrails.
+
+### AMC-6R.1 Candidate Multi-Select State
+
+AMC-6R.1 adds candidate selection mechanics to `VendorAssignmentCandidatesPanel` only. Eligible candidate cards now expose a checkbox for future bid request outreach, the panel shows selected count, and operators can `Select all eligible` or `Clear selection`.
+
+Selection eligibility is intentionally narrow:
+
+- candidate has `vendor_profile_id`
+- candidate has `vendor_company_id`
+- candidate has `relationship_id`
+- candidate panel is enabled
+- no active vendor assignment exists for the order
+
+Ineligible candidates remain visible with a short reason explaining why they cannot be selected. Active vendor assignment state disables selection across the panel. Direct `Offer Assignment` remains a secondary direct-award action where already permitted.
+
+This slice does not add a Request Bids modal, call `createOrderVendorBidRequest(...)`, create bid request rows, record/select responses, convert bids to assignment packets, change backend/schema/RLS/permissions, change assignment behavior, change routes/nav, mutate orders, send notifications, or create `/amc/*` routes.
+
+### AMC-6R.2 Request Bids Modal Shell
+
+AMC-6R.2 adds the `Request bids` modal shell to `VendorAssignmentCandidatesPanel` without submit behavior. The panel now shows a `Request bids` button when candidate data is loaded and no active vendor assignment blocks bid outreach. The button is disabled until at least one eligible candidate is selected.
+
+The modal displays:
+
+- selected vendors
+- message to vendors
+- response due date
+- desired vendor report due date
+- client delivery due date
+- guard copy: `No assignment is created until a bid is selected.`
+
+The modal can be closed through cancel or the close control. Its submit control is disabled and labeled `Coming next`. Direct `Offer Assignment` remains a secondary per-candidate direct-award action where already permitted.
+
+This slice does not call `createOrderVendorBidRequest(...)`, create bid request rows, record/select responses, convert bids to assignment packets, change backend/schema/RLS/permissions, change assignment behavior, change routes/nav, mutate orders, send notifications, or create `/amc/*` routes.
+
+### AMC-6R.3 Request Bids Submit Integration
+
+AMC-6R.3 enables the Request Bids modal submit path. The modal calls `createOrderVendorBidRequest(...)` only when an order id and selected candidates exist.
+
+Selected candidates are mapped into bid recipients with:
+
+- `vendorProfileId`
+- `vendorCompanyId`
+- `relationshipId`
+- compact candidate snapshot
+
+The create payload also includes message, response due date, desired vendor report due date, client delivery due date, and candidate snapshots in metadata. On success, the modal closes, candidate selection is cleared, Order Detail shows a success toast, and read-only `BidRequestsPanel` reloads through a refresh token. On error, the modal stays open, input is preserved, and a friendly error is shown.
+
+This slice creates bid request/recipient rows through the existing bid request RPC wrapper only. It does not create assignments, call `offerOrderToVendor(...)`, record/select bid responses, convert bids to assignment packets, mutate orders, add notifications, change backend/schema/RLS/permissions/routes/nav, or create `/amc/*` routes.
+
+### AMC-6S Bid Response Entry UI
+
+AMC-6S adds owner/admin manual bid response entry to `BidRequestsPanel`. Users with bid request update authority can record a response for recipient rows in `pending`, `sent`, or `viewed` status while the parent bid request remains open for response collection.
+
+The response modal captures:
+
+- fee amount
+- currency, defaulting to `USD`
+- proposed vendor due date
+- turn time days
+- comments
+
+Submit calls `recordOrderVendorBidResponse(recipientId, payload)` and refreshes Bid Requests history on success. Errors keep the modal open, preserve form input, and show user-facing error copy. The control is gated by `bid_requests.update` when Order Detail permission context is available.
+
+AMC-6S does not select a bid, create assignment packets, call `offerOrderToVendor(...)`, add vendor portal response, send notifications, change backend/schema/RLS/permissions/routes/nav, mutate orders, or create `/amc/*` routes.
+
+### AMC-6T Select Bid UI
+
+AMC-6T adds bid response selection in `BidRequestsPanel` for owner/admin users with bid selection authority. A `Select bid` action appears only for recorded, unselected responses on open bid requests. The confirmation modal shows vendor name, fee, proposed due date, turn time, comments when present, and the copy `Selecting this bid does not create an assignment yet.`
+
+Submit calls `selectOrderVendorBidResponse(responseId)` and refreshes Bid Requests history on success. If the RPC returns sibling recipients as `not_selected`, the panel displays that state after refresh. Errors keep the confirmation modal open and preserve the selected bid context.
+
+AMC-6T does not create assignments, call `offerOrderToVendor(...)`, convert selected bids to assignment packets, add notifications, add vendor portal behavior, mutate orders, change backend/schema/RLS/permissions/routes/nav, or create `/amc/*` routes.
+
+### AMC-6U Convert Selected Bid To Assignment Offer Proposal
+
+AMC-6U is proposal/inspection only. It does not add runtime code, assignment conversion UI, RPCs, migrations, backend/schema changes, route/nav changes, assignment behavior changes, notifications, order mutations, or `/amc/*` routes.
+
+#### Recommended Conversion Surface
+
+The selected-bid conversion action should live in `BidRequestsPanel` on the selected response summary, not in Vendor Candidates. At that point the candidate/bid workflow has narrowed to one selected vendor response, and the next explicit owner/admin action is assignment packet creation.
+
+Recommended button label:
+
+- `Create assignment offer`
+- acceptable alternate: `Offer assignment from selected bid`
+
+The button should appear only when a selected response is present and no active `vendor_appraisal` offer/assignment blocks a new vendor packet.
+
+#### Required Mapping
+
+Selected bid conversion should map the selected bid context into the existing `offerOrderToVendor(...)` / `rpc_order_company_assignment_offer(...)` path:
+
+```js
+offerOrderToVendor({
+  orderId,
+  vendorCompanyId,
+  vendorProfileId,
+  relationshipId,
+  note,
+  dueAt,
+  reviewDueAt,
+  expiresAt,
+  terms,
+  handoffPayload,
+})
+```
+
+Source mapping:
+
+| Assignment input | Source |
+|---|---|
+| `orderId` | selected bid request order id |
+| `vendorCompanyId` | selected recipient `vendor_company_id` |
+| `vendorProfileId` | selected recipient `vendor_profile_id` |
+| `relationshipId` | selected recipient `relationship_id` |
+| `note` | bid request message plus response comments, formatted as operator-readable instructions |
+| `dueAt` | selected response `proposed_due_at` |
+| `reviewDueAt` | leave blank for MVP unless an explicit internal review date exists on the order/request |
+| `expiresAt` | leave blank for MVP or use the normal assignment-offer expiration policy once defined |
+| `terms.fee_amount` | selected response `fee_amount` |
+| `terms.currency` | selected response `currency` |
+| `terms.turn_time_days` | selected response `turn_time_days` |
+| `handoffPayload.bid_request_id` | selected request id |
+| `handoffPayload.bid_recipient_id` | selected recipient id |
+| `handoffPayload.bid_response_id` | selected response id |
+| `handoffPayload.selected_bid_snapshot` | compact selected bid, recipient, vendor, request, dates, fee, and comments snapshot |
+
+The handoff payload should be hidden from the UI, consistent with the current candidate direct-award modal. Users should see structured confirmation details, not raw JSON.
+
+#### Preconditions
+
+Conversion must require:
+
+- `orders.operations_scope = 'amc_operations'`
+- selected bid response exists
+- selected recipient status is `selected`
+- selected response belongs to the current order's bid request
+- no active `vendor_appraisal` offer/assignment exists for the order
+- current user has existing assignment-offer authority
+- selected bid recipient still has an active `amc_vendor` relationship
+- selected vendor profile is not inactive or `do_not_use`
+- vendor company/profile/relationship ids are internally consistent
+
+The active-assignment guard remains canonical. Selecting a bid is not sufficient authority to create an assignment offer.
+
+#### Frontend Wrapper vs Backend Conversion RPC
+
+Recommended approach: add a backend selected-bid conversion wrapper before exposing the UI unless the existing assignment-offer RPC already validates every selected-bid integrity guard above.
+
+Two viable implementation patterns:
+
+1. Frontend calls `offerOrderToVendor(...)` directly.
+   This is acceptable only if the current assignment-offer RPC already verifies AMC scope, active relationship, no active vendor assignment, current-company authority, and vendor eligibility. The frontend must still construct `terms` and `handoffPayload` from the selected bid.
+2. Backend wrapper RPC, recommended.
+   Add a dedicated RPC such as `rpc_order_vendor_bid_response_convert_to_assignment_offer(p_response_id uuid, p_payload jsonb)` that loads the selected bid server-side, verifies selected status and all recipient/profile/relationship guards, builds the assignment-offer payload, and delegates to the existing assignment-offer creation logic or equivalent guarded path.
+
+The backend wrapper is safer because the selected bid is a database fact. It prevents stale or tampered frontend payloads from converting a different vendor, relationship, fee, or due date than the selected response.
+
+#### Success Behavior
+
+After conversion succeeds:
+
+- one `vendor_appraisal` assignment offer packet exists through `order_company_assignments`
+- Order Detail active vendor assignment state refreshes
+- the active assignment note appears and suppresses further Request Bids/direct-award actions
+- Bid Requests history remains visible as historical selection context
+- the selected bid remains selected
+- request status should remain closed
+- additional bid responses should remain blocked by request/recipient lifecycle
+
+No bid request rows should be deleted or rewritten into assignment rows. Bid request history remains the audit trail for vendor selection.
+
+#### Risks
+
+- Direct frontend conversion can drift if the selected bid changes after panel load.
+- Passing raw bid data from the browser can create integrity gaps around fee, relationship, or selected response identity.
+- Assignment offer expiration, internal review due date, and final client due date semantics are not fully defined yet.
+- Vendor profile status or relationship status may change after bid selection and before conversion.
+- A selected bid may exist while another user creates an active vendor assignment through direct award; conversion must re-check the active assignment guard.
+
+#### Deferred
+
+AMC-6U defers:
+
+- vendor portal acceptance
+- client approval portal
+- automatic notification templates
+- payables/fee schedule integration
+- automatic assignment creation immediately after bid selection
+- client-facing bid comparison/approval workflow
+
+#### Recommended Implementation Slices
+
+1. AMC-6U.1: selected-bid conversion RPC proposal with exact payload, return shape, stable errors, and authorization.
+2. AMC-6U.2: selected-bid conversion RPC implementation and SQL tests.
+3. AMC-6U.3: frontend API wrapper for selected-bid conversion.
+4. AMC-6U.4: Bid Requests panel `Create assignment offer` UI with confirmation modal.
+5. AMC-6U.5: Order Detail refresh integration for owner assignment rows and bid history.
+
+### Migration Risks
+
+- Over-constraining status transitions before the response UI exists could require noisy patch migrations.
+- Cross-request duplicate-open outreach is an RPC concern unless the recipient table intentionally denormalizes `order_id`.
+- Vendor portal responses may need a separate external-auth boundary later.
+- Fee fields need clear currency/precision semantics before client-facing comparison screens.
+- Selecting a bid must never bypass `order_company_assignments` active-offer and AMC-scope guards.
+- Selected-bid conversion must never trust browser-provided vendor/fee/due-date identity when server-side selected bid state can be loaded by response id.
+
+### Implementation Sequencing Recommendation
+
+Recommended next slices:
+
+1. AMC-6L.1: schema migration for the three bid tables, constraints, indexes, RLS posture, comments, and text tests only.
+2. AMC-6L.2: bid permission seed migration for Owner/Admin templates.
+3. AMC-6N: bid request RPC proposal with payloads, return shapes, authorization, lifecycle transitions, and stable errors.
+4. AMC-6O: bid request read/write RPC implementation.
+5. AMC-6P: frontend API wrappers.
+6. AMC-6R.1: candidate multi-select state and selectable/ineligible candidate presentation.
+7. AMC-6R.2: Request Bids modal.
+8. AMC-6R.3: create bid request integration plus BidRequestsPanel refresh.
+9. AMC-6S: manual bid response recording UI.
+10. AMC-6T: selected-bid decision UI.
+11. AMC-6U: selected-bid-to-assignment conversion proposal and guarded implementation slices.
+12. AMC-6V: bid comparison panel refinements.
 
 ### AMC-6 Roadmap
 
@@ -1833,7 +2974,18 @@ Implementation result:
 - AMC-6I: Candidate load failure diagnostics and helper alignment.
 - AMC-6J: Multi-vendor bid request workflow doctrine. Keep bid requests separate from assignment offers and assignment packet lifecycle.
 - AMC-6J.1: Candidate action copy reset. Keep direct `Offer Assignment` available but frame it as secondary while bid requests remain planned.
-- AMC-6K+: Bid request schema/RPC, multi-select candidate UI, bid comparison, and selected-bid-to-assignment conversion.
+- AMC-6K: Bid request schema proposal. Parent request, recipient, and response tables with explicit bid lifecycle doctrine.
+- AMC-6L: Bid request schema migration proposal. Concrete DDL plan, constraints, indexes, RLS/grants, permission seed plan, and implementation sequencing.
+- AMC-6M.1: Bid request permission seeds. Adds constants and Owner/Admin grants for `bid_requests.read`, `bid_requests.create`, `bid_requests.update`, and `bid_requests.select`; no bid tables/RPCs/UI.
+- AMC-6M.2: Bid request schema foundation. Adds bid request, recipient, and response tables with structural guards/RLS/indexes/comments only; no RPCs/UI/assignment writes.
+- AMC-6N: Bid request RPC proposal. Defines create/list/record/select RPCs, payloads, return shapes, authorization, stable errors, lifecycle transitions, and deferred vendor portal behavior.
+- AMC-6O.1: Bid request create/list RPCs. Implements backend create/list only; response record/select, frontend APIs, UI, and assignment conversion remain deferred.
+- AMC-6O.2: Bid response record/select RPCs. Implements backend response recording and selected-bid marking only; assignment packet conversion, frontend APIs, UI, and vendor portal response remain deferred.
+- AMC-6P: Bid request frontend API wrappers. Adds create/list/record/select wrappers only; UI and assignment conversion remain deferred.
+- AMC-6Q: Bid Requests panel read-only. Adds isolated display of bid request, recipient, response, and selected response summaries only; write UI remains deferred.
+- AMC-6Q.1: Order Detail integration for read-only bid request history on AMC-scoped orders with `bid_requests.read`.
+- AMC-6R: Request Bids UI proposal. Recommends candidate-panel multi-select, a Request Bids modal, secondary direct award, and no assignment creation until a bid is selected.
+- AMC-6R.1+: Multi-select candidate UI, Request Bids modal, create integration, manual response recording, selected-bid decision UI, selected-bid-to-assignment conversion, bid comparison, and vendor portal response.
 
 ### AMC-5J: Assignment Offer Integration Proposal
 

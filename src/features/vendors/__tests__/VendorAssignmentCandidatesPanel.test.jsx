@@ -9,12 +9,22 @@ const vendorApiState = vi.hoisted(() => ({
 const assignmentApiState = vi.hoisted(() => ({
   offerOrderToVendor: vi.fn(),
 }));
+const bidApiState = vi.hoisted(() => ({
+  createOrderVendorBidRequest: vi.fn(),
+  recordOrderVendorBidResponse: vi.fn(),
+  selectOrderVendorBidResponse: vi.fn(),
+}));
 
 vi.mock("../api", () => ({
   listVendorAssignmentCandidates: vendorApiState.listVendorAssignmentCandidates,
 }));
 vi.mock("@/features/assignments/api", () => ({
   offerOrderToVendor: assignmentApiState.offerOrderToVendor,
+}));
+vi.mock("@/features/bids/api", () => ({
+  createOrderVendorBidRequest: bidApiState.createOrderVendorBidRequest,
+  recordOrderVendorBidResponse: bidApiState.recordOrderVendorBidResponse,
+  selectOrderVendorBidResponse: bidApiState.selectOrderVendorBidResponse,
 }));
 
 const { default: VendorAssignmentCandidatesPanel } = await import(
@@ -76,6 +86,9 @@ describe("VendorAssignmentCandidatesPanel", () => {
   beforeEach(() => {
     vendorApiState.listVendorAssignmentCandidates.mockReset();
     assignmentApiState.offerOrderToVendor.mockReset();
+    bidApiState.createOrderVendorBidRequest.mockReset();
+    bidApiState.recordOrderVendorBidResponse.mockReset();
+    bidApiState.selectOrderVendorBidResponse.mockReset();
   });
 
   afterEach(() => {
@@ -134,6 +147,7 @@ describe("VendorAssignmentCandidatesPanel", () => {
     expect(await screen.findByRole("heading", { name: "ABC Valuation" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /offer assignment/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /bid/i })).toBeNull();
+    expect(screen.getByRole("checkbox", { name: /select abc valuation for bid request/i })).toBeDisabled();
   });
 
   it("shows Offer Assignment for an eligible candidate with no active vendor assignment", async () => {
@@ -148,10 +162,10 @@ describe("VendorAssignmentCandidatesPanel", () => {
     );
 
     expect(await screen.findByRole("heading", { name: "ABC Valuation" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Offer Assignment" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Offer Assignment" }).length).toBeGreaterThan(0);
     expect(screen.getByText("Direct award")).toBeInTheDocument();
     expect(screen.getByText("Direct assignment is available for known vendors. Multi-vendor bid requests are planned.")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /request bids/i })).toBeNull();
+    expect(screen.getByRole("button", { name: "Request bids" })).toBeDisabled();
   });
 
   it("hides Offer Assignment for incomplete candidate data", async () => {
@@ -172,6 +186,221 @@ describe("VendorAssignmentCandidatesPanel", () => {
 
     expect(await screen.findByRole("heading", { name: "ABC Valuation" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Offer Assignment" })).toBeNull();
+    expect(screen.getByRole("checkbox", { name: /select abc valuation for bid request/i })).toBeDisabled();
+    expect(
+      screen.getByText("Active vendor relationship is required before this vendor can receive a bid request."),
+    ).toBeInTheDocument();
+  });
+
+  it("selects and clears an eligible candidate without creating a bid request", async () => {
+    vendorApiState.listVendorAssignmentCandidates.mockResolvedValue(candidateRows);
+
+    render(<VendorAssignmentCandidatesPanel orderId="order-1" enabled />);
+
+    const checkbox = await screen.findByRole("checkbox", {
+      name: /select abc valuation for bid request/i,
+    });
+    expect(screen.getByText("0 selected")).toBeInTheDocument();
+    expect(checkbox).toBeEnabled();
+
+    fireEvent.click(checkbox);
+
+    expect(checkbox).toBeChecked();
+    expect(screen.getByText("1 selected")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Request bids" })).toBeEnabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear selection" }));
+
+    expect(checkbox).not.toBeChecked();
+    expect(screen.getByText("0 selected")).toBeInTheDocument();
+    expect(bidApiState.createOrderVendorBidRequest).not.toHaveBeenCalled();
+  });
+
+  it("submits request bids with selected recipients and refresh callback", async () => {
+    vendorApiState.listVendorAssignmentCandidates.mockResolvedValue([
+      candidateRows[0],
+      {
+        ...candidateRows[0],
+        vendor_profile_id: "profile-2",
+        vendor_company_id: "company-2",
+        relationship_id: "relationship-2",
+        vendor_company_name: "Central Ohio Valuation",
+      },
+    ]);
+    bidApiState.createOrderVendorBidRequest.mockResolvedValue({ bid_request_id: "bid-request-1" });
+    const handleBidRequestSuccess = vi.fn();
+
+    render(
+      <VendorAssignmentCandidatesPanel
+        orderId="order-1"
+        enabled
+        canOfferAssignment
+        onBidRequestSuccess={handleBidRequestSuccess}
+      />,
+    );
+
+    expect(await screen.findByRole("heading", { name: "ABC Valuation" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("checkbox", { name: /select abc valuation for bid request/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Request bids" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Request bids" });
+    expect(within(dialog).getByText("No assignment is created until a bid is selected.")).toBeInTheDocument();
+    expect(within(dialog).getByText("Ask selected vendors for fee and turnaround.")).toBeInTheDocument();
+    expect(within(dialog).getByText("ABC Valuation")).toBeInTheDocument();
+    expect(within(dialog).queryByText("Central Ohio Valuation")).toBeNull();
+    fireEvent.change(within(dialog).getByLabelText("Message to vendors"), {
+      target: { value: "Please provide fee and turn time." },
+    });
+    expect(within(dialog).getByLabelText("Response due date")).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Desired vendor report due date")).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Client delivery due date")).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Send bid request" })).toBeEnabled();
+    expect(within(dialog).getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Offer Assignment" }).length).toBeGreaterThan(0);
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Send bid request" }));
+
+    await waitFor(() => {
+      expect(bidApiState.createOrderVendorBidRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderId: "order-1",
+          message: "Please provide fee and turn time.",
+          recipients: [
+            expect.objectContaining({
+              vendorProfileId: "profile-1",
+              vendorCompanyId: "company-1",
+              relationshipId: "relationship-1",
+              candidateSnapshot: expect.objectContaining({
+                vendor_profile_id: "profile-1",
+                vendor_company_id: "company-1",
+                relationship_id: "relationship-1",
+              }),
+            }),
+          ],
+          metadata: expect.objectContaining({
+            candidate_snapshots: [
+              expect.objectContaining({
+                vendor_profile_id: "profile-1",
+              }),
+            ],
+          }),
+        }),
+      );
+    });
+    await waitFor(() => {
+      expect(handleBidRequestSuccess).toHaveBeenCalledWith({ bid_request_id: "bid-request-1" });
+    });
+    expect(screen.queryByRole("dialog", { name: "Request bids" })).toBeNull();
+    expect(screen.getByText("0 selected")).toBeInTheDocument();
+    expect(assignmentApiState.offerOrderToVendor).not.toHaveBeenCalled();
+    expect(bidApiState.recordOrderVendorBidResponse).not.toHaveBeenCalled();
+    expect(bidApiState.selectOrderVendorBidResponse).not.toHaveBeenCalled();
+  });
+
+  it("preserves request bids modal input when create fails", async () => {
+    vendorApiState.listVendorAssignmentCandidates.mockResolvedValue(candidateRows);
+    bidApiState.createOrderVendorBidRequest.mockRejectedValue(new Error("bid_request_create_failed"));
+
+    render(<VendorAssignmentCandidatesPanel orderId="order-1" enabled />);
+
+    fireEvent.click(await screen.findByRole("checkbox", { name: /select abc valuation for bid request/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Request bids" }));
+    const dialog = screen.getByRole("dialog", { name: "Request bids" });
+    fireEvent.change(within(dialog).getByLabelText("Message to vendors"), {
+      target: { value: "Keep this bid note." },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Send bid request" }));
+
+    expect(
+      await within(dialog).findByText("Bid request could not be created. Review the details and try again."),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Message to vendors")).toHaveValue("Keep this bid note.");
+    expect(screen.getByRole("dialog", { name: "Request bids" })).toBeInTheDocument();
+    expect(assignmentApiState.offerOrderToVendor).not.toHaveBeenCalled();
+  });
+
+  it("closes request bids modal with the close control without creating bids", async () => {
+    vendorApiState.listVendorAssignmentCandidates.mockResolvedValue(candidateRows);
+
+    render(<VendorAssignmentCandidatesPanel orderId="order-1" enabled />);
+
+    fireEvent.click(await screen.findByRole("checkbox", { name: /select abc valuation for bid request/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Request bids" }));
+    const dialog = screen.getByRole("dialog", { name: "Request bids" });
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Close request bids modal" }));
+
+    expect(screen.queryByRole("dialog", { name: "Request bids" })).toBeNull();
+    expect(bidApiState.createOrderVendorBidRequest).not.toHaveBeenCalled();
+  });
+
+  it("selects all eligible candidates and leaves incomplete candidates unselected", async () => {
+    vendorApiState.listVendorAssignmentCandidates.mockResolvedValue([
+      candidateRows[0],
+      {
+        ...candidateRows[0],
+        vendor_profile_id: "profile-2",
+        vendor_company_id: "company-2",
+        relationship_id: "relationship-2",
+        vendor_company_name: "Central Ohio Valuation",
+      },
+      {
+        ...candidateRows[0],
+        vendor_profile_id: "profile-3",
+        vendor_company_id: "company-3",
+        relationship_id: null,
+        vendor_company_name: "Incomplete Vendor",
+      },
+    ]);
+
+    render(<VendorAssignmentCandidatesPanel orderId="order-1" enabled />);
+
+    expect(await screen.findByRole("heading", { name: "ABC Valuation" })).toBeInTheDocument();
+    const abcCheckbox = screen.getByRole("checkbox", { name: /select abc valuation for bid request/i });
+    const centralCheckbox = screen.getByRole("checkbox", { name: /select central ohio valuation for bid request/i });
+    const incompleteCheckbox = screen.getByRole("checkbox", { name: /select incomplete vendor for bid request/i });
+
+    fireEvent.click(screen.getByRole("button", { name: "Select all eligible" }));
+
+    expect(abcCheckbox).toBeChecked();
+    expect(centralCheckbox).toBeChecked();
+    expect(incompleteCheckbox).not.toBeChecked();
+    expect(incompleteCheckbox).toBeDisabled();
+    expect(screen.getByText("2 selected")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear selection" }));
+
+    expect(abcCheckbox).not.toBeChecked();
+    expect(centralCheckbox).not.toBeChecked();
+    expect(screen.getByText("0 selected")).toBeInTheDocument();
+    expect(bidApiState.createOrderVendorBidRequest).not.toHaveBeenCalled();
+  });
+
+  it("disables candidate selection when an active vendor assignment exists", async () => {
+    vendorApiState.listVendorAssignmentCandidates.mockResolvedValue(candidateRows);
+
+    render(
+      <VendorAssignmentCandidatesPanel
+        orderId="order-1"
+        enabled
+        activeVendorAssignment={{
+          id: "assignment-1",
+          assignment_type: "vendor_appraisal",
+          status: "accepted",
+        }}
+      />,
+    );
+
+    const checkbox = await screen.findByRole("checkbox", {
+      name: /select abc valuation for bid request/i,
+    });
+
+    expect(checkbox).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Select all eligible" })).toBeDisabled();
+    expect(
+      screen.getAllByText("This order already has an active vendor offer or assignment.").length,
+    ).toBeGreaterThanOrEqual(1);
+    expect(bidApiState.createOrderVendorBidRequest).not.toHaveBeenCalled();
   });
 
   it("opens offer modal with vendor and match details without raw ids", async () => {
@@ -404,14 +633,15 @@ describe("VendorAssignmentCandidatesPanel", () => {
     expect(screen.queryByText("Product")).toBeNull();
   });
 
-  it("does not render assignment, bid, or notification actions", async () => {
+  it("does not render assignment conversion, bid response, or notification actions", async () => {
     vendorApiState.listVendorAssignmentCandidates.mockResolvedValue(candidateRows);
 
     render(<VendorAssignmentCandidatesPanel orderId="order-1" enabled />);
 
     expect(await screen.findByRole("heading", { name: "ABC Valuation" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^assign$/i })).toBeNull();
-    expect(screen.queryByRole("button", { name: /bid/i })).toBeNull();
+    expect(screen.getByRole("button", { name: "Request bids" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /record response|select response|select bid|convert/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /notify|notification/i })).toBeNull();
   });
 });

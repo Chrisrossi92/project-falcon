@@ -171,6 +171,21 @@ vi.mock("@/features/assignments/components/OwnerOrderAssignmentsPanel", () => ({
   ),
 }));
 
+vi.mock("@/features/bids/components/BidRequestsPanel", () => ({
+  default: ({ orderId, enabled, canRecordResponses, canSelectResponses, refreshToken }) => (
+    <section
+      aria-label="Bid requests"
+      data-enabled={String(enabled)}
+      data-order-id={orderId}
+      data-can-record-responses={String(Boolean(canRecordResponses))}
+      data-can-select-responses={String(Boolean(canSelectResponses))}
+      data-refresh-token={String(refreshToken)}
+    >
+      <div>Bid requests</div>
+    </section>
+  ),
+}));
+
 vi.mock("@/features/vendors/components/VendorAssignmentCandidatesPanel", () => ({
   default: ({
     orderId,
@@ -179,6 +194,7 @@ vi.mock("@/features/vendors/components/VendorAssignmentCandidatesPanel", () => (
     canOfferAssignment,
     orderDueAt,
     onOfferSuccess,
+    onBidRequestSuccess,
   }) => (
     <section
       aria-label="Vendor candidates"
@@ -195,6 +211,11 @@ vi.mock("@/features/vendors/components/VendorAssignmentCandidatesPanel", () => (
       {canOfferAssignment && (
         <button type="button" onClick={() => onOfferSuccess?.("assignment-new")}>
           Mock candidate offer success
+        </button>
+      )}
+      {!activeVendorAssignment && (
+        <button type="button" onClick={() => onBidRequestSuccess?.({ bid_request_id: "bid-request-new" })}>
+          Mock bid request success
         </button>
       )}
     </section>
@@ -607,7 +628,68 @@ describe("OrderDetail site visit save", () => {
     expect(candidates).toHaveAttribute("data-enabled", "true");
     expect(within(candidates).getByText("Suggested vendors")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /assign/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /bid/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Mock bid request success" })).toBeInTheDocument();
+  });
+
+  it("shows read-only bid requests in AMC Operations with bid read access", () => {
+    operationsModeMock.operationsMode = "amc_operations";
+    orderMock.operations_scope = "amc_operations";
+    permissionKeysMock.push("bid_requests.read");
+
+    render(<OrderDetail />);
+
+    const bidRequests = screen.getByLabelText("Bid requests");
+    expect(bidRequests).toHaveAttribute("data-order-id", "order-1");
+    expect(bidRequests).toHaveAttribute("data-enabled", "true");
+    expect(bidRequests).toHaveAttribute("data-can-record-responses", "false");
+    expect(bidRequests).toHaveAttribute("data-can-select-responses", "false");
+    expect(within(bidRequests).getByText("Bid requests")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /request bids/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /record response/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /select/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /offer assignment/i })).not.toBeInTheDocument();
+  });
+
+  it("passes bid response recording authority to bid requests when update access exists", () => {
+    operationsModeMock.operationsMode = "amc_operations";
+    orderMock.operations_scope = "amc_operations";
+    permissionKeysMock.push("bid_requests.read", "bid_requests.update");
+
+    render(<OrderDetail />);
+
+    const bidRequests = screen.getByLabelText("Bid requests");
+    expect(bidRequests).toHaveAttribute("data-can-record-responses", "true");
+    expect(bidRequests).toHaveAttribute("data-can-select-responses", "false");
+  });
+
+  it("passes bid selection authority to bid requests when select access exists", () => {
+    operationsModeMock.operationsMode = "amc_operations";
+    orderMock.operations_scope = "amc_operations";
+    permissionKeysMock.push("bid_requests.read", "bid_requests.select");
+
+    render(<OrderDetail />);
+
+    const bidRequests = screen.getByLabelText("Bid requests");
+    expect(bidRequests).toHaveAttribute("data-can-record-responses", "false");
+    expect(bidRequests).toHaveAttribute("data-can-select-responses", "true");
+  });
+
+  it("refreshes bid request history after vendor candidate bid request success", async () => {
+    operationsModeMock.operationsMode = "amc_operations";
+    orderMock.operations_scope = "amc_operations";
+    permissionKeysMock.push("vendors.read", "bid_requests.read");
+
+    render(<OrderDetail />);
+
+    const bidRequests = screen.getByLabelText("Bid requests");
+    expect(bidRequests).toHaveAttribute("data-refresh-token", "0");
+
+    fireEvent.click(screen.getByRole("button", { name: "Mock bid request success" }));
+
+    await waitFor(() => {
+      expect(toastSuccessMock).toHaveBeenCalledWith("Bid request created.");
+      expect(screen.getByLabelText("Bid requests")).toHaveAttribute("data-refresh-token", "1");
+    });
   });
 
   it("passes candidate offer authority and refresh callback to vendor candidates", async () => {
@@ -752,6 +834,15 @@ describe("OrderDetail site visit save", () => {
     expect(screen.queryByLabelText("Vendor candidates")).not.toBeInTheDocument();
   });
 
+  it("hides bid requests outside AMC Operations mode", () => {
+    operationsModeMock.operationsMode = "internal_operations";
+    permissionKeysMock.push("bid_requests.read");
+
+    render(<OrderDetail />);
+
+    expect(screen.queryByLabelText("Bid requests")).not.toBeInTheDocument();
+  });
+
   it("hides vendor candidates for internal-scoped orders even in AMC Operations mode", () => {
     operationsModeMock.operationsMode = "amc_operations";
     orderMock.operations_scope = "internal_operations";
@@ -763,6 +854,16 @@ describe("OrderDetail site visit save", () => {
     expect(listOwnerAssignmentsForOrderMock).not.toHaveBeenCalled();
   });
 
+  it("hides bid requests for internal-scoped orders even in AMC Operations mode", () => {
+    operationsModeMock.operationsMode = "amc_operations";
+    orderMock.operations_scope = "internal_operations";
+    permissionKeysMock.push("bid_requests.read");
+
+    render(<OrderDetail />);
+
+    expect(screen.queryByLabelText("Bid requests")).not.toBeInTheDocument();
+  });
+
   it("hides vendor candidates without vendor read access", () => {
     operationsModeMock.operationsMode = "amc_operations";
     orderMock.operations_scope = "amc_operations";
@@ -770,6 +871,15 @@ describe("OrderDetail site visit save", () => {
     render(<OrderDetail />);
 
     expect(screen.queryByLabelText("Vendor candidates")).not.toBeInTheDocument();
+  });
+
+  it("hides bid requests without bid request read access", () => {
+    operationsModeMock.operationsMode = "amc_operations";
+    orderMock.operations_scope = "amc_operations";
+
+    render(<OrderDetail />);
+
+    expect(screen.queryByLabelText("Bid requests")).not.toBeInTheDocument();
   });
 
   it("uses overview first, then map, activity, and support detail zones", () => {

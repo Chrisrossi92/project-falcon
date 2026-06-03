@@ -79,6 +79,11 @@ export const PERMISSIONS = Object.freeze({
   VENDORS_CONTACTS_MANAGE: "vendors.contacts.manage",
   VENDORS_SERVICE_AREAS_MANAGE: "vendors.service_areas.manage",
 
+  BID_REQUESTS_READ: "bid_requests.read",
+  BID_REQUESTS_CREATE: "bid_requests.create",
+  BID_REQUESTS_UPDATE: "bid_requests.update",
+  BID_REQUESTS_SELECT: "bid_requests.select",
+
   WORKFLOW_STATUS_SUBMIT_TO_REVIEW: "workflow.status.submit_to_review",
   WORKFLOW_STATUS_REQUEST_REVISIONS: "workflow.status.request_revisions",
   WORKFLOW_STATUS_RESUBMIT: "workflow.status.resubmit",

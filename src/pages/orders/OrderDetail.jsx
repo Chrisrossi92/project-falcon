@@ -32,6 +32,7 @@ import {
 import { listOwnerAssignmentsForOrder } from "@/features/assignments/api";
 import OfferAssignmentModal from "@/features/assignments/components/OfferAssignmentModal";
 import OwnerOrderAssignmentsPanel from "@/features/assignments/components/OwnerOrderAssignmentsPanel";
+import BidRequestsPanel from "@/features/bids/components/BidRequestsPanel";
 import OrderPrintPacket from "@/features/orders/print/OrderPrintPacket";
 import VendorAssignmentCandidatesPanel from "@/features/vendors/components/VendorAssignmentCandidatesPanel";
 import {
@@ -569,6 +570,7 @@ export default function OrderDetail() {
   const [ownerAssignments, setOwnerAssignments] = useState([]);
   const [ownerAssignmentsLoading, setOwnerAssignmentsLoading] = useState(false);
   const [ownerAssignmentsError, setOwnerAssignmentsError] = useState(null);
+  const [bidRequestsRefreshToken, setBidRequestsRefreshToken] = useState(0);
   const {
     inputs: operationalInputs,
     loading: operationalInputsLoading,
@@ -657,6 +659,19 @@ export default function OrderDetail() {
     !permissions.error &&
     permissions.hasPermission(PERMISSIONS.VENDORS_READ) &&
     Boolean(order?.id);
+  const showBidRequestsPanel =
+    operationsMode === OPERATIONS_MODES.AMC_OPERATIONS &&
+    order?.operations_scope === "amc_operations" &&
+    !permissions.loading &&
+    !permissions.error &&
+    permissions.hasPermission(PERMISSIONS.BID_REQUESTS_READ) &&
+    Boolean(order?.id);
+  const canRecordBidResponses =
+    showBidRequestsPanel &&
+    permissions.hasPermission(PERMISSIONS.BID_REQUESTS_UPDATE);
+  const canSelectBidResponses =
+    showBidRequestsPanel &&
+    permissions.hasPermission(PERMISSIONS.BID_REQUESTS_SELECT);
   const canOfferVendorCandidateAssignment =
     showVendorCandidatePanel &&
     permissions.hasAllPermissions([
@@ -1040,6 +1055,20 @@ export default function OrderDetail() {
               success("Assignment offer sent.");
               await loadOwnerAssignments();
             }}
+            onBidRequestSuccess={() => {
+              success("Bid request created.");
+              setBidRequestsRefreshToken((value) => value + 1);
+            }}
+          />
+        )}
+
+        {showBidRequestsPanel && (
+          <BidRequestsPanel
+            orderId={order.id}
+            enabled={showBidRequestsPanel}
+            canRecordResponses={canRecordBidResponses}
+            canSelectResponses={canSelectBidResponses}
+            refreshToken={bidRequestsRefreshToken}
           />
         )}
 
