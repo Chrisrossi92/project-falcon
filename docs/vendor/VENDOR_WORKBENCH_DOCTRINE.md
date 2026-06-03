@@ -146,13 +146,54 @@ Completed:
 - No copy-to-clipboard helper, email send, public route, token read RPC, token submit RPC, response
   recording, bid selection, assignment conversion, or recipient lifecycle mutation is added.
 
-Current internal testing flow:
+### AMC-7B / AMC-7C Read-Only Public Vendor Detail
+
+AMC-7B adds public-safe token read support without adding submit behavior.
+
+Completed:
+
+- `public.rpc_order_vendor_bid_invitation_read(p_token text)` validates tokenized invitations.
+- The RPC returns a limited Vendor Order Detail payload for valid tokens.
+- Invalid, expired, revoked, submitted, closed, or otherwise unavailable tokens return the constant
+  response `{ ok: false, error: "bid_invitation_invalid_or_expired" }`.
+- Valid reads update only invitation telemetry: `opened_at`, `last_opened_at`, `open_count`, and
+  `updated_at`.
+- Token reads do not mutate recipient status, create bid responses, mutate orders, or mutate bid
+  request lifecycle state.
+
+AMC-7B.1 adds the frontend API wrapper without UI behavior.
+
+Completed:
+
+- `readOrderVendorBidInvitation(token)` calls the public token read RPC.
+- The wrapper returns `{ ok: true }` and `{ ok: false }` payloads as-is.
+- The wrapper does not throw for invalid/expired business responses; only Supabase transport/RPC
+  errors propagate as exceptions.
+
+AMC-7C adds the first public Vendor Bid Invitation page.
+
+Completed:
+
+- `/vendor/bid-invitations/:token` is registered as a public route.
+- The route is outside internal `Layout` and `ProtectedRoute`.
+- The page uses a standalone public Falcon / Continental layout without TopNav, sidebar, workspace
+  switcher, command palette, or internal app footer.
+- Valid tokens render a limited Vendor Order Detail from the safe RPC payload.
+- Invalid, expired, revoked, submitted, closed, and transport-error states render the same generic
+  unavailable state.
+- A disabled `Submit Bid` placeholder is present.
+- No submit RPC, email send, authenticated Vendor Workbench, recipient lifecycle mutation, response
+  creation, order mutation, or request lifecycle mutation is added.
+
+Current manual testing flow:
 
 1. Coordinator creates a bid request.
 2. Coordinator clicks `Generate Bid Link` for an open recipient.
 3. Coordinator manually copies the returned path.
-4. The public vendor page does not exist yet.
-5. AMC-7B must add the token read RPC before the link becomes usable.
+4. Coordinator or vendor opens `/vendor/bid-invitations/<token>`.
+5. The public Vendor Bid Invitation page loads the safe order detail.
+6. Vendor still contacts the coordinator or uses the manual response path until AMC-7D adds token
+   submit behavior.
 
 ## Authenticated Vendor Doctrine
 
@@ -286,14 +327,16 @@ authorization boundary.
    - Does not add public read/submit RPCs, public route, email send, or recipient lifecycle mutation.
 
 3. AMC-7B: token read RPC for limited Vendor Order Detail.
-   - Public/token RPC returns vendor-safe order summary, scope, bid request context, deadline, and
-     current response state.
-   - RPC rejects expired, revoked, invalid, already-ineligible, or unauthorized token states.
+   - Complete. Public/token RPC returns vendor-safe order summary, scope, bid request context, and
+     deadline.
+   - Complete. RPC rejects expired, revoked, invalid, submitted, already-ineligible, or
+     unauthorized token states with a constant failure response.
+   - Complete. Token reads update invitation open telemetry only.
 
 4. AMC-7C: public Vendor Bid Invitation route.
-   - Add `/vendor/bid-invitations/:token`.
-   - Render limited Vendor Order Detail from the token read RPC.
-   - Do not require a full vendor account for the first version.
+   - Complete. `/vendor/bid-invitations/:token` renders a read-only limited Vendor Order Detail.
+   - Complete. The route is public and outside the internal Falcon app shell.
+   - Complete. Submit is represented by a disabled placeholder until AMC-7D.
 
 5. AMC-7D: Submit Bid modal/RPC.
    - Submit fee, turn time, proposed due date, and comments through the existing bid response

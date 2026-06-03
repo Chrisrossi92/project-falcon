@@ -207,10 +207,13 @@ roadmap. Vendor Workbench remains future runtime scope.
 
 AMC-7A complete through AMC-7A.2: backend tokenized bid invitation storage, authenticated
 coordinator invitation creation, and coordinator-side `Generate Bid Link` display now exist for open
-bid recipients. Generated paths use `/vendor/bid-invitations/<token>`, but public vendor
-route/read/submit behavior is still deferred. Vendor Workspace runtime access remains future scope
-until AMC-7B/7C/7D add the public token read RPC, limited Vendor Order Detail route, and submit bid
-flow.
+bid recipients. Generated paths use `/vendor/bid-invitations/<token>`.
+
+AMC-7B and AMC-7C complete: public token read support and the public
+`/vendor/bid-invitations/:token` route now render a read-only limited Vendor Order Detail from a
+safe payload. The route is outside the internal `Layout` and `ProtectedRoute` and uses standalone
+Falcon / Continental public branding. Submit behavior, email send, submitted/closed token read
+states, and authenticated Vendor Workbench remain deferred.
 
 ## Sidebar And Navigation Differences
 
@@ -387,7 +390,9 @@ Recommended sequence:
      vendor access doctrine before AMC-7.
 
 7. WS-7: AMC-7 tokenized vendor order detail.
-   - Build the tokenized bid invitation page as the limited-access version of the future Vendor Order Detail screen.
+   - AMC-7B/7C complete: tokenized bid invitation links now open the read-only limited-access
+     version of the future Vendor Order Detail screen.
+   - AMC-7D deferred: token submit bid flow.
 
 ## Risks And Unknowns
 

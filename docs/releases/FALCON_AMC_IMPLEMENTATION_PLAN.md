@@ -509,8 +509,9 @@ AMC-7 implementation roadmap:
 
 - AMC-7A: complete through AMC-7A.2; token/invitation backend model and coordinator-side link
   generation.
-- AMC-7B: token read RPC for limited Vendor Order Detail.
-- AMC-7C: public Vendor Bid Invitation route at `/vendor/bid-invitations/:token`.
+- AMC-7B: complete; token read RPC for limited Vendor Order Detail.
+- AMC-7B.1: complete; frontend token read wrapper.
+- AMC-7C: complete; public Vendor Bid Invitation route at `/vendor/bid-invitations/:token`.
 - AMC-7D: Submit Bid modal/RPC that uses the existing bid response lifecycle.
 - AMC-7E: email link generation/send.
 - AMC-8 or later: authenticated Vendor Workbench.
@@ -550,13 +551,42 @@ AMC-7A.2 completed:
 - No copy helper, email send, response recording, bid selection, assignment conversion, or manual
   workflow change was added.
 
-Current internal testing flow:
+AMC-7B completed:
+
+- `public.rpc_order_vendor_bid_invitation_read(p_token text)` validates public token reads.
+- Valid token reads return a limited Vendor Order Detail payload.
+- Invalid, expired, revoked, submitted, closed, or otherwise unavailable tokens return the constant
+  response `{ ok: false, error: "bid_invitation_invalid_or_expired" }`.
+- Valid reads update invitation telemetry only: `opened_at`, `last_opened_at`, `open_count`, and
+  `updated_at`.
+- No recipient status mutation, bid response creation, order mutation, or bid request lifecycle
+  mutation was added.
+
+AMC-7B.1 completed:
+
+- `readOrderVendorBidInvitation(token)` wraps the token read RPC.
+- The wrapper returns `{ ok: true }` and `{ ok: false }` payloads as-is.
+- Invalid or expired business responses do not throw; transport/RPC errors still propagate.
+
+AMC-7C completed:
+
+- Public route `/vendor/bid-invitations/:token` was added.
+- The route is outside internal `Layout` and `ProtectedRoute`.
+- The page uses a standalone public Falcon / Continental layout.
+- Valid tokens render limited Vendor Order Detail from the safe payload.
+- Invalid, expired, and transport-error states show a generic unavailable page.
+- A disabled `Submit Bid` placeholder is present.
+- No submit behavior, email send, authenticated Vendor Workbench, response creation, recipient
+  lifecycle mutation, order mutation, or request lifecycle mutation was added.
+
+Current manual testing flow:
 
 1. Coordinator creates a bid request.
 2. Coordinator clicks `Generate Bid Link`.
-3. Coordinator manually copies the displayed path.
-4. The public vendor page does not exist yet.
-5. AMC-7B must add the public token read RPC before the link becomes usable.
+3. Coordinator manually copies the displayed `/vendor/bid-invitations/<token>` path.
+4. Coordinator or vendor opens the public route.
+5. The vendor-facing page loads safe order detail.
+6. Vendor still contacts the coordinator or uses manual response entry until AMC-7D.
 
 Testing Strategy:
 

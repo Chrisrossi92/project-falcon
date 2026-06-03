@@ -13,6 +13,7 @@ import {
 // Pages
 import Login from "@/pages/auth/Login";
 import AcceptCompanyInvitePage from "@/features/company-invitations/AcceptCompanyInvitePage";
+import VendorBidInvitationPage from "@/features/vendorBidInvitations/VendorBidInvitationPage";
 import Settings from "@/pages/Settings";
 import DashboardGate from "@/features/dashboard/DashboardGate";
 import MyWorkPage from "@/features/dashboard/MyWorkPage";
@@ -53,6 +54,7 @@ export default function AppRoutes() {
       {/* Public */}
       <Route path="/login" element={<Login />} />
       <Route path="/accept-invite/:invitationId" element={<AcceptCompanyInvitePage />} />
+      <Route path="/vendor/bid-invitations/:token" element={<VendorBidInvitationPage />} />
 
       {/* Authenticated area */}
       <Route element={<Layout />}>

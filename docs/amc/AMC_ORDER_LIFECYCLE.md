@@ -792,9 +792,30 @@ bid update authority. The generated path displays inline as selectable text. The
 copy-to-clipboard helper yet. Manual response entry, bid selection, selected-bid assignment
 conversion, and existing procurement summary behavior remain unchanged.
 
-Current AMC-7A testing flow: coordinator creates a bid request, clicks `Generate Bid Link`, and
-manually copies the displayed path. The path is not yet usable by vendors because the public token
-read RPC and public route remain deferred to AMC-7B and AMC-7C.
+AMC-7B adds public-safe token read support. The new
+`rpc_order_vendor_bid_invitation_read(p_token text)` RPC validates tokenized invitations and returns
+a limited Vendor Order Detail payload for valid tokens. Invalid, expired, revoked, submitted,
+closed, or otherwise unavailable tokens return the constant response
+`{ ok: false, error: "bid_invitation_invalid_or_expired" }`. Valid reads update only invitation
+telemetry (`opened_at`, `last_opened_at`, `open_count`, and `updated_at`). Token reads do not mutate
+recipient status, create bid responses, mutate orders, or mutate bid request lifecycle state.
+
+AMC-7B.1 adds the frontend read wrapper. `readOrderVendorBidInvitation(token)` calls the token read
+RPC and returns `{ ok: true }` or `{ ok: false }` payloads as-is. Invalid or expired business
+responses do not throw; Supabase transport/RPC errors still propagate through the existing API
+helper.
+
+AMC-7C adds the public Vendor Bid Invitation route at `/vendor/bid-invitations/:token`. The route is
+outside the internal `Layout` and `ProtectedRoute`, uses a standalone public Falcon / Continental
+layout, and renders a limited Vendor Order Detail from the safe token payload. Invalid, expired, and
+transport-error states show the same generic unavailable page. A disabled `Submit Bid` placeholder
+is present, but no submit behavior, email send, authenticated Vendor Workbench, recipient lifecycle
+mutation, response creation, order mutation, or request lifecycle mutation is added.
+
+Current AMC-7C manual testing flow: coordinator creates a bid request, clicks `Generate Bid Link`,
+manually copies the displayed `/vendor/bid-invitations/<token>` path, and opens the public page. The
+vendor-facing page loads safe order detail. The vendor still contacts the coordinator or uses the
+manual response path until AMC-7D adds token submit behavior.
 
 ## Delivery State
 

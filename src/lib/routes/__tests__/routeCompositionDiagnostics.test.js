@@ -248,6 +248,17 @@ describe('shadow route composition diagnostics', () => {
     expect(activeRoutes).not.toContain('path="/amc/');
   });
 
+  it('keeps public vendor bid invitations outside the authenticated app shell', () => {
+    const activeRoutes = readFileSync('src/routes/index.jsx', 'utf8');
+    const publicRouteIndex = activeRoutes.indexOf('path="/vendor/bid-invitations/:token"');
+    const authenticatedAreaIndex = activeRoutes.indexOf('{/* Authenticated area */}');
+
+    expect(publicRouteIndex).toBeGreaterThan(-1);
+    expect(authenticatedAreaIndex).toBeGreaterThan(-1);
+    expect(publicRouteIndex).toBeLessThan(authenticatedAreaIndex);
+    expect(activeRoutes).toContain('element={<VendorBidInvitationPage />}');
+  });
+
   it('keeps the Vendor Directory out of the command palette while preserving shared nav routes', () => {
     const activeRoutes = readFileSync('src/routes/index.jsx', 'utf8');
     const navRegistry = readFileSync('src/lib/navigation/currentNavigationRegistry.js', 'utf8');

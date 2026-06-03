@@ -15,6 +15,7 @@ const {
   createOrderVendorBidRequest,
   fetchAmcOrderProcurementSummaries,
   listOrderVendorBidRequests,
+  readOrderVendorBidInvitation,
   recordOrderVendorBidResponse,
   selectOrderVendorBidResponse,
 } = await import("../api.js");
@@ -265,6 +266,66 @@ describe("bid request API wrappers", () => {
     supabaseMock.rpc.mockResolvedValue({ data: null, error });
 
     await expect(createOrderVendorBidInvitation("recipient-1")).rejects.toBe(error);
+  });
+
+  it("exports vendor bid invitation read wrapper", () => {
+    expect(readOrderVendorBidInvitation).toEqual(expect.any(Function));
+  });
+
+  it("reads vendor bid invitations through the public token RPC", async () => {
+    const result = {
+      ok: true,
+      access_mode: "token_invitation",
+      invitation: { status: "available_to_bid" },
+    };
+    supabaseMock.rpc.mockResolvedValue({ data: result, error: null });
+
+    await expect(readOrderVendorBidInvitation("token-1")).resolves.toEqual(result);
+
+    expect(supabaseMock.rpc).toHaveBeenCalledWith("rpc_order_vendor_bid_invitation_read", {
+      p_token: "token-1",
+    });
+    expect(supabaseMock.from).not.toHaveBeenCalled();
+  });
+
+  it("trims vendor bid invitation tokens before reading", async () => {
+    supabaseMock.rpc.mockResolvedValue({ data: { ok: false }, error: null });
+
+    await readOrderVendorBidInvitation("  token-1  ");
+
+    expect(supabaseMock.rpc).toHaveBeenCalledWith("rpc_order_vendor_bid_invitation_read", {
+      p_token: "token-1",
+    });
+  });
+
+  it("passes an empty token for missing vendor bid invitation token input", async () => {
+    supabaseMock.rpc.mockResolvedValue({
+      data: { ok: false, error: "bid_invitation_invalid_or_expired" },
+      error: null,
+    });
+
+    await readOrderVendorBidInvitation(null);
+
+    expect(supabaseMock.rpc).toHaveBeenCalledWith("rpc_order_vendor_bid_invitation_read", {
+      p_token: "",
+    });
+  });
+
+  it("returns invalid vendor bid invitation payloads without throwing", async () => {
+    const result = {
+      ok: false,
+      error: "bid_invitation_invalid_or_expired",
+    };
+    supabaseMock.rpc.mockResolvedValue({ data: result, error: null });
+
+    await expect(readOrderVendorBidInvitation("invalid-token")).resolves.toEqual(result);
+  });
+
+  it("surfaces vendor bid invitation read transport errors for callers to handle", async () => {
+    const error = Object.assign(new Error("token read transport failed"), { code: "500" });
+    supabaseMock.rpc.mockResolvedValue({ data: null, error });
+
+    await expect(readOrderVendorBidInvitation("token-1")).rejects.toBe(error);
   });
 
   it("records vendor bid responses through the backend RPC", async () => {
