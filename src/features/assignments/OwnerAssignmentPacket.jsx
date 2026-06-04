@@ -39,6 +39,30 @@ function contactName(packet) {
   );
 }
 
+function normalizedAssignmentType(packet) {
+  return String(packet?.assignment_type || packet?.assignmentType || "").trim().toLowerCase();
+}
+
+function normalizedAssignmentStatus(packet) {
+  return String(packet?.assignment_status || packet?.status || "").trim().toLowerCase();
+}
+
+function canGenerateAssignmentInvitation(packet) {
+  return (
+    Boolean(packet?.assignment_id) &&
+    normalizedAssignmentType(packet) === "vendor_appraisal" &&
+    normalizedAssignmentStatus(packet) === "offered"
+  );
+}
+
+function canGenerateAssignmentWorkInvitation(packet) {
+  return (
+    Boolean(packet?.assignment_id) &&
+    normalizedAssignmentType(packet) === "vendor_appraisal" &&
+    ["accepted", "in_progress"].includes(normalizedAssignmentStatus(packet))
+  );
+}
+
 function buildAssignmentOfferEmail({ packet, link }) {
   const orderNumber = packet?.order_number || "this order";
   const greetingName = contactName(packet);
@@ -109,12 +133,7 @@ function AssignmentInvitationPanel({ packet }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState(null);
 
-  const canGenerate =
-    packet?.assignment_id &&
-    packet?.assignment_type === "vendor_appraisal" &&
-    packet?.assignment_status === "offered";
-
-  if (!canGenerate) return null;
+  if (!canGenerateAssignmentInvitation(packet)) return null;
 
   const assignmentLink = invitation?.path || invitation?.link || "";
 
@@ -145,7 +164,11 @@ function AssignmentInvitationPanel({ packet }) {
   }
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm" aria-label="Assignment invitation">
+    <section
+      id="assignment-invitation-panel"
+      className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
+      aria-label="Assignment invitation"
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold text-slate-950">Assignment invitation</h2>
@@ -184,12 +207,7 @@ function AssignmentWorkInvitationPanel({ packet }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState(null);
 
-  const canGenerate =
-    packet?.assignment_id &&
-    packet?.assignment_type === "vendor_appraisal" &&
-    ["accepted", "in_progress"].includes(packet?.assignment_status);
-
-  if (!canGenerate) return null;
+  if (!canGenerateAssignmentWorkInvitation(packet)) return null;
 
   const workLink = invitation?.path || invitation?.link || "";
 
@@ -254,6 +272,7 @@ function AssignmentWorkInvitationPanel({ packet }) {
 }
 
 export default function OwnerAssignmentPacket({ packet, onChanged }) {
+  const showAssignmentInvitationEntry = canGenerateAssignmentInvitation(packet);
   const activityRefreshKey = [
     packet.assignment_status,
     packet.offered_at,
@@ -277,6 +296,15 @@ export default function OwnerAssignmentPacket({ packet, onChanged }) {
         status={packet.assignment_status}
         secondaryActions={
           <>
+            {showAssignmentInvitationEntry && (
+              <a
+                href="#assignment-invitation-panel"
+                className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 text-sm font-semibold text-blue-700 hover:bg-blue-100"
+              >
+                <Link2 className="h-4 w-4" aria-hidden="true" />
+                Generate Assignment Link
+              </a>
+            )}
             {packet.order_id && (
               <Link
                 to={`/orders/${packet.order_id}`}

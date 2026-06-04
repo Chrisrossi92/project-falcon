@@ -163,6 +163,13 @@ describe("assignment packet detail presentation", () => {
       />,
     );
 
+    expect(screen.getByRole("link", { name: "Generate Assignment Link" })).toHaveAttribute(
+      "href",
+      "#assignment-invitation-panel",
+    );
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Revoke" })).toBeInTheDocument();
+
     fireEvent.click(screen.getByRole("button", { name: "Generate Assignment Link" }));
 
     await waitFor(() => {
@@ -188,6 +195,7 @@ describe("assignment packet detail presentation", () => {
     );
 
     expect(screen.queryByRole("button", { name: "Generate Assignment Link" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Generate Assignment Link" })).not.toBeInTheDocument();
     expect(assignmentApiState.createOrderCompanyAssignmentInvitation).not.toHaveBeenCalled();
   });
 
@@ -307,6 +315,25 @@ describe("assignment packet detail presentation", () => {
     );
 
     expect(screen.queryByRole("button", { name: "Generate Assignment Link" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Generate Assignment Link" })).not.toBeInTheDocument();
+  });
+
+  it("uses normalized assignment status and type checks for assignment invitation visibility", () => {
+    renderPacket(
+      <OwnerAssignmentPacket
+        packet={{
+          ...basePacket,
+          order_id: "order-1",
+          assignment_status: " Offered ",
+          assignment_type: " VENDOR_APPRAISAL ",
+          relationship_type: "amc_vendor",
+          relationship_status: "active",
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: "Generate Assignment Link" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Generate Assignment Link" })).toBeInTheDocument();
   });
 
   it("copies generated assignment invitation links to the clipboard", async () => {
