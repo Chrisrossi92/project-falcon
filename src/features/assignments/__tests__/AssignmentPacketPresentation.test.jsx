@@ -181,6 +181,43 @@ describe("assignment packet detail presentation", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Assignment link generated.");
   });
 
+  it("shows assignment invitation generation when owner packets expose id instead of assignment_id", async () => {
+    assignmentApiState.createOrderCompanyAssignmentInvitation.mockResolvedValue({
+      invitation_id: "invitation-1",
+      assignment_id: "assignment-from-id",
+      path: "/vendor/assignment-offers/token-1",
+    });
+
+    renderPacket(
+      <OwnerAssignmentPacket
+        packet={{
+          ...basePacket,
+          assignment_id: undefined,
+          id: "assignment-from-id",
+          order_id: "order-1",
+          assignment_status: "offered",
+          assignment_type: "vendor_appraisal",
+          relationship_type: "amc_vendor",
+          relationship_status: "active",
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: "Generate Assignment Link" })).toHaveAttribute(
+      "href",
+      "#assignment-invitation-panel",
+    );
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Revoke" })).toBeInTheDocument();
+    expect(screen.getByTestId("assignment-activity")).toHaveTextContent("assignment-from-id");
+
+    fireEvent.click(screen.getByRole("button", { name: "Generate Assignment Link" }));
+
+    await waitFor(() => {
+      expect(assignmentApiState.createOrderCompanyAssignmentInvitation).toHaveBeenCalledWith("assignment-from-id");
+    });
+  });
+
   it("hides assignment invitation generation for non-offered owner packets", () => {
     renderPacket(
       <OwnerAssignmentPacket

@@ -47,9 +47,13 @@ function normalizedAssignmentStatus(packet) {
   return String(packet?.assignment_status || packet?.status || "").trim().toLowerCase();
 }
 
+function normalizedAssignmentId(packet) {
+  return packet?.assignment_id || packet?.id || "";
+}
+
 function canGenerateAssignmentInvitation(packet) {
   return (
-    Boolean(packet?.assignment_id) &&
+    Boolean(normalizedAssignmentId(packet)) &&
     normalizedAssignmentType(packet) === "vendor_appraisal" &&
     normalizedAssignmentStatus(packet) === "offered"
   );
@@ -57,7 +61,7 @@ function canGenerateAssignmentInvitation(packet) {
 
 function canGenerateAssignmentWorkInvitation(packet) {
   return (
-    Boolean(packet?.assignment_id) &&
+    Boolean(normalizedAssignmentId(packet)) &&
     normalizedAssignmentType(packet) === "vendor_appraisal" &&
     ["accepted", "in_progress"].includes(normalizedAssignmentStatus(packet))
   );
@@ -142,7 +146,7 @@ function AssignmentInvitationPanel({ packet }) {
     setError(null);
     setMessage("");
     try {
-      const result = await createOrderCompanyAssignmentInvitation(packet.assignment_id);
+      const result = await createOrderCompanyAssignmentInvitation(normalizedAssignmentId(packet));
       setInvitation(result);
       setMessage("Assignment link generated.");
     } catch (err) {
@@ -216,7 +220,7 @@ function AssignmentWorkInvitationPanel({ packet }) {
     setError(null);
     setMessage("");
     try {
-      const result = await createOrderCompanyAssignmentWorkInvitation(packet.assignment_id);
+      const result = await createOrderCompanyAssignmentWorkInvitation(normalizedAssignmentId(packet));
       setInvitation(result);
       setMessage("Work link generated.");
     } catch (err) {
@@ -273,8 +277,10 @@ function AssignmentWorkInvitationPanel({ packet }) {
 
 export default function OwnerAssignmentPacket({ packet, onChanged }) {
   const showAssignmentInvitationEntry = canGenerateAssignmentInvitation(packet);
+  const assignmentId = normalizedAssignmentId(packet);
+  const assignmentStatus = packet.assignment_status || packet.status;
   const activityRefreshKey = [
-    packet.assignment_status,
+    assignmentStatus,
     packet.offered_at,
     packet.accepted_at,
     packet.declined_at,
@@ -293,7 +299,7 @@ export default function OwnerAssignmentPacket({ packet, onChanged }) {
         subtitle={`Owner-company management packet for ${packet.assigned_company_name || "assigned company"} · ${locationLabel(packet)}`}
         packet={packet}
         side="owner"
-        status={packet.assignment_status}
+        status={assignmentStatus}
         secondaryActions={
           <>
             {showAssignmentInvitationEntry && (
@@ -319,14 +325,14 @@ export default function OwnerAssignmentPacket({ packet, onChanged }) {
         }
         actions={
           <OwnerAssignmentActions
-            assignmentId={packet.assignment_id}
-            status={packet.assignment_status}
+            assignmentId={assignmentId}
+            status={assignmentStatus}
             onChanged={onChanged}
           />
         }
       />
 
-      <TerminalState status={packet.assignment_status} />
+      <TerminalState status={assignmentStatus} />
       <AssignmentInvitationPanel packet={packet} />
       <AssignmentWorkInvitationPanel packet={packet} />
 
@@ -350,7 +356,7 @@ export default function OwnerAssignmentPacket({ packet, onChanged }) {
       <JsonSummary title="Handoff" section="handoff" value={packet.handoff_payload} />
       <JsonSummary title="Submission" section="submission" value={packet.submission_payload} />
       <JsonSummary title="Compliance" section="compliance" value={packet.compliance_snapshot} />
-      <AssignmentActivityTimeline assignmentId={packet.assignment_id} refreshKey={activityRefreshKey} />
+      <AssignmentActivityTimeline assignmentId={assignmentId} refreshKey={activityRefreshKey} />
     </div>
   );
 }
