@@ -3234,11 +3234,47 @@ AMC procurement plus vendor self-service MVP is validated using `AMC-DEMO-003`. 
 workflow covers AMC order creation, vendor candidate matching, Request Bids, bid request creation,
 vendor invitation generation, public vendor invitation route, vendor-safe order detail, vendor bid
 submission, internal bid response creation, bid selection, assignment offer conversion, assignment
-packet creation, assignment packet visibility, and assignment packet detail access. Remaining
-procurement work now belongs under post-MVP enhancements: contact targeting UX, automated email
-send, delivery/open tracking UI, copy helper polish, submitted-token read state, procurement
-dashboard queue, client-facing bid review, procurement filters, and an explicit converted bid row
-marker.
+packet creation, assignment packet visibility, and assignment packet detail access.
+
+AMC-8A and AMC-8B extend the validated candidate-to-award path into the vendor execution loop.
+The deployed validation on `AMC-DEMO-003` confirms:
+
+- AMC-7 Vendor Self-Service Bidding is COMPLETE & VALIDATED.
+- AMC-8A Assignment Offer Acceptance MVP is COMPLETE & VALIDATED.
+- AMC-8B Vendor Work Tracking MVP is COMPLETE & VALIDATED.
+- Coordinator-selected bids can become assignment offers.
+- Coordinators can generate public assignment offer links at `/vendor/assignment-offers/:token`.
+- Vendors can accept assignment offers without a Falcon account.
+- Coordinators can generate separate public work links at `/vendor/assignment-work/:token`.
+- Vendors can start work, moving the assignment to `in_progress`.
+- Vendors can submit report status, moving the assignment to `submitted`.
+- Submission notes persist.
+- Assignment activity logs Offered, Accepted, Started, and Submitted.
+- Coordinator notifications fire for acceptance and submission.
+
+Validation notes resolved during deployed testing:
+
+- Assignment invitation action was hidden because an owner packet exposed `id` instead of
+  `assignment_id`.
+- Production database was missing the assignment invitation create RPC migration.
+- Generated vendor links initially used relative paths instead of absolute public URLs.
+
+Architecture doctrine to preserve:
+
+- Offer tokens and work tokens remain separate.
+- Offer token is for accept/decline only.
+- Work token is for post-accept work status actions.
+- No vendor login is required for the MVP.
+- Public work tracking does not mutate the main order lifecycle.
+- Canonical assignment lifecycle remains coarse: `offered`, `accepted`, `in_progress`,
+  `submitted`, `completed`, `declined`, `cancelled`, and `revoked`.
+- Do not add appraisal-specific states such as `inspection_complete` or `report_in_progress` to
+  canonical assignment status yet.
+
+Remaining procurement work now belongs under post-MVP enhancements: contact targeting UX,
+automated email send, delivery/open tracking UI, copy helper polish, submitted-token read state,
+procurement dashboard queue, client-facing bid review, procurement filters, and an explicit
+converted bid row marker.
 
 ### Migration Risks
 

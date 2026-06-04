@@ -310,6 +310,59 @@ Validated outcomes:
 - Assignment packet loads successfully.
 - AMC Operations users can access the packet contextually through `Open Packet`.
 
+### AMC Vendor Execution Loop MVP
+
+Status: VALIDATED.
+
+Milestone status:
+
+- AMC-7 Vendor Self-Service Bidding: COMPLETE & VALIDATED.
+- AMC-8A Assignment Offer Acceptance MVP: COMPLETE & VALIDATED.
+- AMC-8B Vendor Work Tracking MVP: COMPLETE & VALIDATED.
+
+Validated public routes:
+
+- `/vendor/bid-invitations/:token`.
+- `/vendor/assignment-offers/:token`.
+- `/vendor/assignment-work/:token`.
+
+Validated tokenized vendor flow:
+
+1. Coordinator selected vendor bid.
+2. Coordinator created assignment offer.
+3. Coordinator generated assignment offer link.
+4. Vendor opened public assignment offer page.
+5. Vendor accepted assignment.
+6. Assignment activity logged acceptance.
+7. Coordinator generated work link.
+8. Vendor opened public work page.
+9. Vendor clicked Start Work.
+10. Assignment moved to `in_progress`.
+11. Vendor clicked Submit Report.
+12. Assignment moved to `submitted`.
+13. Submission note persisted.
+14. Assignment activity logged Offered, Accepted, Started, and Submitted.
+15. Coordinator notifications fired for acceptance and submission.
+
+Validation notes resolved during deployed testing:
+
+- Assignment invitation action was hidden because an owner packet exposed `id` instead of
+  `assignment_id`.
+- Production database was missing the assignment invitation create RPC migration.
+- Generated vendor links initially used relative paths instead of absolute public URLs.
+
+Vendor access doctrine:
+
+- Offer tokens and work tokens are separate.
+- Offer token is for accept/decline only.
+- Work token is for post-accept work status actions.
+- No vendor login is required for the MVP.
+- Tokenized public work tracking does not mutate the main order lifecycle.
+- Canonical assignment status remains coarse: `offered`, `accepted`, `in_progress`, `submitted`,
+  `completed`, `declined`, `cancelled`, and `revoked`.
+- Appraisal-specific states such as `inspection_complete` and `report_in_progress` remain future
+  overlays, not canonical assignment statuses.
+
 Post-MVP Procurement Enhancements:
 
 - AMC-7E.2 contact targeting UX.
@@ -332,9 +385,9 @@ Assignment Lifecycle Expansion:
 
 - AMC-8 assignment lifecycle doctrine is defined in
   `docs/amc/AMC_ASSIGNMENT_LIFECYCLE_DOCTRINE.md`.
-- Vendor acceptance / decline.
-- Assignment progress tracking.
-- Report submission.
+- Vendor acceptance / decline is complete and validated for the token MVP.
+- Assignment progress tracking is complete and validated for Start Work and Submit Report status.
+- Full report upload/submission remains future scope.
 - Revision workflow.
 - Lifecycle automation after manual lifecycle behavior is validated.
 

@@ -924,9 +924,9 @@ Assignment Lifecycle Expansion:
 
 - AMC-8 assignment lifecycle doctrine is defined in
   `docs/amc/AMC_ASSIGNMENT_LIFECYCLE_DOCTRINE.md`.
-- Vendor acceptance / decline.
-- Assignment progress tracking.
-- Report submission.
+- AMC-8A vendor acceptance / decline is complete and validated.
+- AMC-8B assignment progress tracking is complete and validated for Start Work and Submit Report.
+- Full report upload/submission workflow remains future scope.
 - Revision workflow.
 - Lifecycle automation after manual lifecycle behavior is validated.
 
@@ -936,6 +936,72 @@ AMC-8 defines the post-award lifecycle for AMC vendor assignments after selected
 creates a `vendor_appraisal` assignment packet.
 
 Canonical doctrine: `docs/amc/AMC_ASSIGNMENT_LIFECYCLE_DOCTRINE.md`.
+
+### AMC-8A / AMC-8B Validation Lock
+
+Status:
+
+- AMC-7 Vendor Self-Service Bidding: COMPLETE & VALIDATED.
+- AMC-8A Assignment Offer Acceptance MVP: COMPLETE & VALIDATED.
+- AMC-8B Vendor Work Tracking MVP: COMPLETE & VALIDATED.
+
+Validation order: `AMC-DEMO-003`.
+
+Validated public routes:
+
+- `/vendor/bid-invitations/:token`.
+- `/vendor/assignment-offers/:token`.
+- `/vendor/assignment-work/:token`.
+
+Validated end-to-end execution loop:
+
+1. AMC Order.
+2. Candidate Matching.
+3. Bid Request.
+4. Vendor Response.
+5. Bid Selection.
+6. Assignment Offer.
+7. Public Assignment Link.
+8. Vendor Acceptance.
+9. Work Link.
+10. Vendor Starts Work.
+11. Vendor Submits Report.
+12. Assignment Activity Logged.
+13. Coordinator Notifications Generated.
+
+Validated coordinator/vendor details:
+
+- Coordinator selected the vendor bid.
+- Coordinator created the assignment offer.
+- Coordinator generated the assignment offer link.
+- Vendor opened the public assignment offer page and accepted the assignment.
+- Assignment acceptance was logged.
+- Coordinator generated the separate work link.
+- Vendor opened the public work page, clicked Start Work, and the assignment moved to
+  `in_progress`.
+- Vendor clicked Submit Report, the assignment moved to `submitted`, and the submission note
+  persisted.
+- Assignment activity logged Offered, Accepted, Started, and Submitted.
+- Coordinator notifications fired for acceptance and submission.
+
+Validation notes resolved during deployed validation:
+
+- Assignment invitation action was hidden because an owner packet exposed `id` instead of
+  `assignment_id`.
+- Production database was missing the assignment invitation create RPC migration.
+- Generated vendor links initially used relative paths instead of absolute public URLs.
+
+Preserved lifecycle doctrine:
+
+- Offer tokens and work tokens are separate.
+- Offer token is for accept/decline only.
+- Work token is for post-accept work status actions.
+- No vendor login is required for MVP.
+- Public work tracking does not mutate the main order lifecycle.
+- Canonical assignment lifecycle remains coarse: `offered`, `accepted`, `in_progress`,
+  `submitted`, `completed`, `declined`, `cancelled`, and `revoked`.
+- Appraisal-specific states such as `inspection_complete` and `report_in_progress` remain deferred
+  overlays and should not be added to canonical assignment status yet.
 
 AMC-8 proposed states:
 

@@ -452,12 +452,12 @@ Success Criteria:
 
 ### AMC-7: Vendor Self-Service Bidding and Performance System
 
-Status: initial token invitation foundation complete through AMC-7A.2. WS-2, WS-3.1, and WS-3.2
-are complete for Internal/AMC route and Orders URL filter bleed prevention. WS-4.1 through WS-4.5
-are complete for workspace-native navigation architecture documentation and active Internal/AMC
-navigation wiring. WS-6 is complete in `../vendor/VENDOR_WORKBENCH_DOCTRINE.md`. AMC-7 should
-preserve the Vendor Workspace doctrine so vendor work does not get modeled as an AMC submenu or
-throwaway public form.
+Status: COMPLETE & VALIDATED for Vendor Self-Service Bidding. WS-2, WS-3.1, and WS-3.2 are
+complete for Internal/AMC route and Orders URL filter bleed prevention. WS-4.1 through WS-4.5 are
+complete for workspace-native navigation architecture documentation and active Internal/AMC
+navigation wiring. WS-6 is complete in `../vendor/VENDOR_WORKBENCH_DOCTRINE.md`. AMC-7 preserves
+the Vendor Workspace doctrine so vendor work does not get modeled as an AMC submenu or throwaway
+public form.
 
 Purpose: add the first vendor-facing bid response path and track vendor metrics that can inform assignment decisions and reporting.
 
@@ -685,6 +685,61 @@ Validated outcomes:
 - Assignment packet loads successfully.
 - AMC Operations users can access the packet contextually through `Open Packet`.
 
+### AMC Vendor Execution Loop Validation
+
+Status: VALIDATED.
+
+Validated using `AMC-DEMO-003`.
+
+Milestone status:
+
+- AMC-7 Vendor Self-Service Bidding: COMPLETE & VALIDATED.
+- AMC-8A Assignment Offer Acceptance MVP: COMPLETE & VALIDATED.
+- AMC-8B Vendor Work Tracking MVP: COMPLETE & VALIDATED.
+
+Validated public routes:
+
+- `/vendor/bid-invitations/:token`.
+- `/vendor/assignment-offers/:token`.
+- `/vendor/assignment-work/:token`.
+
+Validated coordinator/vendor flow:
+
+1. Coordinator selected vendor bid.
+2. Coordinator created assignment offer.
+3. Coordinator generated assignment offer link.
+4. Vendor opened public assignment offer page.
+5. Vendor accepted assignment.
+6. Assignment activity logged acceptance.
+7. Coordinator generated work link.
+8. Vendor opened public work page.
+9. Vendor clicked Start Work.
+10. Assignment moved to In Progress.
+11. Vendor clicked Submit Report.
+12. Assignment moved to Submitted.
+13. Submission note persisted.
+14. Assignment activity logged Offered, Accepted, Started, and Submitted.
+15. Coordinator notifications fired for acceptance and submission.
+
+Validation notes resolved during deployed validation:
+
+- Assignment invitation action was hidden because an owner packet exposed `id` instead of
+  `assignment_id`.
+- Production database was missing the assignment invitation create RPC migration.
+- Generated vendor links initially used relative paths instead of absolute public URLs.
+
+Architecture doctrine preserved:
+
+- Offer tokens and work tokens are separate.
+- Offer token is for accept/decline only.
+- Work token is for post-accept work status actions.
+- No vendor login is required for the MVP.
+- Public work tracking does not mutate the main order lifecycle.
+- Canonical assignment lifecycle remains coarse: `offered`, `accepted`, `in_progress`,
+  `submitted`, `completed`, `declined`, `cancelled`, and `revoked`.
+- Appraisal-specific states such as `inspection_complete` or `report_in_progress` should not be
+  added to canonical assignment status yet.
+
 Post-MVP Procurement Enhancements:
 
 - AMC-7E.2 contact targeting UX.
@@ -731,6 +786,9 @@ Success Criteria:
 
 ### AMC-8: Assignment Lifecycle Expansion
 
+Status: AMC-8A Assignment Offer Acceptance MVP and AMC-8B Vendor Work Tracking MVP are COMPLETE &
+VALIDATED using `AMC-DEMO-003`. AMC-8C through AMC-8E remain future expansion.
+
 Purpose: define and implement the post-award lifecycle for AMC vendor assignment packets after a
 selected bid has been converted into a `vendor_appraisal` assignment offer.
 
@@ -746,12 +804,21 @@ Canonical doctrine:
 
 - `../amc/AMC_ASSIGNMENT_LIFECYCLE_DOCTRINE.md`
 
-Deliverables:
+Validated MVP deliverables:
 
-- Assignment status model: Offered, Accepted, Declined, In Progress, Inspection Complete, Report
-  In Progress, Submitted, Revision Requested, Resubmitted, Completed, Cancelled, and Revoked.
-- Vendor action model: Accept, Decline, Start Work, Mark Inspection Complete, Upload Report, Upload
-  Revised Report, and Resubmit.
+- Public assignment offer link at `/vendor/assignment-offers/:token`.
+- Vendor accept/decline without a Falcon account.
+- Separate public work link at `/vendor/assignment-work/:token`.
+- Vendor Start Work transition from `accepted` to `in_progress`.
+- Vendor Submit Report transition from `in_progress` to `submitted`.
+- Assignment activity and coordinator notifications for accepted and submitted lifecycle events.
+
+Future deliverables:
+
+- Appraisal-specific overlay states such as Inspection Complete and Report In Progress without
+  adding them to canonical assignment status yet.
+- Vendor action model expansion: Mark Inspection Complete, Upload Report, Upload Revised Report,
+  and Resubmit.
 - AMC coordinator action model: Revoke, Monitor, Forward to Review, Send Back to Vendor, and Close
   Lifecycle.
 - Vendor Workbench queue model: Assignment Offers, Active Assignments, Awaiting Revision, and
