@@ -19,6 +19,7 @@ Source doctrine:
 - [AMC Vendor Performance Model](../amc/AMC_VENDOR_PERFORMANCE_MODEL.md)
 - [AMC Financial Model](../amc/AMC_FINANCIAL_MODEL.md)
 - [AMC Order Lifecycle](../amc/AMC_ORDER_LIFECYCLE.md)
+- [AMC Assignment Lifecycle Doctrine](../amc/AMC_ASSIGNMENT_LIFECYCLE_DOCTRINE.md)
 - [AMC Customization Framework](../amc/AMC_CUSTOMIZATION_FRAMEWORK.md)
 
 ## Core Principles
@@ -518,7 +519,9 @@ AMC-7 implementation roadmap:
   vendor email outreach.
 - AMC-7E.2: deferred; contact targeting / selected vendor contact UX if needed.
 - AMC-7E.3: deferred; real email queue/send integration.
-- AMC-8 or later: authenticated Vendor Workbench.
+- AMC-8: post-award assignment lifecycle expansion.
+- Authenticated Vendor Workbench remains a future Vendor Workbench Expansion item unless a specific
+  AMC-8 implementation slice authorizes runtime vendor access.
 
 Workspace navigation doctrine:
 
@@ -647,15 +650,69 @@ Current AMC-7E.1 manual Gmail testing flow:
 7. Submit the bid.
 8. Confirm the bid appears internally.
 
-Deferred AMC-7 items:
+### AMC Procurement + Vendor Self-Service MVP
 
-- AMC-7E.2 contact targeting / selected vendor contact UX if needed.
-- AMC-7E.3 real email queue/send integration.
-- Reply-to, sender, and template infrastructure.
-- Email delivery status tracking.
-- Submitted/closed token read state.
-- Authenticated Vendor Workbench.
+Status: VALIDATED.
+
+Validation was completed using test order `AMC-DEMO-003` and the approved test vendor contacts
+`chris@therossicompany.com` and `chrisrossi92@gmail.com`.
+
+Validated flow:
+
+1. AMC order creation.
+2. Vendor candidate matching.
+3. Request Bids.
+4. Bid request creation.
+5. Vendor invitation generation.
+6. Public vendor invitation route.
+7. Vendor-safe order detail.
+8. Vendor bid submission.
+9. Internal bid response creation.
+10. Bid selection.
+11. Assignment offer conversion.
+12. Assignment packet creation.
+13. Assignment packet visibility.
+14. Assignment packet detail access.
+
+Validated outcomes:
+
+- Vendor can participate without a Falcon account.
+- Tokenized invitation workflow functions.
+- Public vendor page does not expose internal AMC data.
+- Vendor response enters the existing procurement lifecycle.
+- Selected bid preserves fee, timing, due date, and comments.
+- Assignment offer conversion preserves selected bid context.
+- Assignment packet loads successfully.
+- AMC Operations users can access the packet contextually through `Open Packet`.
+
+Post-MVP Procurement Enhancements:
+
+- AMC-7E.2 contact targeting UX.
+- AMC-7E.3 automated email send.
+- Delivery/open tracking UI.
+- Copy helper polish.
+- Submitted-token read state.
 - Potential shared SQL helper for manual/token response semantics if duplication grows.
+
+Vendor Workbench Expansion:
+
+- Authenticated vendor login.
+- Available Work.
+- My Bids.
+- Assigned Orders.
+- Documents/Tasks.
+- Invoices.
+- Vendor Profile management.
+
+Assignment Lifecycle Expansion:
+
+- AMC-8 assignment lifecycle doctrine is defined in
+  `../amc/AMC_ASSIGNMENT_LIFECYCLE_DOCTRINE.md`.
+- Vendor acceptance / decline.
+- Assignment progress tracking.
+- Report submission.
+- Revision workflow.
+- Lifecycle automation after manual lifecycle behavior is validated.
 
 Testing Strategy:
 
@@ -672,36 +729,67 @@ Success Criteria:
 - Vendor metrics are explainable and auditable.
 - Raw metrics can be shown before any composite score is introduced.
 
-### AMC-8: Assignment Automation
+### AMC-8: Assignment Lifecycle Expansion
 
-Purpose: support configurable assignment models.
+Purpose: define and implement the post-award lifecycle for AMC vendor assignment packets after a
+selected bid has been converted into a `vendor_appraisal` assignment offer.
 
 Dependencies:
 
 - AMC-5 Vendor Assignment Engine MVP.
 - AMC-6 Assignment Offer Workflow.
-- AMC-7 Vendor Performance System.
-- AMC Customization Framework.
+- AMC-7 Vendor Self-Service Bid Submission.
+- Shared assignment packet infrastructure.
+- Vendor Workbench doctrine.
+
+Canonical doctrine:
+
+- `../amc/AMC_ASSIGNMENT_LIFECYCLE_DOCTRINE.md`
 
 Deliverables:
 
-- Manual assignment model.
-- Ranked recommendation model.
-- Round robin model.
-- First accept model.
-- Company-level assignment philosophy selection.
+- Assignment status model: Offered, Accepted, Declined, In Progress, Inspection Complete, Report
+  In Progress, Submitted, Revision Requested, Resubmitted, Completed, Cancelled, and Revoked.
+- Vendor action model: Accept, Decline, Start Work, Mark Inspection Complete, Upload Report, Upload
+  Revised Report, and Resubmit.
+- AMC coordinator action model: Revoke, Monitor, Forward to Review, Send Back to Vendor, and Close
+  Lifecycle.
+- Vendor Workbench queue model: Assignment Offers, Active Assignments, Awaiting Revision, and
+  Completed Work.
+- Decision-first assignment UX: vendor, status, due date, and next action first; details behind
+  expansion.
+- Client visibility model: Assignment Accepted, Inspection Scheduled, In Review, and Delivered.
+- Report submission doctrine for report, optional photos, and optional workfile without email
+  attachments as the canonical delivery path.
+- Structured revision workflow events.
+- Future lifecycle automation after manual behavior is validated.
+
+Implementation phases:
+
+- AMC-8A: Accept / Decline.
+- AMC-8B: Work Status Tracking.
+- AMC-8C: Report Submission.
+- AMC-8D: Revision Workflow.
+- AMC-8E: Lifecycle Automation.
 
 Testing Strategy:
 
-- Unit tests for each assignment model.
-- Configuration tests for company-level mode selection.
-- End-to-end tests for outreach and acceptance flows.
+- Unit tests for assignment state transitions and allowed actions.
+- Permission tests for vendor and AMC coordinator actions.
+- UI tests for decision-first assignment cards and contextual packet actions.
+- Upload/submission tests once report submission exists.
+- Revision workflow tests once structured revision events exist.
+- Regression tests preserving AMC procurement, selected bid conversion, and internal assignment
+  behavior.
 
 Success Criteria:
 
-- Companies can choose assignment philosophy.
-- Falcon does not hardcode one AMC operating model.
-- Automation remains explainable and overrideable.
+- Vendor assignments can move from offer through completion without leaving Falcon.
+- Vendors can act on assignment offers and submit required report materials through the packet
+  workflow.
+- AMC coordinators can monitor, review, request revision, and close lifecycle states.
+- Selected bid context remains preserved through assignment execution.
+- Automation is deferred until manual lifecycle behavior is reliable, explainable, and auditable.
 
 ### AMC-9: Advanced AMC Features
 

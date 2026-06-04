@@ -13,6 +13,8 @@ import {
 // Pages
 import Login from "@/pages/auth/Login";
 import AcceptCompanyInvitePage from "@/features/company-invitations/AcceptCompanyInvitePage";
+import VendorAssignmentOfferPage from "@/features/vendorAssignmentOffers/VendorAssignmentOfferPage";
+import VendorAssignmentWorkPage from "@/features/vendorAssignmentWork/VendorAssignmentWorkPage";
 import VendorBidInvitationPage from "@/features/vendorBidInvitations/VendorBidInvitationPage";
 import Settings from "@/pages/Settings";
 import DashboardGate from "@/features/dashboard/DashboardGate";
@@ -55,6 +57,8 @@ export default function AppRoutes() {
       <Route path="/login" element={<Login />} />
       <Route path="/accept-invite/:invitationId" element={<AcceptCompanyInvitePage />} />
       <Route path="/vendor/bid-invitations/:token" element={<VendorBidInvitationPage />} />
+      <Route path="/vendor/assignment-offers/:token" element={<VendorAssignmentOfferPage />} />
+      <Route path="/vendor/assignment-work/:token" element={<VendorAssignmentWorkPage />} />
 
       {/* Authenticated area */}
       <Route element={<Layout />}>

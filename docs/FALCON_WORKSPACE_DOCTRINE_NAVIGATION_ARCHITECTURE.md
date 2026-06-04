@@ -37,6 +37,11 @@ Workspace is broader than navigation. It controls:
 
 Permissions remain action authority. Workspace context determines the operational world in which permissioned actions can appear.
 
+Workspace surfaces should also follow the decision-first UX doctrine in
+`docs/FALCON_DECISION_FIRST_UX_DOCTRINE.md`. Navigation should land users in surfaces that answer
+what is happening, what action should be taken, and why that action is recommended before exposing
+reference detail.
+
 ## Workspace Transition Rule
 
 Switching workspaces is a context reset, not a view filter.
@@ -352,6 +357,11 @@ Distinct:
 - primary table secondary context.
 
 Do not make the distinction depend only on one navigation toggle label.
+
+Workspace visual identity should support decision-making before information density. Internal
+Operations, AMC Operations, future Vendor Workspace, and future Client Workspace should each show
+status, recommendation, due date, owner, and next action before exposing coverage, contacts,
+performance history, compliance detail, notes, or audit trails.
 
 ## Runtime Implementation Plan
 

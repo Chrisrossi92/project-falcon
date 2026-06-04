@@ -275,6 +275,69 @@ Deferred:
 - Email delivery status tracking.
 - Authenticated Vendor Workbench.
 
+### AMC Procurement + Vendor Self-Service MVP
+
+Status: VALIDATED.
+
+Validation was completed using `AMC-DEMO-003` and approved test vendor contacts
+`chris@therossicompany.com` and `chrisrossi92@gmail.com`.
+
+Validated flow:
+
+1. AMC order creation.
+2. Vendor candidate matching.
+3. Request Bids.
+4. Bid request creation.
+5. Vendor invitation generation.
+6. Public vendor invitation route.
+7. Vendor-safe order detail.
+8. Vendor bid submission.
+9. Internal bid response creation.
+10. Bid selection.
+11. Assignment offer conversion.
+12. Assignment packet creation.
+13. Assignment packet visibility.
+14. Assignment packet detail access.
+
+Validated outcomes:
+
+- Vendor can participate without a Falcon account.
+- Tokenized invitation workflow functions.
+- Public vendor page does not expose internal AMC data.
+- Vendor response enters the existing procurement lifecycle.
+- Selected bid preserves fee, timing, due date, and comments.
+- Assignment offer conversion preserves selected bid context.
+- Assignment packet loads successfully.
+- AMC Operations users can access the packet contextually through `Open Packet`.
+
+Post-MVP Procurement Enhancements:
+
+- AMC-7E.2 contact targeting UX.
+- AMC-7E.3 automated email send.
+- Delivery/open tracking UI.
+- Copy helper polish.
+- Submitted-token read state.
+
+Vendor Workbench Expansion:
+
+- Authenticated vendor login.
+- Available Work.
+- My Bids.
+- Assigned Orders.
+- Documents/Tasks.
+- Invoices.
+- Vendor Profile management.
+
+Assignment Lifecycle Expansion:
+
+- AMC-8 assignment lifecycle doctrine is defined in
+  `docs/amc/AMC_ASSIGNMENT_LIFECYCLE_DOCTRINE.md`.
+- Vendor acceptance / decline.
+- Assignment progress tracking.
+- Report submission.
+- Revision workflow.
+- Lifecycle automation after manual lifecycle behavior is validated.
+
 ## Authenticated Vendor Doctrine
 
 Future authenticated vendor flow:
@@ -291,6 +354,11 @@ invoices.
 
 Authenticated Vendor Workbench should reuse assignment packet lifecycle concepts for assignment
 offers and assigned work. It should not create a separate assignment system.
+
+AMC-8 post-award assignment lifecycle doctrine lives in
+`docs/amc/AMC_ASSIGNMENT_LIFECYCLE_DOCTRINE.md`. Vendor Workbench assigned-order surfaces should
+lead with decision-first assignment cards showing vendor, status, due date, and next action, with
+selected bid context, terms, comments, documents, contacts, and audit detail behind expansion.
 
 ## Vendor Status Model
 
@@ -312,9 +380,15 @@ Vendor-facing statuses:
 - Not Selected
 - Bid Accepted
 - Assignment Offered
+- Assignment Accepted
+- Assignment Declined
 - Assigned
 - In Progress
+- Inspection Complete
+- Report In Progress
 - Submitted
+- Revision Requested
+- Resubmitted
 - Completed
 - Paid
 
@@ -433,9 +507,12 @@ authorization boundary.
      integration.
    - Do not expose raw internal ids or internal procurement details in email content.
 
-7. AMC-8 or later: authenticated Vendor Workbench.
-   - Vendor Dashboard, authenticated Vendor Order Detail, assignment acceptance, document/task
-     upload, invoice/profile workflows, contacts, coverage, insurance/license/compliance.
+7. AMC-8: Assignment Lifecycle Expansion.
+   - Post-award assignment states, vendor actions, AMC coordinator actions, Vendor Workbench queues,
+     report submission doctrine, revision workflow, and later lifecycle automation are defined in
+     `docs/amc/AMC_ASSIGNMENT_LIFECYCLE_DOCTRINE.md`.
+   - Authenticated Vendor Workbench runtime remains future scope unless a specific AMC-8
+     implementation slice authorizes vendor access.
 
 ## Explicit Non-Goals
 

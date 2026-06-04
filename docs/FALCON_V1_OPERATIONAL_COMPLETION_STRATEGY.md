@@ -68,6 +68,10 @@ Falcon v1 remains the Internal Operations Workspace. AMC Operations is a separat
 not an Internal Operations view filter, and future Vendor Workspace surfaces should be vendor-native
 workbenches rather than hidden menu items inside AMC.
 
+Decision-first UX doctrine is locked in `docs/FALCON_DECISION_FIRST_UX_DOCTRINE.md`. Falcon v1
+surfaces should prioritize the decision and next action before supporting or reference detail:
+users are paid to make decisions, not read data.
+
 ## Explicit v2+ Deferred Scope
 
 The following are deferred beyond Falcon v1 unless a specific item is required to fix a verified
@@ -280,6 +284,13 @@ The visual system should favor:
 
 The interface should not become decorative, marketing-like, or visually noisy. Visual richness
 should support operational comprehension.
+
+Default surfaces should follow the decision-first hierarchy:
+
+- show decision information such as status, owner, due date, recommendation, and next action;
+- minimize supporting metrics and short explanations;
+- hide reference detail such as contacts, notes, audit trails, and history behind contextual
+  disclosure.
 
 ## Role Philosophy
 

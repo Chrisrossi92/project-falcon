@@ -867,6 +867,99 @@ AMC-7E.1 leaves contact targeting / selected vendor contact UX, real email queue
 reply-to/sender/template infrastructure, email delivery status tracking, and authenticated Vendor
 Workbench deferred.
 
+## AMC Procurement + Vendor Self-Service MVP
+
+Status: VALIDATED.
+
+Validation was completed using `AMC-DEMO-003` with approved test vendor contacts
+`chris@therossicompany.com` and `chrisrossi92@gmail.com`.
+
+Validated flow:
+
+1. AMC order creation.
+2. Vendor candidate matching.
+3. Request Bids.
+4. Bid request creation.
+5. Vendor invitation generation.
+6. Public vendor invitation route.
+7. Vendor-safe order detail.
+8. Vendor bid submission.
+9. Internal bid response creation.
+10. Bid selection.
+11. Assignment offer conversion.
+12. Assignment packet creation.
+13. Assignment packet visibility.
+14. Assignment packet detail access.
+
+Validated outcomes:
+
+- Vendor can participate without a Falcon account.
+- Tokenized invitation workflow functions.
+- Public vendor page does not expose internal AMC data.
+- Vendor response enters the existing procurement lifecycle.
+- Selected bid preserves fee, timing, due date, and comments.
+- Assignment offer conversion preserves selected bid context.
+- Assignment packet loads successfully.
+- AMC Operations users can access the packet contextually through `Open Packet`.
+
+Post-MVP Procurement Enhancements:
+
+- AMC-7E.2 contact targeting UX.
+- AMC-7E.3 automated email send.
+- Delivery/open tracking UI.
+- Copy helper polish.
+- Submitted-token read state.
+
+Vendor Workbench Expansion:
+
+- Authenticated vendor login.
+- Available Work.
+- My Bids.
+- Assigned Orders.
+- Documents/Tasks.
+- Invoices.
+- Vendor Profile management.
+
+Assignment Lifecycle Expansion:
+
+- AMC-8 assignment lifecycle doctrine is defined in
+  `docs/amc/AMC_ASSIGNMENT_LIFECYCLE_DOCTRINE.md`.
+- Vendor acceptance / decline.
+- Assignment progress tracking.
+- Report submission.
+- Revision workflow.
+- Lifecycle automation after manual lifecycle behavior is validated.
+
+## AMC-8 Assignment Lifecycle Expansion
+
+AMC-8 defines the post-award lifecycle for AMC vendor assignments after selected-bid conversion
+creates a `vendor_appraisal` assignment packet.
+
+Canonical doctrine: `docs/amc/AMC_ASSIGNMENT_LIFECYCLE_DOCTRINE.md`.
+
+AMC-8 proposed states:
+
+- Offered.
+- Accepted.
+- Declined.
+- In Progress.
+- Inspection Complete.
+- Report In Progress.
+- Submitted.
+- Revision Requested.
+- Resubmitted.
+- Completed.
+- Cancelled.
+- Revoked.
+
+AMC-8 implementation phases:
+
+- AMC-8A: Accept / Decline.
+- AMC-8B: Work Status Tracking.
+- AMC-8C: Report Submission.
+- AMC-8D: Revision Workflow.
+- AMC-8E: Lifecycle Automation.
+
 ## Delivery State
 
 Delivery state may include:

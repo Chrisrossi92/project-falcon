@@ -78,6 +78,48 @@ export async function offerOrderToVendor(payload = {}) {
   });
 }
 
+export async function createOrderCompanyAssignmentInvitation(assignmentId, payload = {}) {
+  return rpc("rpc_order_company_assignment_invitation_create", {
+    p_assignment_id: assignmentId,
+    p_payload: payload || {},
+  });
+}
+
+export async function createOrderCompanyAssignmentWorkInvitation(assignmentId, payload = {}) {
+  return rpc("rpc_order_company_assignment_work_invitation_create", {
+    p_assignment_id: assignmentId,
+    p_payload: payload || {},
+  });
+}
+
+export async function readOrderCompanyAssignmentInvitation(token) {
+  return rpc("rpc_order_company_assignment_invitation_read", {
+    p_token: String(token || "").trim(),
+  });
+}
+
+export async function respondOrderCompanyAssignmentInvitation(token, action, reason = null) {
+  return rpc("rpc_order_company_assignment_invitation_respond", {
+    p_token: String(token || "").trim(),
+    p_action: action,
+    p_reason: reason || null,
+  });
+}
+
+export async function readOrderCompanyAssignmentWorkInvitation(token) {
+  return rpc("rpc_order_company_assignment_work_invitation_read", {
+    p_token: String(token || "").trim(),
+  });
+}
+
+export async function respondOrderCompanyAssignmentWorkInvitation(token, action, payload = {}) {
+  return rpc("rpc_order_company_assignment_work_invitation_respond", {
+    p_token: String(token || "").trim(),
+    p_action: action,
+    p_payload: payload || {},
+  });
+}
+
 export async function getOwnerAssignmentPacket(assignmentId) {
   return firstRow(await rpc("rpc_order_company_assignment_owner_packet", { p_assignment_id: assignmentId }));
 }

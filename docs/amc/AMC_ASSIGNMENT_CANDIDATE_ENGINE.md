@@ -3230,7 +3230,15 @@ Visibility and failure behavior:
 - Fetch errors are logged and do not break the Orders table.
 - The implementation avoids N+1 bid/order queries from the Orders table.
 
-AMC procurement MVP is now complete for the internal coordinator workflow: candidate discovery, Request Bids, manual response entry, Select Bid, Create Assignment Offer, assignment packet lifecycle handoff, Order Detail bid status, and Orders list procurement chip. Remaining procurement items are intentionally deferred: AMC-7 vendor self-service bidding, procurement dashboard queue, client-facing bid review, procurement filters, and an explicit converted bid row marker.
+AMC procurement plus vendor self-service MVP is validated using `AMC-DEMO-003`. The validated
+workflow covers AMC order creation, vendor candidate matching, Request Bids, bid request creation,
+vendor invitation generation, public vendor invitation route, vendor-safe order detail, vendor bid
+submission, internal bid response creation, bid selection, assignment offer conversion, assignment
+packet creation, assignment packet visibility, and assignment packet detail access. Remaining
+procurement work now belongs under post-MVP enhancements: contact targeting UX, automated email
+send, delivery/open tracking UI, copy helper polish, submitted-token read state, procurement
+dashboard queue, client-facing bid review, procurement filters, and an explicit converted bid row
+marker.
 
 ### Migration Risks
 
