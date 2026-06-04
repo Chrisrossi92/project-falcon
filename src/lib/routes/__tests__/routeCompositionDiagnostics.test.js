@@ -281,6 +281,24 @@ describe('shadow route composition diagnostics', () => {
     expect(activeRoutes).toContain('element={<VendorAssignmentWorkPage />}');
   });
 
+  it('registers hidden Vendor Workspace routes outside the Internal/AMC Layout and live nav', () => {
+    const activeRoutes = readFileSync('src/routes/index.jsx', 'utf8');
+    const navRegistry = readFileSync('src/lib/navigation/currentNavigationRegistry.js', 'utf8');
+    const topNav = readFileSync('src/components/shell/TopNav.jsx', 'utf8');
+    const vendorWorkspaceRouteIndex = activeRoutes.indexOf('path="/vendor-workspace/dashboard"');
+    const authenticatedAreaIndex = activeRoutes.indexOf('{/* Authenticated area */}');
+
+    expect(activeRoutes).toContain('{/* Hidden authenticated Vendor Workspace foundation */}');
+    expect(vendorWorkspaceRouteIndex).toBeGreaterThan(-1);
+    expect(authenticatedAreaIndex).toBeGreaterThan(-1);
+    expect(vendorWorkspaceRouteIndex).toBeLessThan(authenticatedAreaIndex);
+    expect(activeRoutes).toContain('<VendorWorkspaceRouteGuard>');
+    expect(activeRoutes).toContain('<VendorWorkspaceLayout />');
+    expect(activeRoutes).toContain('element={<VendorWorkspaceDashboard />}');
+    expect(navRegistry).not.toContain('/vendor-workspace');
+    expect(topNav).not.toContain('/vendor-workspace');
+  });
+
   it('keeps the Vendor Directory out of the command palette while preserving shared nav routes', () => {
     const activeRoutes = readFileSync('src/routes/index.jsx', 'utf8');
     const navRegistry = readFileSync('src/lib/navigation/currentNavigationRegistry.js', 'utf8');

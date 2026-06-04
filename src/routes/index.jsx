@@ -1,10 +1,12 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 
 import Layout from "@/layout/Layout";
+import VendorWorkspaceLayout from "@/layout/VendorWorkspaceLayout";
 import ProtectedRoute from "@/lib/hooks/ProtectedRoute";
 import { PERMISSIONS } from "@/lib/permissions/constants";
 import DefaultWorkspaceRedirect from "@/routes/DefaultWorkspaceRedirect";
 import V1HiddenSurfaceRouteGuard from "@/routes/V1HiddenSurfaceRouteGuard";
+import VendorWorkspaceRouteGuard from "@/routes/VendorWorkspaceRouteGuard";
 import {
   notificationSettingsRoute,
   productMetadataDiagnosticsRoute,
@@ -19,6 +21,7 @@ import VendorBidInvitationPage from "@/features/vendorBidInvitations/VendorBidIn
 import Settings from "@/pages/Settings";
 import DashboardGate from "@/features/dashboard/DashboardGate";
 import MyWorkPage from "@/features/dashboard/MyWorkPage";
+import VendorWorkspaceDashboard from "@/features/vendorWorkspace/VendorWorkspaceDashboard";
 import Orders from "@/pages/orders/Orders";
 import HistoricalOrders from "@/pages/orders/HistoricalOrders";
 import NewOrder from "@/pages/NewOrder";
@@ -59,6 +62,18 @@ export default function AppRoutes() {
       <Route path="/vendor/bid-invitations/:token" element={<VendorBidInvitationPage />} />
       <Route path="/vendor/assignment-offers/:token" element={<VendorAssignmentOfferPage />} />
       <Route path="/vendor/assignment-work/:token" element={<VendorAssignmentWorkPage />} />
+
+      {/* Hidden authenticated Vendor Workspace foundation */}
+      <Route
+        element={
+          <VendorWorkspaceRouteGuard>
+            <VendorWorkspaceLayout />
+          </VendorWorkspaceRouteGuard>
+        }
+      >
+        <Route path="/vendor-workspace" element={<Navigate to="/vendor-workspace/dashboard" replace />} />
+        <Route path="/vendor-workspace/dashboard" element={<VendorWorkspaceDashboard />} />
+      </Route>
 
       {/* Authenticated area */}
       <Route element={<Layout />}>
