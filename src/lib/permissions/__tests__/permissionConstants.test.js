@@ -17,6 +17,19 @@ const bidRequestPermissionEntries = Object.freeze({
   BID_REQUESTS_SELECT: 'bid_requests.select',
 });
 
+const vendorWorkspacePermissionEntries = Object.freeze({
+  VENDOR_WORKSPACE_VIEW: 'vendor_workspace.view',
+  VENDOR_BIDS_READ: 'vendor_bids.read',
+  VENDOR_BIDS_RESPOND: 'vendor_bids.respond',
+  VENDOR_ASSIGNMENTS_READ: 'vendor_assignments.read',
+  VENDOR_ASSIGNMENTS_RESPOND: 'vendor_assignments.respond',
+  VENDOR_ASSIGNMENTS_PROGRESS: 'vendor_assignments.progress',
+  VENDOR_DOCUMENTS_READ: 'vendor_documents.read',
+  VENDOR_DOCUMENTS_UPLOAD: 'vendor_documents.upload',
+  VENDOR_PROFILE_READ: 'vendor_profile.read',
+  VENDOR_PROFILE_UPDATE: 'vendor_profile.update',
+});
+
 describe('permission constants', () => {
   it('exposes the AMC MVP vendor permission keys', () => {
     expect(PERMISSIONS).toMatchObject(vendorPermissionEntries);
@@ -35,6 +48,16 @@ describe('permission constants', () => {
   it('includes the AMC bid request permissions in the all-permission key list', () => {
     expect(ALL_PERMISSION_KEYS).toEqual(
       expect.arrayContaining(Object.values(bidRequestPermissionEntries)),
+    );
+  });
+
+  it('exposes the future Vendor Workspace permission keys', () => {
+    expect(PERMISSIONS).toMatchObject(vendorWorkspacePermissionEntries);
+  });
+
+  it('includes the future Vendor Workspace permissions in the all-permission key list', () => {
+    expect(ALL_PERMISSION_KEYS).toEqual(
+      expect.arrayContaining(Object.values(vendorWorkspacePermissionEntries)),
     );
   });
 });

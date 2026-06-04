@@ -84,6 +84,17 @@ export const PERMISSIONS = Object.freeze({
   BID_REQUESTS_UPDATE: "bid_requests.update",
   BID_REQUESTS_SELECT: "bid_requests.select",
 
+  VENDOR_WORKSPACE_VIEW: "vendor_workspace.view",
+  VENDOR_BIDS_READ: "vendor_bids.read",
+  VENDOR_BIDS_RESPOND: "vendor_bids.respond",
+  VENDOR_ASSIGNMENTS_READ: "vendor_assignments.read",
+  VENDOR_ASSIGNMENTS_RESPOND: "vendor_assignments.respond",
+  VENDOR_ASSIGNMENTS_PROGRESS: "vendor_assignments.progress",
+  VENDOR_DOCUMENTS_READ: "vendor_documents.read",
+  VENDOR_DOCUMENTS_UPLOAD: "vendor_documents.upload",
+  VENDOR_PROFILE_READ: "vendor_profile.read",
+  VENDOR_PROFILE_UPDATE: "vendor_profile.update",
+
   WORKFLOW_STATUS_SUBMIT_TO_REVIEW: "workflow.status.submit_to_review",
   WORKFLOW_STATUS_REQUEST_REVISIONS: "workflow.status.request_revisions",
   WORKFLOW_STATUS_RESUBMIT: "workflow.status.resubmit",
