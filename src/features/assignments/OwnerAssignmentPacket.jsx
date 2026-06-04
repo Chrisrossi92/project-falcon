@@ -51,6 +51,21 @@ function normalizedAssignmentId(packet) {
   return packet?.assignment_id || packet?.id || "";
 }
 
+function absolutePublicLink(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+
+  if (typeof window === "undefined" || !window.location?.origin) {
+    return raw;
+  }
+
+  try {
+    return new URL(raw, window.location.origin).toString();
+  } catch {
+    return raw;
+  }
+}
+
 function canGenerateAssignmentInvitation(packet) {
   return (
     Boolean(normalizedAssignmentId(packet)) &&
@@ -139,7 +154,7 @@ function AssignmentInvitationPanel({ packet }) {
 
   if (!canGenerateAssignmentInvitation(packet)) return null;
 
-  const assignmentLink = invitation?.path || invitation?.link || "";
+  const assignmentLink = absolutePublicLink(invitation?.link || invitation?.path);
 
   async function generateInvitation() {
     setBusy(true);
@@ -187,7 +202,14 @@ function AssignmentInvitationPanel({ packet }) {
 
       {assignmentLink && (
         <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-3">
-          <p className="select-all break-all font-mono text-sm text-slate-700">{assignmentLink}</p>
+          <a
+            href={assignmentLink}
+            target="_blank"
+            rel="noreferrer"
+            className="select-all break-all font-mono text-sm font-medium text-blue-700 underline decoration-blue-200 underline-offset-2 hover:text-blue-800"
+          >
+            {assignmentLink}
+          </a>
           <div className="mt-3 flex flex-wrap gap-2">
             <ActionButton icon={Copy} variant="secondary" onClick={copyAssignmentLink}>
               Copy Link
@@ -213,7 +235,7 @@ function AssignmentWorkInvitationPanel({ packet }) {
 
   if (!canGenerateAssignmentWorkInvitation(packet)) return null;
 
-  const workLink = invitation?.path || invitation?.link || "";
+  const workLink = absolutePublicLink(invitation?.link || invitation?.path);
 
   async function generateInvitation() {
     setBusy(true);
@@ -257,7 +279,14 @@ function AssignmentWorkInvitationPanel({ packet }) {
 
       {workLink && (
         <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-3">
-          <p className="select-all break-all font-mono text-sm text-slate-700">{workLink}</p>
+          <a
+            href={workLink}
+            target="_blank"
+            rel="noreferrer"
+            className="select-all break-all font-mono text-sm font-medium text-blue-700 underline decoration-blue-200 underline-offset-2 hover:text-blue-800"
+          >
+            {workLink}
+          </a>
           <div className="mt-3 flex flex-wrap gap-2">
             <ActionButton icon={Copy} variant="secondary" onClick={copyWorkLink}>
               Copy Link

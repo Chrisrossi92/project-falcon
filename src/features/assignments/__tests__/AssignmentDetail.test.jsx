@@ -89,6 +89,10 @@ function renderAssignmentDetail(initialPath = "/assignments/assignment-1") {
   );
 }
 
+function absoluteLink(path) {
+  return new URL(path, window.location.origin).toString();
+}
+
 describe("AssignmentDetail assignment invitation actions", () => {
   beforeEach(() => {
     permissionState.loading = false;
@@ -131,7 +135,10 @@ describe("AssignmentDetail assignment invitation actions", () => {
     await waitFor(() => {
       expect(assignmentApiState.createOrderCompanyAssignmentInvitation).toHaveBeenCalledWith("assignment-1");
     });
-    expect(await screen.findByText("/vendor/assignment-offers/token-1")).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: absoluteLink("/vendor/assignment-offers/token-1") })).toHaveAttribute(
+      "href",
+      absoluteLink("/vendor/assignment-offers/token-1"),
+    );
   });
 
   it("does not render assignment invitation actions for non-offered owner assignment details", async () => {

@@ -67,6 +67,10 @@ function renderPacket(ui) {
   );
 }
 
+function absoluteLink(path) {
+  return new URL(path, window.location.origin).toString();
+}
+
 describe("assignment packet detail presentation", () => {
   beforeEach(() => {
     Object.values(assignmentApiState).forEach((mock) => mock.mockReset());
@@ -175,7 +179,10 @@ describe("assignment packet detail presentation", () => {
     await waitFor(() => {
       expect(assignmentApiState.createOrderCompanyAssignmentInvitation).toHaveBeenCalledWith("assignment-1");
     });
-    expect(await screen.findByText("/vendor/assignment-offers/token-1")).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: absoluteLink("/vendor/assignment-offers/token-1") })).toHaveAttribute(
+      "href",
+      absoluteLink("/vendor/assignment-offers/token-1"),
+    );
     expect(screen.getByRole("button", { name: "Copy Link" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copy Email Text" })).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("Assignment link generated.");
@@ -261,7 +268,10 @@ describe("assignment packet detail presentation", () => {
     await waitFor(() => {
       expect(assignmentApiState.createOrderCompanyAssignmentWorkInvitation).toHaveBeenCalledWith("assignment-1");
     });
-    expect(await screen.findByText("/vendor/assignment-work/token-1")).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: absoluteLink("/vendor/assignment-work/token-1") })).toHaveAttribute(
+      "href",
+      absoluteLink("/vendor/assignment-work/token-1"),
+    );
     expect(screen.getByRole("button", { name: "Copy Link" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copy Email Text" })).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("Work link generated.");
@@ -332,7 +342,7 @@ describe("assignment packet detail presentation", () => {
     expect(draft).toContain("Hello Jordan Franklin,");
     expect(draft).toContain("Order: 26001");
     expect(draft).toContain("Property: Columbus, OH");
-    expect(draft).toContain("/vendor/assignment-work/token-1");
+    expect(draft).toContain(absoluteLink("/vendor/assignment-work/token-1"));
     expect(draft).not.toMatch(/client fee|AMC margin|internal id/i);
     expect(screen.getByRole("status")).toHaveTextContent("Email text copied.");
   });
@@ -396,7 +406,7 @@ describe("assignment packet detail presentation", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Copy Link" }));
 
     await waitFor(() => {
-      expect(navigator.clipboard.writeText).toHaveBeenCalledWith("/vendor/assignment-offers/token-1");
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(absoluteLink("/vendor/assignment-offers/token-1"));
     });
     expect(screen.getByRole("status")).toHaveTextContent("Link copied.");
   });
@@ -434,7 +444,7 @@ describe("assignment packet detail presentation", () => {
     expect(draft).toContain("Hello Jordan Franklin,");
     expect(draft).toContain("Order: 26001");
     expect(draft).toContain("Property: Columbus, OH");
-    expect(draft).toContain("/vendor/assignment-offers/token-1");
+    expect(draft).toContain(absoluteLink("/vendor/assignment-offers/token-1"));
     expect(draft).not.toMatch(/client fee|AMC margin|internal id/i);
     expect(screen.getByRole("status")).toHaveTextContent("Email text copied.");
   });
@@ -465,7 +475,10 @@ describe("assignment packet detail presentation", () => {
     fireEvent.click(screen.getByRole("button", { name: "Generate Assignment Link" }));
     fireEvent.click(await screen.findByRole("button", { name: "Copy Link" }));
 
-    expect(screen.getByText("/vendor/assignment-offers/token-1")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: absoluteLink("/vendor/assignment-offers/token-1") })).toHaveAttribute(
+      "href",
+      absoluteLink("/vendor/assignment-offers/token-1"),
+    );
     expect(await screen.findByRole("status")).toHaveTextContent("Select the text to copy.");
   });
 });
