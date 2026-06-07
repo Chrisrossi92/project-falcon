@@ -31,6 +31,13 @@ const orderRequestIntakeMigrationPath = resolve(
 
 const orderRequestIntakeMigrationSql = readFileSync(orderRequestIntakeMigrationPath, 'utf8');
 
+const orderRequestReviewMigrationPath = resolve(
+  process.cwd(),
+  'supabase/migrations/20260607103000_client_portal_order_request_review_inbox.sql',
+);
+
+const orderRequestReviewMigrationSql = readFileSync(orderRequestReviewMigrationPath, 'utf8');
+
 describe('Client Portal safe order read model migration', () => {
   it('creates dedicated Client Portal permissions, member mapping, view, and RPCs', () => {
     expect(migrationSql).toContain("'client_portal.dashboard.view'");
@@ -200,5 +207,48 @@ describe('Client Portal order request intake migration', () => {
     expect(createRpcSection).not.toContain('insert into public.orders');
     expect(createRpcSection).not.toContain('order_vendor_bid_requests');
     expect(createRpcSection).not.toContain('order_company_assignments');
+  });
+});
+
+describe('Client Portal order request staff review migration', () => {
+  it('creates staff read/manage permissions and review RPCs', () => {
+    expect(orderRequestReviewMigrationSql).toContain("'client_portal.order_requests.read'");
+    expect(orderRequestReviewMigrationSql).toContain("'client_portal.order_requests.manage'");
+    expect(orderRequestReviewMigrationSql).toContain(
+      'create or replace function public.rpc_client_portal_order_requests_for_review()',
+    );
+    expect(orderRequestReviewMigrationSql).toContain(
+      'create or replace function public.rpc_client_portal_order_request_review_detail(p_request_key text)',
+    );
+    expect(orderRequestReviewMigrationSql).toContain(
+      'create or replace function public.rpc_client_portal_order_request_review_update_status(',
+    );
+  });
+
+  it('scopes staff review reads and status updates to the current company', () => {
+    expect(orderRequestReviewMigrationSql).toContain('v.company_id = public.current_company_id()');
+    expect(orderRequestReviewMigrationSql).toContain('cpor.company_id = public.current_company_id()');
+    expect(orderRequestReviewMigrationSql).toContain(
+      'public.current_app_user_can_read_client_portal_order_requests()',
+    );
+    expect(orderRequestReviewMigrationSql).toContain(
+      'public.current_app_user_can_manage_client_portal_order_requests()',
+    );
+  });
+
+  it('supports only safe review statuses in this slice', () => {
+    expect(orderRequestReviewMigrationSql).toContain("v_status not in ('under_review', 'declined')");
+    expect(orderRequestReviewMigrationSql).toContain("when 'under_review'");
+    expect(orderRequestReviewMigrationSql).not.toContain("insert into public.orders");
+    expect(orderRequestReviewMigrationSql).not.toContain("rpc_order_create");
+    expect(orderRequestReviewMigrationSql).not.toContain("order_vendor_bid_requests");
+    expect(orderRequestReviewMigrationSql).not.toContain("order_company_assignments");
+  });
+
+  it('preserves review attribution fields', () => {
+    expect(orderRequestReviewMigrationSql).toContain('reviewed_by_user_id = public.current_app_user_id()');
+    expect(orderRequestReviewMigrationSql).toContain('reviewed_at = now()');
+    expect(orderRequestReviewMigrationSql).toContain('reviewed_by_name');
+    expect(orderRequestReviewMigrationSql).toContain('reviewed_by_email');
   });
 });

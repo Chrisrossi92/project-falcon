@@ -20,6 +20,10 @@ The fourth slice adds controlled Client Portal order request intake. Client subm
 reviewable intake records only; they do not automatically create operational orders, assignments,
 vendor procurement, invoices, fees, or documents.
 
+The fifth slice adds an Internal/AMC staff review inbox for submitted client order requests. Staff
+can list requests, view intake detail, mark a request as reviewing, or reject it. Conversion into
+an operational order remains deferred.
+
 ## Current Client Model Findings
 
 Existing client-related surfaces are operational/admin-facing:
@@ -45,12 +49,15 @@ Client Portal routes:
 /client-portal/orders
 /client-portal/orders/:orderId
 /client-portal/new-order
+/client-requests
 ```
 
 Route ownership:
 
 - Client Portal uses its own `ClientPortalRouteGuard`.
 - Client Portal is outside the Internal/AMC `Layout`.
+- `/client-requests` is inside the authenticated Internal/AMC operational layout and is not owned
+  by Client Portal routing.
 - Client Portal does not mount operational TopNav, sidebar, command palette, admin, vendor, bid,
   assignment, procurement, or permission surfaces.
 - `workspaceRouteOwnership` now treats `client` as a distinct route workspace with
@@ -63,6 +70,8 @@ client_portal.dashboard.view
 client_portal.orders.read
 client_portal.orders.create
 client_portal.reports.read
+client_portal.order_requests.read
+client_portal.order_requests.manage
 ```
 
 These keys now exist in frontend constants and the backend permission seed migration. Role/template
@@ -88,6 +97,15 @@ createClientPortalReportDownloadUrl(orderKey)
 
 submitClientPortalOrderRequest(values)
   -> rpc_client_portal_order_request_create(...)
+
+listClientOrderRequestsForReview()
+  -> rpc_client_portal_order_requests_for_review()
+
+getClientOrderRequestReviewDetail(requestKey)
+  -> rpc_client_portal_order_request_review_detail(p_request_key)
+
+updateClientOrderRequestReviewStatus(requestKey, status)
+  -> rpc_client_portal_order_request_review_update_status(p_request_key, p_status)
 ```
 
 The seam requires an opaque `order_key` for detail routing and normalizes only client-safe fields:
@@ -127,6 +145,17 @@ Added in `20260607102000_client_portal_order_request_intake.sql`:
 - `client_portal_order_request_key(...)`;
 - `current_app_user_can_create_client_portal_order_request()`;
 - `rpc_client_portal_order_request_create(...)`.
+
+Added in `20260607103000_client_portal_order_request_review_inbox.sql`:
+
+- `client_portal.order_requests.read`;
+- `client_portal.order_requests.manage`;
+- `current_app_user_can_read_client_portal_order_requests()`;
+- `current_app_user_can_manage_client_portal_order_requests()`;
+- `v_client_portal_order_request_staff_review`;
+- `rpc_client_portal_order_requests_for_review()`;
+- `rpc_client_portal_order_request_review_detail(p_request_key text)`;
+- `rpc_client_portal_order_request_review_update_status(p_request_key text, p_status text)`.
 
 The read model is current-company scoped and requires:
 
@@ -201,6 +230,45 @@ After submit, the Client Portal shows `Request submitted` and explains that the 
 and confirm details. Staff review/acceptance into the operational order workflow is intentionally
 deferred to the next internal/AMC slice.
 
+## Staff Review Inbox
+
+The staff review inbox route is `/client-requests`.
+
+It is an Internal/AMC operations route, not a Client Portal route. It requires:
+
+- `client_portal.order_requests.read` to list/view requests; or
+- `client_portal.order_requests.manage` to list/view and update review status.
+
+Staff can see:
+
+- submitted request status;
+- client name;
+- property address;
+- property type;
+- report type;
+- loan purpose;
+- requested due date;
+- borrower/property contact;
+- client contact name, phone, and email;
+- requester identity when available;
+- request notes;
+- review attribution when available.
+
+Statuses supported in this slice:
+
+- `submitted`;
+- `under_review`;
+- `declined`;
+- historical/display-only `accepted` and `cancelled` if data already exists.
+
+The only status mutations wired are:
+
+- `submitted` or `under_review` -> `under_review`;
+- `submitted` or `under_review` -> `declined`.
+
+The review inbox does not create operational orders, convert requests, create assignments, start
+vendor bidding, expose fees, expose margins, upload documents, or show storage internals.
+
 ## Fields Exposed
 
 Client Portal order payloads may expose:
@@ -220,6 +288,7 @@ Client Portal order payloads may expose:
 - client-facing milestones.
 - short-lived signed final report URL only from the click-time Edge Function response.
 - submitted request confirmation metadata.
+- staff-visible submitted request review fields.
 
 ## Fields Hidden
 
@@ -249,7 +318,8 @@ Read-only now:
 - report availability;
 - authorized final report download action;
 - order request intake form;
-- request submitted confirmation.
+- request submitted confirmation;
+- staff request review inbox.
 
 The UI intentionally avoids:
 
@@ -274,13 +344,13 @@ Wired in this slice:
 - dedicated final-report download authorization RPC and Edge Function;
 - dedicated client order request intake table and create RPC;
 - client-facing new-order request form;
+- staff request review RPCs and inbox UI;
 - tests proving route guard behavior, API seam shape, and UI leakage boundaries.
 
 Placeholder/deferred:
 
 - client portal role templates and production role assignment;
 - client invite/token onboarding;
-- internal/AMC request review queue;
 - conversion/acceptance from request into operational order;
 - upload/document request flow;
 - public/token order status links;

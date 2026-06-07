@@ -1721,9 +1721,13 @@ Completed AMC-17 foundation deliverables:
   `client-portal-report-download-url`.
 - Dedicated Client Portal order request intake:
   `client_portal_order_requests` and `rpc_client_portal_order_request_create(...)`.
+- Dedicated Internal/AMC client request review inbox:
+  `rpc_client_portal_order_requests_for_review()`,
+  `rpc_client_portal_order_request_review_detail(p_request_key)`, and
+  `rpc_client_portal_order_request_review_update_status(p_request_key, p_status)`.
 - Dedicated client-safe frontend API seam for those RPCs.
 - Read-only Client Portal dashboard, orders list, order detail, report availability, authorized
-  final report download action, and client-facing order request form.
+  final report download action, client-facing order request form, and staff request review inbox.
 
 AMC-17 foundation certifies:
 
@@ -1744,12 +1748,15 @@ AMC-17 foundation certifies:
 - New-order intake creates a submitted request record only. It derives company/client scope
   server-side, requires `client_portal.orders.create`, and does not create operational orders,
   assignments, vendor procurement, invoices, fees, or documents.
+- Staff request review is operations-owned at `/client-requests`, requires
+  `client_portal.order_requests.read` or `client_portal.order_requests.manage`, and supports
+  list/detail plus safe status updates to `under_review` or `declined`.
 
 AMC-17 foundation does not certify:
 
 - client account/organization invite or token onboarding;
 - production client role/template assignment;
-- internal/AMC request review queue and conversion into operational orders;
+- conversion from client request into operational orders;
 - public/token status links;
 - broad document browsing, draft downloads, internal docs, vendor submissions, reviewer files,
   invoices, or procurement documents;
@@ -1759,8 +1766,7 @@ Recommended next AMC-17 slices:
 
 - Add client portal role templates and fixture coverage for mapped client users.
 - Add client invite/token onboarding after the client account model is explicit.
-- Add internal/AMC visibility for submitted client portal requests and guarded conversion into the
-  operational order workflow.
+- Add guarded conversion from submitted client portal requests into the operational order workflow.
 - Add document upload support after upload authorization and required document rules are defined.
 
 ## Dependency Graph

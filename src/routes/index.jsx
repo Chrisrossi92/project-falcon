@@ -40,6 +40,7 @@ import OrderDetail from "@/pages/orders/OrderDetail";
 import EditOrder from "@/pages/orders/EditOrder";
 import Calendar from "@/pages/Calendar";
 import Activity from "@/pages/Activity";
+import ClientOrderRequestsPage from "@/features/clientRequests/ClientOrderRequestsPage";
 import ClientPortalDashboard from "@/features/clientPortal/ClientPortalDashboard";
 import ClientPortalNewOrderPage from "@/features/clientPortal/ClientPortalNewOrderPage";
 import ClientPortalOrderDetailPage from "@/features/clientPortal/ClientPortalOrderDetailPage";
@@ -328,6 +329,21 @@ export default function AppRoutes() {
         />
 
         {/* Clients (legacy admin pages) */}
+        <Route
+          path="/client-requests"
+          element={
+            <ProtectedRoute
+              requiredAnyPermissions={[
+                PERMISSIONS.CLIENT_PORTAL_ORDER_REQUESTS_READ,
+                PERMISSIONS.CLIENT_PORTAL_ORDER_REQUESTS_MANAGE,
+              ]}
+            >
+              <WorkspaceRouteGuard workspace={ROUTE_WORKSPACE_GROUPS.OPERATIONS}>
+                <ClientOrderRequestsPage />
+              </WorkspaceRouteGuard>
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/clients"
           element={

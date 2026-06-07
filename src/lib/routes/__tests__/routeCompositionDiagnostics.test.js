@@ -283,6 +283,7 @@ describe('shadow route composition diagnostics', () => {
       ['/assignments/:assignmentId', operationsWorkspace, 'AssignmentDetail'],
       ['/relationships', operationsWorkspace, 'RelationshipsPage'],
       ['/relationships/:relationshipId', operationsWorkspace, 'RelationshipsPage'],
+      ['/client-requests', operationsWorkspace, 'ClientOrderRequestsPage'],
       ['/clients', operationsWorkspace, 'ClientsDashboard'],
       ['/clients/new', operationsWorkspace, 'NewClient'],
       ['/clients/profile/:clientId', operationsWorkspace, 'ClientProfile'],
@@ -296,6 +297,10 @@ describe('shadow route composition diagnostics', () => {
     ].forEach(([routePath, workspaceExpression, componentName]) => {
       expectRouteWrappedByWorkspaceGuard(activeRoutes, routePath, workspaceExpression, componentName);
     });
+
+    expect(activeRoutes).toMatch(
+      /path="\/client-requests"[\s\S]*requiredAnyPermissions=\{\[[\s\S]*PERMISSIONS\.CLIENT_PORTAL_ORDER_REQUESTS_READ[\s\S]*PERMISSIONS\.CLIENT_PORTAL_ORDER_REQUESTS_MANAGE[\s\S]*\]\}/,
+    );
   });
 
   it('keeps public vendor bid invitations outside the authenticated app shell', () => {
