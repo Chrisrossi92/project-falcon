@@ -7,10 +7,12 @@ import { PERMISSIONS } from "@/lib/permissions/constants";
 import DefaultWorkspaceRedirect from "@/routes/DefaultWorkspaceRedirect";
 import V1HiddenSurfaceRouteGuard from "@/routes/V1HiddenSurfaceRouteGuard";
 import VendorWorkspaceRouteGuard from "@/routes/VendorWorkspaceRouteGuard";
+import WorkspaceRouteGuard from "@/routes/WorkspaceRouteGuard";
 import {
   notificationSettingsRoute,
   productMetadataDiagnosticsRoute,
 } from "@/routes/diagnosticRoutes";
+import { ROUTE_WORKSPACES } from "@/routes/workspaceRouteOwnership";
 
 // Pages
 import Login from "@/pages/auth/Login";
@@ -250,9 +252,11 @@ export default function AppRoutes() {
           path="/vendors"
           element={
             <ProtectedRoute requiredPermission={PERMISSIONS.VENDORS_READ}>
-              <V1HiddenSurfaceRouteGuard>
-                <VendorDirectoryPage />
-              </V1HiddenSurfaceRouteGuard>
+              <WorkspaceRouteGuard workspace={ROUTE_WORKSPACES.AMC}>
+                <V1HiddenSurfaceRouteGuard>
+                  <VendorDirectoryPage />
+                </V1HiddenSurfaceRouteGuard>
+              </WorkspaceRouteGuard>
             </ProtectedRoute>
           }
         />
@@ -260,9 +264,11 @@ export default function AppRoutes() {
           path="/vendors/:vendorProfileId"
           element={
             <ProtectedRoute requiredPermission={PERMISSIONS.VENDORS_READ}>
-              <V1HiddenSurfaceRouteGuard>
-                <VendorProfilePage />
-              </V1HiddenSurfaceRouteGuard>
+              <WorkspaceRouteGuard workspace={ROUTE_WORKSPACES.AMC}>
+                <V1HiddenSurfaceRouteGuard>
+                  <VendorProfilePage />
+                </V1HiddenSurfaceRouteGuard>
+              </WorkspaceRouteGuard>
             </ProtectedRoute>
           }
         />
@@ -332,7 +338,9 @@ export default function AppRoutes() {
             <ProtectedRoute
               requiredPermission={PERMISSIONS.USERS_READ}
             >
-              <UsersIndex />
+              <WorkspaceRouteGuard workspace={ROUTE_WORKSPACES.INTERNAL}>
+                <UsersIndex />
+              </WorkspaceRouteGuard>
             </ProtectedRoute>
           }
         />
