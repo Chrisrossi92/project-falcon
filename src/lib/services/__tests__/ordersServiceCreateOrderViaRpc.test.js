@@ -37,6 +37,7 @@ const {
   deleteOrder,
   getOrder,
   isOrderNumberAvailableV2,
+  listOrders,
   overrideOrderNumber,
   markReadyForClient,
   requestFinalApproval,
@@ -119,6 +120,33 @@ describe("createOrderViaRpc", () => {
     supabaseMock.rpc.mockResolvedValue({ data: null, error: null });
 
     await expect(createOrderViaRpc({ property_address: "1 Main St" })).resolves.toBeNull();
+  });
+});
+
+describe("listOrders workspace data isolation", () => {
+  beforeEach(() => {
+    supabaseMock.rpc.mockReset();
+    supabaseMock.from.mockReset();
+  });
+
+  it("passes explicit operations scope to the shared order projection query", async () => {
+    const builder = {
+      neq: vi.fn(() => builder),
+      not: vi.fn(() => builder),
+      eq: vi.fn(() => builder),
+      order: vi.fn(() => builder),
+      range: vi.fn(() => Promise.resolve({ data: [], count: 0, error: null })),
+    };
+    const select = vi.fn(() => builder);
+    supabaseMock.from.mockReturnValue({ select });
+
+    await listOrders({ operationsScope: "amc_operations", activeOnly: true });
+
+    expect(supabaseMock.from).toHaveBeenCalledWith("v_orders_frontend_v4");
+    expect(select.mock.calls[0][0]).toContain("operations_scope");
+    expect(builder.eq).toHaveBeenCalledWith("operations_scope", "amc_operations");
+    expect(builder.neq).toHaveBeenCalledWith("is_archived", true);
+    expect(supabaseMock.rpc).not.toHaveBeenCalled();
   });
 });
 
