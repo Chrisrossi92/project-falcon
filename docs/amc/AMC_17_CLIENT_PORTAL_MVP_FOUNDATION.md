@@ -1,10 +1,11 @@
-# AMC-17 Client Portal MVP Foundation
+# AMC-17 Client Portal MVP Checkpoint
 
 Run date: 2026-06-07.
 
 ## Decision
 
-AMC-17 starts with a first-class Client Portal foundation for the controlled pilot.
+AMC-17 Client Portal MVP is complete for controlled pilot readiness, subject to the deferred items
+listed below and a future staging/production smoke pass.
 
 The first slice created the route shell, client workspace guard, client-safe API seam, and
 read-only dashboard/order tracking UI for the Client Portal MVP.
@@ -27,6 +28,17 @@ The sixth slice adds staff-confirmed conversion from a submitted or reviewing cl
 one operational order. Conversion is permission-gated, requires explicit confirmation, links the
 created order back to the request, and does not create downstream assignment, vendor procurement,
 invoice, payment, report, or document records.
+
+Completed Client Portal loop:
+
+```text
+Client Portal request intake
+  -> staff review inbox
+  -> staff-confirmed conversion
+  -> linked operational order
+  -> client-safe order tracking
+  -> client-authorized final report download
+```
 
 ## Current Client Model Findings
 
@@ -81,6 +93,19 @@ client_portal.order_requests.manage
 These keys now exist in frontend constants and the backend permission seed migration. Role/template
 assignment is still required before production client users can use the portal.
 
+Permission requirements:
+
+- Client Portal dashboard/order tracking: `client_portal.dashboard.view` and
+  `client_portal.orders.read`.
+- Client Portal request intake: `client_portal.orders.create` plus active
+  `client_portal_members` mapping.
+- Client Portal final report download: `client_portal.reports.read` plus active
+  `client_portal_members` mapping.
+- Staff request review: `client_portal.order_requests.read` or
+  `client_portal.order_requests.manage`.
+- Staff request status updates: `client_portal.order_requests.manage`.
+- Staff request conversion: `client_portal.order_requests.manage` and `orders.create`.
+
 ## Client-Safe Data Seam
 
 The API seam is intentionally dedicated to portal projections:
@@ -128,6 +153,9 @@ The seam requires an opaque `order_key` for detail routing and normalizes only c
 
 It does not import or fall back to shared Internal/AMC order, client, vendor, bid, assignment, or
 procurement APIs.
+
+Client payloads do not include raw order ids. Staff review/conversion payloads may include the
+created operational order id only for the Internal/AMC order-detail link after conversion.
 
 ## Backend Read Model
 
@@ -241,8 +269,7 @@ Captured request fields:
 - notes/instructions.
 
 After submit, the Client Portal shows `Request submitted` and explains that the team will review
-and confirm details. Staff review/acceptance into the operational order workflow is intentionally
-deferred to the next internal/AMC slice.
+and confirm details. Clients cannot directly create operational orders.
 
 ## Staff Review Inbox
 
@@ -347,10 +374,18 @@ Client Portal order payloads may expose:
 - report availability;
 - report ready/delivered timestamps;
 - report file name metadata;
-- client-facing milestones.
-- short-lived signed final report URL only from the click-time Edge Function response.
+- client-facing milestones;
+- short-lived signed final report URL only from the click-time Edge Function response;
 - submitted request confirmation metadata.
-- staff-visible submitted request review fields.
+
+Staff-only request review payloads may expose:
+
+- opaque request key;
+- client name;
+- submitted request status;
+- property/contact/request intake fields;
+- requester/reviewer identity when available;
+- accepted order id and order number after conversion, for Internal/AMC navigation only.
 
 ## Fields Hidden
 
@@ -367,11 +402,12 @@ The client-safe read model intentionally does not expose:
 - raw storage bucket/path;
 - signed report download URLs in dashboard/list/detail RPC payloads;
 - drafts, internal documents, vendor submissions, reviewer files, invoices, and procurement
-  documents.
+  documents;
+- direct operational order creation controls in Client Portal.
 
 ## UI Added
 
-Read-only now:
+Client and staff UI now includes:
 
 - Client Portal shell;
 - Client Portal dashboard;
@@ -381,7 +417,7 @@ Read-only now:
 - authorized final report download action;
 - order request intake form;
 - request submitted confirmation;
-- staff request review inbox.
+- staff request review inbox;
 - staff-confirmed request conversion to one operational order.
 
 The UI intentionally avoids:
@@ -414,10 +450,15 @@ Wired in this slice:
 Placeholder/deferred:
 
 - client portal role templates and production role assignment;
-- client invite/token onboarding;
+- dedicated client invite/onboarding flow;
+- full client account management;
 - upload/document request flow;
+- file upload with new order request;
 - public/token order status links;
-- client portal activity/messages.
+- client messaging/comment thread;
+- configurable lender-specific order forms;
+- deeper backend operation-entitlement model;
+- production/staging smoke validation for Client Portal.
 
 ## Security Boundary
 
@@ -431,20 +472,40 @@ Client Portal MVP foundation is fail-closed:
 - page models do not expose internal/vendor/procurement fields.
 
 Backend client/account scoping now exists for read-only dashboard/list/detail through
-`client_portal_members`. Final report download authorization uses the same current-company and
-client-account boundary. Client invite/token onboarding is still required before live client users
-are enabled.
+`client_portal_members`. Request intake and final report download authorization use the same
+current-company and client-account boundary. Staff review/conversion remains in the Internal/AMC
+operations workspace. Client invite/token onboarding is still required before live client users are
+enabled.
+
+Security guarantees in the completed MVP:
+
+- client routes are owned by the client workspace and guarded by `ClientPortalRouteGuard`;
+- staff review route is owned by the operations workspace and guarded by staff permissions;
+- client detail/download requests use opaque order keys;
+- client intake/review requests use opaque request keys;
+- client dashboard/list/detail RPCs do not return raw order ids;
+- storage bucket/path values remain server-side;
+- signed final report URLs are created only after click-time authorization;
+- vendor/procurement/internal notes are not shown to clients;
+- clients cannot directly create operational orders.
 
 ## Validation Target
 
-Required validation for the foundation:
+Completed validation scope across AMC-17 slices:
 
 - client portal API tests;
 - client portal migration/static DB tests;
 - client portal page rendering/leakage tests;
+- client request intake/review/conversion tests;
 - client route guard tests;
 - existing workspace route guard tests;
 - existing Internal/AMC route guard tests;
+- order create/service tests when conversion touched order creation boundaries;
 - `npm run build`;
 - `npm run lint`;
 - `git diff --check`.
+
+Remaining validation gap:
+
+- production/staging smoke validation for Client Portal with real mapped client users is still
+  deferred.

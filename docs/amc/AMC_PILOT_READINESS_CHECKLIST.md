@@ -2,9 +2,12 @@
 
 ## Status
 
-AMC is ready for controlled pilot validation after AMC-13 local/staging smoke closeout, the
-AMC-14B workspace isolation checkpoint, the AMC-15 visual identity checkpoint, and the AMC-16
-Permission Center checkpoint.
+AMC is ready for controlled AMC operations pilot validation after AMC-13 local/staging smoke
+closeout, the AMC-14B workspace isolation checkpoint, the AMC-15 visual identity checkpoint, and
+the AMC-16 Permission Center checkpoint.
+
+AMC-17 Client Portal MVP is complete for controlled pilot readiness at the code/checkpoint level,
+but Client Portal staging or production smoke validation with mapped client users remains deferred.
 
 Current readiness evidence:
 
@@ -22,6 +25,9 @@ Current readiness evidence:
   navigation/page chrome, and high-risk business-surface context.
 - AMC-16 Permission Center is complete for current company-scoped access summary, guided
   draft/review, confirmed save, and explicit audit-history limitation messaging.
+- AMC-17 Client Portal MVP is complete for route shell, client-safe order tracking, final report
+  authorization, order request intake, staff review, and staff-confirmed request-to-order
+  conversion.
 
 Related closeout evidence:
 
@@ -30,6 +36,7 @@ Related closeout evidence:
 - [AMC-14B Operation Role Scope Audit](./AMC_14B_OPERATION_ROLE_SCOPE_AUDIT.md)
 - [AMC-15 Visual Identity Checkpoint](./AMC_15_VISUAL_IDENTITY_CHECKPOINT.md)
 - [AMC-16 Permission Center Checkpoint](./AMC_16_PERMISSION_CENTER_CHECKPOINT.md)
+- [AMC-17 Client Portal MVP Checkpoint](./AMC_17_CLIENT_PORTAL_MVP_FOUNDATION.md)
 
 ## Environment Readiness
 
@@ -197,6 +204,33 @@ but no authenticated recent member-access-history projection is currently availa
 Permission Center UI. The UI therefore shows planned-history microcopy instead of a fabricated
 audit feed.
 
+## AMC-17 Client Portal Boundary
+
+AMC-17 certifies the current Client Portal MVP loop needed for controlled pilot readiness:
+
+- Client Portal routes mount in a client-owned shell outside the Internal/AMC operational layout.
+- `ClientPortalRouteGuard` requires explicit `client_portal.*` permission before portal rendering.
+- Client dashboard, order list, and order detail use dedicated client-safe RPCs/views instead of
+  shared Internal/AMC order views.
+- Client order detail uses opaque order keys and does not return raw order ids.
+- Final report download authorization is click-time, server-side, scoped to current company and
+  active `client_portal_members` mappings, and exposes no storage bucket/path in client payloads.
+- Client new-order flow creates `client_portal_order_requests` intake rows only; clients do not
+  directly create operational orders.
+- Staff review lives at `/client-requests` in the Internal/AMC operations workspace and requires
+  `client_portal.order_requests.read` or `client_portal.order_requests.manage`.
+- Staff status changes require `client_portal.order_requests.manage` and support reviewing or
+  rejecting submitted requests.
+- Staff-confirmed conversion requires `client_portal.order_requests.manage` and `orders.create`,
+  creates one operational order, marks the request accepted, and links `accepted_order_id`.
+- Conversion does not create assignments, vendor bid/procurement records, reports, documents,
+  invoices, payment ledger rows, fees, or margins.
+
+AMC-17 does not certify dedicated client invite/onboarding, full client account management, file
+upload with new order requests, client messaging/comment threads, configurable lender-specific
+forms, a deeper backend operation-entitlement model, or production/staging smoke validation for
+Client Portal.
+
 ## Known Warnings
 
 - Lint currently passes with existing warnings in unrelated legacy files.
@@ -213,6 +247,8 @@ audit feed.
   separation.
 - Permission Center saves are backend-audited through existing company access RPCs, but detailed
   member access history is not yet app-readable.
+- Client Portal MVP is code/test complete, but has not yet been smoke-tested in staging or
+  production with mapped client users.
 
 ## Deferred Items
 
@@ -226,6 +262,12 @@ The following are intentionally out of AMC pilot MVP scope:
 - Real vendor onboarding at scale.
 - Dedicated backend operation-membership/operation-role entitlement model.
 - App-readable Permission Center recent access history.
+- Dedicated client invite/onboarding flow.
+- Full client account management.
+- Client Portal file upload with new order request.
+- Client messaging/comment thread.
+- Configurable lender-specific order forms.
+- Production/staging Client Portal smoke validation with mapped client users.
 - Operation-specific onboarding and invitation workflows for separate Internal/AMC owners.
 - Automated vendor selection or first-to-accept routing.
 - Client-facing bid approval portal.

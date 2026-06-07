@@ -1693,14 +1693,15 @@ Recommended follow-up:
 
 ### AMC-17: Client Portal MVP
 
-Status: foundation started as of 2026-06-07.
+Status: Client Portal MVP checkpoint complete for controlled pilot readiness as of 2026-06-07.
+Production/staging smoke validation with mapped client users remains deferred.
 
 Purpose: create a first-class lender/client-facing portal for ordering appraisals, tracking
 progress, and downloading released reports without exposing Internal/AMC operational complexity.
 
 Completed AMC-17 foundation deliverables:
 
-- [AMC-17 Client Portal MVP Foundation](../amc/AMC_17_CLIENT_PORTAL_MVP_FOUNDATION.md).
+- [AMC-17 Client Portal MVP Checkpoint](../amc/AMC_17_CLIENT_PORTAL_MVP_FOUNDATION.md).
 - Current client model audit covering operational client records, `clients.read.*` management
   permissions, missing client-specific invite/token flow, and the absence of a preexisting
   app-readable client portal order/status/report projection.
@@ -1731,6 +1732,7 @@ Completed AMC-17 foundation deliverables:
 - Read-only Client Portal dashboard, orders list, order detail, report availability, authorized
   final report download action, client-facing order request form, staff request review inbox, and
   confirmed request-to-order conversion action.
+- Request-to-order linkage through `accepted_order_id` after staff-confirmed conversion.
 
 AMC-17 foundation certifies:
 
@@ -1759,20 +1761,32 @@ AMC-17 foundation certifies:
   operational `orders` row, marks the request `accepted`, and links `accepted_order_id`.
 - Request conversion does not create assignments, vendor bidding/procurement records, reports,
   documents, invoices, payments, fees, or margins.
+- Client Portal payloads expose only client-safe order/status/report/request fields and intentionally
+  hide vendor identity, vendor bidding, procurement, assignment internals, internal notes, reviewer
+  chatter, raw storage paths, fees, margins, invoices, and payment details.
+- Client Portal does not provide direct operational order creation. Client order creation starts as
+  request intake, and staff conversion is a separate permission-gated operation.
 
 AMC-17 foundation does not certify:
 
 - client account/organization invite or token onboarding;
+- full client account management;
 - production client role/template assignment;
+- file upload with new order request;
+- client messaging/comment thread;
+- configurable lender-specific order forms;
+- a deeper backend operation-entitlement model;
+- production/staging smoke validation for Client Portal;
 - public/token status links;
 - broad document browsing, draft downloads, internal docs, vendor submissions, reviewer files,
   invoices, or procurement documents;
-- client portal messages/activity.
+- client portal activity feeds.
 
 Recommended next AMC-17 slices:
 
 - Add client portal role templates and fixture coverage for mapped client users.
 - Add client invite/token onboarding after the client account model is explicit.
+- Add staging Client Portal smoke fixtures and end-to-end validation for mapped client users.
 - Add operational follow-up workflow after converted client portal requests, including assignment
   planning only after staff confirms the created order is ready for internal processing.
 - Add document upload support after upload authorization and required document rules are defined.
