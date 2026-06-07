@@ -38,6 +38,13 @@ const orderRequestReviewMigrationPath = resolve(
 
 const orderRequestReviewMigrationSql = readFileSync(orderRequestReviewMigrationPath, 'utf8');
 
+const orderRequestConversionMigrationPath = resolve(
+  process.cwd(),
+  'supabase/migrations/20260607104000_client_portal_order_request_conversion.sql',
+);
+
+const orderRequestConversionMigrationSql = readFileSync(orderRequestConversionMigrationPath, 'utf8');
+
 describe('Client Portal safe order read model migration', () => {
   it('creates dedicated Client Portal permissions, member mapping, view, and RPCs', () => {
     expect(migrationSql).toContain("'client_portal.dashboard.view'");
@@ -250,5 +257,82 @@ describe('Client Portal order request staff review migration', () => {
     expect(orderRequestReviewMigrationSql).toContain('reviewed_at = now()');
     expect(orderRequestReviewMigrationSql).toContain('reviewed_by_name');
     expect(orderRequestReviewMigrationSql).toContain('reviewed_by_email');
+  });
+});
+
+describe('Client Portal order request conversion migration', () => {
+  it('creates a dedicated staff conversion RPC', () => {
+    expect(orderRequestConversionMigrationSql).toContain(
+      'create or replace function public.rpc_client_portal_order_request_convert_to_order(',
+    );
+    expect(orderRequestConversionMigrationSql).toContain(
+      'grant execute on function public.rpc_client_portal_order_request_convert_to_order(text)',
+    );
+    expect(orderRequestConversionMigrationSql).toContain(
+      'comment on function public.rpc_client_portal_order_request_convert_to_order(text)',
+    );
+  });
+
+  it('requires staff request manage and order create authority', () => {
+    expect(orderRequestConversionMigrationSql).toContain(
+      'public.current_app_user_can_manage_client_portal_order_requests()',
+    );
+    expect(orderRequestConversionMigrationSql).toContain('public.current_app_user_can_create_order()');
+    expect(orderRequestConversionMigrationSql).toContain(
+      "raise exception 'client_portal_order_requests_manage_required'",
+    );
+    expect(orderRequestConversionMigrationSql).toContain("raise exception 'orders_create_required'");
+  });
+
+  it('scopes conversion to the current company and opaque request key', () => {
+    expect(orderRequestConversionMigrationSql).toContain('cpor.company_id = public.current_company_id()');
+    expect(orderRequestConversionMigrationSql).toContain(
+      'public.client_portal_order_request_key(cpor.id, cpor.company_id, cpor.client_id) = v_request_key',
+    );
+    expect(orderRequestConversionMigrationSql).toContain('for update');
+  });
+
+  it('blocks declined cancelled and already converted requests', () => {
+    expect(orderRequestConversionMigrationSql).toContain("v_request.status in ('declined', 'cancelled')");
+    expect(orderRequestConversionMigrationSql).toContain('v_request.accepted_order_id is not null');
+    expect(orderRequestConversionMigrationSql).toContain("v_request.status = 'accepted'");
+    expect(orderRequestConversionMigrationSql).toContain(
+      "raise exception 'client_portal_order_request_already_converted'",
+    );
+  });
+
+  it('maps client-safe intake fields into a new operational order and links the request', () => {
+    expect(orderRequestConversionMigrationSql).toContain('insert into public.orders');
+    [
+      'v_request.client_id',
+      'v_request.property_address',
+      'v_request.property_type',
+      'v_request.report_type',
+      'v_request.borrower_contact_name',
+      'v_request.client_contact_name',
+      'v_request.client_contact_email',
+      'v_request.client_contact_phone',
+      'v_request.loan_purpose',
+      'v_request.notes',
+      'v_request.requested_due_date',
+    ].forEach((field) => {
+      expect(orderRequestConversionMigrationSql).toContain(field);
+    });
+    expect(orderRequestConversionMigrationSql).toContain("set status = 'accepted'");
+    expect(orderRequestConversionMigrationSql).toContain('accepted_order_id = v_order.id');
+  });
+
+  it('does not create downstream operational side records during conversion', () => {
+    [
+      'insert into public.order_company_assignments',
+      'insert into public.order_vendor_bid_requests',
+      'insert into public.order_vendor_bid_request_recipients',
+      'insert into public.order_vendor_bid_responses',
+      'insert into public.amc_vendor_invoices',
+      'insert into public.amc_vendor_payment_ledger',
+      'insert into public.order_documents',
+    ].forEach((statement) => {
+      expect(orderRequestConversionMigrationSql).not.toContain(statement);
+    });
   });
 });

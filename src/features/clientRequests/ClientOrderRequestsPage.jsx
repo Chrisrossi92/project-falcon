@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 
 import {
+  convertClientOrderRequestToOrder,
   getClientOrderRequestReviewDetail,
   listClientOrderRequestsForReview,
   updateClientOrderRequestReviewStatus,
 } from "@/features/clientRequests/api";
+import { useEffectivePermissions } from "@/lib/hooks/usePermissions";
+import { PERMISSIONS } from "@/lib/permissions/constants";
 
 function formatDate(value) {
   if (!value) return "Not set";
@@ -43,6 +47,7 @@ function DetailItem({ label, value }) {
 }
 
 export default function ClientOrderRequestsPage() {
+  const permissions = useEffectivePermissions();
   const [requests, setRequests] = useState([]);
   const [selectedKey, setSelectedKey] = useState(null);
   const [detail, setDetail] = useState(null);
@@ -50,6 +55,8 @@ export default function ClientOrderRequestsPage() {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [error, setError] = useState(null);
   const [actionState, setActionState] = useState({ loading: false, error: null });
+  const [convertDialogOpen, setConvertDialogOpen] = useState(false);
+  const [conversion, setConversion] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -90,6 +97,8 @@ export default function ClientOrderRequestsPage() {
     async function loadDetail() {
       setLoadingDetail(true);
       setActionState({ loading: false, error: null });
+      setConvertDialogOpen(false);
+      setConversion(null);
 
       try {
         const row = await getClientOrderRequestReviewDetail(selectedKey);
@@ -115,6 +124,17 @@ export default function ClientOrderRequestsPage() {
     () => requests.find((request) => request.requestKey === selectedKey) || null,
     [requests, selectedKey],
   );
+
+  const canConvertRequest =
+    !permissions.loading &&
+    !permissions.error &&
+    permissions.hasAllPermissions([
+      PERMISSIONS.CLIENT_PORTAL_ORDER_REQUESTS_MANAGE,
+      PERMISSIONS.ORDERS_CREATE,
+    ]);
+
+  const terminalStatus = ["accepted", "declined", "cancelled"].includes(detail?.status);
+  const conversionUnavailable = !detail || terminalStatus || Boolean(detail?.acceptedOrderId);
 
   async function handleStatus(status) {
     if (!detail?.requestKey || actionState.loading) return;
@@ -143,6 +163,40 @@ export default function ClientOrderRequestsPage() {
       setActionState({
         loading: false,
         error: err?.message || "The request status could not be updated.",
+      });
+    }
+  }
+
+  async function handleConvert() {
+    if (!detail?.requestKey || actionState.loading || conversionUnavailable) return;
+
+    setActionState({ loading: true, error: null });
+
+    try {
+      const converted = await convertClientOrderRequestToOrder(detail.requestKey);
+      setConversion(converted);
+      setConvertDialogOpen(false);
+      setDetail((current) => ({
+        ...current,
+        status: converted?.status || "accepted",
+        acceptedOrderId: converted?.orderId || current?.acceptedOrderId,
+        acceptedOrderNumber: converted?.orderNumber || current?.acceptedOrderNumber,
+      }));
+      setRequests((current) =>
+        current.map((request) =>
+          request.requestKey === detail.requestKey
+            ? {
+                ...request,
+                status: converted?.status || "accepted",
+              }
+            : request,
+        ),
+      );
+      setActionState({ loading: false, error: null });
+    } catch (err) {
+      setActionState({
+        loading: false,
+        error: err?.message || "The request could not be converted into an order.",
       });
     }
   }
@@ -207,7 +261,7 @@ export default function ClientOrderRequestsPage() {
               {selectedSummary?.propertyAddress || "Request detail"}
             </h2>
             <p className="mt-1 text-sm text-slate-600">
-              Review the submitted client intake details. Conversion into an operational order is not wired in this slice.
+              Review the submitted client intake details before converting a request into one operational order.
             </p>
           </div>
 
@@ -245,6 +299,18 @@ export default function ClientOrderRequestsPage() {
               </section>
 
               <section className="grid gap-3" aria-label="Review actions">
+                {detail.acceptedOrderId || conversion?.orderId ? (
+                  <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+                    Request converted to order{" "}
+                    <Link
+                      className="font-semibold underline"
+                      to={`/orders/${conversion?.orderId || detail.acceptedOrderId}`}
+                    >
+                      {conversion?.orderNumber || detail.acceptedOrderNumber || "Open order"}
+                    </Link>
+                    .
+                  </div>
+                ) : null}
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
@@ -262,6 +328,16 @@ export default function ClientOrderRequestsPage() {
                   >
                     Reject request
                   </button>
+                  {canConvertRequest ? (
+                    <button
+                      type="button"
+                      onClick={() => setConvertDialogOpen(true)}
+                      disabled={actionState.loading || conversionUnavailable}
+                      className="rounded-md border border-emerald-700 bg-emerald-700 px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Convert to order
+                    </button>
+                  ) : null}
                 </div>
                 {actionState.error ? (
                   <p className="text-sm text-rose-700" role="alert">
@@ -275,6 +351,54 @@ export default function ClientOrderRequestsPage() {
           )}
         </div>
       </section>
+
+      {convertDialogOpen && detail ? (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="convert-request-title"
+        >
+          <div className="w-full max-w-2xl rounded-lg bg-white shadow-xl">
+            <div className="border-b border-stone-200 p-4">
+              <h2 id="convert-request-title" className="text-lg font-semibold text-slate-950">
+                Convert request to order?
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                This creates one operational order from the reviewed intake fields. It will not create assignments, vendor bidding, invoices, payments, reports, or documents.
+              </p>
+            </div>
+            <div className="grid gap-4 p-4 md:grid-cols-2">
+              <DetailItem label="Client" value={detail.clientName} />
+              <DetailItem label="Property Address" value={detail.propertyAddress} />
+              <DetailItem label="Property Type" value={detail.propertyType} />
+              <DetailItem label="Report Type" value={detail.reportType} />
+              <DetailItem label="Loan Purpose" value={detail.loanPurpose} />
+              <DetailItem label="Requested Due" value={formatDate(detail.requestedDueDate)} />
+              <DetailItem label="Borrower / Property Contact" value={detail.borrowerContactName} />
+              <DetailItem label="Client Contact" value={detail.clientContactName || detail.clientContactEmail} />
+            </div>
+            <div className="flex flex-wrap justify-end gap-2 border-t border-stone-200 p-4">
+              <button
+                type="button"
+                onClick={() => setConvertDialogOpen(false)}
+                disabled={actionState.loading}
+                className="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConvert}
+                disabled={actionState.loading || conversionUnavailable}
+                className="rounded-md border border-emerald-700 bg-emerald-700 px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {actionState.loading ? "Creating order..." : "Confirm conversion"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

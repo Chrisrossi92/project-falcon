@@ -1725,9 +1725,12 @@ Completed AMC-17 foundation deliverables:
   `rpc_client_portal_order_requests_for_review()`,
   `rpc_client_portal_order_request_review_detail(p_request_key)`, and
   `rpc_client_portal_order_request_review_update_status(p_request_key, p_status)`.
+- Dedicated staff-confirmed conversion RPC:
+  `rpc_client_portal_order_request_convert_to_order(p_request_key)`.
 - Dedicated client-safe frontend API seam for those RPCs.
 - Read-only Client Portal dashboard, orders list, order detail, report availability, authorized
-  final report download action, client-facing order request form, and staff request review inbox.
+  final report download action, client-facing order request form, staff request review inbox, and
+  confirmed request-to-order conversion action.
 
 AMC-17 foundation certifies:
 
@@ -1751,12 +1754,16 @@ AMC-17 foundation certifies:
 - Staff request review is operations-owned at `/client-requests`, requires
   `client_portal.order_requests.read` or `client_portal.order_requests.manage`, and supports
   list/detail plus safe status updates to `under_review` or `declined`.
+- Staff request conversion requires `client_portal.order_requests.manage` and `orders.create`,
+  accepts only the opaque request key, confirms mapped intake fields in the UI, creates one
+  operational `orders` row, marks the request `accepted`, and links `accepted_order_id`.
+- Request conversion does not create assignments, vendor bidding/procurement records, reports,
+  documents, invoices, payments, fees, or margins.
 
 AMC-17 foundation does not certify:
 
 - client account/organization invite or token onboarding;
 - production client role/template assignment;
-- conversion from client request into operational orders;
 - public/token status links;
 - broad document browsing, draft downloads, internal docs, vendor submissions, reviewer files,
   invoices, or procurement documents;
@@ -1766,7 +1773,8 @@ Recommended next AMC-17 slices:
 
 - Add client portal role templates and fixture coverage for mapped client users.
 - Add client invite/token onboarding after the client account model is explicit.
-- Add guarded conversion from submitted client portal requests into the operational order workflow.
+- Add operational follow-up workflow after converted client portal requests, including assignment
+  planning only after staff confirms the created order is ready for internal processing.
 - Add document upload support after upload authorization and required document rules are defined.
 
 ## Dependency Graph

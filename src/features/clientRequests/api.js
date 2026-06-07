@@ -3,6 +3,7 @@ import supabase from "@/lib/supabaseClient";
 const CLIENT_REQUEST_LIST_RPC = "rpc_client_portal_order_requests_for_review";
 const CLIENT_REQUEST_DETAIL_RPC = "rpc_client_portal_order_request_review_detail";
 const CLIENT_REQUEST_UPDATE_STATUS_RPC = "rpc_client_portal_order_request_review_update_status";
+const CLIENT_REQUEST_CONVERT_RPC = "rpc_client_portal_order_request_convert_to_order";
 
 const toStringOrNull = (value) => {
   if (value === null || value === undefined) return null;
@@ -35,6 +36,7 @@ function normalizeClientRequest(row = {}) {
     reviewedByName: toStringOrNull(row.reviewed_by_name ?? row.reviewedByName),
     reviewedByEmail: toStringOrNull(row.reviewed_by_email ?? row.reviewedByEmail),
     acceptedOrderId: toStringOrNull(row.accepted_order_id ?? row.acceptedOrderId),
+    acceptedOrderNumber: toStringOrNull(row.accepted_order_number ?? row.acceptedOrderNumber),
   };
 }
 
@@ -82,8 +84,33 @@ export async function updateClientOrderRequestReviewStatus(requestKey, status) {
   return row ? normalizeClientRequest(row) : null;
 }
 
+export async function convertClientOrderRequestToOrder(requestKey) {
+  const safeRequestKey = toStringOrNull(requestKey);
+  if (!safeRequestKey) {
+    throw new Error("client_portal_order_request_key_required");
+  }
+
+  const { data, error } = await supabase.rpc(CLIENT_REQUEST_CONVERT_RPC, {
+    p_request_key: safeRequestKey,
+  });
+  if (error) throw error;
+
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) return null;
+
+  return {
+    requestKey: toStringOrNull(row.request_key ?? row.requestKey),
+    status: toStringOrNull(row.status) || "accepted",
+    orderId: toStringOrNull(row.order_id ?? row.orderId),
+    orderNumber: toStringOrNull(row.order_number ?? row.orderNumber),
+    propertyAddress: toStringOrNull(row.property_address ?? row.propertyAddress),
+    clientName: toStringOrNull(row.client_name ?? row.clientName),
+  };
+}
+
 export const clientRequestReviewRpcNames = Object.freeze({
   list: CLIENT_REQUEST_LIST_RPC,
   detail: CLIENT_REQUEST_DETAIL_RPC,
   updateStatus: CLIENT_REQUEST_UPDATE_STATUS_RPC,
+  convert: CLIENT_REQUEST_CONVERT_RPC,
 });

@@ -21,8 +21,12 @@ reviewable intake records only; they do not automatically create operational ord
 vendor procurement, invoices, fees, or documents.
 
 The fifth slice adds an Internal/AMC staff review inbox for submitted client order requests. Staff
-can list requests, view intake detail, mark a request as reviewing, or reject it. Conversion into
-an operational order remains deferred.
+can list requests, view intake detail, mark a request as reviewing, or reject it.
+
+The sixth slice adds staff-confirmed conversion from a submitted or reviewing client request into
+one operational order. Conversion is permission-gated, requires explicit confirmation, links the
+created order back to the request, and does not create downstream assignment, vendor procurement,
+invoice, payment, report, or document records.
 
 ## Current Client Model Findings
 
@@ -106,6 +110,9 @@ getClientOrderRequestReviewDetail(requestKey)
 
 updateClientOrderRequestReviewStatus(requestKey, status)
   -> rpc_client_portal_order_request_review_update_status(p_request_key, p_status)
+
+convertClientOrderRequestToOrder(requestKey)
+  -> rpc_client_portal_order_request_convert_to_order(p_request_key)
 ```
 
 The seam requires an opaque `order_key` for detail routing and normalizes only client-safe fields:
@@ -156,6 +163,13 @@ Added in `20260607103000_client_portal_order_request_review_inbox.sql`:
 - `rpc_client_portal_order_requests_for_review()`;
 - `rpc_client_portal_order_request_review_detail(p_request_key text)`;
 - `rpc_client_portal_order_request_review_update_status(p_request_key text, p_status text)`.
+
+Added in `20260607104000_client_portal_order_request_conversion.sql`:
+
+- updated `v_client_portal_order_request_staff_review` with minimal accepted-order linkage;
+- updated `rpc_client_portal_order_request_review_detail(p_request_key text)` to return accepted
+  order number when present;
+- `rpc_client_portal_order_request_convert_to_order(p_request_key text)`.
 
 The read model is current-company scoped and requires:
 
@@ -261,13 +275,61 @@ Statuses supported in this slice:
 - `declined`;
 - historical/display-only `accepted` and `cancelled` if data already exists.
 
-The only status mutations wired are:
+Review status mutations wired are:
 
 - `submitted` or `under_review` -> `under_review`;
 - `submitted` or `under_review` -> `declined`.
 
-The review inbox does not create operational orders, convert requests, create assignments, start
-vendor bidding, expose fees, expose margins, upload documents, or show storage internals.
+Conversion mutation wired:
+
+- `submitted` or `under_review` -> `accepted` with `accepted_order_id` linked to the created
+  operational order.
+
+The review inbox does not create assignments, start vendor bidding, expose fees, expose margins,
+upload documents, create invoices/payments, or show storage internals.
+
+## Request Conversion
+
+Staff conversion is a confirmed operational action, not a client action.
+
+The browser shows `Convert to order` only when the staff user has both:
+
+- `client_portal.order_requests.manage`;
+- `orders.create`.
+
+The server RPC also enforces both authorities and current-company scope. It accepts only the opaque
+request key, locks the request row, blocks `declined`, `cancelled`, `accepted`, and already-linked
+requests, and creates one `orders` row using server-side order numbering.
+
+Mapped order fields:
+
+- `client_id`;
+- property address;
+- property type;
+- report/appraisal type;
+- loan purpose/intended use into operational instructions/notes;
+- requested due date into final due date;
+- borrower/property contact name;
+- client contact name, phone, and email;
+- notes/instructions.
+
+Conversion success returns only:
+
+- request key;
+- accepted status;
+- created order id for the staff route link;
+- created order number;
+- property address;
+- client name.
+
+Conversion intentionally does not create:
+
+- order-company assignments;
+- vendor bid requests or responses;
+- assignment invitations or offers;
+- reports/documents;
+- invoices;
+- payment ledger rows.
 
 ## Fields Exposed
 
@@ -320,6 +382,7 @@ Read-only now:
 - order request intake form;
 - request submitted confirmation;
 - staff request review inbox.
+- staff-confirmed request conversion to one operational order.
 
 The UI intentionally avoids:
 
@@ -345,13 +408,13 @@ Wired in this slice:
 - dedicated client order request intake table and create RPC;
 - client-facing new-order request form;
 - staff request review RPCs and inbox UI;
+- staff-confirmed request conversion RPC and UI;
 - tests proving route guard behavior, API seam shape, and UI leakage boundaries.
 
 Placeholder/deferred:
 
 - client portal role templates and production role assignment;
 - client invite/token onboarding;
-- conversion/acceptance from request into operational order;
 - upload/document request flow;
 - public/token order status links;
 - client portal activity/messages.

@@ -9,6 +9,7 @@ vi.mock("@/lib/supabaseClient", () => ({
 const supabase = (await import("@/lib/supabaseClient")).default;
 const {
   clientRequestReviewRpcNames,
+  convertClientOrderRequestToOrder,
   getClientOrderRequestReviewDetail,
   listClientOrderRequestsForReview,
   updateClientOrderRequestReviewStatus,
@@ -91,6 +92,54 @@ describe("clientRequestsApi", () => {
       p_request_key: "request-key-1",
       p_status: "declined",
     });
+  });
+
+  it("converts a request through the dedicated conversion RPC", async () => {
+    supabase.rpc.mockResolvedValue({
+      data: {
+        request_key: "request-key-1",
+        status: "accepted",
+        order_id: "order-1",
+        order_number: "26-0001",
+        property_address: "200 Oak St",
+        client_name: "Acme Lending",
+      },
+      error: null,
+    });
+
+    await expect(convertClientOrderRequestToOrder("request-key-1")).resolves.toEqual({
+      requestKey: "request-key-1",
+      status: "accepted",
+      orderId: "order-1",
+      orderNumber: "26-0001",
+      propertyAddress: "200 Oak St",
+      clientName: "Acme Lending",
+    });
+
+    expect(supabase.rpc).toHaveBeenCalledWith(clientRequestReviewRpcNames.convert, {
+      p_request_key: "request-key-1",
+    });
+  });
+
+  it("normalizes converted order linkage from review detail", async () => {
+    supabase.rpc.mockResolvedValue({
+      data: {
+        request_key: "request-key-1",
+        status: "accepted",
+        accepted_order_id: "order-1",
+        accepted_order_number: "26-0001",
+      },
+      error: null,
+    });
+
+    await expect(getClientOrderRequestReviewDetail("request-key-1")).resolves.toEqual(
+      expect.objectContaining({
+        requestKey: "request-key-1",
+        status: "accepted",
+        acceptedOrderId: "order-1",
+        acceptedOrderNumber: "26-0001",
+      }),
+    );
   });
 
   it("does not preserve operational assignment vendor or fee fields from RPC payloads", async () => {
