@@ -3,6 +3,7 @@ import supabase from "@/lib/supabaseClient";
 const CLIENT_PORTAL_ORDER_LIST_RPC = "rpc_client_portal_orders";
 const CLIENT_PORTAL_ORDER_DETAIL_RPC = "rpc_client_portal_order_detail";
 const CLIENT_PORTAL_DASHBOARD_RPC = "rpc_client_portal_dashboard";
+const CLIENT_PORTAL_REPORT_DOWNLOAD_FUNCTION = "client-portal-report-download-url";
 
 const toStringOrNull = (value) => {
   if (value === null || value === undefined) return null;
@@ -45,7 +46,6 @@ export function normalizeClientPortalOrderDetail(row = {}) {
     contactName: toStringOrNull(row.contact_name ?? row.contactName),
     reportFileName: toStringOrNull(row.report_file_name ?? row.reportFileName),
     reportDownloadReady: toBoolean(firstPresent(row.report_download_ready, row.reportDownloadReady, row.report_available)),
-    reportDownloadUrl: toStringOrNull(row.report_download_url ?? row.reportDownloadUrl),
     milestones: Array.isArray(row.milestones)
       ? row.milestones
           .map((milestone) => ({
@@ -101,8 +101,50 @@ export async function getClientPortalOrderDetail(orderKey) {
   return row ? normalizeClientPortalOrderDetail(row) : null;
 }
 
+async function edgeFunctionErrorMessage(error, fallback) {
+  if (!error?.context?.json) return error?.message || fallback;
+
+  try {
+    const response =
+      typeof error.context.clone === "function" ? error.context.clone() : error.context;
+    const body = await response.json();
+    return body?.message || body?.error || error?.message || fallback;
+  } catch {
+    return error?.message || fallback;
+  }
+}
+
+export async function createClientPortalReportDownloadUrl(orderKey) {
+  const safeOrderKey = toStringOrNull(orderKey);
+  if (!safeOrderKey) {
+    throw new Error("client_portal_order_key_required");
+  }
+
+  const { data, error } = await supabase.functions.invoke(CLIENT_PORTAL_REPORT_DOWNLOAD_FUNCTION, {
+    body: {
+      order_key: safeOrderKey,
+    },
+  });
+
+  if (error) {
+    const message = await edgeFunctionErrorMessage(error, "The report download could not be prepared.");
+    throw new Error(message, { cause: error });
+  }
+
+  if (!data?.signed_url) {
+    throw new Error("The report download URL was not returned.");
+  }
+
+  return {
+    signedUrl: data.signed_url,
+    expiresIn: Number(data.expires_in ?? data.expiresIn ?? 0) || null,
+    fileName: toStringOrNull(data.report?.file_name ?? data.report?.fileName),
+  };
+}
+
 export const clientPortalRpcNames = Object.freeze({
   dashboard: CLIENT_PORTAL_DASHBOARD_RPC,
   listOrders: CLIENT_PORTAL_ORDER_LIST_RPC,
   orderDetail: CLIENT_PORTAL_ORDER_DETAIL_RPC,
+  reportDownloadFunction: CLIENT_PORTAL_REPORT_DOWNLOAD_FUNCTION,
 });

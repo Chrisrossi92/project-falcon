@@ -1716,9 +1716,12 @@ Completed AMC-17 foundation deliverables:
 - Dedicated client-safe read model:
   `v_client_portal_order_status`, `rpc_client_portal_dashboard()`,
   `rpc_client_portal_orders()`, and `rpc_client_portal_order_detail(p_order_key)`.
+- Dedicated client-safe final report download authorization:
+  `rpc_client_portal_report_authorize_download(p_order_key)` and
+  `client-portal-report-download-url`.
 - Dedicated client-safe frontend API seam for those RPCs.
-- Read-only Client Portal dashboard, orders list, order detail, report availability placeholder,
-  and non-mutating new-order placeholder.
+- Read-only Client Portal dashboard, orders list, order detail, report availability, authorized
+  final report download action, and non-mutating new-order placeholder.
 
 AMC-17 foundation certifies:
 
@@ -1732,7 +1735,10 @@ AMC-17 foundation certifies:
 - The page model avoids vendor bidding, internal assignment details, private notes, internal review
   chatter, procurement details, client fee, and AMC margin.
 - Report exposure is limited to client-visible final report availability metadata, delivered/ready
-  timestamps, and file name metadata. Signed download authorization remains deferred.
+  timestamps, file name metadata, and click-time short-lived signed URLs for authorized final
+  reports only.
+- Report downloads are authorized by opaque order key, current company, active client portal member
+  mapping, and `client_portal.reports.read`; storage internals remain service-side only.
 
 AMC-17 foundation does not certify:
 
@@ -1740,15 +1746,14 @@ AMC-17 foundation does not certify:
 - production client role/template assignment;
 - order appraisal intake mutation;
 - public/token status links;
-- final report signed download authorization;
+- broad document browsing, draft downloads, internal docs, vendor submissions, reviewer files,
+  invoices, or procurement documents;
 - client portal messages/activity.
 
 Recommended next AMC-17 slices:
 
 - Add client portal role templates and fixture coverage for mapped client users.
 - Add client invite/token onboarding after the client account model is explicit.
-- Wire final report download authorization only after report release rules are documented and
-  enforced server-side.
 - Add guarded order appraisal intake after validation, document upload, and duplicate/request
   rules are defined.
 

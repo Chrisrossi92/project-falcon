@@ -10,6 +10,20 @@ const migrationPath = resolve(
 
 const migrationSql = readFileSync(migrationPath, 'utf8');
 
+const reportDownloadMigrationPath = resolve(
+  process.cwd(),
+  'supabase/migrations/20260607101000_client_portal_report_download_authorization.sql',
+);
+
+const reportDownloadMigrationSql = readFileSync(reportDownloadMigrationPath, 'utf8');
+
+const reportDownloadFunctionPath = resolve(
+  process.cwd(),
+  'supabase/functions/client-portal-report-download-url/index.ts',
+);
+
+const reportDownloadFunctionSource = readFileSync(reportDownloadFunctionPath, 'utf8');
+
 describe('Client Portal safe order read model migration', () => {
   it('creates dedicated Client Portal permissions, member mapping, view, and RPCs', () => {
     expect(migrationSql).toContain("'client_portal.dashboard.view'");
@@ -71,5 +85,46 @@ describe('Client Portal safe order read model migration', () => {
       expect(migrationSql).not.toContain(`${field} `);
       expect(migrationSql).not.toContain(`${field},`);
     });
+  });
+});
+
+describe('Client Portal report download authorization', () => {
+  it('creates a dedicated opaque-key report authorization RPC', () => {
+    expect(reportDownloadMigrationSql).toContain(
+      'create or replace function public.rpc_client_portal_report_authorize_download(p_order_key text)',
+    );
+    expect(reportDownloadMigrationSql).toContain("raise exception 'client_portal_order_key_required'");
+    expect(reportDownloadMigrationSql).toContain("raise exception 'client_portal_access_required'");
+    expect(reportDownloadMigrationSql).toContain("client_portal.reports.read");
+    expect(reportDownloadMigrationSql).toContain('public.current_app_user_client_portal_client_ids()');
+    expect(reportDownloadMigrationSql).toContain('v.company_id = public.current_company_id()');
+  });
+
+  it('authorizes only active client-visible final report documents', () => {
+    expect(reportDownloadMigrationSql).toContain("od.category = 'final_report'");
+    expect(reportDownloadMigrationSql).toContain("od.visibility_scope = 'client'");
+    expect(reportDownloadMigrationSql).toContain("od.status = 'active'");
+    expect(reportDownloadMigrationSql).not.toContain("od.category <> 'final_report'");
+    expect(reportDownloadMigrationSql).not.toContain("od.visibility_scope <> 'client'");
+  });
+
+  it('does not expose raw order ids storage paths buckets or signed URLs from the authorization RPC', () => {
+    expect(reportDownloadMigrationSql).not.toContain('order_id uuid');
+    expect(reportDownloadMigrationSql).not.toContain('order_id,');
+    expect(reportDownloadMigrationSql).not.toContain('storage_path');
+    expect(reportDownloadMigrationSql).not.toContain('storage_bucket');
+    expect(reportDownloadMigrationSql).not.toContain('signed_url');
+  });
+
+  it('uses a client-specific Edge Function to sign storage service-side', () => {
+    expect(reportDownloadFunctionSource).toContain('rpc_client_portal_report_authorize_download');
+    expect(reportDownloadFunctionSource).toContain('order_key');
+    expect(reportDownloadFunctionSource).toContain('.eq("category", "final_report")');
+    expect(reportDownloadFunctionSource).toContain('.eq("visibility_scope", "client")');
+    expect(reportDownloadFunctionSource).toContain('.eq("status", "active")');
+    expect(reportDownloadFunctionSource).toContain('createSignedUrl');
+    expect(reportDownloadFunctionSource).not.toContain('order_id:');
+    expect(reportDownloadFunctionSource).not.toContain('storage_path:');
+    expect(reportDownloadFunctionSource).not.toContain('storage_bucket:');
   });
 });

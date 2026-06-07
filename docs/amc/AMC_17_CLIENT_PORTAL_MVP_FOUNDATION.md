@@ -10,8 +10,11 @@ The first slice created the route shell, client workspace guard, client-safe API
 read-only dashboard/order tracking UI for the Client Portal MVP.
 
 The second slice adds the backend-safe read model for client portal dashboard, order list, and order
-detail. It does not create client invitation/token onboarding, public token flows, order intake
-mutation, document release authorization, or report-download signing.
+detail.
+
+The third slice adds client-safe report download authorization for released final reports. It does
+not create client invitation/token onboarding, public token flows, order intake mutation, broad
+document browsing, draft downloads, or internal document access.
 
 ## Current Client Model Findings
 
@@ -74,6 +77,10 @@ listClientPortalOrders()
 
 getClientPortalOrderDetail(orderKey)
   -> rpc_client_portal_order_detail(p_order_key)
+
+createClientPortalReportDownloadUrl(orderKey)
+  -> client-portal-report-download-url Edge Function
+  -> rpc_client_portal_report_authorize_download(p_order_key)
 ```
 
 The seam requires an opaque `order_key` for detail routing and normalizes only client-safe fields:
@@ -83,7 +90,8 @@ The seam requires an opaque `order_key` for detail routing and normalizes only c
 - property/address;
 - important dates;
 - report availability;
-- optional report file/download metadata when a future safe backend supplies it.
+- report file metadata;
+- short-lived signed report URL only after the user explicitly clicks `Download report`.
 
 It does not import or fall back to shared Internal/AMC order, client, vendor, bid, assignment, or
 procurement APIs.
@@ -101,6 +109,10 @@ Added in `20260607100000_client_portal_safe_order_read_model.sql`:
 - `rpc_client_portal_orders()`;
 - `rpc_client_portal_order_detail(p_order_key text)`.
 
+Added in `20260607101000_client_portal_report_download_authorization.sql`:
+
+- `rpc_client_portal_report_authorize_download(p_order_key text)`.
+
 The read model is current-company scoped and requires:
 
 - authenticated app user;
@@ -112,6 +124,30 @@ The read model is current-company scoped and requires:
 
 The detail route uses opaque `order_key` values generated from order, company, and client scope.
 The RPC payload does not return raw order ids.
+
+## Report Download Authorization
+
+Client Portal report download is intentionally not broad document browsing.
+
+The browser calls `client-portal-report-download-url` with only the opaque `order_key`. The Edge
+Function:
+
+- requires a bearer token;
+- validates the `order_key` shape;
+- calls `rpc_client_portal_report_authorize_download(p_order_key)` as the signed-in user;
+- requires current company, active `client_portal_members` client mapping, and
+  `client_portal.reports.read`;
+- authorizes only the newest active `order_documents` row where:
+  - `category = 'final_report'`;
+  - `visibility_scope = 'client'`;
+  - `status = 'active'`;
+- uses service-role storage access only after the user-scoped RPC authorizes the report;
+- returns a short-lived signed URL plus safe final-report filename/metadata;
+- never returns storage bucket/path or raw order ids to the Client Portal.
+
+The client detail page disables download when no final report is available, shows a loading state
+while preparing the signed URL, and shows a clear error if the report becomes unavailable or access
+is denied.
 
 ## Fields Exposed
 
@@ -130,6 +166,7 @@ Client Portal order payloads may expose:
 - report ready/delivered timestamps;
 - report file name metadata;
 - client-facing milestones.
+- short-lived signed final report URL only from the click-time Edge Function response.
 
 ## Fields Hidden
 
@@ -144,7 +181,9 @@ The client-safe read model intentionally does not expose:
 - client invoice amount, appraiser fee, base fee, split percentage, AMC margin, payment status, or
   vendor invoice/payment details;
 - raw storage bucket/path;
-- signed report download URLs.
+- signed report download URLs in dashboard/list/detail RPC payloads;
+- drafts, internal documents, vendor submissions, reviewer files, invoices, and procurement
+  documents.
 
 ## UI Added
 
@@ -154,7 +193,8 @@ Read-only now:
 - Client Portal dashboard;
 - client-scoped order list;
 - client-safe order detail;
-- report availability/download placeholder;
+- report availability;
+- authorized final report download action;
 - non-mutating new-order placeholder.
 
 The UI intentionally avoids:
@@ -177,6 +217,7 @@ Wired in this slice:
 - frontend and backend client portal permission constants/seeds;
 - `client_portal_members` mapping table;
 - dedicated client-safe dashboard/list/detail RPCs;
+- dedicated final-report download authorization RPC and Edge Function;
 - tests proving route guard behavior, API seam shape, and UI leakage boundaries.
 
 Placeholder/deferred:
@@ -185,7 +226,6 @@ Placeholder/deferred:
 - client invite/token onboarding;
 - new-order intake mutation;
 - upload/document request flow;
-- final report signed download authorization;
 - public/token order status links;
 - client portal activity/messages.
 
@@ -201,7 +241,8 @@ Client Portal MVP foundation is fail-closed:
 - page models do not expose internal/vendor/procurement fields.
 
 Backend client/account scoping now exists for read-only dashboard/list/detail through
-`client_portal_members`. Client invite/token onboarding is still required before live client users
+`client_portal_members`. Final report download authorization uses the same current-company and
+client-account boundary. Client invite/token onboarding is still required before live client users
 are enabled.
 
 ## Validation Target

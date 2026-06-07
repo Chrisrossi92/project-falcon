@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const apiMock = vi.hoisted(() => ({
+  createClientPortalReportDownloadUrl: vi.fn(),
   getClientPortalDashboard: vi.fn(),
   listClientPortalOrders: vi.fn(),
   getClientPortalOrderDetail: vi.fn(),
@@ -46,6 +47,7 @@ function renderPortalRoutes(initialPath = "/client-portal") {
 describe("Client Portal pages", () => {
   beforeEach(() => {
     apiMock.getClientPortalDashboard.mockReset();
+    apiMock.createClientPortalReportDownloadUrl.mockReset();
     apiMock.listClientPortalOrders.mockReset();
     apiMock.getClientPortalOrderDetail.mockReset();
   });
@@ -93,7 +95,6 @@ describe("Client Portal pages", () => {
       orderedAt: "2026-06-01",
       reportReadyAt: null,
       reportDownloadReady: false,
-      reportDownloadUrl: null,
     });
 
     renderPortalRoutes("/client-portal/orders/portal-order-1");
@@ -102,9 +103,68 @@ describe("Client Portal pages", () => {
     expect(screen.getByText("Client-safe appraisal status and report availability for this property.")).toBeInTheDocument();
     expect(screen.getByText("Report in review")).toBeInTheDocument();
     expect(screen.getByText("The final report will be available here after it is released to your account.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Download report" })).toBeDisabled();
 
     const serialized = document.body.textContent;
     expect(serialized).not.toMatch(/vendor|bid|procurement|appraiser note|internal note|review chatter|assignment/i);
+  });
+
+  it("requests a signed report download only when a final report is available", async () => {
+    const originalAssign = window.location.assign;
+    const assignMock = vi.fn();
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: {
+        ...window.location,
+        assign: assignMock,
+      },
+    });
+
+    apiMock.getClientPortalOrderDetail.mockResolvedValue({
+      ...portalOrder,
+      reportAvailable: true,
+      reportDownloadReady: true,
+      reportFileName: "final-report.pdf",
+    });
+    apiMock.createClientPortalReportDownloadUrl.mockResolvedValue({
+      signedUrl: "https://signed.example/final-report.pdf",
+      expiresIn: 300,
+      fileName: "final-report.pdf",
+    });
+
+    renderPortalRoutes("/client-portal/orders/portal-order-1");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Download report" }));
+
+    await waitFor(() => {
+      expect(apiMock.createClientPortalReportDownloadUrl).toHaveBeenCalledWith("portal-order-1");
+      expect(assignMock).toHaveBeenCalledWith("https://signed.example/final-report.pdf");
+    });
+
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: {
+        ...window.location,
+        assign: originalAssign,
+      },
+    });
+  });
+
+  it("keeps report download errors visible without exposing storage internals", async () => {
+    apiMock.getClientPortalOrderDetail.mockResolvedValue({
+      ...portalOrder,
+      reportAvailable: true,
+      reportDownloadReady: true,
+      reportFileName: "final-report.pdf",
+    });
+    apiMock.createClientPortalReportDownloadUrl.mockRejectedValue(new Error("You cannot download this report."));
+
+    renderPortalRoutes("/client-portal/orders/portal-order-1");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Download report" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("You cannot download this report.");
+    expect(document.body.textContent).not.toMatch(/storage_bucket|storage_path|order-documents|signed_url/i);
   });
 
   it("keeps new-order intake as a non-mutating placeholder", () => {

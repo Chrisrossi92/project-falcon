@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
-import { getClientPortalOrderDetail } from "@/features/clientPortal/api";
+import {
+  createClientPortalReportDownloadUrl,
+  getClientPortalOrderDetail,
+} from "@/features/clientPortal/api";
 
 function formatDate(value) {
   if (!value) return "Not scheduled";
@@ -28,6 +31,10 @@ export default function ClientPortalOrderDetailPage() {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [downloadState, setDownloadState] = useState({
+    loading: false,
+    error: null,
+  });
 
   useEffect(() => {
     let active = true;
@@ -55,6 +62,25 @@ export default function ClientPortalOrderDetailPage() {
       active = false;
     };
   }, [orderId]);
+
+  async function handleDownloadReport() {
+    if (!order?.reportDownloadReady || downloadState.loading) return;
+
+    setDownloadState({ loading: true, error: null });
+
+    try {
+      const result = await createClientPortalReportDownloadUrl(order.orderKey);
+      window.location.assign(result.signedUrl);
+    } catch (err) {
+      setDownloadState({
+        loading: false,
+        error: err?.message || "The report download could not be prepared.",
+      });
+      return;
+    }
+
+    setDownloadState({ loading: false, error: null });
+  }
 
   if (loading) {
     return <div className="text-sm text-slate-500">Loading order...</div>;
@@ -126,18 +152,39 @@ export default function ClientPortalOrderDetailPage() {
 
       <section className="grid gap-3 rounded-lg border border-stone-200 bg-white p-4" aria-label="Report download">
         <h2 className="text-base font-semibold text-slate-950">Download report</h2>
-        {order.reportDownloadReady && order.reportDownloadUrl ? (
-          <a
-            href={order.reportDownloadUrl}
-            className="inline-flex w-fit rounded-md border border-slate-900 bg-slate-900 px-3 py-2 text-sm font-semibold text-white"
-          >
-            Download report
-          </a>
+        {order.reportDownloadReady ? (
+          <div className="grid gap-2">
+            <button
+              type="button"
+              onClick={handleDownloadReport}
+              disabled={downloadState.loading}
+              className="inline-flex w-fit rounded-md border border-slate-900 bg-slate-900 px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {downloadState.loading ? "Preparing report..." : "Download report"}
+            </button>
+            {order.reportFileName ? (
+              <p className="text-xs text-slate-500">{order.reportFileName}</p>
+            ) : null}
+            {downloadState.error ? (
+              <p className="text-sm leading-6 text-rose-700" role="alert">
+                {downloadState.error}
+              </p>
+            ) : null}
+          </div>
         ) : (
           <p className="text-sm leading-6 text-slate-600">
             The final report will be available here after it is released to your account.
           </p>
         )}
+        {!order.reportDownloadReady ? (
+          <button
+            type="button"
+            disabled
+            className="inline-flex w-fit cursor-not-allowed rounded-md border border-stone-200 bg-stone-100 px-3 py-2 text-sm font-semibold text-slate-500"
+          >
+            Download report
+          </button>
+        ) : null}
       </section>
     </div>
   );

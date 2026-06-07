@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/supabaseClient", () => ({
   default: {
+    functions: {
+      invoke: vi.fn(),
+    },
     rpc: vi.fn(),
   },
 }));
@@ -9,6 +12,7 @@ vi.mock("@/lib/supabaseClient", () => ({
 const supabase = (await import("@/lib/supabaseClient")).default;
 const {
   clientPortalRpcNames,
+  createClientPortalReportDownloadUrl,
   getClientPortalOrderDetail,
   getClientPortalDashboard,
   listClientPortalOrders,
@@ -18,6 +22,7 @@ const {
 describe("clientPortalApi", () => {
   beforeEach(() => {
     supabase.rpc.mockReset();
+    supabase.functions.invoke.mockReset();
   });
 
   it("loads dashboard summary through the dedicated dashboard RPC", async () => {
@@ -100,6 +105,34 @@ describe("clientPortalApi", () => {
     expect(supabase.rpc).toHaveBeenCalledWith(clientPortalRpcNames.orderDetail, {
       p_order_key: "portal-order-1",
     });
+  });
+
+  it("requests report download through the dedicated client portal Edge Function", async () => {
+    supabase.functions.invoke.mockResolvedValue({
+      data: {
+        signed_url: "https://signed.example/report.pdf",
+        expires_in: 300,
+        report: {
+          file_name: "final-report.pdf",
+        },
+      },
+      error: null,
+    });
+
+    await expect(createClientPortalReportDownloadUrl("portal-order-1")).resolves.toEqual({
+      signedUrl: "https://signed.example/report.pdf",
+      expiresIn: 300,
+      fileName: "final-report.pdf",
+    });
+
+    expect(supabase.functions.invoke).toHaveBeenCalledWith(
+      clientPortalRpcNames.reportDownloadFunction,
+      {
+        body: {
+          order_key: "portal-order-1",
+        },
+      },
+    );
   });
 
   it("normalizes detail without internal assignment, vendor, procurement, or fee fields", () => {
