@@ -131,6 +131,7 @@ const ACTIVE_VENDOR_ASSIGNMENT_STATUSES = new Set([
   "accepted",
   "in_progress",
   "submitted",
+  "revision_requested",
 ]);
 const BID_STATUS_TONE_CLASSES = Object.freeze({
   neutral: "border-slate-200 bg-slate-50 text-slate-700",

@@ -4,7 +4,18 @@ import { Link, useNavigate } from "react-router-dom";
 
 import { useCan } from "@/lib/hooks/usePermissions";
 import { PERMISSIONS } from "@/lib/permissions/constants";
-import { createVendorProfile, listVendorDirectory } from "./api";
+import { createOrderDocumentDownloadUrl } from "@/features/order-documents/api.js";
+import {
+  createVendorProfile,
+  listAmcVendorInvoices,
+  listAmcVendorPaymentLedger,
+  listVendorDirectory,
+  listVendorProfileUpdateRequests,
+  markAmcVendorPaymentPaid,
+  reviewAmcVendorInvoice,
+  reviewVendorProfileUpdateRequest,
+  scheduleAmcVendorPayment,
+} from "./api";
 import CoverageBuilder from "./coverage/CoverageBuilder";
 import { getVendorProductTypeLabel } from "./coverage/productTypes";
 import { getVendorErrorMessage } from "./vendorErrors";
@@ -36,6 +47,16 @@ function formatStatus(value) {
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function formatMoney(amount, currency = "USD") {
+  const numericAmount = Number(amount);
+  if (!Number.isFinite(numericAmount)) return "Not provided";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: currency || "USD",
+    maximumFractionDigits: 2,
+  }).format(numericAmount);
 }
 
 function summarizeServiceAreas(summary = {}) {
@@ -102,6 +123,1003 @@ function ErrorState({ error, onRetry }) {
         Retry
       </button>
     </div>
+  );
+}
+
+function formatReviewValue(value) {
+  if (value === null || value === undefined || value === "") return "Not provided";
+  if (Array.isArray(value)) return value.length > 0 ? value.join(", ") : "None";
+  if (typeof value === "object") {
+    const entries = Object.entries(value)
+      .filter(([, entryValue]) => entryValue !== null && entryValue !== undefined && entryValue !== "")
+      .map(([key, entryValue]) => `${formatStatus(key)}: ${formatReviewValue(entryValue)}`);
+    return entries.length > 0 ? entries.join(" · ") : "None";
+  }
+  return String(value);
+}
+
+function ReviewPayloadSummary({ title, payload }) {
+  const entries = payload && typeof payload === "object" ? Object.entries(payload) : [];
+  return (
+    <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+      <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{title}</div>
+      {entries.length === 0 ? (
+        <div className="mt-2 text-sm text-slate-500">No values captured.</div>
+      ) : (
+        <dl className="mt-2 grid gap-2 text-sm">
+          {entries.map(([key, value]) => (
+            <div key={key}>
+              <dt className="font-medium text-slate-700">{formatStatus(key)}</dt>
+              <dd className="mt-0.5 text-slate-600">{formatReviewValue(value)}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </div>
+  );
+}
+
+function ProfileUpdateReviewModal({ request, onClose, onReviewed }) {
+  const [reviewerNote, setReviewerNote] = useState("");
+  const [submittingDecision, setSubmittingDecision] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!request) return;
+    setReviewerNote("");
+    setSubmittingDecision("");
+    setError("");
+  }, [request]);
+
+  if (!request) return null;
+
+  const handleReview = async (decision) => {
+    if (submittingDecision) return;
+    setSubmittingDecision(decision);
+    setError("");
+    try {
+      const result = await reviewVendorProfileUpdateRequest(request.request_key, {
+        decision,
+        reviewer_note: reviewerNote.trim() || null,
+      });
+      if (result?.ok === false) {
+        setError("This request could not be reviewed. Check the request status and try again.");
+        setSubmittingDecision("");
+        return;
+      }
+      await onReviewed(result?.request || null);
+    } catch (reviewError) {
+      console.debug("Vendor profile update review failed", {
+        code: reviewError?.code,
+        message: reviewError?.message,
+      });
+      setError("This request could not be reviewed. Please try again.");
+      setSubmittingDecision("");
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-3 py-4">
+      <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg bg-white shadow-xl">
+        <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Profile Review</div>
+            <h2 className="mt-1 text-lg font-semibold text-slate-950">
+              {request.vendor_company_name || "Vendor"} update request
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Submitted {formatDateTime(request.submitted_at)} · {formatStatus(request.status)}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-100"
+            aria-label="Close review"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="grid gap-4 px-5 py-4">
+          <div className="grid gap-3 md:grid-cols-2">
+            <ReviewPayloadSummary title="Current" payload={request.current_snapshot} />
+            <ReviewPayloadSummary title="Proposed" payload={request.proposed_changes} />
+          </div>
+
+          <label className="grid gap-1 text-sm">
+            <span className="font-medium text-slate-700">Vendor-facing decision note</span>
+            <textarea
+              value={reviewerNote}
+              onChange={(event) => setReviewerNote(event.target.value)}
+              rows={4}
+              maxLength={2000}
+              placeholder="Add safe decision context for the vendor."
+              className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm outline-none focus:border-slate-400"
+            />
+          </label>
+
+          {error && (
+            <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
+              {error}
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 px-5 py-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-9 items-center rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Close
+          </button>
+          <button
+            type="button"
+            onClick={() => handleReview("reject")}
+            disabled={Boolean(submittingDecision)}
+            className="inline-flex h-9 items-center rounded-md border border-rose-200 bg-white px-3 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {submittingDecision === "reject" ? "Rejecting..." : "Reject"}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleReview("approve")}
+            disabled={Boolean(submittingDecision)}
+            className="inline-flex h-9 items-center rounded-md border border-slate-950 bg-slate-950 px-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {submittingDecision === "approve" ? "Approving..." : "Approve"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function VendorProfileUpdateReviewQueue({ enabled }) {
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [successMessage, setSuccessMessage] = useState("");
+
+  const loadRequests = useCallback(async () => {
+    if (!enabled) return;
+    setLoading(true);
+    setError("");
+    try {
+      const rows = await listVendorProfileUpdateRequests({ status: "pending" });
+      setRequests(Array.isArray(rows) ? rows : []);
+    } catch (loadError) {
+      console.debug("Vendor profile update requests failed to load", {
+        code: loadError?.code,
+        message: loadError?.message,
+      });
+      setRequests([]);
+      setError("Profile update requests could not load.");
+    } finally {
+      setLoading(false);
+    }
+  }, [enabled]);
+
+  useEffect(() => {
+    loadRequests();
+  }, [loadRequests]);
+
+  if (!enabled) return null;
+
+  const handleReviewed = async (reviewedRequest) => {
+    setSelectedRequest(null);
+    setSuccessMessage(
+      reviewedRequest?.status === "approved"
+        ? "Profile update request approved."
+        : "Profile update request rejected.",
+    );
+    await loadRequests();
+  };
+
+  return (
+    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm" aria-label="Vendor profile update requests">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Review Queue</div>
+          <h2 className="mt-1 text-lg font-semibold text-slate-950">Profile Update Requests</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Approve requests to apply vendor profile, contact, or coverage changes.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={loadRequests}
+          className="inline-flex h-8 items-center rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
+        >
+          Refresh
+        </button>
+      </div>
+
+      {successMessage && (
+        <div className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+          {successMessage}
+        </div>
+      )}
+
+      {error && (
+        <div className="mt-3 flex gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="mt-3 text-sm text-slate-500">Loading profile update requests...</div>
+      ) : requests.length === 0 ? (
+        <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-500">
+          No pending profile update requests.
+        </div>
+      ) : (
+        <div className="mt-3 grid gap-2">
+          {requests.map((request) => (
+            <article
+              key={request.request_key}
+              className="grid gap-3 rounded-md border border-slate-200 px-3 py-3 md:grid-cols-[1fr_auto]"
+            >
+              <div className="min-w-0">
+                <div className="font-semibold text-slate-950">{request.vendor_company_name || "Vendor"}</div>
+                <div className="mt-1 text-sm text-slate-500">
+                  {formatStatus(request.status)} · Submitted {formatDateTime(request.submitted_at)}
+                </div>
+                <div className="mt-2 text-sm text-slate-600">
+                  {formatReviewValue(request.proposed_changes)}
+                </div>
+              </div>
+              <div className="flex items-start justify-end">
+                <button
+                  type="button"
+                  onClick={() => setSelectedRequest(request)}
+                  className="inline-flex h-8 items-center rounded-md border border-slate-950 bg-slate-950 px-3 text-sm font-semibold text-white hover:bg-slate-800"
+                >
+                  Review
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+
+      <ProfileUpdateReviewModal
+        request={selectedRequest}
+        onClose={() => setSelectedRequest(null)}
+        onReviewed={handleReviewed}
+      />
+    </section>
+  );
+}
+
+const INVOICE_STATUS_FILTERS = Object.freeze([
+  { value: "invoice_received", label: "Invoice Received" },
+  { value: "approved", label: "Approved" },
+  { value: "on_hold", label: "On Hold" },
+  { value: "rejected", label: "Rejected" },
+]);
+
+const PAYMENT_LEDGER_STATUS_FILTERS = Object.freeze([
+  { value: "approved", label: "Approved" },
+  { value: "scheduled", label: "Scheduled" },
+  { value: "paid", label: "Paid" },
+]);
+
+function InvoiceReviewModal({ invoice, onClose, onReviewed }) {
+  const [decision, setDecision] = useState("approve");
+  const [reviewerNote, setReviewerNote] = useState("");
+  const [vendorMessage, setVendorMessage] = useState("");
+  const [approvedAmount, setApprovedAmount] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!invoice) return;
+    setDecision("approve");
+    setReviewerNote("");
+    setVendorMessage("");
+    setApprovedAmount("");
+    setSubmitting(false);
+    setError("");
+  }, [invoice]);
+
+  if (!invoice) return null;
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    if (submitting) return;
+
+    if ((decision === "hold" || decision === "reject") && !vendorMessage.trim()) {
+      setError("Add a vendor-facing message for held or rejected invoices.");
+      return;
+    }
+
+    setSubmitting(true);
+    setError("");
+
+    try {
+      const result = await reviewAmcVendorInvoice(invoice.invoice_key, {
+        decision,
+        reviewer_note: reviewerNote.trim() || null,
+        vendor_message: vendorMessage.trim() || null,
+        approved_amount: approvedAmount ? Number(approvedAmount) : null,
+      });
+
+      if (result?.ok === false) {
+        setError("This invoice could not be reviewed. Check the invoice status and try again.");
+        setSubmitting(false);
+        return;
+      }
+
+      await onReviewed(result?.invoice || null);
+    } catch (reviewError) {
+      console.debug("Vendor invoice review failed", {
+        code: reviewError?.code,
+        message: reviewError?.message,
+      });
+      setError("This invoice could not be reviewed. Please try again.");
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-3 py-4">
+      <form
+        onSubmit={handleSubmit}
+        className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white shadow-xl"
+      >
+        <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Invoice Review</div>
+            <h2 className="mt-1 text-lg font-semibold text-slate-950">
+              {invoice.invoice_number || "Vendor invoice"} · {invoice.vendor?.company_name || "Vendor"}
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {formatMoney(invoice.invoice_amount, invoice.currency)} · Submitted {formatDateTime(invoice.submitted_at)}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-100"
+            aria-label="Close invoice review"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="grid gap-4 px-5 py-4">
+          <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+            <div className="font-semibold text-slate-950">{invoice.order?.property_address || "Property pending"}</div>
+            <div className="mt-1">
+              {invoice.order?.order_number || "Order pending"} · {invoice.order?.report_type || "Report type pending"}
+            </div>
+            {invoice.vendor_note ? (
+              <div className="mt-3 whitespace-pre-wrap rounded-md border border-slate-200 bg-white p-2">
+                {invoice.vendor_note}
+              </div>
+            ) : null}
+          </div>
+
+          <label className="grid gap-1 text-sm">
+            <span className="font-medium text-slate-700">Decision</span>
+            <select
+              value={decision}
+              onChange={(event) => setDecision(event.target.value)}
+              className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm outline-none focus:border-slate-400"
+            >
+              <option value="approve">Approve</option>
+              <option value="hold">Hold</option>
+              <option value="reject">Reject</option>
+            </select>
+          </label>
+
+          <label className="grid gap-1 text-sm">
+            <span className="font-medium text-slate-700">Approved Amount</span>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={approvedAmount}
+              onChange={(event) => setApprovedAmount(event.target.value)}
+              placeholder={String(invoice.invoice_amount || "")}
+              className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm outline-none focus:border-slate-400"
+            />
+          </label>
+
+          <label className="grid gap-1 text-sm">
+            <span className="font-medium text-slate-700">Internal Reviewer Note</span>
+            <textarea
+              value={reviewerNote}
+              onChange={(event) => setReviewerNote(event.target.value)}
+              rows={3}
+              placeholder="Private internal note. Not sent to the vendor."
+              className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm outline-none focus:border-slate-400"
+            />
+          </label>
+
+          <label className="grid gap-1 text-sm">
+            <span className="font-medium text-slate-700">Vendor-Facing Message</span>
+            <textarea
+              value={vendorMessage}
+              onChange={(event) => setVendorMessage(event.target.value)}
+              rows={3}
+              placeholder="Safe message for held or rejected invoices."
+              className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm outline-none focus:border-slate-400"
+            />
+          </label>
+
+          {error ? (
+            <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
+              {error}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 px-5 py-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-9 items-center rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Close
+          </button>
+          <button
+            type="submit"
+            disabled={submitting}
+            className="inline-flex h-9 items-center rounded-md border border-slate-950 bg-slate-950 px-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {submitting ? "Saving..." : "Save Review"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function PaymentScheduleModal({ payment, onClose, onSaved }) {
+  const [scheduledPaymentDate, setScheduledPaymentDate] = useState("");
+  const [paymentMethodLabel, setPaymentMethodLabel] = useState("");
+  const [referenceLabel, setReferenceLabel] = useState("");
+  const [internalNote, setInternalNote] = useState("");
+  const [vendorPaymentNote, setVendorPaymentNote] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!payment) return;
+    setScheduledPaymentDate(payment.scheduled_payment_date || "");
+    setPaymentMethodLabel(payment.payment_method_label || "");
+    setReferenceLabel(payment.reference_label || "");
+    setInternalNote("");
+    setVendorPaymentNote(payment.vendor_payment_note || "");
+    setSubmitting(false);
+    setError("");
+  }, [payment]);
+
+  if (!payment) return null;
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (submitting) return;
+    if (!scheduledPaymentDate) {
+      setError("Choose a scheduled payment date.");
+      return;
+    }
+
+    setSubmitting(true);
+    setError("");
+    try {
+      const result = await scheduleAmcVendorPayment(payment.invoice_key, {
+        scheduled_payment_date: scheduledPaymentDate,
+        payment_method_label: paymentMethodLabel.trim() || null,
+        reference_label: referenceLabel.trim() || null,
+        internal_note: internalNote.trim() || null,
+        vendor_payment_note: vendorPaymentNote.trim() || null,
+      });
+      if (result?.ok === false) {
+        setError(result.field_errors?.scheduled_payment_date || "Payment could not be scheduled.");
+        return;
+      }
+      await onSaved?.(result);
+    } catch {
+      setError("Payment could not be scheduled.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4 py-6">
+      <form onSubmit={handleSubmit} className="w-full max-w-lg rounded-lg bg-white shadow-xl">
+        <div className="border-b border-slate-200 px-5 py-4">
+          <h3 className="text-lg font-semibold text-slate-950">Schedule Vendor Payment</h3>
+          <p className="mt-1 text-sm text-slate-500">
+            {payment.vendor?.company_name || "Vendor"} · {payment.invoice?.invoice_number || "Invoice"}
+          </p>
+        </div>
+        <div className="grid gap-3 px-5 py-4">
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            Scheduled payment date
+            <input
+              type="date"
+              value={scheduledPaymentDate}
+              onChange={(event) => setScheduledPaymentDate(event.target.value)}
+              className="rounded-md border border-slate-200 px-3 py-2 text-sm"
+            />
+          </label>
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            Payment method label
+            <input
+              value={paymentMethodLabel}
+              onChange={(event) => setPaymentMethodLabel(event.target.value)}
+              placeholder="ACH, check, wire"
+              className="rounded-md border border-slate-200 px-3 py-2 text-sm"
+            />
+          </label>
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            Reference / check / ACH note
+            <input
+              value={referenceLabel}
+              onChange={(event) => setReferenceLabel(event.target.value)}
+              placeholder="ACH ending 1234"
+              className="rounded-md border border-slate-200 px-3 py-2 text-sm"
+            />
+          </label>
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            Internal note
+            <textarea
+              value={internalNote}
+              onChange={(event) => setInternalNote(event.target.value)}
+              rows={3}
+              placeholder="Private finance note. Not sent to the vendor."
+              className="rounded-md border border-slate-200 px-3 py-2 text-sm"
+            />
+          </label>
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            Vendor-facing payment note
+            <textarea
+              value={vendorPaymentNote}
+              onChange={(event) => setVendorPaymentNote(event.target.value)}
+              rows={3}
+              placeholder="Safe payment note visible to the vendor."
+              className="rounded-md border border-slate-200 px-3 py-2 text-sm"
+            />
+          </label>
+          {error ? <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">{error}</div> : null}
+        </div>
+        <div className="flex justify-end gap-2 border-t border-slate-200 px-5 py-4">
+          <button type="button" onClick={onClose} className="inline-flex h-9 items-center rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700">
+            Close
+          </button>
+          <button type="submit" disabled={submitting} className="inline-flex h-9 items-center rounded-md border border-slate-950 bg-slate-950 px-3 text-sm font-semibold text-white disabled:opacity-60">
+            {submitting ? "Scheduling..." : "Schedule Payment"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function PaymentPaidModal({ payment, onClose, onSaved }) {
+  const [paidDate, setPaidDate] = useState("");
+  const [paymentMethodLabel, setPaymentMethodLabel] = useState("");
+  const [referenceLabel, setReferenceLabel] = useState("");
+  const [internalNote, setInternalNote] = useState("");
+  const [vendorPaymentNote, setVendorPaymentNote] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!payment) return;
+    setPaidDate("");
+    setPaymentMethodLabel(payment.payment_method_label || "");
+    setReferenceLabel(payment.reference_label || "");
+    setInternalNote("");
+    setVendorPaymentNote(payment.vendor_payment_note || "");
+    setSubmitting(false);
+    setError("");
+  }, [payment]);
+
+  if (!payment) return null;
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
+    setError("");
+    try {
+      const result = await markAmcVendorPaymentPaid(payment.payment_key, {
+        paid_date: paidDate || null,
+        payment_method_label: paymentMethodLabel.trim() || null,
+        reference_label: referenceLabel.trim() || null,
+        internal_note: internalNote.trim() || null,
+        vendor_payment_note: vendorPaymentNote.trim() || null,
+      });
+      if (result?.ok === false) {
+        setError(result.field_errors?.paid_date || "Payment could not be marked paid.");
+        return;
+      }
+      await onSaved?.(result);
+    } catch {
+      setError("Payment could not be marked paid.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4 py-6">
+      <form onSubmit={handleSubmit} className="w-full max-w-lg rounded-lg bg-white shadow-xl">
+        <div className="border-b border-slate-200 px-5 py-4">
+          <h3 className="text-lg font-semibold text-slate-950">Mark Vendor Payment Paid</h3>
+          <p className="mt-1 text-sm text-slate-500">
+            {payment.vendor?.company_name || "Vendor"} · {payment.invoice?.invoice_number || "Invoice"}
+          </p>
+        </div>
+        <div className="grid gap-3 px-5 py-4">
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            Paid date
+            <input type="date" value={paidDate} onChange={(event) => setPaidDate(event.target.value)} className="rounded-md border border-slate-200 px-3 py-2 text-sm" />
+          </label>
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            Payment method label
+            <input value={paymentMethodLabel} onChange={(event) => setPaymentMethodLabel(event.target.value)} className="rounded-md border border-slate-200 px-3 py-2 text-sm" />
+          </label>
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            Reference / check / ACH note
+            <input value={referenceLabel} onChange={(event) => setReferenceLabel(event.target.value)} className="rounded-md border border-slate-200 px-3 py-2 text-sm" />
+          </label>
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            Internal note
+            <textarea value={internalNote} onChange={(event) => setInternalNote(event.target.value)} rows={3} placeholder="Private finance note. Not sent to the vendor." className="rounded-md border border-slate-200 px-3 py-2 text-sm" />
+          </label>
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            Vendor-facing payment note
+            <textarea value={vendorPaymentNote} onChange={(event) => setVendorPaymentNote(event.target.value)} rows={3} placeholder="Safe payment note visible to the vendor." className="rounded-md border border-slate-200 px-3 py-2 text-sm" />
+          </label>
+          {error ? <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">{error}</div> : null}
+        </div>
+        <div className="flex justify-end gap-2 border-t border-slate-200 px-5 py-4">
+          <button type="button" onClick={onClose} className="inline-flex h-9 items-center rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700">
+            Close
+          </button>
+          <button type="submit" disabled={submitting} className="inline-flex h-9 items-center rounded-md border border-slate-950 bg-slate-950 px-3 text-sm font-semibold text-white disabled:opacity-60">
+            {submitting ? "Saving..." : "Mark Paid"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function VendorInvoiceReviewQueue({ enabled }) {
+  const [statusFilter, setStatusFilter] = useState("invoice_received");
+  const [invoices, setInvoices] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [openingDocumentId, setOpeningDocumentId] = useState(null);
+  const [documentError, setDocumentError] = useState("");
+
+  const loadInvoices = useCallback(async () => {
+    if (!enabled) return;
+    setLoading(true);
+    setError("");
+    try {
+      const rows = await listAmcVendorInvoices({ status: statusFilter });
+      setInvoices(Array.isArray(rows) ? rows : []);
+    } catch (loadError) {
+      console.debug("Vendor invoice queue failed to load", {
+        code: loadError?.code,
+        message: loadError?.message,
+      });
+      setInvoices([]);
+      setError("Vendor invoices could not load.");
+    } finally {
+      setLoading(false);
+    }
+  }, [enabled, statusFilter]);
+
+  useEffect(() => {
+    loadInvoices();
+  }, [loadInvoices]);
+
+  if (!enabled) return null;
+
+  async function handleOpenDocument(document) {
+    if (!document?.document_id) {
+      setDocumentError("This invoice document cannot be opened right now.");
+      return;
+    }
+
+    setOpeningDocumentId(document.document_id);
+    setDocumentError("");
+    try {
+      const result = await createOrderDocumentDownloadUrl(document.document_id);
+      window.open(result.signed_url, "_blank", "noopener,noreferrer");
+    } catch {
+      setDocumentError("This invoice document cannot be opened right now.");
+    } finally {
+      setOpeningDocumentId(null);
+    }
+  }
+
+  const handleReviewed = async (invoice) => {
+    setSelectedInvoice(null);
+    setSuccessMessage(
+      invoice?.invoice_status === "approved"
+        ? "Invoice approved."
+        : invoice?.invoice_status === "on_hold"
+          ? "Invoice placed on hold."
+          : "Invoice rejected.",
+    );
+    await loadInvoices();
+  };
+
+  return (
+    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm" aria-label="Vendor invoice review queue">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Finance Review</div>
+          <h2 className="mt-1 text-lg font-semibold text-slate-950">Vendor Invoice Review</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Approve, hold, or reject submitted vendor invoices before payment scheduling.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <label>
+            <span className="sr-only">Invoice status</span>
+            <select
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value)}
+              className="h-8 rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-700"
+            >
+              {INVOICE_STATUS_FILTERS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            onClick={loadInvoices}
+            className="inline-flex h-8 items-center rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      {successMessage ? (
+        <div className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+          {successMessage}
+        </div>
+      ) : null}
+      {(error || documentError) ? (
+        <div className="mt-3 flex gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>{error || documentError}</span>
+        </div>
+      ) : null}
+
+      {loading ? (
+        <div className="mt-3 text-sm text-slate-500">Loading vendor invoices...</div>
+      ) : invoices.length === 0 ? (
+        <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-500">
+          No vendor invoices match this status.
+        </div>
+      ) : (
+        <div className="mt-3 grid gap-2">
+          {invoices.map((invoice) => {
+            const documents = Array.isArray(invoice.documents) ? invoice.documents : [];
+            return (
+              <article
+                key={invoice.invoice_key}
+                className="grid gap-3 rounded-md border border-slate-200 px-3 py-3 lg:grid-cols-[1.2fr_0.8fr_auto]"
+              >
+                <div className="min-w-0">
+                  <div className="font-semibold text-slate-950">{invoice.vendor?.company_name || "Vendor"}</div>
+                  <div className="mt-1 text-sm text-slate-500">
+                    {invoice.invoice_number || "Invoice pending"} · {formatMoney(invoice.invoice_amount, invoice.currency)}
+                  </div>
+                  <div className="mt-1 text-sm text-slate-600">
+                    {invoice.order?.property_address || "Property pending"} · {invoice.order?.order_number || "Order pending"}
+                  </div>
+                </div>
+                <div className="text-sm text-slate-600">
+                  <div>{invoice.invoice_status_label || formatStatus(invoice.invoice_status)}</div>
+                  <div className="mt-1">Submitted {formatDateTime(invoice.submitted_at)}</div>
+                  {documents.length ? (
+                    <button
+                      type="button"
+                      onClick={() => handleOpenDocument(documents[0])}
+                      disabled={openingDocumentId === documents[0]?.document_id}
+                      className="mt-2 inline-flex h-8 items-center rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                    >
+                      {openingDocumentId === documents[0]?.document_id ? "Opening..." : "Open Invoice"}
+                    </button>
+                  ) : (
+                    <div className="mt-2 text-xs text-slate-500">No invoice document available.</div>
+                  )}
+                </div>
+                <div className="flex items-start justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedInvoice(invoice)}
+                    className="inline-flex h-8 items-center rounded-md border border-slate-950 bg-slate-950 px-3 text-sm font-semibold text-white hover:bg-slate-800"
+                  >
+                    Review
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
+
+      <InvoiceReviewModal
+        invoice={selectedInvoice}
+        onClose={() => setSelectedInvoice(null)}
+        onReviewed={handleReviewed}
+      />
+    </section>
+  );
+}
+
+function VendorPaymentLedgerQueue({ enabled }) {
+  const [statusFilter, setStatusFilter] = useState("approved");
+  const [payments, setPayments] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [schedulePayment, setSchedulePayment] = useState(null);
+  const [paidPayment, setPaidPayment] = useState(null);
+
+  const loadPayments = useCallback(async () => {
+    if (!enabled) return;
+    setLoading(true);
+    setError("");
+    try {
+      const rows = await listAmcVendorPaymentLedger({ status: statusFilter });
+      setPayments(Array.isArray(rows) ? rows : []);
+    } catch (loadError) {
+      console.debug("Vendor payment ledger failed to load", {
+        code: loadError?.code,
+        message: loadError?.message,
+      });
+      setPayments([]);
+      setError("Vendor payments could not load.");
+    } finally {
+      setLoading(false);
+    }
+  }, [enabled, statusFilter]);
+
+  useEffect(() => {
+    loadPayments();
+  }, [loadPayments]);
+
+  if (!enabled) return null;
+
+  const handleSaved = async (message) => {
+    setSchedulePayment(null);
+    setPaidPayment(null);
+    setSuccessMessage(message);
+    await loadPayments();
+  };
+
+  return (
+    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm" aria-label="Vendor payment ledger queue">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Finance Ledger</div>
+          <h2 className="mt-1 text-lg font-semibold text-slate-950">Vendor Payment Ledger</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Schedule approved vendor invoices and mark scheduled payments paid. No bank transfer is initiated.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <label>
+            <span className="sr-only">Payment status</span>
+            <select
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value)}
+              className="h-8 rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-700"
+            >
+              {PAYMENT_LEDGER_STATUS_FILTERS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            onClick={loadPayments}
+            className="inline-flex h-8 items-center rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      {successMessage ? (
+        <div className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+          {successMessage}
+        </div>
+      ) : null}
+      {error ? (
+        <div className="mt-3 flex gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>{error}</span>
+        </div>
+      ) : null}
+
+      {loading ? (
+        <div className="mt-3 text-sm text-slate-500">Loading vendor payments...</div>
+      ) : payments.length === 0 ? (
+        <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-500">
+          No vendor payments match this status.
+        </div>
+      ) : (
+        <div className="mt-3 grid gap-2">
+          {payments.map((payment) => (
+            <article
+              key={payment.payment_key || payment.invoice_key}
+              className="grid gap-3 rounded-md border border-slate-200 px-3 py-3 lg:grid-cols-[1.2fr_0.8fr_auto]"
+            >
+              <div className="min-w-0">
+                <div className="font-semibold text-slate-950">{payment.vendor?.company_name || "Vendor"}</div>
+                <div className="mt-1 text-sm text-slate-500">
+                  {payment.invoice?.invoice_number || "Invoice"} · {formatMoney(payment.invoice?.approved_amount || payment.invoice?.invoice_amount, payment.invoice?.currency)}
+                </div>
+                <div className="mt-1 text-sm text-slate-600">
+                  {payment.order?.property_address || "Property pending"} · {payment.order?.order_number || "Order pending"}
+                </div>
+              </div>
+              <div className="text-sm text-slate-600">
+                <div>{payment.payment_status_label || formatStatus(payment.payment_status)}</div>
+                <div className="mt-1">Scheduled {formatDateTime(payment.scheduled_payment_date)}</div>
+                <div className="mt-1">Paid {formatDateTime(payment.paid_at)}</div>
+                {payment.reference_label ? <div className="mt-1">{payment.reference_label}</div> : null}
+              </div>
+              <div className="flex items-start justify-end gap-2">
+                {payment.payment_status === "approved" ? (
+                  <button
+                    type="button"
+                    onClick={() => setSchedulePayment(payment)}
+                    className="inline-flex h-8 items-center rounded-md border border-slate-950 bg-slate-950 px-3 text-sm font-semibold text-white hover:bg-slate-800"
+                  >
+                    Schedule Payment
+                  </button>
+                ) : null}
+                {payment.payment_status === "scheduled" && payment.payment_key ? (
+                  <button
+                    type="button"
+                    onClick={() => setPaidPayment(payment)}
+                    className="inline-flex h-8 items-center rounded-md border border-slate-950 bg-slate-950 px-3 text-sm font-semibold text-white hover:bg-slate-800"
+                  >
+                    Mark Paid
+                  </button>
+                ) : null}
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+
+      <PaymentScheduleModal
+        payment={schedulePayment}
+        onClose={() => setSchedulePayment(null)}
+        onSaved={() => handleSaved("Vendor payment scheduled.")}
+      />
+      <PaymentPaidModal
+        payment={paidPayment}
+        onClose={() => setPaidPayment(null)}
+        onSaved={() => handleSaved("Vendor payment marked paid.")}
+      />
+    </section>
   );
 }
 
@@ -487,6 +1505,9 @@ function VendorDirectoryRow({ vendor }) {
 export default function VendorDirectoryPage() {
   const navigate = useNavigate();
   const canCreateVendor = useCan(PERMISSIONS.VENDORS_CREATE);
+  const canReviewProfileRequests = useCan(PERMISSIONS.VENDORS_UPDATE);
+  const canReadVendors = useCan(PERMISSIONS.VENDORS_READ);
+  const canReviewInvoices = useCan(PERMISSIONS.BILLING_UPDATE);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("");
   const [vendors, setVendors] = useState([]);
@@ -543,6 +1564,10 @@ export default function VendorDirectoryPage() {
           </button>
         )}
       </div>
+
+      <VendorProfileUpdateReviewQueue enabled={canReviewProfileRequests.allowed} />
+      <VendorInvoiceReviewQueue enabled={canReadVendors.allowed && canReviewInvoices.allowed} />
+      <VendorPaymentLedgerQueue enabled={canReadVendors.allowed && canReviewInvoices.allowed} />
 
       <div className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
         <label className="relative min-w-[240px] flex-1">

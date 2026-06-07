@@ -50,7 +50,7 @@ describe('AMC vendor bid invitation submit RPC migration', () => {
   it('normalizes and hashes the incoming token with a constant lifecycle failure response', () => {
     expect(migrationSql).toContain("v_token text := lower(btrim(coalesce(p_token, '')))");
     expect(migrationSql).toContain("v_token !~ '^[0-9a-f]{64}$'");
-    expect(migrationSql).toContain("v_token_hash := encode(digest(v_token, 'sha256'), 'hex')");
+    expect(migrationSql).toContain("v_token_hash := encode(extensions.digest(v_token, 'sha256'), 'hex')");
     expect(migrationSql).toContain("'ok', false");
     expect(migrationSql).toContain("'error', 'bid_invitation_invalid_or_expired'");
     expect(migrationSql).toContain('return v_failure');

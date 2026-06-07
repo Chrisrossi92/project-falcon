@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { CheckCircle2, Play, Send, XCircle } from "lucide-react";
+import { CheckCircle2, FilePenLine, Play, Send, XCircle } from "lucide-react";
 
 import {
   acceptAssignment,
   cancelAssignment,
   completeAssignment,
   declineAssignment,
+  requestVendorAssignmentRevision,
   revokeAssignment,
   startAssignment,
   submitAssignment,
@@ -57,6 +58,71 @@ function ActionModal({
           </ActionButton>
           <ActionButton variant={destructive ? "danger" : "primary"} disabled={disableConfirm} onClick={onConfirm}>
             {busy ? "Working..." : confirmLabel}
+          </ActionButton>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RevisionRequestModal({
+  open,
+  instructions,
+  dueAt,
+  onInstructionsChange,
+  onDueAtChange,
+  onCancel,
+  onConfirm,
+  busy,
+}) {
+  if (!open) return null;
+  const trimmedInstructions = String(instructions || "").trim();
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+      <div className="w-full max-w-lg rounded-lg border border-slate-200 bg-white shadow-xl">
+        <div className="border-b border-slate-200 px-4 py-3">
+          <h2 className="text-base font-semibold text-slate-950">Request revision</h2>
+          <p className="mt-1 text-sm leading-6 text-slate-600">
+            Send vendor-facing revision instructions for this submitted assignment. The prior report submission remains preserved.
+          </p>
+        </div>
+        <div className="space-y-3 px-4 py-3">
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400" htmlFor="assignment-revision-instructions">
+              Vendor-facing instructions
+            </label>
+            <textarea
+              id="assignment-revision-instructions"
+              value={instructions}
+              onChange={(event) => onInstructionsChange?.(event.target.value)}
+              rows={5}
+              className="mt-2 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+              placeholder="Describe the correction or supplemental report work needed."
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400" htmlFor="assignment-revision-due-at">
+              Revision due date
+            </label>
+            <input
+              id="assignment-revision-due-at"
+              type="datetime-local"
+              value={dueAt}
+              onChange={(event) => onDueAtChange?.(event.target.value)}
+              className="mt-2 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+            />
+          </div>
+          <p className="text-xs leading-5 text-slate-500">
+            Internal notes are not included in this workflow yet because vendor notifications share the revision payload.
+          </p>
+        </div>
+        <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3">
+          <ActionButton variant="secondary" disabled={busy} onClick={onCancel}>
+            Cancel
+          </ActionButton>
+          <ActionButton disabled={Boolean(busy) || !trimmedInstructions} onClick={onConfirm}>
+            {busy ? "Requesting..." : "Request Revision"}
           </ActionButton>
         </div>
       </div>
@@ -228,6 +294,8 @@ export function OwnerAssignmentActions({ assignmentId, status, onChanged }) {
   const [error, setError] = useState(null);
   const [modal, setModal] = useState(null);
   const [reason, setReason] = useState("");
+  const [revisionInstructions, setRevisionInstructions] = useState("");
+  const [revisionDueAt, setRevisionDueAt] = useState("");
 
   async function run(action, fn) {
     setBusy(action);
@@ -245,13 +313,16 @@ export function OwnerAssignmentActions({ assignmentId, status, onChanged }) {
   }
 
   const canComplete = status === "submitted";
+  const canRequestRevision = status === "submitted";
   const canCancel = ["offered", "accepted", "in_progress", "submitted"].includes(status);
   const canRevoke = status === "offered";
-  const hasActions = canComplete || canCancel || canRevoke;
+  const hasActions = canComplete || canRequestRevision || canCancel || canRevoke;
 
   function closeModal() {
     setModal(null);
     setReason("");
+    setRevisionInstructions("");
+    setRevisionDueAt("");
   }
 
   return (
@@ -267,6 +338,16 @@ export function OwnerAssignmentActions({ assignmentId, status, onChanged }) {
             onClick={() => setModal("complete")}
           >
             Complete
+          </ActionButton>
+        )}
+        {canRequestRevision && (
+          <ActionButton
+            icon={FilePenLine}
+            variant="secondary"
+            disabled={Boolean(busy)}
+            onClick={() => setModal("revision")}
+          >
+            Request Revision
           </ActionButton>
         )}
         {canCancel && (
@@ -297,6 +378,23 @@ export function OwnerAssignmentActions({ assignmentId, status, onChanged }) {
         busy={busy === "complete"}
         onCancel={closeModal}
         onConfirm={() => run("complete", () => completeAssignment(assignmentId, "")).then((success) => success && closeModal())}
+      />
+      <RevisionRequestModal
+        open={modal === "revision"}
+        instructions={revisionInstructions}
+        dueAt={revisionDueAt}
+        onInstructionsChange={setRevisionInstructions}
+        onDueAtChange={setRevisionDueAt}
+        busy={busy === "revision"}
+        onCancel={closeModal}
+        onConfirm={() =>
+          run("revision", () =>
+            requestVendorAssignmentRevision(assignmentId, {
+              revision_instructions: revisionInstructions.trim(),
+              revision_due_at: revisionDueAt || null,
+            })
+          ).then((success) => success && closeModal())
+        }
       />
       <ActionModal
         open={modal === "cancel"}

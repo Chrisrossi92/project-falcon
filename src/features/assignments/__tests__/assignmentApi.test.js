@@ -11,6 +11,7 @@ vi.mock("@/lib/supabaseClient", () => ({
 
 const {
   acceptAssignment,
+  addVendorAssignmentInternalNote,
   cancelAssignment,
   completeAssignment,
   createOrderCompanyAssignmentInvitation,
@@ -22,6 +23,8 @@ const {
   readOrderCompanyAssignmentWorkInvitation,
   respondOrderCompanyAssignmentInvitation,
   respondOrderCompanyAssignmentWorkInvitation,
+  listVendorAssignmentInternalNotes,
+  requestVendorAssignmentRevision,
   revokeAssignment,
   startAssignment,
   submitAssignment,
@@ -462,6 +465,9 @@ describe("assignment packet API mutations", () => {
     ["startAssignment", () => startAssignment("assignment-1"), "rpc_order_company_assignment_start", { p_assignment_id: "assignment-1" }],
     ["submitAssignment", () => submitAssignment("assignment-1", { note: "Submitted" }), "rpc_order_company_assignment_submit", { p_assignment_id: "assignment-1", p_submission_payload: { note: "Submitted" } }],
     ["completeAssignment", () => completeAssignment("assignment-1", "Accepted"), "rpc_order_company_assignment_complete", { p_assignment_id: "assignment-1", p_completion_note: "Accepted" }],
+    ["requestVendorAssignmentRevision", () => requestVendorAssignmentRevision("assignment-1", { revision_instructions: "Fix the report.", revision_due_at: "2026-06-08T17:00" }), "rpc_amc_request_vendor_assignment_revision", { p_assignment_id: "assignment-1", p_payload: { revision_instructions: "Fix the report.", revision_due_at: "2026-06-08T17:00" } }],
+    ["listVendorAssignmentInternalNotes", () => listVendorAssignmentInternalNotes("assignment-1"), "rpc_amc_vendor_assignment_internal_notes", { p_assignment_id: "assignment-1" }],
+    ["addVendorAssignmentInternalNote", () => addVendorAssignmentInternalNote("assignment-1", { note_text: "Coordinator-only note.", note_context: "review" }), "rpc_amc_add_vendor_assignment_internal_note", { p_assignment_id: "assignment-1", p_payload: { note_text: "Coordinator-only note.", note_context: "review" } }],
     ["cancelAssignment", () => cancelAssignment("assignment-1", "No longer needed"), "rpc_order_company_assignment_cancel", { p_assignment_id: "assignment-1", p_reason: "No longer needed" }],
     ["revokeAssignment", () => revokeAssignment("assignment-1", "Offer expired"), "rpc_order_company_assignment_revoke", { p_assignment_id: "assignment-1", p_reason: "Offer expired" }],
   ])("routes %s through its backend assignment packet RPC", async (_name, action, rpcName, args) => {

@@ -1,10 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Copy, ExternalLink, Link2, Mail } from "lucide-react";
+import { Copy, ExternalLink, Link2, Mail, Plus } from "lucide-react";
 
+import { useEffectivePermissions } from "@/lib/hooks/usePermissions";
 import {
+  addVendorAssignmentInternalNote,
   createOrderCompanyAssignmentInvitation,
   createOrderCompanyAssignmentWorkInvitation,
+  listVendorAssignmentInternalNotes,
 } from "./api";
 import { OwnerAssignmentActions } from "./AssignmentActions";
 import {
@@ -79,6 +82,43 @@ function canGenerateAssignmentWorkInvitation(packet) {
     Boolean(normalizedAssignmentId(packet)) &&
     normalizedAssignmentType(packet) === "vendor_appraisal" &&
     ["accepted", "in_progress"].includes(normalizedAssignmentStatus(packet))
+  );
+}
+
+function revisionFromPacket(packet) {
+  const revision = packet?.submission_payload?.revision;
+  return revision && typeof revision === "object" ? revision : null;
+}
+
+function RevisionRequestSummary({ revision }) {
+  if (!revision) return null;
+
+  const instructions = revision.instructions || revision.summary || revision.note || "";
+
+  return (
+    <section className="rounded-lg border border-amber-200 bg-amber-50 p-4 shadow-sm" aria-label="Revision request summary">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-amber-950">Revision requested</h2>
+          <p className="mt-1 text-sm leading-6 text-amber-900">
+            Vendor-facing revision instructions are active for this assignment.
+          </p>
+        </div>
+        <div className="text-sm text-amber-900 sm:text-right">
+          <div>
+            <span className="font-semibold">Requested:</span> {formatDateTime(revision.requested_at)}
+          </div>
+          <div>
+            <span className="font-semibold">Due:</span> {formatDateTime(revision.due_at)}
+          </div>
+        </div>
+      </div>
+      {instructions && (
+        <p className="mt-3 whitespace-pre-wrap rounded-md border border-amber-200 bg-white/70 px-3 py-2 text-sm leading-6 text-amber-950">
+          {instructions}
+        </p>
+      )}
+    </section>
   );
 }
 
@@ -304,10 +344,164 @@ function AssignmentWorkInvitationPanel({ packet }) {
   );
 }
 
+const INTERNAL_NOTE_CONTEXTS = [
+  { value: "review", label: "Review" },
+  { value: "revision", label: "Revision" },
+  { value: "completion", label: "Completion" },
+  { value: "general", label: "General" },
+];
+
+function InternalNotesPanel({ assignmentId }) {
+  const { hasPermission } = useEffectivePermissions();
+  const canAddInternalNote = hasPermission("order_company_assignments.complete");
+  const [notes, setNotes] = useState([]);
+  const [noteText, setNoteText] = useState("");
+  const [noteContext, setNoteContext] = useState("review");
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadNotes() {
+      if (!assignmentId) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const result = await listVendorAssignmentInternalNotes(assignmentId);
+        if (!cancelled) {
+          setNotes(Array.isArray(result?.items) ? result.items : []);
+        }
+      } catch (err) {
+        if (!cancelled) setError(err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    loadNotes();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [assignmentId]);
+
+  async function saveNote(event) {
+    event.preventDefault();
+    setSaving(true);
+    setError(null);
+    setFieldErrors({});
+    setMessage("");
+
+    try {
+      const result = await addVendorAssignmentInternalNote(assignmentId, {
+        note_text: noteText,
+        note_context: noteContext,
+      });
+
+      if (result?.ok === false) {
+        setFieldErrors(result.field_errors || {});
+        setError(new Error("Internal note could not be saved."));
+        return;
+      }
+
+      setNoteText("");
+      setNoteContext("review");
+      setMessage(result?.message || "Internal note saved.");
+      const refreshed = await listVendorAssignmentInternalNotes(assignmentId);
+      setNotes(Array.isArray(refreshed?.items) ? refreshed.items : []);
+    } catch (err) {
+      setError(err);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm" aria-label="Internal coordinator notes">
+      <div>
+        <h2 className="text-sm font-semibold text-slate-950">Internal coordinator notes</h2>
+        <p className="mt-1 text-sm leading-6 text-slate-500">
+          Private AMC/internal notes for review and revision decisions. These are not sent to vendors.
+        </p>
+      </div>
+
+      {canAddInternalNote ? (
+        <form className="mt-4 space-y-3" onSubmit={saveNote}>
+          <div className="grid gap-3 md:grid-cols-[180px_1fr]">
+            <label className="block text-sm font-medium text-slate-700">
+              Context
+              <select
+                className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                value={noteContext}
+                onChange={(event) => setNoteContext(event.target.value)}
+                disabled={saving}
+              >
+                {INTERNAL_NOTE_CONTEXTS.map((context) => (
+                  <option key={context.value} value={context.value}>
+                    {context.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block text-sm font-medium text-slate-700">
+              Internal note
+              <textarea
+                className="mt-1 min-h-24 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                value={noteText}
+                onChange={(event) => setNoteText(event.target.value)}
+                maxLength={4000}
+                disabled={saving}
+                placeholder="Add coordinator-only reasoning, review context, or revision notes."
+              />
+            </label>
+          </div>
+          {fieldErrors.note_context && <p className="text-sm text-rose-600">{fieldErrors.note_context}</p>}
+          {fieldErrors.note_text && <p className="text-sm text-rose-600">{fieldErrors.note_text}</p>}
+          <div className="flex flex-wrap items-center gap-3">
+            <ActionButton icon={Plus} type="submit" disabled={saving || !noteText.trim()}>
+              {saving ? "Saving..." : "Add Internal Note"}
+            </ActionButton>
+            {message && <p role="status" className="text-sm font-medium text-slate-600">{message}</p>}
+          </div>
+          {error && <p className="text-sm text-rose-600">{error.message || "Internal notes are unavailable."}</p>}
+        </form>
+      ) : (
+        <p className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
+          You can review internal notes, but adding notes requires vendor assignment review authority.
+        </p>
+      )}
+
+      <div className="mt-4 space-y-2">
+        {loading && <p className="text-sm text-slate-500">Loading internal notes...</p>}
+        {!loading && notes.length === 0 && (
+          <p className="rounded-md border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-500">
+            No internal notes yet.
+          </p>
+        )}
+        {notes.map((note) => (
+          <article key={note.note_key || `${note.created_at}-${note.note_text}`} className="rounded-md border border-slate-200 bg-slate-50 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <span>{humanize(note.note_context || "review")}</span>
+              <span>{formatDateTime(note.created_at)}</span>
+            </div>
+            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-800">{note.note_text}</p>
+            {note.author_name && <p className="mt-2 text-xs text-slate-500">By {note.author_name}</p>}
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default function OwnerAssignmentPacket({ packet, onChanged }) {
   const showAssignmentInvitationEntry = canGenerateAssignmentInvitation(packet);
   const assignmentId = normalizedAssignmentId(packet);
   const assignmentStatus = packet.assignment_status || packet.status;
+  const revision = revisionFromPacket(packet);
   const activityRefreshKey = [
     assignmentStatus,
     packet.offered_at,
@@ -362,6 +556,7 @@ export default function OwnerAssignmentPacket({ packet, onChanged }) {
       />
 
       <TerminalState status={assignmentStatus} />
+      <RevisionRequestSummary revision={revision} />
       <AssignmentInvitationPanel packet={packet} />
       <AssignmentWorkInvitationPanel packet={packet} />
 
@@ -385,6 +580,7 @@ export default function OwnerAssignmentPacket({ packet, onChanged }) {
       <JsonSummary title="Handoff" section="handoff" value={packet.handoff_payload} />
       <JsonSummary title="Submission" section="submission" value={packet.submission_payload} />
       <JsonSummary title="Compliance" section="compliance" value={packet.compliance_snapshot} />
+      {assignmentId && <InternalNotesPanel assignmentId={assignmentId} />}
       <AssignmentActivityTimeline assignmentId={assignmentId} refreshKey={activityRefreshKey} />
     </div>
   );

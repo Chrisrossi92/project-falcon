@@ -3,6 +3,7 @@ export const ASSIGNMENT_STATUSES = [
   "accepted",
   "in_progress",
   "submitted",
+  "revision_requested",
   "completed",
   "declined",
   "cancelled",
@@ -42,6 +43,7 @@ export function statusClass(status) {
   if (key === "accepted") return "border-amber-200 bg-amber-50 text-amber-700";
   if (key === "in_progress") return "border-indigo-200 bg-indigo-50 text-indigo-700";
   if (key === "submitted") return "border-purple-200 bg-purple-50 text-purple-700";
+  if (key === "revision_requested") return "border-amber-200 bg-amber-50 text-amber-800";
   if (key === "completed") return "border-emerald-200 bg-emerald-50 text-emerald-700";
   if (["declined", "cancelled", "revoked"].includes(key)) return "border-slate-200 bg-slate-100 text-slate-600";
   return "border-slate-200 bg-white text-slate-600";
@@ -52,7 +54,7 @@ export function isTerminalStatus(status) {
 }
 
 export function isActionableOwnerStatus(status) {
-  return ["offered", "accepted", "in_progress", "submitted"].includes(String(status || "").toLowerCase());
+  return ["offered", "accepted", "in_progress", "submitted", "revision_requested"].includes(String(status || "").toLowerCase());
 }
 
 export function isActionableAssignedStatus(status) {
@@ -113,6 +115,9 @@ const PAYLOAD_FIELD_ALLOWLISTS = Object.freeze({
     "deliverables",
     "attachments",
     "summary",
+    "revision",
+    "resubmission",
+    "document_keys",
   ]),
   compliance: new Set([
     "status",
@@ -157,6 +162,7 @@ export function timelineFromAssignment(packet) {
     ["Accepted", packet?.accepted_at],
     ["Started", packet?.started_at],
     ["Submitted", packet?.submitted_at],
+    ["Revision Requested", packet?.revision_requested_at || packet?.submission_payload?.revision?.requested_at],
     ["Completed", packet?.completed_at],
     ["Declined", packet?.declined_at],
     ["Cancelled", packet?.cancelled_at],

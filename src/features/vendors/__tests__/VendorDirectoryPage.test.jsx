@@ -7,6 +7,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const vendorApiState = vi.hoisted(() => ({
   listVendorDirectory: vi.fn(),
   createVendorProfile: vi.fn(),
+  listAmcVendorInvoices: vi.fn(),
+  listAmcVendorPaymentLedger: vi.fn(),
+  listVendorProfileUpdateRequests: vi.fn(),
+  markAmcVendorPaymentPaid: vi.fn(),
+  reviewAmcVendorInvoice: vi.fn(),
+  reviewVendorProfileUpdateRequest: vi.fn(),
+  scheduleAmcVendorPayment: vi.fn(),
+}));
+
+const orderDocumentApiState = vi.hoisted(() => ({
+  createOrderDocumentDownloadUrl: vi.fn(),
 }));
 
 const permissionState = vi.hoisted(() => ({
@@ -20,6 +31,17 @@ const routeState = vi.hoisted(() => ({
 vi.mock("../api", () => ({
   listVendorDirectory: vendorApiState.listVendorDirectory,
   createVendorProfile: vendorApiState.createVendorProfile,
+  listAmcVendorInvoices: vendorApiState.listAmcVendorInvoices,
+  listAmcVendorPaymentLedger: vendorApiState.listAmcVendorPaymentLedger,
+  listVendorProfileUpdateRequests: vendorApiState.listVendorProfileUpdateRequests,
+  markAmcVendorPaymentPaid: vendorApiState.markAmcVendorPaymentPaid,
+  reviewAmcVendorInvoice: vendorApiState.reviewAmcVendorInvoice,
+  reviewVendorProfileUpdateRequest: vendorApiState.reviewVendorProfileUpdateRequest,
+  scheduleAmcVendorPayment: vendorApiState.scheduleAmcVendorPayment,
+}));
+
+vi.mock("@/features/order-documents/api.js", () => ({
+  createOrderDocumentDownloadUrl: orderDocumentApiState.createOrderDocumentDownloadUrl,
 }));
 
 vi.mock("@/lib/hooks/usePermissions", () => ({
@@ -78,12 +100,27 @@ describe("VendorDirectoryPage", () => {
   beforeEach(() => {
     vendorApiState.listVendorDirectory.mockReset();
     vendorApiState.createVendorProfile.mockReset();
+    vendorApiState.listAmcVendorInvoices.mockReset();
+    vendorApiState.listAmcVendorInvoices.mockResolvedValue([]);
+    vendorApiState.listAmcVendorPaymentLedger.mockReset();
+    vendorApiState.listAmcVendorPaymentLedger.mockResolvedValue([]);
+    vendorApiState.listVendorProfileUpdateRequests.mockReset();
+    vendorApiState.markAmcVendorPaymentPaid.mockReset();
+    vendorApiState.reviewAmcVendorInvoice.mockReset();
+    vendorApiState.reviewVendorProfileUpdateRequest.mockReset();
+    vendorApiState.scheduleAmcVendorPayment.mockReset();
+    orderDocumentApiState.createOrderDocumentDownloadUrl.mockReset();
+    orderDocumentApiState.createOrderDocumentDownloadUrl.mockResolvedValue({
+      signed_url: "https://example.test/invoice-download",
+    });
+    vi.spyOn(window, "open").mockImplementation(() => null);
     permissionState.allowed = new Set();
     routeState.navigate.mockReset();
   });
 
   afterEach(() => {
     cleanup();
+    vi.restoreAllMocks();
   });
 
   it("renders loading and populated Vendor Directory states", async () => {
@@ -133,6 +170,369 @@ describe("VendorDirectoryPage", () => {
     renderPage();
 
     expect(await screen.findByText("No vendors found.")).toBeInTheDocument();
+  });
+
+  it("shows pending Vendor Profile update requests to users with vendor update permission", async () => {
+    permissionState.allowed = new Set(["vendors.update"]);
+    vendorApiState.listVendorDirectory.mockResolvedValue([]);
+    vendorApiState.listVendorProfileUpdateRequests.mockResolvedValue([
+      {
+        request_key: "request-key-1",
+        vendor_company_name: "ABC Valuation",
+        status: "pending",
+        submitted_at: "2026-06-05T12:00:00.000Z",
+        current_snapshot: {
+          company: { public_phone: "614-555-0100" },
+        },
+        proposed_changes: {
+          company_changes: { public_phone: "614-555-0199" },
+          coverage_changes: { counties: ["Franklin, OH"] },
+        },
+      },
+    ]);
+
+    renderPage();
+
+    expect(await screen.findByText("Profile Update Requests")).toBeInTheDocument();
+    expect(screen.getByText("ABC Valuation")).toBeInTheDocument();
+    expect(screen.getByText(/Company Changes/)).toBeInTheDocument();
+    expect(vendorApiState.listVendorProfileUpdateRequests).toHaveBeenCalledWith({ status: "pending" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+
+    expect(await screen.findByRole("heading", { name: /ABC Valuation update request/i })).toBeInTheDocument();
+    expect(screen.getByText("Current")).toBeInTheDocument();
+    expect(screen.getByText("Proposed")).toBeInTheDocument();
+    expect(screen.getAllByText(/614-555-0199/).length).toBeGreaterThan(0);
+  });
+
+  it("approves a pending Vendor Profile update request through the internal review RPC", async () => {
+    permissionState.allowed = new Set(["vendors.update"]);
+    vendorApiState.listVendorDirectory.mockResolvedValue([]);
+    vendorApiState.listVendorProfileUpdateRequests
+      .mockResolvedValueOnce([
+        {
+          request_key: "request-key-1",
+          vendor_company_name: "ABC Valuation",
+          status: "pending",
+          submitted_at: "2026-06-05T12:00:00.000Z",
+          current_snapshot: { company: { public_phone: "614-555-0100" } },
+          proposed_changes: { company_changes: { public_phone: "614-555-0199" } },
+        },
+      ])
+      .mockResolvedValueOnce([]);
+    vendorApiState.reviewVendorProfileUpdateRequest.mockResolvedValue({
+      ok: true,
+      request: { request_key: "request-key-1", status: "approved" },
+    });
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Review" }));
+    fireEvent.change(screen.getByPlaceholderText("Add safe decision context for the vendor."), {
+      target: { value: "Approved for coverage update." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Approve" }));
+
+    await waitFor(() => {
+      expect(vendorApiState.reviewVendorProfileUpdateRequest).toHaveBeenCalledWith("request-key-1", {
+        decision: "approve",
+        reviewer_note: "Approved for coverage update.",
+      });
+    });
+    expect(await screen.findByText("Profile update request approved.")).toBeInTheDocument();
+  });
+
+  it("rejects a pending Vendor Profile update request without using a vendor workspace approval path", async () => {
+    permissionState.allowed = new Set(["vendors.update"]);
+    vendorApiState.listVendorDirectory.mockResolvedValue([]);
+    vendorApiState.listVendorProfileUpdateRequests
+      .mockResolvedValueOnce([
+        {
+          request_key: "request-key-2",
+          vendor_company_name: "Sparse Vendor",
+          status: "pending",
+          submitted_at: "2026-06-05T12:00:00.000Z",
+          current_snapshot: {},
+          proposed_changes: { comments: "Please expand coverage." },
+        },
+      ])
+      .mockResolvedValueOnce([]);
+    vendorApiState.reviewVendorProfileUpdateRequest.mockResolvedValue({
+      ok: true,
+      request: { request_key: "request-key-2", status: "rejected" },
+    });
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Review" }));
+    fireEvent.change(screen.getByPlaceholderText("Add safe decision context for the vendor."), {
+      target: { value: "Coverage request needs more detail." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Reject" }));
+
+    await waitFor(() => {
+      expect(vendorApiState.reviewVendorProfileUpdateRequest).toHaveBeenCalledWith("request-key-2", {
+        decision: "reject",
+        reviewer_note: "Coverage request needs more detail.",
+      });
+    });
+    expect(await screen.findByText("Profile update request rejected.")).toBeInTheDocument();
+  });
+
+  it("shows submitted Vendor Invoices to users with billing review permission", async () => {
+    permissionState.allowed = new Set(["vendors.read", "billing.update"]);
+    vendorApiState.listVendorDirectory.mockResolvedValue([]);
+    vendorApiState.listAmcVendorInvoices.mockResolvedValue([
+      {
+        invoice_key: "invoice-key-1",
+        invoice_status: "invoice_received",
+        invoice_status_label: "Invoice Received",
+        invoice_number: "INV-1001",
+        invoice_amount: 1250,
+        currency: "USD",
+        submitted_at: "2026-06-05T12:00:00.000Z",
+        vendor_note: "Please process.",
+        documents: [{ document_id: "document-id-1", file_name: "invoice.pdf" }],
+        order: { order_number: "AMC-DEMO-003", property_address: "987 Assigned Way", report_type: "Commercial Appraisal" },
+        vendor: { company_name: "ABC Valuation" },
+      },
+    ]);
+
+    renderPage();
+
+    expect(await screen.findByText("Vendor Invoice Review")).toBeInTheDocument();
+    expect(screen.getByText("ABC Valuation")).toBeInTheDocument();
+    expect(screen.getByText(/INV-1001/)).toBeInTheDocument();
+    expect(screen.getByText(/\$1,250\.00/)).toBeInTheDocument();
+    expect(screen.getByText(/987 Assigned Way/)).toBeInTheDocument();
+    expect(vendorApiState.listAmcVendorInvoices).toHaveBeenCalledWith({ status: "invoice_received" });
+  });
+
+  it("opens invoice documents through the internal document access helper", async () => {
+    permissionState.allowed = new Set(["vendors.read", "billing.update"]);
+    vendorApiState.listVendorDirectory.mockResolvedValue([]);
+    vendorApiState.listAmcVendorInvoices.mockResolvedValue([
+      {
+        invoice_key: "invoice-key-1",
+        invoice_status: "invoice_received",
+        invoice_status_label: "Invoice Received",
+        invoice_number: "INV-1001",
+        invoice_amount: 1250,
+        currency: "USD",
+        submitted_at: "2026-06-05T12:00:00.000Z",
+        documents: [{ document_id: "document-id-1", file_name: "invoice.pdf" }],
+        order: { order_number: "AMC-DEMO-003", property_address: "987 Assigned Way" },
+        vendor: { company_name: "ABC Valuation" },
+      },
+    ]);
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Open Invoice" }));
+
+    await waitFor(() => {
+      expect(orderDocumentApiState.createOrderDocumentDownloadUrl).toHaveBeenCalledWith("document-id-1");
+    });
+    expect(window.open).toHaveBeenCalledWith(
+      "https://example.test/invoice-download",
+      "_blank",
+      "noopener,noreferrer",
+    );
+  });
+
+  it("approves a submitted Vendor Invoice through the internal review RPC", async () => {
+    permissionState.allowed = new Set(["vendors.read", "billing.update"]);
+    vendorApiState.listVendorDirectory.mockResolvedValue([]);
+    vendorApiState.listAmcVendorInvoices
+      .mockResolvedValueOnce([
+        {
+          invoice_key: "invoice-key-1",
+          invoice_status: "invoice_received",
+          invoice_status_label: "Invoice Received",
+          invoice_number: "INV-1001",
+          invoice_amount: 1250,
+          currency: "USD",
+          submitted_at: "2026-06-05T12:00:00.000Z",
+          documents: [{ document_id: "document-id-1", file_name: "invoice.pdf" }],
+          order: { order_number: "AMC-DEMO-003", property_address: "987 Assigned Way" },
+          vendor: { company_name: "ABC Valuation" },
+        },
+      ])
+      .mockResolvedValueOnce([]);
+    vendorApiState.reviewAmcVendorInvoice.mockResolvedValue({
+      ok: true,
+      invoice: { invoice_key: "invoice-key-1", invoice_status: "approved" },
+    });
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Review" }));
+    fireEvent.change(screen.getByPlaceholderText("Private internal note. Not sent to the vendor."), {
+      target: { value: "Matches agreed fee." },
+    });
+    fireEvent.change(screen.getByPlaceholderText("1250"), {
+      target: { value: "1250" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save Review" }));
+
+    await waitFor(() => {
+      expect(vendorApiState.reviewAmcVendorInvoice).toHaveBeenCalledWith("invoice-key-1", {
+        decision: "approve",
+        reviewer_note: "Matches agreed fee.",
+        vendor_message: null,
+        approved_amount: 1250,
+      });
+    });
+    expect(await screen.findByText("Invoice approved.")).toBeInTheDocument();
+  });
+
+  it("requires a vendor-facing message before holding or rejecting an invoice", async () => {
+    permissionState.allowed = new Set(["vendors.read", "billing.update"]);
+    vendorApiState.listVendorDirectory.mockResolvedValue([]);
+    vendorApiState.listAmcVendorInvoices.mockResolvedValue([
+      {
+        invoice_key: "invoice-key-1",
+        invoice_status: "invoice_received",
+        invoice_status_label: "Invoice Received",
+        invoice_number: "INV-1001",
+        invoice_amount: 1250,
+        currency: "USD",
+        submitted_at: "2026-06-05T12:00:00.000Z",
+        documents: [],
+        order: { order_number: "AMC-DEMO-003", property_address: "987 Assigned Way" },
+        vendor: { company_name: "ABC Valuation" },
+      },
+    ]);
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Review" }));
+    fireEvent.change(screen.getByLabelText("Decision"), {
+      target: { value: "hold" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save Review" }));
+
+    expect(await screen.findByText("Add a vendor-facing message for held or rejected invoices.")).toBeInTheDocument();
+    expect(vendorApiState.reviewAmcVendorInvoice).not.toHaveBeenCalled();
+  });
+
+  it("schedules an approved vendor invoice from the internal payment ledger queue", async () => {
+    permissionState.allowed = new Set(["vendors.read", "billing.update"]);
+    vendorApiState.listVendorDirectory.mockResolvedValue([]);
+    vendorApiState.listAmcVendorPaymentLedger
+      .mockResolvedValueOnce([
+        {
+          invoice_key: "invoice-key-1",
+          payment_key: null,
+          payment_status: "approved",
+          payment_status_label: "Approved",
+          invoice: {
+            invoice_number: "INV-1001",
+            invoice_amount: 1250,
+            currency: "USD",
+            approved_amount: 1250,
+          },
+          order: { order_number: "AMC-DEMO-003", property_address: "987 Assigned Way" },
+          vendor: { company_name: "ABC Valuation" },
+        },
+      ])
+      .mockResolvedValueOnce([]);
+    vendorApiState.scheduleAmcVendorPayment.mockResolvedValue({
+      ok: true,
+      payment_status: "scheduled",
+      message: "Vendor payment scheduled.",
+    });
+
+    renderPage();
+
+    expect(await screen.findByText("Vendor Payment Ledger")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Schedule Payment" }));
+    fireEvent.change(screen.getByLabelText("Scheduled payment date"), {
+      target: { value: "2026-06-15" },
+    });
+    fireEvent.change(screen.getByLabelText("Payment method label"), {
+      target: { value: "ACH" },
+    });
+    fireEvent.change(screen.getByLabelText("Reference / check / ACH note"), {
+      target: { value: "ACH batch 12" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("Private finance note. Not sent to the vendor."), {
+      target: { value: "Pay with Friday batch." },
+    });
+    fireEvent.change(screen.getByPlaceholderText("Safe payment note visible to the vendor."), {
+      target: { value: "Payment is scheduled for June 15." },
+    });
+    fireEvent.click(screen.getAllByRole("button", { name: "Schedule Payment" })[1]);
+
+    await waitFor(() => {
+      expect(vendorApiState.scheduleAmcVendorPayment).toHaveBeenCalledWith("invoice-key-1", {
+        scheduled_payment_date: "2026-06-15",
+        payment_method_label: "ACH",
+        reference_label: "ACH batch 12",
+        internal_note: "Pay with Friday batch.",
+        vendor_payment_note: "Payment is scheduled for June 15.",
+      });
+    });
+    expect(await screen.findByText("Vendor payment scheduled.")).toBeInTheDocument();
+  });
+
+  it("marks a scheduled vendor payment paid from the internal payment ledger queue", async () => {
+    permissionState.allowed = new Set(["vendors.read", "billing.update"]);
+    vendorApiState.listVendorDirectory.mockResolvedValue([]);
+    vendorApiState.listAmcVendorPaymentLedger
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          invoice_key: "invoice-key-1",
+          payment_key: "payment-key-1",
+          payment_status: "scheduled",
+          payment_status_label: "Scheduled",
+          scheduled_payment_date: "2026-06-15",
+          payment_method_label: "ACH",
+          reference_label: "ACH batch 12",
+          invoice: {
+            invoice_number: "INV-1001",
+            invoice_amount: 1250,
+            currency: "USD",
+          },
+          order: { order_number: "AMC-DEMO-003", property_address: "987 Assigned Way" },
+          vendor: { company_name: "ABC Valuation" },
+        },
+      ])
+      .mockResolvedValueOnce([]);
+    vendorApiState.markAmcVendorPaymentPaid.mockResolvedValue({
+      ok: true,
+      payment_status: "paid",
+      message: "Vendor payment marked paid.",
+    });
+
+    renderPage();
+
+    expect(await screen.findByText("Vendor Payment Ledger")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Payment status"), {
+      target: { value: "scheduled" },
+    });
+    expect(await screen.findByRole("button", { name: "Mark Paid" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Mark Paid" }));
+    fireEvent.change(screen.getByLabelText("Paid date"), {
+      target: { value: "2026-06-16" },
+    });
+    fireEvent.change(screen.getByLabelText("Reference / check / ACH note"), {
+      target: { value: "ACH trace 1234" },
+    });
+    fireEvent.click(screen.getAllByRole("button", { name: "Mark Paid" })[1]);
+
+    await waitFor(() => {
+      expect(vendorApiState.markAmcVendorPaymentPaid).toHaveBeenCalledWith("payment-key-1", {
+        paid_date: "2026-06-16",
+        payment_method_label: "ACH",
+        reference_label: "ACH trace 1234",
+        internal_note: null,
+        vendor_payment_note: null,
+      });
+    });
+    expect(await screen.findByText("Vendor payment marked paid.")).toBeInTheDocument();
   });
 
   it("renders an error state", async () => {

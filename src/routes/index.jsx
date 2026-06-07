@@ -21,6 +21,13 @@ import VendorBidInvitationPage from "@/features/vendorBidInvitations/VendorBidIn
 import Settings from "@/pages/Settings";
 import DashboardGate from "@/features/dashboard/DashboardGate";
 import MyWorkPage from "@/features/dashboard/MyWorkPage";
+import VendorAssignedOrderDetailPage from "@/features/vendorWorkspace/VendorAssignedOrderDetailPage";
+import VendorAssignedOrdersPage from "@/features/vendorWorkspace/VendorAssignedOrdersPage";
+import VendorAvailableWorkDetailPage from "@/features/vendorWorkspace/VendorAvailableWorkDetailPage";
+import VendorAvailableWorkPage from "@/features/vendorWorkspace/VendorAvailableWorkPage";
+import VendorMyBidsPage from "@/features/vendorWorkspace/VendorMyBidsPage";
+import VendorPaymentsPage from "@/features/vendorWorkspace/VendorPaymentsPage";
+import VendorWorkspaceProfilePage from "@/features/vendorWorkspace/VendorProfilePage";
 import VendorWorkspaceDashboard from "@/features/vendorWorkspace/VendorWorkspaceDashboard";
 import Orders from "@/pages/orders/Orders";
 import HistoricalOrders from "@/pages/orders/HistoricalOrders";
@@ -73,6 +80,13 @@ export default function AppRoutes() {
       >
         <Route path="/vendor-workspace" element={<Navigate to="/vendor-workspace/dashboard" replace />} />
         <Route path="/vendor-workspace/dashboard" element={<VendorWorkspaceDashboard />} />
+        <Route path="/vendor-workspace/available-work" element={<VendorAvailableWorkPage />} />
+        <Route path="/vendor-workspace/available-work/:workKey" element={<VendorAvailableWorkDetailPage />} />
+        <Route path="/vendor-workspace/my-bids" element={<VendorMyBidsPage />} />
+        <Route path="/vendor-workspace/assigned-orders" element={<VendorAssignedOrdersPage />} />
+        <Route path="/vendor-workspace/assigned-orders/:assignmentWorkKey" element={<VendorAssignedOrderDetailPage />} />
+        <Route path="/vendor-workspace/payments" element={<VendorPaymentsPage />} />
+        <Route path="/vendor-workspace/profile" element={<VendorWorkspaceProfilePage />} />
       </Route>
 
       {/* Authenticated area */}

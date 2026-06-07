@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
 import { fetchVendorWorkspaceDashboardSummary } from "@/features/vendorWorkspace/api.js";
 
@@ -7,11 +8,13 @@ const dashboardCards = Object.freeze([
     key: "available_work",
     label: "Available Work",
     helper: "Open opportunities awaiting a vendor response.",
+    path: "/vendor-workspace/available-work",
   },
   {
     key: "pending_bids",
     label: "Pending Bids",
     helper: "Submitted bids still under review.",
+    path: "/vendor-workspace/my-bids",
   },
   {
     key: "assignment_offers",
@@ -21,17 +24,19 @@ const dashboardCards = Object.freeze([
   {
     key: "active_assigned_orders",
     label: "Active Assigned Orders",
-    helper: "Accepted or in-progress work.",
+    helper: "Accepted, in-progress, or revision-requested work.",
+    path: "/vendor-workspace/assigned-orders",
   },
   {
     key: "submitted_awaiting_review",
     label: "Submitted / Awaiting Review",
     helper: "Reports submitted to the coordinator.",
+    path: "/vendor-workspace/assigned-orders",
   },
   {
     key: "needs_attention",
     label: "Needs Attention",
-    helper: "Due soon, overdue, or waiting on action.",
+    helper: "Due soon, overdue, or waiting on vendor action.",
   },
 ]);
 
@@ -149,6 +154,42 @@ function ActionCard({ action }) {
   );
 }
 
+function DashboardCard({ card, count }) {
+  const content = (
+    <>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-slate-950">{card.label}</h2>
+          <p className="mt-2 text-xs leading-5 text-slate-500">{card.helper}</p>
+        </div>
+        <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-500">
+          {card.path ? "Open" : "Read-only"}
+        </span>
+      </div>
+      <div className="mt-5 text-3xl font-semibold text-slate-950">
+        {formatCount(count)}
+      </div>
+    </>
+  );
+
+  if (card.path) {
+    return (
+      <Link
+        to={card.path}
+        className="block rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+      >
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      {content}
+    </article>
+  );
+}
+
 export default function VendorWorkspaceDashboard() {
   const [summary, setSummary] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -202,20 +243,7 @@ export default function VendorWorkspaceDashboard() {
         <>
           <section aria-label="Vendor dashboard counts" className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {dashboardCards.map((card) => (
-              <article key={card.key} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h2 className="text-sm font-semibold text-slate-950">{card.label}</h2>
-                    <p className="mt-2 text-xs leading-5 text-slate-500">{card.helper}</p>
-                  </div>
-                  <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-500">
-                    Read-only
-                  </span>
-                </div>
-                <div className="mt-5 text-3xl font-semibold text-slate-950">
-                  {formatCount(counts[card.key])}
-                </div>
-              </article>
+              <DashboardCard key={card.key} card={card} count={counts[card.key]} />
             ))}
           </section>
 

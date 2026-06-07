@@ -14,6 +14,13 @@
     "audit:db": "node scripts/check-tables.mjs",
     "audit": "npm run audit:static && npm run audit:db",
     "lint": "eslint .",
+    "amc:smoke:fixtures:load": "node scripts/load-amc-smoke-fixtures.mjs",
+    "amc:smoke:edge": "node scripts/run-amc-edge-smoke.mjs",
+    "amc:staging:runtime:check": "node scripts/check-amc-staging-runtime.mjs",
+    "amc:staging:fixtures:load": "node scripts/load-amc-staging-smoke-fixtures.mjs",
+    "amc:staging:smoke:happy": "node scripts/run-amc-staging-happy-smoke.mjs",
+    "amc:staging:smoke:edge": "node scripts/run-amc-staging-edge-smoke.mjs",
+    "supabase:reset:local": "node scripts/local-supabase-reset.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },

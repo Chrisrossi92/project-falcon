@@ -20,6 +20,7 @@ function relevantTimeline(item) {
   return [
     ["Offered", item.offered_at],
     item.status === "submitted" ? ["Submitted", item.submitted_at] : null,
+    item.status === "revision_requested" ? ["Revision Requested", item.revision_requested_at] : null,
     item.status === "completed" ? ["Completed", item.completed_at] : null,
   ].filter(Boolean);
 }
@@ -166,6 +167,17 @@ export default function OwnerOrderAssignmentsPanel({
                   </p>
                   {item.instructions && (
                     <p className="mt-1 line-clamp-2 text-xs text-slate-500">{item.instructions}</p>
+                  )}
+                  {item.status === "revision_requested" && (
+                    <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                      <div className="font-semibold">Revision requested</div>
+                      {item.revision_summary && (
+                        <p className="mt-1 line-clamp-2 leading-5">{item.revision_summary}</p>
+                      )}
+                      <div className="mt-1 text-amber-800">
+                        Due {formatDateTime(item.revision_due_at || item.review_due_at)}
+                      </div>
+                    </div>
                   )}
                   <dl className="mt-3 grid gap-2 text-xs text-slate-500 sm:grid-cols-3">
                     <div>

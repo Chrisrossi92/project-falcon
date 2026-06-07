@@ -11,6 +11,7 @@ const permissionState = vi.hoisted(() => ({
 
 const assignmentApiState = vi.hoisted(() => ({
   acceptAssignment: vi.fn(),
+  addVendorAssignmentInternalNote: vi.fn(),
   cancelAssignment: vi.fn(),
   completeAssignment: vi.fn(),
   createOrderCompanyAssignmentInvitation: vi.fn(),
@@ -18,6 +19,8 @@ const assignmentApiState = vi.hoisted(() => ({
   getAssignedOfferPacket: vi.fn(),
   getAssignedWorkPacket: vi.fn(),
   getOwnerAssignmentPacket: vi.fn(),
+  listVendorAssignmentInternalNotes: vi.fn(),
+  requestVendorAssignmentRevision: vi.fn(),
   revokeAssignment: vi.fn(),
   startAssignment: vi.fn(),
   submitAssignment: vi.fn(),
@@ -32,6 +35,7 @@ vi.mock("@/lib/hooks/usePermissions", () => ({
 
 vi.mock("../api", () => ({
   acceptAssignment: assignmentApiState.acceptAssignment,
+  addVendorAssignmentInternalNote: assignmentApiState.addVendorAssignmentInternalNote,
   cancelAssignment: assignmentApiState.cancelAssignment,
   completeAssignment: assignmentApiState.completeAssignment,
   createOrderCompanyAssignmentInvitation: assignmentApiState.createOrderCompanyAssignmentInvitation,
@@ -39,6 +43,8 @@ vi.mock("../api", () => ({
   getAssignedOfferPacket: assignmentApiState.getAssignedOfferPacket,
   getAssignedWorkPacket: assignmentApiState.getAssignedWorkPacket,
   getOwnerAssignmentPacket: assignmentApiState.getOwnerAssignmentPacket,
+  listVendorAssignmentInternalNotes: assignmentApiState.listVendorAssignmentInternalNotes,
+  requestVendorAssignmentRevision: assignmentApiState.requestVendorAssignmentRevision,
   revokeAssignment: assignmentApiState.revokeAssignment,
   startAssignment: assignmentApiState.startAssignment,
   submitAssignment: assignmentApiState.submitAssignment,
@@ -98,6 +104,7 @@ describe("AssignmentDetail assignment invitation actions", () => {
     permissionState.loading = false;
     permissionState.allowed = new Set(["order_company_assignments.read_owner"]);
     Object.values(assignmentApiState).forEach((mock) => mock.mockReset());
+    assignmentApiState.listVendorAssignmentInternalNotes.mockResolvedValue({ ok: true, items: [] });
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
       value: {
@@ -151,5 +158,109 @@ describe("AssignmentDetail assignment invitation actions", () => {
 
     await screen.findByText("Owner Packet");
     expect(screen.queryByRole("button", { name: "Generate Assignment Link" })).not.toBeInTheDocument();
+  });
+
+  it("requests a vendor assignment revision from submitted owner assignment details", async () => {
+    assignmentApiState.getOwnerAssignmentPacket
+      .mockResolvedValueOnce({
+        ...ownerPacket,
+        assignment_status: "submitted",
+        submitted_at: "2026-06-05T15:00:00.000Z",
+        submission_payload: { note: "Initial report submitted" },
+      })
+      .mockResolvedValueOnce({
+        ...ownerPacket,
+        assignment_status: "revision_requested",
+        submitted_at: "2026-06-05T15:00:00.000Z",
+        submission_payload: {
+          note: "Initial report submitted",
+          revision: {
+            status: "revision_requested",
+            instructions: "Revise the rent grid.",
+            requested_at: "2026-06-05T16:00:00.000Z",
+            due_at: "2026-06-08T17:00:00.000Z",
+          },
+        },
+      });
+    assignmentApiState.requestVendorAssignmentRevision.mockResolvedValue({
+      ok: true,
+      status: "revision_requested",
+    });
+
+    renderAssignmentDetail();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Request Revision" }));
+    fireEvent.change(screen.getByLabelText("Vendor-facing instructions"), {
+      target: { value: "Revise the rent grid." },
+    });
+    fireEvent.change(screen.getByLabelText("Revision due date"), {
+      target: { value: "2026-06-08T17:00" },
+    });
+    const requestButtons = screen.getAllByRole("button", { name: "Request Revision" });
+    fireEvent.click(requestButtons[requestButtons.length - 1]);
+
+    await waitFor(() => {
+      expect(assignmentApiState.requestVendorAssignmentRevision).toHaveBeenCalledWith("assignment-1", {
+        revision_instructions: "Revise the rent grid.",
+        revision_due_at: "2026-06-08T17:00",
+      });
+    });
+    await waitFor(() => {
+      expect(assignmentApiState.getOwnerAssignmentPacket).toHaveBeenCalledTimes(2);
+    });
+    expect(await screen.findByLabelText("Revision request summary")).toHaveTextContent("Revise the rent grid.");
+  });
+
+  it("records private internal coordinator notes separately from revision instructions", async () => {
+    permissionState.allowed = new Set([
+      "order_company_assignments.read_owner",
+      "order_company_assignments.complete",
+    ]);
+    assignmentApiState.getOwnerAssignmentPacket.mockResolvedValue({
+      ...ownerPacket,
+      assignment_status: "submitted",
+      submitted_at: "2026-06-05T15:00:00.000Z",
+      submission_payload: { note: "Initial report submitted" },
+    });
+    assignmentApiState.listVendorAssignmentInternalNotes
+      .mockResolvedValueOnce({ ok: true, items: [] })
+      .mockResolvedValueOnce({
+        ok: true,
+        items: [
+          {
+            note_key: "note-key-1",
+            note_context: "revision",
+            note_text: "Coordinator-only: verify rent grid before vendor message.",
+            author_name: "AMC Coordinator",
+            created_at: "2026-06-05T16:30:00.000Z",
+          },
+        ],
+      });
+    assignmentApiState.addVendorAssignmentInternalNote.mockResolvedValue({
+      ok: true,
+      message: "Internal note saved.",
+    });
+
+    renderAssignmentDetail();
+
+    expect(await screen.findByLabelText("Internal coordinator notes")).toHaveTextContent(
+      "These are not sent to vendors.",
+    );
+    fireEvent.change(screen.getByLabelText("Context"), {
+      target: { value: "revision" },
+    });
+    fireEvent.change(screen.getByLabelText("Internal note"), {
+      target: { value: "Coordinator-only: verify rent grid before vendor message." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add Internal Note" }));
+
+    await waitFor(() => {
+      expect(assignmentApiState.addVendorAssignmentInternalNote).toHaveBeenCalledWith("assignment-1", {
+        note_text: "Coordinator-only: verify rent grid before vendor message.",
+        note_context: "revision",
+      });
+    });
+    expect(await screen.findByText("Coordinator-only: verify rent grid before vendor message.")).toBeInTheDocument();
+    expect(screen.getByText("By AMC Coordinator")).toBeInTheDocument();
   });
 });

@@ -1,24 +1,33 @@
 begin;
 
-insert into storage.buckets (
-  id,
-  name,
-  public,
-  file_size_limit,
-  allowed_mime_types
-)
-values (
-  'order-documents',
-  'order-documents',
-  false,
-  52428800,
-  null
-)
-on conflict (id) do update
-  set name = excluded.name,
-      public = false,
-      file_size_limit = excluded.file_size_limit,
-      allowed_mime_types = excluded.allowed_mime_types;
+do $$
+begin
+  if to_regclass('storage.buckets') is null then
+    raise notice 'Skipping order-documents bucket bootstrap because storage.buckets is not available in this migration environment.';
+    return;
+  end if;
+
+  insert into storage.buckets (
+    id,
+    name,
+    public,
+    file_size_limit,
+    allowed_mime_types
+  )
+  values (
+    'order-documents',
+    'order-documents',
+    false,
+    52428800,
+    null
+  )
+  on conflict (id) do update
+    set name = excluded.name,
+        public = false,
+        file_size_limit = excluded.file_size_limit,
+        allowed_mime_types = excluded.allowed_mime_types;
+end;
+$$;
 
 create or replace function public.rpc_order_document_authorize_download(p_document_id uuid)
 returns table (

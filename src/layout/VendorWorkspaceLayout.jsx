@@ -1,11 +1,13 @@
-import { Outlet } from "react-router-dom";
+import { NavLink, Outlet } from "react-router-dom";
 
-const placeholderNavItems = Object.freeze([
-  "Available Work",
-  "My Bids",
-  "Assigned Orders",
-  "Documents / Tasks",
-  "Profile",
+const navItems = Object.freeze([
+  { label: "Dashboard", path: "/vendor-workspace/dashboard", enabled: true },
+  { label: "Available Work", path: "/vendor-workspace/available-work", enabled: true },
+  { label: "My Bids", path: "/vendor-workspace/my-bids", enabled: true },
+  { label: "Assigned Orders", path: "/vendor-workspace/assigned-orders", enabled: true },
+  { label: "Documents / Tasks", enabled: false },
+  { label: "Payments", path: "/vendor-workspace/payments", enabled: true },
+  { label: "Profile", path: "/vendor-workspace/profile", enabled: true },
 ]);
 
 export default function VendorWorkspaceLayout() {
@@ -20,14 +22,33 @@ export default function VendorWorkspaceLayout() {
             </div>
           </div>
           <nav aria-label="Vendor workspace sections" className="flex flex-wrap gap-2">
-            {placeholderNavItems.map((item) => (
-              <span
-                key={item}
-                className="rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600"
-              >
-                {item}
-              </span>
-            ))}
+            {navItems.map((item) => {
+              if (!item.enabled) {
+                return (
+                  <span
+                    key={item.label}
+                    className="rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-500"
+                  >
+                    {item.label}
+                  </span>
+                );
+              }
+
+              return (
+                <NavLink
+                  key={item.label}
+                  to={item.path}
+                  className={({ isActive }) => [
+                    "rounded-md border px-3 py-1.5 text-xs font-semibold",
+                    isActive
+                      ? "border-slate-900 bg-slate-900 text-white"
+                      : "border-slate-200 bg-slate-50 text-slate-600",
+                  ].join(" ")}
+                >
+                  {item.label}
+                </NavLink>
+              );
+            })}
           </nav>
         </div>
       </header>

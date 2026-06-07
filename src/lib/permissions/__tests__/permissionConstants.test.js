@@ -28,6 +28,8 @@ const vendorWorkspacePermissionEntries = Object.freeze({
   VENDOR_DOCUMENTS_UPLOAD: 'vendor_documents.upload',
   VENDOR_PROFILE_READ: 'vendor_profile.read',
   VENDOR_PROFILE_UPDATE: 'vendor_profile.update',
+  VENDOR_PAYMENTS_READ: 'vendor_payments.read',
+  VENDOR_INVOICES_SUBMIT: 'vendor_invoices.submit',
 });
 
 describe('permission constants', () => {

@@ -21,6 +21,7 @@ Source doctrine:
 - [AMC Order Lifecycle](../amc/AMC_ORDER_LIFECYCLE.md)
 - [AMC Assignment Lifecycle Doctrine](../amc/AMC_ASSIGNMENT_LIFECYCLE_DOCTRINE.md)
 - [AMC Customization Framework](../amc/AMC_CUSTOMIZATION_FRAMEWORK.md)
+- [AMC Pilot Readiness Checklist](../amc/AMC_PILOT_READINESS_CHECKLIST.md)
 
 ## Core Principles
 
@@ -860,19 +861,52 @@ Success Criteria:
 
 ### AMC-9: Advanced AMC Features
 
-Purpose: future expansion after AMC MVP foundations are stable.
+Status: AMC-9 Vendor Workspace bidding runtime is complete through AMC-9H closeout and polish.
+Vendor Workspace doctrine remains defined in `../vendor/VENDOR_WORKBENCH_DOCTRINE.md`.
+
+Purpose: authenticated vendor-facing expansion after AMC MVP foundations are stable.
 
 Dependencies:
 
 - AMC-1 through AMC-8.
-- Validated pilot usage and operational feedback.
-- Approved scope for portal, bidding, payment, or analytics work.
+- Validated AMC procurement, public bidding, and assignment execution loops.
+- Vendor Workspace permission foundation.
+- Existing bid request/recipient/response lifecycle.
 
-Deliverables:
+Completed AMC-9 runtime deliverables:
 
-- Vendor portals.
+- Authenticated Vendor Workspace shell and route guard.
+- Vendor Dashboard with vendor-native cards and implemented links for Available Work and My Bids.
+- Available Work list for current-company open vendor opportunities.
+- Work Detail at `/vendor-workspace/available-work/:workKey`, preserving route compatibility while
+  using Work Detail terminology.
+- Authenticated Submit Bid through the existing bid response lifecycle.
+- Authenticated Pass Opportunity through the existing bid recipient lifecycle.
+- My Bids / Passed Opportunities history at `/vendor-workspace/my-bids`.
+- Unified Work Detail read model for available, viewed, submitted, passed/declined, selected,
+  not-selected, and expired bid states.
+- Vendor-visible document metadata and secure document opening through opaque document keys and
+  short-lived signed URLs.
+
+AMC-9 guardrails preserved:
+
+- Vendor Workspace uses current-company scope.
+- Vendor work is scoped to active AMC vendor relationship/profile rows.
+- Vendor work is limited to AMC-scoped orders.
+- No shared `/orders` route is exposed to vendors.
+- No owner-side procurement or document APIs are used by Vendor Workspace UI.
+- No raw order ids, relationship ids, recipient ids, vendor profile ids, document ids, storage
+  buckets, storage paths, client fees, AMC margins, candidate scores, competing bids, or internal
+  notes are exposed.
+- Existing bid and recipient lifecycle semantics are reused; no parallel vendor bid system was
+  created.
+
+Future Vendor Workspace expansion deliverables:
+
+- Vendor report upload and revision workflow.
+- Vendor profile and coverage review/management.
+- Vendor invoices and payment visibility.
 - Client portals.
-- Bidding.
 - Capacity management.
 - Advanced analytics.
 - Future cross-platform lender correction / revision request workflow for both Internal Operations Mode and AMC Operations Mode.
@@ -905,6 +939,591 @@ Success Criteria:
 - Advanced features build on the shared Falcon platform.
 - Portal or automation work does not create a disconnected AMC system.
 - Expansion is driven by validated operational need.
+- Authenticated vendors can manage bid opportunities and bid history without internal route or data
+  exposure.
+- Vendor document access is authorized through opaque keys and short-lived signed URLs.
+
+### AMC-10: Vendor Assigned Order Execution
+
+Status: AMC-10A through AMC-10I are complete. Authenticated Vendor Workspace assigned-order
+execution now covers queue, detail, start work, report upload/submission, assignment-scoped
+document access, vendor revision resubmission, coordinator revision requests, and closeout polish.
+
+Purpose: extend the validated assignment offer and work-token lifecycle into authenticated Vendor
+Workspace execution surfaces without creating a second assignment system.
+
+Dependencies:
+
+- AMC-8B validated assignment work tracking.
+- AMC-9 authenticated Vendor Workspace shell.
+- Existing `order_company_assignments` vendor assignment lifecycle.
+- Vendor assignment permissions.
+
+Completed AMC-10A deliverables:
+
+- Authenticated Assigned Orders route at `/vendor-workspace/assigned-orders`.
+- `rpc_vendor_workspace_assigned_orders()` read model for current-company vendor assignment rows.
+- Frontend `fetchVendorWorkspaceAssignedOrders()` API wrapper.
+- Vendor Workspace navigation enables `Assigned Orders`.
+- Assigned Orders page with Active, Due Soon, Needs Attention, and Submitted summary cards.
+- Vendor-safe assigned order cards with property summary, owner company, report type, assignment
+  status, accepted date, due date, inspection/appointment status where available, report submitted
+  state, next action label, and attention flag.
+- Assigned order rows link to the authenticated detail route added in AMC-10B.
+
+Completed AMC-10B deliverables:
+
+- Authenticated Assigned Order Detail route at
+  `/vendor-workspace/assigned-orders/:assignmentWorkKey`.
+- `rpc_vendor_workspace_assigned_order_detail(p_assignment_work_key text)` read model for
+  current-company vendor assignment rows.
+- Frontend `fetchVendorWorkspaceAssignedOrderDetail(assignmentWorkKey)` API wrapper.
+- Assigned Order Detail page labeled as `Assigned Order Detail`.
+- Detail sections for Status / Next Action, Property, Assignment Timeline, Scope & Instructions,
+  Documents, and Report Submission.
+- Vendor-safe detail fields for property summary, owner company, report type, assignment status,
+  accepted date, due date, inspection/appointment status where available, report submitted state,
+  next action label, attention flag, scope summary, vendor instructions, submitted report summary,
+  and safe revision summary when represented.
+- Vendor-visible assignment document metadata is displayed without opening/downloading from this
+  route yet; assignment-scoped document authorization remains a future enhancement.
+- `Start Work`, `Submit Report`, and revision actions remain disabled placeholders for future
+  AMC-10 lifecycle slices.
+
+Completed AMC-10C deliverables:
+
+- `rpc_vendor_workspace_start_assigned_order(p_assignment_work_key text)` authenticated lifecycle
+  action.
+- Frontend `startVendorWorkspaceAssignedOrder(assignmentWorkKey)` API wrapper.
+- Assigned Order Detail enables `Start Work` when an accepted assignment has not started.
+- Start Work success refreshes assigned order detail so the server-derived status becomes
+  `In Progress`.
+- Start Work records the same `assignment.started` activity/notification event used by existing
+  assignment lifecycle behavior.
+- Already-started, submitted, completed, unavailable, and wrong-company/wrong-vendor states do not
+  expose internal details and render friendly vendor-facing errors.
+
+Completed AMC-10D deliverables:
+
+- `rpc_vendor_workspace_submit_report(p_assignment_work_key text, p_payload jsonb)` authenticated
+  lifecycle action.
+- Frontend `submitVendorWorkspaceReport(assignmentWorkKey, payload)` API wrapper.
+- Assigned Order Detail enables `Submit Report` for eligible in-progress and revision-requested
+  assignments.
+- Submit Report captures an optional delivery note and accepts opaque uploaded report document
+  references.
+- Submit Report success refreshes assigned order detail so the server-derived status becomes
+  `Submitted / Awaiting Review`.
+- Submit Report records the same `assignment.submitted` activity/notification event used by
+  existing assignment lifecycle behavior.
+- Not-started, already-submitted, completed, unavailable, and wrong-company/wrong-vendor states do
+  not expose internal details and render friendly vendor-facing errors.
+- Submit Report now requires at least one registered vendor report document.
+
+Completed AMC-10E deliverables:
+
+- `rpc_vendor_workspace_authorize_assignment_document_access(p_assignment_work_key text,
+  p_document_key text)` authenticated document authorization RPC.
+- `rpc_vendor_workspace_assignment_document_storage_lookup(p_assignment_work_key text,
+  p_document_key text)` service-role-only storage lookup for signed URL generation.
+- Existing `vendor-workspace-document-download-url` Edge function now supports assignment-scoped
+  document downloads through `assignment_work_key` while preserving the existing bid opportunity
+  document path.
+- Frontend `createVendorWorkspaceAssignmentDocumentDownloadUrl(assignmentWorkKey, documentKey)` API
+  wrapper.
+- Assigned Order Detail documents now expose enabled `Open` actions with per-document loading and
+  friendly unavailable states.
+- Assignment document access requires current-company vendor scope, active AMC vendor
+  relationship/profile, AMC order scope, assigned vendor assignment scope, `vendor_documents.read`,
+  and vendor-visible document visibility.
+- Signed URLs are short-lived and storage bucket/path values remain backend-only.
+
+Completed AMC-10F deliverables:
+
+- `rpc_vendor_workspace_prepare_report_document_upload(p_assignment_work_key text, p_payload jsonb)`
+  authenticated report upload preparation RPC for Edge signing.
+- `rpc_vendor_workspace_register_report_document(p_assignment_work_key text, p_payload jsonb)`
+  authenticated report document registration RPC.
+- `vendor-workspace-report-upload-url` Edge function creates signed upload URLs for server-created
+  pending report document metadata.
+- Frontend `createVendorWorkspaceReportUploadUrl(...)` and
+  `registerVendorWorkspaceReportDocument(...)` API wrappers.
+- Assigned Order Detail Submit Report panel now supports selecting and uploading PDF report files.
+- Submit Report wires registered opaque document keys into
+  `submitVendorWorkspaceReport(assignmentWorkKey, payload)`.
+- Server-side Submit Report validation rejects empty, malformed, inactive, or unavailable report
+  document keys.
+- Uploaded report documents are stored as existing `order_documents` metadata with `final_report`
+  category, `vendor` visibility, private storage paths, and no new document system.
+- Assigned Order Detail refreshes show submitted report file count and vendor-visible document
+  metadata without exposing raw storage paths.
+
+Completed AMC-10G deliverables:
+
+- Assigned Order Detail now exposes vendor-safe revision request state for authenticated vendors:
+  request date, coordinator/company label, revision due date, prior submitted report metadata, and
+  revision instructions/summary.
+- `rpc_vendor_workspace_resubmit_report(p_assignment_work_key text, p_payload jsonb)` authenticated
+  revision resubmission RPC.
+- Frontend `resubmitVendorWorkspaceReport(assignmentWorkKey, payload)` API wrapper.
+- Revision-requested assignments suppress the normal `Submit Report` action and show
+  `Upload Revision File` / `Resubmit Report`.
+- Revision resubmission reuses AMC-10F report upload prepare/register plumbing and existing
+  `order_documents` metadata.
+- Resubmission requires `vendor_assignments.progress`, `vendor_documents.upload`, active AMC vendor
+  relationship/profile scope, AMC-scoped order scope, current vendor assignment scope, and
+  `revision_requested` assignment state.
+- Resubmission rejects empty, malformed, inactive, unavailable, or non-vendor-visible report
+  document keys.
+- Successful resubmission moves the existing assignment packet back to `submitted`, stamps
+  `submitted_at`, records resubmission metadata in `submission_payload`, and logs/notifies
+  `assignment.resubmitted`.
+
+Completed AMC-10H deliverables:
+
+- `rpc_amc_request_vendor_assignment_revision(p_assignment_id uuid, p_payload jsonb)` coordinator
+  revision request RPC.
+- Frontend assignment API wrapper for coordinator revision requests.
+- Owner Assignment Packet exposes `Request Revision` for submitted `vendor_appraisal` assignments.
+- Coordinator revision modal captures vendor-facing instructions and optional due date.
+- Revision request moves the existing assignment packet to `revision_requested`, preserves prior
+  submitted report metadata, stores vendor-facing revision instructions under
+  `submission_payload.revision`, and logs/notifies `assignment.revision_requested`.
+- Owner Order Detail assignment summary shows revision-requested status and safe revision summary
+  fields without exposing raw submission JSON.
+- Internal-only coordinator notes were intentionally deferred because the current
+  activity/notification payload path is shared.
+
+Completed AMC-10I closeout:
+
+- Assigned Orders and Assigned Order Detail visible labels are normalized to vendor-native states:
+  `Accepted`, `In Progress`, `Submitted / Awaiting Review`, `Revision Requested`,
+  `Resubmitted / Awaiting Review`, and `Completed`.
+- Dashboard and Assigned Orders summaries count `revision_requested` work as active and needing
+  vendor attention.
+- Submitted, resubmitted, completed, and unavailable states explain why vendor actions are blocked.
+- Report upload/submission and document-open errors remain friendly and do not expose storage,
+  RPC, or internal implementation details.
+- AMC-10 documentation and Vendor Workbench doctrine now describe the completed assigned-order
+  execution scope, guardrails, and future work.
+
+AMC-10 guardrails preserved:
+
+- Current-company scope only.
+- Active AMC vendor relationship/profile required.
+- AMC-scoped orders only.
+- Vendor assigned orders only.
+- Requires `vendor_assignments.read`.
+- No shared `/orders` route.
+- No raw order ids, assignment ids, relationship ids, vendor profile ids, storage paths, client
+  fees, AMC margins, internal notes, candidate scores, or procurement scoring are exposed.
+- No owner-side procurement APIs are used.
+- The existing assignment/work lifecycle is reused; no parallel execution system is created.
+- No assignment offers or order lifecycle state are mutated by the authenticated detail read model.
+- Authenticated Start Work mutates only the assigned vendor assignment packet lifecycle, not the
+  shared order lifecycle or token routes.
+- Authenticated Submit Report mutates only the assigned vendor assignment packet lifecycle, not the
+  shared order lifecycle or token routes.
+- Assignment-scoped document opening uses opaque assignment/document keys only and does not expose
+  raw ids or storage paths.
+- Report upload uses opaque assignment/document keys, server-generated storage targets, and
+  short-lived signed upload URLs only; raw bucket/path values remain backend-only.
+- Report upload and submit require `vendor_documents.upload` and `vendor_assignments.progress` and
+  mutate only existing order document metadata plus the assignment packet submission lifecycle.
+- Revision resubmission mutates only the existing assignment packet submission lifecycle and
+  existing report document metadata; it does not create a second revision system.
+- Coordinator revision requests mutate only the existing assignment packet lifecycle and vendor-safe
+  revision payload; they do not mutate the base order lifecycle or public token routes.
+- Internal notes are not exposed to vendors.
+
+Recommended next phase:
+
+- Cleanup/expiration for abandoned pending vendor report uploads.
+- Vendor invoices and payment visibility.
+- Vendor profile and coverage request/review workflow.
+
+### AMC-11: Internal Review Enhancements
+
+Status: AMC-11A internal-only coordinator notes, AMC-11B abandoned pending vendor report upload
+cleanup, AMC-11C Vendor Workspace profile/coverage read model, AMC-11D Vendor Profile/Coverage edit
+requests, and AMC-11E internal review for vendor profile update requests are complete.
+
+Purpose: add safe AMC/internal review tooling around vendor assignment execution without exposing
+private coordinator reasoning to Vendor Workspace users, public token routes, activity payloads, or
+notifications.
+
+Completed AMC-11A deliverables:
+
+- `order_company_assignment_internal_notes` internal-only table for coordinator notes scoped to a
+  vendor assignment, source order, owner company, and author.
+- `rpc_amc_vendor_assignment_internal_notes(p_assignment_id uuid)` owner/AMC-only read RPC.
+- `rpc_amc_add_vendor_assignment_internal_note(p_assignment_id uuid, p_payload jsonb)` owner/AMC-only
+  create RPC.
+- Frontend assignment API wrappers for listing and adding internal notes.
+- Owner Assignment Packet now includes an `Internal coordinator notes` panel for private
+  review/revision/completion/general notes.
+- Notes are separate from vendor-facing revision instructions, assignment activity, notification
+  payloads, token payloads, Vendor Workspace RPCs, and the shared order lifecycle.
+
+Completed AMC-11B deliverables:
+
+- Pending Vendor Workspace report upload metadata now has `upload_expires_at`,
+  `upload_expired_at`, and `upload_cleanup_note` fields.
+- `order_documents.status` now supports `expired` for abandoned pending upload metadata.
+- New Vendor Workspace report upload metadata gets a conservative 24-hour expiration timestamp when
+  inserted as pending `final_report` / `vendor` rows under the assignment-scoped upload path.
+- Existing pending Vendor Workspace report upload metadata is backfilled with a 24-hour expiration
+  timestamp from creation time when missing.
+- `rpc_amc_cleanup_abandoned_vendor_report_uploads(p_older_than interval, p_limit integer)`
+  service-role maintenance RPC marks stale pending upload metadata expired.
+- Cleanup is idempotent, bounded, and safe to run repeatedly.
+- Storage object deletion is intentionally deferred to a storage-aware maintenance worker; AMC-11B
+  performs metadata-only cleanup and returns no bucket/path values.
+
+Completed AMC-11C deliverables:
+
+- Read-only Vendor Workspace Profile route at `/vendor-workspace/profile`.
+- Vendor Workspace navigation enables `Profile`.
+- `rpc_vendor_workspace_profile()` returns current-vendor company, safe contact, coverage,
+  accepted work type, status, default turn time, compliance summary, and last-updated data.
+- `fetchVendorWorkspaceProfile()` frontend wrapper reads only the vendor-scoped profile RPC.
+- Profile UI sections cover Company, Contacts, Coverage, Accepted Work Types, and Compliance /
+  Documents.
+- Direct live profile editing remains explicitly deferred.
+- Empty coverage, contact, accepted work type, and compliance states use vendor-native copy.
+
+Completed AMC-11D deliverables:
+
+- `vendor_profile_update_requests` internal review queue table with opaque `request_key` values.
+- `rpc_vendor_workspace_submit_profile_update_request(p_payload jsonb)` creates pending vendor
+  profile/contact/coverage/accepted work type update requests.
+- `rpc_vendor_workspace_profile_update_requests()` returns vendor-safe pending/recent request
+  summaries.
+- Frontend Vendor Workspace API wrappers submit and list profile update requests.
+- Vendor Profile page exposes `Request Update` and a review-first modal for contact, company phone
+  / website, coverage states/counties/markets, accepted property/report types, and comments.
+- Vendors can see pending/recent profile update request status from the Profile page.
+- Internal owner/admin-style users are notified when a request is submitted.
+- Live vendor profile, contact, service-area, relationship, compliance document, pricing, and
+  matching coverage data are not mutated by vendor-submitted requests.
+
+Completed AMC-11E deliverables:
+
+- `rpc_amc_vendor_profile_update_requests(p_status text)` returns the internal AMC review queue for
+  owner/current-company users with vendor management authority.
+- `rpc_amc_review_vendor_profile_update_request(p_request_key text, p_payload jsonb)` approves or
+  rejects pending vendor-submitted profile update requests by opaque request key.
+- Approval is the only path that applies requested live vendor profile, primary contact,
+  product-eligibility, or coverage rows from the request payload.
+- Rejection preserves request history and does not mutate operational vendor data.
+- Vendor Directory now includes an internal `Profile Update Requests` review queue with current /
+  proposed summaries, reviewer note, and approve/reject actions.
+- Vendors can see safe approved/rejected decision status and reviewer message from the existing
+  Vendor Workspace Profile request history.
+- Vendor-facing notifications contain only safe decision copy and the opaque request key.
+
+AMC-11A guardrails preserved:
+
+- Owner/current-company scope only.
+- Requires owner assignment read access and review/complete authority to create notes.
+- AMC-scoped `vendor_appraisal` assignments only.
+- No Vendor Workspace exposure.
+- No public token exposure.
+- No notification or shared activity payload exposure.
+- No assignment/order lifecycle mutation.
+- No storage paths, client fees, AMC margins, candidate/procurement data, or vendor-facing revision
+  instructions are returned by the internal note RPCs.
+- Pending upload cleanup affects only pending, vendor-visible `final_report` metadata created by
+  Vendor Workspace assigned-order report upload paths.
+- Submitted/resubmitted active report documents, wrong document types, non-vendor documents, active
+  vendor-visible order documents, assignment lifecycle, order lifecycle, public token routes,
+  notifications, and storage objects are not mutated by cleanup.
+- Vendor Profile read model is current-company scoped, requires `vendor_profile.read`, requires an
+  active AMC vendor relationship/profile, returns no raw relationship/profile ids, excludes
+  coordinator notes, pricing, client fees, AMC margin, owner-side APIs, and edit mutations.
+- Vendor Profile update requests are current-company scoped, require `vendor_profile.update`,
+  require an active AMC vendor relationship/profile, return opaque request keys only, exclude raw
+  ids/internal notes/pricing/client fees/AMC margin/compliance uploads, and do not call owner-side
+  Vendor Directory mutation APIs.
+- Internal profile update review is owner/current-company scoped, requires `vendors.read` and
+  `vendors.update`, requires contact/service-area management authority before approval applies
+  contact or coverage changes, uses opaque request keys, and does not expose internal notes,
+  pricing, client fees, AMC margin, compliance uploads, raw ids, or owner-only mutation details to
+  Vendor Workspace.
+
+### AMC-12: Vendor Financial Visibility
+
+Status: AMC-12A Vendor Invoices and Payment Visibility read model, AMC-12B Vendor Invoice
+Submission Workflow, AMC-12C Internal Invoice Review and Approval Queue, AMC-12D Corrected
+Vendor Invoice Resubmission, AMC-12E Payment Ledger and Scheduling Foundation, and AMC-12F Vendor
+Payments Closeout and Polish are complete.
+
+Purpose: add safe Vendor Workspace payment visibility for assigned/completed AMC work and allow
+vendors to submit invoice documents for payment-eligible assignments while internal AMC users can
+review invoices and track scheduled/paid ledger status without external payment processing.
+
+Completed AMC-12A deliverables:
+
+- Vendor Workspace route `/vendor-workspace/payments`.
+- Vendor Workspace navigation enables `Payments`.
+- `vendor_payments.read` vendor-side permission is seeded and granted to the Vendor Admin template.
+- `rpc_vendor_workspace_payments()` returns current-vendor payment visibility rows scoped to
+  assigned AMC `vendor_appraisal` assignment packets.
+- `fetchVendorWorkspacePayments()` frontend wrapper reads the vendor-scoped payment RPC.
+- Payments UI includes summary cards for Ready for Invoice, Invoice Received, Approved, Scheduled,
+  Paid, On Hold, and Rejected.
+- Payment rows show vendor-safe property, owner company, report type, assignment/completion date,
+  payable vendor amount when modeled in assignment terms or selected vendor bid handoff, invoice
+  status, payment status, payment date/reference label when safely modeled, and next action copy.
+- Empty, loading, and unavailable states use vendor-native copy and explain that payments become
+  visible once assignments reach payment-eligible states.
+
+AMC-12A guardrails preserved:
+
+- Current vendor company scope only.
+- Requires `vendor_payments.read`.
+- Requires active AMC vendor relationship/profile rows.
+- AMC-scoped orders only.
+- Vendor assigned work only.
+- No client fees, AMC margin, owner-side financial notes, raw assignment/order/payment ids, storage
+  paths, payment mutations, invoice uploads, shared `/orders`, or owner-side financial APIs.
+
+Completed AMC-12B deliverables:
+
+- `vendor_invoices.submit` vendor-side permission is seeded and granted to the Vendor Admin
+  template.
+- `rpc_vendor_workspace_prepare_invoice_upload(p_assignment_work_key text, p_payload jsonb)`
+  prepares a vendor-scoped invoice upload using the existing `order_documents` metadata model.
+- `vendor-workspace-invoice-upload-url` Edge function signs the server-generated invoice storage
+  target and returns only a short-lived signed URL plus safe document metadata.
+- `rpc_vendor_workspace_register_invoice_document(p_assignment_work_key text, p_payload jsonb)`
+  activates uploaded invoice document metadata after storage object validation.
+- `rpc_vendor_workspace_submit_invoice(p_assignment_work_key text, p_payload jsonb)` validates
+  invoice number, invoice amount, invoice date, vendor note, and opaque invoice document keys, then
+  stores `invoice_received` status on the assignment submission payload.
+- `createVendorWorkspaceInvoiceUploadUrl(...)`, `registerVendorWorkspaceInvoiceDocument(...)`, and
+  `submitVendorWorkspaceInvoice(...)` frontend wrappers support the Vendor Workspace flow.
+- Payments rows in `ready_for_invoice` state expose a `Submit Invoice` panel for PDF upload,
+  invoice number, invoice amount, invoice date, and vendor note.
+- Successful invoice submission refreshes Payments and moves the row into awaiting payment review
+  visibility.
+- Owner/admin users receive a safe invoice-submitted notification.
+
+AMC-12B guardrails preserved:
+
+- Current vendor company scope only.
+- Requires `vendor_payments.read` and `vendor_invoices.submit`.
+- Requires active AMC vendor relationship/profile rows.
+- AMC-scoped orders only.
+- Vendor assigned/completed work only.
+- Invoice documents use opaque document keys and existing `order_documents` metadata.
+- Invoice submission records `invoice_received` only; it does not approve, schedule, or mark
+  payments paid.
+- No client fees, AMC margin, owner-side financial notes, raw assignment/order/payment ids, storage
+  paths, payment approval/scheduling, shared `/orders`, or owner-side financial APIs.
+
+Completed AMC-12C deliverables:
+
+- `rpc_amc_vendor_invoices(p_status text default null)` returns an internal AMC invoice review
+  queue for `invoice_received`, `approved`, `on_hold`, and `rejected` states.
+- `rpc_amc_review_vendor_invoice(p_invoice_key text, p_payload jsonb)` approves, holds, or rejects
+  submitted vendor invoices by opaque invoice key.
+- Internal review requires `vendors.read` and `billing.update`, current-owner company scope, active
+  AMC vendor relationships, AMC-scoped orders, and invoice-bearing `vendor_appraisal` assignments.
+- Internal review stores invoice status, reviewed timestamp, reviewer, optional approved amount,
+  internal reviewer note, and vendor-facing message under the existing invoice payload.
+- Internal reviewer notes are stored separately from vendor-facing messages and are not included in
+  vendor notifications.
+- Vendor notifications receive only safe invoice review status and vendor-facing message.
+- Vendor Directory now includes an internal `Vendor Invoice Review` queue with status filters,
+  invoice summary rows, existing internal document-download access for invoice PDFs, and
+  approve/hold/reject review modal.
+- Vendor Payments can display safe rejected invoice status after internal review.
+
+AMC-12C guardrails preserved:
+
+- No Vendor Workspace approval path.
+- No payment scheduling, paid-state mutation, or payment ledger mutation.
+- No mutation of assignment/order lifecycle.
+- Submitted invoice documents and metadata are preserved.
+- Vendor-facing payloads exclude internal reviewer notes.
+- No client fees, AMC margin, owner-side financial notes, raw ids in vendor-facing views, or
+  procurement/candidate data.
+
+Completed AMC-12D deliverables:
+
+- `rpc_vendor_workspace_resubmit_invoice(p_assignment_work_key text, p_payload jsonb)` allows a
+  vendor to submit corrected invoice metadata and invoice document keys after an invoice has been
+  rejected.
+- Corrected invoice upload/register reuses the existing Vendor Workspace invoice upload and
+  `order_documents` metadata path rather than creating a second document system.
+- `resubmitVendorWorkspaceInvoice(...)` wraps the corrected invoice RPC, while corrected upload and
+  register aliases intentionally delegate to the existing invoice upload/register wrappers.
+- Vendor Payments rejected rows show the safe vendor-facing rejection message, prior invoice
+  summary, and `Submit Corrected Invoice` flow.
+- Corrected submission preserves the prior rejected invoice payload in invoice history, writes the
+  current invoice back to `invoice_received`, and notifies owner/admin users for review.
+- Internal invoice review queue rows see the corrected invoice as `invoice_received` through the
+  existing review queue.
+
+AMC-12D guardrails preserved:
+
+- Corrected invoice resubmission is current-vendor-company scoped, requires `vendor_payments.read`
+  and `vendor_invoices.submit`, requires active AMC vendor relationship/profile rows, requires AMC
+  order scope, and requires the assignment to belong to the vendor.
+- Resubmission is allowed only after rejected invoice status.
+- Prior rejected invoice metadata/history is preserved.
+- Corrected invoice submission does not approve, hold, schedule, pay, mutate order lifecycle, or
+  expose owner-side financial review controls to Vendor Workspace.
+- No client fees, AMC margin, owner-side financial notes, raw ids, storage paths, shared `/orders`,
+  or owner-side financial APIs are exposed.
+
+Completed AMC-12E deliverables:
+
+- `amc_vendor_payment_ledger` internal-only table tracks scheduled and paid vendor payment ledger
+  entries for approved AMC vendor invoices.
+- `rpc_amc_vendor_payment_ledger(p_status text default null)` returns an internal AMC payment queue
+  for approved, scheduled, and paid vendor invoice/payment rows.
+- `rpc_amc_schedule_vendor_payment(p_invoice_key text, p_payload jsonb)` schedules only approved
+  vendor invoices, creates or updates a ledger entry, and moves vendor-visible status to
+  `scheduled`.
+- `rpc_amc_mark_vendor_payment_paid(p_payment_key text, p_payload jsonb)` marks only scheduled
+  vendor payments paid, stamps paid date/reference, and moves vendor-visible status to `paid`.
+- Internal Vendor Directory finance area now includes a `Vendor Payment Ledger` queue with Approved,
+  Scheduled, and Paid filters.
+- Internal users can schedule approved invoices and mark scheduled payments paid with payment date,
+  method label, safe reference label, internal note, and separate vendor-facing payment note.
+- Vendor Payments displays safe scheduled/paid status, payment date, payment method label,
+  reference label, and vendor-facing payment note.
+
+AMC-12E guardrails preserved:
+
+- Ledger and scheduling RPCs are current-owner-company scoped and require `vendors.read` plus
+  `billing.update`.
+- Scheduling is allowed only from approved invoice state; mark-paid is allowed only from scheduled
+  ledger state.
+- Internal notes remain internal-only and are not returned through Vendor Workspace payment reads.
+- Vendor-facing payment notes are separate from internal notes.
+- Scheduling/paid actions do not call banks, ACH providers, payment processors, or external payment
+  services.
+- No client fees, AMC margin, bank account details, raw ids in Vendor Workspace, payment processor
+  calls, internal notes to vendors, or invoice review history mutation are introduced.
+
+Completed AMC-12F closeout:
+
+- Vendor-facing payment labels are normalized to `Ready for Invoice`, `Invoice Received`,
+  `Approved`, `Scheduled`, `Paid`, `On Hold`, and `Rejected`.
+- Vendor Payments summary cards now count each normalized status independently.
+- Rejected invoice rows clearly show the vendor-facing rejection message, prior invoice summary,
+  and corrected invoice submission path.
+- Scheduled and paid rows show only safe payment method label, payment date, reference label, and
+  vendor-facing payment note.
+- Internal invoice review and payment ledger copy explicitly separates private internal notes from
+  vendor-facing messages/payment notes.
+- AMC implementation documentation and Vendor Workbench doctrine now close out AMC-12 scope and
+  guardrails.
+
+AMC-12F guardrails preserved:
+
+- No external processor, ACH, bank, card, or check-issuing integration.
+- No client fee, AMC margin, bank account detail, raw id, storage path, shared `/orders`, or
+  internal note exposure to Vendor Workspace.
+- Existing invoice submission, review, correction, scheduling, and paid-state tests remain covered.
+
+Recommended next phase:
+
+- Payment processor integration only after a real banking/payments provider and reconciliation
+  doctrine are selected.
+- Accounting export.
+- Storage-aware cleanup for abandoned invoice uploads.
+- Partial invoice approval if operations need approve-some/reject-some invoice decisions.
+- Optional partial-approval controls if operations need approve-some/reject-some profile request
+  decisions.
+
+### AMC-13: Operational Hardening And Smoke Validation
+
+Status: complete for pilot readiness as of 2026-06-06. Local happy path, local edge smoke, local
+vendor route-isolation coverage, staging runtime catch-up, staging disposable fixture loading,
+staging happy path, and staging edge/security smoke are green.
+
+Purpose: define repeatable end-to-end AMC MVP smoke validation before external integrations,
+production cutover, or deeper automation work.
+
+Dependencies:
+
+- AMC-9 authenticated Vendor Workspace bidding runtime.
+- AMC-10 authenticated assigned-order execution runtime.
+- AMC-11 vendor profile/update request runtime.
+- AMC-12 vendor invoice/payment visibility and internal payment ledger runtime.
+
+Completed AMC-13 deliverables:
+
+- [AMC Full MVP Smoke Test Plan](../amc/AMC_FULL_MVP_SMOKE_TEST_PLAN.md).
+- [AMC Full MVP Manual Smoke Test Results - 2026-06-06](../amc/AMC_FULL_MVP_SMOKE_TEST_RESULTS_20260606.md).
+- [AMC Staging Runtime Catch-Up Plan](../amc/AMC_STAGING_RUNTIME_CATCH_UP_PLAN.md).
+- [AMC Pilot Readiness Checklist](../amc/AMC_PILOT_READINESS_CHECKLIST.md).
+- Full happy-path checklist covering AMC order creation, candidate matching, bid request, vendor
+  bid, bid selection, assignment offer, vendor acceptance, start work, document access, report
+  upload/submission, coordinator review, revision request, resubmission, invoice submission,
+  invoice approval, payment scheduling, and mark paid.
+- Failure/edge checklist covering expired bids, declined bids, rejected/corrected invoices, wrong
+  vendor access denial, Internal-vs-AMC workspace separation, Vendor Workspace `/orders` isolation,
+  raw id/storage path leakage checks, internal note leakage checks, and document visibility checks.
+- Manual QA evidence template for environment, build/ref, personas, fixtures, happy path results,
+  edge results, defects, follow-ups, and decision.
+- Recommended demo data matrix for happy path, expired bid, declined bid, rejected/corrected
+  invoice, wrong-vendor denial, and Internal-vs-AMC separation fixtures.
+- Automated validation command set for route diagnostics, Vendor Workspace/API tests, Vendor
+  Directory/API tests, payment/invoice migration guardrail tests, lint, build, and diff hygiene.
+- Local Supabase reset/bootstrap repair through `npm run supabase:reset:local`.
+- Repeatable local fixture load through `npm run amc:smoke:fixtures:load`.
+- Repeatable local edge smoke through `npm run amc:smoke:edge`.
+- Vendor browser route-isolation coverage for direct vendor navigation to shared/internal routes.
+- Staging deployment catch-up for AMC-9 through AMC-12 migrations and Vendor Workspace Edge
+  Functions.
+- Staging runtime probe through `npm run amc:staging:runtime:check`, currently clean with 34 RPCs,
+  3 Edge Functions, and 0 failures.
+- Staging disposable fixture load through `npm run amc:staging:fixtures:load`.
+- Staging happy-path smoke through `npm run amc:staging:smoke:happy`, green through Vendor
+  Payments `Paid`.
+- Staging edge/security smoke through `npm run amc:staging:smoke:edge`, green for wrong-vendor
+  denial, declined bid history, rejected/corrected invoice flow, route/RLS isolation, and vendor
+  payload leakage checks.
+
+AMC-13 defects resolved during smoke:
+
+- Local Storage bootstrap/reset readiness for clean local replay.
+- Local Storage role bootstrap for Supabase CLI/Storage API role privilege mismatch.
+- Disposable local/staging smoke fixtures and vendor active-company context.
+- Assignment status guard transitions for `submitted -> revision_requested` and
+  `revision_requested -> submitted`.
+- Payment ledger actor FK alignment for schedule/mark-paid actor attribution.
+- Repeatable wrong-vendor, declined-bid, rejected/corrected-invoice, and route-isolation
+  regression coverage.
+
+AMC-13 guardrails preserved:
+
+- Smoke execution uses disposable local/staging records only.
+- Staging fixture commands require explicit staging environment variables and refuse known
+  production refs.
+- No production data migration, production credential workaround, private bucket path exposure,
+  broad runtime policy weakening, or fake Storage tables were introduced.
+- Vendor Workspace payloads remain opaque-key based and exclude raw ids, private storage paths,
+  internal coordinator notes, client fees, and AMC margin.
+
+Pilot readiness decision:
+
+- AMC MVP is ready for controlled pilot validation in staging and a planned production pilot window
+  once launch/no-launch criteria in the AMC Pilot Readiness Checklist are satisfied.
+- External payment processing, accounting export, external email deliverability hardening, visual
+  browser QA, production data migration, and real vendor onboarding at scale remain deferred.
+
+Recommended next phase:
+
+- Execute AMC-14 pilot readiness closeout using
+  [AMC Pilot Readiness Checklist](../amc/AMC_PILOT_READINESS_CHECKLIST.md).
+- Run the recommended pilot sequence: internal owner/admin walkthrough, vendor workspace
+  walkthrough, one controlled AMC order, payment/invoice dry run, and post-pilot defect review.
 
 ## Dependency Graph
 
@@ -912,8 +1531,14 @@ Success Criteria:
 AMC-1 -> AMC-2 -> AMC-5
 AMC-5 -> AMC-6
 AMC-6 -> AMC-7 -> AMC-8
+AMC-8 -> AMC-9 -> AMC-10
+AMC-10 -> AMC-11
 AMC-3 -> AMC-4
 AMC-9 depends on AMC-1 through AMC-8
+AMC-10 depends on AMC-8 and AMC-9
+AMC-11 depends on AMC-10
+AMC-12 depends on AMC-10 and AMC-11
+AMC-13 depends on AMC-9 through AMC-12
 ```
 
 Operational notes:

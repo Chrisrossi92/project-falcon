@@ -128,8 +128,8 @@ describe('AMC vendor bid invitation foundation migration', () => {
   });
 
   it('generates, hashes, stores, and returns tokens according to doctrine', () => {
-    expect(migrationSql).toContain("v_token := encode(gen_random_bytes(32), 'hex')");
-    expect(migrationSql).toContain("v_token_hash := encode(digest(v_token, 'sha256'), 'hex')");
+    expect(migrationSql).toContain("v_token := encode(extensions.gen_random_bytes(32), 'hex')");
+    expect(migrationSql).toContain("v_token_hash := encode(extensions.digest(v_token, 'sha256'), 'hex')");
     expect(migrationSql).toContain('v_token_last_four := right(v_token, 4)');
     expect(migrationSql).toContain('v_path := \'/vendor/bid-invitations/\' || v_token');
     expect(migrationSql).toContain("'token', v_token");

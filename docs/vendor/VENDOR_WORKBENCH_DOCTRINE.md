@@ -2,17 +2,39 @@
 
 ## Purpose
 
-This document defines the future Vendor Workspace / Vendor Workbench before AMC-7 tokenized bid
-link implementation.
+This document defines the future Vendor Workspace / Vendor Workbench before authenticated vendor
+runtime implementation.
 
 The Vendor Workspace is a peer workspace in Falcon. It is not an AMC subpage, not a public bid form,
 and not a thin wrapper around internal Order Detail. AMC Operations manages procurement. Vendor
 Workbench lets external vendors understand available work, submitted bids, won assignments, required
 tasks, documents, and payment status inside a vendor-native operational world.
 
+AMC-7 Vendor Self-Service Bidding, AMC-8A Assignment Offer Acceptance MVP, and AMC-8B Vendor Work
+Tracking MVP validated the no-login token workflow. That proved the execution engine works, but the
+intended product is not manual copy/paste links. The real product direction is authenticated vendor
+login, vendor dashboard, automated email delivery, bid management, assigned order management,
+document exchange, submission workflow, and future invoicing/payment visibility.
+
 This document is doctrine/planning only. It does not add runtime routes, permissions, backend
 changes, schema/RLS changes, token models, email behavior, vendor accounts, payment behavior,
 notifications, or UI.
+
+## Core Principle
+
+The vendor does not care about Falcon internals.
+
+The vendor cares about:
+
+1. Getting work.
+2. Managing work.
+3. Submitting work.
+4. Getting paid.
+
+Every Vendor Workspace screen should support one of those four goals. Screens, labels, and actions
+should be role-native and should not require vendors to understand AMC coordinator workflows,
+candidate scoring, bid-recipient rows, assignment packet internals, or internal order lifecycle
+language.
 
 ## Vendor Worldview
 
@@ -29,6 +51,23 @@ scoring, or relationship management language. Vendor Workbench should answer:
 The workspace should use direct, action-oriented language. Vendor users should see work, bids,
 assignment offers, required submissions, due dates, messages, documents, invoices, and profile
 readiness. They should not see internal procurement mechanics.
+
+## Workspace Separation Doctrine
+
+Falcon has separate product worlds:
+
+1. Internal Operations Workspace.
+2. AMC Operations Workspace.
+3. Vendor Workspace.
+4. Future Client Workspace.
+
+Vendor notifications, navigation, dashboards, and task surfaces should not bleed into Internal or
+AMC workspace views. AMC Operations can monitor vendor work and act as coordinator, but it should
+not become the vendor's workspace.
+
+The notification center may eventually support unified viewing, but default behavior must remain
+workspace-scoped and clearly separated. A vendor should not see internal AMC queue language, and an
+AMC coordinator should not see vendor task navigation as if it were an internal module.
 
 ## Workspace Navigation
 
@@ -57,19 +96,151 @@ queues.
 
 The Vendor Dashboard should be a workbench summary, not an AMC dashboard with vendor filtering.
 
+The first question should be:
+
+```text
+What needs my attention right now?
+```
+
 Recommended cards and queues:
 
+- Needs Attention
 - Available Bid Requests
 - Pending Bids
 - Assignment Offers
 - Active Assigned Orders
-- Due Soon
+- Reports Due Soon / Due Today
+- Revision Requests
 - Documents Needed
-- Invoices / Payment Status
+- Outstanding Invoices / Payments, future
+- My Next Actions
 
 The dashboard should prioritize next actions over reporting. Counts should lead to filtered
 worklists or Vendor Order Detail screens. Empty states should explain what the vendor can do next,
 such as maintain profile readiness, coverage, contacts, and compliance documents.
+
+Avoid cluttered admin metrics unless they help the vendor make a decision or take action.
+
+## Available Work Doctrine
+
+Available Work answers the vendor's decision:
+
+```text
+Should I bid or pass?
+```
+
+Available Work cards should prioritize:
+
+- property address or market;
+- property type;
+- scope;
+- due date or requested turn time;
+- bid deadline;
+- fee guidance, if available;
+- client/order source, if appropriate;
+- required documents available;
+- complexity indicators.
+
+Primary actions:
+
+- View Work Detail.
+- Submit Bid.
+- Pass Opportunity.
+
+Secondary data should live behind disclosure. Vendors should not need to scan raw order metadata,
+candidate-match explanations, internal bid request ids, or coordinator-only notes to decide whether
+to bid.
+
+## My Bids Doctrine
+
+My Bids should answer:
+
+- What did I bid?
+- What is still pending?
+- What did I win?
+- What did I lose?
+- What needs follow-up?
+
+Vendor-facing bid statuses:
+
+- Draft, future optional.
+- Submitted.
+- Viewed / Under Review, if trackable.
+- Selected.
+- Not Selected.
+- Expired.
+- Withdrawn, future optional.
+
+The bid list should make the vendor's prior commitment clear: fee, turn time, proposed due date,
+comments, submitted timestamp, and current outcome. Loss or expiration copy should be simple and
+non-internal.
+
+## Assigned Orders Doctrine
+
+Assigned Orders is the vendor's main work queue.
+
+It should answer:
+
+- What work do I have?
+- What is due next?
+- What needs action?
+- What is waiting on the AMC/client?
+- What have I submitted?
+
+Cards or rows should prioritize:
+
+- property;
+- status;
+- due date;
+- fee;
+- next action;
+- last update.
+
+Primary actions:
+
+- Accept / Decline Assignment.
+- Start Work.
+- Submit Report.
+- Upload report documents.
+- Respond to Revision.
+- Upload supplemental documents, future.
+
+Assigned Orders should use the canonical assignment lifecycle while presenting vendor-native labels.
+It should not introduce appraisal-specific canonical statuses such as `inspection_complete` or
+`report_in_progress` until Falcon has a structured overlay model for those details.
+
+Authenticated Vendor Workspace execution now reuses the existing assignment packet lifecycle for
+assigned-order queue, detail, Start Work, Submit Report, assignment-scoped document opening, report
+file upload, revision request visibility, revision resubmission, and coordinator-created revision
+requests. Report upload uses opaque assignment/document keys, server-generated private storage
+targets, short-lived signed upload URLs, and existing `order_documents` metadata; vendors must not
+see raw order ids, assignment ids, storage paths, owner-side document APIs, client fees, AMC margin,
+internal notes, or procurement/candidate data.
+
+Revision requests are shown as an assigned-order execution state, not as a separate work system.
+Vendors should see only vendor-safe revision request metadata: request date, AMC coordinator/company
+label, due date, prior submission summary, and revision instructions. Resubmission should reuse the
+same report upload plumbing and move the existing assignment packet back to awaiting AMC review.
+Coordinator-created revision requests must store vendor-facing instructions separately from any
+future internal-only note model. Until that internal-only model exists, coordinator revision notes
+must be treated as vendor-facing.
+
+Vendor-native assigned-order labels are:
+
+- Accepted.
+- In Progress.
+- Submitted / Awaiting Review.
+- Revision Requested.
+- Resubmitted / Awaiting Review.
+- Completed.
+
+Blocked or terminal states should explain what happened:
+
+- Submitted / Awaiting Review means the AMC coordinator is reviewing the submitted report.
+- Resubmitted / Awaiting Review means a revision response has been sent back for review.
+- Completed means no further vendor action is available.
+- Unavailable documents and uploads should use friendly retry/contact copy and must not expose
+  storage paths, signed URL internals, RPC names, or raw ids.
 
 ## Vendor Order Detail
 
@@ -99,6 +270,28 @@ The screen should avoid internal tabs and labels. It should present vendor-safe 
 actions. The vendor should be able to answer what the order is, what is being requested, what is due,
 what they have submitted, what the current assignment state is, what documents or tasks remain, and
 what payment status exists later.
+
+## Vendor Order Workspace Doctrine
+
+Each assigned order should have a focused vendor workspace with:
+
+- Overview.
+- Requirements.
+- Documents.
+- Messages / Notes, future.
+- Activity.
+- Submission.
+
+The top summary should show:
+
+- property;
+- fee;
+- due date;
+- status;
+- next required action.
+
+Detailed supporting information should sit behind expandable sections or contextual panels. The
+vendor order workspace should not mirror internal Order Detail or AMC packet detail one-for-one.
 
 ## Tokenized Bid Invitation Doctrine
 
@@ -454,6 +647,27 @@ status should not overwrite AMC procurement status or internal order lifecycle s
 Vendor-required documents should be treated as task-like work items. The vendor should think "What
 do I need to submit?" rather than "What folder do I browse?"
 
+Documents from AMC/client to vendor may include:
+
+- Engagement letter.
+- Order form.
+- Subject property documents.
+- Purchase contract.
+- Rent roll.
+- Financial statements.
+- Property contact info.
+- Prior appraisal, if provided.
+- Tax/property record cards.
+- Photos/surveys/plans, if provided.
+
+Documents from vendor to AMC may include:
+
+- Completed report.
+- Invoice.
+- Revision response.
+- Supporting files.
+- Inspection notes/photos, future optional.
+
 Examples:
 
 - W9
@@ -465,9 +679,45 @@ Examples:
 - Revision request
 - Invoice submission
 
+Documents / Tasks should distinguish:
+
+- Required.
+- Optional.
+- Missing.
+- Uploaded.
+- Submitted.
+- Accepted / Needs Revision, future.
+
 Documents / Tasks should have clear status, due date where relevant, accepted/rejected state where
 relevant, and resubmission language where needed. Document browsing can exist, but required work
 should be presented as actionable tasks.
+
+## Vendor Profile Doctrine
+
+Vendor Profile should eventually power matching.
+
+Profile areas:
+
+- Company/contact details.
+- Licenses/certifications.
+- Coverage areas.
+- Property type specialties.
+- Fee preferences.
+- Turn-time preferences.
+- Current capacity.
+- Insurance/W-9/compliance documents.
+- Payment/invoicing details, future.
+- Availability / out-of-office status.
+
+Profile should help Falcon decide:
+
+- Who is eligible?
+- Who is available?
+- Who is likely a good fit?
+- Who should not receive this request?
+
+Vendor profile management should be vendor-native, but owner-side Vendor Directory remains the AMC
+source of relationship governance, status, and eligibility controls.
 
 ## Billing Doctrine
 
@@ -519,6 +769,62 @@ protect internal data.
 Security is enforced by backend/RPC contracts. Vendor Workbench UI is an experience boundary, not an
 authorization boundary.
 
+## Automation Doctrine
+
+Manual copy/paste token workflow is scaffolding only.
+
+Target coordinator workflow:
+
+1. Select vendors from candidate list.
+2. Include/exclude vendors with minimal clicks.
+3. Review or personalize the bid request message.
+4. Click Send.
+
+Target Falcon workflow:
+
+1. Send personalized bid request emails.
+2. Include secure portal/deep links.
+3. Track delivery/open/response where supported.
+4. Send reminders.
+5. Mark expired requests.
+6. Surface the next best coordinator action.
+
+Target vendor workflow:
+
+1. Receive email.
+2. Open Falcon Vendor Workspace.
+3. Review available work.
+4. Bid or pass.
+5. If selected, manage the assignment inside Vendor Workspace.
+
+Automation should reduce copy/paste work without hiding lifecycle state. Coordinators must still
+understand what was sent, who received it, who opened/responded, what expired, and what action is
+recommended next.
+
+## Decision-First UX Doctrine
+
+Vendor Workspace should follow `docs/FALCON_DECISION_FIRST_UX_DOCTRINE.md`.
+
+Level 1:
+
+- status;
+- due date;
+- next action;
+- critical blockers.
+
+Level 2:
+
+- summaries;
+- supporting context.
+
+Level 3:
+
+- full details;
+- audit/history/source data.
+
+Screens should be minimal, relevant, and role-native. Vendor users should never have to understand
+internal AMC concepts to complete their work.
+
 ## Implementation Roadmap
 
 1. WS-6: Vendor Workbench doctrine.
@@ -566,6 +872,146 @@ authorization boundary.
      `docs/amc/AMC_ASSIGNMENT_LIFECYCLE_DOCTRINE.md`.
    - Authenticated Vendor Workbench runtime remains future scope unless a specific AMC-8
      implementation slice authorizes vendor access.
+
+8. AMC-9: Vendor Workspace Runtime Doctrine.
+   - Doctrine complete in this document.
+   - Runtime complete through AMC-9H for authenticated Vendor Workspace bidding and history.
+   - Implemented surfaces: Vendor Dashboard, Available Work, Work Detail, Submit Bid, Pass
+     Opportunity, My Bids / Passed Opportunities, unified history detail, and vendor-safe document
+     opening through signed URLs.
+   - Route compatibility is preserved: Work Detail continues to use
+     `/vendor-workspace/available-work/:workKey`.
+   - Guardrails remain: current-company scope, active AMC vendor relationship/profile, AMC-only
+     orders, no shared `/orders`, no owner-side procurement/document APIs, no raw ids, no storage
+     paths, no client fees, no AMC margin, no candidate scores, no competing bids, and no internal
+     notes.
+
+9. AMC-10: Vendor Assigned Order Execution.
+   - AMC-10A through AMC-10I are complete.
+   - Runtime surfaces: `/vendor-workspace/assigned-orders` and
+     `/vendor-workspace/assigned-orders/:assignmentWorkKey`.
+   - Implemented behavior: vendor-safe assigned order list from existing `order_company_assignments`
+     lifecycle rows, Active/Due Soon/Needs Attention/Submitted summary cards, assignment status,
+     accepted date, due date, inspection/appointment status where available, report submitted state,
+     next action label, and row navigation into an authenticated assigned order detail.
+   - Detail behavior: vendor-safe status/next action, property, timeline, scope and instructions,
+     document metadata, report submission summary, and revision summary where safely represented.
+   - Start Work is enabled for eligible accepted assignments and reuses the existing assignment
+     lifecycle by moving work to In Progress and logging/notifying `assignment.started`.
+   - Submit Report is enabled for eligible in-progress assignments and reuses the existing
+     assignment lifecycle by moving work to Submitted / Awaiting Review, stamping `submitted_at`,
+     and logging/notifying `assignment.submitted`.
+   - Assignment-scoped document opening is enabled through opaque assignment/document keys and
+     short-lived signed URLs for vendor-visible documents.
+   - Report upload plumbing is enabled through opaque assignment/document keys, server-generated
+     storage targets, short-lived signed upload URLs, and existing `order_documents` metadata.
+   - Vendor revision visibility and resubmission are enabled for `revision_requested` assignments.
+   - Coordinator revision request is enabled on submitted vendor assignment packets and stores only
+     vendor-facing instructions in the shared revision payload.
+   - Closeout polish normalizes state labels, blocked-state copy, dashboard/Assigned Orders
+     revision counts, friendly document/upload errors, and AMC-10 documentation.
+   - Guardrails remain: current-company scope, active AMC vendor relationship/profile, AMC-only
+     orders, `vendor_assignments.read`, no shared `/orders`, no owner-side procurement APIs, no raw
+     ids, no storage paths, no client fees, no AMC margin, no internal notes, and no candidate or
+     procurement scoring.
+
+10. AMC-11: Internal Review Enhancements.
+   - AMC-11A is complete for internal-only coordinator notes on vendor assignment review/revision
+     decisions.
+   - Coordinator notes are stored in a separate internal-only model and are not Vendor Workspace
+     payloads, vendor notifications, public token payloads, or shared activity entries.
+   - Vendor-facing revision instructions remain separate from private review reasoning.
+   - Vendor Workspace assigned-order detail continues to exclude internal notes.
+   - AMC-11B is complete for abandoned pending vendor report upload cleanup.
+   - Pending Vendor Workspace report upload metadata receives a conservative expiration timestamp,
+     and service-role maintenance can mark stale pending metadata expired without touching submitted
+     reports, resubmitted reports, vendor-visible active documents, assignment lifecycle, order
+     lifecycle, notifications, token routes, or storage objects.
+   - Storage object cleanup remains future storage-aware maintenance work; Vendor Workspace must not
+     expose bucket/path values.
+   - AMC-11C is complete for read-only Vendor Workspace Profile / Coverage visibility.
+   - `/vendor-workspace/profile` shows vendor-safe company, contact, coverage, accepted work type,
+     status, default turn time, compliance summary, and last-updated data.
+   - Profile reads require `vendor_profile.read`, current-company scope, and an active AMC vendor
+     relationship/profile.
+   - Profile reads do not expose raw relationship/profile ids, internal coordinator notes, pricing,
+     client fees, AMC margin, owner-side APIs, or edit mutations.
+   - AMC-11D is complete for review-first Vendor Profile / Coverage edit requests.
+   - Vendors can submit proposed contact, company phone / website, coverage state/county/market,
+     accepted property/report type, and explanation changes from `/vendor-workspace/profile`.
+   - Vendor-submitted requests are stored as pending internal review records and do not mutate live
+     operational profile, coverage, relationship, pricing, compliance document, or matching data.
+   - Vendors can see pending/recent request status through opaque request keys only.
+   - AMC-11E is complete for internal AMC review/approve/reject handling.
+   - Internal users review requests from Vendor Directory using opaque request keys and current /
+     proposed summaries.
+   - Approval is the only path that applies requested live profile, contact, accepted work type, or
+     coverage changes.
+   - Rejection preserves request history and does not mutate operational vendor data.
+   - Vendors see only safe decision status and reviewer message in Vendor Workspace Profile; no
+     approval controls, raw ids, internal notes, pricing, client fees, AMC margin, owner APIs, or
+     review internals are exposed.
+
+11. AMC-12: Vendor Financial Visibility.
+   - AMC-12A is complete for read-only Vendor Workspace invoice/payment visibility.
+   - `/vendor-workspace/payments` shows payment activity for assigned AMC work using vendor-safe
+     assignment/payment rows.
+   - Payment visibility requires `vendor_payments.read`, current vendor company scope, active AMC
+     vendor relationship/profile rows, AMC-scoped orders, and vendor assigned work.
+   - Rows may show payable vendor amount only when safely modeled in assignment terms or selected
+     vendor bid handoff.
+   - The page shows Ready for Invoice, Invoice Received, Approved, Scheduled, Paid, On Hold, and
+     Rejected summaries.
+   - AMC-12B is complete for vendor invoice submission from payment-eligible assigned work.
+   - Vendors with `vendor_invoices.submit` can upload PDF invoice files through a signed upload URL,
+     register safe invoice document metadata, and submit invoice number, amount, date, and vendor
+     note.
+   - Invoice documents reuse existing `order_documents` metadata with opaque document keys; Vendor
+     Workspace does not receive storage bucket/path values.
+   - Invoice submission records `invoice_received` on the assignment submission payload and notifies
+     owner/admin users.
+   - AMC-12C is complete for internal AMC invoice review.
+   - Internal users with vendor read and billing update authority can review submitted invoices from
+     Vendor Directory, open invoice PDFs through the existing internal document access pattern, and
+     approve, hold, or reject invoices.
+   - Review stores internal reviewer notes separately from vendor-facing decision messages.
+   - Vendors see only safe payment status and vendor-facing messages through Vendor Workspace
+     notifications and Payments visibility.
+   - AMC-12D is complete for corrected vendor invoice resubmission after rejection.
+   - Rejected Payments rows show the vendor-facing rejection message, prior invoice summary, and
+     `Submit Corrected Invoice` action.
+   - Corrected invoice upload/register reuses the existing invoice document upload path and opaque
+     invoice document keys.
+   - Corrected invoice resubmission preserves the prior rejected invoice metadata/history, moves the
+     current invoice back to `invoice_received`, and notifies internal users for review.
+   - AMC-12E is complete for internal payment ledger and scheduling foundation.
+   - Internal users with vendor read and billing update authority can schedule approved invoices and
+     mark scheduled payments paid from Vendor Directory.
+   - Vendor Payments can show safe `Scheduled` and `Paid` statuses, payment date, method label,
+     reference label, and vendor-facing payment note.
+   - Payment scheduling/paid tracking is internal ledger state only; it does not initiate ACH, check,
+     bank transfer, card, or payment processor activity.
+   - AMC-12F is complete for Vendor Payments closeout and polish.
+   - Vendor-facing payment labels are normalized to `Ready for Invoice`, `Invoice Received`,
+     `Approved`, `Scheduled`, `Paid`, `On Hold`, and `Rejected`.
+   - Rejected invoice rows show the vendor-facing rejection message, prior invoice summary, and
+     corrected invoice path.
+   - Scheduled and paid rows show only safe method/date/reference labels and vendor-facing payment
+     notes.
+   - Internal review and ledger surfaces keep private internal notes separate from vendor-facing
+     messages/payment notes.
+   - This slice does not support real payment transfer execution, external payment processor
+     integration, client fees, AMC margin, owner-side financial notes to vendors, raw ids in
+     vendor-facing views, storage paths, or shared `/orders`.
+
+12. Next Vendor Workspace phases.
+   - AMC-13A smoke execution using `../amc/AMC_FULL_MVP_SMOKE_TEST_PLAN.md`.
+   - External payment processor integration only after provider/reconciliation doctrine is selected.
+   - Accounting export.
+   - Storage-aware cleanup for abandoned invoice uploads.
+   - Partial invoice approval if operations need approve-some/reject-some invoice decisions.
+   - Optional partial-approval controls for profile update requests if operations need
+     approve-some/reject-some decisions.
 
 ## Explicit Non-Goals
 

@@ -132,3 +132,52 @@ export async function updateVendorServiceArea(serviceAreaId, patch) {
     p_patch: patch || {},
   });
 }
+
+export async function listVendorProfileUpdateRequests({ status = "pending" } = {}) {
+  const data = await rpc("rpc_amc_vendor_profile_update_requests", {
+    p_status: status || null,
+  });
+  return data?.ok === true && Array.isArray(data.requests) ? data.requests : [];
+}
+
+export async function reviewVendorProfileUpdateRequest(requestKey, payload = {}) {
+  return rpc("rpc_amc_review_vendor_profile_update_request", {
+    p_request_key: requestKey,
+    p_payload: payload || {},
+  });
+}
+
+export async function listAmcVendorInvoices({ status = "invoice_received" } = {}) {
+  const data = await rpc("rpc_amc_vendor_invoices", {
+    p_status: status || null,
+  });
+  return data?.ok === true && Array.isArray(data.items) ? data.items : [];
+}
+
+export async function reviewAmcVendorInvoice(invoiceKey, payload = {}) {
+  return rpc("rpc_amc_review_vendor_invoice", {
+    p_invoice_key: invoiceKey,
+    p_payload: payload || {},
+  });
+}
+
+export async function listAmcVendorPaymentLedger({ status = "approved" } = {}) {
+  const data = await rpc("rpc_amc_vendor_payment_ledger", {
+    p_status: status || null,
+  });
+  return data?.ok === true && Array.isArray(data.items) ? data.items : [];
+}
+
+export async function scheduleAmcVendorPayment(invoiceKey, payload = {}) {
+  return rpc("rpc_amc_schedule_vendor_payment", {
+    p_invoice_key: invoiceKey,
+    p_payload: payload || {},
+  });
+}
+
+export async function markAmcVendorPaymentPaid(paymentKey, payload = {}) {
+  return rpc("rpc_amc_mark_vendor_payment_paid", {
+    p_payment_key: paymentKey,
+    p_payload: payload || {},
+  });
+}

@@ -161,6 +161,26 @@ export async function completeAssignment(assignmentId, completionNote = "") {
   });
 }
 
+export async function requestVendorAssignmentRevision(assignmentId, payload = {}) {
+  return rpc("rpc_amc_request_vendor_assignment_revision", {
+    p_assignment_id: assignmentId,
+    p_payload: payload || {},
+  });
+}
+
+export async function listVendorAssignmentInternalNotes(assignmentId) {
+  return rpc("rpc_amc_vendor_assignment_internal_notes", {
+    p_assignment_id: assignmentId,
+  });
+}
+
+export async function addVendorAssignmentInternalNote(assignmentId, payload = {}) {
+  return rpc("rpc_amc_add_vendor_assignment_internal_note", {
+    p_assignment_id: assignmentId,
+    p_payload: payload || {},
+  });
+}
+
 export async function cancelAssignment(assignmentId, reason = "") {
   return rpc("rpc_order_company_assignment_cancel", {
     p_assignment_id: assignmentId,

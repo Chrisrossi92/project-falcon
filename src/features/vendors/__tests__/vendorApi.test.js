@@ -303,6 +303,158 @@ describe("vendor directory API", () => {
     });
   });
 
+  it("lists internal Vendor Profile update requests through the AMC review RPC", async () => {
+    const requests = [
+      {
+        request_key: "request-key-1",
+        vendor_company_name: "ABC Valuation",
+        status: "pending",
+        proposed_changes: { company_changes: { public_phone: "614-555-0100" } },
+      },
+    ];
+    supabase.rpc.mockResolvedValue({ data: { ok: true, requests }, error: null });
+
+    await expect(vendorApi.listVendorProfileUpdateRequests()).resolves.toEqual(requests);
+
+    expect(supabase.rpc).toHaveBeenCalledWith("rpc_amc_vendor_profile_update_requests", {
+      p_status: "pending",
+    });
+  });
+
+  it("passes status filters to the internal Vendor Profile update request review RPC", async () => {
+    supabase.rpc.mockResolvedValue({ data: { ok: true, requests: [] }, error: null });
+
+    await vendorApi.listVendorProfileUpdateRequests({ status: "approved" });
+
+    expect(supabase.rpc).toHaveBeenCalledWith("rpc_amc_vendor_profile_update_requests", {
+      p_status: "approved",
+    });
+  });
+
+  it("reviews Vendor Profile update requests through the AMC decision RPC", async () => {
+    const result = {
+      ok: true,
+      request: {
+        request_key: "request-key-1",
+        status: "approved",
+      },
+    };
+    const payload = { decision: "approve", reviewer_note: "Approved." };
+    supabase.rpc.mockResolvedValue({ data: result, error: null });
+
+    await expect(vendorApi.reviewVendorProfileUpdateRequest("request-key-1", payload)).resolves.toEqual(result);
+
+    expect(supabase.rpc).toHaveBeenCalledWith("rpc_amc_review_vendor_profile_update_request", {
+      p_request_key: "request-key-1",
+      p_payload: payload,
+    });
+  });
+
+  it("lists internal Vendor Invoice review rows through the AMC invoice RPC", async () => {
+    const invoices = [
+      {
+        invoice_key: "invoice-key-1",
+        invoice_status: "invoice_received",
+        invoice_number: "INV-1001",
+      },
+    ];
+    supabase.rpc.mockResolvedValue({ data: { ok: true, items: invoices }, error: null });
+
+    await expect(vendorApi.listAmcVendorInvoices()).resolves.toEqual(invoices);
+
+    expect(supabase.rpc).toHaveBeenCalledWith("rpc_amc_vendor_invoices", {
+      p_status: "invoice_received",
+    });
+  });
+
+  it("passes status filters to the internal Vendor Invoice review RPC", async () => {
+    supabase.rpc.mockResolvedValue({ data: { ok: true, items: [] }, error: null });
+
+    await vendorApi.listAmcVendorInvoices({ status: "on_hold" });
+
+    expect(supabase.rpc).toHaveBeenCalledWith("rpc_amc_vendor_invoices", {
+      p_status: "on_hold",
+    });
+  });
+
+  it("reviews Vendor Invoices through the AMC invoice decision RPC", async () => {
+    const result = {
+      ok: true,
+      invoice: {
+        invoice_key: "invoice-key-1",
+        invoice_status: "approved",
+      },
+    };
+    const payload = {
+      decision: "approve",
+      reviewer_note: "Approved internally.",
+      vendor_message: null,
+      approved_amount: 1250,
+    };
+    supabase.rpc.mockResolvedValue({ data: result, error: null });
+
+    await expect(vendorApi.reviewAmcVendorInvoice("invoice-key-1", payload)).resolves.toEqual(result);
+
+    expect(supabase.rpc).toHaveBeenCalledWith("rpc_amc_review_vendor_invoice", {
+      p_invoice_key: "invoice-key-1",
+      p_payload: payload,
+    });
+  });
+
+  it("lists internal Vendor Payment ledger rows through the AMC payment ledger RPC", async () => {
+    const payments = [
+      {
+        invoice_key: "invoice-key-1",
+        payment_status: "approved",
+      },
+    ];
+    supabase.rpc.mockResolvedValue({ data: { ok: true, items: payments }, error: null });
+
+    await expect(vendorApi.listAmcVendorPaymentLedger()).resolves.toEqual(payments);
+
+    expect(supabase.rpc).toHaveBeenCalledWith("rpc_amc_vendor_payment_ledger", {
+      p_status: "approved",
+    });
+  });
+
+  it("schedules Vendor Payments through the AMC scheduling RPC", async () => {
+    const payload = {
+      scheduled_payment_date: "2026-06-15",
+      payment_method_label: "ACH",
+      reference_label: "ACH batch 12",
+      internal_note: "Private note.",
+      vendor_payment_note: "Payment scheduled.",
+    };
+    const result = { ok: true, payment_status: "scheduled" };
+    supabase.rpc.mockResolvedValue({ data: result, error: null });
+
+    await expect(vendorApi.scheduleAmcVendorPayment("invoice-key-1", payload)).resolves.toEqual(result);
+
+    expect(supabase.rpc).toHaveBeenCalledWith("rpc_amc_schedule_vendor_payment", {
+      p_invoice_key: "invoice-key-1",
+      p_payload: payload,
+    });
+  });
+
+  it("marks Vendor Payments paid through the AMC payment ledger RPC", async () => {
+    const payload = {
+      paid_date: "2026-06-16",
+      payment_method_label: "ACH",
+      reference_label: "ACH trace 1234",
+      internal_note: "Private paid note.",
+      vendor_payment_note: "Paid.",
+    };
+    const result = { ok: true, payment_status: "paid" };
+    supabase.rpc.mockResolvedValue({ data: result, error: null });
+
+    await expect(vendorApi.markAmcVendorPaymentPaid("payment-key-1", payload)).resolves.toEqual(result);
+
+    expect(supabase.rpc).toHaveBeenCalledWith("rpc_amc_mark_vendor_payment_paid", {
+      p_payment_key: "payment-key-1",
+      p_payload: payload,
+    });
+  });
+
   it("surfaces mutation RPC errors for callers to handle", async () => {
     const error = Object.assign(new Error("vendor create denied"), { code: "42501" });
     supabase.rpc.mockResolvedValue({ data: null, error });
@@ -319,7 +471,14 @@ describe("vendor directory API", () => {
       "getVendorProfileContacts",
       "getVendorProfileDetail",
       "getVendorProfileServiceAreas",
+      "listAmcVendorInvoices",
+      "listAmcVendorPaymentLedger",
       "listVendorDirectory",
+      "listVendorProfileUpdateRequests",
+      "markAmcVendorPaymentPaid",
+      "reviewAmcVendorInvoice",
+      "reviewVendorProfileUpdateRequest",
+      "scheduleAmcVendorPayment",
       "updateVendorContact",
       "updateVendorProfile",
       "updateVendorServiceArea",
