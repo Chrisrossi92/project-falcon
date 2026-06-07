@@ -62,6 +62,11 @@ const WORKSPACE_IDENTITIES = Object.freeze({
         title: "Internal Staff Assignments",
         description: "Coordinate scoped assignment packets for Continental internal production without expanding order or client visibility.",
       }),
+      orderDetail: Object.freeze({
+        eyebrow: "Internal Order Detail",
+        title: "Continental Internal Order",
+        description: "Internal appraisal production record scoped to Continental workflow, review, and client delivery.",
+      }),
     }),
     accentClasses: Object.freeze({
       ...EMPTY_ACCENT_CLASSES,
@@ -123,6 +128,26 @@ const WORKSPACE_IDENTITIES = Object.freeze({
         eyebrow: "Assignment Oversight",
         title: "AMC Assignment Oversight",
         description: "Coordinate AMC assignment packets without exposing internal staff-production tools.",
+      }),
+      orderDetail: Object.freeze({
+        eyebrow: "AMC Order Detail",
+        title: "Falcon AMC Order",
+        description: "Falcon AMC procurement record scoped to vendor assignment, client services, and payment oversight.",
+      }),
+      vendorPayments: Object.freeze({
+        eyebrow: "Vendor Workspace",
+        title: "Falcon AMC Payments",
+        description: "Review Vendor Invoices and AMC payment status for assigned Falcon AMC work. Payments are visible once assignments reach payment-eligible states.",
+      }),
+      vendorAvailableWorkDetail: Object.freeze({
+        eyebrow: "Procurement Opportunity",
+        title: "Falcon AMC Work Detail",
+        description: "Vendor Network bid opportunity scoped to Falcon AMC procurement.",
+      }),
+      vendorAssignedOrderDetail: Object.freeze({
+        eyebrow: "Assignment Oversight",
+        title: "Falcon AMC Assigned Order",
+        description: "Vendor Workspace assignment detail scoped to Falcon AMC coordinator review and report submission.",
       }),
     }),
     accentClasses: Object.freeze({

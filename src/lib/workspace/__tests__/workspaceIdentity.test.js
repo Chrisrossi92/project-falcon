@@ -40,6 +40,10 @@ describe("workspaceIdentity", () => {
     expect(getWorkspacePageChrome(identity.id, "activity")).toMatchObject({
       title: "Continental Internal Activity",
     });
+    expect(getWorkspacePageChrome(identity.id, "orderDetail")).toMatchObject({
+      eyebrow: "Internal Order Detail",
+      title: "Continental Internal Order",
+    });
     expect(identity.accentClasses.badge).toContain("bg-slate-100");
   });
 
@@ -70,6 +74,19 @@ describe("workspaceIdentity", () => {
     expect(getWorkspaceNavigationSectionLabel(identity.id, "clients", "Clients")).toBe("Client Services");
     expect(getWorkspacePageChrome(identity.id, "vendors")).toMatchObject({
       title: "Falcon AMC Vendor Network",
+    });
+    expect(getWorkspacePageChrome(identity.id, "orderDetail")).toMatchObject({
+      eyebrow: "AMC Order Detail",
+      title: "Falcon AMC Order",
+    });
+    expect(getWorkspacePageChrome(identity.id, "vendorPayments")).toMatchObject({
+      title: "Falcon AMC Payments",
+    });
+    expect(getWorkspacePageChrome(identity.id, "vendorAvailableWorkDetail")).toMatchObject({
+      eyebrow: "Procurement Opportunity",
+    });
+    expect(getWorkspacePageChrome(identity.id, "vendorAssignedOrderDetail")).toMatchObject({
+      title: "Falcon AMC Assigned Order",
     });
     expect(identity.accentClasses.eyebrow).toContain("bg-cyan-50");
     expect(identity.accentClasses.badge).toContain("bg-cyan-50");

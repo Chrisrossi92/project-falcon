@@ -377,6 +377,34 @@ describe("OrderDetail site visit save", () => {
     cleanup();
   });
 
+  it("renders Internal order detail chrome for Continental production records", async () => {
+    operationsModeMock.operationsMode = "internal_operations";
+    orderMock.operations_scope = "internal_operations";
+
+    render(<OrderDetail />);
+
+    expect(screen.getByText("Internal")).toBeInTheDocument();
+    expect(screen.getByText("Internal Order Detail")).toBeInTheDocument();
+    expect(screen.getByText("Continental Internal Order 2026001")).toBeInTheDocument();
+    expect(
+      screen.getByText("Internal appraisal production record scoped to Continental workflow, review, and client delivery."),
+    ).toBeInTheDocument();
+  });
+
+  it("renders AMC order detail chrome for Falcon AMC procurement records", async () => {
+    operationsModeMock.operationsMode = "amc_operations";
+    orderMock.operations_scope = "amc_operations";
+
+    render(<OrderDetail />);
+
+    expect(screen.getByTestId("workspace-identity-badge")).toHaveTextContent("AMC");
+    expect(screen.getByText("AMC Order Detail")).toBeInTheDocument();
+    expect(screen.getByText("Falcon AMC Order 2026001")).toBeInTheDocument();
+    expect(
+      screen.getByText("Falcon AMC procurement record scoped to vendor assignment, client services, and payment oversight."),
+    ).toBeInTheDocument();
+  });
+
   it("saves the site visit through the RPC-backed wrapper and refreshes", async () => {
     render(<OrderDetail />);
 

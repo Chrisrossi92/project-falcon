@@ -11,6 +11,7 @@ import OperationalInputsCreateClearControls from "@/features/orders/operational-
 import OperationalInputsReadOnly from "@/features/orders/operational-inputs/OperationalInputsReadOnly";
 import useOrderOperationalInputs from "@/features/orders/operational-inputs/useOrderOperationalInputs";
 import ReviewContextSummary from "@/features/orders/review/ReviewContextSummary";
+import WorkspaceBadge from "@/components/workspace/WorkspaceBadge";
 import { WorkspaceSurface } from "@/components/workspace/WorkspaceSurface";
 import useOrder from "@/lib/hooks/useOrder";
 import { useEffectivePermissions } from "@/lib/hooks/usePermissions";
@@ -46,6 +47,7 @@ import { formatPhoneForDisplay } from "@/lib/utils/phoneFormat";
 import { formatOperationalDate } from "@/lib/utils/dateOnly";
 import { useOperationsMode } from "@/lib/operations/OperationsModeProvider";
 import { OPERATIONS_MODES } from "@/lib/operations/operationsMode";
+import { getWorkspacePageChrome } from "@/lib/workspace/workspaceIdentity";
 
 /* ---------- helpers ---------- */
 const fmtDate = (s) => (s ? new Date(s).toLocaleDateString() : "-");
@@ -673,6 +675,7 @@ export default function OrderDetail() {
   const [appraiserName, setAppraiserName] = useState("-");
   const orderId = order?.id;
   const orderOperationsScope = order?.operations_scope;
+  const orderDetailChrome = getWorkspacePageChrome(operationsMode, "orderDetail");
   const orderWorkspaceRedirect = useMemo(
     () => (orderId ? resolveOrderWorkspaceRedirect(orderOperationsScope, operationsMode) : null),
     [operationsMode, orderId, orderOperationsScope],
@@ -958,8 +961,14 @@ export default function OrderDetail() {
         <WorkspaceSurface variant="primary" className="p-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0">
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <WorkspaceBadge operationsMode={operationsMode} />
+              <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                {orderDetailChrome.eyebrow || "Order Detail"}
+              </span>
+            </div>
             <div className="text-lg font-semibold flex items-center gap-3">
-              <span>Order {titleNo}</span>
+              <span>{orderDetailChrome.title || "Order"} {titleNo}</span>
               <OrderStatusBadge status={order.status} />
               <button
                 type="button"
@@ -971,6 +980,11 @@ export default function OrderDetail() {
               </button>
             </div>
             <div className="text-xs text-gray-500">Created {fmtDateTime(order.created_at)}</div>
+            {orderDetailChrome.description ? (
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                {orderDetailChrome.description}
+              </p>
+            ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-2">
             {canOfferAssignment && (

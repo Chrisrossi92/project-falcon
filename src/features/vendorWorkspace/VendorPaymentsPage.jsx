@@ -8,6 +8,8 @@ import {
   resubmitVendorWorkspaceInvoice,
   submitVendorWorkspaceInvoice,
 } from "@/features/vendorWorkspace/api.js";
+import { OPERATIONS_MODES } from "@/lib/operations/operationsMode";
+import { getWorkspacePageChrome } from "@/lib/workspace/workspaceIdentity";
 
 const statusClasses = Object.freeze({
   not_ready: "border-slate-200 bg-slate-50 text-slate-600",
@@ -481,6 +483,7 @@ function PaymentCard({ item, onInvoiceSubmitted }) {
 }
 
 export default function VendorPaymentsPage() {
+  const pageChrome = getWorkspacePageChrome(OPERATIONS_MODES.AMC_OPERATIONS, "vendorPayments");
   const [payments, setPayments] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -527,12 +530,14 @@ export default function VendorPaymentsPage() {
     <div className="space-y-6">
       <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-          Vendor Workspace
+          {pageChrome.eyebrow || "Vendor Workspace"}
         </p>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-950">Payments</h1>
+        <h1 className="mt-2 text-2xl font-semibold text-slate-950">
+          {pageChrome.title || "Payments"}
+        </h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-          Review read-only invoice and payment status for assigned AMC work. Payments are visible
-          once assignments reach payment-eligible states.
+          {pageChrome.description ||
+            "Review read-only invoice and payment status for assigned AMC work. Payments are visible once assignments reach payment-eligible states."}
         </p>
       </section>
 

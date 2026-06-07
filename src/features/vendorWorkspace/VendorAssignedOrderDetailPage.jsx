@@ -10,6 +10,8 @@ import {
   startVendorWorkspaceAssignedOrder,
   submitVendorWorkspaceReport,
 } from "@/features/vendorWorkspace/api.js";
+import { OPERATIONS_MODES } from "@/lib/operations/operationsMode";
+import { getWorkspacePageChrome } from "@/lib/workspace/workspaceIdentity";
 
 const statusClasses = Object.freeze({
   accepted_not_started: "border-amber-200 bg-amber-50 text-amber-700",
@@ -570,6 +572,7 @@ function ReportSubmission({ item }) {
 }
 
 export default function VendorAssignedOrderDetailPage() {
+  const pageChrome = getWorkspacePageChrome(OPERATIONS_MODES.AMC_OPERATIONS, "vendorAssignedOrderDetail");
   const { assignmentWorkKey } = useParams();
   const [detail, setDetail] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -619,12 +622,17 @@ export default function VendorAssignedOrderDetailPage() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-              Assigned Order Detail
+              {pageChrome.eyebrow || "Assigned Order Detail"}
             </p>
             <h1 className="mt-2 text-2xl font-semibold text-slate-950">
               {order.property_address || "Property details pending"}
             </h1>
-            <p className="mt-2 text-sm text-slate-500">{market || order.county || "Market pending"}</p>
+            <p className="mt-2 text-sm text-slate-500">
+              {pageChrome.title || "Assigned Order Detail"} · {market || order.county || "Market pending"}
+            </p>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
+              {pageChrome.description || "Vendor assignment detail scoped to AMC coordinator review."}
+            </p>
           </div>
           <span className={`rounded-full border px-2 py-1 text-xs font-semibold ${statusClass}`}>
             {statusLabel}

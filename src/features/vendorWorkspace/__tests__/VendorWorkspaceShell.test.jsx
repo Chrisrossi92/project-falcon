@@ -1351,7 +1351,8 @@ describe("Vendor Workspace hidden shell", () => {
   it("renders Vendor Workspace payments from vendor-safe payment rows", async () => {
     const { container } = renderVendorWorkspace("/vendor-workspace/payments");
 
-    expect(await screen.findByRole("heading", { name: "Payments" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Falcon AMC Payments" })).toBeInTheDocument();
+    expect(screen.getByText("Vendor Invoices", { exact: false })).toBeInTheDocument();
     expect(apiMock.fetchVendorWorkspacePayments).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("article", { name: "Ready for Invoice payments" })).toHaveTextContent("1");
     expect(screen.getByRole("article", { name: "Invoice Received payments" })).toHaveTextContent("1");
@@ -1415,7 +1416,7 @@ describe("Vendor Workspace hidden shell", () => {
       });
     renderVendorWorkspace("/vendor-workspace/payments");
 
-    expect(await screen.findByRole("heading", { name: "Payments" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Falcon AMC Payments" })).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Invoice Number"), {
       target: { value: "INV-1001" },
@@ -1489,7 +1490,7 @@ describe("Vendor Workspace hidden shell", () => {
       });
     renderVendorWorkspace("/vendor-workspace/payments");
 
-    expect(await screen.findByRole("heading", { name: "Payments" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Falcon AMC Payments" })).toBeInTheDocument();
     expect(screen.getByText("Invoice rejected")).toBeInTheDocument();
     expect(screen.getByText("Please correct the invoice amount and upload a revised PDF.")).toBeInTheDocument();
     expect(screen.getByText("INV-0999")).toBeInTheDocument();
@@ -1554,7 +1555,7 @@ describe("Vendor Workspace hidden shell", () => {
   it("validates invoice submission before calling the vendor invoice RPC", async () => {
     renderVendorWorkspace("/vendor-workspace/payments");
 
-    expect(await screen.findByRole("heading", { name: "Payments" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Falcon AMC Payments" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Submit Invoice" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Enter an invoice number.");
@@ -1793,7 +1794,8 @@ describe("Vendor Workspace hidden shell", () => {
 
     expect(await screen.findByRole("heading", { name: "987 Assigned Way" })).toBeInTheDocument();
     expect(apiMock.fetchVendorWorkspaceAssignedOrderDetail).toHaveBeenCalledWith("assigned-work-key-1");
-    expect(screen.getByText("Assigned Order Detail")).toBeInTheDocument();
+    expect(screen.getByText("Assignment Oversight")).toBeInTheDocument();
+    expect(screen.getByText("Falcon AMC Assigned Order", { exact: false })).toBeInTheDocument();
   });
 
   it("renders assigned order detail from the vendor-scoped assignment detail RPC", async () => {
@@ -1801,7 +1803,8 @@ describe("Vendor Workspace hidden shell", () => {
 
     expect(await screen.findByRole("heading", { name: "987 Assigned Way" })).toBeInTheDocument();
     expect(apiMock.fetchVendorWorkspaceAssignedOrderDetail).toHaveBeenCalledWith("assigned-work-key-1");
-    expect(screen.getByText("Assigned Order Detail")).toBeInTheDocument();
+    expect(screen.getByText("Assignment Oversight")).toBeInTheDocument();
+    expect(screen.getByText("Falcon AMC Assigned Order", { exact: false })).toBeInTheDocument();
     expect(screen.getAllByText("Accepted").length).toBeGreaterThan(0);
     expect(screen.getByText("Status / Next Action")).toBeInTheDocument();
     expect(screen.getByText("Property")).toBeInTheDocument();
@@ -2133,7 +2136,9 @@ describe("Vendor Workspace hidden shell", () => {
 
     expect(await screen.findByRole("heading", { name: "456 Vendor Lane" })).toBeInTheDocument();
     expect(apiMock.fetchVendorWorkspaceAvailableWorkDetail).toHaveBeenCalledWith("opaque-work-key-1");
-    expect(screen.getByText("Detroit, MI, 48226")).toBeInTheDocument();
+    expect(screen.getByText("Procurement Opportunity")).toBeInTheDocument();
+    expect(screen.getByText("Falcon AMC Work Detail", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText((_, node) => node?.textContent === "Falcon AMC Work Detail · Detroit, MI, 48226")).toBeInTheDocument();
     expect(screen.getByText("Continental AMC")).toBeInTheDocument();
     expect(screen.getByText("AMC-DEMO-004")).toBeInTheDocument();
     expect(screen.getByText("Retail")).toBeInTheDocument();
@@ -2545,7 +2550,11 @@ describe("Vendor Workspace hidden shell", () => {
     renderVendorWorkspace("/vendor-workspace/payments");
 
     expect(await screen.findByText("No payment activity yet.")).toBeInTheDocument();
-    expect(screen.getByText("Payments are visible once assignments reach payment-eligible states.")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Review Vendor Invoices and AMC payment status for assigned Falcon AMC work. Payments are visible once assignments reach payment-eligible states.",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("renders Assigned Orders loading, error, and empty states", async () => {

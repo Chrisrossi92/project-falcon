@@ -7,6 +7,8 @@ import {
   fetchVendorWorkspaceAvailableWorkDetail,
   submitVendorWorkspaceBidResponse,
 } from "@/features/vendorWorkspace/api.js";
+import { OPERATIONS_MODES } from "@/lib/operations/operationsMode";
+import { getWorkspacePageChrome } from "@/lib/workspace/workspaceIdentity";
 
 const statusLabels = Object.freeze({
   available: "Available",
@@ -570,6 +572,7 @@ function BidSubmissionForm({ workKey, onSubmitted, onDeclined }) {
 }
 
 export default function VendorAvailableWorkDetailPage() {
+  const pageChrome = getWorkspacePageChrome(OPERATIONS_MODES.AMC_OPERATIONS, "vendorAvailableWorkDetail");
   const { workKey } = useParams();
   const [detail, setDetail] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -627,12 +630,17 @@ export default function VendorAvailableWorkDetailPage() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-              Work Detail
+              {pageChrome.eyebrow || "Work Detail"}
             </p>
             <h1 className="mt-2 text-2xl font-semibold text-slate-950">
               {order.property_address || "Work detail"}
             </h1>
-            <p className="mt-2 text-sm text-slate-600">{market || order.county || "Market pending"}</p>
+            <p className="mt-2 text-sm text-slate-600">
+              {pageChrome.title || "Work Detail"} · {market || order.county || "Market pending"}
+            </p>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
+              {pageChrome.description || "Vendor bid opportunity scoped to AMC procurement."}
+            </p>
           </div>
           <span className={`rounded-full border px-2 py-1 text-xs font-semibold ${statusClass}`}>
             {statusLabels[status] || statusLabels.available}
