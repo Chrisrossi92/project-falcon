@@ -5,6 +5,7 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import AssignmentsPage from "../AssignmentsPage";
+import { OperationsModeProvider } from "@/lib/operations/OperationsModeProvider";
 
 const listAssignedAssignmentsMock = vi.hoisted(() => vi.fn());
 const listOwnerAssignmentsMock = vi.hoisted(() => vi.fn());
@@ -40,7 +41,9 @@ vi.mock("@/lib/hooks/usePermissions", () => ({
 function renderAssignments() {
   return render(
     <MemoryRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
-      <AssignmentsPage />
+      <OperationsModeProvider>
+        <AssignmentsPage />
+      </OperationsModeProvider>
     </MemoryRouter>,
   );
 }
@@ -88,8 +91,8 @@ describe("AssignmentsPage workspace polish", () => {
   it("renders packet coordination hierarchy without changing lane data sources", async () => {
     renderAssignments();
 
-    expect(screen.getByText("Packet Coordination")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Assignments Workspace" })).toBeInTheDocument();
+    expect(screen.getByText("Staff Assignments")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Internal Staff Assignments" })).toBeInTheDocument();
     expect(screen.getByLabelText("Assignments workspace context")).toHaveTextContent("Packet-scoped");
     expect(screen.getByLabelText("Assignments workspace context")).toHaveTextContent("Received work + Sent assignments");
 

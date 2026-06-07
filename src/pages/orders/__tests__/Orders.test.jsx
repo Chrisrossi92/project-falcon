@@ -148,8 +148,8 @@ describe("OrdersPage historical access", () => {
 
     expect(screen.getByRole("heading", { name: "Orders" })).toBeInTheDocument();
     expect(screen.getByText("Internal")).toBeInTheDocument();
-    expect(screen.getByText("Internal Operations")).toBeInTheDocument();
-    expect(screen.getByText("Manage internal appraisal orders, workflow handoffs, and order records.")).toBeInTheDocument();
+    expect(screen.getByText("Client Orders")).toBeInTheDocument();
+    expect(screen.getByText("Manage Continental appraisal production orders, workflow handoffs, and client delivery records.")).toBeInTheDocument();
     expect(screen.queryByText("Orders workspace")).not.toBeInTheDocument();
     expect(screen.queryByText("Workflow actions in table")).not.toBeInTheDocument();
     expect(screen.queryByText("History is read-only")).not.toBeInTheDocument();
@@ -199,9 +199,9 @@ describe("OrdersPage historical access", () => {
 
     expect(screen.getByRole("heading", { name: "Orders" })).toBeInTheDocument();
     expect(screen.getByText("Procurement")).toBeInTheDocument();
-    expect(screen.getByText("AMC Operations")).toBeInTheDocument();
+    expect(screen.getByText("Falcon AMC")).toBeInTheDocument();
     expect(
-      screen.getByText("Manage AMC orders, vendor procurement context, and client coordination."),
+      screen.getByText("Manage Falcon AMC orders, vendor procurement context, and client-services coordination."),
     ).toBeInTheDocument();
     expect(tableMock).toHaveBeenLastCalledWith(
       expect.objectContaining({

@@ -3,6 +3,7 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import CalendarPage from "../Calendar";
+import { OperationsModeProvider } from "@/lib/operations/OperationsModeProvider";
 
 const appContextMock = vi.hoisted(() => vi.fn());
 const supabaseMock = vi.hoisted(() => ({
@@ -75,7 +76,11 @@ function renderCalendar({ context, rows = [] } = {}) {
     },
   });
 
-  render(<CalendarPage />);
+  render(
+    <OperationsModeProvider>
+      <CalendarPage />
+    </OperationsModeProvider>,
+  );
   return query;
 }
 
@@ -104,8 +109,8 @@ describe("CalendarPage workspace hierarchy", () => {
       ],
     });
 
-    expect(screen.getByRole("heading", { name: "Calendar Workspace" })).toBeInTheDocument();
-    expect(screen.getByText("Scheduling Coordination")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Internal Production Calendar" })).toBeInTheDocument();
+    expect(screen.getByText("Review Workflow")).toBeInTheDocument();
     expect(screen.getByLabelText("Calendar workspace context")).toBeInTheDocument();
     expect(screen.getByText("Falcon Appraisals")).toBeInTheDocument();
     expect(screen.getByText("Company schedule")).toBeInTheDocument();

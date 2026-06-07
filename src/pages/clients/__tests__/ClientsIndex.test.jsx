@@ -4,6 +4,8 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ClientsIndex from "../ClientsIndex";
+import { OperationsModeProvider } from "@/lib/operations/OperationsModeProvider";
+import { OPERATIONS_MODES } from "@/lib/operations/operationsMode";
 
 const listClientsMock = vi.hoisted(() => vi.fn());
 const listAssignedOrderClientsMock = vi.hoisted(() => vi.fn());
@@ -52,14 +54,17 @@ vi.mock("@/components/clients/ClientCard", () => ({
   },
 }));
 
-function renderClients({ canCreate = true, rows = [] } = {}) {
+function renderClients({ canCreate = true, rows = [], operationsMode = OPERATIONS_MODES.INTERNAL_OPERATIONS } = {}) {
   useCanMock.mockReturnValue({ allowed: canCreate });
   listClientsMock.mockResolvedValue(rows);
   listAssignedOrderClientsMock.mockResolvedValue(rows);
+  window.localStorage.setItem("falcon.operationsMode", operationsMode);
 
   return render(
     <MemoryRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
-      <ClientsIndex />
+      <OperationsModeProvider>
+        <ClientsIndex />
+      </OperationsModeProvider>
     </MemoryRouter>,
   );
 }
@@ -70,6 +75,7 @@ describe("ClientsIndex workspace polish", () => {
     listAssignedOrderClientsMock.mockReset();
     useCanMock.mockReset();
     clientCardMock.mockClear();
+    window.localStorage.clear();
     Object.assign(shellProfileMock, {
       profileId: "operations",
       appContext: { user_id: "user-1" },
@@ -82,6 +88,7 @@ describe("ClientsIndex workspace polish", () => {
     listAssignedOrderClientsMock.mockReset();
     useCanMock.mockReset();
     clientCardMock.mockReset();
+    window.localStorage.clear();
   });
 
   it("renders the relationship-management workspace hierarchy without changing card data", async () => {
@@ -103,8 +110,8 @@ describe("ClientsIndex workspace polish", () => {
       ],
     });
 
-    expect(screen.getByRole("heading", { name: "Clients Workspace" })).toBeInTheDocument();
-    expect(screen.getByText("Relationship Management")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Internal Client Relationships" })).toBeInTheDocument();
+    expect(screen.getByText("Client Orders")).toBeInTheDocument();
     expect(screen.getByLabelText("Clients workspace context")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Relationship Controls" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Client Directory" })).toBeInTheDocument();
@@ -174,7 +181,7 @@ describe("ClientsIndex workspace polish", () => {
     renderClients({ canCreate: false });
 
     expect(screen.queryByRole("link", { name: "New Client" })).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Clients Workspace" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Internal Client Relationships" })).toBeInTheDocument();
   });
 
   it("derives appraiser clients from assigned order rows instead of management relationships", async () => {

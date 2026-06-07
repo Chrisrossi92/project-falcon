@@ -3,6 +3,8 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { OperationsModeProvider } from "@/lib/operations/OperationsModeProvider";
+import { OPERATIONS_MODES } from "@/lib/operations/operationsMode";
 
 const vendorApiState = vi.hoisted(() => ({
   listVendorDirectory: vi.fn(),
@@ -64,9 +66,12 @@ vi.mock("react-router-dom", async (importOriginal) => {
 const { default: VendorDirectoryPage } = await import("../VendorDirectoryPage.jsx");
 
 function renderPage() {
+  window.localStorage.setItem("falcon.operationsMode", OPERATIONS_MODES.AMC_OPERATIONS);
   return render(
     <MemoryRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
-      <VendorDirectoryPage />
+      <OperationsModeProvider availableOperationsModes={[OPERATIONS_MODES.AMC_OPERATIONS]}>
+        <VendorDirectoryPage />
+      </OperationsModeProvider>
     </MemoryRouter>,
   );
 }
@@ -116,11 +121,13 @@ describe("VendorDirectoryPage", () => {
     vi.spyOn(window, "open").mockImplementation(() => null);
     permissionState.allowed = new Set();
     routeState.navigate.mockReset();
+    window.localStorage.clear();
   });
 
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
+    window.localStorage.clear();
   });
 
   it("renders loading and populated Vendor Directory states", async () => {

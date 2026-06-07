@@ -4,6 +4,8 @@ import {
 } from "@/components/workspace/WorkspaceContext";
 import { useCanAny, useEffectivePermissions } from "@/lib/hooks/usePermissions";
 import { PERMISSIONS } from "@/lib/permissions/constants";
+import { useOperationsMode } from "@/lib/operations/OperationsModeProvider";
+import { getWorkspacePageChrome } from "@/lib/workspace/workspaceIdentity";
 import { AssignmentState, LoadingState, PageHeader } from "./AssignmentPrimitives";
 import AssignedAssignmentInbox from "./AssignedAssignmentInbox";
 import OwnerAssignmentManagement from "./OwnerAssignmentManagement";
@@ -16,6 +18,8 @@ const ASSIGNMENT_NAV_PERMISSIONS = [
 export default function AssignmentsPage() {
   const canViewAssignments = useCanAny(ASSIGNMENT_NAV_PERMISSIONS);
   const permissions = useEffectivePermissions();
+  const { operationsMode } = useOperationsMode();
+  const pageChrome = getWorkspacePageChrome(operationsMode, "assignments");
   const canReadAssigned = permissions.hasPermission(PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_ASSIGNED);
   const canReadOwner = permissions.hasPermission(PERMISSIONS.ORDER_COMPANY_ASSIGNMENTS_READ_OWNER);
   const visibleLaneLabel = [
@@ -40,9 +44,9 @@ export default function AssignmentsPage() {
   return (
     <div className="space-y-4">
       <PageHeader
-        eyebrow="Packet Coordination"
-        title="Assignments Workspace"
-        subtitle="Coordinate scoped assignment packets between companies without expanding order or client visibility."
+        eyebrow={pageChrome.eyebrow || "Packet Coordination"}
+        title={pageChrome.title || "Assignments Workspace"}
+        subtitle={pageChrome.description || "Coordinate scoped assignment packets between companies without expanding order or client visibility."}
       />
       <WorkspaceContextStrip
         ariaLabel="Assignments workspace context"

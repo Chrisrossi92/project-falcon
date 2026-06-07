@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import ClientCard from "@/components/clients/ClientCard";
 import { WorkspaceContextTile } from "@/components/workspace/WorkspaceContext";
 import { WorkspaceSection, WorkspaceSectionMeta } from "@/components/workspace/WorkspaceSection";
+import WorkspaceBadge from "@/components/workspace/WorkspaceBadge";
 import {
   WorkspaceEmptyState,
   WorkspaceErrorState,
@@ -13,6 +14,8 @@ import { useCan } from "@/lib/hooks/usePermissions";
 import { PERMISSIONS } from "@/lib/permissions/constants";
 import { useShellProfile } from "@/lib/shell/useShellProfile";
 import { SHELL_PROFILE_IDS } from "@/lib/shell/resolveShellProfile";
+import { useOperationsMode } from "@/lib/operations/OperationsModeProvider";
+import { getWorkspacePageChrome } from "@/lib/workspace/workspaceIdentity";
 import {
   listAssignedOrderClients,
   listClientManagementClients,
@@ -43,6 +46,8 @@ const sortLabels = {
 export default function ClientsIndex() {
   const canCreateClientsPermission = useCan(PERMISSIONS.CLIENTS_CREATE);
   const canCreateClients = canCreateClientsPermission.allowed;
+  const { operationsMode } = useOperationsMode();
+  const pageChrome = getWorkspacePageChrome(operationsMode, "clients");
   const shellProfile = useShellProfile();
   const isAppraiserClientsView = shellProfile.profileId === SHELL_PROFILE_IDS.MY_WORK;
   const appraiserId = shellProfile.appContext?.user_id || null;
@@ -117,16 +122,19 @@ export default function ClientsIndex() {
       <header className="rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-4 shadow-sm md:px-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              {isAppraiserClientsView ? "Assigned Client Work" : "Relationship Management"}
+            <div className="flex flex-wrap items-center gap-2">
+              <WorkspaceBadge operationsMode={operationsMode} />
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                {isAppraiserClientsView ? "Assigned Client Work" : pageChrome.eyebrow || "Relationship Management"}
+              </span>
             </div>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">
-              {isAppraiserClientsView ? "Clients" : "Clients Workspace"}
+              {isAppraiserClientsView ? "Clients" : pageChrome.title || "Clients Workspace"}
             </h1>
             <p className="mt-2 text-sm leading-6 text-slate-600">
               {isAppraiserClientsView
                 ? "Clients connected to orders assigned to you."
-                : "Find client, lender, and AMC relationships for current order coordination."}
+                : pageChrome.description || "Find client, lender, and AMC relationships for current order coordination."}
             </p>
           </div>
 

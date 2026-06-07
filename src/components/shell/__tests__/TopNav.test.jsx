@@ -151,26 +151,26 @@ describe("TopNav desktop operational spine navigation", () => {
     const { container } = renderTopNav();
     const desktopContext = container.querySelector('aside [data-testid="operations-mode-switcher"]');
 
-    expect(within(desktopContext).getByRole("button", { name: "Internal Operations" })).toHaveAttribute(
+    expect(within(desktopContext).getByRole("button", { name: "Continental Internal Operations" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
-    expect(within(desktopContext).queryByRole("button", { name: "AMC Operations" })).not.toBeInTheDocument();
+    expect(within(desktopContext).queryByRole("button", { name: "Falcon AMC" })).not.toBeInTheDocument();
     expect(container.querySelector('aside [data-testid="operations-mode-current"]')).toHaveTextContent(
-      "Internal Operations",
+      "Continental Internal Operations",
     );
     expect(within(desktopContext).getByTestId("operations-mode-selected-label")).toHaveTextContent(
-      "Internal Operations",
+      "Continental Internal Operations",
     );
     expect(container.querySelector('aside [data-testid="workspace-identity-badge"]')).toHaveTextContent(
       "Internal",
     );
     expect(container.querySelector('aside [data-testid="workspace-identity-title"]')).toHaveTextContent(
-      "Internal Environment",
+      "Continental Internal Operations",
     );
   });
 
-  it("switches Internal Operations to AMC Operations and resets order detail to the dashboard", () => {
+  it("switches Continental Internal Operations to Falcon AMC and resets order detail to the dashboard", () => {
     shellProfileState.appContext = { is_admin_role: true };
     permissionState.allowed = new Set([
       PERMISSIONS.CLIENTS_READ_ALL,
@@ -181,38 +181,38 @@ describe("TopNav desktop operational spine navigation", () => {
     const { container } = renderTopNav("/orders/order-123");
     const desktopContext = container.querySelector('aside [data-testid="operations-mode-switcher"]');
 
-    fireEvent.click(within(desktopContext).getByRole("button", { name: "AMC Operations" }));
+    fireEvent.click(within(desktopContext).getByRole("button", { name: "Falcon AMC" }));
 
-    expect(within(desktopContext).getByRole("button", { name: "AMC Operations" })).toHaveAttribute(
+    expect(within(desktopContext).getByRole("button", { name: "Falcon AMC" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
     expect(container.querySelector('aside [data-testid="operations-mode-current"]')).toHaveTextContent(
-      "AMC Operations",
+      "Falcon AMC",
     );
     expect(within(desktopContext).getByTestId("operations-mode-selected-label")).toHaveTextContent(
-      "AMC Operations",
+      "Falcon AMC",
     );
     expect(container.querySelector('aside [data-testid="workspace-identity-badge"]')).toHaveTextContent(
       "AMC",
     );
     expect(container.querySelector('aside [data-testid="workspace-identity-title"]')).toHaveTextContent(
-      "AMC Environment",
+      "Falcon AMC Environment",
     );
     expect(window.localStorage.getItem(OPERATIONS_MODE_STORAGE_KEY)).toBe("amc_operations");
     expect(screen.getByTestId("current-path")).toHaveTextContent("/dashboard");
     expect(screen.getByTestId("current-search")).toHaveTextContent("");
     expect(screen.getByTestId("current-navigation-type")).toHaveTextContent("REPLACE");
     expect(desktopLinks(container).map((link) => link.textContent)).toEqual([
-      "Operations",
-      "Orders",
-      "Calendar",
-      "Vendors",
-      "Clients",
+      "Management Operations",
+      "Procurement",
+      "Assignment Oversight",
+      "Vendor Network",
+      "Client Services",
     ]);
   });
 
-  it("clears workspace-scoped storage and emits an invalidation event when switching to AMC Operations", () => {
+  it("clears workspace-scoped storage and emits an invalidation event when switching to Falcon AMC", () => {
     shellProfileState.appContext = { is_admin_role: true };
     permissionState.allowed = new Set([PERMISSIONS.VENDORS_READ]);
     window.localStorage.setItem("falcon.orders.filters", "status=in_review");
@@ -228,7 +228,7 @@ describe("TopNav desktop operational spine navigation", () => {
       const { container } = renderTopNav("/orders?status=in_review&q=main&page=3");
       const desktopContext = container.querySelector('aside [data-testid="operations-mode-switcher"]');
 
-      fireEvent.click(within(desktopContext).getByRole("button", { name: "AMC Operations" }));
+      fireEvent.click(within(desktopContext).getByRole("button", { name: "Falcon AMC" }));
 
       expect(screen.getByTestId("current-path")).toHaveTextContent("/dashboard");
       expect(screen.getByTestId("current-search")).toHaveTextContent("");
@@ -267,7 +267,7 @@ describe("TopNav desktop operational spine navigation", () => {
     }
   });
 
-  it("switches AMC Operations to Internal Operations and resets order detail to the dashboard", () => {
+  it("switches Falcon AMC to Continental Internal Operations and resets order detail to the dashboard", () => {
     shellProfileState.appContext = { is_owner: true };
     permissionState.allowed = new Set([
       PERMISSIONS.CLIENTS_READ_ALL,
@@ -278,14 +278,14 @@ describe("TopNav desktop operational spine navigation", () => {
     const { container } = renderTopNav("/orders/amc-order-123");
     const desktopContext = container.querySelector('aside [data-testid="operations-mode-switcher"]');
 
-    fireEvent.click(within(desktopContext).getByRole("button", { name: "Internal Operations" }));
+    fireEvent.click(within(desktopContext).getByRole("button", { name: "Continental Internal Operations" }));
 
-    expect(within(desktopContext).getByRole("button", { name: "Internal Operations" })).toHaveAttribute(
+    expect(within(desktopContext).getByRole("button", { name: "Continental Internal Operations" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
     expect(within(desktopContext).getByTestId("operations-mode-selected-label")).toHaveTextContent(
-      "Internal Operations",
+      "Continental Internal Operations",
     );
     expect(window.localStorage.getItem(OPERATIONS_MODE_STORAGE_KEY)).toBe("internal_operations");
     expect(screen.getByTestId("current-path")).toHaveTextContent("/dashboard");
@@ -301,16 +301,16 @@ describe("TopNav desktop operational spine navigation", () => {
     const { container } = renderTopNav();
     const desktopContext = container.querySelector('aside [data-testid="operations-mode-switcher"]');
 
-    expect(within(desktopContext).getByRole("button", { name: "AMC Operations" })).toHaveAttribute(
+    expect(within(desktopContext).getByRole("button", { name: "Falcon AMC" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
     expect(within(desktopContext).getByTestId("operations-mode-selected-label")).toHaveTextContent(
-      "AMC Operations",
+      "Falcon AMC",
     );
   });
 
-  it("uses the AMC workspace shell cue in AMC Operations", () => {
+  it("uses the AMC workspace shell cue in Falcon AMC", () => {
     shellProfileState.appContext = { is_owner: true };
     permissionState.allowed = new Set([PERMISSIONS.VENDORS_READ]);
     window.localStorage.setItem(OPERATIONS_MODE_STORAGE_KEY, "amc_operations");
@@ -324,7 +324,7 @@ describe("TopNav desktop operational spine navigation", () => {
     );
   });
 
-  it("shows Vendors only in AMC Operations nav when vendor read access is available", () => {
+  it("shows Vendors only in Falcon AMC nav when vendor read access is available", () => {
     shellProfileState.appContext = { is_admin_role: true };
     permissionState.allowed = new Set([
       PERMISSIONS.CLIENTS_READ_ALL,
@@ -339,16 +339,16 @@ describe("TopNav desktop operational spine navigation", () => {
     const desktopNav = getDesktopPrimaryNav(container);
     const links = desktopLinks(container);
 
-    expect(within(desktopNav).getByText("Procurement")).toBeInTheDocument();
-    expect(within(desktopNav).getAllByText("Vendors")).toHaveLength(2);
-    expect(within(desktopNav).getAllByText("Clients")).toHaveLength(2);
+    expect(within(desktopNav).getAllByText("Management Operations")).toHaveLength(2);
+    expect(within(desktopNav).getAllByText("Vendor Network")).toHaveLength(2);
+    expect(within(desktopNav).getAllByText("Client Services")).toHaveLength(2);
     expect(within(desktopNav).queryByText("Network")).toBeNull();
     expect(links.map((link) => link.textContent)).toEqual([
-      "Operations",
-      "Orders",
-      "Calendar",
-      "Vendors",
-      "Clients",
+      "Management Operations",
+      "Procurement",
+      "Assignment Oversight",
+      "Vendor Network",
+      "Client Services",
     ]);
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
       "/dashboard",
@@ -357,12 +357,12 @@ describe("TopNav desktop operational spine navigation", () => {
       "/vendors",
       "/clients",
     ]);
-    expect(within(desktopNav).queryByRole("link", { name: "Users" })).toBeNull();
-    expect(within(desktopNav).queryByRole("link", { name: "Assignments" })).toBeNull();
+    expect(within(desktopNav).queryByRole("link", { name: "Staff Directory" })).toBeNull();
+    expect(within(desktopNav).queryByRole("link", { name: "Staff Assignments" })).toBeNull();
     expect(within(desktopNav).queryByRole("link", { name: "Relationships" })).toBeNull();
   });
 
-  it("does not show Vendors in AMC Operations without vendor read access", () => {
+  it("does not show Vendors in Falcon AMC without vendor read access", () => {
     permissionState.allowed = new Set([
       PERMISSIONS.CLIENTS_READ_ALL,
       PERMISSIONS.RELATIONSHIPS_READ,
@@ -373,20 +373,20 @@ describe("TopNav desktop operational spine navigation", () => {
     const desktopNav = getDesktopPrimaryNav(container);
     const links = desktopLinks(container);
 
-    expect(within(desktopNav).queryByRole("button", { name: "AMC Operations" })).not.toBeInTheDocument();
+    expect(within(desktopNav).queryByRole("button", { name: "Falcon AMC" })).not.toBeInTheDocument();
     expect(container.querySelector('aside [data-testid="operations-mode-current"]')).toHaveTextContent(
-      "Internal Operations",
+      "Continental Internal Operations",
     );
     expect(links.map((link) => link.textContent)).toEqual([
-      "Operations",
-      "Orders",
-      "Calendar",
-      "Clients",
+      "Appraisal Production",
+      "Client Orders",
+      "Review Workflow",
+      "Client Relationships",
     ]);
-    expect(within(desktopNav).queryByRole("link", { name: "Vendors" })).toBeNull();
+    expect(within(desktopNav).queryByRole("link", { name: "Vendor Network" })).toBeNull();
   });
 
-  it("does not expose AMC Operations to non-owner staff even with vendor read access", () => {
+  it("does not expose Falcon AMC to non-owner staff even with vendor read access", () => {
     shellProfileState.profileId = "my_work";
     shellProfileState.appContext = { is_owner: false, is_admin_role: false };
     permissionState.allowed = new Set([PERMISSIONS.VENDORS_READ]);
@@ -395,17 +395,17 @@ describe("TopNav desktop operational spine navigation", () => {
     const { container } = renderTopNav();
     const desktopContext = container.querySelector('aside [data-testid="operations-mode-switcher"]');
 
-    expect(within(desktopContext).queryByRole("button", { name: "AMC Operations" })).not.toBeInTheDocument();
-    expect(within(desktopContext).getByRole("button", { name: "Internal Operations" })).toHaveAttribute(
+    expect(within(desktopContext).queryByRole("button", { name: "Falcon AMC" })).not.toBeInTheDocument();
+    expect(within(desktopContext).getByRole("button", { name: "Continental Internal Operations" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
     expect(container.querySelector('aside [data-testid="operations-mode-current"]')).toHaveTextContent(
-      "Internal Operations",
+      "Continental Internal Operations",
     );
   });
 
-  it("does not expose AMC Operations to a current-company owner when explicit operation access is Internal only", () => {
+  it("does not expose Falcon AMC to a current-company owner when explicit operation access is Internal only", () => {
     shellProfileState.appContext = {
       is_owner: true,
       operations_access: {
@@ -419,17 +419,17 @@ describe("TopNav desktop operational spine navigation", () => {
     const { container } = renderTopNav();
     const desktopContext = container.querySelector('aside [data-testid="operations-mode-switcher"]');
 
-    expect(within(desktopContext).queryByRole("button", { name: "AMC Operations" })).not.toBeInTheDocument();
-    expect(within(desktopContext).getByRole("button", { name: "Internal Operations" })).toHaveAttribute(
+    expect(within(desktopContext).queryByRole("button", { name: "Falcon AMC" })).not.toBeInTheDocument();
+    expect(within(desktopContext).getByRole("button", { name: "Continental Internal Operations" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
     expect(container.querySelector('aside [data-testid="operations-mode-current"]')).toHaveTextContent(
-      "Internal Operations",
+      "Continental Internal Operations",
     );
   });
 
-  it("supports an AMC-only operation owner without adding Internal Operations to the selector", () => {
+  it("supports an AMC-only operation owner without adding Continental Internal Operations to the selector", () => {
     shellProfileState.appContext = {
       is_owner: true,
       available_operations_modes: ["amc_operations"],
@@ -440,13 +440,13 @@ describe("TopNav desktop operational spine navigation", () => {
     const { container } = renderTopNav();
     const desktopContext = container.querySelector('aside [data-testid="operations-mode-switcher"]');
 
-    expect(within(desktopContext).getByRole("button", { name: "AMC Operations" })).toHaveAttribute(
+    expect(within(desktopContext).getByRole("button", { name: "Falcon AMC" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
-    expect(within(desktopContext).queryByRole("button", { name: "Internal Operations" })).not.toBeInTheDocument();
+    expect(within(desktopContext).queryByRole("button", { name: "Continental Internal Operations" })).not.toBeInTheDocument();
     expect(container.querySelector('aside [data-testid="operations-mode-current"]')).toHaveTextContent(
-      "AMC Operations",
+      "Falcon AMC",
     );
   });
 
@@ -463,10 +463,10 @@ describe("TopNav desktop operational spine navigation", () => {
     const { container } = renderTopNav();
     const desktopContext = container.querySelector('aside [data-testid="operations-mode-switcher"]');
 
-    expect(within(desktopContext).getByRole("button", { name: "AMC Operations" })).toBeInTheDocument();
-    expect(within(desktopContext).queryByRole("button", { name: "Internal Operations" })).not.toBeInTheDocument();
+    expect(within(desktopContext).getByRole("button", { name: "Falcon AMC" })).toBeInTheDocument();
+    expect(within(desktopContext).queryByRole("button", { name: "Continental Internal Operations" })).not.toBeInTheDocument();
     expect(container.querySelector('aside [data-testid="operations-mode-current"]')).toHaveTextContent(
-      "AMC Operations",
+      "Falcon AMC",
     );
   });
 
@@ -477,19 +477,19 @@ describe("TopNav desktop operational spine navigation", () => {
     const mobileNav = openMobileNav(container);
 
     expect(within(mobileNav).getByTestId("operations-mode-switcher")).toBeInTheDocument();
-    expect(within(mobileNav).getByRole("button", { name: "Internal Operations" })).toHaveAttribute(
+    expect(within(mobileNav).getByRole("button", { name: "Continental Internal Operations" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
 
-    fireEvent.click(within(mobileNav).getByRole("button", { name: "AMC Operations" }));
+    fireEvent.click(within(mobileNav).getByRole("button", { name: "Falcon AMC" }));
 
-    expect(within(mobileNav).getByRole("button", { name: "AMC Operations" })).toHaveAttribute(
+    expect(within(mobileNav).getByRole("button", { name: "Falcon AMC" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
     expect(within(mobileNav).getByTestId("operations-mode-selected-label")).toHaveTextContent(
-      "AMC Operations",
+      "Falcon AMC",
     );
     expect(screen.getByTestId("current-path")).toHaveTextContent("/dashboard");
   });
@@ -500,26 +500,26 @@ describe("TopNav desktop operational spine navigation", () => {
     const { container } = renderTopNav();
     const desktopContext = container.querySelector('aside [data-testid="operations-mode-switcher"]');
 
-    fireEvent.click(within(desktopContext).getByRole("button", { name: "AMC Operations" }));
+    fireEvent.click(within(desktopContext).getByRole("button", { name: "Falcon AMC" }));
 
     const mobileNav = openMobileNav(container);
 
-    expect(within(mobileNav).getByRole("button", { name: "AMC Operations" })).toHaveAttribute(
+    expect(within(mobileNav).getByRole("button", { name: "Falcon AMC" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
     expect(within(mobileNav).getByTestId("operations-mode-selected-label")).toHaveTextContent(
-      "AMC Operations",
+      "Falcon AMC",
     );
 
-    fireEvent.click(within(mobileNav).getByRole("button", { name: "Internal Operations" }));
+    fireEvent.click(within(mobileNav).getByRole("button", { name: "Continental Internal Operations" }));
 
-    expect(within(desktopContext).getByRole("button", { name: "Internal Operations" })).toHaveAttribute(
+    expect(within(desktopContext).getByRole("button", { name: "Continental Internal Operations" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
     expect(within(desktopContext).getByTestId("operations-mode-selected-label")).toHaveTextContent(
-      "Internal Operations",
+      "Continental Internal Operations",
     );
     expect(window.localStorage.getItem(OPERATIONS_MODE_STORAGE_KEY)).toBe("internal_operations");
   });
@@ -538,10 +538,10 @@ describe("TopNav desktop operational spine navigation", () => {
     const links = within(mobileNav).getAllByRole("link");
 
     expect(links.map((link) => link.textContent)).toEqual([
-      "Orders",
-      "Calendar",
-      "Vendors",
-      "Clients",
+      "Procurement",
+      "Assignment Oversight",
+      "Vendor Network",
+      "Client Services",
       "Settings",
     ]);
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
@@ -551,9 +551,9 @@ describe("TopNav desktop operational spine navigation", () => {
       "/clients",
       "/settings",
     ]);
-    expect(within(mobileNav).queryByRole("link", { name: "Assignments" })).toBeNull();
+    expect(within(mobileNav).queryByRole("link", { name: "Staff Assignments" })).toBeNull();
     expect(within(mobileNav).queryByRole("link", { name: "Relationships" })).toBeNull();
-    expect(within(mobileNav).queryByRole("link", { name: "Users" })).toBeNull();
+    expect(within(mobileNav).queryByRole("link", { name: "Staff Directory" })).toBeNull();
   });
 
   it("renders desktop operational spine nav from the current registry helper with current order and paths", () => {
@@ -570,13 +570,13 @@ describe("TopNav desktop operational spine navigation", () => {
     const links = desktopLinks(container);
 
     expect(desktopNav).toBeInTheDocument();
-    expect(within(desktopNav).getAllByText("Operations")).toHaveLength(2);
-    expect(within(desktopNav).getByText("Management")).toBeInTheDocument();
+    expect(within(desktopNav).getAllByText("Appraisal Production")).toHaveLength(2);
+    expect(within(desktopNav).getByText("Operations Management")).toBeInTheDocument();
     expect(links.map((link) => link.textContent)).toEqual([
-      "Operations",
-      "Orders",
-      "Calendar",
-      "Clients",
+      "Appraisal Production",
+      "Client Orders",
+      "Review Workflow",
+      "Client Relationships",
       "Users",
     ]);
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
@@ -593,13 +593,13 @@ describe("TopNav desktop operational spine navigation", () => {
     const desktopNav = getDesktopPrimaryNav(container);
     const links = desktopLinks(container);
 
-    expect(within(desktopNav).getAllByText("Operations")).toHaveLength(2);
-    expect(within(desktopNav).queryByText("Management")).toBeNull();
-    expect(links.map((link) => link.textContent)).toEqual(["Operations", "Orders", "Calendar"]);
-    expect(within(desktopNav).queryByRole("link", { name: "Assignments" })).toBeNull();
+    expect(within(desktopNav).getAllByText("Appraisal Production")).toHaveLength(2);
+    expect(within(desktopNav).queryByText("Operations Management")).toBeNull();
+    expect(links.map((link) => link.textContent)).toEqual(["Appraisal Production", "Client Orders", "Review Workflow"]);
+    expect(within(desktopNav).queryByRole("link", { name: "Staff Assignments" })).toBeNull();
     expect(within(desktopNav).queryByRole("link", { name: "Relationships" })).toBeNull();
-    expect(within(desktopNav).queryByRole("link", { name: "Clients" })).toBeNull();
-    expect(within(desktopNav).queryByRole("link", { name: "Users" })).toBeNull();
+    expect(within(desktopNav).queryByRole("link", { name: "Client Relationships" })).toBeNull();
+    expect(within(desktopNav).queryByRole("link", { name: "Staff Directory" })).toBeNull();
   });
 
   it("does not expose Assignments or Relationships from work eligibility permissions alone", () => {
@@ -611,7 +611,7 @@ describe("TopNav desktop operational spine navigation", () => {
     const { container } = renderTopNav();
     const desktopNav = getDesktopPrimaryNav(container);
 
-    expect(within(desktopNav).queryByRole("link", { name: "Assignments" })).toBeNull();
+    expect(within(desktopNav).queryByRole("link", { name: "Staff Assignments" })).toBeNull();
     expect(within(desktopNav).queryByRole("link", { name: "Relationships" })).toBeNull();
   });
 
@@ -672,9 +672,9 @@ describe("TopNav desktop operational spine navigation", () => {
     expect(within(desktopNav).getByText("Support")).toBeInTheDocument();
     expect(links.map((link) => link.textContent)).toEqual([
       "My Work",
-      "Orders",
-      "Calendar",
-      "Clients",
+      "Client Orders",
+      "Review Workflow",
+      "Client Relationships",
       "Staff Directory",
     ]);
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
@@ -685,7 +685,7 @@ describe("TopNav desktop operational spine navigation", () => {
       "/users",
     ]);
     expect(within(desktopNav).queryByText("More")).toBeNull();
-    expect(within(desktopNav).queryByRole("link", { name: "Assignments" })).toBeNull();
+    expect(within(desktopNav).queryByRole("link", { name: "Staff Assignments" })).toBeNull();
   });
 
   it("preserves the current flat desktop nav plus Operations entry for unknown shell profiles", () => {
@@ -702,15 +702,15 @@ describe("TopNav desktop operational spine navigation", () => {
     const desktopNav = getDesktopPrimaryNav(container);
     const links = desktopLinks(container);
 
-    expect(within(desktopNav).queryByText("Management")).toBeNull();
+    expect(within(desktopNav).queryByText("Operations Management")).toBeNull();
     expect(links.map((link) => link.textContent)).toEqual([
-      "Operations",
-      "Orders",
-      "Assignments",
+      "Appraisal Production",
+      "Client Orders",
+      "Staff Assignments",
       "Relationships",
-      "Calendar",
-      "Clients",
-      "Users",
+      "Review Workflow",
+      "Client Relationships",
+      "Staff Directory",
     ]);
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
       "/dashboard",
@@ -742,12 +742,12 @@ describe("TopNav desktop operational spine navigation", () => {
     expect(within(desktopNav).queryByText("More")).toBeNull();
     expect(links.map((link) => link.textContent)).toEqual([
       "My Work",
-      "Orders",
-      "Calendar",
-      "Clients",
+      "Client Orders",
+      "Review Workflow",
+      "Client Relationships",
       "Staff Directory",
     ]);
-    expect(within(desktopNav).queryByRole("link", { name: "Assignments" })).toBeNull();
+    expect(within(desktopNav).queryByRole("link", { name: "Staff Assignments" })).toBeNull();
     expect(within(desktopNav).queryByRole("link", { name: "Relationships" })).toBeNull();
   });
 
@@ -756,7 +756,7 @@ describe("TopNav desktop operational spine navigation", () => {
 
     renderTopNav();
 
-    expect(screen.getByRole("link", { name: "Clients" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Client Relationships" })).toHaveAttribute(
       "href",
       "/clients/cards",
     );
@@ -765,18 +765,18 @@ describe("TopNav desktop operational spine navigation", () => {
   it("keeps permissioned desktop links hidden when permissions are absent", () => {
     renderTopNav();
 
-    expect(screen.getByRole("link", { name: "Orders" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Calendar" })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Assignments" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Client Orders" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Review Workflow" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Staff Assignments" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Relationships" })).toBeNull();
-    expect(screen.queryByRole("link", { name: "Clients" })).toBeNull();
-    expect(screen.queryByRole("link", { name: "Users" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Client Relationships" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Staff Directory" })).toBeNull();
   });
 
   it("preserves exact-path active styling through the operational spine NavItem", () => {
     renderTopNav("/orders");
 
-    const ordersLink = screen.getByRole("link", { name: "Orders" });
+    const ordersLink = screen.getByRole("link", { name: "Client Orders" });
 
     expect(ordersLink).toHaveAttribute("aria-current", "page");
     expect(ordersLink).toHaveClass("bg-white", "text-slate-950", "shadow-md");
@@ -786,7 +786,7 @@ describe("TopNav desktop operational spine navigation", () => {
   it("keeps normal operational navigation links on their existing routes", () => {
     const { container } = renderTopNav("/dashboard");
 
-    fireEvent.click(within(getDesktopPrimaryNav(container)).getByRole("link", { name: "Orders" }));
+    fireEvent.click(within(getDesktopPrimaryNav(container)).getByRole("link", { name: "Client Orders" }));
 
     expect(screen.getByTestId("current-path")).toHaveTextContent("/orders");
   });
@@ -804,15 +804,15 @@ describe("TopNav desktop operational spine navigation", () => {
     const links = desktopLinks(container);
 
     expect(links.map((link) => link.textContent)).toEqual([
-      "Operations",
-      "Orders",
-      "Assignments",
+      "Appraisal Production",
+      "Client Orders",
+      "Staff Assignments",
       "Relationships",
-      "Calendar",
-      "Clients",
-      "Users",
+      "Review Workflow",
+      "Client Relationships",
+      "Staff Directory",
     ]);
-    expect(within(getDesktopPrimaryNav(container)).queryByText("Management")).toBeNull();
+    expect(within(getDesktopPrimaryNav(container)).queryByText("Operations Management")).toBeNull();
   });
 
   it("renders mobile primary nav from visible links with shell priority ordering and preserves Settings placement", () => {
@@ -830,9 +830,9 @@ describe("TopNav desktop operational spine navigation", () => {
     const links = within(mobileNav).getAllByRole("link");
 
     expect(links.map((link) => link.textContent)).toEqual([
-      "Orders",
-      "Calendar",
-      "Clients",
+      "Client Orders",
+      "Review Workflow",
+      "Client Relationships",
       "Users",
       "Settings",
     ]);
@@ -858,9 +858,9 @@ describe("TopNav desktop operational spine navigation", () => {
 
     expect(links.map((link) => link.textContent)).toEqual([
       "My Work",
-      "Orders",
-      "Calendar",
-      "Clients",
+      "Client Orders",
+      "Review Workflow",
+      "Client Relationships",
     ]);
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
       "/my-work",
@@ -879,17 +879,17 @@ describe("TopNav desktop operational spine navigation", () => {
     const links = within(mobileNav).getAllByRole("link");
 
     expect(links.map((link) => link.textContent)).toEqual([
-      "Assignments",
-      "Orders",
-      "Calendar",
+      "Staff Assignments",
+      "Client Orders",
+      "Review Workflow",
     ]);
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
       "/assignments",
       "/orders",
       "/calendar",
     ]);
-    expect(within(mobileNav).queryByRole("link", { name: "Clients" })).toBeNull();
-    expect(within(mobileNav).queryByRole("link", { name: "Users" })).toBeNull();
+    expect(within(mobileNav).queryByRole("link", { name: "Client Relationships" })).toBeNull();
+    expect(within(mobileNav).queryByRole("link", { name: "Staff Directory" })).toBeNull();
   });
 
   it("preserves current flat mobile order for unknown shell profiles", () => {
@@ -907,12 +907,12 @@ describe("TopNav desktop operational spine navigation", () => {
     const links = within(mobileNav).getAllByRole("link");
 
     expect(links.map((link) => link.textContent)).toEqual([
-      "Orders",
-      "Assignments",
+      "Client Orders",
+      "Staff Assignments",
       "Relationships",
-      "Calendar",
-      "Clients",
-      "Users",
+      "Review Workflow",
+      "Client Relationships",
+      "Staff Directory",
       "Settings",
     ]);
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
@@ -932,7 +932,7 @@ describe("TopNav desktop operational spine navigation", () => {
     const { container } = renderTopNav();
     const mobileNav = openMobileNav(container);
 
-    expect(within(mobileNav).getByRole("link", { name: "Clients" })).toHaveAttribute(
+    expect(within(mobileNav).getByRole("link", { name: "Client Relationships" })).toHaveAttribute(
       "href",
       "/clients/cards",
     );
@@ -942,12 +942,12 @@ describe("TopNav desktop operational spine navigation", () => {
     const { container } = renderTopNav();
     const mobileNav = openMobileNav(container);
 
-    expect(within(mobileNav).getByRole("link", { name: "Orders" })).toBeInTheDocument();
-    expect(within(mobileNav).getByRole("link", { name: "Calendar" })).toBeInTheDocument();
-    expect(within(mobileNav).queryByRole("link", { name: "Assignments" })).toBeNull();
+    expect(within(mobileNav).getByRole("link", { name: "Client Orders" })).toBeInTheDocument();
+    expect(within(mobileNav).getByRole("link", { name: "Review Workflow" })).toBeInTheDocument();
+    expect(within(mobileNav).queryByRole("link", { name: "Staff Assignments" })).toBeNull();
     expect(within(mobileNav).queryByRole("link", { name: "Relationships" })).toBeNull();
-    expect(within(mobileNav).queryByRole("link", { name: "Clients" })).toBeNull();
-    expect(within(mobileNav).queryByRole("link", { name: "Users" })).toBeNull();
+    expect(within(mobileNav).queryByRole("link", { name: "Client Relationships" })).toBeNull();
+    expect(within(mobileNav).queryByRole("link", { name: "Staff Directory" })).toBeNull();
     expect(within(mobileNav).queryByRole("link", { name: "Settings" })).toBeNull();
   });
 
@@ -987,7 +987,7 @@ describe("TopNav desktop operational spine navigation", () => {
     const { container } = renderTopNav();
     const mobileNav = openMobileNav(container);
 
-    fireEvent.click(within(mobileNav).getByRole("link", { name: "Orders" }));
+    fireEvent.click(within(mobileNav).getByRole("link", { name: "Client Orders" }));
 
     expect(container.querySelectorAll("nav")).toHaveLength(1);
   });

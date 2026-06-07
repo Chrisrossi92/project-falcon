@@ -8,8 +8,11 @@ import CalendarDayDetailRail from "@/components/calendar/CalendarDayDetailRail";
 import { WorkspaceContextTile } from "@/components/workspace/WorkspaceContext";
 import { WorkspaceSection } from "@/components/workspace/WorkspaceSection";
 import { WorkspaceErrorState, WorkspaceLoadingState } from "@/components/workspace/WorkspaceState";
+import WorkspaceBadge from "@/components/workspace/WorkspaceBadge";
 import supabase from "@/lib/supabaseClient";
 import { useCurrentUserAppContext } from "@/features/auth/useCurrentUserAppContext";
+import { useOperationsMode } from "@/lib/operations/OperationsModeProvider";
+import { getWorkspacePageChrome } from "@/lib/workspace/workspaceIdentity";
 import { listCompanyAssignableUsers } from "@/features/company-members/assignableUsersApi";
 import {
   calendarEventsFromOrder,
@@ -61,6 +64,8 @@ function activeOrdersLabel(count, loading) {
 }
 
 export default function CalendarPage() {
+  const { operationsMode } = useOperationsMode();
+  const pageChrome = getWorkspacePageChrome(operationsMode, "calendar");
   const [view, setView] = useState("month"); // 'month' | '2w'
   const [weeks, setWeeks] = useState(2);
   const [showWeekends, setShowWeekends] = useState(DEFAULT_CALENDAR_POLICY.weekendsVisibleDefault);
@@ -238,17 +243,20 @@ export default function CalendarPage() {
       >
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
-            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
-              Scheduling Coordination
+            <div className="flex flex-wrap items-center gap-2">
+              <WorkspaceBadge operationsMode={operationsMode} />
+              <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+                {pageChrome.eyebrow || "Scheduling Coordination"}
+              </span>
             </div>
             <h1
               id="calendar-workspace-heading"
               className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-950"
             >
-              Calendar Workspace
+              {pageChrome.title || "Calendar Workspace"}
             </h1>
             <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-500">
-              Coordinate site visits, review handoffs, and client due dates across active orders.
+              {pageChrome.description || "Coordinate site visits, review handoffs, and client due dates across active orders."}
             </p>
           </div>
 

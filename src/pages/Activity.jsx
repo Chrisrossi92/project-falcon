@@ -9,6 +9,8 @@ import {
   filterNotificationsForOperationsScope,
   notificationRpcScopeParams,
 } from "@/lib/notifications/notificationWorkspaceScope";
+import WorkspaceBadge from "@/components/workspace/WorkspaceBadge";
+import { getWorkspacePageChrome } from "@/lib/workspace/workspaceIdentity";
 import { WORKSPACE_SWITCH_INVALIDATION_EVENT } from "@/lib/workspace/workspaceSwitchReset";
 
 const STATE_FILTERS = [
@@ -123,6 +125,7 @@ export default function ActivityPage() {
   const navigate = useNavigate();
   const { operationsMode } = useOperationsMode();
   const operationsScope = getOperationsScopeForMode(operationsMode);
+  const pageChrome = getWorkspacePageChrome(operationsMode, "activity");
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -196,9 +199,17 @@ export default function ActivityPage() {
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-950">Activity</h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <WorkspaceBadge operationsMode={operationsMode} />
+            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+              {pageChrome.eyebrow || "Activity"}
+            </span>
+          </div>
+          <h1 className="mt-1 text-xl font-semibold text-slate-950">
+            {pageChrome.title || "Activity"}
+          </h1>
           <p className="mt-1 text-sm text-slate-500">
-            Your notification history, workflow updates, and communication summaries.
+            {pageChrome.description || "Your notification history, workflow updates, and communication summaries."}
           </p>
         </div>
         <button

@@ -16,7 +16,7 @@ describe("WorkspaceBadge", () => {
 
     const badge = screen.getByTestId("workspace-identity-badge");
     expect(badge).toHaveTextContent("Internal");
-    expect(badge).toHaveAttribute("title", "Internal Operations environment");
+    expect(badge).toHaveAttribute("title", "Continental Internal Operations environment");
     expect(badge).toHaveClass("bg-slate-100");
   });
 
@@ -25,7 +25,7 @@ describe("WorkspaceBadge", () => {
 
     const badge = screen.getByTestId("workspace-identity-badge");
     expect(badge).toHaveTextContent("AMC");
-    expect(badge).toHaveAttribute("title", "AMC Operations environment");
+    expect(badge).toHaveAttribute("title", "Falcon AMC environment");
     expect(badge).toHaveClass("bg-cyan-50");
   });
 });

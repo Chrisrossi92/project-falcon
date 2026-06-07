@@ -16,7 +16,10 @@ import { getOperationsModeLabel, OPERATIONS_MODES } from "@/lib/operations/opera
 import { PERMISSIONS } from "@/lib/permissions/constants";
 import { useShellProfile } from "@/lib/shell/useShellProfile";
 import { getShellWorkModeCue } from "@/lib/shell/shellWorkMode";
-import { getWorkspaceIdentity } from "@/lib/workspace/workspaceIdentity";
+import {
+  getWorkspaceIdentity,
+  getWorkspaceNavigationLabel,
+} from "@/lib/workspace/workspaceIdentity";
 import { resetWorkspaceSwitchState } from "@/lib/workspace/workspaceSwitchReset";
 import { Menu, Search } from "lucide-react";
 
@@ -132,7 +135,6 @@ function OperationalModeContext({ shellModeCue, appContext, workspaceIdentity, p
   const {
     operationsMode,
     setOperationsMode,
-    operationsModeLabel,
     availableOperationsModes,
   } = useOperationsMode();
   const accentClass = workspaceIdentity?.accentClasses?.shellPanel || "";
@@ -173,20 +175,21 @@ function OperationalModeContext({ shellModeCue, appContext, workspaceIdentity, p
           {workspaceIdentity.environmentLabel}
         </span>
       </div>
-      <div className="mt-3" aria-label="Operations Command" data-testid="operations-mode-switcher">
+      <div className="mt-3" aria-label="Operating environment" data-testid="operations-mode-switcher">
         <div className="mb-1 flex items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-          <span className="truncate">Mode</span>
+          <span className="truncate">Environment</span>
           <span
             className="truncate text-slate-300"
             data-testid="operations-mode-selected-label"
           >
-            {operationsModeLabel}
+            {workspaceIdentity.label}
           </span>
         </div>
         <div className="grid grid-cols-1 gap-1 rounded-xl border border-slate-800 bg-slate-950/55 p-1">
           {availableOperationsModes.map((mode) => {
             const isActive = mode === operationsMode;
-            const label = getOperationsModeLabel(mode);
+            const modeIdentity = getWorkspaceIdentity(mode);
+            const label = modeIdentity.label || getOperationsModeLabel(mode);
 
             return (
               <button
@@ -206,7 +209,7 @@ function OperationalModeContext({ shellModeCue, appContext, workspaceIdentity, p
           })}
         </div>
         <div className="sr-only" data-testid="operations-mode-current">
-          {operationsModeLabel}
+          {workspaceIdentity.label}
         </div>
       </div>
     </div>
@@ -281,7 +284,7 @@ function DesktopNavSection({ section, emphasizedSectionId, orientation = "horizo
 function createDashboardLink(operationsMode) {
   return Object.freeze({
     id: "dashboard",
-    label: "Operations",
+    label: getWorkspaceNavigationLabel(operationsMode, "dashboard", "Operations"),
     path: "/dashboard",
     operationsMode,
     sourceSurface: "operational_spine",

@@ -5,6 +5,7 @@ import {
 import { getWorkspaceNavigationDefinition } from './workspaceNavigationDefinitions.js';
 import { normalizeOperationsMode } from '../operations/operationsMode.js';
 import { PERMISSIONS } from '../permissions/constants.js';
+import { getWorkspaceNavigationLabel } from '../workspace/workspaceIdentity.js';
 
 export const CURRENT_PRIMARY_NAV_LINK_IDS = Object.freeze([
   'orders',
@@ -68,7 +69,7 @@ const workspacePrimaryNavEntryIds = (operationsMode) => {
 const primaryLink = (entry, path = entry.path, operationsMode) =>
   Object.freeze({
     id: entry.id,
-    label: entry.label,
+    label: getWorkspaceNavigationLabel(operationsMode, entry.id, entry.label),
     path,
     operationsMode,
     routeGate: entry.routeGate,

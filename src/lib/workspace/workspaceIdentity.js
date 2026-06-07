@@ -14,21 +14,55 @@ const EMPTY_ACCENT_CLASSES = Object.freeze({
 const WORKSPACE_IDENTITIES = Object.freeze({
   [OPERATIONS_MODES.INTERNAL_OPERATIONS]: Object.freeze({
     id: OPERATIONS_MODES.INTERNAL_OPERATIONS,
-    label: "Internal Operations",
+    label: "Continental Internal Operations",
     shortLabel: "Internal",
-    environmentLabel: "Internal Environment",
+    environmentLabel: "Continental Internal Operations",
     badgeLabel: "Internal",
-    badgeDescription: "Internal Operations environment",
-    documentTitle: "Falcon - Internal Operations",
+    badgeDescription: "Continental Internal Operations environment",
+    documentTitle: "Falcon - Continental Internal Operations",
     shellCueLabel: "Operations Command",
     shellCueDescription: "Internal appraisal operations",
-    dashboardTitle: "Operations Dashboard",
+    dashboardTitle: "Appraisal Production Dashboard",
     dashboardSubtitle: "Track active work, review handoffs, due pressure, and workflow coordination.",
     dashboardStatLabel: "Environment",
-    dashboardStatValue: "Internal Operations",
+    dashboardStatValue: "Continental Internal Operations",
     ordersEyebrow: "Internal",
-    ordersWorkMode: "Internal Operations",
-    ordersDescription: "Manage internal appraisal orders, workflow handoffs, and order records.",
+    ordersWorkMode: "Client Orders",
+    ordersDescription: "Manage Continental appraisal production orders, workflow handoffs, and client delivery records.",
+    navigationLabels: Object.freeze({
+      dashboard: "Appraisal Production",
+      orders: "Client Orders",
+      calendar: "Review Workflow",
+      assignments: "Staff Assignments",
+      "clients.primary": "Client Relationships",
+      users: "Staff Directory",
+    }),
+    navigationSectionLabels: Object.freeze({
+      operations: "Appraisal Production",
+      management: "Operations Management",
+    }),
+    pages: Object.freeze({
+      activity: Object.freeze({
+        eyebrow: "Internal Activity",
+        title: "Continental Internal Activity",
+        description: "Notification history, workflow updates, and communication summaries scoped to Continental Internal Operations.",
+      }),
+      calendar: Object.freeze({
+        eyebrow: "Review Workflow",
+        title: "Internal Production Calendar",
+        description: "Coordinate site visits, review handoffs, and client due dates across Continental internal production orders.",
+      }),
+      clients: Object.freeze({
+        eyebrow: "Client Orders",
+        title: "Internal Client Relationships",
+        description: "Find client, lender, and AMC relationships used for Continental internal order coordination.",
+      }),
+      assignments: Object.freeze({
+        eyebrow: "Staff Assignments",
+        title: "Internal Staff Assignments",
+        description: "Coordinate scoped assignment packets for Continental internal production without expanding order or client visibility.",
+      }),
+    }),
     accentClasses: Object.freeze({
       ...EMPTY_ACCENT_CLASSES,
       badge: "border-slate-300 bg-slate-100 text-slate-700",
@@ -37,21 +71,60 @@ const WORKSPACE_IDENTITIES = Object.freeze({
   }),
   [OPERATIONS_MODES.AMC_OPERATIONS]: Object.freeze({
     id: OPERATIONS_MODES.AMC_OPERATIONS,
-    label: "AMC Operations",
+    label: "Falcon AMC",
     shortLabel: "AMC",
-    environmentLabel: "AMC Environment",
+    environmentLabel: "Falcon AMC Environment",
     badgeLabel: "AMC",
-    badgeDescription: "AMC Operations environment",
-    documentTitle: "Falcon - AMC Operations",
+    badgeDescription: "Falcon AMC environment",
+    documentTitle: "Falcon - Falcon AMC",
     shellCueLabel: "Procurement Command",
     shellCueDescription: "Vendor procurement and AMC operations",
-    dashboardTitle: "AMC Operations Dashboard",
+    dashboardTitle: "Falcon AMC Dashboard",
     dashboardSubtitle: "Track procurement queues, vendor response, client orders, and SLA pressure.",
     dashboardStatLabel: "Environment",
-    dashboardStatValue: "AMC Operations",
+    dashboardStatValue: "Falcon AMC",
     ordersEyebrow: "Procurement",
-    ordersWorkMode: "AMC Operations",
-    ordersDescription: "Manage AMC orders, vendor procurement context, and client coordination.",
+    ordersWorkMode: "Falcon AMC",
+    ordersDescription: "Manage Falcon AMC orders, vendor procurement context, and client-services coordination.",
+    navigationLabels: Object.freeze({
+      dashboard: "Management Operations",
+      orders: "Procurement",
+      calendar: "Assignment Oversight",
+      vendors: "Vendor Network",
+      "clients.primary": "Client Services",
+    }),
+    navigationSectionLabels: Object.freeze({
+      procurement: "Management Operations",
+      vendors: "Vendor Network",
+      clients: "Client Services",
+    }),
+    pages: Object.freeze({
+      activity: Object.freeze({
+        eyebrow: "AMC Activity",
+        title: "Falcon AMC Activity",
+        description: "Notification history, procurement updates, and communication summaries scoped to Falcon AMC.",
+      }),
+      calendar: Object.freeze({
+        eyebrow: "Assignment Oversight",
+        title: "Falcon AMC Calendar",
+        description: "Coordinate vendor assignment oversight, due pressure, and client-services milestones across AMC orders.",
+      }),
+      clients: Object.freeze({
+        eyebrow: "Client Services",
+        title: "AMC Client Services",
+        description: "Find client and lender relationships used for Falcon AMC coordination.",
+      }),
+      vendors: Object.freeze({
+        eyebrow: "Vendor Network",
+        title: "Falcon AMC Vendor Network",
+        description: "Manage the Falcon AMC vendor network, profile requests, invoice review, and payment oversight.",
+      }),
+      assignments: Object.freeze({
+        eyebrow: "Assignment Oversight",
+        title: "AMC Assignment Oversight",
+        description: "Coordinate AMC assignment packets without exposing internal staff-production tools.",
+      }),
+    }),
     accentClasses: Object.freeze({
       eyebrow: "border-cyan-200 bg-cyan-50 text-cyan-800",
       shell: "ring-1 ring-cyan-400/15 shadow-cyan-950/20",
@@ -68,4 +141,18 @@ export function getWorkspaceIdentity(operationsMode) {
 
 export function getWorkspaceDocumentTitle(operationsMode) {
   return getWorkspaceIdentity(operationsMode).documentTitle;
+}
+
+export function getWorkspaceNavigationLabel(operationsMode, entryId, fallback = "") {
+  const identity = getWorkspaceIdentity(operationsMode);
+  return identity.navigationLabels?.[entryId] || fallback;
+}
+
+export function getWorkspaceNavigationSectionLabel(operationsMode, sectionId, fallback = "") {
+  const identity = getWorkspaceIdentity(operationsMode);
+  return identity.navigationSectionLabels?.[sectionId] || fallback;
+}
+
+export function getWorkspacePageChrome(operationsMode, pageId) {
+  return getWorkspaceIdentity(operationsMode).pages?.[pageId] || Object.freeze({});
 }

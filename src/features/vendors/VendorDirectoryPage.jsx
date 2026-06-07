@@ -4,6 +4,9 @@ import { Link, useNavigate } from "react-router-dom";
 
 import { useCan } from "@/lib/hooks/usePermissions";
 import { PERMISSIONS } from "@/lib/permissions/constants";
+import { useOperationsMode } from "@/lib/operations/OperationsModeProvider";
+import WorkspaceBadge from "@/components/workspace/WorkspaceBadge";
+import { getWorkspacePageChrome } from "@/lib/workspace/workspaceIdentity";
 import { createOrderDocumentDownloadUrl } from "@/features/order-documents/api.js";
 import {
   createVendorProfile,
@@ -1504,6 +1507,8 @@ function VendorDirectoryRow({ vendor }) {
 
 export default function VendorDirectoryPage() {
   const navigate = useNavigate();
+  const { operationsMode } = useOperationsMode();
+  const pageChrome = getWorkspacePageChrome(operationsMode, "vendors");
   const canCreateVendor = useCan(PERMISSIONS.VENDORS_CREATE);
   const canReviewProfileRequests = useCan(PERMISSIONS.VENDORS_UPDATE);
   const canReadVendors = useCan(PERMISSIONS.VENDORS_READ);
@@ -1550,8 +1555,18 @@ export default function VendorDirectoryPage() {
     <main className="mx-auto grid w-full max-w-7xl gap-4 px-3 py-4 sm:px-4">
       <div className="flex flex-wrap items-end justify-between gap-3 rounded-lg border border-slate-200 bg-white px-5 py-4 shadow-sm">
         <div className="min-w-0">
-          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Vendor Network</div>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">Vendor Directory</h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <WorkspaceBadge operationsMode={operationsMode} />
+            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+              {pageChrome.eyebrow || "Vendor Network"}
+            </span>
+          </div>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">
+            {pageChrome.title || "Vendor Directory"}
+          </h1>
+          <p className="mt-1 max-w-2xl text-sm text-slate-500">
+            {pageChrome.description || "Manage vendor profiles, invoice review, and payment oversight."}
+          </p>
         </div>
         {canCreateVendor.allowed && (
           <button

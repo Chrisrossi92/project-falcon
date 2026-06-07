@@ -6,6 +6,7 @@ import { applyShellNavigationLabels } from './shellNavigationLabels.js';
 import { getWorkspaceNavigationSections } from './workspaceNavigationDefinitions.js';
 import { OPERATIONS_MODES, normalizeOperationsMode } from '../operations/operationsMode.js';
 import { SHELL_PROFILE_IDS } from '../shell/resolveShellProfile.js';
+import { getWorkspaceNavigationSectionLabel } from '../workspace/workspaceIdentity.js';
 
 export const SHELL_NAVIGATION_UNGROUPED_SECTION_ID = 'other_visible_links';
 
@@ -51,7 +52,7 @@ const amcOperationsSections = (links, operationsMode) => {
     return [
       freezeSection({
         id: group.id,
-        label: group.label,
+        label: getWorkspaceNavigationSectionLabel(operationsMode, group.id, group.label),
         grouped: true,
         operationsMode,
         links: groupLinks,
@@ -67,7 +68,7 @@ const amcOperationsSections = (links, operationsMode) => {
     sections.push(
       freezeSection({
         id: SHELL_NAVIGATION_UNGROUPED_SECTION_ID,
-        label: 'More',
+        label: getWorkspaceNavigationSectionLabel(operationsMode, SHELL_NAVIGATION_UNGROUPED_SECTION_ID, 'More'),
         grouped: true,
         operationsMode,
         links: ungroupedLinks,
@@ -113,7 +114,7 @@ export function getCurrentShellNavigationSections(visibleLinks = [], profileId, 
     return [
       freezeSection({
         id: group.id,
-        label: group.label,
+        label: getWorkspaceNavigationSectionLabel(operationsMode, group.id, group.label),
         grouped: true,
         operationsMode,
         links: groupLinks,
@@ -129,7 +130,7 @@ export function getCurrentShellNavigationSections(visibleLinks = [], profileId, 
     sections.push(
       freezeSection({
         id: SHELL_NAVIGATION_UNGROUPED_SECTION_ID,
-        label: 'More',
+        label: getWorkspaceNavigationSectionLabel(operationsMode, SHELL_NAVIGATION_UNGROUPED_SECTION_ID, 'More'),
         grouped: true,
         operationsMode,
         links: ungroupedLinks,
