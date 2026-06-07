@@ -240,7 +240,7 @@ describe("DashboardPage operational polish", () => {
     renderDashboard(operationsShell, { operationsMode: OPERATIONS_MODES.INTERNAL_OPERATIONS });
 
     expect(screen.getByText("Operations Command")).toBeInTheDocument();
-    expect(screen.getByText("Operations Dashboard")).toBeInTheDocument();
+    expect(screen.getByText("Appraisal Production Dashboard")).toBeInTheDocument();
     expect(
       screen.getByText("Track active work, review handoffs, due pressure, and workflow coordination."),
     ).toBeInTheDocument();
@@ -248,7 +248,7 @@ describe("DashboardPage operational polish", () => {
     expect(screen.getByText("Falcon Appraisals")).toBeInTheDocument();
     expect(screen.getByTestId("workspace-identity-badge")).toHaveTextContent("Internal");
     expect(screen.getByText("Environment")).toBeInTheDocument();
-    expect(screen.getByText("Internal Operations")).toBeInTheDocument();
+    expect(screen.getByText("Continental Internal Operations")).toBeInTheDocument();
 
     const calendarHeading = screen.getByText("Calendar");
     const ordersHeading = screen.getByText("Active Worklist");
@@ -301,7 +301,7 @@ describe("DashboardPage operational polish", () => {
     renderDashboard(operationsShell, { operationsMode: OPERATIONS_MODES.AMC_OPERATIONS });
 
     expect(
-      screen.getByRole("heading", { name: "AMC Operations Dashboard", level: 1 }),
+      screen.getByRole("heading", { name: "Falcon AMC Dashboard", level: 1 }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
@@ -310,8 +310,8 @@ describe("DashboardPage operational polish", () => {
     ).toBeInTheDocument();
     expect(screen.getByTestId("workspace-identity-badge")).toHaveTextContent("AMC");
     expect(screen.getByText("Environment")).toBeInTheDocument();
-    expect(screen.getByText("AMC Operations")).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Operations Dashboard", level: 1 })).toBeNull();
+    expect(screen.getByText("Falcon AMC")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Appraisal Production Dashboard", level: 1 })).toBeNull();
 
     expect(calendarMock).toHaveBeenLastCalledWith(
       expect.objectContaining({ orders: summaryState.current.ordersRows }),

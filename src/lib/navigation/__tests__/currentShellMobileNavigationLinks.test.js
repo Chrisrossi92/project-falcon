@@ -37,10 +37,10 @@ describe('current shell mobile navigation links', () => {
     ]);
     expect(new Set(ids(mobileLinks))).toEqual(new Set(ids(visibleLinks)));
     expect(labels(mobileLinks)).toEqual([
-      'Orders',
-      'Calendar',
-      'Assignments',
-      'Clients',
+      'Client Orders',
+      'Review Workflow',
+      'Staff Assignments',
+      'Client Relationships',
       'Relationships',
       'Users',
     ]);
@@ -95,7 +95,11 @@ describe('current shell mobile navigation links', () => {
     );
 
     expect(ids(mobileLinks)).toEqual(['assignments', 'orders', 'calendar']);
-    expect(labels(mobileLinks)).toEqual(['Assignments', 'Orders', 'Calendar']);
+    expect(labels(mobileLinks)).toEqual([
+      'Staff Assignments',
+      'Client Orders',
+      'Review Workflow',
+    ]);
     expect(new Set(ids(mobileLinks))).toEqual(new Set(ids(visibleLinks)));
   });
 
@@ -136,7 +140,12 @@ describe('current shell mobile navigation links', () => {
       'vendors',
       'clients.primary',
     ]);
-    expect(labels(amcLinks)).toEqual(['Orders', 'Calendar', 'Vendors', 'Clients']);
+    expect(labels(amcLinks)).toEqual([
+      'Procurement',
+      'Assignment Oversight',
+      'Vendor Network',
+      'Client Services',
+    ]);
     expect(paths(amcLinks)).toEqual(['/orders', '/calendar', '/vendors', '/clients']);
     expect(amcLinks.every((link) => link.operationsMode === OPERATIONS_MODES.AMC_OPERATIONS)).toBe(
       true,
@@ -157,7 +166,11 @@ describe('current shell mobile navigation links', () => {
     );
 
     expect(ids(amcLinks)).toEqual(['orders', 'calendar', 'vendors']);
-    expect(labels(amcLinks)).toEqual(['Orders', 'Calendar', 'Vendors']);
+    expect(labels(amcLinks)).toEqual([
+      'Procurement',
+      'Assignment Oversight',
+      'Vendor Network',
+    ]);
     expect(ids(amcLinks)).not.toContain('dashboard');
     expect(ids(amcLinks)).not.toContain('settings');
     expect(ids(amcLinks)).not.toContain('clients.primary');

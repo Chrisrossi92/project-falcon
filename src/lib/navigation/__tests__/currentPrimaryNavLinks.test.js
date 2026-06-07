@@ -40,12 +40,12 @@ describe('current primary nav links', () => {
       'users',
     ]);
     expect(labelsFor(links)).toEqual([
-      'Orders',
-      'Assignments',
+      'Client Orders',
+      'Staff Assignments',
       'Relationships',
-      'Calendar',
-      'Clients',
-      'Users',
+      'Review Workflow',
+      'Client Relationships',
+      'Staff Directory',
     ]);
     expect(pathsFor(links)).toEqual([
       '/orders',
@@ -136,7 +136,12 @@ describe('current primary nav links', () => {
       'vendors',
       'clients.primary',
     ]);
-    expect(labelsFor(amcLinks)).toEqual(['Orders', 'Calendar', 'Vendors', 'Clients']);
+    expect(labelsFor(amcLinks)).toEqual([
+      'Procurement',
+      'Assignment Oversight',
+      'Vendor Network',
+      'Client Services',
+    ]);
     expect(pathsFor(amcLinks)).toEqual(['/orders', '/calendar', '/vendors', '/clients']);
     expect(idsFor(amcLinks)).not.toContain('users');
     expect(idsFor(amcLinks)).not.toContain('assignments');

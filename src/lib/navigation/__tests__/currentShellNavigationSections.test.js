@@ -23,8 +23,8 @@ describe('current shell navigation sections', () => {
     );
 
     expect(sections.map(({ id, label }) => [id, label])).toEqual([
-      ['operations', 'Operations'],
-      ['management', 'Management'],
+      ['operations', 'Appraisal Production'],
+      ['management', 'Operations Management'],
     ]);
     expect(sections.flatMap((section) => section.links.map((link) => link.id))).toEqual([
       'orders',
@@ -60,7 +60,7 @@ describe('current shell navigation sections', () => {
       'users',
     ]);
     expect(sections.find((section) => section.id === 'support').links.map((link) => link.label)).toEqual([
-      'Clients',
+      'Client Relationships',
       'Staff Directory',
     ]);
     expect(sections.at(-1).links.map((link) => link.id)).toEqual([
@@ -107,13 +107,13 @@ describe('current shell navigation sections', () => {
     );
 
     expect(internalSections.map(({ id, label }) => [id, label])).toEqual([
-      ['operations', 'Operations'],
-      ['management', 'Management'],
+      ['operations', 'Appraisal Production'],
+      ['management', 'Operations Management'],
     ]);
     expect(amcSections.map(({ id, label }) => [id, label])).toEqual([
-      ['procurement', 'Procurement'],
-      ['vendors', 'Vendors'],
-      ['clients', 'Clients'],
+      ['procurement', 'Management Operations'],
+      ['vendors', 'Vendor Network'],
+      ['clients', 'Client Services'],
     ]);
     expect(amcSections.map(({ id }) => id)).not.toContain('network');
     expect(amcSections.flatMap((section) => section.links.map((link) => link.id))).toEqual([
@@ -147,7 +147,7 @@ describe('current shell navigation sections', () => {
     );
 
     expect(amcSections.map(({ id, label }) => [id, label])).toEqual([
-      ['procurement', 'Procurement'],
+      ['procurement', 'Management Operations'],
     ]);
     expect(amcSections.flatMap((section) => section.links.map((link) => link.id))).toEqual([
       'orders',

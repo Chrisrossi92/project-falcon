@@ -192,12 +192,12 @@ describe('passive shell navigation groups', () => {
       'users',
     ]);
     expect(links.map(({ label }) => label)).toEqual([
-      'Orders',
-      'Assignments',
+      'Client Orders',
+      'Staff Assignments',
       'Relationships',
-      'Calendar',
-      'Clients',
-      'Users',
+      'Review Workflow',
+      'Client Relationships',
+      'Staff Directory',
     ]);
   });
 
