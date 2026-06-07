@@ -3,6 +3,13 @@ import { Bell, Check, CheckCheck, RefreshCw, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import useSession from "@/lib/hooks/useSession";
+import { getOperationsScopeForMode } from "@/lib/operations/operationsMode";
+import { useOperationsMode } from "@/lib/operations/OperationsModeProvider";
+import {
+  filterNotificationsForOperationsScope,
+  notificationRpcScopeParams,
+} from "@/lib/notifications/notificationWorkspaceScope";
+import { WORKSPACE_SWITCH_INVALIDATION_EVENT } from "@/lib/workspace/workspaceSwitchReset";
 
 export default function NotificationBell() {
   const [open, setOpen] = useState(false);
@@ -15,6 +22,8 @@ export default function NotificationBell() {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
   const rootRef = useRef(null);
+  const { operationsMode } = useOperationsMode();
+  const operationsScope = getOperationsScopeForMode(operationsMode);
 
   const channelName = useMemo(() => (userId ? `notif:${userId}` : null), [userId]);
   const quickItems = useMemo(() => items.filter((n) => !n.dismissed_at), [items]);
@@ -59,15 +68,19 @@ export default function NotificationBell() {
     if (!userId) return;
     setLoading(true);
     setError(null);
-    const { data, error } = await supabase.rpc("rpc_get_notifications", { p_limit: 20 });
+    const { data, error } = await supabase.rpc("rpc_get_notifications", {
+      p_limit: 20,
+      ...notificationRpcScopeParams(operationsScope),
+    });
     if (error) {
       console.error("loadNotifications error", error);
       setError(error);
       setItems([]);
       setUnreadCount(0);
     } else {
-      setItems(data || []);
-      setUnreadCount((data || []).filter((n) => !n.read_at && !n.dismissed_at).length);
+      const scopedItems = filterNotificationsForOperationsScope(data || [], operationsScope);
+      setItems(scopedItems);
+      setUnreadCount(scopedItems.filter((n) => !n.read_at && !n.dismissed_at).length);
     }
     setLoading(false);
   };
@@ -75,7 +88,7 @@ export default function NotificationBell() {
   useEffect(() => {
     loadNotifications();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
+  }, [operationsScope, userId]);
 
   const orderSafePathFor = (n) => {
     if (!n) return null;
@@ -124,11 +137,13 @@ export default function NotificationBell() {
   const dismissSeen = async () => {
     if (!userId || !seenQuickItems.length) return;
     setError(null);
-    const { error } = await supabase.rpc("rpc_dismiss_seen_notifications");
-    if (error) {
-      console.error("dismissSeen error", error);
-      setError(error);
-      return;
+    for (const item of seenQuickItems) {
+      const { error } = await supabase.rpc("rpc_dismiss_notification", { p_notification_id: item.id });
+      if (error) {
+        console.error("dismissSeen error", error);
+        setError(error);
+        return;
+      }
     }
     setItems((current) => current.filter((item) => !item.read_at || item.dismissed_at));
   };
@@ -167,12 +182,14 @@ export default function NotificationBell() {
     if (!userId || markingAllRead) return;
     setMarkingAllRead(true);
     setError(null);
-    const { error } = await supabase.rpc("rpc_mark_all_notifications_read");
-    if (error) {
-      console.error("markAllRead error", error);
-      setError(error);
-      setMarkingAllRead(false);
-      return;
+    for (const item of unreadItems) {
+      const { error } = await supabase.rpc("rpc_mark_notification_read", { p_notification_id: item.id });
+      if (error) {
+        console.error("markAllRead error", error);
+        setError(error);
+        setMarkingAllRead(false);
+        return;
+      }
     }
     await loadNotifications();
     setMarkingAllRead(false);
@@ -202,7 +219,21 @@ export default function NotificationBell() {
         // Channel cleanup is best-effort during component teardown.
       }
     };
-  }, [channelName, userId]);
+  }, [channelName, operationsScope, userId]);
+
+  useEffect(() => {
+    const handleWorkspaceInvalidation = () => {
+      setItems([]);
+      setUnreadCount(0);
+      setError(null);
+      setOpen(false);
+      loadNotifications();
+    };
+
+    window.addEventListener(WORKSPACE_SWITCH_INVALIDATION_EVENT, handleWorkspaceInvalidation);
+    return () => window.removeEventListener(WORKSPACE_SWITCH_INVALIDATION_EVENT, handleWorkspaceInvalidation);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [operationsScope, userId]);
 
   useEffect(() => {
     if (!open) return undefined;

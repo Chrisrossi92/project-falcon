@@ -2,6 +2,10 @@
 // Adjust supabase import path to your project
 import supabase from "@/lib/supabaseClient";
 import { getCurrentUserAppContext } from "@/features/auth/currentUserAppContextApi";
+import {
+  filterNotificationsForOperationsScope,
+  notificationRpcScopeParams,
+} from "@/lib/notifications/notificationWorkspaceScope";
 
 /* ----------------------------- NOTIFICATIONS ----------------------------- */
 
@@ -15,13 +19,15 @@ export async function rpcGetNotifications({
   limit = 50,
   before = null,
   after = null,
+  operationsScope = null,
 } = {}) {
   const { data, error } = await supabase.rpc("rpc_get_notifications", {
     p_limit: limit,
     p_before: before ?? after ?? null, // simple cursor fallback; API ignores filters today
+    ...notificationRpcScopeParams(operationsScope),
   });
   if (error) throw error;
-  return data ?? [];
+  return filterNotificationsForOperationsScope(data ?? [], operationsScope);
 }
 
 /**

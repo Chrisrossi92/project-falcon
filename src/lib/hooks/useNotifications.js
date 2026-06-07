@@ -1,22 +1,27 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { rpcGetNotifications, rpcMarkNotificationRead } from "@/lib/services/api";
 import supabase from "@/lib/supabaseClient"; // default import works whether you also have named
+import { getOperationsScopeForMode } from "@/lib/operations/operationsMode";
+import { useOperationsMode } from "@/lib/operations/OperationsModeProvider";
+import { WORKSPACE_SWITCH_INVALIDATION_EVENT } from "@/lib/workspace/workspaceSwitchReset";
 
 export function useNotifications({ pollMs = 15000, enableRealtime = false } = {}) {
+  const { operationsMode } = useOperationsMode();
+  const operationsScope = getOperationsScopeForMode(operationsMode);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const timerRef = useRef(null);
   const channelRef = useRef(null);
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await rpcGetNotifications();
+      const data = await rpcGetNotifications({ operationsScope });
       setItems(data);
     } finally {
       setLoading(false);
     }
-  }
+  }, [operationsScope]);
 
   async function markRead(id) {
     await rpcMarkNotificationRead(id);
@@ -27,7 +32,17 @@ export function useNotifications({ pollMs = 15000, enableRealtime = false } = {}
     refresh();
     if (pollMs > 0) timerRef.current = setInterval(refresh, pollMs);
     return () => timerRef.current && clearInterval(timerRef.current);
-  }, [pollMs]);
+  }, [pollMs, refresh]);
+
+  useEffect(() => {
+    const handleWorkspaceInvalidation = () => {
+      setItems([]);
+      refresh();
+    };
+
+    window.addEventListener(WORKSPACE_SWITCH_INVALIDATION_EVENT, handleWorkspaceInvalidation);
+    return () => window.removeEventListener(WORKSPACE_SWITCH_INVALIDATION_EVENT, handleWorkspaceInvalidation);
+  }, [refresh]);
 
   useEffect(() => {
     if (!enableRealtime) return;
@@ -40,7 +55,7 @@ export function useNotifications({ pollMs = 15000, enableRealtime = false } = {}
       )
       .subscribe();
     return () => channelRef.current && supabase.removeChannel(channelRef.current);
-  }, [enableRealtime]);
+  }, [enableRealtime, refresh]);
 
   const unreadCount = items.filter((n) => !n.read_at).length;
   return { items, unreadCount, loading, refresh, markRead };

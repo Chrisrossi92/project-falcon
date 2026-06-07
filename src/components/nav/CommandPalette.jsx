@@ -8,6 +8,7 @@ import { useEffectivePermissions } from "@/lib/hooks/usePermissions";
 import { useOperationsMode } from "@/lib/operations/OperationsModeProvider";
 import { PERMISSIONS } from "@/lib/permissions/constants";
 import { useShellProfile } from "@/lib/shell/useShellProfile";
+import { WORKSPACE_SWITCH_INVALIDATION_EVENT } from "@/lib/workspace/workspaceSwitchReset";
 
 const COMMAND_PERMISSION_KEYS = Object.freeze([
   PERMISSIONS.NAVIGATION_ORDERS_VIEW,
@@ -103,6 +104,16 @@ export default function CommandPalette({ open, onClose, onNavigate, clientsPath 
       setTimeout(() => inputRef.current?.focus(), 0);
     }
   }, [open]);
+
+  useEffect(() => {
+    const handleWorkspaceInvalidation = () => {
+      setQ("");
+      setI(0);
+    };
+
+    window.addEventListener(WORKSPACE_SWITCH_INVALIDATION_EVENT, handleWorkspaceInvalidation);
+    return () => window.removeEventListener(WORKSPACE_SWITCH_INVALIDATION_EVENT, handleWorkspaceInvalidation);
+  }, []);
 
   // Keyboard handling (Esc, arrows, Enter)
   useEffect(() => {

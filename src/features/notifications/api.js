@@ -1,5 +1,6 @@
 // src/features/notifications/api.js
 import supabase from "@/lib/supabaseClient";
+import { notificationRpcScopeParams } from "@/lib/notifications/notificationWorkspaceScope";
 
 function notificationPrefsRpcError(action, error) {
   const details = [error?.message, error?.details, error?.hint].filter(Boolean).join(" ");
@@ -56,16 +57,19 @@ export async function updateCurrentUserNotificationPreference({
 }
 
 /* ---------- counts & lists ---------- */
-export async function getUnreadCount() {
-  const { data, error } = await supabase.rpc("rpc_get_unread_count");
+export async function getUnreadCount({ operationsScope = null } = {}) {
+  const { data, error } = await supabase.rpc("rpc_get_unread_count", notificationRpcScopeParams(operationsScope));
   if (error) throw error;
   return Number(data || 0);
 }
 // back-compat alias expected by hooks.js
 export const unreadCount = getUnreadCount;
 
-export async function listNotifications({ limit = 10 } = {}) {
-  const { data, error } = await supabase.rpc("rpc_get_notifications", { p_limit: limit });
+export async function listNotifications({ limit = 10, operationsScope = null } = {}) {
+  const { data, error } = await supabase.rpc("rpc_get_notifications", {
+    p_limit: limit,
+    ...notificationRpcScopeParams(operationsScope),
+  });
   if (error) throw error;
   return Array.isArray(data) ? data : [];
 }
@@ -73,8 +77,11 @@ export async function listNotifications({ limit = 10 } = {}) {
 export const fetchNotifications = listNotifications;
 
 /* ---------- mutations on notifications ---------- */
-export async function markAllRead() {
-  const { error } = await supabase.rpc("rpc_mark_all_notifications_read");
+export async function markAllRead({ operationsScope = null } = {}) {
+  const { error } = await supabase.rpc(
+    "rpc_mark_all_notifications_read",
+    notificationRpcScopeParams(operationsScope),
+  );
   if (error) throw error;
   return true;
 }

@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import CommandPalette from "../CommandPalette.jsx";
 import { OperationsModeProvider } from "@/lib/operations/OperationsModeProvider";
 import { PERMISSIONS } from "@/lib/permissions/constants";
+import { WORKSPACE_SWITCH_INVALIDATION_EVENT } from "@/lib/workspace/workspaceSwitchReset";
 
 const permissionState = vi.hoisted(() => ({
   allowed: new Set(),
@@ -244,6 +245,22 @@ describe("CommandPalette current registry helper migration", () => {
     fireEvent.keyDown(window, { key: "Enter" });
 
     expect(onNavigate).toHaveBeenCalledWith("/orders?q=123%20Main%20%234");
+  });
+
+  it("clears open search text on workspace switch invalidation", async () => {
+    permissionState.allowed = new Set([PERMISSIONS.NAVIGATION_ORDERS_VIEW]);
+    renderPalette();
+    const input = screen.getByRole("textbox");
+
+    fireEvent.change(input, { target: { value: "123 Main #4" } });
+    expect(screen.getByText("Press Enter to search Orders for “123 Main #4”")).toBeInTheDocument();
+
+    window.dispatchEvent(new window.CustomEvent(WORKSPACE_SWITCH_INVALIDATION_EVENT));
+
+    await waitFor(() => {
+      expect(input).toHaveValue("");
+      expect(screen.queryByText("Press Enter to search Orders for “123 Main #4”")).toBeNull();
+    });
   });
 
   it("preserves active search filtering in current command order", () => {

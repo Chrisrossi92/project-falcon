@@ -3,6 +3,13 @@ import { ExternalLink, RefreshCw, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { supabase } from "@/lib/supabaseClient";
+import { getOperationsScopeForMode } from "@/lib/operations/operationsMode";
+import { useOperationsMode } from "@/lib/operations/OperationsModeProvider";
+import {
+  filterNotificationsForOperationsScope,
+  notificationRpcScopeParams,
+} from "@/lib/notifications/notificationWorkspaceScope";
+import { WORKSPACE_SWITCH_INVALIDATION_EVENT } from "@/lib/workspace/workspaceSwitchReset";
 
 const STATE_FILTERS = [
   { key: "all", label: "All" },
@@ -114,6 +121,8 @@ function searchableText(notification) {
 
 export default function ActivityPage() {
   const navigate = useNavigate();
+  const { operationsMode } = useOperationsMode();
+  const operationsScope = getOperationsScopeForMode(operationsMode);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -124,20 +133,38 @@ export default function ActivityPage() {
   const loadNotifications = async () => {
     setLoading(true);
     setError(null);
-    const { data, error } = await supabase.rpc("rpc_get_notifications", { p_limit: 100 });
+    const { data, error } = await supabase.rpc("rpc_get_notifications", {
+      p_limit: 100,
+      ...notificationRpcScopeParams(operationsScope),
+    });
     if (error) {
       console.error("Activity loadNotifications error", error);
       setError(error);
       setItems([]);
     } else {
-      setItems(data || []);
+      setItems(filterNotificationsForOperationsScope(data || [], operationsScope));
     }
     setLoading(false);
   };
 
   useEffect(() => {
     loadNotifications();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [operationsScope]);
+
+  useEffect(() => {
+    const handleWorkspaceInvalidation = () => {
+      setItems([]);
+      setSearch("");
+      setStateFilter("all");
+      setTypeFilter("all");
+      loadNotifications();
+    };
+
+    window.addEventListener(WORKSPACE_SWITCH_INVALIDATION_EVENT, handleWorkspaceInvalidation);
+    return () => window.removeEventListener(WORKSPACE_SWITCH_INVALIDATION_EVENT, handleWorkspaceInvalidation);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [operationsScope]);
 
   const filteredItems = useMemo(() => {
     const query = search.trim().toLowerCase();

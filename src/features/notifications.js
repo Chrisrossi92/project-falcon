@@ -1,10 +1,14 @@
 // src/features/notifications.js
 import supabase from '@/lib/supabaseClient';
+import { notificationRpcScopeParams } from "@/lib/notifications/notificationWorkspaceScope";
 
 // NotificationRow and UserPref types removed
 
-export async function fetchNotifications(limit = 50) {
-  const { data, error } = await supabase.rpc("rpc_get_notifications", { p_limit: limit });
+export async function fetchNotifications(limit = 50, operationsScope = null) {
+  const { data, error } = await supabase.rpc("rpc_get_notifications", {
+    p_limit: limit,
+    ...notificationRpcScopeParams(operationsScope),
+  });
   if (error) throw error;
   return data || [];
 }
@@ -17,13 +21,13 @@ export async function markAsRead(ids) {
   }
 }
 
-export async function markAllRead() {
-  const { error } = await supabase.rpc("rpc_mark_all_notifications_read");
+export async function markAllRead(operationsScope = null) {
+  const { error } = await supabase.rpc("rpc_mark_all_notifications_read", notificationRpcScopeParams(operationsScope));
   if (error) throw error;
 }
 
-export async function unreadCount() {
-  const { data, error } = await supabase.rpc("rpc_get_unread_count");
+export async function unreadCount(operationsScope = null) {
+  const { data, error } = await supabase.rpc("rpc_get_unread_count", notificationRpcScopeParams(operationsScope));
   if (error) throw error;
   return Number(data || 0);
 }
