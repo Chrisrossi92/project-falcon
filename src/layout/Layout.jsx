@@ -1,9 +1,24 @@
 import { Outlet } from "react-router-dom";
 import TopNav from "@/components/shell/TopNav";
-import { OperationsModeProvider } from "@/lib/operations/OperationsModeProvider";
+import {
+  OperationsModeProvider,
+  useOperationsMode,
+} from "@/lib/operations/OperationsModeProvider";
 import { resolveAvailableOperationsModes } from "@/lib/operations/operationAccess";
 import { useEffectivePermissions } from "@/lib/hooks/usePermissions";
 import { useShellProfile } from "@/lib/shell/useShellProfile";
+import { getWorkspaceDocumentTitle } from "@/lib/workspace/workspaceIdentity";
+import { useEffect } from "react";
+
+function WorkspaceDocumentTitle() {
+  const { operationsMode } = useOperationsMode();
+
+  useEffect(() => {
+    document.title = getWorkspaceDocumentTitle(operationsMode);
+  }, [operationsMode]);
+
+  return null;
+}
 
 export default function Layout() {
   const permissions = useEffectivePermissions();
@@ -12,6 +27,7 @@ export default function Layout() {
 
   return (
     <OperationsModeProvider availableOperationsModes={availableOperationsModes}>
+      <WorkspaceDocumentTitle />
       <div className="relative flex min-h-screen flex-col overflow-x-hidden bg-slate-950 text-slate-950">
         <div
           aria-hidden

@@ -246,8 +246,9 @@ describe("DashboardPage operational polish", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Company")).toBeInTheDocument();
     expect(screen.getByText("Falcon Appraisals")).toBeInTheDocument();
-    expect(screen.getByText("Work View")).toBeInTheDocument();
-    expect(screen.getByText("Owner / Admin")).toBeInTheDocument();
+    expect(screen.getByTestId("workspace-identity-badge")).toHaveTextContent("Internal");
+    expect(screen.getByText("Environment")).toBeInTheDocument();
+    expect(screen.getByText("Internal Operations")).toBeInTheDocument();
 
     const calendarHeading = screen.getByText("Calendar");
     const ordersHeading = screen.getByText("Active Worklist");
@@ -307,7 +308,8 @@ describe("DashboardPage operational polish", () => {
         "Track procurement queues, vendor response, client orders, and SLA pressure.",
       ),
     ).toBeInTheDocument();
-    expect(screen.getByText("Workspace")).toBeInTheDocument();
+    expect(screen.getByTestId("workspace-identity-badge")).toHaveTextContent("AMC");
+    expect(screen.getByText("Environment")).toBeInTheDocument();
     expect(screen.getByText("AMC Operations")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Operations Dashboard", level: 1 })).toBeNull();
 

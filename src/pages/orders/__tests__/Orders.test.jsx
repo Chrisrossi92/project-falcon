@@ -147,7 +147,9 @@ describe("OrdersPage historical access", () => {
     renderPage();
 
     expect(screen.getByRole("heading", { name: "Orders" })).toBeInTheDocument();
-    expect(screen.getByText("Operations Command")).toBeInTheDocument();
+    expect(screen.getByText("Internal")).toBeInTheDocument();
+    expect(screen.getByText("Internal Operations")).toBeInTheDocument();
+    expect(screen.getByText("Manage internal appraisal orders, workflow handoffs, and order records.")).toBeInTheDocument();
     expect(screen.queryByText("Orders workspace")).not.toBeInTheDocument();
     expect(screen.queryByText("Workflow actions in table")).not.toBeInTheDocument();
     expect(screen.queryByText("History is read-only")).not.toBeInTheDocument();

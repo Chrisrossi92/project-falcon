@@ -4,14 +4,15 @@ import { useDashboardSummary } from "@/lib/hooks/useDashboardSummary";
 import UnifiedOrdersTable from "@/features/orders/UnifiedOrdersTable";
 import DashboardCalendarPanel from "@/components/dashboard/DashboardCalendarPanel";
 import AppraiserWorkbenchPreview from "@/features/dashboard/workbenches/AppraiserWorkbenchPreview";
+import WorkspaceBadge from "@/components/workspace/WorkspaceBadge";
 import {
   WorkspaceSurface,
   workspaceSurfaceClassNames,
 } from "@/components/workspace/WorkspaceSurface";
 import { useCan } from "@/lib/hooks/usePermissions";
 import { PERMISSIONS } from "@/lib/permissions/constants";
-import { ORDER_STATUS, normalizeOrderStatus } from "@/lib/constants/orderStatus";
 import { OPERATIONS_MODES } from "@/lib/operations/operationsMode";
+import { ORDER_STATUS, normalizeOrderStatus } from "@/lib/constants/orderStatus";
 import { getShellWorkModeCue } from "@/lib/shell/shellWorkMode";
 import { getWorkspaceIdentity } from "@/lib/workspace/workspaceIdentity";
 import { useCallback, useMemo, useState } from "react";
@@ -69,12 +70,6 @@ function roleContextLabel({ isAdmin, isReviewer, role }) {
   return displayName(role, "Operational");
 }
 
-const OPERATIONS_DASHBOARD_SUBTITLE =
-  "Track active work, review handoffs, due pressure, and workflow coordination.";
-
-const AMC_OPERATIONS_DASHBOARD_SUBTITLE =
-  "Track procurement queues, vendor response, client orders, and SLA pressure.";
-
 const REVIEWER_DASHBOARD_SUBTITLE =
   "Active review work, revision follow-up, and calendar context for your queue.";
 
@@ -126,7 +121,7 @@ function resolveDashboardPresentation({
 }) {
   const profileId = getShellProfilePresentationId(shellProfilePresentation);
   const isOperations = profileId === "operations";
-  const isAmcOperations = operationsMode === OPERATIONS_MODES.AMC_OPERATIONS;
+  const workspaceIdentity = getWorkspaceIdentity(operationsMode);
 
   if (isReviewer && !isAdmin) {
     return {
@@ -136,19 +131,15 @@ function resolveDashboardPresentation({
   }
 
   if (isOperations) {
-    if (isAmcOperations) {
-      return {
-        title: "AMC Operations Dashboard",
-        subtitle: AMC_OPERATIONS_DASHBOARD_SUBTITLE,
-      };
-    }
-
     return {
       title:
-        shellProfilePresentation?.profile?.dashboardTitle ??
-        shellProfilePresentation?.shellMetadata?.dashboardTitle ??
+        workspaceIdentity.dashboardTitle ||
+        shellProfilePresentation?.profile?.dashboardTitle ||
+        shellProfilePresentation?.shellMetadata?.dashboardTitle ||
         "Operations Dashboard",
-      subtitle: OPERATIONS_DASHBOARD_SUBTITLE,
+      subtitle:
+        workspaceIdentity.dashboardSubtitle ||
+        "Track active work, review handoffs, due pressure, and workflow coordination.",
     };
   }
 
@@ -245,8 +236,17 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
   const showAppraiserWorkbenchPreview = shellProfileId === "my_work" && !isAdmin;
   const companyLabel = displayName(appContext?.company_name, "Current company");
   const roleLabel = roleContextLabel({ isAdmin, isReviewer, role: normalizedRole });
-  const dashboardStatLabel = workspaceIdentity.dashboardStatLabel || "Work View";
-  const dashboardStatValue = workspaceIdentity.dashboardStatValue || roleLabel;
+  const useWorkspaceStat = shellProfileId === "operations";
+  const dashboardStatLabel = useWorkspaceStat
+    ? workspaceIdentity.dashboardStatLabel || "Environment"
+    : "Work View";
+  const dashboardStatValue = useWorkspaceStat
+    ? workspaceIdentity.dashboardStatValue || roleLabel
+    : roleLabel;
+  const dashboardWorkspaceCue =
+    operationsMode === OPERATIONS_MODES.AMC_OPERATIONS
+      ? workspaceIdentity.shellCueLabel || shellWorkMode.label
+      : shellWorkMode.label;
   const ordersCount = summary.orders.count ?? 0;
   const patchedOrdersRows = useMemo(
     () =>
@@ -314,11 +314,14 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
       >
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="min-w-0">
-            <div
-              className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500"
-              title={shellWorkMode.context}
-            >
-              {shellWorkMode.label}
+            <div className="flex flex-wrap items-center gap-2">
+              <WorkspaceBadge operationsMode={operationsMode} />
+              <span
+                className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500"
+                title={shellWorkMode.context}
+              >
+                {dashboardWorkspaceCue}
+              </span>
             </div>
             <h1 className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-950">
               {title}

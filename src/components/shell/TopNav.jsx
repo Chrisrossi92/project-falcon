@@ -5,13 +5,14 @@ import supabase from "@/lib/supabaseClient";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import CommandPalette from "@/components/nav/CommandPalette";
 import AvatarBadge from "@/components/ui/AvatarBadge";
+import WorkspaceBadge from "@/components/workspace/WorkspaceBadge";
 import { useEffectivePermissions } from "@/lib/hooks/usePermissions";
 import { getCurrentPrimaryNavLinks } from "@/lib/navigation/currentPrimaryNavLinks";
 import { getCurrentShellMobileNavigationLinks } from "@/lib/navigation/currentShellMobileNavigationLinks";
 import { getCurrentShellNavigationSections } from "@/lib/navigation/currentShellNavigationSections";
 import { avatarSettingsUtilityLinks } from "@/lib/navigation/currentSettingsUtilityLinks";
 import { useOperationsMode } from "@/lib/operations/OperationsModeProvider";
-import { getOperationsModeLabel } from "@/lib/operations/operationsMode";
+import { getOperationsModeLabel, OPERATIONS_MODES } from "@/lib/operations/operationsMode";
 import { PERMISSIONS } from "@/lib/permissions/constants";
 import { useShellProfile } from "@/lib/shell/useShellProfile";
 import { getShellWorkModeCue } from "@/lib/shell/shellWorkMode";
@@ -162,6 +163,15 @@ function OperationalModeContext({ shellModeCue, appContext, workspaceIdentity, p
         title={shellModeCue.context}
       >
         {shellModeCue.label}
+      </div>
+      <div className="mt-2 flex items-center justify-between gap-2">
+        <WorkspaceBadge operationsMode={operationsMode} className="shrink-0" />
+        <span
+          className="min-w-0 truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500"
+          data-testid="workspace-identity-title"
+        >
+          {workspaceIdentity.environmentLabel}
+        </span>
       </div>
       <div className="mt-3" aria-label="Operations Command" data-testid="operations-mode-switcher">
         <div className="mb-1 flex items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
@@ -440,10 +450,15 @@ export default function TopNav() {
   );
   const workspaceIdentity = getWorkspaceIdentity(operationsMode);
   const baseShellModeCue = getShellWorkModeCue(shellProfilePresentation);
+  const useWorkspaceCue = operationsMode === OPERATIONS_MODES.AMC_OPERATIONS;
   const shellModeCue = {
     ...baseShellModeCue,
-    label: workspaceIdentity.shellCueLabel || baseShellModeCue.label,
-    context: workspaceIdentity.shellCueDescription || baseShellModeCue.context,
+    label: useWorkspaceCue
+      ? workspaceIdentity.shellCueLabel || baseShellModeCue.label
+      : baseShellModeCue.label,
+    context: useWorkspaceCue
+      ? workspaceIdentity.shellCueDescription || baseShellModeCue.context
+      : baseShellModeCue.context,
   };
   const userIdentity = resolveShellUserIdentity(shellProfilePresentation?.appContext, null);
   const workspaceShellAccentClass = workspaceIdentity.accentClasses.shell || "";

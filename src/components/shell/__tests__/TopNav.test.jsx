@@ -162,6 +162,12 @@ describe("TopNav desktop operational spine navigation", () => {
     expect(within(desktopContext).getByTestId("operations-mode-selected-label")).toHaveTextContent(
       "Internal Operations",
     );
+    expect(container.querySelector('aside [data-testid="workspace-identity-badge"]')).toHaveTextContent(
+      "Internal",
+    );
+    expect(container.querySelector('aside [data-testid="workspace-identity-title"]')).toHaveTextContent(
+      "Internal Environment",
+    );
   });
 
   it("switches Internal Operations to AMC Operations and resets order detail to the dashboard", () => {
@@ -186,6 +192,12 @@ describe("TopNav desktop operational spine navigation", () => {
     );
     expect(within(desktopContext).getByTestId("operations-mode-selected-label")).toHaveTextContent(
       "AMC Operations",
+    );
+    expect(container.querySelector('aside [data-testid="workspace-identity-badge"]')).toHaveTextContent(
+      "AMC",
+    );
+    expect(container.querySelector('aside [data-testid="workspace-identity-title"]')).toHaveTextContent(
+      "AMC Environment",
     );
     expect(window.localStorage.getItem(OPERATIONS_MODE_STORAGE_KEY)).toBe("amc_operations");
     expect(screen.getByTestId("current-path")).toHaveTextContent("/dashboard");
