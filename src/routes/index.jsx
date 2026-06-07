@@ -1,9 +1,11 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 
 import Layout from "@/layout/Layout";
+import ClientPortalLayout from "@/layout/ClientPortalLayout";
 import VendorWorkspaceLayout from "@/layout/VendorWorkspaceLayout";
 import ProtectedRoute from "@/lib/hooks/ProtectedRoute";
 import { PERMISSIONS } from "@/lib/permissions/constants";
+import ClientPortalRouteGuard from "@/routes/ClientPortalRouteGuard";
 import DefaultWorkspaceRedirect from "@/routes/DefaultWorkspaceRedirect";
 import V1HiddenSurfaceRouteGuard from "@/routes/V1HiddenSurfaceRouteGuard";
 import VendorWorkspaceRouteGuard from "@/routes/VendorWorkspaceRouteGuard";
@@ -38,6 +40,10 @@ import OrderDetail from "@/pages/orders/OrderDetail";
 import EditOrder from "@/pages/orders/EditOrder";
 import Calendar from "@/pages/Calendar";
 import Activity from "@/pages/Activity";
+import ClientPortalDashboard from "@/features/clientPortal/ClientPortalDashboard";
+import ClientPortalNewOrderPage from "@/features/clientPortal/ClientPortalNewOrderPage";
+import ClientPortalOrderDetailPage from "@/features/clientPortal/ClientPortalOrderDetailPage";
+import ClientPortalOrdersPage from "@/features/clientPortal/ClientPortalOrdersPage";
 import AssignmentsPage, { ASSIGNMENT_NAV_PERMISSIONS } from "@/features/assignments/AssignmentsPage";
 import AssignmentDetail from "@/features/assignments/AssignmentDetail";
 import RelationshipsPage, { RELATIONSHIP_NAV_PERMISSION } from "@/features/relationships/RelationshipsPage";
@@ -89,6 +95,20 @@ export default function AppRoutes() {
         <Route path="/vendor-workspace/assigned-orders/:assignmentWorkKey" element={<VendorAssignedOrderDetailPage />} />
         <Route path="/vendor-workspace/payments" element={<VendorPaymentsPage />} />
         <Route path="/vendor-workspace/profile" element={<VendorWorkspaceProfilePage />} />
+      </Route>
+
+      {/* Authenticated Client Portal foundation */}
+      <Route
+        element={
+          <ClientPortalRouteGuard>
+            <ClientPortalLayout />
+          </ClientPortalRouteGuard>
+        }
+      >
+        <Route path="/client-portal" element={<ClientPortalDashboard />} />
+        <Route path="/client-portal/orders" element={<ClientPortalOrdersPage />} />
+        <Route path="/client-portal/orders/:orderId" element={<ClientPortalOrderDetailPage />} />
+        <Route path="/client-portal/new-order" element={<ClientPortalNewOrderPage />} />
       </Route>
 
       {/* Authenticated area */}

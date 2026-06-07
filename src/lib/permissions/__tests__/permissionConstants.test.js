@@ -32,6 +32,13 @@ const vendorWorkspacePermissionEntries = Object.freeze({
   VENDOR_INVOICES_SUBMIT: 'vendor_invoices.submit',
 });
 
+const clientPortalPermissionEntries = Object.freeze({
+  CLIENT_PORTAL_DASHBOARD_VIEW: 'client_portal.dashboard.view',
+  CLIENT_PORTAL_ORDERS_READ: 'client_portal.orders.read',
+  CLIENT_PORTAL_ORDERS_CREATE: 'client_portal.orders.create',
+  CLIENT_PORTAL_REPORTS_READ: 'client_portal.reports.read',
+});
+
 describe('permission constants', () => {
   it('exposes the AMC MVP vendor permission keys', () => {
     expect(PERMISSIONS).toMatchObject(vendorPermissionEntries);
@@ -60,6 +67,16 @@ describe('permission constants', () => {
   it('includes the future Vendor Workspace permissions in the all-permission key list', () => {
     expect(ALL_PERMISSION_KEYS).toEqual(
       expect.arrayContaining(Object.values(vendorWorkspacePermissionEntries)),
+    );
+  });
+
+  it('exposes the Client Portal MVP permission keys', () => {
+    expect(PERMISSIONS).toMatchObject(clientPortalPermissionEntries);
+  });
+
+  it('includes the Client Portal MVP permissions in the all-permission key list', () => {
+    expect(ALL_PERMISSION_KEYS).toEqual(
+      expect.arrayContaining(Object.values(clientPortalPermissionEntries)),
     );
   });
 });

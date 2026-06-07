@@ -12,7 +12,7 @@ export const ROUTE_WORKSPACE_DASHBOARDS = Object.freeze({
   [ROUTE_WORKSPACES.INTERNAL]: "/dashboard",
   [ROUTE_WORKSPACES.AMC]: "/dashboard",
   [ROUTE_WORKSPACES.VENDOR]: "/vendor-workspace/dashboard",
-  [ROUTE_WORKSPACES.CLIENT]: "/dashboard",
+  [ROUTE_WORKSPACES.CLIENT]: "/client-portal",
   [ROUTE_WORKSPACES.PUBLIC]: "/",
 });
 

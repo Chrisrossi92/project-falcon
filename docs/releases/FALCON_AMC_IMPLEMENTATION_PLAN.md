@@ -26,6 +26,7 @@ Source doctrine:
 - [AMC-15 Visual Identity Checkpoint](../amc/AMC_15_VISUAL_IDENTITY_CHECKPOINT.md)
 - [AMC-16 Permission Center Foundation](../amc/AMC_16_PERMISSION_CENTER_FOUNDATION.md)
 - [AMC-16 Permission Center Checkpoint](../amc/AMC_16_PERMISSION_CENTER_CHECKPOINT.md)
+- [AMC-17 Client Portal MVP Foundation](../amc/AMC_17_CLIENT_PORTAL_MVP_FOUNDATION.md)
 
 ## Core Principles
 
@@ -1689,6 +1690,63 @@ Recommended follow-up:
   is explicit.
 - Add an authenticated member access history/activity projection for Permission Center recent
   changes before replacing the legacy Edit Access surface.
+
+### AMC-17: Client Portal MVP
+
+Status: foundation started as of 2026-06-07.
+
+Purpose: create a first-class lender/client-facing portal for ordering appraisals, tracking
+progress, and downloading released reports without exposing Internal/AMC operational complexity.
+
+Completed AMC-17 foundation deliverables:
+
+- [AMC-17 Client Portal MVP Foundation](../amc/AMC_17_CLIENT_PORTAL_MVP_FOUNDATION.md).
+- Current client model audit covering operational client records, `clients.read.*` management
+  permissions, missing client-specific invite/token flow, and missing app-readable client portal
+  order/status/report RPCs.
+- Client Portal route shell outside the Internal/AMC operational `Layout`.
+- `ClientPortalRouteGuard` requiring explicit client portal permission before rendering the
+  portal.
+- Client workspace route ownership fallback for `/client-portal`.
+- Frontend client portal permission constants:
+  `client_portal.dashboard.view`, `client_portal.orders.read`, `client_portal.orders.create`, and
+  `client_portal.reports.read`.
+- Dedicated client-safe API seam for future portal projections:
+  `rpc_client_portal_orders()` and `rpc_client_portal_order_detail(p_order_key)`.
+- Read-only Client Portal dashboard, orders list, order detail, report availability placeholder,
+  and non-mutating new-order placeholder.
+
+AMC-17 foundation certifies:
+
+- Client Portal routes can mount without operational navigation, admin, vendor, procurement,
+  assignment, or permission surfaces.
+- Internal/AMC users do not accidentally land in Client Portal unless they have explicit client
+  portal permission.
+- The frontend portal pages can render client-safe order tracking data when the dedicated portal
+  API seam is supplied.
+- The page model avoids vendor bidding, internal assignment details, private notes, internal review
+  chatter, procurement details, client fee, and AMC margin.
+
+AMC-17 foundation does not certify:
+
+- backend client portal RPC availability;
+- client account/organization invite or token onboarding;
+- production client role/permission seeding;
+- order appraisal intake mutation;
+- public/token status links;
+- final report signed download authorization;
+- client portal messages/activity.
+
+Recommended next AMC-17 slices:
+
+- Add backend client portal order list/detail RPCs with authenticated client/account scoping and
+  opaque order keys.
+- Seed client portal permission keys and role templates.
+- Add client invite/token onboarding after the client account model is explicit.
+- Wire final report download authorization only after report release rules are documented and
+  enforced server-side.
+- Add guarded order appraisal intake after validation, document upload, and duplicate/request
+  rules are defined.
 
 ## Dependency Graph
 

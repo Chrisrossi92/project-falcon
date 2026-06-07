@@ -71,7 +71,16 @@ function renderWorkspaceRoutes(initialPath) {
             </WorkspaceRouteGuard>
           }
         />
+        <Route
+          path="/client-owned"
+          element={
+            <WorkspaceRouteGuard workspace={ROUTE_WORKSPACES.CLIENT}>
+              <div data-testid="client-owned-route">Client owned</div>
+            </WorkspaceRouteGuard>
+          }
+        />
         <Route path="/dashboard" element={<LocationProbe />} />
+        <Route path="/client-portal" element={<LocationProbe />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -124,6 +133,16 @@ describe("WorkspaceRouteGuard", () => {
     expect(screen.getByTestId("location")).toHaveTextContent("/dashboard");
     expect(screen.getByTestId("navigation-type")).toHaveTextContent("REPLACE");
     expect(screen.getByTestId("redirect-state")).toHaveTextContent('"expectedWorkspace":"vendor"');
+    expect(screen.getByTestId("redirect-state")).toHaveTextContent('"selectedWorkspace":"internal"');
+  });
+
+  it("does not render a client-owned page from an operations context", () => {
+    renderWorkspaceRoutes("/client-owned");
+
+    expect(screen.queryByTestId("client-owned-route")).toBeNull();
+    expect(screen.getByTestId("location")).toHaveTextContent("/dashboard");
+    expect(screen.getByTestId("navigation-type")).toHaveTextContent("REPLACE");
+    expect(screen.getByTestId("redirect-state")).toHaveTextContent('"expectedWorkspace":"client"');
     expect(screen.getByTestId("redirect-state")).toHaveTextContent('"selectedWorkspace":"internal"');
   });
 

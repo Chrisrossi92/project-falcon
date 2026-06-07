@@ -97,6 +97,11 @@ export const PERMISSIONS = Object.freeze({
   VENDOR_PAYMENTS_READ: "vendor_payments.read",
   VENDOR_INVOICES_SUBMIT: "vendor_invoices.submit",
 
+  CLIENT_PORTAL_DASHBOARD_VIEW: "client_portal.dashboard.view",
+  CLIENT_PORTAL_ORDERS_READ: "client_portal.orders.read",
+  CLIENT_PORTAL_ORDERS_CREATE: "client_portal.orders.create",
+  CLIENT_PORTAL_REPORTS_READ: "client_portal.reports.read",
+
   WORKFLOW_STATUS_SUBMIT_TO_REVIEW: "workflow.status.submit_to_review",
   WORKFLOW_STATUS_REQUEST_REVISIONS: "workflow.status.request_revisions",
   WORKFLOW_STATUS_RESUBMIT: "workflow.status.resubmit",

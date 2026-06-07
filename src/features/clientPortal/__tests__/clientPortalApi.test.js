@@ -1,0 +1,90 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@/lib/supabaseClient", () => ({
+  default: {
+    rpc: vi.fn(),
+  },
+}));
+
+const supabase = (await import("@/lib/supabaseClient")).default;
+const {
+  clientPortalRpcNames,
+  getClientPortalOrderDetail,
+  listClientPortalOrders,
+  normalizeClientPortalOrderDetail,
+} = await import("../api");
+
+describe("clientPortalApi", () => {
+  beforeEach(() => {
+    supabase.rpc.mockReset();
+  });
+
+  it("lists client portal orders through the dedicated client-safe RPC", async () => {
+    supabase.rpc.mockResolvedValue({
+      data: [
+        {
+          order_key: "portal-order-1",
+          order_number: "CP-001",
+          property_address: "100 Main St",
+          status_label: "In progress",
+          client_due_at: "2026-06-15",
+          vendor_bid_amount: 900,
+          internal_note: "Never expose",
+        },
+      ],
+      error: null,
+    });
+
+    const orders = await listClientPortalOrders();
+
+    expect(orders).toEqual([
+      expect.objectContaining({
+        orderKey: "portal-order-1",
+        orderNumber: "CP-001",
+        propertyAddress: "100 Main St",
+        status: "In progress",
+        dueAt: "2026-06-15",
+      }),
+    ]);
+
+    expect(supabase.rpc).toHaveBeenCalledWith(clientPortalRpcNames.listOrders);
+    expect(JSON.stringify(orders)).not.toMatch(/vendor_bid_amount|internal_note/i);
+  });
+
+  it("loads order detail by opaque client portal order key", async () => {
+    supabase.rpc.mockResolvedValue({
+      data: {
+        order_key: "portal-order-1",
+        order_number: "CP-001",
+        property_address: "100 Main St",
+        report_available: true,
+      },
+      error: null,
+    });
+
+    await getClientPortalOrderDetail("portal-order-1");
+
+    expect(supabase.rpc).toHaveBeenCalledWith(clientPortalRpcNames.orderDetail, {
+      p_order_key: "portal-order-1",
+    });
+  });
+
+  it("normalizes detail without internal assignment, vendor, procurement, or fee fields", () => {
+    const normalized = normalizeClientPortalOrderDetail({
+      order_key: "portal-order-1",
+      order_number: "CP-001",
+      property_address: "100 Main St",
+      report_available: true,
+      appraiser_private_note: "hidden",
+      vendor_name: "hidden vendor",
+      bid_request_id: "hidden procurement",
+      client_fee: 1200,
+      internal_review_note: "hidden review",
+    });
+
+    const serialized = JSON.stringify(normalized);
+
+    expect(serialized).toContain("CP-001");
+    expect(serialized).not.toMatch(/appraiser_private_note|vendor_name|bid_request_id|client_fee|internal_review_note/i);
+  });
+});
