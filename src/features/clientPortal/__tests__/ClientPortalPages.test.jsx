@@ -9,6 +9,7 @@ const apiMock = vi.hoisted(() => ({
   getClientPortalDashboard: vi.fn(),
   listClientPortalOrders: vi.fn(),
   getClientPortalOrderDetail: vi.fn(),
+  submitClientPortalOrderRequest: vi.fn(),
 }));
 
 vi.mock("@/features/clientPortal/api", () => apiMock);
@@ -50,6 +51,7 @@ describe("Client Portal pages", () => {
     apiMock.createClientPortalReportDownloadUrl.mockReset();
     apiMock.listClientPortalOrders.mockReset();
     apiMock.getClientPortalOrderDetail.mockReset();
+    apiMock.submitClientPortalOrderRequest.mockReset();
   });
 
   afterEach(() => {
@@ -167,13 +169,92 @@ describe("Client Portal pages", () => {
     expect(document.body.textContent).not.toMatch(/storage_bucket|storage_path|order-documents|signed_url/i);
   });
 
-  it("keeps new-order intake as a non-mutating placeholder", () => {
+  it("submits a client-safe order request and shows confirmation", async () => {
+    apiMock.submitClientPortalOrderRequest.mockResolvedValue({
+      requestKey: "request-key-1",
+      status: "submitted",
+      propertyAddress: "200 Oak St",
+    });
+
     renderPortalRoutes("/client-portal/new-order");
 
     expect(screen.getByText("Request an appraisal")).toBeInTheDocument();
-    expect(screen.getByText("Intake not wired yet")).toBeInTheDocument();
+    expect(screen.getByText("File upload is not available yet. Your team can request supporting documents after reviewing the request.")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Property address"), {
+      target: { value: "200 Oak St" },
+    });
+    fireEvent.change(screen.getByLabelText("Property type"), {
+      target: { value: "Condo" },
+    });
+    fireEvent.change(screen.getByLabelText("Report type"), {
+      target: { value: "Full appraisal" },
+    });
+    fireEvent.change(screen.getByLabelText("Loan purpose"), {
+      target: { value: "Purchase" },
+    });
+    fireEvent.change(screen.getByLabelText("Requested due date"), {
+      target: { value: "2026-06-20" },
+    });
+    fireEvent.change(screen.getByLabelText("Borrower or property contact"), {
+      target: { value: "Borrower Name" },
+    });
+    fireEvent.change(screen.getByLabelText("Your contact name"), {
+      target: { value: "Avery Client" },
+    });
+    fireEvent.change(screen.getByLabelText("Contact phone"), {
+      target: { value: "555-0100" },
+    });
+    fireEvent.change(screen.getByLabelText("Contact email"), {
+      target: { value: "avery@example.test" },
+    });
+    fireEvent.change(screen.getByLabelText("Notes or special instructions"), {
+      target: { value: "Gate code available." },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Submit request" }));
+
+    await waitFor(() => {
+      expect(apiMock.submitClientPortalOrderRequest).toHaveBeenCalledWith({
+        propertyAddress: "200 Oak St",
+        propertyType: "Condo",
+        reportType: "Full appraisal",
+        loanPurpose: "Purchase",
+        requestedDueDate: "2026-06-20",
+        borrowerContactName: "Borrower Name",
+        clientContactName: "Avery Client",
+        clientContactPhone: "555-0100",
+        clientContactEmail: "avery@example.test",
+        notes: "Gate code available.",
+      });
+    });
+
+    expect(await screen.findByText("Request submitted")).toBeInTheDocument();
+    expect(screen.getByText("Your team will review and confirm the details before the appraisal moves forward.")).toBeInTheDocument();
     expect(apiMock.getClientPortalDashboard).not.toHaveBeenCalled();
     expect(apiMock.listClientPortalOrders).not.toHaveBeenCalled();
     expect(apiMock.getClientPortalOrderDetail).not.toHaveBeenCalled();
+
+    expect(document.body.textContent).not.toMatch(/vendor|appraiser|procurement|assignment|fee|margin/i);
+  });
+
+  it("keeps order request errors visible without losing the form", async () => {
+    apiMock.submitClientPortalOrderRequest.mockRejectedValue(new Error("client_portal_order_request_create_required"));
+
+    renderPortalRoutes("/client-portal/new-order");
+
+    fireEvent.change(screen.getByLabelText("Property address"), {
+      target: { value: "200 Oak St" },
+    });
+    fireEvent.change(screen.getByLabelText("Property type"), {
+      target: { value: "Condo" },
+    });
+    fireEvent.change(screen.getByLabelText("Report type"), {
+      target: { value: "Full appraisal" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Submit request" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("client_portal_order_request_create_required");
+    expect(screen.getByDisplayValue("200 Oak St")).toBeInTheDocument();
   });
 });

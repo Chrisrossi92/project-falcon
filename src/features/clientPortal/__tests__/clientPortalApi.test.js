@@ -17,6 +17,7 @@ const {
   getClientPortalDashboard,
   listClientPortalOrders,
   normalizeClientPortalOrderDetail,
+  submitClientPortalOrderRequest,
 } = await import("../api");
 
 describe("clientPortalApi", () => {
@@ -133,6 +134,71 @@ describe("clientPortalApi", () => {
         },
       },
     );
+  });
+
+  it("submits client portal order requests through the dedicated intake RPC", async () => {
+    supabase.rpc.mockResolvedValue({
+      data: {
+        request_key: "request-key-1",
+        status: "submitted",
+        submitted_at: "2026-06-07T13:00:00Z",
+        property_address: "200 Oak St",
+        property_type: "Condo",
+        report_type: "Full appraisal",
+        requested_due_date: "2026-06-20",
+        appraiser_id: "hidden",
+        vendor_company_id: "hidden",
+      },
+      error: null,
+    });
+
+    await expect(
+      submitClientPortalOrderRequest({
+        propertyAddress: "200 Oak St",
+        propertyType: "Condo",
+        reportType: "Full appraisal",
+        loanPurpose: "Purchase",
+        requestedDueDate: "2026-06-20",
+        borrowerContactName: "Borrower Name",
+        clientContactName: "Avery Client",
+        clientContactPhone: "555-0100",
+        clientContactEmail: "avery@example.test",
+        notes: "Gate code available.",
+      }),
+    ).resolves.toEqual({
+      requestKey: "request-key-1",
+      status: "submitted",
+      submittedAt: "2026-06-07T13:00:00Z",
+      propertyAddress: "200 Oak St",
+      propertyType: "Condo",
+      reportType: "Full appraisal",
+      requestedDueDate: "2026-06-20",
+    });
+
+    expect(supabase.rpc).toHaveBeenCalledWith(clientPortalRpcNames.orderRequestCreate, {
+      p_property_address: "200 Oak St",
+      p_property_type: "Condo",
+      p_report_type: "Full appraisal",
+      p_loan_purpose: "Purchase",
+      p_requested_due_date: "2026-06-20",
+      p_borrower_contact_name: "Borrower Name",
+      p_client_contact_name: "Avery Client",
+      p_client_contact_phone: "555-0100",
+      p_client_contact_email: "avery@example.test",
+      p_notes: "Gate code available.",
+    });
+  });
+
+  it("validates required order request fields before calling the RPC", async () => {
+    await expect(
+      submitClientPortalOrderRequest({
+        propertyAddress: "",
+        propertyType: "Condo",
+        reportType: "Full appraisal",
+      }),
+    ).rejects.toThrow("Property address is required.");
+
+    expect(supabase.rpc).not.toHaveBeenCalled();
   });
 
   it("normalizes detail without internal assignment, vendor, procurement, or fee fields", () => {

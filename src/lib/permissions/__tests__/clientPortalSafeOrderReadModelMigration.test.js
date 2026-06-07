@@ -24,6 +24,13 @@ const reportDownloadFunctionPath = resolve(
 
 const reportDownloadFunctionSource = readFileSync(reportDownloadFunctionPath, 'utf8');
 
+const orderRequestIntakeMigrationPath = resolve(
+  process.cwd(),
+  'supabase/migrations/20260607102000_client_portal_order_request_intake.sql',
+);
+
+const orderRequestIntakeMigrationSql = readFileSync(orderRequestIntakeMigrationPath, 'utf8');
+
 describe('Client Portal safe order read model migration', () => {
   it('creates dedicated Client Portal permissions, member mapping, view, and RPCs', () => {
     expect(migrationSql).toContain("'client_portal.dashboard.view'");
@@ -126,5 +133,72 @@ describe('Client Portal report download authorization', () => {
     expect(reportDownloadFunctionSource).not.toContain('order_id:');
     expect(reportDownloadFunctionSource).not.toContain('storage_path:');
     expect(reportDownloadFunctionSource).not.toContain('storage_bucket:');
+  });
+});
+
+describe('Client Portal order request intake migration', () => {
+  it('creates a dedicated request table and create RPC', () => {
+    expect(orderRequestIntakeMigrationSql).toContain(
+      'create table if not exists public.client_portal_order_requests',
+    );
+    expect(orderRequestIntakeMigrationSql).toContain(
+      'create or replace function public.rpc_client_portal_order_request_create(',
+    );
+    expect(orderRequestIntakeMigrationSql).toContain(
+      'create or replace function public.current_app_user_can_create_client_portal_order_request()',
+    );
+    expect(orderRequestIntakeMigrationSql).toContain('client_portal_order_request_key');
+  });
+
+  it('requires current company client portal membership and create permission', () => {
+    expect(orderRequestIntakeMigrationSql).toContain('public.current_app_user_has_current_company()');
+    expect(orderRequestIntakeMigrationSql).toContain('public.current_app_user_id() is not null');
+    expect(orderRequestIntakeMigrationSql).toContain("client_portal.orders.create");
+    expect(orderRequestIntakeMigrationSql).toContain('public.current_app_user_client_portal_client_ids()');
+    expect(orderRequestIntakeMigrationSql).toContain(
+      "raise exception 'client_portal_order_request_create_required'",
+    );
+  });
+
+  it('captures client-safe request fields only', () => {
+    [
+      'property_address',
+      'property_type',
+      'report_type',
+      'loan_purpose',
+      'requested_due_date',
+      'borrower_contact_name',
+      'client_contact_phone',
+      'client_contact_email',
+      'notes',
+    ].forEach((field) => {
+      expect(orderRequestIntakeMigrationSql).toContain(field);
+    });
+  });
+
+  it('does not accept raw ids or internal assignment procurement fee controls in the create RPC', () => {
+    const createRpcSection = orderRequestIntakeMigrationSql.slice(
+      orderRequestIntakeMigrationSql.indexOf('create or replace function public.rpc_client_portal_order_request_create('),
+      orderRequestIntakeMigrationSql.indexOf('revoke all on function public.client_portal_order_request_key'),
+    );
+
+    [
+      'p_company_id',
+      'p_client_id',
+      'p_order_id',
+      'p_appraiser_id',
+      'p_reviewer_id',
+      'p_vendor',
+      'p_fee',
+      'p_margin',
+      'bid_request',
+      'assignment',
+    ].forEach((field) => {
+      expect(createRpcSection).not.toContain(field);
+    });
+
+    expect(createRpcSection).not.toContain('insert into public.orders');
+    expect(createRpcSection).not.toContain('order_vendor_bid_requests');
+    expect(createRpcSection).not.toContain('order_company_assignments');
   });
 });

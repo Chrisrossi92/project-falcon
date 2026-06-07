@@ -16,6 +16,10 @@ The third slice adds client-safe report download authorization for released fina
 not create client invitation/token onboarding, public token flows, order intake mutation, broad
 document browsing, draft downloads, or internal document access.
 
+The fourth slice adds controlled Client Portal order request intake. Client submissions create
+reviewable intake records only; they do not automatically create operational orders, assignments,
+vendor procurement, invoices, fees, or documents.
+
 ## Current Client Model Findings
 
 Existing client-related surfaces are operational/admin-facing:
@@ -81,6 +85,9 @@ getClientPortalOrderDetail(orderKey)
 createClientPortalReportDownloadUrl(orderKey)
   -> client-portal-report-download-url Edge Function
   -> rpc_client_portal_report_authorize_download(p_order_key)
+
+submitClientPortalOrderRequest(values)
+  -> rpc_client_portal_order_request_create(...)
 ```
 
 The seam requires an opaque `order_key` for detail routing and normalizes only client-safe fields:
@@ -92,6 +99,7 @@ The seam requires an opaque `order_key` for detail routing and normalizes only c
 - report availability;
 - report file metadata;
 - short-lived signed report URL only after the user explicitly clicks `Download report`.
+- client-submitted appraisal request intake details.
 
 It does not import or fall back to shared Internal/AMC order, client, vendor, bid, assignment, or
 procurement APIs.
@@ -112,6 +120,13 @@ Added in `20260607100000_client_portal_safe_order_read_model.sql`:
 Added in `20260607101000_client_portal_report_download_authorization.sql`:
 
 - `rpc_client_portal_report_authorize_download(p_order_key text)`.
+
+Added in `20260607102000_client_portal_order_request_intake.sql`:
+
+- `client_portal_order_requests`;
+- `client_portal_order_request_key(...)`;
+- `current_app_user_can_create_client_portal_order_request()`;
+- `rpc_client_portal_order_request_create(...)`.
 
 The read model is current-company scoped and requires:
 
@@ -149,6 +164,43 @@ The client detail page disables download when no final report is available, show
 while preparing the signed URL, and shows a clear error if the report becomes unavailable or access
 is denied.
 
+## Order Request Intake
+
+Client Portal new-order intake is a request workflow, not operational order creation.
+
+The browser submits client-safe form fields to `rpc_client_portal_order_request_create(...)`. The
+RPC:
+
+- requires current-company membership;
+- requires authenticated app user identity;
+- requires `client_portal.orders.create`;
+- requires an active `client_portal_members` mapping;
+- derives company and client scope server-side;
+- rejects missing property address, property type, or report type;
+- rejects past requested due dates;
+- validates client contact email shape when provided;
+- inserts a `client_portal_order_requests` row with `status = 'submitted'`;
+- returns an opaque request key and submitted status;
+- does not accept raw company, client, order, vendor, appraiser, reviewer, assignment, fee, or
+  margin inputs.
+
+Captured request fields:
+
+- property address;
+- property type;
+- report/appraisal type;
+- loan purpose/intended use;
+- requested due date;
+- borrower or property contact name;
+- client contact name;
+- client contact phone;
+- client contact email;
+- notes/instructions.
+
+After submit, the Client Portal shows `Request submitted` and explains that the team will review
+and confirm details. Staff review/acceptance into the operational order workflow is intentionally
+deferred to the next internal/AMC slice.
+
 ## Fields Exposed
 
 Client Portal order payloads may expose:
@@ -167,6 +219,7 @@ Client Portal order payloads may expose:
 - report file name metadata;
 - client-facing milestones.
 - short-lived signed final report URL only from the click-time Edge Function response.
+- submitted request confirmation metadata.
 
 ## Fields Hidden
 
@@ -195,7 +248,8 @@ Read-only now:
 - client-safe order detail;
 - report availability;
 - authorized final report download action;
-- non-mutating new-order placeholder.
+- order request intake form;
+- request submitted confirmation.
 
 The UI intentionally avoids:
 
@@ -218,13 +272,16 @@ Wired in this slice:
 - `client_portal_members` mapping table;
 - dedicated client-safe dashboard/list/detail RPCs;
 - dedicated final-report download authorization RPC and Edge Function;
+- dedicated client order request intake table and create RPC;
+- client-facing new-order request form;
 - tests proving route guard behavior, API seam shape, and UI leakage boundaries.
 
 Placeholder/deferred:
 
 - client portal role templates and production role assignment;
 - client invite/token onboarding;
-- new-order intake mutation;
+- internal/AMC request review queue;
+- conversion/acceptance from request into operational order;
 - upload/document request flow;
 - public/token order status links;
 - client portal activity/messages.

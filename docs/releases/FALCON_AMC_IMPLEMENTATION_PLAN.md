@@ -1719,9 +1719,11 @@ Completed AMC-17 foundation deliverables:
 - Dedicated client-safe final report download authorization:
   `rpc_client_portal_report_authorize_download(p_order_key)` and
   `client-portal-report-download-url`.
+- Dedicated Client Portal order request intake:
+  `client_portal_order_requests` and `rpc_client_portal_order_request_create(...)`.
 - Dedicated client-safe frontend API seam for those RPCs.
 - Read-only Client Portal dashboard, orders list, order detail, report availability, authorized
-  final report download action, and non-mutating new-order placeholder.
+  final report download action, and client-facing order request form.
 
 AMC-17 foundation certifies:
 
@@ -1739,12 +1741,15 @@ AMC-17 foundation certifies:
   reports only.
 - Report downloads are authorized by opaque order key, current company, active client portal member
   mapping, and `client_portal.reports.read`; storage internals remain service-side only.
+- New-order intake creates a submitted request record only. It derives company/client scope
+  server-side, requires `client_portal.orders.create`, and does not create operational orders,
+  assignments, vendor procurement, invoices, fees, or documents.
 
 AMC-17 foundation does not certify:
 
 - client account/organization invite or token onboarding;
 - production client role/template assignment;
-- order appraisal intake mutation;
+- internal/AMC request review queue and conversion into operational orders;
 - public/token status links;
 - broad document browsing, draft downloads, internal docs, vendor submissions, reviewer files,
   invoices, or procurement documents;
@@ -1754,8 +1759,9 @@ Recommended next AMC-17 slices:
 
 - Add client portal role templates and fixture coverage for mapped client users.
 - Add client invite/token onboarding after the client account model is explicit.
-- Add guarded order appraisal intake after validation, document upload, and duplicate/request
-  rules are defined.
+- Add internal/AMC visibility for submitted client portal requests and guarded conversion into the
+  operational order workflow.
+- Add document upload support after upload authorization and required document rules are defined.
 
 ## Dependency Graph
 

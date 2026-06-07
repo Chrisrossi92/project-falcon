@@ -3,6 +3,7 @@ import supabase from "@/lib/supabaseClient";
 const CLIENT_PORTAL_ORDER_LIST_RPC = "rpc_client_portal_orders";
 const CLIENT_PORTAL_ORDER_DETAIL_RPC = "rpc_client_portal_order_detail";
 const CLIENT_PORTAL_DASHBOARD_RPC = "rpc_client_portal_dashboard";
+const CLIENT_PORTAL_ORDER_REQUEST_CREATE_RPC = "rpc_client_portal_order_request_create";
 const CLIENT_PORTAL_REPORT_DOWNLOAD_FUNCTION = "client-portal-report-download-url";
 
 const toStringOrNull = (value) => {
@@ -66,6 +67,21 @@ export function normalizeClientPortalDashboard(row = {}) {
     reportAvailableCount: Number(row.report_available_count ?? row.reportAvailableCount ?? 0) || 0,
     nextDueAt: toStringOrNull(row.next_due_at ?? row.nextDueAt),
     recentOrders: recentOrders.map(normalizeClientPortalOrder).filter(Boolean),
+  };
+}
+
+export function normalizeClientPortalOrderRequest(row = {}) {
+  const requestKey = toStringOrNull(row.request_key ?? row.requestKey);
+  if (!requestKey) return null;
+
+  return {
+    requestKey,
+    status: toStringOrNull(row.status) || "submitted",
+    submittedAt: toStringOrNull(row.submitted_at ?? row.submittedAt),
+    propertyAddress: toStringOrNull(row.property_address ?? row.propertyAddress),
+    propertyType: toStringOrNull(row.property_type ?? row.propertyType),
+    reportType: toStringOrNull(row.report_type ?? row.reportType),
+    requestedDueDate: toStringOrNull(row.requested_due_date ?? row.requestedDueDate),
   };
 }
 
@@ -142,9 +158,38 @@ export async function createClientPortalReportDownloadUrl(orderKey) {
   };
 }
 
+export async function submitClientPortalOrderRequest(values = {}) {
+  const propertyAddress = toStringOrNull(values.propertyAddress);
+  const propertyType = toStringOrNull(values.propertyType);
+  const reportType = toStringOrNull(values.reportType);
+
+  if (!propertyAddress) throw new Error("Property address is required.");
+  if (!propertyType) throw new Error("Property type is required.");
+  if (!reportType) throw new Error("Report type is required.");
+
+  const { data, error } = await supabase.rpc(CLIENT_PORTAL_ORDER_REQUEST_CREATE_RPC, {
+    p_property_address: propertyAddress,
+    p_property_type: propertyType,
+    p_report_type: reportType,
+    p_loan_purpose: toStringOrNull(values.loanPurpose),
+    p_requested_due_date: toStringOrNull(values.requestedDueDate),
+    p_borrower_contact_name: toStringOrNull(values.borrowerContactName),
+    p_client_contact_name: toStringOrNull(values.clientContactName),
+    p_client_contact_phone: toStringOrNull(values.clientContactPhone),
+    p_client_contact_email: toStringOrNull(values.clientContactEmail),
+    p_notes: toStringOrNull(values.notes),
+  });
+
+  if (error) throw error;
+
+  const row = Array.isArray(data) ? data[0] : data;
+  return normalizeClientPortalOrderRequest(row || {});
+}
+
 export const clientPortalRpcNames = Object.freeze({
   dashboard: CLIENT_PORTAL_DASHBOARD_RPC,
   listOrders: CLIENT_PORTAL_ORDER_LIST_RPC,
   orderDetail: CLIENT_PORTAL_ORDER_DETAIL_RPC,
+  orderRequestCreate: CLIENT_PORTAL_ORDER_REQUEST_CREATE_RPC,
   reportDownloadFunction: CLIENT_PORTAL_REPORT_DOWNLOAD_FUNCTION,
 });
