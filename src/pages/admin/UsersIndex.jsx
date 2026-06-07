@@ -19,7 +19,9 @@ import {
   saveCompanyMemberAccess,
   setCompanyMemberStatus,
 } from "@/features/company-members/api";
+import { buildPermissionCenterModel } from "@/features/company-members/permissionCenterModel";
 import { useCan } from "@/lib/hooks/usePermissions";
+import { useOperationsMode } from "@/lib/operations/OperationsModeProvider";
 import { PERMISSIONS } from "@/lib/permissions/constants";
 import { useShellProfile } from "@/lib/shell/useShellProfile";
 import { SHELL_PROFILE_IDS } from "@/lib/shell/resolveShellProfile";
@@ -570,7 +572,210 @@ function EditRolePresetsModal({ member, open, onClose, onSaved }) {
   );
 }
 
-function MemberCard({ member, busy, readOnly = false, onEditRoles, onSetStatus }) {
+function PermissionCenterDialog({ member, open, operationsMode, onClose }) {
+  const [rolePermissions, setRolePermissions] = useState([]);
+  const [permissionOverrides, setPermissionOverrides] = useState([]);
+  const [loadingAccess, setLoadingAccess] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!open || !member) return;
+
+    setLoadingAccess(true);
+    setError("");
+    Promise.all([
+      listCompanyRolePermissionPreview(),
+      listCompanyMemberPermissionOverrides(member.user_id),
+    ])
+      .then(([permissionRows, overrideRows]) => {
+        setRolePermissions(Array.isArray(permissionRows) ? permissionRows : []);
+        setPermissionOverrides(Array.isArray(overrideRows) ? overrideRows : []);
+      })
+      .catch((loadError) => {
+        console.debug("Permission Center detail load failed", {
+          code: loadError?.code,
+          message: loadError?.message,
+        });
+        setRolePermissions([]);
+        setPermissionOverrides([]);
+        setError("Falcon could not load this member's permission detail.");
+      })
+      .finally(() => setLoadingAccess(false));
+  }, [member, open]);
+
+  if (!open || !member) return null;
+
+  const model = buildPermissionCenterModel({
+    member,
+    rolePermissions,
+    overrideRows: permissionOverrides,
+    operationsMode,
+  });
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/40 px-4 py-8"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose?.();
+      }}
+    >
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="permission-center-title"
+        className="w-full max-w-4xl overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl"
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Permission Center</div>
+            <h2 id="permission-center-title" className="mt-1 text-xl font-semibold text-slate-950">
+              {getMemberName(member)}
+            </h2>
+            <p className="mt-1 max-w-2xl text-sm text-slate-500">
+              Read-only access summary for {model.operationLabel}. Edit and save flows remain in Edit Access.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md border border-slate-200 p-2 text-slate-500 hover:bg-slate-50"
+            aria-label="Close Permission Center"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="grid gap-5 px-5 py-5">
+          {error && (
+            <div className="flex gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+              <div>{error}</div>
+            </div>
+          )}
+
+          <section className="grid gap-3 md:grid-cols-3" aria-label="Permission access summary">
+            <article className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Active Operation</div>
+              <div className="mt-2 text-sm font-semibold text-slate-950">{model.operationLabel}</div>
+              <p className="mt-1 text-xs leading-5 text-slate-500">{model.operationDescription}</p>
+            </article>
+            <article className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Primary Role</div>
+              <div className="mt-2 text-sm font-semibold text-slate-950">
+                {model.primaryRole?.role_name || "No primary role"}
+              </div>
+              <p className="mt-1 text-xs leading-5 text-slate-500">Main role label for this operation context.</p>
+            </article>
+            <article className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Secondary Templates</div>
+              <div className="mt-2 text-sm font-semibold text-slate-950">
+                {model.secondaryRoles.length
+                  ? model.secondaryRoles.map((role) => role.role_name).join(", ")
+                  : "None"}
+              </div>
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                Additional role/template access currently assigned.
+              </p>
+            </article>
+          </section>
+
+          <section className="rounded-lg border border-slate-200 bg-white" aria-labelledby="permission-center-effective-title">
+            <div className="border-b border-slate-200 px-4 py-3">
+              <h3 id="permission-center-effective-title" className="text-sm font-semibold text-slate-950">
+                Effective Permissions
+              </h3>
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                Grouped by business area. Source labels explain whether access comes from a primary role,
+                secondary role/template, or individual override.
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 font-semibold text-slate-600">
+                  {model.permissionCount} effective
+                </span>
+                <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 font-semibold text-slate-600">
+                  {model.overrideCount} overrides
+                </span>
+              </div>
+            </div>
+
+            {loadingAccess ? (
+              <div className="px-4 py-6 text-sm text-slate-500">Loading Permission Center...</div>
+            ) : model.categories.length === 0 ? (
+              <div className="px-4 py-6 text-sm text-slate-500">
+                No permissions are visible for this member in the current operation context.
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-200">
+                {model.categories.map((category) => (
+                  <details key={category.id} className="group" open={category.effectiveCount > 0}>
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 hover:bg-slate-50">
+                      <span>
+                        <span className="block text-sm font-semibold text-slate-900">{category.label}</span>
+                        <span className="mt-0.5 block text-xs text-slate-500">
+                          {category.effectiveCount} effective of {category.permissions.length}
+                          {category.overrideCount ? ` - ${category.overrideCount} overrides` : ""}
+                        </span>
+                      </span>
+                      <span className="text-xs font-semibold text-slate-400 group-open:hidden">Expand</span>
+                      <span className="hidden text-xs font-semibold text-slate-400 group-open:inline">Collapse</span>
+                    </summary>
+                    <ul className="grid gap-2 bg-slate-50/70 px-4 pb-4">
+                      {category.permissions.map((permission) => (
+                        <li
+                          key={permission.key}
+                          className="grid gap-3 rounded-md border border-slate-200 bg-white px-3 py-3 sm:grid-cols-[1fr_auto]"
+                        >
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-sm font-semibold text-slate-900">{permission.label}</span>
+                              <span
+                                className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${
+                                  permission.effective
+                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                    : "border-slate-200 bg-slate-50 text-slate-500"
+                                }`}
+                              >
+                                {permission.effective ? "Granted" : "Not granted"}
+                              </span>
+                              {permission.override && (
+                                <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                                  Override
+                                </span>
+                              )}
+                            </div>
+                            <p className="mt-1 text-xs leading-5 text-slate-500">{permission.description}</p>
+                            {permission.sourceRoles.length > 0 && (
+                              <p className="mt-1 text-xs text-slate-500">
+                                Roles: {permission.sourceRoles.join(", ")}
+                              </p>
+                            )}
+                          </div>
+                          <div className="text-xs font-semibold text-slate-500">{permission.sourceLabel}</div>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
+
+        <div className="flex justify-end gap-2 border-t border-slate-200 px-5 py-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            Close
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function MemberCard({ member, busy, readOnly = false, onEditRoles, onOpenPermissionCenter, onSetStatus }) {
   const name = getMemberName(member);
   const color = getMemberColor(member);
   const roles = roleLabels(member);
@@ -659,6 +864,14 @@ function MemberCard({ member, busy, readOnly = false, onEditRoles, onSetStatus }
         </div>
         {!readOnly && (member.can_update_roles || member.can_deactivate || member.can_reactivate) && (
           <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => onOpenPermissionCenter(member)}
+              disabled={busy}
+              className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+            >
+              Permission Center
+            </button>
             {member.can_update_roles && (
               <button
                 type="button"
@@ -862,6 +1075,7 @@ function StaffDirectory({ members }) {
 
 export default function UsersIndex() {
   const shellProfilePresentation = useShellProfile();
+  const { operationsMode } = useOperationsMode();
   const canReadUsersPermission = useCan(PERMISSIONS.USERS_READ);
   const canInviteUsersPermission = useCan(PERMISSIONS.USERS_INVITE);
   const canManageCompanyAccessPermission = useCan(PERMISSIONS.USERS_MANAGE_COMPANY_ACCESS);
@@ -873,6 +1087,7 @@ export default function UsersIndex() {
   const [showInactive, setShowInactive] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [roleEditorMember, setRoleEditorMember] = useState(null);
+  const [permissionCenterMember, setPermissionCenterMember] = useState(null);
   const [busyMemberId, setBusyMemberId] = useState(null);
   const [invitationRefreshKey, setInvitationRefreshKey] = useState(0);
 
@@ -1085,6 +1300,7 @@ export default function UsersIndex() {
                       busy={busyMemberId === member.user_id}
                       readOnly={isAppraiserDirectoryMode}
                       onEditRoles={setRoleEditorMember}
+                      onOpenPermissionCenter={setPermissionCenterMember}
                       onSetStatus={handleSetStatus}
                     />
                   ))}
@@ -1116,6 +1332,7 @@ export default function UsersIndex() {
                       busy={busyMemberId === member.user_id}
                       readOnly={isAppraiserDirectoryMode}
                       onEditRoles={setRoleEditorMember}
+                      onOpenPermissionCenter={setPermissionCenterMember}
                       onSetStatus={handleSetStatus}
                     />
                     ))}
@@ -1152,6 +1369,12 @@ export default function UsersIndex() {
         member={roleEditorMember}
         onClose={() => setRoleEditorMember(null)}
         onSaved={load}
+      />
+      <PermissionCenterDialog
+        open={Boolean(permissionCenterMember)}
+        member={permissionCenterMember}
+        operationsMode={operationsMode}
+        onClose={() => setPermissionCenterMember(null)}
       />
     </div>
   );

@@ -24,6 +24,7 @@ Source doctrine:
 - [AMC Pilot Readiness Checklist](../amc/AMC_PILOT_READINESS_CHECKLIST.md)
 - [AMC-14B Workspace Isolation Checkpoint](../amc/AMC_14B_WORKSPACE_ISOLATION_CHECKPOINT.md)
 - [AMC-15 Visual Identity Checkpoint](../amc/AMC_15_VISUAL_IDENTITY_CHECKPOINT.md)
+- [AMC-16 Permission Center Foundation](../amc/AMC_16_PERMISSION_CENTER_FOUNDATION.md)
 
 ## Core Principles
 
@@ -1630,6 +1631,49 @@ Recommended next phase:
 - AMC-16 Permission Center should define and implement the deeper permission/onboarding model for
   separate Internal/AMC ownership and authority while preserving current Continental demo behavior.
 
+### AMC-16: Permission Center
+
+Status: AMC-16 foundation started as of 2026-06-07.
+
+Purpose: create a readable, guided permission-management experience that lets an owner/admin
+understand who has access, what role or template grants that access, what individual overrides
+exist, and which operation/company context the display is scoped to before risky mutation work is
+added.
+
+Completed AMC-16 foundation deliverables:
+
+- [AMC-16 Permission Center Foundation](../amc/AMC_16_PERMISSION_CENTER_FOUNDATION.md).
+- Current permission model audit covering company-scoped authority, `company_memberships`,
+  `user_role_assignments`, `roles`, `role_permissions`, direct overrides, and current-company RPC
+  scoping.
+- Read-only Permission Center architecture for User Management.
+- Central permission-center model for business-category grouping, readable permission labels,
+  fallback descriptions, primary/secondary role resolution, source labels, and operation identity.
+- Initial read-only member Permission Center entry point from the existing Users page.
+
+AMC-16 foundation certifies:
+
+- Permission displays can be grouped into owner/admin-readable business categories without exposing
+  an endless raw permission list as the primary experience.
+- The read-only view can show primary role, secondary role/template grants, individual override
+  markers, effective permission state, and active operation identity.
+- Current mutation behavior remains in the existing governed `Edit Access` path.
+
+AMC-16 foundation does not certify:
+
+- New permission mutation flows.
+- Review-changes, confirm-save, success/revert, or audit-log workflows.
+- Dedicated backend operation entitlements for separate Internal/AMC ownership inside one company.
+- Operation-specific onboarding or invitation authority.
+
+Recommended next AMC-16 slices:
+
+- Add guided role/template application and advanced customization review state.
+- Add explicit confirm-save and post-save success/audit affordances before invoking existing
+  governed mutation RPCs.
+- Design the backend operation entitlement model needed for users who have different authority in
+  Internal Operations and AMC Operations.
+
 ## Dependency Graph
 
 ```text
@@ -1645,6 +1689,8 @@ AMC-11 depends on AMC-10
 AMC-12 depends on AMC-10 and AMC-11
 AMC-13 depends on AMC-9 through AMC-12
 AMC-14 depends on AMC-13 and the shared shell/permissions infrastructure
+AMC-15 depends on AMC-14B workspace isolation and shared workspace identity
+AMC-16 depends on AMC-14B isolation, AMC-15 visual identity, and shared permissions infrastructure
 ```
 
 Operational notes:

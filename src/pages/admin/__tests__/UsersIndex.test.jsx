@@ -11,6 +11,10 @@ const shellProfileState = vi.hoisted(() => ({
   profileId: "operations",
 }));
 
+const operationsModeState = vi.hoisted(() => ({
+  operationsMode: "internal_operations",
+}));
+
 const membersApiMock = vi.hoisted(() => ({
   listCompanyMemberPermissionOverrides: vi.fn(),
   listCompanyMembers: vi.fn(),
@@ -48,6 +52,10 @@ vi.mock("@/lib/shell/useShellProfile", () => ({
     metadataAuthority: "presentation_only",
     isPresentationOnly: true,
   }),
+}));
+
+vi.mock("@/lib/operations/OperationsModeProvider", () => ({
+  useOperationsMode: () => operationsModeState,
 }));
 
 vi.mock("@/features/company-members/api", () => membersApiMock);
@@ -209,6 +217,7 @@ describe("UsersIndex readability", () => {
   beforeEach(() => {
     permissionsState.allowed = true;
     shellProfileState.profileId = "operations";
+    operationsModeState.operationsMode = "internal_operations";
     membersApiMock.listCompanyMembers.mockResolvedValue([
       ownerMember,
       adminMember,
@@ -454,6 +463,60 @@ describe("UsersIndex readability", () => {
     expect(within(accessDialog).getByText("Assignable as Reviewer")).toBeInTheDocument();
     expect(within(accessDialog).getByText("Approve review")).toBeInTheDocument();
     expect(within(accessDialog).getAllByText("From Reviewer").length).toBeGreaterThan(0);
+  });
+
+  it("renders a read-only Permission Center scoped to the active operation", async () => {
+    operationsModeState.operationsMode = "amc_operations";
+    invitationsApiMock.listCompanyRolePermissionPreview.mockResolvedValue([
+      {
+        role_id: "role-admin",
+        role_name: "Admin",
+        permission_key: "orders.read.all",
+        permission_category: "orders",
+        permission_label: "Read all orders",
+        permission_description: "View all orders in this operation.",
+      },
+      {
+        role_id: "role-admin",
+        role_name: "Admin",
+        permission_key: "vendor_invoices.submit",
+        permission_category: "vendor_invoices",
+        permission_label: "Submit vendor invoices",
+        permission_description: "Submit vendor invoices for AMC payment review.",
+      },
+    ]);
+    membersApiMock.listCompanyMemberPermissionOverrides.mockResolvedValue([
+      {
+        permission_key: "vendor_invoices.submit",
+        effect: "revoke",
+      },
+    ]);
+
+    renderUsersIndex();
+
+    await screen.findByText("Active Team Members");
+    const adminCard = memberArticle("Ari Admin");
+    fireEvent.click(within(adminCard).getByRole("button", { name: "Permission Center" }));
+
+    const permissionDialog = await screen.findByRole("dialog", { name: "Ari Admin" });
+    expect(permissionDialog).toBeInTheDocument();
+    expect(within(permissionDialog).getByText("Permission Center")).toBeInTheDocument();
+    expect(within(permissionDialog).getByText("Falcon AMC")).toBeInTheDocument();
+    expect(within(permissionDialog).getByText(/scoped to the active operation\/company context/i)).toBeInTheDocument();
+    expect(within(permissionDialog).getByText("Primary Role")).toBeInTheDocument();
+    expect(within(permissionDialog).getByText("Admin")).toBeInTheDocument();
+    expect(within(permissionDialog).getByText("Orders")).toBeInTheDocument();
+    expect(within(permissionDialog).getByText("Payments")).toBeInTheDocument();
+    expect(within(permissionDialog).getByText("Read all orders")).toBeInTheDocument();
+    expect(within(permissionDialog).getByText("Submit vendor invoices")).toBeInTheDocument();
+    expect(within(permissionDialog).getByText("Primary role")).toBeInTheDocument();
+    expect(within(permissionDialog).getByText("Individual override")).toBeInTheDocument();
+    expect(within(permissionDialog).getByText("Override")).toBeInTheDocument();
+    expect(within(permissionDialog).queryByRole("button", { name: "Save Access" })).toBeNull();
+
+    expect(membersApiMock.saveCompanyMemberAccess).not.toHaveBeenCalled();
+    expect(membersApiMock.updateCompanyMemberRoles).not.toHaveBeenCalled();
+    expect(membersApiMock.saveCompanyMemberPermissionOverrides).not.toHaveBeenCalled();
   });
 
   it("saves roles and explicit permission overrides from the access modal", async () => {
