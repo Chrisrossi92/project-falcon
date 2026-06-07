@@ -422,6 +422,62 @@ Deferred after these fixes:
 - Add production/staging smoke evidence for the Client Portal once the pilot deployment target is
   confirmed.
 
+## AMC-18B Production Schema Alignment - 2026-06-07
+
+Production clickthrough confirmed the deployed frontend was ahead of the production Supabase schema.
+The production database still exposed only the older RPC signatures:
+
+- `rpc_client_management_list(p_search text, p_category text, p_sort text)`;
+- `rpc_company_member_list(p_include_inactive boolean)`.
+
+The deployed frontend now calls operation-scoped signatures:
+
+- `rpc_client_management_list(p_search, p_category, p_sort, p_operations_scope)`;
+- `rpc_company_member_list(p_include_inactive, p_operations_scope)`.
+
+Prepared alignment migration:
+
+- `supabase/migrations/20260607130000_production_schema_alignment.sql`.
+
+Objects included:
+
+- `rpc_company_member_access_save(...)` with qualified Permission Center save output conflicts.
+- `rpc_company_member_permission_overrides_save(...)` with qualified membership writes.
+- `rpc_client_contact_set_default(bigint)` with qualified current-company contact updates.
+- `client_relationship_has_operations_scope(bigint, uuid, text)`.
+- `rpc_client_management_list(text, text, text, text)`.
+- `rpc_client_management_detail(bigint, text)`.
+- `company_role_matches_operations_scope(uuid, text)`.
+- `rpc_company_member_list(boolean, text)`.
+
+Manual Supabase SQL Editor deployment steps:
+
+1. Confirm the production Supabase project ref from the live production environment.
+2. Take or confirm a production database backup/snapshot.
+3. Open the production Supabase SQL Editor.
+4. Paste and run the full contents of:
+
+   ```text
+   supabase/migrations/20260607130000_production_schema_alignment.sql
+   ```
+
+5. Refresh the PostgREST schema cache:
+
+   ```sql
+   notify pgrst, 'reload schema';
+   ```
+
+6. Smoke the production screens:
+   - `/clients` loads without schema-cache function errors.
+   - `/users` loads scoped company members.
+   - Permission Center saves Abby/Appraiser template changes or returns a legitimate permission
+     or business-rule error, not SQL ambiguity.
+   - Setting Dana Miller as default contact succeeds or returns a legitimate permission
+     or business-rule error.
+
+Do not run broad `supabase db push --include-all` for this hotfix path until duplicate local
+migration versions are resolved or proven safe for the target project.
+
 ## Cleanup And Reset
 
 Preferred cleanup:
