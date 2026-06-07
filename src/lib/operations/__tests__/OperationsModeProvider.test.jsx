@@ -31,6 +31,9 @@ function OperationsModeProbe() {
       <button type="button" onClick={() => setOperationsMode(OPERATIONS_MODES.AMC_OPERATIONS)}>
         AMC
       </button>
+      <button type="button" onClick={() => setOperationsMode(OPERATIONS_MODES.INTERNAL_OPERATIONS)}>
+        Internal
+      </button>
       <button type="button" onClick={() => setOperationsMode("bad-mode")}>
         Invalid
       </button>
@@ -115,7 +118,8 @@ describe("OperationsModeProvider", () => {
       </OperationsModeProvider>,
     );
 
-    expect(screen.getByTestId("available")).toHaveTextContent("internal_operations,amc_operations");
+    expect(screen.getByTestId("available")).toHaveTextContent("amc_operations");
+    expect(screen.getByTestId("mode")).toHaveTextContent(OPERATIONS_MODES.AMC_OPERATIONS);
   });
 
   it("falls back to internal mode when future entitlement logic supplies no valid modes", () => {
@@ -153,6 +157,36 @@ describe("OperationsModeProvider", () => {
 
     expect(screen.getByTestId("mode")).toHaveTextContent(OPERATIONS_MODES.INTERNAL_OPERATIONS);
     expect(screen.getByTestId("label")).toHaveTextContent("Internal Operations");
+  });
+
+  it("does not add Internal Operations when entitlement logic supplies AMC only", () => {
+    render(
+      <OperationsModeProvider availableOperationsModes={[OPERATIONS_MODES.AMC_OPERATIONS]}>
+        <OperationsModeProbe />
+      </OperationsModeProvider>,
+    );
+
+    expect(screen.getByTestId("available")).toHaveTextContent("amc_operations");
+    expect(screen.getByTestId("mode")).toHaveTextContent(OPERATIONS_MODES.AMC_OPERATIONS);
+    expect(screen.getByTestId("label")).toHaveTextContent("AMC Operations");
+
+    fireEvent.click(screen.getByRole("button", { name: "Internal" }));
+
+    expect(screen.getByTestId("mode")).toHaveTextContent(OPERATIONS_MODES.AMC_OPERATIONS);
+    expect(window.localStorage.getItem(OPERATIONS_MODE_STORAGE_KEY)).toBe(OPERATIONS_MODES.AMC_OPERATIONS);
+  });
+
+  it("falls back from stored Internal Operations when only AMC Operations is available", () => {
+    window.localStorage.setItem(OPERATIONS_MODE_STORAGE_KEY, OPERATIONS_MODES.INTERNAL_OPERATIONS);
+
+    render(
+      <OperationsModeProvider availableOperationsModes={[OPERATIONS_MODES.AMC_OPERATIONS]}>
+        <OperationsModeProbe />
+      </OperationsModeProvider>,
+    );
+
+    expect(screen.getByTestId("mode")).toHaveTextContent(OPERATIONS_MODES.AMC_OPERATIONS);
+    expect(screen.getByTestId("label")).toHaveTextContent("AMC Operations");
   });
 
   it("handles localStorage read and write failures without changing access behavior", () => {

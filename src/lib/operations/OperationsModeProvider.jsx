@@ -50,19 +50,18 @@ function normalizeAvailableOperationsModes(availableOperationsModes) {
   const suppliedModes = Array.isArray(availableOperationsModes)
     ? availableOperationsModes.filter(isValidOperationsMode)
     : DEFAULT_AVAILABLE_OPERATIONS_MODES;
-  const uniqueModes = [
-    OPERATIONS_MODES.INTERNAL_OPERATIONS,
-    ...new Set(suppliedModes),
-  ].filter(isValidOperationsMode);
+  const uniqueModes = [...new Set(suppliedModes)].filter(isValidOperationsMode);
 
-  return Object.freeze([...new Set(uniqueModes)]);
+  return Object.freeze(
+    uniqueModes.length ? uniqueModes : [OPERATIONS_MODES.INTERNAL_OPERATIONS],
+  );
 }
 
 function coerceOperationsModeForAvailability(mode, availableOperationsModes) {
   const normalizedMode = normalizeOperationsMode(mode);
   return availableOperationsModes.includes(normalizedMode)
     ? normalizedMode
-    : DEFAULT_OPERATIONS_MODE;
+    : availableOperationsModes[0] ?? DEFAULT_OPERATIONS_MODE;
 }
 
 export function OperationsModeProvider({ children, availableOperationsModes = DEFAULT_AVAILABLE_OPERATIONS_MODES }) {

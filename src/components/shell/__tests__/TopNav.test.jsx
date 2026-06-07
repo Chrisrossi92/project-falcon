@@ -8,7 +8,7 @@ import {
   OperationsModeProvider,
   OPERATIONS_MODE_STORAGE_KEY,
 } from "@/lib/operations/OperationsModeProvider";
-import { OPERATIONS_MODES } from "@/lib/operations/operationsMode";
+import { resolveAvailableOperationsModes } from "@/lib/operations/operationAccess";
 import { PERMISSIONS } from "@/lib/permissions/constants";
 import { WORKSPACE_SWITCH_INVALIDATION_EVENT } from "@/lib/workspace/workspaceSwitchReset";
 
@@ -93,14 +93,13 @@ function LocationProbe() {
 }
 
 const availableOperationsModesForTest = () => {
-  const appContext = shellProfileState.appContext || {};
-  const canUseAmc =
-    Boolean(appContext.is_owner || appContext.is_admin_role) &&
-    permissionState.allowed.has(PERMISSIONS.VENDORS_READ);
-
-  return canUseAmc
-    ? [OPERATIONS_MODES.INTERNAL_OPERATIONS, OPERATIONS_MODES.AMC_OPERATIONS]
-    : [OPERATIONS_MODES.INTERNAL_OPERATIONS];
+  return resolveAvailableOperationsModes({
+    loading: false,
+    error: null,
+    hasPermission: (permissionKey) => permissionState.allowed.has(permissionKey),
+  }, {
+    appContext: shellProfileState.appContext || {},
+  });
 };
 
 const renderTopNav = (initialPath = "/dashboard") =>
@@ -391,6 +390,71 @@ describe("TopNav desktop operational spine navigation", () => {
     );
     expect(container.querySelector('aside [data-testid="operations-mode-current"]')).toHaveTextContent(
       "Internal Operations",
+    );
+  });
+
+  it("does not expose AMC Operations to a current-company owner when explicit operation access is Internal only", () => {
+    shellProfileState.appContext = {
+      is_owner: true,
+      operations_access: {
+        internal_operations: true,
+        amc_operations: false,
+      },
+    };
+    permissionState.allowed = new Set([PERMISSIONS.VENDORS_READ]);
+    window.localStorage.setItem(OPERATIONS_MODE_STORAGE_KEY, "amc_operations");
+
+    const { container } = renderTopNav();
+    const desktopContext = container.querySelector('aside [data-testid="operations-mode-switcher"]');
+
+    expect(within(desktopContext).queryByRole("button", { name: "AMC Operations" })).not.toBeInTheDocument();
+    expect(within(desktopContext).getByRole("button", { name: "Internal Operations" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(container.querySelector('aside [data-testid="operations-mode-current"]')).toHaveTextContent(
+      "Internal Operations",
+    );
+  });
+
+  it("supports an AMC-only operation owner without adding Internal Operations to the selector", () => {
+    shellProfileState.appContext = {
+      is_owner: true,
+      available_operations_modes: ["amc_operations"],
+    };
+    permissionState.allowed = new Set([PERMISSIONS.VENDORS_READ]);
+    window.localStorage.setItem(OPERATIONS_MODE_STORAGE_KEY, "internal_operations");
+
+    const { container } = renderTopNav();
+    const desktopContext = container.querySelector('aside [data-testid="operations-mode-switcher"]');
+
+    expect(within(desktopContext).getByRole("button", { name: "AMC Operations" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(within(desktopContext).queryByRole("button", { name: "Internal Operations" })).not.toBeInTheDocument();
+    expect(container.querySelector('aside [data-testid="operations-mode-current"]')).toHaveTextContent(
+      "AMC Operations",
+    );
+  });
+
+  it("supports an AMC admin who is not owner when explicit operation access grants AMC", () => {
+    shellProfileState.appContext = {
+      is_owner: false,
+      is_admin_role: true,
+      operationAccess: {
+        amc: true,
+      },
+    };
+    permissionState.allowed = new Set([PERMISSIONS.VENDORS_READ]);
+
+    const { container } = renderTopNav();
+    const desktopContext = container.querySelector('aside [data-testid="operations-mode-switcher"]');
+
+    expect(within(desktopContext).getByRole("button", { name: "AMC Operations" })).toBeInTheDocument();
+    expect(within(desktopContext).queryByRole("button", { name: "Internal Operations" })).not.toBeInTheDocument();
+    expect(container.querySelector('aside [data-testid="operations-mode-current"]')).toHaveTextContent(
+      "AMC Operations",
     );
   });
 
