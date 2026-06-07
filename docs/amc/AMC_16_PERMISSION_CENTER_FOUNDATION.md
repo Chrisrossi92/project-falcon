@@ -2,6 +2,9 @@
 
 Run date: 2026-06-07.
 
+Checkpoint note: the completed AMC-16 implementation is documented in
+[AMC-16 Permission Center Checkpoint](./AMC_16_PERMISSION_CENTER_CHECKPOINT.md).
+
 ## Decision
 
 AMC-16 starts with a read-only Permission Center foundation.

@@ -3,7 +3,8 @@
 ## Status
 
 AMC is ready for controlled pilot validation after AMC-13 local/staging smoke closeout, the
-AMC-14B workspace isolation checkpoint, and the AMC-15 visual identity checkpoint.
+AMC-14B workspace isolation checkpoint, the AMC-15 visual identity checkpoint, and the AMC-16
+Permission Center checkpoint.
 
 Current readiness evidence:
 
@@ -19,6 +20,8 @@ Current readiness evidence:
   secondary surfaces, data/RLS/view boundaries, and operation role-scope audit.
 - AMC-15 visual environment separation is complete for centralized identity config, badges,
   navigation/page chrome, and high-risk business-surface context.
+- AMC-16 Permission Center is complete for current company-scoped access summary, guided
+  draft/review, confirmed save, and explicit audit-history limitation messaging.
 
 Related closeout evidence:
 
@@ -26,6 +29,7 @@ Related closeout evidence:
 - [AMC-14B Workspace Data Isolation Audit](./AMC_14B_WORKSPACE_DATA_ISOLATION_AUDIT.md)
 - [AMC-14B Operation Role Scope Audit](./AMC_14B_OPERATION_ROLE_SCOPE_AUDIT.md)
 - [AMC-15 Visual Identity Checkpoint](./AMC_15_VISUAL_IDENTITY_CHECKPOINT.md)
+- [AMC-16 Permission Center Checkpoint](./AMC_16_PERMISSION_CENTER_CHECKPOINT.md)
 
 ## Environment Readiness
 
@@ -166,8 +170,32 @@ AMC-15 improves user clarity and business perception. It does not certify legal 
 operation entitlements, operation-specific onboarding/invitations, full white-label tenant
 onboarding, production organization switching, accounting export, or broad visual browser QA.
 
-Recommended next phase: AMC-16 Permission Center should define the operation entitlement,
-permission-center, and onboarding model required for separate Internal/AMC owners and authorities.
+## AMC-16 Permission Center Boundary
+
+AMC-16 certifies the current company-scoped permission-management experience needed for controlled
+pilot operations:
+
+- User Management exposes a Permission Center for selected company members.
+- Permission Center shows user identity, active operation/company context, primary role, secondary
+  role/templates, grouped effective permissions, and source labels.
+- Owners/admins can draft secondary template changes and individual permission overrides without
+  conflicting parent/child toggles.
+- A review step summarizes templates added/removed, permissions added/removed, and affected
+  categories before save.
+- Confirmed save uses the existing company access mutation path and remains scoped to the active
+  company/operation context.
+- Self-edit warning, loading state, error preservation, refresh-on-success, and success messaging
+  are present.
+- Existing Edit Access remains available and unchanged.
+
+AMC-16 does not certify a dedicated backend operation-entitlement model, operation-specific
+invitation/onboarding authority, app-visible detailed permission history, legal/business separation,
+white-label onboarding, or external organization administration.
+
+Backend audit writes exist for role and permission override changes through `company_audit_events`,
+but no authenticated recent member-access-history projection is currently available to the
+Permission Center UI. The UI therefore shows planned-history microcopy instead of a fabricated
+audit feed.
 
 ## Known Warnings
 
@@ -183,6 +211,8 @@ permission-center, and onboarding model required for separate Internal/AMC owner
   support when such metadata is available.
 - AMC-15 visual identity cues are presentation-layer clarity, not proof of backend legal/business
   separation.
+- Permission Center saves are backend-audited through existing company access RPCs, but detailed
+  member access history is not yet app-readable.
 
 ## Deferred Items
 
@@ -195,7 +225,7 @@ The following are intentionally out of AMC pilot MVP scope:
 - Production data migration.
 - Real vendor onboarding at scale.
 - Dedicated backend operation-membership/operation-role entitlement model.
-- AMC-16 Permission Center and operation-specific onboarding/user-management workflows.
+- App-readable Permission Center recent access history.
 - Operation-specific onboarding and invitation workflows for separate Internal/AMC owners.
 - Automated vendor selection or first-to-accept routing.
 - Client-facing bid approval portal.

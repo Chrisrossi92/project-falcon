@@ -505,6 +505,8 @@ describe("UsersIndex readability", () => {
     expect(within(permissionDialog).getByText(/scoped to the active operation\/company context/i)).toBeInTheDocument();
     expect(within(permissionDialog).getByText("Primary Role")).toBeInTheDocument();
     expect(within(permissionDialog).getByText("Admin")).toBeInTheDocument();
+    expect(within(permissionDialog).getByRole("region", { name: "Access history" })).toBeInTheDocument();
+    expect(within(permissionDialog).getByText(/Detailed permission history is planned/i)).toBeInTheDocument();
     expect(within(permissionDialog).getByText("Orders")).toBeInTheDocument();
     expect(within(permissionDialog).getByText("Payments")).toBeInTheDocument();
     expect(within(permissionDialog).getByText("Read all orders")).toBeInTheDocument();

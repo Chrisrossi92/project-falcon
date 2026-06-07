@@ -25,6 +25,7 @@ Source doctrine:
 - [AMC-14B Workspace Isolation Checkpoint](../amc/AMC_14B_WORKSPACE_ISOLATION_CHECKPOINT.md)
 - [AMC-15 Visual Identity Checkpoint](../amc/AMC_15_VISUAL_IDENTITY_CHECKPOINT.md)
 - [AMC-16 Permission Center Foundation](../amc/AMC_16_PERMISSION_CENTER_FOUNDATION.md)
+- [AMC-16 Permission Center Checkpoint](../amc/AMC_16_PERMISSION_CENTER_CHECKPOINT.md)
 
 ## Core Principles
 
@@ -1633,46 +1634,61 @@ Recommended next phase:
 
 ### AMC-16: Permission Center
 
-Status: AMC-16 foundation started as of 2026-06-07.
+Status: complete for the controlled-pilot Permission Center checkpoint as of 2026-06-07.
 
 Purpose: create a readable, guided permission-management experience that lets an owner/admin
 understand who has access, what role or template grants that access, what individual overrides
-exist, and which operation/company context the display is scoped to before risky mutation work is
-added.
+exist, what changed, and which operation/company context the display and save are scoped to.
 
-Completed AMC-16 foundation deliverables:
+Completed AMC-16 deliverables:
 
 - [AMC-16 Permission Center Foundation](../amc/AMC_16_PERMISSION_CENTER_FOUNDATION.md).
+- [AMC-16 Permission Center Checkpoint](../amc/AMC_16_PERMISSION_CENTER_CHECKPOINT.md).
 - Current permission model audit covering company-scoped authority, `company_memberships`,
   `user_role_assignments`, `roles`, `role_permissions`, direct overrides, and current-company RPC
   scoping.
 - Read-only Permission Center architecture for User Management.
 - Central permission-center model for business-category grouping, readable permission labels,
   fallback descriptions, primary/secondary role resolution, source labels, and operation identity.
-- Initial read-only member Permission Center entry point from the existing Users page.
+- Member Permission Center entry point from the existing Users page.
+- Guided local draft flow for applying secondary role/templates and individual permission
+  overrides without parent/child toggle conflicts.
+- Review step summarizing templates added/removed, permissions added/removed, and affected
+  categories.
+- Confirmed save flow through the existing company access mutation path:
+  `saveCompanyMemberAccess(...)` / `rpc_company_member_access_save(...)`.
+- Success/error handling that prevents duplicate submit, refreshes member access on success, exits
+  edit mode, and preserves draft changes on failure.
+- Self-edit warning and explicit company/operation scope messaging.
+- Audit visibility finding and UI microcopy for the current app-readable history gap.
 
-AMC-16 foundation certifies:
+AMC-16 certifies:
 
 - Permission displays can be grouped into owner/admin-readable business categories without exposing
   an endless raw permission list as the primary experience.
-- The read-only view can show primary role, secondary role/template grants, individual override
-  markers, effective permission state, and active operation identity.
-- Current mutation behavior remains in the existing governed `Edit Access` path.
+- Permission Center can show primary role, secondary role/template grants, individual override
+  markers, pending changes, effective permission state, and active operation identity.
+- Owners/admins can draft, review, explicitly confirm, and save company-scoped access changes
+  through the existing governed access RPCs.
+- Existing `Edit Access` behavior remains available and unchanged.
+- Existing backend role/override audit writes are preserved by the atomic save wrapper.
 
-AMC-16 foundation does not certify:
+AMC-16 does not certify:
 
-- New permission mutation flows.
-- Review-changes, confirm-save, success/revert, or audit-log workflows.
 - Dedicated backend operation entitlements for separate Internal/AMC ownership inside one company.
 - Operation-specific onboarding or invitation authority.
+- App-readable detailed member permission history.
+- A new legal/business separation model, white-label onboarding, or external organization
+  administration.
 
-Recommended next AMC-16 slices:
+Recommended follow-up:
 
-- Add guided role/template application and advanced customization review state.
-- Add explicit confirm-save and post-save success/audit affordances before invoking existing
-  governed mutation RPCs.
-- Design the backend operation entitlement model needed for users who have different authority in
+- Design the backend operation-entitlement model needed for users who have different authority in
   Internal Operations and AMC Operations.
+- Add operation-specific invitation/onboarding/user-management flows after the entitlement schema
+  is explicit.
+- Add an authenticated member access history/activity projection for Permission Center recent
+  changes before replacing the legacy Edit Access surface.
 
 ## Dependency Graph
 

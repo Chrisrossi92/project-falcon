@@ -860,8 +860,8 @@ function PermissionCenterDialog({ member, open, operationsMode, onClose, onSaved
             </h2>
             <p className="mt-1 max-w-2xl text-sm text-slate-500">
               {mode === "view"
-                ? `Read-only access summary for ${model.operationLabel}. Edit drafts stay local in this slice.`
-                : `Drafting local access changes for ${model.operationLabel}. Backend save is not wired yet.`}
+                ? `Access summary for ${model.operationLabel}. Use Edit to draft guided changes before review.`
+                : `Drafting access changes for ${model.operationLabel}. Review and confirm before saving.`}
             </p>
           </div>
           <button
@@ -907,6 +907,20 @@ function PermissionCenterDialog({ member, open, operationsMode, onClose, onSaved
                 Additional role/template access currently assigned.
               </p>
             </article>
+          </section>
+
+          <section className="rounded-lg border border-slate-200 bg-white p-4" aria-label="Access history">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-950">Access history</h3>
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  Changes are saved through the company access system. Detailed permission history is planned.
+                </p>
+              </div>
+              <span className="inline-flex w-fit rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                Audit-backed save
+              </span>
+            </div>
           </section>
 
           {mode === "edit" && (
