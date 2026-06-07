@@ -22,6 +22,7 @@ Source doctrine:
 - [AMC Assignment Lifecycle Doctrine](../amc/AMC_ASSIGNMENT_LIFECYCLE_DOCTRINE.md)
 - [AMC Customization Framework](../amc/AMC_CUSTOMIZATION_FRAMEWORK.md)
 - [AMC Pilot Readiness Checklist](../amc/AMC_PILOT_READINESS_CHECKLIST.md)
+- [AMC-14B Workspace Isolation Checkpoint](../amc/AMC_14B_WORKSPACE_ISOLATION_CHECKPOINT.md)
 
 ## Core Principles
 
@@ -1520,10 +1521,63 @@ Pilot readiness decision:
 
 Recommended next phase:
 
-- Execute AMC-14 pilot readiness closeout using
-  [AMC Pilot Readiness Checklist](../amc/AMC_PILOT_READINESS_CHECKLIST.md).
 - Run the recommended pilot sequence: internal owner/admin walkthrough, vendor workspace
   walkthrough, one controlled AMC order, payment/invoice dry run, and post-pilot defect review.
+
+### AMC-14: Pilot Readiness Closeout And Workspace Isolation
+
+Status: AMC-14B workspace isolation checkpoint complete for controlled pilot readiness as of
+2026-06-07.
+
+Purpose: harden the shared Falcon shell so Internal Operations, AMC Operations, and Vendor
+Workspace surfaces do not bleed data, routes, notifications, cached state, or role assumptions
+across selected workspaces during pilot validation.
+
+Completed AMC-14B deliverables:
+
+- [AMC-14B Workspace Isolation Checkpoint](../amc/AMC_14B_WORKSPACE_ISOLATION_CHECKPOINT.md).
+- [AMC-14B Workspace Data Isolation Audit](../amc/AMC_14B_WORKSPACE_DATA_ISOLATION_AUDIT.md).
+- [AMC-14B Operation Role Scope Audit](../amc/AMC_14B_OPERATION_ROLE_SCOPE_AUDIT.md).
+- Order Detail workspace isolation hardening for Internal-vs-AMC detail rendering.
+- Centralized route workspace ownership guard foundation.
+- Expanded guarded route coverage for orders, AMC procurement/bid/assignment, invoices/payments,
+  clients, dashboard, and obvious internal/admin routes.
+- Workspace switch reset and cache invalidation: Internal/AMC switches navigate to `/dashboard`
+  with replace navigation, clear unsafe filters/search/storage, emit invalidation, and preserve
+  authentication/session.
+- Notification, unread count, activity, search, command palette, dashboard link, and recent-surface
+  isolation for the selected workspace.
+- Data/RLS/view audit covering high-risk tables/RPCs and restoring shared order projections to
+  caller/RLS semantics.
+- Operation role-scope audit confirming active authority is current-company scoped and adding a
+  shell operation-access resolver that honors explicit operation metadata when present.
+
+AMC-14B pilot-readiness certification:
+
+- Wrong-workspace direct links fail closed before stale unsafe pages render.
+- Workspace switches avoid unsafe deep-link history and clear workspace-scoped stale state.
+- Secondary surfaces do not bypass route/workspace isolation.
+- Vendor Workspace remains isolated from shared `/orders` and internal data paths.
+- Current-company permission, app-context, user-management, invitation, and audited AMC RPC
+  boundaries remain company scoped.
+- Current Continental demo behavior is preserved where no explicit backend operation entitlement
+  metadata exists.
+
+AMC-14B does not certify:
+
+- Full legal/business separation between Internal Operations and AMC Operations inside one company
+  record.
+- A dedicated backend operation-membership or operation-role entitlement model.
+- Operation-specific onboarding/invitation workflows.
+- Production-grade organization switching beyond the current active-company context.
+- External payment processing, accounting export, production data migration, or broad visual browser
+  QA.
+
+Known follow-up:
+
+- Backend authority is company-scoped today. A future backend/onboarding/permissions project should
+  introduce operation entitlements that can represent users who are Owner in one operation, Admin in
+  another, or absent from one operation entirely without assuming shared ownership.
 
 ## Dependency Graph
 
@@ -1539,6 +1593,7 @@ AMC-10 depends on AMC-8 and AMC-9
 AMC-11 depends on AMC-10
 AMC-12 depends on AMC-10 and AMC-11
 AMC-13 depends on AMC-9 through AMC-12
+AMC-14 depends on AMC-13 and the shared shell/permissions infrastructure
 ```
 
 Operational notes:

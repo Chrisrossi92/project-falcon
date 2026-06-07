@@ -2,7 +2,8 @@
 
 ## Status
 
-AMC is ready for controlled pilot validation after AMC-13 local and staging smoke closeout.
+AMC is ready for controlled pilot validation after AMC-13 local/staging smoke closeout and the
+AMC-14B workspace isolation checkpoint.
 
 Current readiness evidence:
 
@@ -14,6 +15,14 @@ Current readiness evidence:
 - Staging disposable fixture load succeeds with owner, vendor, and wrong-vendor smoke accounts.
 - Staging happy path is green through Vendor Payments `Paid`.
 - Staging edge/security smoke is green.
+- AMC-14B workspace isolation hardening is complete for route ownership, workspace switch reset,
+  secondary surfaces, data/RLS/view boundaries, and operation role-scope audit.
+
+Related closeout evidence:
+
+- [AMC-14B Workspace Isolation Checkpoint](./AMC_14B_WORKSPACE_ISOLATION_CHECKPOINT.md)
+- [AMC-14B Workspace Data Isolation Audit](./AMC_14B_WORKSPACE_DATA_ISOLATION_AUDIT.md)
+- [AMC-14B Operation Role Scope Audit](./AMC_14B_OPERATION_ROLE_SCOPE_AUDIT.md)
 
 ## Environment Readiness
 
@@ -92,6 +101,9 @@ Reset expectations:
 Before pilot:
 
 - Owner/admin can enter AMC Operations mode.
+- Wrong-workspace direct links redirect safely before stale Internal or AMC pages render.
+- Switching between Internal and AMC redirects to `/dashboard` with replace navigation and clears
+  workspace-scoped filters/search/cache without signing the user out.
 - Owner/admin can view AMC order queues and Vendor Directory.
 - Owner/admin can create or confirm one AMC-scoped order.
 - Candidate matching returns expected vendor candidates.
@@ -99,6 +111,8 @@ Before pilot:
   complete assignment, review invoice, schedule payment, and mark paid.
 - Owner/admin sees internal notes only in internal/AMC surfaces.
 - Owner/admin financial visibility follows permission expectations.
+- Notification bell, activity links, command palette/search, and dashboard links reflect only the
+  selected workspace.
 
 ## Vendor Checklist
 
@@ -113,6 +127,23 @@ Before pilot:
 - Vendor cannot access shared `/orders`, internal order detail, wrong-vendor work, wrong-vendor
   assignments, private storage paths, internal notes, client fee, or AMC margin.
 
+## AMC-14B Workspace Isolation Boundary
+
+AMC-14B certifies the current shared-shell isolation controls needed for a controlled pilot:
+
+- protected route ownership checks fail closed for wrong-workspace links;
+- Internal/AMC workspace switches reset unsafe page and cache state;
+- notifications, unread counts, activity, command palette/search, and recent/dashboard links are
+  selected-workspace scoped;
+- shared order views and audited RPC families preserve current-company and `operations_scope`
+  boundaries;
+- explicit operation access metadata is honored by the shell when present.
+
+AMC-14B does not certify full legal/business separation between Internal Operations and AMC
+Operations inside one company record. Backend authority is company-scoped today. A dedicated
+operation-entitlement model for separate Internal/AMC owners, admins, invitations, and onboarding is
+future backend/onboarding/permissions work and must not be assumed complete for pilot launch.
+
 ## Known Warnings
 
 - Lint currently passes with existing warnings in unrelated legacy files.
@@ -122,6 +153,9 @@ Before pilot:
   vendor profiles; smoke assertions only require the disposable smoke vendor path to work.
 - Service-role storage placement in smoke runners is a test harness convenience for disposable
   PDFs; runtime upload authorization remains handled by Vendor Workspace upload flows.
+- Backend operation entitlements do not yet exist as a dedicated server-side model; current
+  operation-mode access relies on current-company authority plus shell-level explicit metadata
+  support when such metadata is available.
 
 ## Deferred Items
 
@@ -133,6 +167,8 @@ The following are intentionally out of AMC pilot MVP scope:
 - Full visual browser QA outside the current jsdom route-isolation coverage.
 - Production data migration.
 - Real vendor onboarding at scale.
+- Dedicated backend operation-membership/operation-role entitlement model.
+- Operation-specific onboarding and invitation workflows for separate Internal/AMC owners.
 - Automated vendor selection or first-to-accept routing.
 - Client-facing bid approval portal.
 - Storage-aware cleanup worker for abandoned test or upload objects.
@@ -148,8 +184,11 @@ Launch a controlled AMC pilot only when all are true:
 - Vendor Workspace walkthrough passes without blocker defects.
 - One controlled AMC order completes through invoice/payment dry run.
 - Wrong-vendor and route-isolation checks pass.
+- Wrong-workspace Internal/AMC direct-link checks pass.
+- Workspace switch reset clears stale filters/search/cache and uses replace navigation.
 - No raw ids, private storage paths, internal notes, client fee, or AMC margin are exposed to Vendor
   Workspace.
+- Pilot owner explicitly accepts that backend operation entitlement separation is not yet complete.
 - Pilot participants and rollback contacts are identified.
 - Known warnings and deferred scope are accepted by the pilot owner.
 
@@ -163,8 +202,12 @@ Do not launch the pilot if any are true:
 - Owner/admin cannot complete bid, assignment, revision, invoice, or payment dry-run workflows.
 - Vendor cannot complete bid, assignment, report, invoice, or payment visibility workflows.
 - Wrong-vendor denial fails.
+- Wrong-workspace direct links render stale Internal or AMC pages.
+- Workspace switching preserves unsafe deep-link history or stale workspace data.
 - Vendor Workspace exposes raw ids, private storage paths, internal notes, client fee, or AMC
   margin.
+- Pilot requires separate legal/business ownership between Internal and AMC inside one company
+  before the dedicated backend operation-entitlement model exists.
 - Payment or invoice state transitions produce inconsistent ledger or vendor-facing payment status.
 - The team cannot identify rollback, support, and defect triage ownership.
 
