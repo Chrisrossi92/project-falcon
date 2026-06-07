@@ -19,7 +19,10 @@ import {
   saveCompanyMemberAccess,
   setCompanyMemberStatus,
 } from "@/features/company-members/api";
-import { buildPermissionCenterModel } from "@/features/company-members/permissionCenterModel";
+import {
+  buildPermissionCenterModel,
+  buildPermissionCenterReview,
+} from "@/features/company-members/permissionCenterModel";
 import { useCan } from "@/lib/hooks/usePermissions";
 import { useOperationsMode } from "@/lib/operations/OperationsModeProvider";
 import { PERMISSIONS } from "@/lib/permissions/constants";
@@ -575,6 +578,10 @@ function EditRolePresetsModal({ member, open, onClose, onSaved }) {
 function PermissionCenterDialog({ member, open, operationsMode, onClose }) {
   const [rolePermissions, setRolePermissions] = useState([]);
   const [permissionOverrides, setPermissionOverrides] = useState([]);
+  const [rolePresets, setRolePresets] = useState([]);
+  const [mode, setMode] = useState("view");
+  const [draftRoleIds, setDraftRoleIds] = useState([]);
+  const [draftOverrideRows, setDraftOverrideRows] = useState([]);
   const [loadingAccess, setLoadingAccess] = useState(false);
   const [error, setError] = useState("");
 
@@ -583,13 +590,18 @@ function PermissionCenterDialog({ member, open, operationsMode, onClose }) {
 
     setLoadingAccess(true);
     setError("");
+    setMode("view");
+    setDraftRoleIds([]);
+    setDraftOverrideRows([]);
     Promise.all([
       listCompanyRolePermissionPreview(),
       listCompanyMemberPermissionOverrides(member.user_id),
+      listCompanyRolePresets(),
     ])
-      .then(([permissionRows, overrideRows]) => {
+      .then(([permissionRows, overrideRows, presetRows]) => {
         setRolePermissions(Array.isArray(permissionRows) ? permissionRows : []);
         setPermissionOverrides(Array.isArray(overrideRows) ? overrideRows : []);
+        setRolePresets(Array.isArray(presetRows) ? presetRows : []);
       })
       .catch((loadError) => {
         console.debug("Permission Center detail load failed", {
@@ -598,6 +610,7 @@ function PermissionCenterDialog({ member, open, operationsMode, onClose }) {
         });
         setRolePermissions([]);
         setPermissionOverrides([]);
+        setRolePresets([]);
         setError("Falcon could not load this member's permission detail.");
       })
       .finally(() => setLoadingAccess(false));
@@ -605,12 +618,162 @@ function PermissionCenterDialog({ member, open, operationsMode, onClose }) {
 
   if (!open || !member) return null;
 
-  const model = buildPermissionCenterModel({
+  const originalModel = buildPermissionCenterModel({
     member,
     rolePermissions,
     overrideRows: permissionOverrides,
     operationsMode,
   });
+  const draftModel = buildPermissionCenterModel({
+    member,
+    rolePermissions,
+    overrideRows: permissionOverrides,
+    draftRoleIds,
+    draftOverrideRows,
+    operationsMode,
+  });
+  const model = mode === "view" ? originalModel : draftModel;
+  const review = buildPermissionCenterReview(originalModel, draftModel);
+  const primaryRoleId = originalModel.primaryRole?.role_id || "";
+  const roleTemplateMap = new Map();
+
+  rolePresets.forEach((role) => {
+    if (role?.role_id) roleTemplateMap.set(role.role_id, role);
+  });
+  rolePermissions.forEach((permission) => {
+    if (!permission.role_id || roleTemplateMap.has(permission.role_id)) return;
+    roleTemplateMap.set(permission.role_id, {
+      role_id: permission.role_id,
+      role_name: permission.role_name || "Role template",
+      display_name: permission.role_name || "Role template",
+    });
+  });
+  const roleTemplates = [...roleTemplateMap.values()]
+    .filter((role) => role.role_id && role.role_id !== primaryRoleId)
+    .sort((a, b) => String(a.role_name || a.display_name).localeCompare(String(b.role_name || b.display_name)));
+  const permissionKeysByRole = rolePermissions.reduce((acc, permission) => {
+    if (!permission.role_id || !permission.permission_key) return acc;
+    const keys = acc.get(permission.role_id) || [];
+    keys.push(permission.permission_key);
+    acc.set(permission.role_id, keys);
+    return acc;
+  }, new Map());
+  const hasDraftChanges = review.hasChanges || draftOverrideRows.some((row) => row.pending);
+
+  const beginEdit = () => {
+    setDraftRoleIds(originalModel.selectedRoleIds);
+    setDraftOverrideRows(
+      permissionOverrides
+        .filter((row) => row?.permission_key && (row.effect === "grant" || row.effect === "revoke"))
+        .map((row) => ({ permission_key: row.permission_key, effect: row.effect, pending: false })),
+    );
+    setMode("edit");
+  };
+  const cancelDraft = () => {
+    setMode("view");
+    setDraftRoleIds([]);
+    setDraftOverrideRows([]);
+  };
+  const toggleRoleTemplate = (roleId) => {
+    setDraftRoleIds((currentRoleIds) => {
+      const selected = currentRoleIds.includes(roleId);
+      return selected ? currentRoleIds.filter((id) => id !== roleId) : [...currentRoleIds, roleId];
+    });
+    const templatePermissionKeys = new Set(permissionKeysByRole.get(roleId) || []);
+    setDraftOverrideRows((currentRows) =>
+      currentRows.filter((row) => !(templatePermissionKeys.has(row.permission_key) && row.pending && row.effect === "grant")),
+    );
+  };
+  const setPermissionDraft = (permission) => {
+    const nextEffective = !permission.effective;
+    const nextEffect = nextEffective ? "grant" : "revoke";
+    setDraftOverrideRows((currentRows) => {
+      const withoutPermission = currentRows.filter((row) => row.permission_key !== permission.key);
+      if (nextEffective === permission.inherited) return withoutPermission;
+      return [...withoutPermission, { permission_key: permission.key, effect: nextEffect, pending: true }];
+    });
+  };
+  const renderPermissionGroups = ({ editable = false } = {}) => {
+    if (loadingAccess) {
+      return <div className="px-4 py-6 text-sm text-slate-500">Loading Permission Center...</div>;
+    }
+    if (model.categories.length === 0) {
+      return (
+        <div className="px-4 py-6 text-sm text-slate-500">
+          No permissions are visible for this member in the current operation context.
+        </div>
+      );
+    }
+
+    return (
+      <div className="divide-y divide-slate-200">
+        {model.categories.map((category) => (
+          <details key={category.id} className="group" open={category.effectiveCount > 0 || editable}>
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 hover:bg-slate-50">
+              <span>
+                <span className="block text-sm font-semibold text-slate-900">{category.label}</span>
+                <span className="mt-0.5 block text-xs text-slate-500">
+                  {category.effectiveCount} effective of {category.permissions.length}
+                  {category.overrideCount ? ` - ${category.overrideCount} overrides` : ""}
+                </span>
+              </span>
+              <span className="text-xs font-semibold text-slate-400 group-open:hidden">Expand</span>
+              <span className="hidden text-xs font-semibold text-slate-400 group-open:inline">Collapse</span>
+            </summary>
+            <ul className="grid gap-2 bg-slate-50/70 px-4 pb-4">
+              {category.permissions.map((permission) => (
+                <li
+                  key={permission.key}
+                  className="grid gap-3 rounded-md border border-slate-200 bg-white px-3 py-3 sm:grid-cols-[1fr_auto]"
+                >
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-semibold text-slate-900">{permission.label}</span>
+                      <span
+                        className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${
+                          permission.effective
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                            : "border-slate-200 bg-slate-50 text-slate-500"
+                        }`}
+                      >
+                        {permission.effective ? "Granted" : "Not granted"}
+                      </span>
+                      {permission.override && (
+                        <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                          Override
+                        </span>
+                      )}
+                      {permission.pending && (
+                        <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                          Pending change
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">{permission.description}</p>
+                    {permission.sourceRoles.length > 0 && (
+                      <p className="mt-1 text-xs text-slate-500">Roles: {permission.sourceRoles.join(", ")}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between gap-3 sm:justify-end">
+                    <div className="text-xs font-semibold text-slate-500">{permission.sourceLabel}</div>
+                    {editable && (
+                      <button
+                        type="button"
+                        onClick={() => setPermissionDraft(permission)}
+                        className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                      >
+                        {permission.effective ? "Remove" : "Add"}
+                      </button>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </details>
+        ))}
+      </div>
+    );
+  };
 
   return (
     <div
@@ -632,7 +795,9 @@ function PermissionCenterDialog({ member, open, operationsMode, onClose }) {
               {getMemberName(member)}
             </h2>
             <p className="mt-1 max-w-2xl text-sm text-slate-500">
-              Read-only access summary for {model.operationLabel}. Edit and save flows remain in Edit Access.
+              {mode === "view"
+                ? `Read-only access summary for ${model.operationLabel}. Edit drafts stay local in this slice.`
+                : `Drafting local access changes for ${model.operationLabel}. Backend save is not wired yet.`}
             </p>
           </div>
           <button
@@ -679,6 +844,143 @@ function PermissionCenterDialog({ member, open, operationsMode, onClose }) {
             </article>
           </section>
 
+          {mode === "edit" && (
+            <section className="grid gap-4 rounded-lg border border-blue-200 bg-blue-50/60 p-4" aria-label="Permission edit options">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-950">Choose an editing path</h3>
+                <p className="mt-1 text-xs leading-5 text-slate-600">
+                  Apply a secondary template for guided access, or make individual permission overrides below.
+                </p>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="rounded-lg border border-white bg-white p-3">
+                  <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                    Apply Secondary Role/Template
+                  </div>
+                  <div className="mt-3 grid gap-2">
+                    {roleTemplates.length === 0 ? (
+                      <div className="text-xs text-slate-500">No secondary templates are available to preview.</div>
+                    ) : (
+                      roleTemplates.map((role) => {
+                        const roleName = role.role_name || role.display_name || "Role template";
+                        const checked = draftRoleIds.includes(role.role_id);
+                        const permissionCount = permissionKeysByRole.get(role.role_id)?.length || 0;
+                        return (
+                          <label
+                            key={role.role_id}
+                            className="flex items-start gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleRoleTemplate(role.role_id)}
+                              className="mt-1"
+                            />
+                            <span>
+                              <span className="block font-semibold text-slate-900">{roleName}</span>
+                              <span className="text-xs text-slate-500">
+                                {permissionCount} permissions inherit from this template when selected.
+                              </span>
+                            </span>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+                <div className="rounded-lg border border-white bg-white p-3">
+                  <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                    Customize Individual Permissions
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">
+                    Use Add or Remove on grouped permission rows. Individual changes are tracked as pending
+                    overrides and do not conflict with template inheritance.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 font-semibold text-slate-600">
+                      {review.addedPermissions.length} added
+                    </span>
+                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 font-semibold text-slate-600">
+                      {review.removedPermissions.length} removed
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {mode === "review" && (
+            <section className="grid gap-4 rounded-lg border border-slate-200 bg-white p-4" aria-label="Permission change review">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-950">Review pending changes</h3>
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  This is a local draft review only. Confirmation is disabled until backend save wiring is added.
+                </p>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="rounded-md border border-slate-200 p-3">
+                  <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                    Templates added/removed
+                  </div>
+                  <ul className="mt-2 grid gap-1 text-sm text-slate-700">
+                    {review.addedTemplates.map((role) => (
+                      <li key={`added-${role.role_id}`}>Added: {role.role_name}</li>
+                    ))}
+                    {review.removedTemplates.map((role) => (
+                      <li key={`removed-${role.role_id}`}>Removed: {role.role_name}</li>
+                    ))}
+                    {!review.addedTemplates.length && !review.removedTemplates.length && <li>No template changes.</li>}
+                  </ul>
+                </div>
+                <div className="rounded-md border border-slate-200 p-3">
+                  <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                    Affected categories
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {review.affectedCategories.length ? (
+                      review.affectedCategories.map((category) => (
+                        <span
+                          key={category}
+                          className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-600"
+                        >
+                          {category}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-sm text-slate-500">No permission categories changed.</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3">
+                  <div className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">
+                    Permissions added
+                  </div>
+                  <ul className="mt-2 grid gap-1 text-sm text-emerald-900">
+                    {review.addedPermissions.length ? (
+                      review.addedPermissions.map((permission) => <li key={permission.key}>{permission.label}</li>)
+                    ) : (
+                      <li>No permissions added.</li>
+                    )}
+                  </ul>
+                </div>
+                <div className="rounded-md border border-rose-200 bg-rose-50 p-3">
+                  <div className="text-xs font-semibold uppercase tracking-[0.14em] text-rose-700">
+                    Permissions removed
+                  </div>
+                  <ul className="mt-2 grid gap-1 text-sm text-rose-900">
+                    {review.removedPermissions.length ? (
+                      review.removedPermissions.map((permission) => <li key={permission.key}>{permission.label}</li>)
+                    ) : (
+                      <li>No permissions removed.</li>
+                    )}
+                  </ul>
+                </div>
+              </div>
+            </section>
+          )}
+
           <section className="rounded-lg border border-slate-200 bg-white" aria-labelledby="permission-center-effective-title">
             <div className="border-b border-slate-200 px-4 py-3">
               <h3 id="permission-center-effective-title" className="text-sm font-semibold text-slate-950">
@@ -697,71 +999,65 @@ function PermissionCenterDialog({ member, open, operationsMode, onClose }) {
                 </span>
               </div>
             </div>
-
-            {loadingAccess ? (
-              <div className="px-4 py-6 text-sm text-slate-500">Loading Permission Center...</div>
-            ) : model.categories.length === 0 ? (
-              <div className="px-4 py-6 text-sm text-slate-500">
-                No permissions are visible for this member in the current operation context.
-              </div>
-            ) : (
-              <div className="divide-y divide-slate-200">
-                {model.categories.map((category) => (
-                  <details key={category.id} className="group" open={category.effectiveCount > 0}>
-                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 hover:bg-slate-50">
-                      <span>
-                        <span className="block text-sm font-semibold text-slate-900">{category.label}</span>
-                        <span className="mt-0.5 block text-xs text-slate-500">
-                          {category.effectiveCount} effective of {category.permissions.length}
-                          {category.overrideCount ? ` - ${category.overrideCount} overrides` : ""}
-                        </span>
-                      </span>
-                      <span className="text-xs font-semibold text-slate-400 group-open:hidden">Expand</span>
-                      <span className="hidden text-xs font-semibold text-slate-400 group-open:inline">Collapse</span>
-                    </summary>
-                    <ul className="grid gap-2 bg-slate-50/70 px-4 pb-4">
-                      {category.permissions.map((permission) => (
-                        <li
-                          key={permission.key}
-                          className="grid gap-3 rounded-md border border-slate-200 bg-white px-3 py-3 sm:grid-cols-[1fr_auto]"
-                        >
-                          <div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="text-sm font-semibold text-slate-900">{permission.label}</span>
-                              <span
-                                className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${
-                                  permission.effective
-                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                    : "border-slate-200 bg-slate-50 text-slate-500"
-                                }`}
-                              >
-                                {permission.effective ? "Granted" : "Not granted"}
-                              </span>
-                              {permission.override && (
-                                <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">
-                                  Override
-                                </span>
-                              )}
-                            </div>
-                            <p className="mt-1 text-xs leading-5 text-slate-500">{permission.description}</p>
-                            {permission.sourceRoles.length > 0 && (
-                              <p className="mt-1 text-xs text-slate-500">
-                                Roles: {permission.sourceRoles.join(", ")}
-                              </p>
-                            )}
-                          </div>
-                          <div className="text-xs font-semibold text-slate-500">{permission.sourceLabel}</div>
-                        </li>
-                      ))}
-                    </ul>
-                  </details>
-                ))}
-              </div>
-            )}
+            {renderPermissionGroups({ editable: mode === "edit" })}
           </section>
         </div>
 
         <div className="flex justify-end gap-2 border-t border-slate-200 px-5 py-4">
+          {mode === "view" && (
+            <button
+              type="button"
+              onClick={beginEdit}
+              disabled={loadingAccess}
+              className="rounded-md border border-slate-950 bg-slate-950 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
+            >
+              Edit permissions
+            </button>
+          )}
+          {mode === "edit" && (
+            <>
+              <button
+                type="button"
+                onClick={cancelDraft}
+                className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Cancel changes
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("review")}
+                disabled={!hasDraftChanges}
+                className="rounded-md border border-slate-950 bg-slate-950 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
+              >
+                Review changes
+              </button>
+            </>
+          )}
+          {mode === "review" && (
+            <>
+              <button
+                type="button"
+                onClick={() => setMode("edit")}
+                className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Back to edit
+              </button>
+              <button
+                type="button"
+                onClick={cancelDraft}
+                className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Cancel changes
+              </button>
+              <button
+                type="button"
+                disabled
+                className="rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-500"
+              >
+                Confirm changes (not wired yet)
+              </button>
+            </>
+          )}
           <button
             type="button"
             onClick={onClose}

@@ -519,6 +519,79 @@ describe("UsersIndex readability", () => {
     expect(membersApiMock.saveCompanyMemberPermissionOverrides).not.toHaveBeenCalled();
   });
 
+  it("drafts and reviews Permission Center changes without saving them", async () => {
+    operationsModeState.operationsMode = "amc_operations";
+    invitationsApiMock.listCompanyRolePresets.mockResolvedValue([
+      {
+        role_id: "role-admin",
+        role_name: "Admin",
+        assignable_by_current_user: true,
+      },
+      {
+        role_id: "role-billing",
+        role_name: "Billing/Admin",
+        assignable_by_current_user: true,
+      },
+    ]);
+    invitationsApiMock.listCompanyRolePermissionPreview.mockResolvedValue([
+      {
+        role_id: "role-admin",
+        role_name: "Admin",
+        permission_key: "orders.read.all",
+        permission_category: "orders",
+        permission_label: "Read all orders",
+      },
+      {
+        role_id: "role-billing",
+        role_name: "Billing/Admin",
+        permission_key: "vendor_invoices.submit",
+        permission_category: "vendor_invoices",
+        permission_label: "Submit vendor invoices",
+      },
+    ]);
+    membersApiMock.listCompanyMemberPermissionOverrides.mockResolvedValue([]);
+
+    renderUsersIndex();
+
+    await screen.findByText("Active Team Members");
+    const adminCard = memberArticle("Ari Admin");
+    fireEvent.click(within(adminCard).getByRole("button", { name: "Permission Center" }));
+
+    const permissionDialog = await screen.findByRole("dialog", { name: "Ari Admin" });
+    fireEvent.click(within(permissionDialog).getByRole("button", { name: "Edit permissions" }));
+
+    expect(within(permissionDialog).getByText("Choose an editing path")).toBeInTheDocument();
+    expect(within(permissionDialog).getByText("Apply Secondary Role/Template")).toBeInTheDocument();
+    fireEvent.click(within(permissionDialog).getByRole("checkbox", { name: /Billing\/Admin/i }));
+
+    const invoiceRow = within(permissionDialog).getByText("Submit vendor invoices").closest("li");
+    expect(within(invoiceRow).getAllByText("Pending change").length).toBeGreaterThan(0);
+    expect(within(invoiceRow).getByText("Granted")).toBeInTheDocument();
+
+    const orderRow = within(permissionDialog).getByText("Read all orders").closest("li");
+    fireEvent.click(within(orderRow).getByRole("button", { name: "Remove" }));
+    expect(within(orderRow).getAllByText("Pending change").length).toBeGreaterThan(0);
+    expect(within(orderRow).getByText("Not granted")).toBeInTheDocument();
+
+    fireEvent.click(within(permissionDialog).getByRole("button", { name: "Review changes" }));
+    expect(within(permissionDialog).getByText("Review pending changes")).toBeInTheDocument();
+    expect(within(permissionDialog).getByText("Added: Billing/Admin")).toBeInTheDocument();
+    expect(within(permissionDialog).getAllByText("Submit vendor invoices").length).toBeGreaterThan(0);
+    expect(within(permissionDialog).getAllByText("Read all orders").length).toBeGreaterThan(0);
+    expect(within(permissionDialog).getAllByText("Payments").length).toBeGreaterThan(0);
+    expect(within(permissionDialog).getAllByText("Orders").length).toBeGreaterThan(0);
+    expect(within(permissionDialog).getByRole("button", { name: "Confirm changes (not wired yet)" })).toBeDisabled();
+
+    fireEvent.click(within(permissionDialog).getByRole("button", { name: "Confirm changes (not wired yet)" }));
+    expect(membersApiMock.saveCompanyMemberAccess).not.toHaveBeenCalled();
+    expect(membersApiMock.updateCompanyMemberRoles).not.toHaveBeenCalled();
+    expect(membersApiMock.saveCompanyMemberPermissionOverrides).not.toHaveBeenCalled();
+
+    fireEvent.click(within(permissionDialog).getByRole("button", { name: "Cancel changes" }));
+    expect(within(permissionDialog).getByRole("button", { name: "Edit permissions" })).toBeInTheDocument();
+    expect(within(permissionDialog).queryByText("Review pending changes")).toBeNull();
+  });
+
   it("saves roles and explicit permission overrides from the access modal", async () => {
     invitationsApiMock.listCompanyRolePresets.mockResolvedValue([
       {

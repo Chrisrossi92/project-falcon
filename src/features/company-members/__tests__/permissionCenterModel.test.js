@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildPermissionCenterModel,
+  buildPermissionCenterReview,
   describePermission,
   humanizePermissionKey,
   permissionCenterCategoryId,
@@ -109,5 +110,48 @@ describe("permissionCenterModel", () => {
     expect(amcModel.primaryRole.role_name).toBe("Coordinator");
     expect(internalModel.categories.find((category) => category.id === "administration")).toBeTruthy();
     expect(amcModel.categories.find((category) => category.id === "vendors")).toBeTruthy();
+  });
+
+  it("builds a local draft review for template and individual override changes", () => {
+    const member = {
+      user_id: "user-1",
+      role_assignments: [
+        { role_id: "role-coordinator", role_name: "Coordinator", is_primary: true, status: "active" },
+      ],
+    };
+    const originalModel = buildPermissionCenterModel({
+      operationsMode: "amc_operations",
+      member,
+      rolePermissions,
+    });
+    const draftModel = buildPermissionCenterModel({
+      operationsMode: "amc_operations",
+      member,
+      rolePermissions,
+      draftRoleIds: ["role-coordinator", "role-billing"],
+      draftOverrideRows: [{ permission_key: "bid_requests.create", effect: "revoke", pending: true }],
+    });
+    const review = buildPermissionCenterReview(originalModel, draftModel);
+
+    const paymentPermission = draftModel.permissions.find((permission) => permission.key === "vendor_invoices.submit");
+    expect(paymentPermission).toMatchObject({
+      effective: true,
+      pending: true,
+      sourceLabel: "Pending change",
+    });
+
+    const vendorPermission = draftModel.permissions.find((permission) => permission.key === "bid_requests.create");
+    expect(vendorPermission).toMatchObject({
+      effective: false,
+      override: "revoke",
+      pending: true,
+      sourceLabel: "Pending change",
+    });
+
+    expect(review.addedTemplates.map((role) => role.role_name)).toEqual(["Billing/Admin"]);
+    expect(review.addedPermissions.map((permission) => permission.label)).toEqual(["Submit vendor invoices"]);
+    expect(review.removedPermissions.map((permission) => permission.label)).toEqual(["Create bid requests"]);
+    expect(review.affectedCategories).toEqual(["Payments", "Vendors"]);
+    expect(review.hasChanges).toBe(true);
   });
 });
