@@ -2,8 +2,8 @@
 
 ## Status
 
-AMC is ready for controlled pilot validation after AMC-13 local/staging smoke closeout and the
-AMC-14B workspace isolation checkpoint.
+AMC is ready for controlled pilot validation after AMC-13 local/staging smoke closeout, the
+AMC-14B workspace isolation checkpoint, and the AMC-15 visual identity checkpoint.
 
 Current readiness evidence:
 
@@ -17,12 +17,15 @@ Current readiness evidence:
 - Staging edge/security smoke is green.
 - AMC-14B workspace isolation hardening is complete for route ownership, workspace switch reset,
   secondary surfaces, data/RLS/view boundaries, and operation role-scope audit.
+- AMC-15 visual environment separation is complete for centralized identity config, badges,
+  navigation/page chrome, and high-risk business-surface context.
 
 Related closeout evidence:
 
 - [AMC-14B Workspace Isolation Checkpoint](./AMC_14B_WORKSPACE_ISOLATION_CHECKPOINT.md)
 - [AMC-14B Workspace Data Isolation Audit](./AMC_14B_WORKSPACE_DATA_ISOLATION_AUDIT.md)
 - [AMC-14B Operation Role Scope Audit](./AMC_14B_OPERATION_ROLE_SCOPE_AUDIT.md)
+- [AMC-15 Visual Identity Checkpoint](./AMC_15_VISUAL_IDENTITY_CHECKPOINT.md)
 
 ## Environment Readiness
 
@@ -144,6 +147,28 @@ Operations inside one company record. Backend authority is company-scoped today.
 operation-entitlement model for separate Internal/AMC owners, admins, invitations, and onboarding is
 future backend/onboarding/permissions work and must not be assumed complete for pilot launch.
 
+## AMC-15 Visual Identity Boundary
+
+AMC-15 certifies the current frontend visual separation needed for a controlled pilot:
+
+- centralized workspace identity config owns Internal/AMC labels, titles, page chrome, badges, and
+  branding hooks;
+- TopNav, workspace selector, dashboard/order contexts, navigation labels, and primary page headers
+  distinguish Continental Internal Operations from Falcon AMC;
+- high-risk AMC business surfaces now use Falcon AMC language for Vendor Network, Procurement,
+  Assignment Oversight, AMC Payments, and Vendor Invoices;
+- shared Order Detail visibly shows whether the selected environment is Internal or AMC after
+  refresh/deep-link entry;
+- AMC-14B route/switch isolation remains the controlling safety boundary for wrong-workspace
+  rendering and stale-state reset.
+
+AMC-15 improves user clarity and business perception. It does not certify legal separation, backend
+operation entitlements, operation-specific onboarding/invitations, full white-label tenant
+onboarding, production organization switching, accounting export, or broad visual browser QA.
+
+Recommended next phase: AMC-16 Permission Center should define the operation entitlement,
+permission-center, and onboarding model required for separate Internal/AMC owners and authorities.
+
 ## Known Warnings
 
 - Lint currently passes with existing warnings in unrelated legacy files.
@@ -156,6 +181,8 @@ future backend/onboarding/permissions work and must not be assumed complete for 
 - Backend operation entitlements do not yet exist as a dedicated server-side model; current
   operation-mode access relies on current-company authority plus shell-level explicit metadata
   support when such metadata is available.
+- AMC-15 visual identity cues are presentation-layer clarity, not proof of backend legal/business
+  separation.
 
 ## Deferred Items
 
@@ -168,6 +195,7 @@ The following are intentionally out of AMC pilot MVP scope:
 - Production data migration.
 - Real vendor onboarding at scale.
 - Dedicated backend operation-membership/operation-role entitlement model.
+- AMC-16 Permission Center and operation-specific onboarding/user-management workflows.
 - Operation-specific onboarding and invitation workflows for separate Internal/AMC owners.
 - Automated vendor selection or first-to-accept routing.
 - Client-facing bid approval portal.

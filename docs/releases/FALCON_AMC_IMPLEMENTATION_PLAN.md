@@ -23,6 +23,7 @@ Source doctrine:
 - [AMC Customization Framework](../amc/AMC_CUSTOMIZATION_FRAMEWORK.md)
 - [AMC Pilot Readiness Checklist](../amc/AMC_PILOT_READINESS_CHECKLIST.md)
 - [AMC-14B Workspace Isolation Checkpoint](../amc/AMC_14B_WORKSPACE_ISOLATION_CHECKPOINT.md)
+- [AMC-15 Visual Identity Checkpoint](../amc/AMC_15_VISUAL_IDENTITY_CHECKPOINT.md)
 
 ## Core Principles
 
@@ -1578,6 +1579,56 @@ Known follow-up:
 - Backend authority is company-scoped today. A future backend/onboarding/permissions project should
   introduce operation entitlements that can represent users who are Owner in one operation, Admin in
   another, or absent from one operation entirely without assuming shared ownership.
+
+### AMC-15: Visual Environment Separation
+
+Status: AMC-15 visual identity checkpoint complete for controlled pilot readiness as of
+2026-06-07.
+
+Purpose: make Internal Operations and AMC Operations immediately feel like separate business
+environments without changing routes, workflows, permissions, or data access.
+
+Completed AMC-15 deliverables:
+
+- [AMC-15 Visual Identity Checkpoint](../amc/AMC_15_VISUAL_IDENTITY_CHECKPOINT.md).
+- Centralized workspace identity configuration for Internal/AMC titles, badges, navigation labels,
+  dashboard/order copy, page chrome, and branding hooks.
+- Badge and environment-label coverage in the shell, workspace selector, dashboard/order contexts,
+  and shared order detail.
+- Navigation and primary chrome separation:
+  - Internal: Continental Internal Operations, Appraisal Production, Client Orders, Staff
+    Assignments, Review Workflow, Client Relationships.
+  - AMC: Falcon AMC, Management Operations, Procurement, Vendor Network, Assignment Oversight,
+    Client Services.
+- Page-chrome separation across Activity, Calendar, Clients, Vendors, Assignments, Orders, and
+  Order Detail.
+- Business-surface identity for Vendor Workspace payments, Vendor Invoices, procurement
+  opportunities, assigned-order detail, and shared order detail.
+- Continued compatibility with AMC-14B route ownership guards, workspace switch reset/cache
+  invalidation, notification/search/activity isolation, and Vendor Workspace isolation.
+
+AMC-15 pilot-readiness certification:
+
+- Users have stronger visual cues for whether they are operating in Continental Internal Operations
+  or Falcon AMC.
+- High-risk financial, procurement, vendor, and order-detail surfaces carry explicit selected
+  workspace context.
+- Centralized identity helpers reduce scattered hardcoded copy for future visual refinements.
+- Workflow behavior, route behavior, permissions, and data-access boundaries were not intentionally
+  changed.
+
+AMC-15 does not certify:
+
+- Full legal/business separation between Internal Operations and AMC Operations.
+- Dedicated backend operation entitlements, operation-role membership, or operation-owner records.
+- Operation-specific onboarding, invitation, or user-management flows.
+- Full white-label tenant onboarding, custom domains, tenant theming, production organization
+  switching, external payment branding, accounting export, or broad visual browser QA.
+
+Recommended next phase:
+
+- AMC-16 Permission Center should define and implement the deeper permission/onboarding model for
+  separate Internal/AMC ownership and authority while preserving current Continental demo behavior.
 
 ## Dependency Graph
 
