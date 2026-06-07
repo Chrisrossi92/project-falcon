@@ -129,6 +129,7 @@ describe("ClientsIndex workspace polish", () => {
       search: "",
       category: "all",
       sort: "orders_desc",
+      operationsScope: OPERATIONS_MODES.INTERNAL_OPERATIONS,
     });
     expect(clientCardMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -154,6 +155,7 @@ describe("ClientsIndex workspace polish", () => {
         search: "",
         category: "all",
         sort: "orders_desc",
+        operationsScope: OPERATIONS_MODES.INTERNAL_OPERATIONS,
       });
     });
 
@@ -170,6 +172,7 @@ describe("ClientsIndex workspace polish", () => {
         search: "bank",
         category: "lender",
         sort: "name_asc",
+        operationsScope: OPERATIONS_MODES.INTERNAL_OPERATIONS,
       });
     });
 
@@ -225,9 +228,37 @@ describe("ClientsIndex workspace polish", () => {
       category: "all",
       sort: "orders_desc",
       appraiserId: "chris-user",
+      operationsScope: OPERATIONS_MODES.INTERNAL_OPERATIONS,
     });
     expect(listClientsMock).not.toHaveBeenCalled();
     expect(screen.getAllByTestId("client-card")).toHaveLength(2);
+  });
+
+  it("scopes AMC client relationship reads to the AMC operations workspace", async () => {
+    renderClients({
+      operationsMode: OPERATIONS_MODES.AMC_OPERATIONS,
+      rows: [
+        {
+          id: "client-amc",
+          name: "First Buckeye Bank",
+          status: "active",
+          category: "lender",
+          total_orders: 1,
+        },
+      ],
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("First Buckeye Bank")).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole("heading", { name: "AMC Client Services" })).toBeInTheDocument();
+    expect(listClientsMock).toHaveBeenCalledWith({
+      search: "",
+      category: "all",
+      sort: "orders_desc",
+      operationsScope: OPERATIONS_MODES.AMC_OPERATIONS,
+    });
   });
 
   it("renders a polished empty state without changing filter behavior", async () => {

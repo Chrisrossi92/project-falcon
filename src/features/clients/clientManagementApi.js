@@ -217,12 +217,14 @@ export async function listClientManagementClients({
   search = "",
   category = "all",
   sort = "orders_desc",
+  operationsScope = null,
 } = {}) {
   const rpcSort = sort === "orders_asc" ? "orders_desc" : sort;
   const { data, error } = await supabase.rpc("rpc_client_management_list", {
     p_search: search,
     p_category: category,
     p_sort: rpcSort,
+    p_operations_scope: operationsScope,
   });
   if (error) throw error;
   return Array.isArray(data) ? data.map(normalizeClientRow) : [];
@@ -233,6 +235,7 @@ export async function listAssignedOrderClients({
   category = "all",
   sort = "orders_desc",
   appraiserId = null,
+  operationsScope = null,
 } = {}) {
   if (!appraiserId) return [];
 
@@ -243,15 +246,17 @@ export async function listAssignedOrderClients({
     page: 0,
     pageSize: 1000,
     scope: "orders",
+    operationsScope,
   });
   if (error) throw error;
 
   return normalizeAssignedOrderClientRows(rows, { search, category, sort });
 }
 
-export async function getClientManagementDetail(clientId) {
+export async function getClientManagementDetail(clientId, { operationsScope = null } = {}) {
   const { data, error } = await supabase.rpc("rpc_client_management_detail", {
     p_client_id: Number(clientId),
+    p_operations_scope: operationsScope,
   });
   if (error) throw error;
 

@@ -73,11 +73,13 @@ export default function ClientsIndex() {
               category: categoryFilter,
               sort,
               appraiserId,
+              operationsScope: operationsMode,
             })
           : await listClientManagementClients({
               search,
               category: categoryFilter,
               sort,
+              operationsScope: operationsMode,
             });
 
         if (!cancelled) {
@@ -97,7 +99,7 @@ export default function ClientsIndex() {
     return () => {
       cancelled = true;
     };
-  }, [search, categoryFilter, sort, isAppraiserClientsView, appraiserId]);
+  }, [search, categoryFilter, sort, isAppraiserClientsView, appraiserId, operationsMode]);
 
   const gridRows = useMemo(() => {
     let out = [...baseRows];

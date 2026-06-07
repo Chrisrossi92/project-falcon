@@ -13,6 +13,9 @@ const setClientContactStatusMock = vi.hoisted(() => vi.fn());
 const setDefaultClientContactMock = vi.hoisted(() => vi.fn());
 const appContextMock = vi.hoisted(() => vi.fn());
 const useCanMock = vi.hoisted(() => vi.fn());
+const operationsModeState = vi.hoisted(() => ({
+  operationsMode: "internal_operations",
+}));
 const supabaseMock = vi.hoisted(() => ({
   from: vi.fn(),
 }));
@@ -43,6 +46,10 @@ vi.mock("@/features/auth/useCurrentUserAppContext", () => ({
 
 vi.mock("@/lib/hooks/usePermissions", () => ({
   useCan: useCanMock,
+}));
+
+vi.mock("@/lib/operations/OperationsModeProvider", () => ({
+  useOperationsMode: () => operationsModeState,
 }));
 
 vi.mock("@/lib/permissions/constants", () => ({
@@ -181,6 +188,7 @@ describe("ClientDetail presentation", () => {
     appContextMock.mockReset();
     useCanMock.mockReset();
     supabaseMock.from.mockReset();
+    operationsModeState.operationsMode = "internal_operations";
   });
 
   afterEach(() => {
@@ -269,7 +277,7 @@ describe("ClientDetail presentation", () => {
     });
 
     await waitFor(() => {
-      expect(clientDetailMock).toHaveBeenCalledWith(42);
+      expect(clientDetailMock).toHaveBeenCalledWith(42, { operationsScope: "internal_operations" });
       expect(supabaseMock.from).toHaveBeenCalledWith("v_orders_frontend_v4");
     });
 
@@ -277,6 +285,7 @@ describe("ClientDetail presentation", () => {
       "id, order_number, status, address, city, state, zip, fee_amount, base_fee, appraiser_fee, created_at, review_due_at, final_due_at, due_date, client_id, managing_amc_id",
     );
     expect(ordersQuery.eq).toHaveBeenCalledWith("client_id", 42);
+    expect(ordersQuery.eq).toHaveBeenCalledWith("operations_scope", "internal_operations");
     expect(ordersQuery.eq).not.toHaveBeenCalledWith("managing_amc_id", 42);
     expect(ordersQuery.eq).toHaveBeenCalledWith("reviewer_id", "reviewer-1");
     expect(ordersQuery.order).toHaveBeenCalledWith("created_at", { ascending: false });
@@ -319,6 +328,7 @@ describe("ClientDetail presentation", () => {
     });
 
     expect(ordersQuery.eq).toHaveBeenCalledWith("managing_amc_id", 42);
+    expect(ordersQuery.eq).toHaveBeenCalledWith("operations_scope", "internal_operations");
     expect(ordersQuery.eq).not.toHaveBeenCalledWith("client_id", 42);
     expect(screen.getByRole("heading", { name: "Managed Orders" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Managed Order Context" })).toBeInTheDocument();

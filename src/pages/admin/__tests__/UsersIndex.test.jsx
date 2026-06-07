@@ -509,6 +509,10 @@ describe("UsersIndex readability", () => {
     expect(within(permissionDialog).getByText(/Detailed permission history is planned/i)).toBeInTheDocument();
     expect(within(permissionDialog).getByText("Orders")).toBeInTheDocument();
     expect(within(permissionDialog).getByText("Payments")).toBeInTheDocument();
+    const ordersGroup = within(permissionDialog).getByText("Orders").closest("details");
+    expect(ordersGroup).not.toHaveAttribute("open");
+    fireEvent.click(within(ordersGroup).getByText("Orders"));
+    expect(ordersGroup).toHaveAttribute("open");
     expect(within(permissionDialog).getByText("Read all orders")).toBeInTheDocument();
     expect(within(permissionDialog).getByText("Submit vendor invoices")).toBeInTheDocument();
     expect(within(permissionDialog).getByText("Primary role")).toBeInTheDocument();

@@ -25,6 +25,7 @@ import {
 import { useCurrentUserAppContext } from "@/features/auth/useCurrentUserAppContext";
 import { useCan } from "@/lib/hooks/usePermissions";
 import { PERMISSIONS } from "@/lib/permissions/constants";
+import { useOperationsMode } from "@/lib/operations/OperationsModeProvider";
 
 /* ============================== helpers ============================== */
 
@@ -115,6 +116,7 @@ export default function ClientDetail() {
   const clientIdParam = params.clientId || params.id || null;
   const nav = useNavigate();
   const { context: appContext, loading: appContextLoading } = useCurrentUserAppContext();
+  const { operationsMode } = useOperationsMode();
   const publicUserId = appContext?.user_id || null;
   const isAdmin = Boolean(appContext?.is_owner || appContext?.is_admin_role);
   const isReviewer = !isAdmin && Boolean(appContext?.is_reviewer_role);
@@ -172,7 +174,7 @@ export default function ClientDetail() {
         setLoading(true);
         setErr(null);
 
-        const clientRow = await getClientManagementDetail(numericId);
+        const clientRow = await getClientManagementDetail(numericId, { operationsScope: operationsMode });
 
         if (cancelled) return;
 
@@ -194,6 +196,8 @@ export default function ClientDetail() {
         ordersQuery = isAmcRelationship
           ? ordersQuery.eq("managing_amc_id", numericId)
           : ordersQuery.eq("client_id", numericId);
+
+        ordersQuery = ordersQuery.eq("operations_scope", operationsMode);
 
         if (!isAdmin) {
           if (!publicUserId) {
@@ -246,7 +250,7 @@ export default function ClientDetail() {
     return () => {
       cancelled = true;
     };
-  }, [clientIdParam, numericId, isAdmin, isReviewer, publicUserId, appContextLoading, refreshContacts]);
+  }, [clientIdParam, numericId, isAdmin, isReviewer, publicUserId, appContextLoading, refreshContacts, operationsMode]);
 
   const stats = useMemo(() => {
     if (!orders || orders.length === 0) {

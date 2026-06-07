@@ -73,6 +73,7 @@ describe("clientManagementApi management clients", () => {
       p_search: "",
       p_category: "all",
       p_sort: "orders_desc",
+      p_operations_scope: null,
     });
     expect(rows).toEqual([
       expect.objectContaining({
@@ -139,6 +140,29 @@ describe("clientManagementApi management clients", () => {
     );
     expect(supabase.rpc).toHaveBeenCalledWith("rpc_client_management_detail", {
       p_client_id: 10,
+      p_operations_scope: null,
+    });
+  });
+
+  it("passes active operation scope through client list and detail reads", async () => {
+    supabase.rpc.mockResolvedValue({ data: [], error: null });
+
+    await listClientManagementClients({ operationsScope: "amc_operations" });
+    expect(supabase.rpc).toHaveBeenLastCalledWith("rpc_client_management_list", {
+      p_search: "",
+      p_category: "all",
+      p_sort: "orders_desc",
+      p_operations_scope: "amc_operations",
+    });
+
+    supabase.rpc.mockResolvedValue({
+      data: { client_id: 10, client_name: "First Buckeye Bank" },
+      error: null,
+    });
+    await getClientManagementDetail(10, { operationsScope: "internal_operations" });
+    expect(supabase.rpc).toHaveBeenLastCalledWith("rpc_client_management_detail", {
+      p_client_id: 10,
+      p_operations_scope: "internal_operations",
     });
   });
 
@@ -275,6 +299,7 @@ describe("clientManagementApi assigned order clients", () => {
       page: 0,
       pageSize: 1000,
       scope: "orders",
+      operationsScope: null,
     });
     expect(rows).toEqual([
       expect.objectContaining({

@@ -402,6 +402,25 @@ Run these during the manual simulation:
 - External email/payment/accounting integrations.
 - Full visual browser QA with screenshots across personas.
 
+## Pilot Clickthrough Findings - 2026-06-07
+
+These issues were found during the hands-on pilot simulation after the automated AMC-18 gate passed.
+They are recorded here so the local run can distinguish fixed blockers from deferred product work.
+
+| Finding | Severity | Status | Notes |
+| --- | --- | --- | --- |
+| Permission Center save failed with `membership_id` ambiguity | Blocking | Fixed | `rpc_company_member_access_save(...)` and the child permission override save function now resolve PL/pgSQL name conflicts explicitly so Appraiser/template changes fail only for legitimate permission or business-rule reasons. |
+| Setting Dana Miller as default contact failed | Blocking | Fixed | `rpc_client_contact_set_default(...)` now uses qualified contact columns and current-company authorization before updating the selected default contact. |
+| Client Relationships mixed Internal and AMC relationship views | High | Fixed | Client relationship list/detail reads now accept the active operations scope so Internal mode excludes AMC-only clients and AMC mode excludes Internal-only clients. |
+| Permission Center categories opened too expanded | UX | Fixed | Permission groups now start collapsed by default while keeping the member summary, role/template summary, draft review, and save confirmation visible. |
+
+Deferred after these fixes:
+
+- Rerun the full manual clickthrough after deployment.
+- Add a reusable local Client Portal demo fixture instead of manual Dana Miller setup.
+- Add production/staging smoke evidence for the Client Portal once the pilot deployment target is
+  confirmed.
+
 ## Cleanup And Reset
 
 Preferred cleanup:

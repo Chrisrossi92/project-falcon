@@ -83,4 +83,32 @@ describe("clientContactsApi", () => {
       p_contact_id: 12,
     });
   });
+
+  it("sets a default client contact through the dedicated scoped RPC", async () => {
+    supabase.rpc.mockResolvedValue({
+      data: {
+        contact_id: 21,
+        company_id: "company-1",
+        client_id: 34,
+        name: "Dana Miller",
+        email: "dana@example.test",
+        status: "active",
+        is_default: true,
+      },
+      error: null,
+    });
+
+    await expect(setDefaultClientContact(21)).resolves.toEqual(
+      expect.objectContaining({
+        contact_id: 21,
+        client_id: 34,
+        name: "Dana Miller",
+        status: "active",
+        is_default: true,
+      }),
+    );
+    expect(supabase.rpc).toHaveBeenCalledWith("rpc_client_contact_set_default", {
+      p_contact_id: 21,
+    });
+  });
 });

@@ -772,7 +772,7 @@ function PermissionCenterDialog({ member, open, operationsMode, onClose, onSaved
     return (
       <div className="divide-y divide-slate-200">
         {model.categories.map((category) => (
-          <details key={category.id} className="group" open={category.effectiveCount > 0 || editable}>
+          <details key={category.id} className="group">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 hover:bg-slate-50">
               <span>
                 <span className="block text-sm font-semibold text-slate-900">{category.label}</span>
