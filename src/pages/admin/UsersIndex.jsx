@@ -22,6 +22,7 @@ import {
 import {
   buildPermissionCenterModel,
   buildPermissionCenterReview,
+  serializePermissionCenterOverrides,
 } from "@/features/company-members/permissionCenterModel";
 import { useCan } from "@/lib/hooks/usePermissions";
 import { useOperationsMode } from "@/lib/operations/OperationsModeProvider";
@@ -575,15 +576,29 @@ function EditRolePresetsModal({ member, open, onClose, onSaved }) {
   );
 }
 
-function PermissionCenterDialog({ member, open, operationsMode, onClose }) {
+function PermissionCenterDialog({ member, open, operationsMode, onClose, onSaved }) {
   const [rolePermissions, setRolePermissions] = useState([]);
   const [permissionOverrides, setPermissionOverrides] = useState([]);
   const [rolePresets, setRolePresets] = useState([]);
   const [mode, setMode] = useState("view");
   const [draftRoleIds, setDraftRoleIds] = useState([]);
   const [draftOverrideRows, setDraftOverrideRows] = useState([]);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [loadingAccess, setLoadingAccess] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  const reloadPermissionCenterDetail = useCallback(async () => {
+    if (!member) return;
+    const [permissionRows, overrideRows, presetRows] = await Promise.all([
+      listCompanyRolePermissionPreview(),
+      listCompanyMemberPermissionOverrides(member.user_id),
+      listCompanyRolePresets(),
+    ]);
+    setRolePermissions(Array.isArray(permissionRows) ? permissionRows : []);
+    setPermissionOverrides(Array.isArray(overrideRows) ? overrideRows : []);
+    setRolePresets(Array.isArray(presetRows) ? presetRows : []);
+  }, [member]);
 
   useEffect(() => {
     if (!open || !member) return;
@@ -593,6 +608,8 @@ function PermissionCenterDialog({ member, open, operationsMode, onClose }) {
     setMode("view");
     setDraftRoleIds([]);
     setDraftOverrideRows([]);
+    setConfirmOpen(false);
+    setSubmitting(false);
     Promise.all([
       listCompanyRolePermissionPreview(),
       listCompanyMemberPermissionOverrides(member.user_id),
@@ -659,6 +676,10 @@ function PermissionCenterDialog({ member, open, operationsMode, onClose }) {
     return acc;
   }, new Map());
   const hasDraftChanges = review.hasChanges || draftOverrideRows.some((row) => row.pending);
+  const selectedPrimaryRoleId = primaryRoleId;
+  const overridePayload = serializePermissionCenterOverrides(draftOverrideRows, draftRoleIds, rolePermissions);
+  const canConfirmPermissionCenterChanges =
+    mode === "review" && hasDraftChanges && draftRoleIds.length > 0 && Boolean(selectedPrimaryRoleId);
 
   const beginEdit = () => {
     setDraftRoleIds(originalModel.selectedRoleIds);
@@ -692,6 +713,49 @@ function PermissionCenterDialog({ member, open, operationsMode, onClose }) {
       if (nextEffective === permission.inherited) return withoutPermission;
       return [...withoutPermission, { permission_key: permission.key, effect: nextEffect, pending: true }];
     });
+  };
+  const handleConfirmSave = async () => {
+    if (submitting) return;
+    setError("");
+    if (!canConfirmPermissionCenterChanges) {
+      setError("Review valid permission changes before saving.");
+      return;
+    }
+    if (!draftRoleIds.includes(selectedPrimaryRoleId)) {
+      setError("The member's primary role must remain selected for this Permission Center save.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await saveCompanyMemberAccess(
+        member.user_id,
+        draftRoleIds,
+        selectedPrimaryRoleId,
+        overridePayload,
+        {
+          savePermissionOverrides: true,
+          reason: "Updated from Permission Center",
+          requestId: crypto.randomUUID(),
+        },
+      );
+      toast.success("Permission Center changes saved.");
+      setConfirmOpen(false);
+      setMode("view");
+      setDraftRoleIds([]);
+      setDraftOverrideRows([]);
+      await reloadPermissionCenterDetail();
+      onSaved?.();
+    } catch (saveError) {
+      console.debug("Permission Center save failed", {
+        code: saveError?.code,
+        message: saveError?.message,
+      });
+      setConfirmOpen(false);
+      setError(safeMemberActionError(saveError, "Falcon could not save these Permission Center changes."));
+    } finally {
+      setSubmitting(false);
+    }
   };
   const renderPermissionGroups = ({ editable = false } = {}) => {
     if (loadingAccess) {
@@ -779,7 +843,7 @@ function PermissionCenterDialog({ member, open, operationsMode, onClose }) {
     <div
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/40 px-4 py-8"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose?.();
+        if (event.target === event.currentTarget && !submitting) onClose?.();
       }}
     >
       <section
@@ -803,6 +867,7 @@ function PermissionCenterDialog({ member, open, operationsMode, onClose }) {
           <button
             type="button"
             onClick={onClose}
+            disabled={submitting}
             className="rounded-md border border-slate-200 p-2 text-slate-500 hover:bg-slate-50"
             aria-label="Close Permission Center"
           >
@@ -914,7 +979,7 @@ function PermissionCenterDialog({ member, open, operationsMode, onClose }) {
               <div>
                 <h3 className="text-sm font-semibold text-slate-950">Review pending changes</h3>
                 <p className="mt-1 text-xs leading-5 text-slate-500">
-                  This is a local draft review only. Confirmation is disabled until backend save wiring is added.
+                  Review carefully before confirming. This save uses the current operation/company access path.
                 </p>
               </div>
               <div className="grid gap-3 md:grid-cols-2">
@@ -1019,6 +1084,7 @@ function PermissionCenterDialog({ member, open, operationsMode, onClose }) {
               <button
                 type="button"
                 onClick={cancelDraft}
+                disabled={submitting}
                 className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
               >
                 Cancel changes
@@ -1026,7 +1092,7 @@ function PermissionCenterDialog({ member, open, operationsMode, onClose }) {
               <button
                 type="button"
                 onClick={() => setMode("review")}
-                disabled={!hasDraftChanges}
+                disabled={!hasDraftChanges || submitting}
                 className="rounded-md border border-slate-950 bg-slate-950 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
               >
                 Review changes
@@ -1038,6 +1104,7 @@ function PermissionCenterDialog({ member, open, operationsMode, onClose }) {
               <button
                 type="button"
                 onClick={() => setMode("edit")}
+                disabled={submitting}
                 className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
               >
                 Back to edit
@@ -1045,27 +1112,139 @@ function PermissionCenterDialog({ member, open, operationsMode, onClose }) {
               <button
                 type="button"
                 onClick={cancelDraft}
+                disabled={submitting}
                 className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
               >
                 Cancel changes
               </button>
               <button
                 type="button"
-                disabled
-                className="rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-500"
+                onClick={() => setConfirmOpen(true)}
+                disabled={!canConfirmPermissionCenterChanges || submitting}
+                className="rounded-md border border-slate-950 bg-slate-950 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-500"
               >
-                Confirm changes (not wired yet)
+                {submitting ? "Saving..." : "Confirm changes"}
               </button>
             </>
           )}
           <button
             type="button"
             onClick={onClose}
+            disabled={submitting}
             className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
           >
             Close
           </button>
         </div>
+        {confirmOpen && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/50 px-4">
+            <div
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="permission-center-confirm-title"
+              className="w-full max-w-2xl rounded-lg border border-slate-200 bg-white shadow-xl"
+            >
+              <div className="border-b border-slate-200 px-5 py-4">
+                <h3 id="permission-center-confirm-title" className="text-lg font-semibold text-slate-950">
+                  Confirm Permission Center changes
+                </h3>
+                <p className="mt-1 text-sm leading-6 text-slate-500">
+                  These changes will be saved for {getMemberName(member)} in the current operation/company context.
+                </p>
+              </div>
+              <div className="grid gap-4 px-5 py-4">
+                {member.is_current_user && (
+                  <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                    You are editing your own access. Existing backend rules still control whether this save is allowed.
+                  </div>
+                )}
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="rounded-md border border-slate-200 p-3">
+                    <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                      Templates
+                    </div>
+                    <ul className="mt-2 grid gap-1 text-sm text-slate-700">
+                      {review.addedTemplates.map((role) => (
+                        <li key={`confirm-added-${role.role_id}`}>Added: {role.role_name}</li>
+                      ))}
+                      {review.removedTemplates.map((role) => (
+                        <li key={`confirm-removed-${role.role_id}`}>Removed: {role.role_name}</li>
+                      ))}
+                      {!review.addedTemplates.length && !review.removedTemplates.length && <li>No template changes.</li>}
+                    </ul>
+                  </div>
+                  <div className="rounded-md border border-slate-200 p-3">
+                    <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                      Affected categories
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {review.affectedCategories.length ? (
+                        review.affectedCategories.map((category) => (
+                          <span
+                            key={`confirm-${category}`}
+                            className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-600"
+                          >
+                            {category}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-sm text-slate-500">No permission categories changed.</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3">
+                    <div className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">
+                      Permissions added
+                    </div>
+                    <ul className="mt-2 grid gap-1 text-sm text-emerald-900">
+                      {review.addedPermissions.length ? (
+                        review.addedPermissions.map((permission) => <li key={`confirm-added-${permission.key}`}>{permission.label}</li>)
+                      ) : (
+                        <li>No permissions added.</li>
+                      )}
+                    </ul>
+                  </div>
+                  <div className="rounded-md border border-rose-200 bg-rose-50 p-3">
+                    <div className="text-xs font-semibold uppercase tracking-[0.14em] text-rose-700">
+                      Permissions removed
+                    </div>
+                    <ul className="mt-2 grid gap-1 text-sm text-rose-900">
+                      {review.removedPermissions.length ? (
+                        review.removedPermissions.map((permission) => <li key={`confirm-removed-${permission.key}`}>{permission.label}</li>)
+                      ) : (
+                        <li>No permissions removed.</li>
+                      )}
+                    </ul>
+                  </div>
+                </div>
+                <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-xs leading-5 text-slate-500">
+                  Existing company access RPCs handle the save and any backend audit behavior. This slice does not
+                  add a separate audit-log system.
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 border-t border-slate-200 px-5 py-4">
+                <button
+                  type="button"
+                  onClick={() => setConfirmOpen(false)}
+                  disabled={submitting}
+                  className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                >
+                  Back to review
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmSave}
+                  disabled={!canConfirmPermissionCenterChanges || submitting}
+                  className="rounded-md border border-slate-950 bg-slate-950 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
+                >
+                  {submitting ? "Saving..." : "Save Permission Center changes"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </section>
     </div>
   );
@@ -1671,6 +1850,7 @@ export default function UsersIndex() {
         member={permissionCenterMember}
         operationsMode={operationsMode}
         onClose={() => setPermissionCenterMember(null)}
+        onSaved={load}
       />
     </div>
   );

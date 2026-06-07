@@ -122,6 +122,16 @@ function normalizePermissionCenterOverrides(overrideRows = [], selectedRoleIds =
   return normalized;
 }
 
+export function serializePermissionCenterOverrides(overrideRows = [], selectedRoleIds = [], rolePermissions = []) {
+  return [...normalizePermissionCenterOverrides(overrideRows, selectedRoleIds, rolePermissions).entries()]
+    .filter(([, override]) => override?.effect === "grant" || override?.effect === "revoke")
+    .map(([permission_key, override]) => ({
+      permission_key,
+      effect: override.effect,
+    }))
+    .sort((a, b) => a.permission_key.localeCompare(b.permission_key));
+}
+
 export function resolvePrimaryAndSecondaryRoles(member = {}) {
   const roles = activeRoleAssignments(member);
   const primary = roles.find((role) => role.is_primary) || roles[0] || null;

@@ -6,6 +6,7 @@ import {
   describePermission,
   humanizePermissionKey,
   permissionCenterCategoryId,
+  serializePermissionCenterOverrides,
 } from "../permissionCenterModel";
 
 describe("permissionCenterModel", () => {
@@ -153,5 +154,20 @@ describe("permissionCenterModel", () => {
     expect(review.removedPermissions.map((permission) => permission.label)).toEqual(["Create bid requests"]);
     expect(review.affectedCategories).toEqual(["Payments", "Vendors"]);
     expect(review.hasChanges).toBe(true);
+  });
+
+  it("serializes effective Permission Center override payloads for the access RPC", () => {
+    expect(
+      serializePermissionCenterOverrides(
+        [
+          { permission_key: "bid_requests.create", effect: "revoke", pending: true },
+          { permission_key: "vendor_invoices.submit", effect: "grant", pending: true },
+        ],
+        ["role-coordinator", "role-billing"],
+        rolePermissions,
+      ),
+    ).toEqual([
+      { permission_key: "bid_requests.create", effect: "revoke" },
+    ]);
   });
 });

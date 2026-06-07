@@ -519,8 +519,13 @@ describe("UsersIndex readability", () => {
     expect(membersApiMock.saveCompanyMemberPermissionOverrides).not.toHaveBeenCalled();
   });
 
-  it("drafts and reviews Permission Center changes without saving them", async () => {
+  it("confirms and saves Permission Center changes through the atomic access path", async () => {
     operationsModeState.operationsMode = "amc_operations";
+    let resolveSave;
+    const savePromise = new Promise((resolve) => {
+      resolveSave = resolve;
+    });
+    membersApiMock.saveCompanyMemberAccess.mockReturnValueOnce(savePromise);
     invitationsApiMock.listCompanyRolePresets.mockResolvedValue([
       {
         role_id: "role-admin",
@@ -562,6 +567,7 @@ describe("UsersIndex readability", () => {
 
     expect(within(permissionDialog).getByText("Choose an editing path")).toBeInTheDocument();
     expect(within(permissionDialog).getByText("Apply Secondary Role/Template")).toBeInTheDocument();
+    expect(within(permissionDialog).getByRole("button", { name: "Review changes" })).toBeDisabled();
     fireEvent.click(within(permissionDialog).getByRole("checkbox", { name: /Billing\/Admin/i }));
 
     const invoiceRow = within(permissionDialog).getByText("Submit vendor invoices").closest("li");
@@ -580,16 +586,100 @@ describe("UsersIndex readability", () => {
     expect(within(permissionDialog).getAllByText("Read all orders").length).toBeGreaterThan(0);
     expect(within(permissionDialog).getAllByText("Payments").length).toBeGreaterThan(0);
     expect(within(permissionDialog).getAllByText("Orders").length).toBeGreaterThan(0);
-    expect(within(permissionDialog).getByRole("button", { name: "Confirm changes (not wired yet)" })).toBeDisabled();
+    expect(within(permissionDialog).getByRole("button", { name: "Confirm changes" })).toBeEnabled();
 
-    fireEvent.click(within(permissionDialog).getByRole("button", { name: "Confirm changes (not wired yet)" }));
-    expect(membersApiMock.saveCompanyMemberAccess).not.toHaveBeenCalled();
+    fireEvent.click(within(permissionDialog).getByRole("button", { name: "Confirm changes" }));
+    const confirmDialog = await screen.findByRole("alertdialog", { name: "Confirm Permission Center changes" });
+    expect(within(confirmDialog).getByText(/current operation\/company context/i)).toBeInTheDocument();
+    expect(within(confirmDialog).getByText("Added: Billing/Admin")).toBeInTheDocument();
+    expect(within(confirmDialog).getAllByText("Submit vendor invoices").length).toBeGreaterThan(0);
+    expect(within(confirmDialog).getAllByText("Read all orders").length).toBeGreaterThan(0);
+    const listCallsBeforeSave = membersApiMock.listCompanyMembers.mock.calls.length;
+
+    const saveButton = within(confirmDialog).getByRole("button", { name: "Save Permission Center changes" });
+    fireEvent.click(saveButton);
+    fireEvent.click(saveButton);
+    expect(membersApiMock.saveCompanyMemberAccess).toHaveBeenCalledTimes(1);
+    expect(membersApiMock.saveCompanyMemberAccess).toHaveBeenCalledWith(
+      "user-admin",
+      ["role-admin", "role-billing"],
+      "role-admin",
+      [{ permission_key: "orders.read.all", effect: "revoke" }],
+      expect.objectContaining({
+        savePermissionOverrides: true,
+        reason: "Updated from Permission Center",
+        requestId: expect.any(String),
+      }),
+    );
     expect(membersApiMock.updateCompanyMemberRoles).not.toHaveBeenCalled();
     expect(membersApiMock.saveCompanyMemberPermissionOverrides).not.toHaveBeenCalled();
 
-    fireEvent.click(within(permissionDialog).getByRole("button", { name: "Cancel changes" }));
-    expect(within(permissionDialog).getByRole("button", { name: "Edit permissions" })).toBeInTheDocument();
+    resolveSave({});
+    await waitFor(() => expect(toastMock.success).toHaveBeenCalledWith("Permission Center changes saved."));
+    await waitFor(() => expect(within(permissionDialog).getByRole("button", { name: "Edit permissions" })).toBeInTheDocument());
     expect(within(permissionDialog).queryByText("Review pending changes")).toBeNull();
+    expect(membersApiMock.listCompanyMembers.mock.calls.length).toBeGreaterThan(listCallsBeforeSave);
+  });
+
+  it("preserves Permission Center draft changes when confirmed save fails", async () => {
+    operationsModeState.operationsMode = "amc_operations";
+    membersApiMock.saveCompanyMemberAccess.mockRejectedValueOnce({
+      code: "500",
+      message: "temporary failure",
+    });
+    invitationsApiMock.listCompanyRolePresets.mockResolvedValue([
+      {
+        role_id: "role-admin",
+        role_name: "Admin",
+        assignable_by_current_user: true,
+      },
+      {
+        role_id: "role-billing",
+        role_name: "Billing/Admin",
+        assignable_by_current_user: true,
+      },
+    ]);
+    invitationsApiMock.listCompanyRolePermissionPreview.mockResolvedValue([
+      {
+        role_id: "role-admin",
+        role_name: "Admin",
+        permission_key: "orders.read.all",
+        permission_category: "orders",
+        permission_label: "Read all orders",
+      },
+      {
+        role_id: "role-billing",
+        role_name: "Billing/Admin",
+        permission_key: "vendor_invoices.submit",
+        permission_category: "vendor_invoices",
+        permission_label: "Submit vendor invoices",
+      },
+    ]);
+
+    renderUsersIndex();
+
+    await screen.findByText("Active Team Members");
+    const adminCard = memberArticle("Ari Admin");
+    fireEvent.click(within(adminCard).getByRole("button", { name: "Permission Center" }));
+
+    const permissionDialog = await screen.findByRole("dialog", { name: "Ari Admin" });
+    fireEvent.click(within(permissionDialog).getByRole("button", { name: "Edit permissions" }));
+    fireEvent.click(within(permissionDialog).getByRole("checkbox", { name: /Billing\/Admin/i }));
+    fireEvent.click(within(permissionDialog).getByRole("button", { name: "Review changes" }));
+    fireEvent.click(within(permissionDialog).getByRole("button", { name: "Confirm changes" }));
+
+    const confirmDialog = await screen.findByRole("alertdialog", { name: "Confirm Permission Center changes" });
+    const listCallsBeforeSave = membersApiMock.listCompanyMembers.mock.calls.length;
+    fireEvent.click(within(confirmDialog).getByRole("button", { name: "Save Permission Center changes" }));
+
+    await waitFor(() => {
+      expect(within(permissionDialog).getByText("Falcon could not save these Permission Center changes.")).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("alertdialog", { name: "Confirm Permission Center changes" })).toBeNull();
+    expect(within(permissionDialog).getByText("Review pending changes")).toBeInTheDocument();
+    expect(within(permissionDialog).getByText("Added: Billing/Admin")).toBeInTheDocument();
+    expect(within(permissionDialog).getByRole("button", { name: "Back to edit" })).toBeEnabled();
+    expect(membersApiMock.listCompanyMembers.mock.calls.length).toBe(listCallsBeforeSave);
   });
 
   it("saves roles and explicit permission overrides from the access modal", async () => {
