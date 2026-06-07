@@ -2,6 +2,7 @@ import supabase from "@/lib/supabaseClient";
 
 const CLIENT_PORTAL_ORDER_LIST_RPC = "rpc_client_portal_orders";
 const CLIENT_PORTAL_ORDER_DETAIL_RPC = "rpc_client_portal_order_detail";
+const CLIENT_PORTAL_DASHBOARD_RPC = "rpc_client_portal_dashboard";
 
 const toStringOrNull = (value) => {
   if (value === null || value === undefined) return null;
@@ -57,6 +58,25 @@ export function normalizeClientPortalOrderDetail(row = {}) {
   };
 }
 
+export function normalizeClientPortalDashboard(row = {}) {
+  const recentOrders = Array.isArray(row.recent_orders) ? row.recent_orders : [];
+
+  return {
+    activeOrderCount: Number(row.active_order_count ?? row.activeOrderCount ?? 0) || 0,
+    reportAvailableCount: Number(row.report_available_count ?? row.reportAvailableCount ?? 0) || 0,
+    nextDueAt: toStringOrNull(row.next_due_at ?? row.nextDueAt),
+    recentOrders: recentOrders.map(normalizeClientPortalOrder).filter(Boolean),
+  };
+}
+
+export async function getClientPortalDashboard() {
+  const { data, error } = await supabase.rpc(CLIENT_PORTAL_DASHBOARD_RPC);
+  if (error) throw error;
+
+  const row = Array.isArray(data) ? data[0] : data;
+  return normalizeClientPortalDashboard(row || {});
+}
+
 export async function listClientPortalOrders() {
   const { data, error } = await supabase.rpc(CLIENT_PORTAL_ORDER_LIST_RPC);
   if (error) throw error;
@@ -82,6 +102,7 @@ export async function getClientPortalOrderDetail(orderKey) {
 }
 
 export const clientPortalRpcNames = Object.freeze({
+  dashboard: CLIENT_PORTAL_DASHBOARD_RPC,
   listOrders: CLIENT_PORTAL_ORDER_LIST_RPC,
   orderDetail: CLIENT_PORTAL_ORDER_DETAIL_RPC,
 });

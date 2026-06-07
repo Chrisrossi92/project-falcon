@@ -10,6 +10,7 @@ const supabase = (await import("@/lib/supabaseClient")).default;
 const {
   clientPortalRpcNames,
   getClientPortalOrderDetail,
+  getClientPortalDashboard,
   listClientPortalOrders,
   normalizeClientPortalOrderDetail,
 } = await import("../api");
@@ -17,6 +18,38 @@ const {
 describe("clientPortalApi", () => {
   beforeEach(() => {
     supabase.rpc.mockReset();
+  });
+
+  it("loads dashboard summary through the dedicated dashboard RPC", async () => {
+    supabase.rpc.mockResolvedValue({
+      data: {
+        active_order_count: 2,
+        report_available_count: 1,
+        next_due_at: "2026-06-15",
+        recent_orders: [
+          {
+            order_key: "portal-order-1",
+            order_number: "CP-001",
+            property_address: "100 Main St",
+          },
+        ],
+      },
+      error: null,
+    });
+
+    await expect(getClientPortalDashboard()).resolves.toEqual({
+      activeOrderCount: 2,
+      reportAvailableCount: 1,
+      nextDueAt: "2026-06-15",
+      recentOrders: [
+        expect.objectContaining({
+          orderKey: "portal-order-1",
+          orderNumber: "CP-001",
+        }),
+      ],
+    });
+
+    expect(supabase.rpc).toHaveBeenCalledWith(clientPortalRpcNames.dashboard);
   });
 
   it("lists client portal orders through the dedicated client-safe RPC", async () => {

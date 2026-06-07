@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { listClientPortalOrders } from "@/features/clientPortal/api";
+import { getClientPortalDashboard } from "@/features/clientPortal/api";
 
 function formatDate(value) {
   if (!value) return "Not scheduled";
@@ -24,7 +24,12 @@ function PortalError() {
 }
 
 export default function ClientPortalDashboard() {
-  const [orders, setOrders] = useState([]);
+  const [dashboard, setDashboard] = useState({
+    activeOrderCount: 0,
+    reportAvailableCount: 0,
+    nextDueAt: null,
+    recentOrders: [],
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -36,12 +41,17 @@ export default function ClientPortalDashboard() {
       setError(null);
 
       try {
-        const rows = await listClientPortalOrders();
+        const row = await getClientPortalDashboard();
         if (!active) return;
-        setOrders(rows);
+        setDashboard(row);
       } catch (err) {
         if (!active) return;
-        setOrders([]);
+        setDashboard({
+          activeOrderCount: 0,
+          reportAvailableCount: 0,
+          nextDueAt: null,
+          recentOrders: [],
+        });
         setError(err);
       } finally {
         if (active) setLoading(false);
@@ -55,9 +65,10 @@ export default function ClientPortalDashboard() {
     };
   }, []);
 
+  const orders = dashboard.recentOrders;
   const reportReadyCount = useMemo(
-    () => orders.filter((order) => order.reportAvailable).length,
-    [orders],
+    () => dashboard.reportAvailableCount,
+    [dashboard.reportAvailableCount],
   );
 
   return (
@@ -88,7 +99,7 @@ export default function ClientPortalDashboard() {
             Track Progress
           </div>
           <div className="mt-2 text-lg font-semibold text-slate-950">
-            {loading ? "Loading" : `${orders.length} active`}
+            {loading ? "Loading" : `${dashboard.activeOrderCount} active`}
           </div>
           <p className="mt-1 text-xs leading-5 text-slate-500">High-level order status only.</p>
         </article>

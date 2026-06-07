@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const apiMock = vi.hoisted(() => ({
+  getClientPortalDashboard: vi.fn(),
   listClientPortalOrders: vi.fn(),
   getClientPortalOrderDetail: vi.fn(),
 }));
@@ -44,6 +45,7 @@ function renderPortalRoutes(initialPath = "/client-portal") {
 
 describe("Client Portal pages", () => {
   beforeEach(() => {
+    apiMock.getClientPortalDashboard.mockReset();
     apiMock.listClientPortalOrders.mockReset();
     apiMock.getClientPortalOrderDetail.mockReset();
   });
@@ -53,7 +55,12 @@ describe("Client Portal pages", () => {
   });
 
   it("renders a limited client dashboard with scoped order summary", async () => {
-    apiMock.listClientPortalOrders.mockResolvedValue([portalOrder]);
+    apiMock.getClientPortalDashboard.mockResolvedValue({
+      activeOrderCount: 1,
+      reportAvailableCount: 0,
+      nextDueAt: "2026-06-15",
+      recentOrders: [portalOrder],
+    });
 
     renderPortalRoutes();
 
@@ -105,6 +112,7 @@ describe("Client Portal pages", () => {
 
     expect(screen.getByText("Request an appraisal")).toBeInTheDocument();
     expect(screen.getByText("Intake not wired yet")).toBeInTheDocument();
+    expect(apiMock.getClientPortalDashboard).not.toHaveBeenCalled();
     expect(apiMock.listClientPortalOrders).not.toHaveBeenCalled();
     expect(apiMock.getClientPortalOrderDetail).not.toHaveBeenCalled();
   });
