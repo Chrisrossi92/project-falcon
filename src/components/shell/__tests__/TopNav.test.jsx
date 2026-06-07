@@ -10,6 +10,7 @@ import {
 } from "@/lib/operations/OperationsModeProvider";
 import { OPERATIONS_MODES } from "@/lib/operations/operationsMode";
 import { PERMISSIONS } from "@/lib/permissions/constants";
+import { WORKSPACE_SWITCH_INVALIDATION_EVENT } from "@/lib/workspace/workspaceSwitchReset";
 
 const permissionState = vi.hoisted(() => ({
   allowed: new Set(),
@@ -133,6 +134,7 @@ const openMobileNav = (container) => {
 describe("TopNav desktop operational spine navigation", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    window.sessionStorage.clear();
     permissionState.allowed = new Set();
     permissionState.useEffectivePermissions.mockClear();
     shellProfileState.profileId = "operations";
@@ -143,6 +145,7 @@ describe("TopNav desktop operational spine navigation", () => {
   afterEach(() => {
     cleanup();
     window.localStorage.clear();
+    window.sessionStorage.clear();
   });
 
   it("renders the current operations mode in the desktop shell context", () => {
@@ -196,6 +199,61 @@ describe("TopNav desktop operational spine navigation", () => {
       "Vendors",
       "Clients",
     ]);
+  });
+
+  it("clears workspace-scoped storage and emits an invalidation event when switching to AMC Operations", () => {
+    shellProfileState.appContext = { is_admin_role: true };
+    permissionState.allowed = new Set([PERMISSIONS.VENDORS_READ]);
+    window.localStorage.setItem("falcon.orders.filters", "status=in_review");
+    window.localStorage.setItem("falcon.dashboard.summary", "stale-dashboard");
+    window.localStorage.setItem("falcon.auth.session", "keep-auth");
+    window.sessionStorage.setItem("falcon.orders.search.last", "main");
+    window.sessionStorage.setItem("falcon.notifications.cache", "stale-notifications");
+    window.sessionStorage.setItem("falcon.csrf", "keep-session");
+    const invalidationHandler = vi.fn();
+    window.addEventListener(WORKSPACE_SWITCH_INVALIDATION_EVENT, invalidationHandler);
+
+    try {
+      const { container } = renderTopNav("/orders?status=in_review&q=main&page=3");
+      const desktopContext = container.querySelector('aside [data-testid="operations-mode-switcher"]');
+
+      fireEvent.click(within(desktopContext).getByRole("button", { name: "AMC Operations" }));
+
+      expect(screen.getByTestId("current-path")).toHaveTextContent("/dashboard");
+      expect(screen.getByTestId("current-search")).toHaveTextContent("");
+      expect(screen.getByTestId("current-navigation-type")).toHaveTextContent("REPLACE");
+      expect(window.localStorage.getItem(OPERATIONS_MODE_STORAGE_KEY)).toBe("amc_operations");
+      expect(window.localStorage.getItem("falcon.orders.filters")).toBeNull();
+      expect(window.localStorage.getItem("falcon.dashboard.summary")).toBeNull();
+      expect(window.localStorage.getItem("falcon.auth.session")).toBe("keep-auth");
+      expect(window.sessionStorage.getItem("falcon.orders.search.last")).toBeNull();
+      expect(window.sessionStorage.getItem("falcon.notifications.cache")).toBeNull();
+      expect(window.sessionStorage.getItem("falcon.csrf")).toBe("keep-session");
+      expect(invalidationHandler).toHaveBeenCalledTimes(1);
+      expect(invalidationHandler.mock.calls[0][0].detail).toMatchObject({
+        fromMode: "internal_operations",
+        toMode: "amc_operations",
+        scopes: expect.arrayContaining([
+          "orders",
+          "vendors",
+          "clients",
+          "assignments",
+          "procurement",
+          "payments",
+          "dashboard",
+          "notifications",
+        ]),
+        clearedStorageKeys: {
+          localStorage: expect.arrayContaining(["falcon.orders.filters", "falcon.dashboard.summary"]),
+          sessionStorage: expect.arrayContaining([
+            "falcon.orders.search.last",
+            "falcon.notifications.cache",
+          ]),
+        },
+      });
+    } finally {
+      window.removeEventListener(WORKSPACE_SWITCH_INVALIDATION_EVENT, invalidationHandler);
+    }
   });
 
   it("switches AMC Operations to Internal Operations and resets order detail to the dashboard", () => {

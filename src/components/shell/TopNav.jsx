@@ -16,6 +16,7 @@ import { PERMISSIONS } from "@/lib/permissions/constants";
 import { useShellProfile } from "@/lib/shell/useShellProfile";
 import { getShellWorkModeCue } from "@/lib/shell/shellWorkMode";
 import { getWorkspaceIdentity } from "@/lib/workspace/workspaceIdentity";
+import { resetWorkspaceSwitchState } from "@/lib/workspace/workspaceSwitchReset";
 import { Menu, Search } from "lucide-react";
 
 const DESKTOP_SECTION_STYLES = Object.freeze({
@@ -142,6 +143,7 @@ function OperationalModeContext({ shellModeCue, appContext, workspaceIdentity, p
   const handleOperationsModeSelect = useCallback((mode) => {
     if (mode === operationsMode) return;
 
+    resetWorkspaceSwitchState({ fromMode: operationsMode, toMode: mode });
     setOperationsMode(mode);
     navigate(WORKSPACE_DASHBOARD_PATH, { replace: true });
   }, [navigate, operationsMode, setOperationsMode]);
