@@ -160,6 +160,52 @@ const reviewerMember = {
   can_reactivate: false,
 };
 
+const amcOnlyMember = {
+  user_id: "user-amc-only",
+  membership_id: "membership-amc-only",
+  display_name: "Morgan AMC",
+  email: "morgan.amc@example.com",
+  membership_status: "active",
+  joined_at: "2026-05-02T15:00:00Z",
+  auth_linked: true,
+  is_owner: false,
+  role_assignments: [
+    {
+      role_id: "role-amc-coordinator",
+      role_name: "AMC Coordinator",
+      is_owner_role: false,
+      is_primary: true,
+      status: "active",
+    },
+  ],
+  can_update_roles: true,
+  can_deactivate: true,
+  can_reactivate: false,
+};
+
+const dualAccessMember = {
+  user_id: "user-dual-access",
+  membership_id: "membership-dual-access",
+  display_name: "Drew Dual",
+  email: "drew.dual@example.com",
+  membership_status: "active",
+  joined_at: "2026-05-02T16:00:00Z",
+  auth_linked: true,
+  is_owner: false,
+  role_assignments: [
+    {
+      role_id: "role-reviewer",
+      role_name: "Reviewer",
+      is_owner_role: false,
+      is_primary: true,
+      status: "active",
+    },
+  ],
+  can_update_roles: true,
+  can_deactivate: true,
+  can_reactivate: false,
+};
+
 const inactiveMember = {
   user_id: "user-inactive",
   membership_id: "membership-inactive",
@@ -265,6 +311,68 @@ describe("UsersIndex readability", () => {
     await screen.findByText("Inactive / Invited Members");
     expect(screen.getByText("Inactive Irene")).toBeInTheDocument();
     expect(screen.getByText("These rows are separated from active access for clarity.")).toBeInTheDocument();
+  });
+
+  it("scopes Internal Users to internal-operation member access", async () => {
+    operationsModeState.operationsMode = "internal_operations";
+    membersApiMock.listCompanyMembers.mockImplementation(({ operationsScope }) => {
+      expect(operationsScope).toBe("internal_operations");
+      return Promise.resolve([
+        appraiserMember,
+        {
+          ...dualAccessMember,
+          role_assignments: [
+            {
+              role_id: "role-reviewer",
+              role_name: "Reviewer",
+              is_owner_role: false,
+              is_primary: true,
+              status: "active",
+            },
+          ],
+        },
+      ]);
+    });
+
+    renderUsersIndex();
+
+    await screen.findByText("Active Team Members");
+    expect(screen.getByText("Alex Appraiser")).toBeInTheDocument();
+    expect(screen.getByText("Drew Dual")).toBeInTheDocument();
+    expect(screen.queryByText("Morgan AMC")).not.toBeInTheDocument();
+    expect(within(memberArticle("Drew Dual")).getByText("Reviewer")).toBeInTheDocument();
+    expect(within(memberArticle("Drew Dual")).queryByText("AMC Coordinator")).not.toBeInTheDocument();
+  });
+
+  it("scopes AMC Users to AMC-operation member access", async () => {
+    operationsModeState.operationsMode = "amc_operations";
+    membersApiMock.listCompanyMembers.mockImplementation(({ operationsScope }) => {
+      expect(operationsScope).toBe("amc_operations");
+      return Promise.resolve([
+        amcOnlyMember,
+        {
+          ...dualAccessMember,
+          role_assignments: [
+            {
+              role_id: "role-amc-coordinator",
+              role_name: "AMC Coordinator",
+              is_owner_role: false,
+              is_primary: true,
+              status: "active",
+            },
+          ],
+        },
+      ]);
+    });
+
+    renderUsersIndex();
+
+    await screen.findByText("Active Team Members");
+    expect(screen.getByText("Morgan AMC")).toBeInTheDocument();
+    expect(screen.getByText("Drew Dual")).toBeInTheDocument();
+    expect(screen.queryByText("Alex Appraiser")).not.toBeInTheDocument();
+    expect(within(memberArticle("Drew Dual")).getByText("AMC Coordinator")).toBeInTheDocument();
+    expect(within(memberArticle("Drew Dual")).queryByText("Reviewer")).not.toBeInTheDocument();
   });
 
   it("renders clearer status chips and owner/admin access indicators", async () => {

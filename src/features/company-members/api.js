@@ -1,8 +1,9 @@
 import supabase from "@/lib/supabaseClient";
 
-export async function listCompanyMembers({ includeInactive = false } = {}) {
+export async function listCompanyMembers({ includeInactive = false, operationsScope = null } = {}) {
   const { data, error } = await supabase.rpc("rpc_company_member_list", {
     p_include_inactive: !!includeInactive,
+    p_operations_scope: operationsScope,
   });
 
   if (error) throw error;

@@ -413,6 +413,7 @@ They are recorded here so the local run can distinguish fixed blockers from defe
 | Setting Dana Miller as default contact failed | Blocking | Fixed | `rpc_client_contact_set_default(...)` now uses qualified contact columns and current-company authorization before updating the selected default contact. |
 | Client Relationships mixed Internal and AMC relationship views | High | Fixed | Client relationship list/detail reads now accept the active operations scope so Internal mode excludes AMC-only clients and AMC mode excludes Internal-only clients. |
 | Permission Center categories opened too expanded | UX | Fixed | Permission groups now start collapsed by default while keeping the member summary, role/template summary, draft review, and save confirmation visible. |
+| Users directory mixed Internal, AMC, Vendor, and Client Portal members | High | Fixed | Users list reads now pass active operation scope and the backend filters members plus returned role assignments from role permission metadata, preserving no-scope fallback only for callers without operation context. |
 
 Deferred after these fixes:
 

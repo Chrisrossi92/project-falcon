@@ -24,6 +24,10 @@ const invitationSql = readFileSync(
   resolve(repoRoot, "supabase/migrations/20260518041000_company_member_invitations.sql"),
   "utf8",
 );
+const usersOperationScopeSql = readFileSync(
+  resolve(repoRoot, "supabase/migrations/20260607123000_amc18_users_operation_scoping.sql"),
+  "utf8",
+);
 
 describe("operation role scope audit", () => {
   it("resolves active permission checks through the current company context", () => {
@@ -53,6 +57,15 @@ describe("operation role scope audit", () => {
     expect(memberMutationSql).toContain("where cm.company_id = v_company_id");
     expect(memberMutationSql).toContain("where ura.company_id = v_company_id");
     expect(memberMutationSql).toContain("v_company_id,\n    p_user_id,");
+  });
+
+  it("scopes Users directory reads by active operation role metadata", () => {
+    expect(usersOperationScopeSql).toContain("p_operations_scope text default null");
+    expect(usersOperationScopeSql).toContain("public.company_role_matches_operations_scope");
+    expect(usersOperationScopeSql).toContain("from public.role_permissions rp");
+    expect(usersOperationScopeSql).toContain("rp.permission_key like 'vendor\\_%' escape '\\'");
+    expect(usersOperationScopeSql).toContain("rp.permission_key like 'orders.%'");
+    expect(usersOperationScopeSql).toContain("coalesce(mr.has_active_scoped_role, false)");
   });
 
   it("scopes invites to current company without granting access to sibling operations", () => {

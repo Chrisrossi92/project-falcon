@@ -1617,7 +1617,10 @@ export default function UsersIndex() {
     setLoading(true);
     setError(null);
     try {
-      const rows = await listCompanyMembers({ includeInactive: showInactive });
+      const rows = await listCompanyMembers({
+        includeInactive: showInactive,
+        operationsScope: operationsMode,
+      });
       setMembers(rows);
     } catch (loadError) {
       console.debug("Company member list failed", {
@@ -1629,7 +1632,7 @@ export default function UsersIndex() {
     } finally {
       setLoading(false);
     }
-  }, [canListMembers, showInactive]);
+  }, [canListMembers, showInactive, operationsMode]);
 
   useEffect(() => {
     load();
