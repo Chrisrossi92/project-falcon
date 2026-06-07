@@ -5,6 +5,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const refreshMock = vi.hoisted(() => vi.fn());
+const navigateMock = vi.hoisted(() => vi.fn());
 const updateSiteVisitAtViaRpcMock = vi.hoisted(() => vi.fn());
 const archiveOrderViaRpcMock = vi.hoisted(() => vi.fn());
 const cancelOrderViaRpcMock = vi.hoisted(() => vi.fn());
@@ -64,7 +65,7 @@ vi.mock("react-router-dom", () => ({
       {children}
     </a>
   ),
-  useNavigate: () => vi.fn(),
+  useNavigate: () => navigateMock,
   useParams: () => ({ id: "order-1" }),
 }));
 
@@ -278,6 +279,7 @@ describe("OrderDetail site visit save", () => {
       notes: "Inspection access confirmed. Bring gate code and call contact on arrival.",
     });
     refreshMock.mockReset();
+    navigateMock.mockReset();
     updateSiteVisitAtViaRpcMock.mockReset();
     updateSiteVisitAtViaRpcMock.mockResolvedValue({
       id: "order-1",
@@ -387,6 +389,54 @@ describe("OrderDetail site visit save", () => {
       );
     });
     expect(refreshMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("redirects an AMC order away from Internal Operations on refresh before rendering stale order content", async () => {
+    orderMock.operations_scope = "amc_operations";
+    operationsModeMock.operationsMode = "internal_operations";
+
+    render(<OrderDetail />);
+
+    expect(screen.getByText("Switching workspace...")).toBeInTheDocument();
+    expect(screen.queryByText("Order 2026001")).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(navigateMock).toHaveBeenCalledWith("/dashboard", {
+        replace: true,
+        state: {
+          workspaceRedirect: {
+            from: "order_detail",
+            selectedOperationsMode: "internal_operations",
+            expectedOrderScope: "internal_operations",
+            actualOrderScope: "amc_operations",
+          },
+        },
+      });
+    });
+  });
+
+  it("redirects an Internal order away from AMC Operations before rendering cross-workspace detail", async () => {
+    orderMock.operations_scope = "internal_operations";
+    operationsModeMock.operationsMode = "amc_operations";
+
+    render(<OrderDetail />);
+
+    expect(screen.getByText("Switching workspace...")).toBeInTheDocument();
+    expect(screen.queryByText("Order 2026001")).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(navigateMock).toHaveBeenCalledWith("/dashboard", {
+        replace: true,
+        state: {
+          workspaceRedirect: {
+            from: "order_detail",
+            selectedOperationsMode: "amc_operations",
+            expectedOrderScope: "amc_operations",
+            actualOrderScope: "internal_operations",
+          },
+        },
+      });
+    });
   });
 
   it("surfaces the full operational overview from the loaded order", () => {

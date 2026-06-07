@@ -140,6 +140,10 @@ const BID_STATUS_TONE_CLASSES = Object.freeze({
   warning: "border-amber-200 bg-amber-50 text-amber-900",
   muted: "border-slate-200 bg-slate-100 text-slate-600",
 });
+const ORDER_SCOPE_BY_OPERATIONS_MODE = Object.freeze({
+  [OPERATIONS_MODES.INTERNAL_OPERATIONS]: "internal_operations",
+  [OPERATIONS_MODES.AMC_OPERATIONS]: "amc_operations",
+});
 const categoryLabel = (value) =>
   String(value || "")
     .split("_")
@@ -188,6 +192,20 @@ const buildDocumentCategoryCounts = (documents) => {
     .map(([label, count]) => ({ label, count }))
     .sort((a, b) => a.label.localeCompare(b.label));
 };
+
+function resolveOrderWorkspaceRedirect(orderOperationsScope, operationsMode) {
+  const expectedScope = ORDER_SCOPE_BY_OPERATIONS_MODE[operationsMode];
+  if (!expectedScope) return null;
+
+  const actualScope = orderOperationsScope || "internal_operations";
+  if (actualScope === expectedScope) return null;
+
+  return {
+    expectedScope,
+    actualScope,
+    redirectPath: "/dashboard",
+  };
+}
 
 function SummaryField({ label, value, children }) {
   return (
@@ -653,6 +671,12 @@ export default function OrderDetail() {
   const [clientName, setClientName] = useState("-");
   const [amcName, setAmcName] = useState("-");
   const [appraiserName, setAppraiserName] = useState("-");
+  const orderId = order?.id;
+  const orderOperationsScope = order?.operations_scope;
+  const orderWorkspaceRedirect = useMemo(
+    () => (orderId ? resolveOrderWorkspaceRedirect(orderOperationsScope, operationsMode) : null),
+    [operationsMode, orderId, orderOperationsScope],
+  );
 
   useEffect(() => {
     if (order) {
@@ -661,6 +685,37 @@ export default function OrderDetail() {
       setAppraiserName(order.appraiser_name || "-");
     }
   }, [order]);
+
+  useEffect(() => {
+    if (!orderWorkspaceRedirect) return;
+
+    setOfferAssignmentOpen(false);
+    setArchiveConfirmOpen(false);
+    setArchiveReason("");
+    setArchiveError("");
+    setLifecycleAction(null);
+    setLifecycleReason("");
+    setLifecycleError("");
+    setPrintPacketOpen(false);
+    setOrderFiles([]);
+    setOrderFilesLoaded(false);
+    setOwnerAssignments([]);
+    setOwnerAssignmentsError(null);
+    setBidRequestRows([]);
+    setBidRequestsRefreshToken(0);
+
+    navigate(orderWorkspaceRedirect.redirectPath, {
+      replace: true,
+      state: {
+        workspaceRedirect: {
+          from: "order_detail",
+          selectedOperationsMode: operationsMode,
+          expectedOrderScope: orderWorkspaceRedirect.expectedScope,
+          actualOrderScope: orderWorkspaceRedirect.actualScope,
+        },
+      },
+    });
+  }, [navigate, operationsMode, orderWorkspaceRedirect]);
 
   const titleNo = useMemo(
     () => (order?.order_number || (order?.id ? String(order.id).slice(0, 8) : "")),
@@ -892,6 +947,9 @@ export default function OrderDetail() {
   if (loading) return <div className="p-4 text-sm">Loading...</div>;
   if (loadErr) return <div className="p-4 text-sm text-rose-600">Failed to load order.</div>;
   if (!order) return <div className="p-4 text-sm text-amber-700">Order not found.</div>;
+  if (orderWorkspaceRedirect) {
+    return <div className="p-4 text-sm text-slate-600">Switching workspace...</div>;
+  }
 
   return (
     <div className="p-4 space-y-4 print:p-0">
