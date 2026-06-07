@@ -270,8 +270,8 @@ npm run amc:smoke:edge
 ```
 
 This sequence requires a disposable local Supabase reset. It was not run during this checkpoint
-because the current validation found a full-suite test gate failure before destructive local
-database smoke was justified.
+because it is a hands-on database/browser smoke pass that should be run as the next local pilot
+simulation step after the automated gate.
 
 ## Decision
 
