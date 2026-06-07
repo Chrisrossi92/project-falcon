@@ -8,6 +8,10 @@ import {
   ROUTE_WORKSPACES,
 } from "@/routes/workspaceRouteOwnership";
 
+function formatExpectedWorkspace(workspace) {
+  return Array.isArray(workspace) ? workspace.join(",") : workspace;
+}
+
 export default function WorkspaceRouteGuard({
   children,
   workspace = ROUTE_WORKSPACES.INTERNAL,
@@ -31,7 +35,7 @@ export default function WorkspaceRouteGuard({
       state={{
         workspaceRedirect: {
           from: location.pathname,
-          expectedWorkspace: workspace,
+          expectedWorkspace: formatExpectedWorkspace(workspace),
           selectedWorkspace: getRouteWorkspaceForOperationsMode(operationsMode),
         },
       }}

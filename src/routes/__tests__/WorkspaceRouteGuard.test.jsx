@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes, useLocation, useNavigationType } from "rea
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OPERATIONS_MODES } from "@/lib/operations/operationsMode";
-import { ROUTE_WORKSPACES } from "@/routes/workspaceRouteOwnership";
+import { ROUTE_WORKSPACE_GROUPS, ROUTE_WORKSPACES } from "@/routes/workspaceRouteOwnership";
 
 const operationsModeState = vi.hoisted(() => ({
   operationsMode: "internal_operations",
@@ -55,6 +55,22 @@ function renderWorkspaceRoutes(initialPath) {
             </WorkspaceRouteGuard>
           }
         />
+        <Route
+          path="/orders"
+          element={
+            <WorkspaceRouteGuard workspace={ROUTE_WORKSPACE_GROUPS.OPERATIONS}>
+              <div data-testid="orders-route">Orders</div>
+            </WorkspaceRouteGuard>
+          }
+        />
+        <Route
+          path="/vendor-owned"
+          element={
+            <WorkspaceRouteGuard workspace={ROUTE_WORKSPACES.VENDOR}>
+              <div data-testid="vendor-owned-route">Vendor owned</div>
+            </WorkspaceRouteGuard>
+          }
+        />
         <Route path="/dashboard" element={<LocationProbe />} />
       </Routes>
     </MemoryRouter>,
@@ -101,12 +117,38 @@ describe("WorkspaceRouteGuard", () => {
     expect(screen.getByTestId("location")).toHaveTextContent("/dashboard");
   });
 
+  it("does not render an unsupported workspace-owned page from an operations context", () => {
+    renderWorkspaceRoutes("/vendor-owned");
+
+    expect(screen.queryByTestId("vendor-owned-route")).toBeNull();
+    expect(screen.getByTestId("location")).toHaveTextContent("/dashboard");
+    expect(screen.getByTestId("navigation-type")).toHaveTextContent("REPLACE");
+    expect(screen.getByTestId("redirect-state")).toHaveTextContent('"expectedWorkspace":"vendor"');
+    expect(screen.getByTestId("redirect-state")).toHaveTextContent('"selectedWorkspace":"internal"');
+  });
+
   it("renders correct workspace routes normally", () => {
     operationsModeState.operationsMode = OPERATIONS_MODES.AMC_OPERATIONS;
 
     renderWorkspaceRoutes("/vendors");
 
     expect(screen.getByTestId("amc-route")).toHaveTextContent("Vendors");
+    expect(screen.queryByTestId("location")).toBeNull();
+  });
+
+  it("renders shared operations-owned order routes in Internal Operations", () => {
+    renderWorkspaceRoutes("/orders");
+
+    expect(screen.getByTestId("orders-route")).toHaveTextContent("Orders");
+    expect(screen.queryByTestId("location")).toBeNull();
+  });
+
+  it("renders shared operations-owned order routes in AMC Operations", () => {
+    operationsModeState.operationsMode = OPERATIONS_MODES.AMC_OPERATIONS;
+
+    renderWorkspaceRoutes("/orders");
+
+    expect(screen.getByTestId("orders-route")).toHaveTextContent("Orders");
     expect(screen.queryByTestId("location")).toBeNull();
   });
 });

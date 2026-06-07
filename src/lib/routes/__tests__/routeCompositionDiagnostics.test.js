@@ -52,6 +52,24 @@ const entryText = (entries) =>
     .join(' ')
     .toLowerCase();
 
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const expectRouteWrappedByWorkspaceGuard = (
+  activeRoutes,
+  routePath,
+  workspaceExpression,
+  componentName,
+) => {
+  expect(activeRoutes).toMatch(
+    new RegExp(
+      `path="${escapeRegExp(routePath)}"[\\s\\S]*` +
+        `<WorkspaceRouteGuard workspace={${escapeRegExp(workspaceExpression)}}>[\\s\\S]*` +
+        `<${escapeRegExp(componentName)} />[\\s\\S]*` +
+        '</WorkspaceRouteGuard>',
+    ),
+  );
+};
+
 describe('shadow route composition diagnostics', () => {
   it('generates Staff operational route diagnostics', () => {
     const composition = getShadowRouteCompositionDiagnostics(PRODUCT_MODE_IDS.STAFF_APPRAISAL);
@@ -246,6 +264,38 @@ describe('shadow route composition diagnostics', () => {
     expect(activeRoutes).toContain('path="/vendors/:vendorProfileId"');
     expect(activeRoutes).not.toContain('path="/amc');
     expect(activeRoutes).not.toContain('path="/amc/');
+  });
+
+  it('wraps high-risk protected operation routes with workspace ownership guards', () => {
+    const activeRoutes = readFileSync('src/routes/index.jsx', 'utf8');
+    const operationsWorkspace = 'ROUTE_WORKSPACE_GROUPS.OPERATIONS';
+    const amcWorkspace = 'ROUTE_WORKSPACES.AMC';
+    const internalWorkspace = 'ROUTE_WORKSPACES.INTERNAL';
+
+    [
+      ['/dashboard', operationsWorkspace, 'DashboardGate'],
+      ['/orders', operationsWorkspace, 'Orders'],
+      ['/orders/historical', operationsWorkspace, 'HistoricalOrders'],
+      ['/orders/new', operationsWorkspace, 'NewOrder'],
+      ['/orders/:id', operationsWorkspace, 'OrderDetail'],
+      ['/orders/:id/edit', operationsWorkspace, 'EditOrder'],
+      ['/assignments', operationsWorkspace, 'AssignmentsPage'],
+      ['/assignments/:assignmentId', operationsWorkspace, 'AssignmentDetail'],
+      ['/relationships', operationsWorkspace, 'RelationshipsPage'],
+      ['/relationships/:relationshipId', operationsWorkspace, 'RelationshipsPage'],
+      ['/clients', operationsWorkspace, 'ClientsDashboard'],
+      ['/clients/new', operationsWorkspace, 'NewClient'],
+      ['/clients/profile/:clientId', operationsWorkspace, 'ClientProfile'],
+      ['/clients/edit/:clientId', operationsWorkspace, 'EditClient'],
+      ['/clients/cards', operationsWorkspace, 'ClientsIndex'],
+      ['/clients/:id', operationsWorkspace, 'ClientDetail'],
+      ['/vendors', amcWorkspace, 'VendorDirectoryPage'],
+      ['/vendors/:vendorProfileId', amcWorkspace, 'VendorProfilePage'],
+      ['/users', internalWorkspace, 'UsersIndex'],
+      ['/my-work', internalWorkspace, 'MyWorkPage'],
+    ].forEach(([routePath, workspaceExpression, componentName]) => {
+      expectRouteWrappedByWorkspaceGuard(activeRoutes, routePath, workspaceExpression, componentName);
+    });
   });
 
   it('keeps public vendor bid invitations outside the authenticated app shell', () => {

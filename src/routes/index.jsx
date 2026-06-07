@@ -12,7 +12,7 @@ import {
   notificationSettingsRoute,
   productMetadataDiagnosticsRoute,
 } from "@/routes/diagnosticRoutes";
-import { ROUTE_WORKSPACES } from "@/routes/workspaceRouteOwnership";
+import { ROUTE_WORKSPACE_GROUPS, ROUTE_WORKSPACES } from "@/routes/workspaceRouteOwnership";
 
 // Pages
 import Login from "@/pages/auth/Login";
@@ -105,7 +105,9 @@ export default function AppRoutes() {
           path="/dashboard"
           element={
             <ProtectedRoute>
-              <DashboardGate />
+              <WorkspaceRouteGuard workspace={ROUTE_WORKSPACE_GROUPS.OPERATIONS}>
+                <DashboardGate />
+              </WorkspaceRouteGuard>
             </ProtectedRoute>
           }
         />
@@ -118,7 +120,9 @@ export default function AppRoutes() {
                 PERMISSIONS.ORDERS_READ_ASSIGNED,
               ]}
             >
-              <MyWorkPage />
+              <WorkspaceRouteGuard workspace={ROUTE_WORKSPACES.INTERNAL}>
+                <MyWorkPage />
+              </WorkspaceRouteGuard>
             </ProtectedRoute>
           }
         />
@@ -133,7 +137,9 @@ export default function AppRoutes() {
                 PERMISSIONS.ORDERS_READ_ASSIGNED,
               ]}
             >
-              <Orders />
+              <WorkspaceRouteGuard workspace={ROUTE_WORKSPACE_GROUPS.OPERATIONS}>
+                <Orders />
+              </WorkspaceRouteGuard>
             </ProtectedRoute>
           }
         />
@@ -146,13 +152,21 @@ export default function AppRoutes() {
                 PERMISSIONS.ORDERS_READ_ASSIGNED,
               ]}
             >
-              <HistoricalOrders />
+              <WorkspaceRouteGuard workspace={ROUTE_WORKSPACE_GROUPS.OPERATIONS}>
+                <HistoricalOrders />
+              </WorkspaceRouteGuard>
             </ProtectedRoute>
           }
         />
         <Route
           path="/orders/new"
-          element={<ProtectedRoute requiredPermission={PERMISSIONS.ORDERS_CREATE}><NewOrder /></ProtectedRoute>}
+          element={
+            <ProtectedRoute requiredPermission={PERMISSIONS.ORDERS_CREATE}>
+              <WorkspaceRouteGuard workspace={ROUTE_WORKSPACE_GROUPS.OPERATIONS}>
+                <NewOrder />
+              </WorkspaceRouteGuard>
+            </ProtectedRoute>
+          }
         />
         <Route
           path="/orders/:id"
@@ -163,13 +177,21 @@ export default function AppRoutes() {
                 PERMISSIONS.ORDERS_READ_ASSIGNED,
               ]}
             >
-              <OrderDetail />
+              <WorkspaceRouteGuard workspace={ROUTE_WORKSPACE_GROUPS.OPERATIONS}>
+                <OrderDetail />
+              </WorkspaceRouteGuard>
             </ProtectedRoute>
           }
         />
         <Route
           path="/orders/:id/edit"
-          element={<ProtectedRoute requiredPermission={PERMISSIONS.ORDERS_UPDATE_ALL}><EditOrder /></ProtectedRoute>}
+          element={
+            <ProtectedRoute requiredPermission={PERMISSIONS.ORDERS_UPDATE_ALL}>
+              <WorkspaceRouteGuard workspace={ROUTE_WORKSPACE_GROUPS.OPERATIONS}>
+                <EditOrder />
+              </WorkspaceRouteGuard>
+            </ProtectedRoute>
+          }
         />
 
         {/* Calendar */}
@@ -183,7 +205,9 @@ export default function AppRoutes() {
                 PERMISSIONS.ORDERS_READ_ASSIGNED,
               ]}
             >
-              <Calendar />
+              <WorkspaceRouteGuard workspace={ROUTE_WORKSPACE_GROUPS.OPERATIONS}>
+                <Calendar />
+              </WorkspaceRouteGuard>
             </ProtectedRoute>
           }
         />
@@ -198,7 +222,9 @@ export default function AppRoutes() {
                 PERMISSIONS.ACTIVITY_READ_ASSIGNED,
               ]}
             >
-              <Activity />
+              <WorkspaceRouteGuard workspace={ROUTE_WORKSPACE_GROUPS.OPERATIONS}>
+                <Activity />
+              </WorkspaceRouteGuard>
             </ProtectedRoute>
           }
         />
@@ -208,9 +234,11 @@ export default function AppRoutes() {
           path="/assignments"
           element={
             <ProtectedRoute requiredAnyPermissions={ASSIGNMENT_NAV_PERMISSIONS}>
-              <V1HiddenSurfaceRouteGuard>
-                <AssignmentsPage />
-              </V1HiddenSurfaceRouteGuard>
+              <WorkspaceRouteGuard workspace={ROUTE_WORKSPACE_GROUPS.OPERATIONS}>
+                <V1HiddenSurfaceRouteGuard>
+                  <AssignmentsPage />
+                </V1HiddenSurfaceRouteGuard>
+              </WorkspaceRouteGuard>
             </ProtectedRoute>
           }
         />
@@ -218,9 +246,11 @@ export default function AppRoutes() {
           path="/assignments/:assignmentId"
           element={
             <ProtectedRoute requiredAnyPermissions={ASSIGNMENT_NAV_PERMISSIONS}>
-              <V1HiddenSurfaceRouteGuard>
-                <AssignmentDetail />
-              </V1HiddenSurfaceRouteGuard>
+              <WorkspaceRouteGuard workspace={ROUTE_WORKSPACE_GROUPS.OPERATIONS}>
+                <V1HiddenSurfaceRouteGuard>
+                  <AssignmentDetail />
+                </V1HiddenSurfaceRouteGuard>
+              </WorkspaceRouteGuard>
             </ProtectedRoute>
           }
         />
@@ -230,9 +260,11 @@ export default function AppRoutes() {
           path="/relationships"
           element={
             <ProtectedRoute requiredPermission={RELATIONSHIP_NAV_PERMISSION}>
-              <V1HiddenSurfaceRouteGuard>
-                <RelationshipsPage />
-              </V1HiddenSurfaceRouteGuard>
+              <WorkspaceRouteGuard workspace={ROUTE_WORKSPACE_GROUPS.OPERATIONS}>
+                <V1HiddenSurfaceRouteGuard>
+                  <RelationshipsPage />
+                </V1HiddenSurfaceRouteGuard>
+              </WorkspaceRouteGuard>
             </ProtectedRoute>
           }
         />
@@ -240,9 +272,11 @@ export default function AppRoutes() {
           path="/relationships/:relationshipId"
           element={
             <ProtectedRoute requiredPermission={RELATIONSHIP_NAV_PERMISSION}>
-              <V1HiddenSurfaceRouteGuard>
-                <RelationshipsPage />
-              </V1HiddenSurfaceRouteGuard>
+              <WorkspaceRouteGuard workspace={ROUTE_WORKSPACE_GROUPS.OPERATIONS}>
+                <V1HiddenSurfaceRouteGuard>
+                  <RelationshipsPage />
+                </V1HiddenSurfaceRouteGuard>
+              </WorkspaceRouteGuard>
             </ProtectedRoute>
           }
         />
@@ -276,7 +310,13 @@ export default function AppRoutes() {
         {/* Clients (legacy admin pages) */}
         <Route
           path="/clients"
-          element={<ProtectedRoute requiredPermission={PERMISSIONS.CLIENTS_READ_ALL}><ClientsDashboard /></ProtectedRoute>}
+          element={
+            <ProtectedRoute requiredPermission={PERMISSIONS.CLIENTS_READ_ALL}>
+              <WorkspaceRouteGuard workspace={ROUTE_WORKSPACE_GROUPS.OPERATIONS}>
+                <ClientsDashboard />
+              </WorkspaceRouteGuard>
+            </ProtectedRoute>
+          }
         />
         <Route
           path="/clients/new"
@@ -284,13 +324,21 @@ export default function AppRoutes() {
             <ProtectedRoute
               requiredPermission={PERMISSIONS.CLIENTS_CREATE}
             >
-              <NewClient />
+              <WorkspaceRouteGuard workspace={ROUTE_WORKSPACE_GROUPS.OPERATIONS}>
+                <NewClient />
+              </WorkspaceRouteGuard>
             </ProtectedRoute>
           }
         />
         <Route
           path="/clients/profile/:clientId"
-          element={<ProtectedRoute requiredPermission={PERMISSIONS.CLIENTS_READ_ALL}><ClientProfile /></ProtectedRoute>}
+          element={
+            <ProtectedRoute requiredPermission={PERMISSIONS.CLIENTS_READ_ALL}>
+              <WorkspaceRouteGuard workspace={ROUTE_WORKSPACE_GROUPS.OPERATIONS}>
+                <ClientProfile />
+              </WorkspaceRouteGuard>
+            </ProtectedRoute>
+          }
         />
         <Route
           path="/clients/edit/:clientId"
@@ -298,7 +346,9 @@ export default function AppRoutes() {
             <ProtectedRoute
               requiredPermission={PERMISSIONS.CLIENTS_UPDATE_ALL}
             >
-              <EditClient />
+              <WorkspaceRouteGuard workspace={ROUTE_WORKSPACE_GROUPS.OPERATIONS}>
+                <EditClient />
+              </WorkspaceRouteGuard>
             </ProtectedRoute>
           }
         />
@@ -313,7 +363,9 @@ export default function AppRoutes() {
                 PERMISSIONS.CLIENTS_READ_ASSIGNED,
               ]}
             >
-              <ClientsIndex />
+              <WorkspaceRouteGuard workspace={ROUTE_WORKSPACE_GROUPS.OPERATIONS}>
+                <ClientsIndex />
+              </WorkspaceRouteGuard>
             </ProtectedRoute>
           }
         />
@@ -326,7 +378,9 @@ export default function AppRoutes() {
                 PERMISSIONS.CLIENTS_READ_ASSIGNED,
               ]}
             >
-              <ClientDetail />
+              <WorkspaceRouteGuard workspace={ROUTE_WORKSPACE_GROUPS.OPERATIONS}>
+                <ClientDetail />
+              </WorkspaceRouteGuard>
             </ProtectedRoute>
           }
         />
