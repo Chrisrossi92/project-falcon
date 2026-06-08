@@ -414,6 +414,8 @@ They are recorded here so the local run can distinguish fixed blockers from defe
 | Client Relationships mixed Internal and AMC relationship views | High | Fixed | Client relationship list/detail reads now accept the active operations scope so Internal mode excludes AMC-only clients and AMC mode excludes Internal-only clients. |
 | Permission Center categories opened too expanded | UX | Fixed | Permission groups now start collapsed by default while keeping the member summary, role/template summary, draft review, and save confirmation visible. |
 | Users directory mixed Internal, AMC, Vendor, and Client Portal members | High | Fixed | Users list reads now pass active operation scope and the backend filters members plus returned role assignments from role permission metadata, preserving no-scope fallback only for callers without operation context. |
+| Permission Center save succeeded but saved Appraiser template did not reappear | Blocking | Fixed | The open dialog now follows the refreshed member row after save, and Appraiser/Reviewer work-eligibility templates remain visible in AMC-scoped member reloads. |
+| Falcon AMC client creation failed or created zero-order clients without AMC visibility | Blocking | Fixed | New Client now sends active workspace scope, and the client create RPC persists `clients.operations_scope` so new AMC/Internal relationships appear only in the creating workspace before orders exist. |
 
 Deferred after these fixes:
 
@@ -474,6 +476,24 @@ Manual Supabase SQL Editor deployment steps:
      or business-rule error, not SQL ambiguity.
    - Setting Dana Miller as default contact succeeds or returns a legitimate permission
      or business-rule error.
+
+Follow-up production retest fixes:
+
+- Apply `supabase/migrations/20260608100000_amc18_production_persistence_fixes.sql` after the
+  alignment migration if production still shows saved secondary templates as missing or cannot
+  create a new AMC-scoped client.
+- Refresh schema cache again:
+
+  ```sql
+  notify pgrst, 'reload schema';
+  ```
+
+- Re-smoke:
+  - Add Appraiser template to Abby, save, close/reopen Permission Center, and confirm Appraiser is
+    listed as a secondary template and checked in edit mode.
+  - Create First American Bank in Falcon AMC mode with Dana Miller as primary contact.
+  - Confirm the client appears in AMC Client Services and does not appear in Internal Client
+    Relationships.
 
 Do not run broad `supabase db push --include-all` for this hotfix path until duplicate local
 migration versions are resolved or proven safe for the target project.

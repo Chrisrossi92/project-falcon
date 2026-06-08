@@ -205,6 +205,7 @@ describe("clientManagementApi management clients", () => {
         contact_mode: "no_specific_contact",
         portal_url: "https://portal.example.com",
         portal_notes: "Use intake dashboard.",
+        operations_scope: null,
       },
     });
 
@@ -239,6 +240,7 @@ describe("clientManagementApi management clients", () => {
       p_client: {
         name: "Portal AMC",
         contact_mode: "no_specific_contact",
+        operations_scope: null,
       },
     });
 
@@ -246,6 +248,50 @@ describe("clientManagementApi management clients", () => {
     expect(supabase.rpc).toHaveBeenLastCalledWith("rpc_client_management_update", {
       p_client_id: 22,
       p_patch: { contact_mode: "contacts" },
+    });
+  });
+
+  it("passes active operation scope through client creation payloads", async () => {
+    supabase.rpc.mockResolvedValue({
+      data: {
+        client_id: 24,
+        client_name: "First American Bank",
+        status: "active",
+        category: "lender",
+        contact_name_1: "Dana Miller",
+        contact_email_1: "dana@example.test",
+        operations_scope: "amc_operations",
+      },
+      error: null,
+    });
+
+    await expect(
+      createClientManagementClient(
+        {
+          name: "First American Bank",
+          category: "lender",
+          contact_name_1: "Dana Miller",
+          contact_email_1: "dana@example.test",
+        },
+        { operationsScope: "amc_operations" },
+      ),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        id: 24,
+        name: "First American Bank",
+        primary_contact_name: "Dana Miller",
+        primary_contact_email: "dana@example.test",
+        operations_scope: "amc_operations",
+      }),
+    );
+    expect(supabase.rpc).toHaveBeenLastCalledWith("rpc_client_management_create", {
+      p_client: {
+        name: "First American Bank",
+        category: "lender",
+        contact_name_1: "Dana Miller",
+        contact_email_1: "dana@example.test",
+        operations_scope: "amc_operations",
+      },
     });
   });
 });

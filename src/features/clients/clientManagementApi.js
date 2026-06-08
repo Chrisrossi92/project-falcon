@@ -34,6 +34,7 @@ function normalizeClientRow(row = {}) {
     last_order_date: row.last_order_date,
     is_merged: row.is_merged,
     merged_into_id: row.merged_into_id,
+    operations_scope: row.operations_scope || null,
   };
 }
 
@@ -62,6 +63,7 @@ function normalizeClientDetail(row = {}) {
     contact_phone_2: row.contact_phone_2,
     is_merged: row.is_merged,
     merged_into_id: row.merged_into_id,
+    operations_scope: row.operations_scope || null,
     total_orders: Number(row.order_count ?? 0),
     orders_count: Number(row.order_count ?? 0),
     active_orders: Number(row.active_order_count ?? 0),
@@ -97,6 +99,7 @@ function normalizeClientMutation(row = {}) {
     contact_name_1: row.contact_name_1,
     contact_email_1: row.contact_email_1,
     contact_phone_1: row.contact_phone_1,
+    operations_scope: row.operations_scope || null,
   };
 }
 
@@ -270,9 +273,13 @@ export async function listClientManagementAmcOptions() {
   return Array.isArray(data) ? data.map(normalizeAmcOption) : [];
 }
 
-export async function createClientManagementClient(payload) {
+export async function createClientManagementClient(payload, { operationsScope = null } = {}) {
+  const normalizedPayload = normalizeClientWritePayload(payload);
   const { data, error } = await supabase.rpc("rpc_client_management_create", {
-    p_client: normalizeClientWritePayload(payload),
+    p_client: {
+      ...normalizedPayload,
+      operations_scope: operationsScope,
+    },
   });
   if (error) throw error;
 

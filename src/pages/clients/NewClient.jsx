@@ -4,6 +4,7 @@ import { useNavigate, Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import ClientForm from "@/components/clients/ClientForm";
 import { createClientManagementClient } from "@/features/clients/clientManagementApi";
+import { useOperationsMode } from "@/lib/operations/OperationsModeProvider";
 
 function clientCreateErrorMessage(error) {
   const message = error?.message || "";
@@ -22,10 +23,11 @@ function clientCreateErrorMessage(error) {
 
 export default function NewClient() {
   const nav = useNavigate();
+  const { operationsMode } = useOperationsMode();
 
   async function handleSubmit(patch) {
     try {
-      const row = await createClientManagementClient(patch);
+      const row = await createClientManagementClient(patch, { operationsScope: operationsMode });
       toast.success("Client created");
       nav(`/clients/${row.id}`, { replace: true });
     } catch (e) {
@@ -47,5 +49,4 @@ export default function NewClient() {
     </div>
   );
 }
-
 

@@ -1606,6 +1606,16 @@ export default function UsersIndex() {
     () => members.filter((member) => String(member.membership_status || "").toLowerCase() !== "active"),
     [members]
   );
+  const activePermissionCenterMember = useMemo(() => {
+    if (!permissionCenterMember) return null;
+    return (
+      members.find(
+        (member) =>
+          (permissionCenterMember.membership_id && member.membership_id === permissionCenterMember.membership_id) ||
+          (permissionCenterMember.user_id && member.user_id === permissionCenterMember.user_id),
+      ) || permissionCenterMember
+    );
+  }, [members, permissionCenterMember]);
 
   const load = useCallback(async () => {
     if (!canListMembers) {
@@ -1863,8 +1873,8 @@ export default function UsersIndex() {
         onSaved={load}
       />
       <PermissionCenterDialog
-        open={Boolean(permissionCenterMember)}
-        member={permissionCenterMember}
+        open={Boolean(activePermissionCenterMember)}
+        member={activePermissionCenterMember}
         operationsMode={operationsMode}
         onClose={() => setPermissionCenterMember(null)}
         onSaved={load}

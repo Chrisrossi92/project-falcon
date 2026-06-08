@@ -735,6 +735,93 @@ describe("UsersIndex readability", () => {
     expect(membersApiMock.listCompanyMembers.mock.calls.length).toBeGreaterThan(listCallsBeforeSave);
   });
 
+  it("shows a saved secondary Appraiser template after Permission Center reload", async () => {
+    operationsModeState.operationsMode = "amc_operations";
+    const adminWithAppraiser = {
+      ...adminMember,
+      role_assignments: [
+        adminMember.role_assignments[0],
+        {
+          role_id: "role-appraiser",
+          role_name: "Appraiser",
+          is_owner_role: false,
+          is_primary: false,
+          status: "active",
+        },
+      ],
+    };
+    let memberLoadCount = 0;
+    membersApiMock.listCompanyMembers.mockImplementation(() => {
+      memberLoadCount += 1;
+      return Promise.resolve(memberLoadCount === 1 ? [adminMember] : [adminWithAppraiser]);
+    });
+    invitationsApiMock.listCompanyRolePresets.mockResolvedValue([
+      {
+        role_id: "role-admin",
+        role_name: "Admin",
+        assignable_by_current_user: true,
+      },
+      {
+        role_id: "role-appraiser",
+        role_name: "Appraiser",
+        assignable_by_current_user: true,
+      },
+    ]);
+    invitationsApiMock.listCompanyRolePermissionPreview.mockResolvedValue([
+      {
+        role_id: "role-admin",
+        role_name: "Admin",
+        permission_key: "clients.create",
+        permission_category: "clients",
+        permission_label: "Create clients",
+      },
+      {
+        role_id: "role-appraiser",
+        role_name: "Appraiser",
+        permission_key: "orders.assignable_as_appraiser",
+        permission_category: "orders",
+        permission_label: "Assignable as Appraiser",
+      },
+    ]);
+    membersApiMock.listCompanyMemberPermissionOverrides.mockResolvedValue([]);
+
+    renderUsersIndex();
+
+    await screen.findByText("Active Team Members");
+    const adminCard = memberArticle("Ari Admin");
+    fireEvent.click(within(adminCard).getByRole("button", { name: "Permission Center" }));
+
+    const permissionDialog = await screen.findByRole("dialog", { name: "Ari Admin" });
+    expect(within(permissionDialog).getByText("None")).toBeInTheDocument();
+    fireEvent.click(within(permissionDialog).getByRole("button", { name: "Edit permissions" }));
+
+    const appraiserCheckbox = within(permissionDialog).getByRole("checkbox", { name: /Appraiser/i });
+    expect(appraiserCheckbox).not.toBeChecked();
+    fireEvent.click(appraiserCheckbox);
+    fireEvent.click(within(permissionDialog).getByRole("button", { name: "Review changes" }));
+    fireEvent.click(within(permissionDialog).getByRole("button", { name: "Confirm changes" }));
+    const confirmDialog = await screen.findByRole("alertdialog", { name: "Confirm Permission Center changes" });
+    fireEvent.click(within(confirmDialog).getByRole("button", { name: "Save Permission Center changes" }));
+
+    await waitFor(() => {
+      expect(membersApiMock.saveCompanyMemberAccess).toHaveBeenCalledWith(
+        "user-admin",
+        ["role-admin", "role-appraiser"],
+        "role-admin",
+        [],
+        expect.objectContaining({
+          savePermissionOverrides: true,
+          reason: "Updated from Permission Center",
+        }),
+      );
+    });
+    await waitFor(() => expect(within(permissionDialog).getByText("Appraiser")).toBeInTheDocument());
+    expect(within(permissionDialog).getByText("Additional role/template access currently assigned.")).toBeInTheDocument();
+
+    fireEvent.click(within(permissionDialog).getByRole("button", { name: "Edit permissions" }));
+    expect(within(permissionDialog).getByRole("checkbox", { name: /Appraiser/i })).toBeChecked();
+  });
+
   it("preserves Permission Center draft changes when confirmed save fails", async () => {
     operationsModeState.operationsMode = "amc_operations";
     membersApiMock.saveCompanyMemberAccess.mockRejectedValueOnce({
