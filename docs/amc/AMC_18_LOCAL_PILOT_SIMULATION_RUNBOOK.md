@@ -134,6 +134,12 @@ The current product has Client Portal permissions and `client_portal_members` ma
 dedicated invite/onboarding flow. For this hands-on local pilot, prepare Dana Miller manually in the
 local database.
 
+AMC-19 gap:
+
+- There is no first-class client invite/onboarding flow yet. This is not a Client Portal request
+  workflow blocker once the account exists, but it is an important pilot setup gap because staff
+  cannot invite Dana through a supported UI.
+
 Required local-only records:
 
 - `auth.users` row for `client.demo.dana+local@example.test`.
@@ -147,6 +153,30 @@ Required local-only records:
 - `clients` row for `First Buckeye Bank` if one does not already exist.
 - active `client_portal_members` row mapping Dana to First Buckeye Bank.
 - auth app metadata setting active/current company to `falcon_default`.
+
+Suggested local setup sequence:
+
+1. Create Dana's Auth user in local Supabase Auth/Studio or with a local service-role helper only.
+   Use `client.demo.dana+local@example.test` and `FalconSmoke123!`.
+2. In SQL, resolve:
+   - `v_company_id`: the `falcon_default` company id.
+   - `v_auth_user_id`: Dana's `auth.users.id`.
+   - `v_client_id`: the First Buckeye Bank client id.
+3. Upsert Dana's `public.users` row with `auth_id = v_auth_user_id`, email, name, and active
+   status.
+4. Upsert `company_memberships(company_id, user_id, status, membership_type, is_primary)` as active
+   with a local/demo membership marker.
+5. Create or reuse a local-only role named `Client Portal Demo` and grant:
+   - `client_portal.dashboard.view`;
+   - `client_portal.orders.read`;
+   - `client_portal.orders.create`;
+   - `client_portal.reports.read`.
+6. Upsert `user_role_assignments(company_id, user_id, role_id, status, is_primary)` for the demo
+   role.
+7. Upsert `client_portal_members(company_id, client_id, user_id, status)` as active.
+8. Set Dana's Auth app metadata for `active_company_id` and `current_company_id` to `falcon_default`.
+9. Confirm `rpc_client_portal_dashboard()`, `rpc_client_portal_orders()`, and
+   `rpc_client_portal_order_request_create(...)` work as Dana.
 
 Do not grant Dana:
 
@@ -191,6 +221,7 @@ Expected result:
 
 - No operational order is created directly by the client.
 - Request is visible to staff review.
+- The returned request payload includes an opaque `request_key` and `submitted` status.
 - Client sees no vendor, fee, procurement, assignment, admin, or internal-note controls.
 
 UX notes:
@@ -250,6 +281,8 @@ Expected result:
 
 - Exactly one operational order is created.
 - Request-to-order linkage is visible to staff.
+- The converted request status becomes `accepted`.
+- Conversion requires both `client_portal.order_requests.manage` and `orders.create`.
 - No assignment, vendor bid, invoice, payment, report, or document is created during conversion.
 - Duplicate conversion is blocked.
 
@@ -417,6 +450,21 @@ They are recorded here so the local run can distinguish fixed blockers from defe
 | Permission Center save succeeded but saved Appraiser template did not reappear | Blocking | Fixed | The open dialog now follows the refreshed member row after save, and Appraiser/Reviewer work-eligibility templates remain visible in AMC-scoped member reloads. |
 | Falcon AMC client creation failed or created zero-order clients without AMC visibility | Blocking | Fixed | New Client now sends active workspace scope, and the client create RPC persists `clients.operations_scope` so new AMC/Internal relationships appear only in the creating workspace before orders exist. |
 | Legacy Edit roles modal opened with a long effective-permission list | UX | Fixed | Edit Access now keeps role presets visible, shows granted/category/override counts first, and leaves detailed effective permissions collapsed until staff expands them. |
+| Client Portal has no client invite/onboarding flow | Important before pilot | AMC-19 gap | Dana can validate request intake after a manual local account/mapping setup, but staff cannot invite or onboard a lender through the product yet. |
+
+Client Portal request workflow checkpoint:
+
+- Intake path is ready to test after manual Dana setup.
+- Client request submit uses `rpc_client_portal_order_request_create(...)`; it creates only
+  `client_portal_order_requests` and does not create an operational order.
+- Staff review uses `/client-requests` and the dedicated staff review RPCs.
+- Status handling supports `submitted`, `under_review`, `accepted`, `declined`, and `cancelled`;
+  the current UI can mark `under_review` or reject and can convert submitted/under-review requests.
+- Conversion uses `rpc_client_portal_order_request_convert_to_order(...)`; it requires
+  `client_portal.order_requests.manage` plus `orders.create`, sets request status to `accepted`,
+  stores `accepted_order_id`, and creates no vendor/procurement/payment/report records.
+- The remaining blocker for an unaided clickthrough is onboarding, not request/review/conversion
+  wiring.
 
 Deferred after these fixes:
 
