@@ -304,6 +304,18 @@ function EditRolePresetsModal({ member, open, onClose, onSaved }) {
     .sort((a, b) => roleSortValue(a) - roleSortValue(b) || String(a.role_name).localeCompare(String(b.role_name)));
   const effectivePermissionOverrides = normalizeEffectiveOverrideMap(permissionOverrides, selectedRoleIds, rolePermissions);
   const permissionPreviewGroups = buildEffectivePermissionPreview(selectedRoleIds, rolePermissions, effectivePermissionOverrides);
+  const permissionSummary = permissionPreviewGroups.reduce(
+    (summary, group) => {
+      const effectiveCount = group.permissions.filter((permission) => permission.effective).length;
+      const overrideCount = group.permissions.filter((permission) => permission.override).length;
+      return {
+        effectiveCount: summary.effectiveCount + effectiveCount,
+        overrideCount: summary.overrideCount + overrideCount,
+        categoryCount: summary.categoryCount + 1,
+      };
+    },
+    { effectiveCount: 0, overrideCount: 0, categoryCount: 0 },
+  );
 
   const toggleRole = (role) => {
     if (!role.assignable_by_current_user && !currentRoleIds.has(role.role_id)) return;
@@ -460,7 +472,7 @@ function EditRolePresetsModal({ member, open, onClose, onSaved }) {
             <div className="border-b border-slate-200 px-3 py-3">
               <h3 id="effective-permissions-title" className="text-sm font-semibold text-slate-800">Effective Permissions</h3>
               <p className="mt-1 text-xs text-slate-500">
-                Role-derived access plus explicit V1-safe grants or revokes. Hidden product domains stay suppressed.
+                Summary-first preview of role-derived access plus explicit V1-safe grants or revokes.
               </p>
               {permissionPreviewGroups.some((group) => group.id === "work_eligibility") && (
                 <p className="mt-1 text-xs text-slate-500">
@@ -478,77 +490,110 @@ function EditRolePresetsModal({ member, open, onClose, onSaved }) {
               </div>
             ) : (
               <div className="grid gap-3 p-3">
-                {permissionPreviewGroups.map((group) => (
-                  <div key={group.id}>
-                    <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">{group.label}</div>
-                    <ul className="mt-2 grid gap-2">
-                      {group.permissions.map((permission) => (
-                        <li key={permission.key} className="grid gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 sm:grid-cols-[1fr_auto]">
-                          <div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="text-sm font-medium text-slate-800">{permission.label}</span>
-                              {permission.override === "grant" && (
-                                <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
-                                  Granted
-                                </span>
-                              )}
-                              {permission.override === "revoke" && (
-                                <span className="rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs font-semibold text-rose-700">
-                                  Revoked
-                                </span>
-                              )}
-                              {!permission.override && permission.inherited && (
-                                <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs font-semibold text-slate-600">
-                                  Inherited
-                                </span>
-                              )}
-                              {!permission.effective && !permission.override && (
-                                <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs font-semibold text-slate-500">
-                                  Not granted
-                                </span>
-                              )}
-                            </div>
-                            {permission.sourceRoles.length > 0 && (
-                              <div className="mt-1 text-xs text-slate-500">
-                                From {permission.sourceRoles.join(", ")}
-                              </div>
-                            )}
-                          </div>
-                          {permission.readOnly ? (
-                            <div className="text-xs font-medium text-slate-500">Role preset managed</div>
-                          ) : (
-                            <div className="flex flex-wrap items-center gap-1">
-                              <button
-                                type="button"
-                                onClick={() => setPermissionOverride(permission.key, null)}
-                                disabled={submitting || !permission.override}
-                                className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-                              >
-                                Inherit
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setPermissionOverride(permission.key, "grant")}
-                                disabled={submitting || permission.override === "grant"}
-                                className="rounded-md border border-emerald-200 bg-white px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
-                              >
-                                Grant
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setPermissionOverride(permission.key, "revoke")}
-                                disabled={submitting || permission.override === "revoke"}
-                                className="rounded-md border border-rose-200 bg-white px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50"
-                              >
-                                Revoke
-                              </button>
-                            </div>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
+                <div className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 sm:grid-cols-3">
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Granted</div>
+                    <div className="mt-1 text-lg font-semibold text-slate-950">{permissionSummary.effectiveCount}</div>
                   </div>
-                ))}
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Categories</div>
+                    <div className="mt-1 text-lg font-semibold text-slate-950">{permissionSummary.categoryCount}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Overrides</div>
+                    <div className="mt-1 text-lg font-semibold text-slate-950">{permissionSummary.overrideCount}</div>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2" aria-label="Effective permission category summary">
+                  {permissionPreviewGroups.map((group) => (
+                    <span
+                      key={group.id}
+                      className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600"
+                    >
+                      {group.label}: {group.permissions.filter((permission) => permission.effective).length}/{group.permissions.length}
+                    </span>
+                  ))}
+                </div>
+                <details className="group rounded-md border border-slate-200 bg-white">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                    <span>Inspect permission details</span>
+                    <span className="text-xs text-slate-400 group-open:hidden">Expand</span>
+                    <span className="hidden text-xs text-slate-400 group-open:inline">Collapse</span>
+                  </summary>
+                  <div className="grid gap-3 border-t border-slate-200 p-3">
+                    {permissionPreviewGroups.map((group) => (
+                      <div key={group.id}>
+                        <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">{group.label}</div>
+                        <ul className="mt-2 grid gap-2">
+                          {group.permissions.map((permission) => (
+                            <li key={permission.key} className="grid gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 sm:grid-cols-[1fr_auto]">
+                              <div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="text-sm font-medium text-slate-800">{permission.label}</span>
+                                  {permission.override === "grant" && (
+                                    <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                                      Granted
+                                    </span>
+                                  )}
+                                  {permission.override === "revoke" && (
+                                    <span className="rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs font-semibold text-rose-700">
+                                      Revoked
+                                    </span>
+                                  )}
+                                  {!permission.override && permission.inherited && (
+                                    <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs font-semibold text-slate-600">
+                                      Inherited
+                                    </span>
+                                  )}
+                                  {!permission.effective && !permission.override && (
+                                    <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs font-semibold text-slate-500">
+                                      Not granted
+                                    </span>
+                                  )}
+                                </div>
+                                {permission.sourceRoles.length > 0 && (
+                                  <div className="mt-1 text-xs text-slate-500">
+                                    From {permission.sourceRoles.join(", ")}
+                                  </div>
+                                )}
+                              </div>
+                              {permission.readOnly ? (
+                                <div className="text-xs font-medium text-slate-500">Role preset managed</div>
+                              ) : (
+                                <div className="flex flex-wrap items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => setPermissionOverride(permission.key, null)}
+                                    disabled={submitting || !permission.override}
+                                    className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                                  >
+                                    Inherit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setPermissionOverride(permission.key, "grant")}
+                                    disabled={submitting || permission.override === "grant"}
+                                    className="rounded-md border border-emerald-200 bg-white px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
+                                  >
+                                    Grant
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setPermissionOverride(permission.key, "revoke")}
+                                    disabled={submitting || permission.override === "revoke"}
+                                    className="rounded-md border border-rose-200 bg-white px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+                                  >
+                                    Revoke
+                                  </button>
+                                </div>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                </details>
               </div>
             )}
           </section>

@@ -416,6 +416,7 @@ They are recorded here so the local run can distinguish fixed blockers from defe
 | Users directory mixed Internal, AMC, Vendor, and Client Portal members | High | Fixed | Users list reads now pass active operation scope and the backend filters members plus returned role assignments from role permission metadata, preserving no-scope fallback only for callers without operation context. |
 | Permission Center save succeeded but saved Appraiser template did not reappear | Blocking | Fixed | The open dialog now follows the refreshed member row after save, and Appraiser/Reviewer work-eligibility templates remain visible in AMC-scoped member reloads. |
 | Falcon AMC client creation failed or created zero-order clients without AMC visibility | Blocking | Fixed | New Client now sends active workspace scope, and the client create RPC persists `clients.operations_scope` so new AMC/Internal relationships appear only in the creating workspace before orders exist. |
+| Legacy Edit roles modal opened with a long effective-permission list | UX | Fixed | Edit Access now keeps role presets visible, shows granted/category/override counts first, and leaves detailed effective permissions collapsed until staff expands them. |
 
 Deferred after these fixes:
 
@@ -494,6 +495,14 @@ Follow-up production retest fixes:
   - Create First American Bank in Falcon AMC mode with Dana Miller as primary contact.
   - Confirm the client appears in AMC Client Services and does not appear in Internal Client
     Relationships.
+
+Production retest note:
+
+- Permission persistence confirmed: Abby showed Admin plus Appraiser after save and reopen.
+- Client operation scoping confirmed: the AMC-created First American Bank relationship did not
+  appear in Internal Client Relationships.
+- Edit roles cleanup applied: the legacy Edit Access modal now defaults to a summary-first
+  effective-permission preview with details available on demand.
 
 Do not run broad `supabase db push --include-all` for this hotfix path until duplicate local
 migration versions are resolved or proven safe for the target project.

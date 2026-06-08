@@ -259,6 +259,10 @@ function memberArticle(name) {
   return screen.getAllByText(name).map((node) => node.closest("article")).find(Boolean);
 }
 
+function expandAccessPermissionDetails(accessDialog) {
+  fireEvent.click(within(accessDialog).getByText("Inspect permission details"));
+}
+
 describe("UsersIndex readability", () => {
   beforeEach(() => {
     permissionsState.allowed = true;
@@ -554,9 +558,18 @@ describe("UsersIndex readability", () => {
     expect(screen.getByText(/inherited access plus explicit overrides/i)).toBeInTheDocument();
     expect(await within(accessDialog).findByText("Effective Permissions")).toBeInTheDocument();
     expect(screen.getByText(/role-derived access plus explicit V1-safe grants or revokes/i)).toBeInTheDocument();
-    expect(within(accessDialog).getByText("Orders")).toBeInTheDocument();
-    expect(within(accessDialog).getByText("Read all orders")).toBeInTheDocument();
-    expect(within(accessDialog).getByText("Invite users")).toBeInTheDocument();
+    expect(within(accessDialog).getByText("Granted")).toBeInTheDocument();
+    expect(within(accessDialog).getByText("Categories")).toBeInTheDocument();
+    expect(within(accessDialog).getByText("Overrides")).toBeInTheDocument();
+    expect(within(accessDialog).getByText("Orders: 1/1")).toBeInTheDocument();
+    expect(within(accessDialog).getByText("Users: 1/1")).toBeInTheDocument();
+    expect(within(accessDialog).getByText("Inspect permission details")).toBeInTheDocument();
+    expect(within(accessDialog).getByText("Read all orders")).not.toBeVisible();
+    expect(within(accessDialog).getByText("Invite users")).not.toBeVisible();
+    expandAccessPermissionDetails(accessDialog);
+    expect(within(accessDialog).getByText("Orders")).toBeVisible();
+    expect(within(accessDialog).getByText("Read all orders")).toBeVisible();
+    expect(within(accessDialog).getByText("Invite users")).toBeVisible();
     expect(within(accessDialog).getAllByText("From Admin").length).toBeGreaterThan(0);
     expect(within(accessDialog).getAllByText("Inherited").length).toBeGreaterThan(0);
     expect(within(accessDialog).getAllByRole("button", { name: "Grant" }).length).toBeGreaterThan(0);
@@ -568,8 +581,8 @@ describe("UsersIndex readability", () => {
 
     expect(await within(accessDialog).findByText("Review / Workflow")).toBeInTheDocument();
     expect(within(accessDialog).getByText("Work Eligibility")).toBeInTheDocument();
-    expect(within(accessDialog).getByText("Assignable as Reviewer")).toBeInTheDocument();
-    expect(within(accessDialog).getByText("Approve review")).toBeInTheDocument();
+    expect(within(accessDialog).getByText("Assignable as Reviewer")).toBeVisible();
+    expect(within(accessDialog).getByText("Approve review")).toBeVisible();
     expect(within(accessDialog).getAllByText("From Reviewer").length).toBeGreaterThan(0);
   });
 
@@ -929,6 +942,7 @@ describe("UsersIndex readability", () => {
     const reviewerRole = within(accessDialog).getByText("Reviewer").closest("label");
     fireEvent.click(within(reviewerRole).getByRole("checkbox"));
     fireEvent.click(within(reviewerRole).getByRole("radio"));
+    expandAccessPermissionDetails(accessDialog);
     const ordersPermission = within(accessDialog).getByText("Read all orders").closest("li");
     fireEvent.click(within(ordersPermission).getByRole("button", { name: "Revoke" }));
     fireEvent.click(within(accessDialog).getByRole("button", { name: "Save Access" }));
@@ -1060,6 +1074,7 @@ describe("UsersIndex readability", () => {
     fireEvent.click(within(reviewerCard).getByRole("button", { name: "Edit roles" }));
 
     const accessDialog = await screen.findByRole("dialog", { name: "Edit Access" });
+    expandAccessPermissionDetails(accessDialog);
     const appraiserEligibilityPermission = within(accessDialog)
       .getByText("Assignable as Appraiser")
       .closest("li");
@@ -1138,6 +1153,7 @@ describe("UsersIndex readability", () => {
     fireEvent.click(within(adminCard).getByRole("button", { name: "Edit roles" }));
 
     const accessDialog = await screen.findByRole("dialog", { name: "Edit Access" });
+    expandAccessPermissionDetails(accessDialog);
     expect(within(accessDialog).getByText("Work Eligibility")).toBeInTheDocument();
     expect(within(accessDialog).getByText("Assignable as Appraiser")).toBeInTheDocument();
     expect(within(accessDialog).getByText("Create clients")).toBeInTheDocument();
@@ -1206,6 +1222,7 @@ describe("UsersIndex readability", () => {
     fireEvent.click(within(adminCard).getByRole("button", { name: "Edit roles" }));
 
     const accessDialog = await screen.findByRole("dialog", { name: "Edit Access" });
+    expandAccessPermissionDetails(accessDialog);
     const inviteUsersPermission = await within(accessDialog).findByText("Invite users");
     const permissionRow = inviteUsersPermission.closest("li");
 
