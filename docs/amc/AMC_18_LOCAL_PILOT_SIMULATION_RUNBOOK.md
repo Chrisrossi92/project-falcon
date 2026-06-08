@@ -150,6 +150,9 @@ AMC-19 onboarding status:
   membership.
 - Active `client_portal_members` access now grants only Client Portal permissions, so Dana can use
   the portal after acceptance without operational company membership.
+- Client-only users who land on `/` or `/dashboard` after login are redirected to `/client-portal`
+  before the Internal/AMC operations shell renders. Users with both operational and Client Portal
+  access keep the normal operational dashboard default unless they are completing an invite.
 - Real email delivery remains deferred, so staff must copy and send the invite link manually during
   the hands-on pilot.
 - The proposed onboarding architecture is documented in

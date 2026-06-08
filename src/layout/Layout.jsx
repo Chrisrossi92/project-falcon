@@ -1,4 +1,4 @@
-import { Outlet } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import TopNav from "@/components/shell/TopNav";
 import {
   OperationsModeProvider,
@@ -6,6 +6,7 @@ import {
 } from "@/lib/operations/OperationsModeProvider";
 import { resolveAvailableOperationsModes } from "@/lib/operations/operationAccess";
 import { useEffectivePermissions } from "@/lib/hooks/usePermissions";
+import { isClientOnlyPortalAccess } from "@/lib/permissions/clientPortalAccess";
 import { useShellProfile } from "@/lib/shell/useShellProfile";
 import { getWorkspaceDocumentTitle } from "@/lib/workspace/workspaceIdentity";
 import { useEffect } from "react";
@@ -23,7 +24,12 @@ function WorkspaceDocumentTitle() {
 export default function Layout() {
   const permissions = useEffectivePermissions();
   const shellProfile = useShellProfile();
+  const location = useLocation();
   const availableOperationsModes = resolveAvailableOperationsModes(permissions, shellProfile);
+
+  if (!permissions.loading && isClientOnlyPortalAccess(permissions.permissionKeys)) {
+    return <Navigate to="/client-portal" replace state={{ from: location }} />;
+  }
 
   return (
     <OperationsModeProvider availableOperationsModes={availableOperationsModes}>

@@ -1872,6 +1872,9 @@ Client invite acceptance foundation:
   not create `company_memberships` or operational role assignments.
 - Active `client_portal_members` now provide only Client Portal permission recognition, allowing
   accepted client users into `/client-portal` without operational company membership.
+- Client-only users now redirect from `/` or `/dashboard` to `/client-portal` before the
+  operational shell renders; dual operational/client users keep the operational default unless they
+  are explicitly completing an invite.
 - Expired, revoked, and already accepted states are shown without exposing internal workspace data.
 
 AMC-19 boundary:

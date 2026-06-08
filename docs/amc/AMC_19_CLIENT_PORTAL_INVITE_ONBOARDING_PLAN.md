@@ -253,6 +253,9 @@ Client-side manual invite acceptance foundation:
 - Client Portal access recognition now grants only the four `client_portal.*` client permissions
   from active `client_portal_members`, so accepted client users can open the portal without becoming
   operational company members.
+- Client-only users are routed from `/` or `/dashboard` to `/client-portal` before the operational
+  shell renders. Users with both operational and Client Portal access keep the operational default
+  unless they are explicitly completing an invite.
 
 Remaining implementation work after the token, staff manual-link, and acceptance foundations:
 

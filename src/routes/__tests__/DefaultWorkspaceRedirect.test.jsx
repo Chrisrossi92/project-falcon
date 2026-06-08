@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PERMISSIONS } from "@/lib/permissions/constants";
 
 const permissionState = vi.hoisted(() => ({
-  allowed: new Set(),
+  permissionKeys: [],
   loading: false,
 }));
 
@@ -17,10 +17,13 @@ const shellProfileState = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/hooks/usePermissions", () => ({
-  useCanAny: (permissionKeys) => ({
-    allowed: permissionKeys.some((permissionKey) => permissionState.allowed.has(permissionKey)),
+  useEffectivePermissions: () => ({
+    permissionKeys: permissionState.permissionKeys,
+    permissions: permissionState.permissionKeys,
     loading: permissionState.loading,
     error: null,
+    hasAnyPermission: (permissionKeys) =>
+      permissionKeys.some((permissionKey) => permissionState.permissionKeys.includes(permissionKey)),
   }),
 }));
 
@@ -49,6 +52,7 @@ function renderRedirect() {
       <Routes>
         <Route path="/" element={<DefaultWorkspaceRedirect />} />
         <Route path="/dashboard" element={<LocationProbe />} />
+        <Route path="/client-portal" element={<LocationProbe />} />
         <Route path="/my-work" element={<LocationProbe />} />
       </Routes>
     </MemoryRouter>,
@@ -57,7 +61,7 @@ function renderRedirect() {
 
 describe("DefaultWorkspaceRedirect", () => {
   beforeEach(() => {
-    permissionState.allowed = new Set();
+    permissionState.permissionKeys = [];
     permissionState.loading = false;
     shellProfileState.profileId = "operations";
     shellProfileState.loading = false;
@@ -69,7 +73,7 @@ describe("DefaultWorkspaceRedirect", () => {
 
   it("routes internal appraiser shell users to My Work when existing order read allows it", () => {
     shellProfileState.profileId = "my_work";
-    permissionState.allowed = new Set([PERMISSIONS.ORDERS_READ_ASSIGNED]);
+    permissionState.permissionKeys = [PERMISSIONS.ORDERS_READ_ASSIGNED];
 
     renderRedirect();
 
@@ -78,7 +82,7 @@ describe("DefaultWorkspaceRedirect", () => {
 
   it("keeps owner/admin and reviewer defaults on Operations Dashboard until a dedicated review route exists", () => {
     shellProfileState.profileId = "review_queue";
-    permissionState.allowed = new Set([PERMISSIONS.ORDERS_READ_ASSIGNED]);
+    permissionState.permissionKeys = [PERMISSIONS.ORDERS_READ_ASSIGNED];
 
     renderRedirect();
 
@@ -87,6 +91,28 @@ describe("DefaultWorkspaceRedirect", () => {
 
   it("does not route to My Work without existing order-read visibility", () => {
     shellProfileState.profileId = "my_work";
+
+    renderRedirect();
+
+    expect(screen.getByTestId("location")).toHaveTextContent("/dashboard");
+  });
+
+  it("routes client-only portal users to the Client Portal by default", () => {
+    permissionState.permissionKeys = [
+      PERMISSIONS.CLIENT_PORTAL_DASHBOARD_VIEW,
+      PERMISSIONS.CLIENT_PORTAL_ORDERS_READ,
+    ];
+
+    renderRedirect();
+
+    expect(screen.getByTestId("location")).toHaveTextContent("/client-portal");
+  });
+
+  it("keeps users with operational and client access on the operational default", () => {
+    permissionState.permissionKeys = [
+      PERMISSIONS.CLIENT_PORTAL_DASHBOARD_VIEW,
+      PERMISSIONS.ORDERS_READ_ASSIGNED,
+    ];
 
     renderRedirect();
 

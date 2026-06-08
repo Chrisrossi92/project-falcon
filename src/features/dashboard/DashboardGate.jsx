@@ -5,6 +5,7 @@ import DashboardPage from "@/features/dashboard/DashboardPage";
 import { AssignmentState, LoadingState } from "@/features/assignments/AssignmentPrimitives";
 import { useEffectivePermissions } from "@/lib/hooks/usePermissions";
 import { useOperationsMode } from "@/lib/operations/OperationsModeProvider";
+import { isClientOnlyPortalAccess } from "@/lib/permissions/clientPortalAccess";
 import { useShellProfile } from "@/lib/shell/useShellProfile";
 import {
   CURRENT_DASHBOARD_RESOLUTION_STATES,
@@ -27,6 +28,10 @@ export default function DashboardGate() {
 
   if (dashboardResolution.state === CURRENT_DASHBOARD_RESOLUTION_STATES.LOADING) {
     return <LoadingState message="Loading dashboard..." />;
+  }
+
+  if (isClientOnlyPortalAccess(permissions.permissionKeys)) {
+    return <Navigate to="/client-portal" replace />;
   }
 
   if (dashboardResolution.state === CURRENT_DASHBOARD_RESOLUTION_STATES.ORDER_DASHBOARD) {

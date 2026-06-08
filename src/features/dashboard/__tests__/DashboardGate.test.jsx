@@ -94,6 +94,7 @@ function renderDashboardGateInRouter() {
       <OperationsModeProvider>
         <Routes>
           <Route path="/dashboard" element={<DashboardGate />} />
+          <Route path="/client-portal" element={<LocationProbe />} />
           <Route path="/my-work" element={<LocationProbe />} />
         </Routes>
       </OperationsModeProvider>
@@ -237,6 +238,32 @@ describe("DashboardGate current dashboard resolution helper migration", () => {
     expect(screen.getByTestId("location")).toHaveTextContent("/my-work");
     expect(screen.queryByTestId("order-dashboard")).toBeNull();
     expect(dashboardProps.order).toHaveLength(0);
+  });
+
+  it("redirects client-only portal users away from Operations Dashboard", () => {
+    permissionState.permissionKeys = [
+      PERMISSIONS.CLIENT_PORTAL_DASHBOARD_VIEW,
+      PERMISSIONS.CLIENT_PORTAL_ORDERS_READ,
+    ];
+
+    renderDashboardGateInRouter();
+
+    expect(screen.getByTestId("location")).toHaveTextContent("/client-portal");
+    expect(screen.queryByTestId("order-dashboard")).toBeNull();
+    expect(screen.queryByTestId("assignment-dashboard")).toBeNull();
+    expect(screen.queryByTestId("assignment-state")).toBeNull();
+  });
+
+  it("keeps users with operational and client access on the Operations Dashboard", () => {
+    permissionState.permissionKeys = [
+      PERMISSIONS.CLIENT_PORTAL_DASHBOARD_VIEW,
+      PERMISSIONS.ORDERS_READ_ASSIGNED,
+    ];
+
+    renderDashboardGate();
+
+    expect(screen.getByTestId("order-dashboard")).toBeInTheDocument();
+    expect(screen.queryByTestId("assignment-state")).toBeNull();
   });
 
   it("does not let shell metadata select the order dashboard for assignment-only users", () => {
