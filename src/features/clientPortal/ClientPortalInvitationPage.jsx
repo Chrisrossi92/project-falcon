@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useSessionContext } from "@supabase/auth-helpers-react";
 
@@ -6,6 +6,7 @@ import {
   acceptClientPortalInvitation,
   readClientPortalInvitation,
 } from "@/features/clientPortal/api";
+import supabase from "@/lib/supabaseClient";
 
 function invitationStatusCopy(status) {
   switch (status) {
@@ -82,6 +83,10 @@ export default function ClientPortalInvitationPage() {
   const [invite, setInvite] = useState(null);
   const [status, setStatus] = useState("loading");
   const [error, setError] = useState("");
+  const [authMode, setAuthMode] = useState("create");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const attemptedAcceptRef = useRef(false);
 
   const safeToken = useMemo(() => String(token || "").trim(), [token]);
   const returnPath = `/client-portal/invitations/${encodeURIComponent(safeToken)}`;
@@ -125,10 +130,59 @@ export default function ClientPortalInvitationPage() {
     }
   }, [navigate, safeToken]);
 
-  const signInPath = `/login?returnTo=${encodeURIComponent(returnPath)}`;
   const statusCopy = invitationStatusCopy(invite?.status);
   const canAccept = invite?.status === "pending";
   const signedIn = Boolean(session?.user);
+
+  useEffect(() => {
+    if (!signedIn || !canAccept || status !== "ready" || attemptedAcceptRef.current) return;
+    attemptedAcceptRef.current = true;
+    acceptInvite();
+  }, [acceptInvite, canAccept, signedIn, status]);
+
+  const submitInviteAuth = useCallback(async (event) => {
+    event.preventDefault();
+
+    if (!invite?.email) {
+      setError("This invitation is missing an email address.");
+      return;
+    }
+    if (!password) {
+      setError("Enter a password to continue.");
+      return;
+    }
+    if (authMode === "create" && password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    setStatus(authMode === "create" ? "creating_account" : "signing_in");
+    setError("");
+
+    try {
+      const result = authMode === "create"
+        ? await supabase.auth.signUp({
+            email: invite.email,
+            password,
+            options: {
+              emailRedirectTo: `${window.location.origin}${returnPath}`,
+            },
+          })
+        : await supabase.auth.signInWithPassword({
+            email: invite.email,
+            password,
+          });
+
+      if (result?.error) throw result.error;
+
+      attemptedAcceptRef.current = true;
+      await acceptClientPortalInvitation(safeToken);
+      navigate("/client-portal", { replace: true });
+    } catch (authError) {
+      setStatus("ready");
+      setError(errorMessage(authError));
+    }
+  }, [authMode, confirmPassword, invite?.email, navigate, password, returnPath, safeToken]);
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900">
@@ -191,21 +245,76 @@ export default function ClientPortalInvitationPage() {
 
             <div className="mt-5 flex flex-wrap gap-3">
               {signedIn ? (
-                <button
-                  type="button"
-                  onClick={acceptInvite}
-                  disabled={!canAccept || status === "accepting"}
-                  className="inline-flex h-10 items-center justify-center rounded-md border border-slate-950 bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-200 disabled:text-slate-500"
-                >
-                  {status === "accepting" ? "Activating..." : "Accept invitation"}
-                </button>
+                <p className="text-sm text-slate-600">
+                  {status === "accepting" ? "Activating your Client Portal access..." : "You are signed in. Activating your access..."}
+                </p>
               ) : (
-                <Link
-                  to={signInPath}
-                  className="inline-flex h-10 items-center justify-center rounded-md border border-slate-950 bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800"
-                >
-                  Sign in or create account
-                </Link>
+                <form className="w-full space-y-4" onSubmit={submitInviteAuth} aria-label="client portal invite account form">
+                  <div className="flex rounded-md border border-slate-200 bg-slate-100 p-1">
+                    <button
+                      type="button"
+                      onClick={() => setAuthMode("create")}
+                      className={`h-9 flex-1 rounded px-3 text-sm font-semibold ${authMode === "create" ? "bg-white text-slate-950 shadow-sm" : "text-slate-600"}`}
+                    >
+                      Create account
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAuthMode("sign_in")}
+                      className={`h-9 flex-1 rounded px-3 text-sm font-semibold ${authMode === "sign_in" ? "bg-white text-slate-950 shadow-sm" : "text-slate-600"}`}
+                    >
+                      Sign in
+                    </button>
+                  </div>
+
+                  <label className="block text-sm font-medium text-slate-700">
+                    Email
+                    <input
+                      type="email"
+                      value={invite?.email || ""}
+                      readOnly
+                      className="mt-1 w-full rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-700"
+                    />
+                  </label>
+
+                  <label className="block text-sm font-medium text-slate-700">
+                    Password
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      autoComplete={authMode === "create" ? "new-password" : "current-password"}
+                      className="mt-1 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
+                    />
+                  </label>
+
+                  {authMode === "create" && (
+                    <label className="block text-sm font-medium text-slate-700">
+                      Confirm password
+                      <input
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(event) => setConfirmPassword(event.target.value)}
+                        autoComplete="new-password"
+                        className="mt-1 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
+                      />
+                    </label>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={status === "creating_account" || status === "signing_in"}
+                    className="inline-flex h-10 w-full items-center justify-center rounded-md border border-slate-950 bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-200 disabled:text-slate-500"
+                  >
+                    {status === "creating_account"
+                      ? "Creating account..."
+                      : status === "signing_in"
+                        ? "Signing in..."
+                        : authMode === "create"
+                          ? "Create account and continue"
+                          : "Sign in and continue"}
+                  </button>
+                </form>
               )}
             </div>
           </StatePanel>

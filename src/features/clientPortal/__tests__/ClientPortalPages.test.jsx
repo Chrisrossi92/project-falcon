@@ -19,7 +19,17 @@ const sessionMock = vi.hoisted(() => ({
   isLoading: false,
 }));
 
+const supabaseMock = vi.hoisted(() => ({
+  auth: {
+    signUp: vi.fn(),
+    signInWithPassword: vi.fn(),
+  },
+}));
+
 vi.mock("@/features/clientPortal/api", () => apiMock);
+vi.mock("@/lib/supabaseClient", () => ({
+  default: supabaseMock,
+}));
 vi.mock("@supabase/auth-helpers-react", () => ({
   useSessionContext: () => sessionMock,
 }));
@@ -68,6 +78,8 @@ describe("Client Portal pages", () => {
     apiMock.getClientPortalOrderDetail.mockReset();
     apiMock.readClientPortalInvitation.mockReset();
     apiMock.submitClientPortalOrderRequest.mockReset();
+    supabaseMock.auth.signUp.mockReset();
+    supabaseMock.auth.signInWithPassword.mockReset();
   });
 
   afterEach(() => {
@@ -274,7 +286,7 @@ describe("Client Portal pages", () => {
     expect(screen.getByDisplayValue("200 Oak St")).toBeInTheDocument();
   });
 
-  it("renders a valid client portal invitation with sign-in guidance", async () => {
+  it("renders a valid client portal invitation with create-account guidance", async () => {
     apiMock.readClientPortalInvitation.mockResolvedValue({
       clientName: "First American Bank",
       companyName: "Falcon AMC",
@@ -289,10 +301,9 @@ describe("Client Portal pages", () => {
     expect(await screen.findByText("You're invited by Falcon AMC")).toBeInTheDocument();
     expect(screen.getByText("First American Bank")).toBeInTheDocument();
     expect(screen.getByText("dmiller@firstbank.com")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Sign in or create account" })).toHaveAttribute(
-      "href",
-      "/login?returnTo=%2Fclient-portal%2Finvitations%2Fraw-token",
-    );
+    expect(screen.getByRole("button", { name: "Create account" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Email")).toHaveValue("dmiller@firstbank.com");
     expect(apiMock.getClientPortalDashboard).not.toHaveBeenCalled();
   });
 
@@ -322,7 +333,98 @@ describe("Client Portal pages", () => {
     expect(await screen.findByText("This invitation is no longer active.")).toBeInTheDocument();
   });
 
-  it("accepts a valid client portal invitation and redirects to the portal", async () => {
+  it("creates an invited client account, accepts the invite, and redirects to the portal", async () => {
+    apiMock.readClientPortalInvitation.mockResolvedValue({
+      clientName: "First American Bank",
+      companyName: "Falcon AMC",
+      email: "dmiller@firstbank.com",
+      status: "pending",
+    });
+    supabaseMock.auth.signUp.mockResolvedValue({
+      data: {
+        user: { id: "auth-user-1", email: "dmiller@firstbank.com" },
+        session: { access_token: "token" },
+      },
+      error: null,
+    });
+    apiMock.acceptClientPortalInvitation.mockResolvedValue({
+      clientName: "First American Bank",
+      email: "dmiller@firstbank.com",
+      status: "accepted",
+    });
+    apiMock.getClientPortalDashboard.mockResolvedValue({
+      activeOrderCount: 0,
+      reportAvailableCount: 0,
+      recentOrders: [],
+    });
+
+    renderPortalRoutes("/client-portal/invitations/raw-token");
+
+    fireEvent.change(await screen.findByLabelText("Password"), {
+      target: { value: "DanaPassword123!" },
+    });
+    fireEvent.change(screen.getByLabelText("Confirm password"), {
+      target: { value: "DanaPassword123!" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create account and continue" }));
+
+    await waitFor(() => {
+      expect(supabaseMock.auth.signUp).toHaveBeenCalledWith({
+        email: "dmiller@firstbank.com",
+        password: "DanaPassword123!",
+        options: {
+          emailRedirectTo: "http://localhost:3000/client-portal/invitations/raw-token",
+        },
+      });
+      expect(apiMock.acceptClientPortalInvitation).toHaveBeenCalledWith("raw-token");
+      expect(screen.getByText("Appraisal orders")).toBeInTheDocument();
+    });
+  });
+
+  it("signs in an existing invited client, accepts the invite, and redirects to the portal", async () => {
+    apiMock.readClientPortalInvitation.mockResolvedValue({
+      clientName: "First American Bank",
+      companyName: "Falcon AMC",
+      email: "dmiller@firstbank.com",
+      status: "pending",
+    });
+    supabaseMock.auth.signInWithPassword.mockResolvedValue({
+      data: {
+        user: { id: "auth-user-1", email: "dmiller@firstbank.com" },
+        session: { access_token: "token" },
+      },
+      error: null,
+    });
+    apiMock.acceptClientPortalInvitation.mockResolvedValue({
+      clientName: "First American Bank",
+      email: "dmiller@firstbank.com",
+      status: "accepted",
+    });
+    apiMock.getClientPortalDashboard.mockResolvedValue({
+      activeOrderCount: 0,
+      reportAvailableCount: 0,
+      recentOrders: [],
+    });
+
+    renderPortalRoutes("/client-portal/invitations/raw-token");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Sign in" }));
+    fireEvent.change(screen.getByLabelText("Password"), {
+      target: { value: "DanaPassword123!" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in and continue" }));
+
+    await waitFor(() => {
+      expect(supabaseMock.auth.signInWithPassword).toHaveBeenCalledWith({
+        email: "dmiller@firstbank.com",
+        password: "DanaPassword123!",
+      });
+      expect(apiMock.acceptClientPortalInvitation).toHaveBeenCalledWith("raw-token");
+      expect(screen.getByText("Appraisal orders")).toBeInTheDocument();
+    });
+  });
+
+  it("auto-accepts a pending invite for an already authenticated client", async () => {
     sessionMock.session = {
       user: {
         id: "auth-user-1",
@@ -347,8 +449,6 @@ describe("Client Portal pages", () => {
     });
 
     renderPortalRoutes("/client-portal/invitations/raw-token");
-
-    fireEvent.click(await screen.findByRole("button", { name: "Accept invitation" }));
 
     await waitFor(() => {
       expect(apiMock.acceptClientPortalInvitation).toHaveBeenCalledWith("raw-token");

@@ -1794,8 +1794,8 @@ Recommended next AMC-17 slices:
 ### AMC-19: Client Portal Invite & Onboarding
 
 Status: Architecture checkpoint complete as of 2026-06-08. Backend token foundation, staff
-manual invite-link generation, and public client invite acceptance are in progress; email delivery
-is not yet implemented.
+manual invite-link generation, public client invite acceptance, and invite-based client account
+creation are in progress; email delivery is not yet implemented.
 
 Purpose: replace manual client portal account/mapping setup with a first-class invite flow from
 Client Relationships contacts into the Client Portal.
@@ -1856,8 +1856,12 @@ Client invite acceptance foundation:
 
 - `/client-portal/invitations/:token` reads safe invite metadata and lifecycle state through
   `rpc_client_portal_invitation_read(p_token)`.
-- Pending invites route signed-out users through `/login` with a preserved return path.
-- Authenticated matching-email users accept through `rpc_client_portal_invitation_accept(p_token)`.
+- Pending invites show create-account and sign-in forms directly on the invite page with the invited
+  email prefilled.
+- Successful Supabase Auth account creation or password sign-in immediately calls
+  `rpc_client_portal_invitation_accept(p_token)`.
+- Already-authenticated matching-email users auto-accept through
+  `rpc_client_portal_invitation_accept(p_token)`.
 - Acceptance redirects to `/client-portal`, creates/reactivates `client_portal_members`, and does
   not create `company_memberships` or operational role assignments.
 - Expired, revoked, and already accepted states are shown without exposing internal workspace data.

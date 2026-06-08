@@ -232,8 +232,12 @@ Client-side manual invite acceptance foundation:
 - `/client-portal/invitations/:token` is now the public invite destination.
 - The page calls `rpc_client_portal_invitation_read(p_token)` and shows only safe client, company,
   contact, email, expiration, and lifecycle status metadata.
-- Pending invites route signed-out users through `/login` with a preserved return path.
-- Authenticated users accept with `rpc_client_portal_invitation_accept(p_token)`.
+- Pending invites show a minimal create-account form with the invited email prefilled and locked.
+- Existing-account users can switch to sign-in on the same invite page.
+- After successful Supabase Auth account creation or password sign-in, the page immediately calls
+  `rpc_client_portal_invitation_accept(p_token)`.
+- Already-authenticated matching-email users auto-accept with
+  `rpc_client_portal_invitation_accept(p_token)`.
 - Acceptance creates or reactivates `client_portal_members` and then redirects to
   `/client-portal`.
 - Expired, revoked, and already accepted invitations show lender-safe states.
