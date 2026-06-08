@@ -256,6 +256,9 @@ Client-side manual invite acceptance foundation:
 - Client-only users are routed from `/` or `/dashboard` to `/client-portal` before the operational
   shell renders. Users with both operational and Client Portal access keep the operational default
   unless they are explicitly completing an invite.
+- Client Portal order request creation resolves the request company/client from active
+  `client_portal_members`, not from operational company membership or current-company app metadata,
+  and returns specific auth, permission, membership, and field validation errors.
 
 Remaining implementation work after the token, staff manual-link, and acceptance foundations:
 

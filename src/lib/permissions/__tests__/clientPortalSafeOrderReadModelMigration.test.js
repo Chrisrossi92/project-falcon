@@ -66,6 +66,16 @@ const clientPortalMemberAccessMigrationPath = resolve(
 
 const clientPortalMemberAccessMigrationSql = readFileSync(clientPortalMemberAccessMigrationPath, 'utf8');
 
+const orderRequestMembershipContextMigrationPath = resolve(
+  process.cwd(),
+  'supabase/migrations/20260608150000_client_portal_order_request_membership_context.sql',
+);
+
+const orderRequestMembershipContextMigrationSql = readFileSync(
+  orderRequestMembershipContextMigrationPath,
+  'utf8',
+);
+
 describe('Client Portal safe order read model migration', () => {
   it('creates dedicated Client Portal permissions, member mapping, view, and RPCs', () => {
     expect(migrationSql).toContain("'client_portal.dashboard.view'");
@@ -454,6 +464,46 @@ describe('Client Portal member access without operational company membership mig
     expect(clientPortalMemberAccessMigrationSql).not.toContain('update public.company_memberships');
     expect(clientPortalMemberAccessMigrationSql).not.toContain('insert into public.user_role_assignments');
     expect(clientPortalMemberAccessMigrationSql).not.toContain('update public.user_role_assignments');
+  });
+});
+
+describe('Client Portal order request membership context migration', () => {
+  it('resolves order request company and client from active client portal memberships', () => {
+    expect(orderRequestMembershipContextMigrationSql).toContain(
+      'create or replace function public.current_app_user_client_portal_memberships()',
+    );
+    expect(orderRequestMembershipContextMigrationSql).toContain('from public.client_portal_members cpm');
+    expect(orderRequestMembershipContextMigrationSql).toContain("cpm.status = 'active'");
+    expect(orderRequestMembershipContextMigrationSql).toContain(
+      'select readable.company_id, readable.client_id',
+    );
+    expect(orderRequestMembershipContextMigrationSql).toContain(
+      'from public.current_app_user_client_portal_memberships() readable',
+    );
+    expect(orderRequestMembershipContextMigrationSql).toContain('v_company_id');
+    expect(orderRequestMembershipContextMigrationSql).toContain('v_client_id');
+  });
+
+  it('raises specific request-create auth permission membership and field errors', () => {
+    [
+      'client_portal_authentication_required',
+      'client_portal_order_request_permission_required',
+      'client_portal_membership_required',
+      'property_address_required',
+      'property_type_required',
+      'report_type_required',
+      'requested_due_date_must_be_future',
+      'client_contact_email_invalid',
+    ].forEach((errorName) => {
+      expect(orderRequestMembershipContextMigrationSql).toContain(errorName);
+    });
+  });
+
+  it('does not grant operational company access while fixing request creation', () => {
+    expect(orderRequestMembershipContextMigrationSql).not.toContain('insert into public.company_memberships');
+    expect(orderRequestMembershipContextMigrationSql).not.toContain('update public.company_memberships');
+    expect(orderRequestMembershipContextMigrationSql).not.toContain('insert into public.user_role_assignments');
+    expect(orderRequestMembershipContextMigrationSql).not.toContain('update public.user_role_assignments');
   });
 });
 

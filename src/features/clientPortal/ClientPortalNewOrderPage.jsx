@@ -33,6 +33,37 @@ function inputClassName(extra = "") {
   ].join(" ");
 }
 
+function orderRequestErrorMessage(error) {
+  const message = String(error?.message || error?.details || error || "");
+
+  if (/property_address_required/i.test(message)) {
+    return "Enter the property address before submitting.";
+  }
+  if (/property_type_required/i.test(message)) {
+    return "Enter the property type before submitting.";
+  }
+  if (/report_type_required/i.test(message)) {
+    return "Enter the report type before submitting.";
+  }
+  if (/requested_due_date_must_be_future/i.test(message)) {
+    return "Choose a requested due date in the future.";
+  }
+  if (/client_contact_email_invalid/i.test(message)) {
+    return "Enter a valid contact email address.";
+  }
+  if (/client_portal_membership_required|client_portal_access_required|client_portal_order_request_create_required/i.test(message)) {
+    return "Your Client Portal access could not be confirmed. Return to your invitation link or contact your appraisal team.";
+  }
+  if (/client_portal_order_request_permission_required|client_portal_orders_create_required/i.test(message)) {
+    return "Your Client Portal access does not allow new appraisal requests. Contact your appraisal team.";
+  }
+  if (/client_portal_authentication_required|authentication_required/i.test(message)) {
+    return "Sign in to submit an appraisal request.";
+  }
+
+  return "The request could not be submitted. Try again or contact your appraisal team.";
+}
+
 export default function ClientPortalNewOrderPage() {
   const [form, setForm] = useState(initialForm);
   const [submitting, setSubmitting] = useState(false);
@@ -58,7 +89,7 @@ export default function ClientPortalNewOrderPage() {
       setSubmittedRequest(result);
       setForm(initialForm);
     } catch (err) {
-      setError(err?.message || "The request could not be submitted.");
+      setError(orderRequestErrorMessage(err));
     } finally {
       setSubmitting(false);
     }

@@ -266,6 +266,66 @@ describe("Client Portal pages", () => {
     expect(document.body.textContent).not.toMatch(/vendor|appraiser|procurement|assignment|fee|margin/i);
   });
 
+  it("submits the filled production pilot order request fields to the API wrapper", async () => {
+    apiMock.submitClientPortalOrderRequest.mockResolvedValue({
+      requestKey: "request-key-2",
+      status: "submitted",
+      propertyAddress: "300 Madison Ave, Toledo OH",
+    });
+
+    renderPortalRoutes("/client-portal/new-order");
+
+    fireEvent.change(screen.getByLabelText("Property address"), {
+      target: { value: "300 Madison Ave, Toledo OH" },
+    });
+    fireEvent.change(screen.getByLabelText("Property type"), {
+      target: { value: "Office" },
+    });
+    fireEvent.change(screen.getByLabelText("Report type"), {
+      target: { value: "Full" },
+    });
+    fireEvent.change(screen.getByLabelText("Loan purpose"), {
+      target: { value: "Refinance" },
+    });
+    fireEvent.change(screen.getByLabelText("Requested due date"), {
+      target: { value: "2026-06-20" },
+    });
+    fireEvent.change(screen.getByLabelText("Borrower or property contact"), {
+      target: { value: "John Smith" },
+    });
+    fireEvent.change(screen.getByLabelText("Your contact name"), {
+      target: { value: "Abby Meneses" },
+    });
+    fireEvent.change(screen.getByLabelText("Contact phone"), {
+      target: { value: "4193083466" },
+    });
+    fireEvent.change(screen.getByLabelText("Contact email"), {
+      target: { value: "abbymeneses91@gmail.com" },
+    });
+    fireEvent.change(screen.getByLabelText("Notes or special instructions"), {
+      target: { value: "Please do quick" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Submit request" }));
+
+    await waitFor(() => {
+      expect(apiMock.submitClientPortalOrderRequest).toHaveBeenCalledWith({
+        propertyAddress: "300 Madison Ave, Toledo OH",
+        propertyType: "Office",
+        reportType: "Full",
+        loanPurpose: "Refinance",
+        requestedDueDate: "2026-06-20",
+        borrowerContactName: "John Smith",
+        clientContactName: "Abby Meneses",
+        clientContactPhone: "4193083466",
+        clientContactEmail: "abbymeneses91@gmail.com",
+        notes: "Please do quick",
+      });
+    });
+
+    expect(await screen.findByText("Request submitted")).toBeInTheDocument();
+  });
+
   it("keeps order request errors visible without losing the form", async () => {
     apiMock.submitClientPortalOrderRequest.mockRejectedValue(new Error("client_portal_order_request_create_required"));
 
@@ -282,7 +342,29 @@ describe("Client Portal pages", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Submit request" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("client_portal_order_request_create_required");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Your Client Portal access could not be confirmed. Return to your invitation link or contact your appraisal team.",
+    );
+    expect(screen.getByDisplayValue("200 Oak St")).toBeInTheDocument();
+  });
+
+  it("maps backend request validation errors to readable messages", async () => {
+    apiMock.submitClientPortalOrderRequest.mockRejectedValue(new Error("client_contact_email_invalid"));
+
+    renderPortalRoutes("/client-portal/new-order");
+
+    fireEvent.change(screen.getByLabelText("Property address"), {
+      target: { value: "200 Oak St" },
+    });
+    fireEvent.change(screen.getByLabelText("Property type"), {
+      target: { value: "Condo" },
+    });
+    fireEvent.change(screen.getByLabelText("Report type"), {
+      target: { value: "Full appraisal" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Submit request" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Enter a valid contact email address.");
     expect(screen.getByDisplayValue("200 Oak St")).toBeInTheDocument();
   });
 

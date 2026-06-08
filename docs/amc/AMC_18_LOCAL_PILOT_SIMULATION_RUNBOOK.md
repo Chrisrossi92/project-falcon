@@ -131,9 +131,10 @@ Before clicking through:
 
 ## Client Portal Demo Account Setup
 
-The current product has Client Portal permissions and `client_portal_members` mapping, but no
-dedicated invite/onboarding flow. For this hands-on local pilot, prepare Dana Miller manually in the
-local database.
+The product now has Client Portal permissions, `client_portal_members` mapping, and manual
+invite-link onboarding. For this hands-on local pilot, prefer creating Dana Miller through the
+Client Relationships portal invite flow. Use manual local database setup only for lower-level RPC
+diagnostics.
 
 AMC-19 onboarding status:
 
@@ -153,6 +154,9 @@ AMC-19 onboarding status:
 - Client-only users who land on `/` or `/dashboard` after login are redirected to `/client-portal`
   before the Internal/AMC operations shell renders. Users with both operational and Client Portal
   access keep the normal operational dashboard default unless they are completing an invite.
+- New Order request creation now resolves the submitted request's company/client context directly
+  from active `client_portal_members`, so client-only users can submit intake requests without
+  operational company membership or auth app metadata.
 - Real email delivery remains deferred, so staff must copy and send the invite link manually during
   the hands-on pilot.
 - The proposed onboarding architecture is documented in
