@@ -1793,7 +1793,8 @@ Recommended next AMC-17 slices:
 
 ### AMC-19: Client Portal Invite & Onboarding
 
-Status: Architecture checkpoint planned as of 2026-06-08. Implementation has not started.
+Status: Architecture checkpoint complete as of 2026-06-08. Backend token foundation is in progress;
+staff UI, email delivery, and client acceptance UI are not yet implemented.
 
 Purpose: replace manual client portal account/mapping setup with a first-class invite flow from
 Client Relationships contacts into the Client Portal.
@@ -1831,6 +1832,16 @@ Recommended first AMC-19 implementation slice:
 - Ensure invite acceptance creates or links `client_portal_members` only and does not grant
   Internal Operations, AMC Operations, Vendor Workspace, Permission Center, procurement, assignment,
   invoice, payment, or admin access.
+
+Initial backend token foundation:
+
+- `20260608110000_client_portal_invitation_token_foundation.sql` adds
+  `client_portal_invitations`, `client_portal.members.invite`,
+  `rpc_client_portal_invitation_create(...)`, `rpc_client_portal_invitation_read(p_token)`, and
+  `rpc_client_portal_invitation_accept(p_token)`.
+- The foundation stores only token hashes, returns the raw token only at creation, fails closed for
+  invalid/expired/non-pending tokens, verifies Auth email on acceptance, and creates/reactivates
+  `client_portal_members` without writing `company_memberships` or `user_role_assignments`.
 
 AMC-19 boundary:
 

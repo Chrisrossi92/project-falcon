@@ -14,7 +14,8 @@ AMC Staff -> Client Relationships -> Client Contacts -> Send Portal Invite
 Client -> Accept invite -> Client Portal -> Submit request / track orders / download reports
 ```
 
-This plan is an architecture checkpoint only. It does not implement the invite flow.
+The first backend token foundation slice is now defined in migration form. It does not yet send
+email or expose staff/client invite UI.
 
 ## Systems Audited
 
@@ -155,6 +156,35 @@ Recommended constraints and indexes:
 Do not add `pending` rows to `client_portal_members` for this first flow. Create or reactivate the
 `client_portal_members` row only after successful acceptance, so a prepared/sent invite cannot grant
 portal access by accident.
+
+## Token Foundation Slice
+
+Implemented foundation object target:
+
+- `client_portal_invitations`;
+- `client_portal.members.invite`;
+- `rpc_client_portal_invitation_create(p_client_id, p_client_contact_id, p_email)`;
+- `rpc_client_portal_invitation_read(p_token)`;
+- `rpc_client_portal_invitation_accept(p_token)`.
+
+This slice establishes the invite contract without email or UI:
+
+- staff invite creation is current-company scoped;
+- invite creation requires `client_portal.members.invite` and client update authority;
+- token creation returns the raw token only once;
+- the table stores only `token_hash` and `token_last_four`;
+- public invite reads return safe display metadata only;
+- authenticated acceptance verifies the token, expiration, pending status, and matching Auth email;
+- acceptance creates or reactivates `client_portal_members`;
+- acceptance does not insert or update `company_memberships` or `user_role_assignments`.
+
+Remaining implementation work after the token foundation:
+
+- staff `Send Portal Invite` UI;
+- Supabase Auth invite email Edge Function;
+- `/client-portal/invitations/:token` read/accept page;
+- resend/revoke behavior if needed for pilot operations;
+- Client Portal auth hardening so client-only users do not require operational company membership.
 
 ## Proposed Backend Flow
 

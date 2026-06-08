@@ -45,6 +45,13 @@ const orderRequestConversionMigrationPath = resolve(
 
 const orderRequestConversionMigrationSql = readFileSync(orderRequestConversionMigrationPath, 'utf8');
 
+const invitationFoundationMigrationPath = resolve(
+  process.cwd(),
+  'supabase/migrations/20260608110000_client_portal_invitation_token_foundation.sql',
+);
+
+const invitationFoundationMigrationSql = readFileSync(invitationFoundationMigrationPath, 'utf8');
+
 describe('Client Portal safe order read model migration', () => {
   it('creates dedicated Client Portal permissions, member mapping, view, and RPCs', () => {
     expect(migrationSql).toContain("'client_portal.dashboard.view'");
@@ -257,6 +264,96 @@ describe('Client Portal order request staff review migration', () => {
     expect(orderRequestReviewMigrationSql).toContain('reviewed_at = now()');
     expect(orderRequestReviewMigrationSql).toContain('reviewed_by_name');
     expect(orderRequestReviewMigrationSql).toContain('reviewed_by_email');
+  });
+});
+
+describe('Client Portal invitation token foundation migration', () => {
+  it('creates the dedicated invitation table and lifecycle RPCs', () => {
+    expect(invitationFoundationMigrationSql).toContain(
+      'create table if not exists public.client_portal_invitations',
+    );
+    expect(invitationFoundationMigrationSql).toContain(
+      'create or replace function public.rpc_client_portal_invitation_create(',
+    );
+    expect(invitationFoundationMigrationSql).toContain(
+      'create or replace function public.rpc_client_portal_invitation_read(p_token text)',
+    );
+    expect(invitationFoundationMigrationSql).toContain(
+      'create or replace function public.rpc_client_portal_invitation_accept(p_token text)',
+    );
+    expect(invitationFoundationMigrationSql).toContain("'client_portal.members.invite'");
+  });
+
+  it('stores only token hashes and returns the raw invite token only at creation time', () => {
+    expect(invitationFoundationMigrationSql).toContain('token_hash text not null unique');
+    expect(invitationFoundationMigrationSql).toContain('token_last_four text not null');
+    expect(invitationFoundationMigrationSql).toContain("v_token := encode(extensions.gen_random_bytes(32), 'hex')");
+    expect(invitationFoundationMigrationSql).toContain(
+      "v_token_hash := encode(extensions.digest(v_token, 'sha256'), 'hex')",
+    );
+    expect(invitationFoundationMigrationSql).toContain('invitation_token text');
+    expect(invitationFoundationMigrationSql).toContain('v_token,');
+    expect(invitationFoundationMigrationSql).toContain('client_portal_invitations.token_hash is immutable');
+  });
+
+  it('requires staff invite permission and client update authority to create invites', () => {
+    expect(invitationFoundationMigrationSql).toContain(
+      "public.current_app_user_has_permission('client_portal.members.invite')",
+    );
+    expect(invitationFoundationMigrationSql).toContain(
+      "raise exception 'client_portal_member_invite_permission_required'",
+    );
+    expect(invitationFoundationMigrationSql).toContain(
+      'public.current_app_user_can_update_client_row(v_company_id, p_client_id)',
+    );
+    expect(invitationFoundationMigrationSql).toContain(
+      "raise exception 'client_portal_member_invite_client_update_required'",
+    );
+  });
+
+  it('fails closed for invalid expired revoked or accepted tokens', () => {
+    expect(invitationFoundationMigrationSql).toContain("v_token !~ '^[0-9a-f]{64}$'");
+    expect(invitationFoundationMigrationSql).toContain("raise exception 'client_portal_invitation_invalid_or_expired'");
+    expect(invitationFoundationMigrationSql).toContain("set status = 'expired'");
+    expect(invitationFoundationMigrationSql).toContain("if v_invitation.status <> 'pending' then");
+    expect(invitationFoundationMigrationSql).toContain('for update');
+  });
+
+  it('accepts only the authenticated matching email and creates client portal membership', () => {
+    expect(invitationFoundationMigrationSql).toContain('v_auth_user_id uuid := auth.uid()');
+    expect(invitationFoundationMigrationSql).toContain("v_auth_email <> v_invitation.normalized_email");
+    expect(invitationFoundationMigrationSql).toContain(
+      "raise exception 'client_portal_invitation_email_mismatch'",
+    );
+    expect(invitationFoundationMigrationSql).toContain('insert into public.client_portal_members');
+    expect(invitationFoundationMigrationSql).toContain('on conflict (company_id, client_id, user_id) do update');
+    expect(invitationFoundationMigrationSql).toContain("set status = 'accepted'");
+    expect(invitationFoundationMigrationSql).toContain('accepted_by_user_id = v_user_id');
+  });
+
+  it('does not grant operational company access during invite acceptance', () => {
+    expect(invitationFoundationMigrationSql).not.toContain('insert into public.company_memberships');
+    expect(invitationFoundationMigrationSql).not.toContain('update public.company_memberships');
+    expect(invitationFoundationMigrationSql).not.toContain('insert into public.user_role_assignments');
+    expect(invitationFoundationMigrationSql).not.toContain('update public.user_role_assignments');
+  });
+
+  it('keeps the invitation table service-role only and exposes access through RPC grants', () => {
+    expect(invitationFoundationMigrationSql).toContain(
+      'revoke all on table public.client_portal_invitations from public, anon, authenticated',
+    );
+    expect(invitationFoundationMigrationSql).toContain(
+      'grant all on table public.client_portal_invitations to service_role',
+    );
+    expect(invitationFoundationMigrationSql).toContain(
+      'grant execute on function public.rpc_client_portal_invitation_create(bigint, bigint, text)',
+    );
+    expect(invitationFoundationMigrationSql).toContain(
+      'grant execute on function public.rpc_client_portal_invitation_read(text)',
+    );
+    expect(invitationFoundationMigrationSql).toContain(
+      'grant execute on function public.rpc_client_portal_invitation_accept(text)',
+    );
   });
 });
 
