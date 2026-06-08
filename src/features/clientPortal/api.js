@@ -4,6 +4,8 @@ const CLIENT_PORTAL_ORDER_LIST_RPC = "rpc_client_portal_orders";
 const CLIENT_PORTAL_ORDER_DETAIL_RPC = "rpc_client_portal_order_detail";
 const CLIENT_PORTAL_DASHBOARD_RPC = "rpc_client_portal_dashboard";
 const CLIENT_PORTAL_ORDER_REQUEST_CREATE_RPC = "rpc_client_portal_order_request_create";
+const CLIENT_PORTAL_INVITATION_READ_RPC = "rpc_client_portal_invitation_read";
+const CLIENT_PORTAL_INVITATION_ACCEPT_RPC = "rpc_client_portal_invitation_accept";
 const CLIENT_PORTAL_REPORT_DOWNLOAD_FUNCTION = "client-portal-report-download-url";
 
 const toStringOrNull = (value) => {
@@ -82,6 +84,21 @@ export function normalizeClientPortalOrderRequest(row = {}) {
     propertyType: toStringOrNull(row.property_type ?? row.propertyType),
     reportType: toStringOrNull(row.report_type ?? row.reportType),
     requestedDueDate: toStringOrNull(row.requested_due_date ?? row.requestedDueDate),
+  };
+}
+
+export function normalizeClientPortalInvitation(row = {}) {
+  const email = toStringOrNull(row.email);
+  const status = toStringOrNull(row.status) || "pending";
+
+  return {
+    clientName: toStringOrNull(row.client_name ?? row.clientName),
+    companyName: toStringOrNull(row.company_name ?? row.companyName),
+    contactName: toStringOrNull(row.contact_name ?? row.contactName),
+    email,
+    status,
+    expiresAt: toStringOrNull(row.expires_at ?? row.expiresAt),
+    acceptedAt: toStringOrNull(row.accepted_at ?? row.acceptedAt),
   };
 }
 
@@ -186,10 +203,42 @@ export async function submitClientPortalOrderRequest(values = {}) {
   return normalizeClientPortalOrderRequest(row || {});
 }
 
+export async function readClientPortalInvitation(token) {
+  const safeToken = toStringOrNull(token);
+  if (!safeToken) {
+    throw new Error("client_portal_invitation_token_required");
+  }
+
+  const { data, error } = await supabase.rpc(CLIENT_PORTAL_INVITATION_READ_RPC, {
+    p_token: safeToken,
+  });
+  if (error) throw error;
+
+  const row = Array.isArray(data) ? data[0] : data;
+  return row ? normalizeClientPortalInvitation(row) : null;
+}
+
+export async function acceptClientPortalInvitation(token) {
+  const safeToken = toStringOrNull(token);
+  if (!safeToken) {
+    throw new Error("client_portal_invitation_token_required");
+  }
+
+  const { data, error } = await supabase.rpc(CLIENT_PORTAL_INVITATION_ACCEPT_RPC, {
+    p_token: safeToken,
+  });
+  if (error) throw error;
+
+  const row = Array.isArray(data) ? data[0] : data;
+  return row ? normalizeClientPortalInvitation(row) : null;
+}
+
 export const clientPortalRpcNames = Object.freeze({
   dashboard: CLIENT_PORTAL_DASHBOARD_RPC,
   listOrders: CLIENT_PORTAL_ORDER_LIST_RPC,
   orderDetail: CLIENT_PORTAL_ORDER_DETAIL_RPC,
   orderRequestCreate: CLIENT_PORTAL_ORDER_REQUEST_CREATE_RPC,
+  invitationRead: CLIENT_PORTAL_INVITATION_READ_RPC,
+  invitationAccept: CLIENT_PORTAL_INVITATION_ACCEPT_RPC,
   reportDownloadFunction: CLIENT_PORTAL_REPORT_DOWNLOAD_FUNCTION,
 });

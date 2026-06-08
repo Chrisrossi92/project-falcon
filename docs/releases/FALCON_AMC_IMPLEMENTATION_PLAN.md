@@ -1793,9 +1793,9 @@ Recommended next AMC-17 slices:
 
 ### AMC-19: Client Portal Invite & Onboarding
 
-Status: Architecture checkpoint complete as of 2026-06-08. Backend token foundation and staff
-manual invite-link generation are in progress; email delivery and client acceptance UI are not yet
-implemented.
+Status: Architecture checkpoint complete as of 2026-06-08. Backend token foundation, staff
+manual invite-link generation, and public client invite acceptance are in progress; email delivery
+is not yet implemented.
 
 Purpose: replace manual client portal account/mapping setup with a first-class invite flow from
 Client Relationships contacts into the Client Portal.
@@ -1850,7 +1850,17 @@ Staff manual invite-link foundation:
   email when staff has `client_portal.members.invite`.
 - The action calls `rpc_client_portal_invitation_create(...)` and renders pending invite metadata,
   expiration, and a copyable `/client-portal/invitations/:token` link.
-- No email is sent yet, and the public/client invite acceptance page remains a following slice.
+- No email is sent yet.
+
+Client invite acceptance foundation:
+
+- `/client-portal/invitations/:token` reads safe invite metadata and lifecycle state through
+  `rpc_client_portal_invitation_read(p_token)`.
+- Pending invites route signed-out users through `/login` with a preserved return path.
+- Authenticated matching-email users accept through `rpc_client_portal_invitation_accept(p_token)`.
+- Acceptance redirects to `/client-portal`, creates/reactivates `client_portal_members`, and does
+  not create `company_memberships` or operational role assignments.
+- Expired, revoked, and already accepted states are shown without exposing internal workspace data.
 
 AMC-19 boundary:
 

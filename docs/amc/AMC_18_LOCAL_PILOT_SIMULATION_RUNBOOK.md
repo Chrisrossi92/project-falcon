@@ -134,13 +134,16 @@ The current product has Client Portal permissions and `client_portal_members` ma
 dedicated invite/onboarding flow. For this hands-on local pilot, prepare Dana Miller manually in the
 local database.
 
-AMC-19 gap:
+AMC-19 onboarding status:
 
 - Staff can now create a manual Client Portal invite link from an active client contact when the
-  staff user has `client_portal.members.invite`, but real email delivery and the public client
-  acceptance page are still not complete.
-- This is not a Client Portal request workflow blocker once the account exists, but it remains an
-  onboarding gap because Dana still cannot complete the whole invite acceptance flow unaided.
+  staff user has `client_portal.members.invite`.
+- Dana can open `/client-portal/invitations/:token`, review the invitation, sign in or create an
+  account, accept the invite, and land in `/client-portal`.
+- Acceptance creates Client Portal membership only; it does not create Internal/AMC company
+  membership.
+- Real email delivery remains deferred, so staff must copy and send the invite link manually during
+  the hands-on pilot.
 - The proposed onboarding architecture is documented in
   [AMC-19 Client Portal Invite Onboarding Plan](./AMC_19_CLIENT_PORTAL_INVITE_ONBOARDING_PLAN.md).
 

@@ -12,10 +12,12 @@ vi.mock("@/lib/supabaseClient", () => ({
 const supabase = (await import("@/lib/supabaseClient")).default;
 const {
   clientPortalRpcNames,
+  acceptClientPortalInvitation,
   createClientPortalReportDownloadUrl,
   getClientPortalOrderDetail,
   getClientPortalDashboard,
   listClientPortalOrders,
+  readClientPortalInvitation,
   normalizeClientPortalOrderDetail,
   submitClientPortalOrderRequest,
 } = await import("../api");
@@ -199,6 +201,60 @@ describe("clientPortalApi", () => {
     ).rejects.toThrow("Property address is required.");
 
     expect(supabase.rpc).not.toHaveBeenCalled();
+  });
+
+  it("reads client portal invitations through the public safe invite RPC", async () => {
+    supabase.rpc.mockResolvedValue({
+      data: {
+        client_name: "First American Bank",
+        company_name: "Falcon AMC",
+        contact_name: "Dana Miller",
+        email: "dmiller@firstbank.com",
+        status: "pending",
+        expires_at: "2026-06-15T13:00:00Z",
+      },
+      error: null,
+    });
+
+    await expect(readClientPortalInvitation("token-1")).resolves.toEqual({
+      clientName: "First American Bank",
+      companyName: "Falcon AMC",
+      contactName: "Dana Miller",
+      email: "dmiller@firstbank.com",
+      status: "pending",
+      expiresAt: "2026-06-15T13:00:00Z",
+      acceptedAt: null,
+    });
+
+    expect(supabase.rpc).toHaveBeenCalledWith(clientPortalRpcNames.invitationRead, {
+      p_token: "token-1",
+    });
+  });
+
+  it("accepts client portal invitations through the client portal membership RPC", async () => {
+    supabase.rpc.mockResolvedValue({
+      data: {
+        client_name: "First American Bank",
+        email: "dmiller@firstbank.com",
+        status: "accepted",
+        accepted_at: "2026-06-08T13:00:00Z",
+      },
+      error: null,
+    });
+
+    await expect(acceptClientPortalInvitation("token-1")).resolves.toEqual({
+      clientName: "First American Bank",
+      companyName: null,
+      contactName: null,
+      email: "dmiller@firstbank.com",
+      status: "accepted",
+      expiresAt: null,
+      acceptedAt: "2026-06-08T13:00:00Z",
+    });
+
+    expect(supabase.rpc).toHaveBeenCalledWith(clientPortalRpcNames.invitationAccept, {
+      p_token: "token-1",
+    });
   });
 
   it("normalizes detail without internal assignment, vendor, procurement, or fee fields", () => {

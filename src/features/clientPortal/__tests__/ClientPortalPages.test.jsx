@@ -5,16 +5,27 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const apiMock = vi.hoisted(() => ({
+  acceptClientPortalInvitation: vi.fn(),
   createClientPortalReportDownloadUrl: vi.fn(),
   getClientPortalDashboard: vi.fn(),
   listClientPortalOrders: vi.fn(),
   getClientPortalOrderDetail: vi.fn(),
+  readClientPortalInvitation: vi.fn(),
   submitClientPortalOrderRequest: vi.fn(),
 }));
 
+const sessionMock = vi.hoisted(() => ({
+  session: null,
+  isLoading: false,
+}));
+
 vi.mock("@/features/clientPortal/api", () => apiMock);
+vi.mock("@supabase/auth-helpers-react", () => ({
+  useSessionContext: () => sessionMock,
+}));
 
 const { default: ClientPortalDashboard } = await import("../ClientPortalDashboard.jsx");
+const { default: ClientPortalInvitationPage } = await import("../ClientPortalInvitationPage.jsx");
 const { default: ClientPortalOrderDetailPage } = await import("../ClientPortalOrderDetailPage.jsx");
 const { default: ClientPortalOrdersPage } = await import("../ClientPortalOrdersPage.jsx");
 const { default: ClientPortalNewOrderPage } = await import("../ClientPortalNewOrderPage.jsx");
@@ -37,6 +48,7 @@ function renderPortalRoutes(initialPath = "/client-portal") {
     >
       <Routes>
         <Route path="/client-portal" element={<ClientPortalDashboard />} />
+        <Route path="/client-portal/invitations/:token" element={<ClientPortalInvitationPage />} />
         <Route path="/client-portal/orders" element={<ClientPortalOrdersPage />} />
         <Route path="/client-portal/orders/:orderId" element={<ClientPortalOrderDetailPage />} />
         <Route path="/client-portal/new-order" element={<ClientPortalNewOrderPage />} />
@@ -47,10 +59,14 @@ function renderPortalRoutes(initialPath = "/client-portal") {
 
 describe("Client Portal pages", () => {
   beforeEach(() => {
+    sessionMock.session = null;
+    sessionMock.isLoading = false;
+    apiMock.acceptClientPortalInvitation.mockReset();
     apiMock.getClientPortalDashboard.mockReset();
     apiMock.createClientPortalReportDownloadUrl.mockReset();
     apiMock.listClientPortalOrders.mockReset();
     apiMock.getClientPortalOrderDetail.mockReset();
+    apiMock.readClientPortalInvitation.mockReset();
     apiMock.submitClientPortalOrderRequest.mockReset();
   });
 
@@ -82,7 +98,7 @@ describe("Client Portal pages", () => {
     renderPortalRoutes("/client-portal/orders");
 
     const ordersRegion = await screen.findByRole("region", { name: "Client orders" });
-    expect(within(ordersRegion).getByText("CP-001")).toBeInTheDocument();
+    expect(await within(ordersRegion).findByText("CP-001")).toBeInTheDocument();
 
     const serialized = document.body.textContent;
     expect(serialized).not.toMatch(/vendor bidding|assignment detail|procurement|internal review|private note/i);
@@ -256,5 +272,87 @@ describe("Client Portal pages", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("client_portal_order_request_create_required");
     expect(screen.getByDisplayValue("200 Oak St")).toBeInTheDocument();
+  });
+
+  it("renders a valid client portal invitation with sign-in guidance", async () => {
+    apiMock.readClientPortalInvitation.mockResolvedValue({
+      clientName: "First American Bank",
+      companyName: "Falcon AMC",
+      contactName: "Dana Miller",
+      email: "dmiller@firstbank.com",
+      status: "pending",
+      expiresAt: "2026-06-15T13:00:00Z",
+    });
+
+    renderPortalRoutes("/client-portal/invitations/raw-token");
+
+    expect(await screen.findByText("You're invited by Falcon AMC")).toBeInTheDocument();
+    expect(screen.getByText("First American Bank")).toBeInTheDocument();
+    expect(screen.getByText("dmiller@firstbank.com")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Sign in or create account" })).toHaveAttribute(
+      "href",
+      "/login?returnTo=%2Fclient-portal%2Finvitations%2Fraw-token",
+    );
+    expect(apiMock.getClientPortalDashboard).not.toHaveBeenCalled();
+  });
+
+  it("renders expired and revoked client portal invitation states", async () => {
+    apiMock.readClientPortalInvitation.mockResolvedValueOnce({
+      clientName: "First American Bank",
+      companyName: "Falcon AMC",
+      email: "dmiller@firstbank.com",
+      status: "expired",
+    });
+
+    renderPortalRoutes("/client-portal/invitations/expired-token");
+
+    expect(await screen.findByText("This invitation has expired.")).toBeInTheDocument();
+
+    cleanup();
+
+    apiMock.readClientPortalInvitation.mockResolvedValueOnce({
+      clientName: "First American Bank",
+      companyName: "Falcon AMC",
+      email: "dmiller@firstbank.com",
+      status: "revoked",
+    });
+
+    renderPortalRoutes("/client-portal/invitations/revoked-token");
+
+    expect(await screen.findByText("This invitation is no longer active.")).toBeInTheDocument();
+  });
+
+  it("accepts a valid client portal invitation and redirects to the portal", async () => {
+    sessionMock.session = {
+      user: {
+        id: "auth-user-1",
+        email: "dmiller@firstbank.com",
+      },
+    };
+    apiMock.readClientPortalInvitation.mockResolvedValue({
+      clientName: "First American Bank",
+      companyName: "Falcon AMC",
+      email: "dmiller@firstbank.com",
+      status: "pending",
+    });
+    apiMock.acceptClientPortalInvitation.mockResolvedValue({
+      clientName: "First American Bank",
+      email: "dmiller@firstbank.com",
+      status: "accepted",
+    });
+    apiMock.getClientPortalDashboard.mockResolvedValue({
+      activeOrderCount: 0,
+      reportAvailableCount: 0,
+      recentOrders: [],
+    });
+
+    renderPortalRoutes("/client-portal/invitations/raw-token");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Accept invitation" }));
+
+    await waitFor(() => {
+      expect(apiMock.acceptClientPortalInvitation).toHaveBeenCalledWith("raw-token");
+      expect(screen.getByText("Appraisal orders")).toBeInTheDocument();
+    });
   });
 });

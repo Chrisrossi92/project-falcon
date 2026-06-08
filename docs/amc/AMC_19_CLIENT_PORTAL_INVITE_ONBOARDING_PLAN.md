@@ -190,10 +190,22 @@ Staff-side manual invite link foundation:
   route state, or client records.
 - No email is sent by this slice.
 
-Remaining implementation work after the token and staff manual-link foundation:
+Client-side manual invite acceptance foundation:
+
+- `/client-portal/invitations/:token` is now the public invite destination.
+- The page calls `rpc_client_portal_invitation_read(p_token)` and shows only safe client, company,
+  contact, email, expiration, and lifecycle status metadata.
+- Pending invites route signed-out users through `/login` with a preserved return path.
+- Authenticated users accept with `rpc_client_portal_invitation_accept(p_token)`.
+- Acceptance creates or reactivates `client_portal_members` and then redirects to
+  `/client-portal`.
+- Expired, revoked, and already accepted invitations show lender-safe states.
+- The page does not switch company context, create operational company membership, or expose
+  Internal/AMC workspace routes.
+
+Remaining implementation work after the token, staff manual-link, and acceptance foundations:
 
 - Supabase Auth invite email Edge Function;
-- `/client-portal/invitations/:token` read/accept page;
 - resend/revoke behavior if needed for pilot operations;
 - Client Portal auth hardening so client-only users do not require operational company membership.
 

@@ -42,6 +42,7 @@ import Calendar from "@/pages/Calendar";
 import Activity from "@/pages/Activity";
 import ClientOrderRequestsPage from "@/features/clientRequests/ClientOrderRequestsPage";
 import ClientPortalDashboard from "@/features/clientPortal/ClientPortalDashboard";
+import ClientPortalInvitationPage from "@/features/clientPortal/ClientPortalInvitationPage";
 import ClientPortalNewOrderPage from "@/features/clientPortal/ClientPortalNewOrderPage";
 import ClientPortalOrderDetailPage from "@/features/clientPortal/ClientPortalOrderDetailPage";
 import ClientPortalOrdersPage from "@/features/clientPortal/ClientPortalOrdersPage";
@@ -75,6 +76,7 @@ export default function AppRoutes() {
       {/* Public */}
       <Route path="/login" element={<Login />} />
       <Route path="/accept-invite/:invitationId" element={<AcceptCompanyInvitePage />} />
+      <Route path="/client-portal/invitations/:token" element={<ClientPortalInvitationPage />} />
       <Route path="/vendor/bid-invitations/:token" element={<VendorBidInvitationPage />} />
       <Route path="/vendor/assignment-offers/:token" element={<VendorAssignmentOfferPage />} />
       <Route path="/vendor/assignment-work/:token" element={<VendorAssignmentWorkPage />} />
