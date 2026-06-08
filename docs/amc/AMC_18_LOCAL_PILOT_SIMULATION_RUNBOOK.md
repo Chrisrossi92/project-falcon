@@ -140,6 +140,9 @@ AMC-19 onboarding status:
   staff user has `client_portal.members.invite`.
 - Dana can open `/client-portal/invitations/:token`, review the invitation, sign in or create an
   account, accept the invite, and land in `/client-portal`.
+- If production Supabase requires email confirmation, account creation shows a confirmation-needed
+  state. Dana must confirm the email, return to the invite link, sign in, and then the invite will
+  be accepted.
 - Acceptance creates Client Portal membership only; it does not create Internal/AMC company
   membership.
 - Real email delivery remains deferred, so staff must copy and send the invite link manually during

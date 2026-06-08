@@ -381,6 +381,42 @@ describe("Client Portal pages", () => {
     });
   });
 
+  it("shows email confirmation state when signup creates a user without a session", async () => {
+    apiMock.readClientPortalInvitation.mockResolvedValue({
+      clientName: "First American Bank",
+      companyName: "Falcon AMC",
+      email: "dmiller@firstamerican.com",
+      status: "pending",
+    });
+    supabaseMock.auth.signUp.mockResolvedValue({
+      data: {
+        user: { id: "auth-user-1", email: "dmiller@firstamerican.com" },
+        session: null,
+      },
+      error: null,
+    });
+
+    renderPortalRoutes("/client-portal/invitations/raw-token");
+
+    fireEvent.change(await screen.findByLabelText("Password"), {
+      target: { value: "DanaPassword123!" },
+    });
+    fireEvent.change(screen.getByLabelText("Confirm password"), {
+      target: { value: "DanaPassword123!" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create account and continue" }));
+
+    expect(await screen.findByText("Account created.")).toBeInTheDocument();
+    expect(screen.getByText("Please check your email to confirm your account, then return to this invite link to finish setup.")).toBeInTheDocument();
+    expect(screen.getByText("dmiller@firstamerican.com")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign in after confirming" })).toBeInTheDocument();
+    expect(apiMock.acceptClientPortalInvitation).not.toHaveBeenCalled();
+    expect(screen.queryByText("Appraisal orders")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Sign in after confirming" }));
+    expect(screen.getByRole("button", { name: "Sign in and continue" })).toBeInTheDocument();
+  });
+
   it("signs in an existing invited client, accepts the invite, and redirects to the portal", async () => {
     apiMock.readClientPortalInvitation.mockResolvedValue({
       clientName: "First American Bank",
@@ -422,6 +458,37 @@ describe("Client Portal pages", () => {
       expect(apiMock.acceptClientPortalInvitation).toHaveBeenCalledWith("raw-token");
       expect(screen.getByText("Appraisal orders")).toBeInTheDocument();
     });
+  });
+
+  it("keeps generic invite acceptance failures visible", async () => {
+    apiMock.readClientPortalInvitation.mockResolvedValue({
+      clientName: "First American Bank",
+      companyName: "Falcon AMC",
+      email: "dmiller@firstbank.com",
+      status: "pending",
+    });
+    supabaseMock.auth.signInWithPassword.mockResolvedValue({
+      data: {
+        user: { id: "auth-user-1", email: "dmiller@firstbank.com" },
+        session: { access_token: "token" },
+      },
+      error: null,
+    });
+    apiMock.acceptClientPortalInvitation.mockRejectedValue(new Error("rpc_unavailable"));
+
+    renderPortalRoutes("/client-portal/invitations/raw-token");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Sign in" }));
+    fireEvent.change(screen.getByLabelText("Password"), {
+      target: { value: "DanaPassword123!" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in and continue" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The invitation could not be accepted. Try again or ask your lending team contact for a new invite.",
+    );
+    expect(apiMock.acceptClientPortalInvitation).toHaveBeenCalledWith("raw-token");
+    expect(screen.queryByText("Appraisal orders")).not.toBeInTheDocument();
   });
 
   it("auto-accepts a pending invite for an already authenticated client", async () => {

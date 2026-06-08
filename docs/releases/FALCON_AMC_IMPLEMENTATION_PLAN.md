@@ -1858,8 +1858,11 @@ Client invite acceptance foundation:
   `rpc_client_portal_invitation_read(p_token)`.
 - Pending invites show create-account and sign-in forms directly on the invite page with the invited
   email prefilled.
-- Successful Supabase Auth account creation or password sign-in immediately calls
+- Session-returning Supabase Auth account creation or password sign-in immediately calls
   `rpc_client_portal_invitation_accept(p_token)`.
+- If Supabase requires email confirmation and returns a created user without a session, the page
+  shows confirmation-needed copy and leaves the invitation pending until the confirmed user returns
+  and signs in.
 - Already-authenticated matching-email users auto-accept through
   `rpc_client_portal_invitation_accept(p_token)`.
 - Acceptance redirects to `/client-portal`, creates/reactivates `client_portal_members`, and does

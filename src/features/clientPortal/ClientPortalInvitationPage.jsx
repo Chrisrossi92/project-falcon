@@ -37,16 +37,22 @@ function errorMessage(error) {
   const message = String(error?.message || error?.details || error || "");
 
   if (/email_mismatch/i.test(message)) {
-    return "Sign in with the invited email address to accept this invitation.";
+    return "This invite is for a different email address. Sign in with the invited email to finish setup.";
   }
   if (/authentication_required/i.test(message)) {
     return "Sign in or create an account to accept this invitation.";
+  }
+  if (/expired/i.test(message)) {
+    return "This invitation has expired. Ask your lending team contact to send a new one.";
+  }
+  if (/accepted/i.test(message)) {
+    return "This invitation has already been accepted. Sign in to continue to the Client Portal.";
   }
   if (/invalid_or_expired|not_found/i.test(message)) {
     return "This invitation is unavailable or has expired.";
   }
 
-  return "The invitation could not be accepted.";
+  return "The invitation could not be accepted. Try again or ask your lending team contact for a new invite.";
 }
 
 function StatePanel({ title, message, tone = "neutral", children }) {
@@ -175,6 +181,17 @@ export default function ClientPortalInvitationPage() {
 
       if (result?.error) throw result.error;
 
+      if (authMode === "create" && result?.data?.user && !result?.data?.session) {
+        setStatus("confirmation_needed");
+        setPassword("");
+        setConfirmPassword("");
+        return;
+      }
+
+      if (!result?.data?.session) {
+        throw new Error("authentication_required");
+      }
+
       attemptedAcceptRef.current = true;
       await acceptClientPortalInvitation(safeToken);
       navigate("/client-portal", { replace: true });
@@ -223,6 +240,28 @@ export default function ClientPortalInvitationPage() {
                 Sign in to continue
               </Link>
             )}
+          </StatePanel>
+        ) : status === "confirmation_needed" ? (
+          <StatePanel
+            title="Account created."
+            message="Please check your email to confirm your account, then return to this invite link to finish setup."
+            tone="success"
+          >
+            <dl className="rounded-md border border-emerald-200 bg-white px-4">
+              <DetailRow label="Invited email" value={invite?.email} />
+              <DetailRow label="Client" value={invite?.clientName} />
+            </dl>
+            <button
+              type="button"
+              onClick={() => {
+                setAuthMode("sign_in");
+                setStatus("ready");
+                setError("");
+              }}
+              className="mt-5 inline-flex h-10 items-center justify-center rounded-md border border-slate-950 bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800"
+            >
+              Sign in after confirming
+            </button>
           </StatePanel>
         ) : (
           <StatePanel
