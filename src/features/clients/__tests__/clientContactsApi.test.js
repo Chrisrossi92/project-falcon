@@ -88,6 +88,52 @@ describe("clientContactsApi", () => {
     });
   });
 
+  it("creates a minimal default contact suitable for portal invitation", async () => {
+    supabase.rpc.mockResolvedValue({
+      data: {
+        contact_id: 22,
+        company_id: "company-1",
+        client_id: 34,
+        name: "Dana Miller",
+        email: "dmiller@firstbank.com",
+        phone: null,
+        title: null,
+        status: "active",
+        is_default: true,
+      },
+      error: null,
+    });
+
+    await expect(
+      createClientContact(34, {
+        name: "Dana Miller",
+        email: "dmiller@firstbank.com",
+        title: null,
+        phone: null,
+        is_default: true,
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        contact_id: 22,
+        client_id: 34,
+        name: "Dana Miller",
+        email: "dmiller@firstbank.com",
+        is_default: true,
+      }),
+    );
+
+    expect(supabase.rpc).toHaveBeenCalledWith("rpc_client_contact_create", {
+      p_client_id: 34,
+      p_contact: {
+        name: "Dana Miller",
+        email: "dmiller@firstbank.com",
+        title: null,
+        phone: null,
+        is_default: true,
+      },
+    });
+  });
+
   it("sets a default client contact through the dedicated scoped RPC", async () => {
     supabase.rpc.mockResolvedValue({
       data: {

@@ -4,8 +4,8 @@
 
 AMC-18 hands-on pilot simulation proved that Client Portal request intake, staff review,
 staff-confirmed conversion, tracking, and report download authorization can work once a client user
-is already mapped to a client account. The remaining blocker is onboarding: staff cannot invite a
-lender contact into the Client Portal through the product.
+is mapped to a client account. AMC-19 replaces manual client portal account/mapping setup with a
+productized onboarding path for lender contacts.
 
 AMC-19 should create a first-class invite flow:
 
@@ -14,8 +14,45 @@ AMC Staff -> Client Relationships -> Client Contacts -> Send Portal Invite
 Client -> Accept invite -> Client Portal -> Submit request / track orders / download reports
 ```
 
-The first backend token foundation slice is now defined in migration form. It does not yet send
-email or expose staff/client invite UI.
+The backend token foundation, staff manual invite-link UI, and client invite acceptance route are
+now defined. Real email delivery is still deferred.
+
+## Onboarding Doctrine
+
+Long-term Client Portal onboarding should keep staff setup intentionally small.
+
+AMC staff should only need to create:
+
+- client relationship name;
+- primary contact name;
+- primary contact email.
+
+Optional staff-entered contact fields can include:
+
+- contact title or role;
+- contact phone;
+- default contact flag.
+
+After the portal invite is accepted, the client should complete client-owned profile details inside
+the Client Portal. Future client self-service profile work can include:
+
+- phone and preferred contact details;
+- additional client-side contacts;
+- client-side order instructions and preferences;
+- relevant portal documents;
+- order contacts used for specific appraisal requests.
+
+Clients must never edit:
+
+- internal relationship notes;
+- private AMC/coordinator notes;
+- pricing, margin, split, or vendor invoice data;
+- procurement, vendor bidding, assignment, or reviewer controls;
+- staff-only relationship fields and permission/admin surfaces.
+
+Current AMC-19 scope only enables staff minimal contact setup, manual invite-link creation, and
+invite acceptance. Client self-service profile editing remains a follow-up after invite acceptance
+works reliably in pilot.
 
 ## Systems Audited
 

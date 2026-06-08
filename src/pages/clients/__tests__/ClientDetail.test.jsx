@@ -485,6 +485,63 @@ describe("ClientDetail presentation", () => {
     expect(await screen.findByText("Jordan Desk")).toBeInTheDocument();
   });
 
+  it("adds a minimal default client contact and exposes portal invite after refresh", async () => {
+    createClientContactMock.mockResolvedValue({
+      id: 21,
+      client_id: 42,
+      name: "Dana Miller",
+      email: "dmiller@firstbank.com",
+      status: "active",
+      is_default: true,
+    });
+    renderDetail({
+      canInvitePortalMembers: true,
+      contactLists: [
+        [],
+        [
+          {
+            id: 21,
+            contact_id: 21,
+            client_id: 42,
+            name: "Dana Miller",
+            email: "dmiller@firstbank.com",
+            phone: null,
+            title: null,
+            status: "active",
+            is_default: true,
+          },
+        ],
+      ],
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Contacts" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Add Contact" }));
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Dana Miller" } });
+    fireEvent.change(screen.getByLabelText("Email"), {
+      target: { value: "dmiller@firstbank.com" },
+    });
+    fireEvent.click(screen.getByLabelText("Default contact"));
+    fireEvent.click(screen.getByRole("button", { name: "Create Contact" }));
+
+    await waitFor(() => {
+      expect(createClientContactMock).toHaveBeenCalledWith(42, {
+        name: "Dana Miller",
+        title: null,
+        email: "dmiller@firstbank.com",
+        phone: null,
+        notes: null,
+        is_default: true,
+      });
+    });
+
+    expect(await screen.findByText("Dana Miller")).toBeInTheDocument();
+    expect(screen.getByText("Default")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create portal invite" })).toBeInTheDocument();
+  });
+
   it("edits a reusable client contact", async () => {
     updateClientContactMock.mockResolvedValue({
       id: 12,
