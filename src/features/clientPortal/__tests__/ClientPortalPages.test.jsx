@@ -8,6 +8,7 @@ const apiMock = vi.hoisted(() => ({
   acceptClientPortalInvitation: vi.fn(),
   createClientPortalReportDownloadUrl: vi.fn(),
   getClientPortalDashboard: vi.fn(),
+  listClientPortalPendingOrderRequests: vi.fn(),
   listClientPortalOrders: vi.fn(),
   getClientPortalOrderDetail: vi.fn(),
   readClientPortalInvitation: vi.fn(),
@@ -73,6 +74,7 @@ describe("Client Portal pages", () => {
     sessionMock.isLoading = false;
     apiMock.acceptClientPortalInvitation.mockReset();
     apiMock.getClientPortalDashboard.mockReset();
+    apiMock.listClientPortalPendingOrderRequests.mockReset();
     apiMock.createClientPortalReportDownloadUrl.mockReset();
     apiMock.listClientPortalOrders.mockReset();
     apiMock.getClientPortalOrderDetail.mockReset();
@@ -93,19 +95,58 @@ describe("Client Portal pages", () => {
       nextDueAt: "2026-06-15",
       recentOrders: [portalOrder],
     });
+    apiMock.listClientPortalPendingOrderRequests.mockResolvedValue([]);
 
     renderPortalRoutes();
 
     expect(await screen.findByText("Appraisal orders")).toBeInTheDocument();
     expect(screen.getByText("Order Appraisal")).toBeInTheDocument();
+    expect(screen.getByText("Request an appraisal")).toBeInTheDocument();
+    expect(screen.getByText("Submit a new appraisal request for review.")).toBeInTheDocument();
     expect(screen.getByText("Track Progress")).toBeInTheDocument();
     expect(screen.getByText("Download Report")).toBeInTheDocument();
     expect(await screen.findByText("CP-001")).toBeInTheDocument();
     expect(screen.getByText("100 Main St")).toBeInTheDocument();
   });
 
+  it("shows submitted pending client requests on the dashboard without treating them as active orders", async () => {
+    apiMock.getClientPortalDashboard.mockResolvedValue({
+      activeOrderCount: 0,
+      reportAvailableCount: 0,
+      nextDueAt: null,
+      recentOrders: [],
+    });
+    apiMock.listClientPortalPendingOrderRequests.mockResolvedValue([
+      {
+        requestKey: "request-key-1",
+        status: "submitted",
+        statusLabel: "Submitted",
+        statusCopy: "Your appraisal team is reviewing this request.",
+        propertyAddress: "300 Madison Ave, Toledo OH",
+        propertyType: "Office",
+        reportType: "Full",
+        requestedDueDate: "2026-06-20",
+        submittedAt: "2026-06-08T14:00:00Z",
+      },
+    ]);
+
+    renderPortalRoutes();
+
+    expect(await screen.findByText("Pending requests")).toBeInTheDocument();
+    expect(screen.getByText("300 Madison Ave, Toledo OH")).toBeInTheDocument();
+    expect(screen.getAllByText("Submitted").length).toBeGreaterThan(0);
+    expect(screen.getByText("Your appraisal team is reviewing this request.")).toBeInTheDocument();
+    expect(screen.getByText("Jun 20, 2026")).toBeInTheDocument();
+    expect(screen.getByText("0 active")).toBeInTheDocument();
+    expect(screen.queryByText("CP-001")).not.toBeInTheDocument();
+
+    const serialized = document.body.textContent;
+    expect(serialized).not.toMatch(/vendor|procurement|assignment|internal review|staff note|fee|margin/i);
+  });
+
   it("renders the client order list without internal, vendor, or procurement language", async () => {
     apiMock.listClientPortalOrders.mockResolvedValue([portalOrder]);
+    apiMock.listClientPortalPendingOrderRequests.mockResolvedValue([]);
 
     renderPortalRoutes("/client-portal/orders");
 
@@ -114,6 +155,29 @@ describe("Client Portal pages", () => {
 
     const serialized = document.body.textContent;
     expect(serialized).not.toMatch(/vendor bidding|assignment detail|procurement|internal review|private note/i);
+  });
+
+  it("shows pending submitted requests on the orders page separately from operational orders", async () => {
+    apiMock.listClientPortalOrders.mockResolvedValue([]);
+    apiMock.listClientPortalPendingOrderRequests.mockResolvedValue([
+      {
+        requestKey: "request-key-1",
+        status: "submitted",
+        statusLabel: "Submitted",
+        statusCopy: "Your appraisal team is reviewing this request.",
+        propertyAddress: "300 Madison Ave, Toledo OH",
+        requestedDueDate: "2026-06-20",
+        submittedAt: "2026-06-08T14:00:00Z",
+      },
+    ]);
+
+    renderPortalRoutes("/client-portal/orders");
+
+    const pendingRegion = await screen.findByRole("region", { name: "Pending requests" });
+    expect(within(pendingRegion).getByText("300 Madison Ave, Toledo OH")).toBeInTheDocument();
+    expect(within(pendingRegion).getAllByText("Submitted").length).toBeGreaterThan(0);
+    expect(within(pendingRegion).getByText("Your appraisal team is reviewing this request.")).toBeInTheDocument();
+    expect(screen.getByText("No client portal orders are available yet.")).toBeInTheDocument();
   });
 
   it("renders client-safe order detail and hides operational details", async () => {
@@ -261,6 +325,7 @@ describe("Client Portal pages", () => {
     expect(screen.getByText("Your team will review and confirm the details before the appraisal moves forward.")).toBeInTheDocument();
     expect(apiMock.getClientPortalDashboard).not.toHaveBeenCalled();
     expect(apiMock.listClientPortalOrders).not.toHaveBeenCalled();
+    expect(apiMock.listClientPortalPendingOrderRequests).not.toHaveBeenCalled();
     expect(apiMock.getClientPortalOrderDetail).not.toHaveBeenCalled();
 
     expect(document.body.textContent).not.toMatch(/vendor|appraiser|procurement|assignment|fee|margin/i);

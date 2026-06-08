@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { listClientPortalOrders } from "@/features/clientPortal/api";
+import {
+  listClientPortalOrders,
+  listClientPortalPendingOrderRequests,
+} from "@/features/clientPortal/api";
+import ClientPortalPendingRequests from "@/features/clientPortal/ClientPortalPendingRequests";
 
 function formatDate(value) {
   if (!value) return "Not scheduled";
@@ -24,6 +28,7 @@ function StatusPill({ children }) {
 
 export default function ClientPortalOrdersPage() {
   const [orders, setOrders] = useState([]);
+  const [pendingRequests, setPendingRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -35,12 +40,17 @@ export default function ClientPortalOrdersPage() {
       setError(null);
 
       try {
-        const rows = await listClientPortalOrders();
+        const [rows, requestRows] = await Promise.all([
+          listClientPortalOrders(),
+          listClientPortalPendingOrderRequests(),
+        ]);
         if (!active) return;
         setOrders(rows);
+        setPendingRequests(requestRows);
       } catch (err) {
         if (!active) return;
         setOrders([]);
+        setPendingRequests([]);
         setError(err);
       } finally {
         if (active) setLoading(false);
@@ -71,6 +81,18 @@ export default function ClientPortalOrdersPage() {
           Order tracking is not available yet for this portal session.
         </div>
       )}
+
+      <section className="rounded-lg border border-stone-200 bg-white p-4" aria-label="Pending requests">
+        <div>
+          <h2 className="text-base font-semibold text-slate-950">Pending requests</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Requests submitted for review before they become active orders.
+          </p>
+        </div>
+        <div className="mt-4">
+          <ClientPortalPendingRequests requests={pendingRequests} loading={loading} />
+        </div>
+      </section>
 
       <section className="rounded-lg border border-stone-200 bg-white" aria-label="Client orders">
         {loading ? (

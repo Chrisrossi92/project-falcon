@@ -4,6 +4,7 @@ const CLIENT_PORTAL_ORDER_LIST_RPC = "rpc_client_portal_orders";
 const CLIENT_PORTAL_ORDER_DETAIL_RPC = "rpc_client_portal_order_detail";
 const CLIENT_PORTAL_DASHBOARD_RPC = "rpc_client_portal_dashboard";
 const CLIENT_PORTAL_ORDER_REQUEST_CREATE_RPC = "rpc_client_portal_order_request_create";
+const CLIENT_PORTAL_PENDING_ORDER_REQUESTS_RPC = "rpc_client_portal_pending_order_requests";
 const CLIENT_PORTAL_INVITATION_READ_RPC = "rpc_client_portal_invitation_read";
 const CLIENT_PORTAL_INVITATION_ACCEPT_RPC = "rpc_client_portal_invitation_accept";
 const CLIENT_PORTAL_REPORT_DOWNLOAD_FUNCTION = "client-portal-report-download-url";
@@ -87,6 +88,25 @@ export function normalizeClientPortalOrderRequest(row = {}) {
   };
 }
 
+export function normalizeClientPortalPendingOrderRequest(row = {}) {
+  const requestKey = toStringOrNull(row.request_key ?? row.requestKey);
+  if (!requestKey) return null;
+
+  return {
+    requestKey,
+    status: toStringOrNull(row.status) || "submitted",
+    statusLabel: toStringOrNull(row.status_label ?? row.statusLabel) || "Submitted",
+    statusCopy:
+      toStringOrNull(row.status_copy ?? row.statusCopy) ||
+      "Your appraisal team is reviewing this request.",
+    propertyAddress: toStringOrNull(row.property_address ?? row.propertyAddress),
+    propertyType: toStringOrNull(row.property_type ?? row.propertyType),
+    reportType: toStringOrNull(row.report_type ?? row.reportType),
+    requestedDueDate: toStringOrNull(row.requested_due_date ?? row.requestedDueDate),
+    submittedAt: toStringOrNull(row.submitted_at ?? row.submittedAt),
+  };
+}
+
 export function normalizeClientPortalInvitation(row = {}) {
   const email = toStringOrNull(row.email);
   const status = toStringOrNull(row.status) || "pending";
@@ -116,6 +136,15 @@ export async function listClientPortalOrders() {
 
   return (Array.isArray(data) ? data : [])
     .map(normalizeClientPortalOrder)
+    .filter(Boolean);
+}
+
+export async function listClientPortalPendingOrderRequests() {
+  const { data, error } = await supabase.rpc(CLIENT_PORTAL_PENDING_ORDER_REQUESTS_RPC);
+  if (error) throw error;
+
+  return (Array.isArray(data) ? data : [])
+    .map(normalizeClientPortalPendingOrderRequest)
     .filter(Boolean);
 }
 
@@ -238,6 +267,7 @@ export const clientPortalRpcNames = Object.freeze({
   listOrders: CLIENT_PORTAL_ORDER_LIST_RPC,
   orderDetail: CLIENT_PORTAL_ORDER_DETAIL_RPC,
   orderRequestCreate: CLIENT_PORTAL_ORDER_REQUEST_CREATE_RPC,
+  pendingOrderRequests: CLIENT_PORTAL_PENDING_ORDER_REQUESTS_RPC,
   invitationRead: CLIENT_PORTAL_INVITATION_READ_RPC,
   invitationAccept: CLIENT_PORTAL_INVITATION_ACCEPT_RPC,
   reportDownloadFunction: CLIENT_PORTAL_REPORT_DOWNLOAD_FUNCTION,

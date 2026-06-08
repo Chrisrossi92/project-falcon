@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { getClientPortalDashboard } from "@/features/clientPortal/api";
+import {
+  getClientPortalDashboard,
+  listClientPortalPendingOrderRequests,
+} from "@/features/clientPortal/api";
+import ClientPortalPendingRequests from "@/features/clientPortal/ClientPortalPendingRequests";
 
 function formatDate(value) {
   if (!value) return "Not scheduled";
@@ -30,6 +34,7 @@ export default function ClientPortalDashboard() {
     nextDueAt: null,
     recentOrders: [],
   });
+  const [pendingRequests, setPendingRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -41,9 +46,13 @@ export default function ClientPortalDashboard() {
       setError(null);
 
       try {
-        const row = await getClientPortalDashboard();
+        const [row, requestRows] = await Promise.all([
+          getClientPortalDashboard(),
+          listClientPortalPendingOrderRequests(),
+        ]);
         if (!active) return;
         setDashboard(row);
+        setPendingRequests(requestRows);
       } catch (err) {
         if (!active) return;
         setDashboard({
@@ -52,6 +61,7 @@ export default function ClientPortalDashboard() {
           nextDueAt: null,
           recentOrders: [],
         });
+        setPendingRequests([]);
         setError(err);
       } finally {
         if (active) setLoading(false);
@@ -89,9 +99,9 @@ export default function ClientPortalDashboard() {
           <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
             Order Appraisal
           </div>
-          <div className="mt-2 text-lg font-semibold text-slate-950">Request ready</div>
+          <div className="mt-2 text-lg font-semibold text-slate-950">Request an appraisal</div>
           <p className="mt-1 text-xs leading-5 text-slate-500">
-            Intake is staged for the next slice and remains read-only here.
+            Submit a new appraisal request for review.
           </p>
         </article>
         <article className="rounded-lg border border-stone-200 bg-white p-4">
@@ -113,6 +123,26 @@ export default function ClientPortalDashboard() {
       </section>
 
       {error && <PortalError />}
+
+      <section className="rounded-lg border border-stone-200 bg-white p-4" aria-label="Pending requests">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-slate-950">Pending requests</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Submitted requests your appraisal team is reviewing before they become active orders.
+            </p>
+          </div>
+          <Link
+            to="/client-portal/new-order"
+            className="inline-flex w-fit rounded-md border border-slate-900 bg-slate-900 px-3 py-2 text-sm font-semibold text-white"
+          >
+            Request appraisal
+          </Link>
+        </div>
+        <div className="mt-4">
+          <ClientPortalPendingRequests requests={pendingRequests} loading={loading} limit={3} />
+        </div>
+      </section>
 
       <section className="rounded-lg border border-stone-200 bg-white p-4" aria-label="Recent orders">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

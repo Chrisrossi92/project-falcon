@@ -157,6 +157,13 @@ AMC-19 onboarding status:
 - New Order request creation now resolves the submitted request's company/client context directly
   from active `client_portal_members`, so client-only users can submit intake requests without
   operational company membership or auth app metadata.
+- Submitted intake requests now appear in a Client Portal `Pending requests` section on the
+  dashboard and Orders page until staff converts them into operational orders. The client sees only
+  request status, property/report details, requested due date, submitted date, and lender-safe copy:
+  `Your appraisal team is reviewing this request.`
+- The Client Portal header now has a visible `Sign out` action. Signing out clears the Supabase
+  session and redirects to `/login`, so the root-domain client-only redirect applies only while the
+  client is authenticated.
 - Real email delivery remains deferred, so staff must copy and send the invite link manually during
   the hands-on pilot.
 - The proposed onboarding architecture is documented in

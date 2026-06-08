@@ -17,6 +17,7 @@ const {
   getClientPortalOrderDetail,
   getClientPortalDashboard,
   listClientPortalOrders,
+  listClientPortalPendingOrderRequests,
   readClientPortalInvitation,
   normalizeClientPortalOrderDetail,
   submitClientPortalOrderRequest,
@@ -189,6 +190,43 @@ describe("clientPortalApi", () => {
       p_client_contact_email: "avery@example.test",
       p_notes: "Gate code available.",
     });
+  });
+
+  it("lists pending client portal order requests through the dedicated safe RPC", async () => {
+    supabase.rpc.mockResolvedValue({
+      data: [
+        {
+          request_key: "request-key-1",
+          status: "submitted",
+          status_label: "Submitted",
+          status_copy: "Your appraisal team is reviewing this request.",
+          property_address: "300 Madison Ave, Toledo OH",
+          property_type: "Office",
+          report_type: "Full",
+          requested_due_date: "2026-06-20",
+          submitted_at: "2026-06-08T14:00:00Z",
+          accepted_order_id: "hidden",
+          reviewed_by_user_id: "hidden",
+        },
+      ],
+      error: null,
+    });
+
+    await expect(listClientPortalPendingOrderRequests()).resolves.toEqual([
+      {
+        requestKey: "request-key-1",
+        status: "submitted",
+        statusLabel: "Submitted",
+        statusCopy: "Your appraisal team is reviewing this request.",
+        propertyAddress: "300 Madison Ave, Toledo OH",
+        propertyType: "Office",
+        reportType: "Full",
+        requestedDueDate: "2026-06-20",
+        submittedAt: "2026-06-08T14:00:00Z",
+      },
+    ]);
+
+    expect(supabase.rpc).toHaveBeenCalledWith(clientPortalRpcNames.pendingOrderRequests);
   });
 
   it("validates required order request fields before calling the RPC", async () => {

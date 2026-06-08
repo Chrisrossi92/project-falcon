@@ -76,6 +76,16 @@ const orderRequestMembershipContextMigrationSql = readFileSync(
   'utf8',
 );
 
+const pendingRequestVisibilityMigrationPath = resolve(
+  process.cwd(),
+  'supabase/migrations/20260608160000_client_portal_pending_request_visibility.sql',
+);
+
+const pendingRequestVisibilityMigrationSql = readFileSync(
+  pendingRequestVisibilityMigrationPath,
+  'utf8',
+);
+
 describe('Client Portal safe order read model migration', () => {
   it('creates dedicated Client Portal permissions, member mapping, view, and RPCs', () => {
     expect(migrationSql).toContain("'client_portal.dashboard.view'");
@@ -504,6 +514,63 @@ describe('Client Portal order request membership context migration', () => {
     expect(orderRequestMembershipContextMigrationSql).not.toContain('update public.company_memberships');
     expect(orderRequestMembershipContextMigrationSql).not.toContain('insert into public.user_role_assignments');
     expect(orderRequestMembershipContextMigrationSql).not.toContain('update public.user_role_assignments');
+  });
+});
+
+describe('Client Portal pending request visibility migration', () => {
+  it('creates a dedicated safe pending request RPC for client portal members', () => {
+    expect(pendingRequestVisibilityMigrationSql).toContain(
+      'create or replace function public.rpc_client_portal_pending_order_requests()',
+    );
+    expect(pendingRequestVisibilityMigrationSql).toContain(
+      'public.current_app_user_can_read_client_portal()',
+    );
+    expect(pendingRequestVisibilityMigrationSql).toContain(
+      'join public.current_app_user_client_portal_memberships() readable',
+    );
+    expect(pendingRequestVisibilityMigrationSql).toContain('readable.company_id = cpor.company_id');
+    expect(pendingRequestVisibilityMigrationSql).toContain('readable.client_id = cpor.client_id');
+  });
+
+  it('returns only unconverted submitted or under-review intake requests', () => {
+    expect(pendingRequestVisibilityMigrationSql).toContain('from public.client_portal_order_requests cpor');
+    expect(pendingRequestVisibilityMigrationSql).toContain('cpor.accepted_order_id is null');
+    expect(pendingRequestVisibilityMigrationSql).toContain("cpor.status in ('submitted', 'under_review')");
+    expect(pendingRequestVisibilityMigrationSql).toContain("when 'submitted' then 'Submitted'");
+    expect(pendingRequestVisibilityMigrationSql).toContain("when 'under_review' then 'Awaiting review'");
+  });
+
+  it('exposes client-safe pending request fields and no internal workflow details', () => {
+    [
+      'request_key text',
+      'status_label text',
+      'property_address text',
+      'property_type text',
+      'report_type text',
+      'requested_due_date date',
+      'submitted_at timestamptz',
+      'status_copy text',
+      'Your appraisal team is reviewing this request.',
+    ].forEach((field) => {
+      expect(pendingRequestVisibilityMigrationSql).toContain(field);
+    });
+
+    [
+      'accepted_order_id uuid',
+      'reviewed_by_user_id uuid',
+      'reviewed_by_name',
+      'reviewed_by_email',
+      'vendor_company_id',
+      'procurement_status',
+      'assignment_key',
+      'invoice',
+      'fee_amount',
+      'amc_margin',
+      'internal_note',
+      'private_note',
+    ].forEach((field) => {
+      expect(pendingRequestVisibilityMigrationSql).not.toContain(field);
+    });
   });
 });
 

@@ -259,6 +259,11 @@ Client-side manual invite acceptance foundation:
 - Client Portal order request creation resolves the request company/client from active
   `client_portal_members`, not from operational company membership or current-company app metadata,
   and returns specific auth, permission, membership, and field validation errors.
+- Submitted Client Portal intake requests now remain visible to the client as pending requests on
+  the dashboard and Orders page before staff conversion. The pending projection is client-safe:
+  request key, status copy, property/report details, requested due date, and submitted date only.
+- Client Portal users have a visible `Sign out` action in the portal shell. Sign-out clears the
+  Supabase session and redirects to `/login`.
 
 Remaining implementation work after the token, staff manual-link, and acceptance foundations:
 

@@ -1878,6 +1878,10 @@ Client invite acceptance foundation:
 - Client Portal order request creation now resolves the company/client from active
   `client_portal_members` instead of operational current-company membership, with specific
   client-safe errors for missing auth, permission, membership, or required fields.
+- Submitted intake requests now appear to the client as pending requests on the Client Portal
+  dashboard and Orders page until staff review/conversion creates an operational order.
+- Client Portal shell now includes visible sign-out; client-only root/dashboard redirects remain
+  active only while authenticated.
 - Expired, revoked, and already accepted states are shown without exposing internal workspace data.
 
 AMC-19 boundary:
