@@ -271,6 +271,10 @@ Client-side manual invite acceptance foundation:
 - Owner/Admin role templates now receive the staff request read/manage permissions so AMC
   coordinators/admins can review, mark under review, and convert portal-submitted intake requests
   after the production schema is aligned.
+- Production view-shape alignment is handled by
+  `20260608171000_client_request_review_view_alignment.sql` when an older
+  `v_client_portal_order_request_staff_review` definition blocks `create or replace view` with
+  `ERROR: 42P16: cannot drop columns from view`.
 
 Remaining implementation work after the token, staff manual-link, and acceptance foundations:
 

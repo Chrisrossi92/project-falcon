@@ -1887,6 +1887,9 @@ Client invite acceptance foundation:
   is AMC-owned and uses the existing review/conversion RPCs.
 - Owner/Admin role templates now receive the staff request read/manage permissions for the pilot
   review inbox.
+- Production alignment migration `20260608171000_client_request_review_view_alignment.sql` safely
+  repairs older staff review view shapes by dropping dependent RPCs before recreating the view and
+  staff list/detail/status/convert RPCs.
 - Expired, revoked, and already accepted states are shown without exposing internal workspace data.
 
 AMC-19 boundary:

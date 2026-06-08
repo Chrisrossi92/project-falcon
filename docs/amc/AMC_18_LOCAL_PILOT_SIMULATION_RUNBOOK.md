@@ -173,6 +173,13 @@ AMC-19 onboarding status:
   existing staff review and conversion RPC migrations applied:
   `20260607103000_client_portal_order_request_review_inbox.sql` and
   `20260607104000_client_portal_order_request_conversion.sql`.
+- If production SQL Editor fails on `20260607103000_client_portal_order_request_review_inbox.sql`
+  with `ERROR: 42P16: cannot drop columns from view`, apply
+  `20260608171000_client_request_review_view_alignment.sql` instead of retrying the failing
+  `create or replace view`. The alignment migration drops the dependent staff review RPCs, drops and
+  recreates `v_client_portal_order_request_staff_review` with the final converted-order linkage
+  shape, recreates the list/detail/status/convert RPCs, preserves grants/comments, and does not
+  mutate submitted request data except through the explicit review/convert RPC bodies.
 - Real email delivery remains deferred, so staff must copy and send the invite link manually during
   the hands-on pilot.
 - The proposed onboarding architecture is documented in
