@@ -16,6 +16,7 @@ import {
   updateClientManagementClient,
 } from "@/features/clients/clientManagementApi";
 import {
+  createClientPortalInvitation,
   createClientContact,
   listClientContacts,
   setClientContactStatus,
@@ -109,6 +110,30 @@ function contactMutationErrorMessage(error) {
   return "Falcon could not update this contact.";
 }
 
+function clientPortalInvitationErrorMessage(error) {
+  const message = error?.message || "";
+  if (message.includes("client_portal_invitation_already_pending")) {
+    return "A portal invite is already pending for this contact.";
+  }
+  if (message.includes("client_portal_member_already_exists")) {
+    return "This contact already has Client Portal access.";
+  }
+  if (message.includes("client_portal_invitation_email_required")) {
+    return "Add an email address before creating a portal invite.";
+  }
+  if (message.includes("client_portal_invitation_email_invalid")) {
+    return "Enter a valid email address before creating a portal invite.";
+  }
+  if (
+    message.includes("permission")
+    || message.includes("forbidden")
+    || error?.code === "42501"
+  ) {
+    return "You do not have permission to invite Client Portal members.";
+  }
+  return "Falcon could not create this portal invite.";
+}
+
 /* ============================== main ============================== */
 
 export default function ClientDetail() {
@@ -121,7 +146,9 @@ export default function ClientDetail() {
   const isAdmin = Boolean(appContext?.is_owner || appContext?.is_admin_role);
   const isReviewer = !isAdmin && Boolean(appContext?.is_reviewer_role);
   const canUpdateAllClientsPermission = useCan(PERMISSIONS.CLIENTS_UPDATE_ALL);
+  const canInviteClientPortalMembersPermission = useCan(PERMISSIONS.CLIENT_PORTAL_MEMBERS_INVITE);
   const canUpdateAllClients = canUpdateAllClientsPermission.allowed;
+  const canInviteClientPortalMembers = canInviteClientPortalMembersPermission.allowed;
 
   const numericId = Number(clientIdParam);
   const [loading, setLoading] = useState(true);
@@ -135,6 +162,8 @@ export default function ClientDetail() {
   const [contactsError, setContactsError] = useState(null);
   const [contactFormMode, setContactFormMode] = useState(null);
   const [editingContact, setEditingContact] = useState(null);
+  const [creatingInviteContactId, setCreatingInviteContactId] = useState(null);
+  const [portalInviteByContactId, setPortalInviteByContactId] = useState({});
 
   const [editing, setEditing] = useState(false);
 
@@ -386,6 +415,42 @@ export default function ClientDetail() {
     }
   }
 
+  async function handleCreatePortalInvite(contact) {
+    if (!client || !canInviteClientPortalMembers) return;
+
+    try {
+      setCreatingInviteContactId(contact.id);
+      const invite = await createClientPortalInvitation({
+        clientId: client.id,
+        contactId: contact.id,
+        email: contact.email,
+      });
+      setPortalInviteByContactId((prev) => ({
+        ...prev,
+        [contact.id]: invite,
+      }));
+      toast.success("Portal invite created");
+    } catch (e) {
+      console.error(e);
+      toast.error(clientPortalInvitationErrorMessage(e));
+    } finally {
+      setCreatingInviteContactId(null);
+    }
+  }
+
+  async function handleCopyPortalInvite(invite) {
+    const link = invite?.inviteLink;
+    if (!link) return;
+
+    try {
+      await navigator.clipboard.writeText(link);
+      toast.success("Invite link copied");
+    } catch (e) {
+      console.error(e);
+      toast.error("Copy failed. Select and copy the invite link manually.");
+    }
+  }
+
   if (loading || appContextLoading) {
     return (
       <div className="p-4 md:p-6">
@@ -618,6 +683,9 @@ export default function ClientDetail() {
             loading={contactsLoading}
             error={contactsError}
             canManage={canUpdateAllClients}
+            canInvitePortalMembers={canInviteClientPortalMembers}
+            creatingInviteContactId={creatingInviteContactId}
+            portalInviteByContactId={portalInviteByContactId}
             formMode={contactFormMode}
             editingContact={editingContact}
             onAdd={handleAddContact}
@@ -626,6 +694,8 @@ export default function ClientDetail() {
             onSave={handleSaveContact}
             onSetDefault={handleSetDefaultContact}
             onSetStatus={handleSetContactStatus}
+            onCreatePortalInvite={handleCreatePortalInvite}
+            onCopyPortalInvite={handleCopyPortalInvite}
           />
 
           <WorkspaceSection
@@ -715,6 +785,9 @@ function ContactsSection({
   loading,
   error,
   canManage,
+  canInvitePortalMembers,
+  creatingInviteContactId,
+  portalInviteByContactId,
   formMode,
   editingContact,
   onAdd,
@@ -723,6 +796,8 @@ function ContactsSection({
   onSave,
   onSetDefault,
   onSetStatus,
+  onCreatePortalInvite,
+  onCopyPortalInvite,
 }) {
   const isFormOpen = Boolean(formMode);
 
@@ -777,9 +852,14 @@ function ContactsSection({
               key={contact.id}
               contact={contact}
               canManage={canManage}
+              canInvitePortalMembers={canInvitePortalMembers}
+              creatingInvite={creatingInviteContactId === contact.id}
+              portalInvite={portalInviteByContactId?.[contact.id] || null}
               onEdit={onEdit}
               onSetDefault={onSetDefault}
               onSetStatus={onSetStatus}
+              onCreatePortalInvite={onCreatePortalInvite}
+              onCopyPortalInvite={onCopyPortalInvite}
             />
           ))}
         </div>
@@ -896,8 +976,22 @@ function ContactForm({ contact, mode, onCancel, onSave }) {
   );
 }
 
-function ClientContactCard({ contact, canManage, onEdit, onSetDefault, onSetStatus }) {
+function ClientContactCard({
+  contact,
+  canManage,
+  canInvitePortalMembers,
+  creatingInvite,
+  portalInvite,
+  onEdit,
+  onSetDefault,
+  onSetStatus,
+  onCreatePortalInvite,
+  onCopyPortalInvite,
+}) {
   const inactive = contact.status === "inactive";
+  const canCreatePortalInvite = Boolean(
+    canInvitePortalMembers && !inactive && contact.email,
+  );
 
   return (
     <article
@@ -963,6 +1057,55 @@ function ClientContactCard({ contact, canManage, onEdit, onSetDefault, onSetStat
           </div>
         )}
       </div>
+      {canCreatePortalInvite && (
+        <div className="mt-3 border-t border-slate-100 pt-3">
+          <button
+            type="button"
+            onClick={() => onCreatePortalInvite(contact)}
+            disabled={creatingInvite}
+            className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {creatingInvite ? "Creating invite..." : "Create portal invite"}
+          </button>
+        </div>
+      )}
+      {portalInvite?.inviteLink && (
+        <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-3">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="text-xs font-semibold text-emerald-900">
+                Portal invite pending
+              </div>
+              <div className="mt-1 text-xs text-emerald-800">
+                {portalInvite.email}
+                {portalInvite.expiresAt ? ` / Expires ${fmtDate(portalInvite.expiresAt)}` : ""}
+              </div>
+            </div>
+            <span className="rounded-full border border-emerald-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+              Shown once
+            </span>
+          </div>
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+            <input
+              aria-label={`Portal invite link for ${contact.name}`}
+              readOnly
+              value={portalInvite.inviteLink}
+              className="min-w-0 flex-1 rounded-md border border-emerald-200 bg-white px-3 py-2 font-mono text-xs text-slate-800"
+              onFocus={(event) => event.currentTarget.select()}
+            />
+            <button
+              type="button"
+              onClick={() => onCopyPortalInvite(portalInvite)}
+              className="inline-flex items-center justify-center rounded-md border border-emerald-700 bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800"
+            >
+              Copy Link
+            </button>
+          </div>
+          <p className="mt-2 text-xs leading-5 text-emerald-800">
+            This one-time link is not stored in the browser after you leave this page.
+          </p>
+        </div>
+      )}
     </article>
   );
 }

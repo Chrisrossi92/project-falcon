@@ -103,6 +103,7 @@ export const PERMISSIONS = Object.freeze({
   CLIENT_PORTAL_REPORTS_READ: "client_portal.reports.read",
   CLIENT_PORTAL_ORDER_REQUESTS_READ: "client_portal.order_requests.read",
   CLIENT_PORTAL_ORDER_REQUESTS_MANAGE: "client_portal.order_requests.manage",
+  CLIENT_PORTAL_MEMBERS_INVITE: "client_portal.members.invite",
 
   WORKFLOW_STATUS_SUBMIT_TO_REVIEW: "workflow.status.submit_to_review",
   WORKFLOW_STATUS_REQUEST_REVISIONS: "workflow.status.request_revisions",

@@ -8,6 +8,7 @@ const clientDetailMock = vi.hoisted(() => vi.fn());
 const updateClientMock = vi.hoisted(() => vi.fn());
 const listClientContactsMock = vi.hoisted(() => vi.fn());
 const createClientContactMock = vi.hoisted(() => vi.fn());
+const createClientPortalInvitationMock = vi.hoisted(() => vi.fn());
 const updateClientContactMock = vi.hoisted(() => vi.fn());
 const setClientContactStatusMock = vi.hoisted(() => vi.fn());
 const setDefaultClientContactMock = vi.hoisted(() => vi.fn());
@@ -34,6 +35,7 @@ vi.mock("@/features/clients/clientManagementApi", () => ({
 
 vi.mock("@/features/clients/clientContactsApi", () => ({
   listClientContacts: listClientContactsMock,
+  createClientPortalInvitation: createClientPortalInvitationMock,
   createClientContact: createClientContactMock,
   updateClientContact: updateClientContactMock,
   setClientContactStatus: setClientContactStatusMock,
@@ -55,6 +57,7 @@ vi.mock("@/lib/operations/OperationsModeProvider", () => ({
 vi.mock("@/lib/permissions/constants", () => ({
   PERMISSIONS: {
     CLIENTS_UPDATE_ALL: "clients.update.all",
+    CLIENT_PORTAL_MEMBERS_INVITE: "client_portal.members.invite",
   },
 }));
 
@@ -83,8 +86,18 @@ function createOrdersQuery(data = []) {
   return query;
 }
 
-function renderDetail({ canUpdate = true, context, client, orders, contacts, contactLists } = {}) {
-  useCanMock.mockReturnValue({ allowed: canUpdate });
+function renderDetail({
+  canUpdate = true,
+  canInvitePortalMembers = false,
+  context,
+  client,
+  orders,
+  contacts,
+  contactLists,
+} = {}) {
+  useCanMock.mockImplementation((permissionKey) => ({
+    allowed: permissionKey === "client_portal.members.invite" ? canInvitePortalMembers : canUpdate,
+  }));
   appContextMock.mockReturnValue({
     loading: false,
     context: context || {
@@ -182,6 +195,7 @@ describe("ClientDetail presentation", () => {
     updateClientMock.mockReset();
     listClientContactsMock.mockReset();
     createClientContactMock.mockReset();
+    createClientPortalInvitationMock.mockReset();
     updateClientContactMock.mockReset();
     setClientContactStatusMock.mockReset();
     setDefaultClientContactMock.mockReset();
@@ -197,6 +211,7 @@ describe("ClientDetail presentation", () => {
     updateClientMock.mockReset();
     listClientContactsMock.mockReset();
     createClientContactMock.mockReset();
+    createClientPortalInvitationMock.mockReset();
     updateClientContactMock.mockReset();
     setClientContactStatusMock.mockReset();
     setDefaultClientContactMock.mockReset();
@@ -562,5 +577,118 @@ describe("ClientDetail presentation", () => {
     fireEvent.click(screen.getByRole("button", { name: "Set Default" }));
     expect(setDefaultClientContactMock).toHaveBeenCalledWith(12);
     expect(screen.getByText("Inactive")).toBeInTheDocument();
+  });
+
+  it("shows portal invite action only with invite permission and active contact email", async () => {
+    renderDetail({
+      canInvitePortalMembers: false,
+      contacts: [
+        {
+          id: 12,
+          contact_id: 12,
+          client_id: 42,
+          name: "Dana Miller",
+          email: "dana@example.test",
+          status: "active",
+          is_default: true,
+        },
+      ],
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Dana Miller")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole("button", { name: "Create portal invite" })).not.toBeInTheDocument();
+
+    cleanup();
+    renderDetail({
+      canInvitePortalMembers: true,
+      contacts: [
+        {
+          id: 12,
+          contact_id: 12,
+          client_id: 42,
+          name: "Dana Miller",
+          email: "dana@example.test",
+          status: "active",
+          is_default: true,
+        },
+        {
+          id: 13,
+          contact_id: 13,
+          client_id: 42,
+          name: "No Email",
+          status: "active",
+          is_default: false,
+        },
+        {
+          id: 14,
+          contact_id: 14,
+          client_id: 42,
+          name: "Inactive Email",
+          email: "inactive@example.test",
+          status: "inactive",
+          is_default: false,
+        },
+      ],
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Dana Miller")).toBeInTheDocument();
+    });
+
+    expect(screen.getAllByRole("button", { name: "Create portal invite" })).toHaveLength(1);
+  });
+
+  it("creates a client portal invite and shows the one-time copyable link", async () => {
+    createClientPortalInvitationMock.mockResolvedValue({
+      invitationId: "invite-1",
+      clientId: 42,
+      contactId: 12,
+      contactName: "Dana Miller",
+      email: "dana@example.test",
+      status: "pending",
+      expiresAt: "2026-06-22T12:00:00Z",
+      tokenLastFour: "abcd",
+      inviteLink: "http://localhost/client-portal/invitations/raw-token",
+    });
+
+    renderDetail({
+      canInvitePortalMembers: true,
+      contacts: [
+        {
+          id: 12,
+          contact_id: 12,
+          client_id: 42,
+          name: "Dana Miller",
+          email: "dana@example.test",
+          status: "active",
+          is_default: true,
+        },
+      ],
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Dana Miller")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Create portal invite" }));
+
+    await waitFor(() => {
+      expect(createClientPortalInvitationMock).toHaveBeenCalledWith({
+        clientId: 42,
+        contactId: 12,
+        email: "dana@example.test",
+      });
+    });
+
+    expect(await screen.findByText("Portal invite pending")).toBeInTheDocument();
+    expect(screen.getByText("dana@example.test / Expires 6/22/2026")).toBeInTheDocument();
+    expect(screen.getByText("Shown once")).toBeInTheDocument();
+    expect(screen.getByLabelText("Portal invite link for Dana Miller")).toHaveValue(
+      "http://localhost/client-portal/invitations/raw-token",
+    );
+    expect(screen.getByText("This one-time link is not stored in the browser after you leave this page.")).toBeInTheDocument();
   });
 });

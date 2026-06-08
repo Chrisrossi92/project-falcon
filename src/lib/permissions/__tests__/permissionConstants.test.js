@@ -39,6 +39,7 @@ const clientPortalPermissionEntries = Object.freeze({
   CLIENT_PORTAL_REPORTS_READ: 'client_portal.reports.read',
   CLIENT_PORTAL_ORDER_REQUESTS_READ: 'client_portal.order_requests.read',
   CLIENT_PORTAL_ORDER_REQUESTS_MANAGE: 'client_portal.order_requests.manage',
+  CLIENT_PORTAL_MEMBERS_INVITE: 'client_portal.members.invite',
 });
 
 describe('permission constants', () => {

@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/supabaseClient", () => ({
@@ -8,8 +9,11 @@ vi.mock("@/lib/supabaseClient", () => ({
 
 const supabase = (await import("@/lib/supabaseClient")).default;
 const {
+  clientPortalInvitationRpcNames,
   createClientContact,
+  createClientPortalInvitation,
   listClientContacts,
+  normalizeClientPortalInvitation,
   setClientContactStatus,
   setDefaultClientContact,
   updateClientContact,
@@ -110,5 +114,64 @@ describe("clientContactsApi", () => {
     expect(supabase.rpc).toHaveBeenCalledWith("rpc_client_contact_set_default", {
       p_contact_id: 21,
     });
+  });
+
+  it("creates client portal invitations through the dedicated invite RPC", async () => {
+    supabase.rpc.mockResolvedValue({
+      data: {
+        invitation_id: "invite-1",
+        client_id: 34,
+        client_name: "First Buckeye Bank",
+        client_contact_id: 21,
+        contact_name: "Dana Miller",
+        email: "dana@example.test",
+        status: "pending",
+        expires_at: "2026-06-22T12:00:00Z",
+        token_last_four: "abcd",
+        invitation_token: "f".repeat(64),
+      },
+      error: null,
+    });
+
+    await expect(
+      createClientPortalInvitation({
+        clientId: 34,
+        contactId: 21,
+        email: "dana@example.test",
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        invitationId: "invite-1",
+        clientId: 34,
+        clientName: "First Buckeye Bank",
+        contactId: 21,
+        contactName: "Dana Miller",
+        email: "dana@example.test",
+        status: "pending",
+        expiresAt: "2026-06-22T12:00:00Z",
+        tokenLastFour: "abcd",
+        inviteLink: `${window.location.origin}/client-portal/invitations/${"f".repeat(64)}`,
+      }),
+    );
+
+    expect(supabase.rpc).toHaveBeenCalledWith(clientPortalInvitationRpcNames.create, {
+      p_client_id: 34,
+      p_client_contact_id: 21,
+      p_email: "dana@example.test",
+    });
+  });
+
+  it("normalizes returned invitation paths without persisting raw token separately", () => {
+    expect(
+      normalizeClientPortalInvitation({
+        invitation_path: "/client-portal/invitations/raw-token",
+        email: "dana@example.test",
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        email: "dana@example.test",
+        inviteLink: `${window.location.origin}/client-portal/invitations/raw-token`,
+      }),
+    );
   });
 });

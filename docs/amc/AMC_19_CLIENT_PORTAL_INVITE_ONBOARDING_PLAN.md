@@ -178,9 +178,20 @@ This slice establishes the invite contract without email or UI:
 - acceptance creates or reactivates `client_portal_members`;
 - acceptance does not insert or update `company_memberships` or `user_role_assignments`.
 
-Remaining implementation work after the token foundation:
+Staff-side manual invite link foundation:
 
-- staff `Send Portal Invite` UI;
+- Client Relationships contact cards can show `Create portal invite` for active contacts with an
+  email when staff has `client_portal.members.invite`.
+- The action calls `rpc_client_portal_invitation_create(...)` and renders the returned pending
+  invite metadata immediately.
+- The UI shows the invite email, expiration, copyable `/client-portal/invitations/:token` link, and
+  one-time-link warning.
+- The raw token remains only in the immediate success state. It is not saved in local storage,
+  route state, or client records.
+- No email is sent by this slice.
+
+Remaining implementation work after the token and staff manual-link foundation:
+
 - Supabase Auth invite email Edge Function;
 - `/client-portal/invitations/:token` read/accept page;
 - resend/revoke behavior if needed for pilot operations;
