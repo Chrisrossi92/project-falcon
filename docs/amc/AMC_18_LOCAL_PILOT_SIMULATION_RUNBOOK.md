@@ -64,10 +64,11 @@ Use the checked-in local AMC smoke fixture for the AMC/vendor side:
 - Disposable report PDF: `/private/tmp/project-falcon-amc-smoke/amc-smoke-report.pdf`.
 - Disposable invoice PDF: `/private/tmp/project-falcon-amc-smoke/amc-smoke-invoice.pdf`.
 
-Client Portal needs one mapped lender user. There is no dedicated client invite/onboarding flow or
-checked-in client demo fixture yet, so do not add ad hoc production-like seed data in this slice.
-For local simulation, create the client persona only in the local reset database using a clearly
-marked disposable account and a `client_portal_members` mapping.
+Client Portal needs one mapped lender user. AMC-19 now provides a dedicated manual invite-link flow
+from Client Relationships, but there is no checked-in client demo fixture yet. Do not add ad hoc
+production-like seed data in this slice. For local simulation, create the client persona through the
+invite flow when possible, or create only clearly marked disposable local records and a
+`client_portal_members` mapping when testing lower-level RPCs directly.
 
 Planned client persona:
 
@@ -143,8 +144,12 @@ AMC-19 onboarding status:
 - If production Supabase requires email confirmation, account creation shows a confirmation-needed
   state. Dana must confirm the email, return to the invite link, sign in, and then the invite will
   be accepted.
+- If email confirmation redirects Dana to `/client-portal` before the invite is accepted, the
+  unavailable state now instructs her to return to the original invite link to finish setup.
 - Acceptance creates Client Portal membership only; it does not create Internal/AMC company
   membership.
+- Active `client_portal_members` access now grants only Client Portal permissions, so Dana can use
+  the portal after acceptance without operational company membership.
 - Real email delivery remains deferred, so staff must copy and send the invite link manually during
   the hands-on pilot.
 - The proposed onboarding architecture is documented in
@@ -154,15 +159,8 @@ Required local-only records:
 
 - `auth.users` row for `client.demo.dana+local@example.test`.
 - `public.users` row linked to that auth user.
-- active `company_memberships` row in `falcon_default`.
-- role/permission assignment granting:
-  - `client_portal.dashboard.view`;
-  - `client_portal.orders.read`;
-  - `client_portal.orders.create`;
-  - `client_portal.reports.read`.
 - `clients` row for `First Buckeye Bank` if one does not already exist.
 - active `client_portal_members` row mapping Dana to First Buckeye Bank.
-- auth app metadata setting active/current company to `falcon_default`.
 
 Suggested local setup sequence:
 
@@ -174,18 +172,8 @@ Suggested local setup sequence:
    - `v_client_id`: the First Buckeye Bank client id.
 3. Upsert Dana's `public.users` row with `auth_id = v_auth_user_id`, email, name, and active
    status.
-4. Upsert `company_memberships(company_id, user_id, status, membership_type, is_primary)` as active
-   with a local/demo membership marker.
-5. Create or reuse a local-only role named `Client Portal Demo` and grant:
-   - `client_portal.dashboard.view`;
-   - `client_portal.orders.read`;
-   - `client_portal.orders.create`;
-   - `client_portal.reports.read`.
-6. Upsert `user_role_assignments(company_id, user_id, role_id, status, is_primary)` for the demo
-   role.
-7. Upsert `client_portal_members(company_id, client_id, user_id, status)` as active.
-8. Set Dana's Auth app metadata for `active_company_id` and `current_company_id` to `falcon_default`.
-9. Confirm `rpc_client_portal_dashboard()`, `rpc_client_portal_orders()`, and
+4. Upsert `client_portal_members(company_id, client_id, user_id, status)` as active.
+5. Confirm `rpc_client_portal_dashboard()`, `rpc_client_portal_orders()`, and
    `rpc_client_portal_order_request_create(...)` work as Dana.
 
 Do not grant Dana:

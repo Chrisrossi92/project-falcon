@@ -82,6 +82,14 @@ describe("ClientPortalRouteGuard", () => {
     expect(screen.getByTestId("client-portal")).toHaveTextContent("Client Portal");
   });
 
+  it("renders the client portal for users with dashboard client portal access", () => {
+    permissionState.permissions = new Set([PERMISSIONS.CLIENT_PORTAL_DASHBOARD_VIEW]);
+
+    renderGuard();
+
+    expect(screen.getByTestId("client-portal")).toHaveTextContent("Client Portal");
+  });
+
   it("denies internal or AMC users without client portal access", () => {
     permissionState.permissions = new Set([PERMISSIONS.ORDERS_READ_ALL, PERMISSIONS.VENDORS_READ]);
 
@@ -89,6 +97,7 @@ describe("ClientPortalRouteGuard", () => {
 
     expect(screen.queryByTestId("client-portal")).toBeNull();
     expect(screen.getByText("Client Portal unavailable")).toBeInTheDocument();
+    expect(screen.getByText(/return to the original invitation link to finish setup/i)).toBeInTheDocument();
   });
 
   it("redirects unauthenticated users to login", () => {

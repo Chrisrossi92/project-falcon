@@ -239,6 +239,9 @@ Client-side manual invite acceptance foundation:
 - If Supabase requires email confirmation and returns a created user without a session, the page
   shows a confirmation-needed state and does not call the accept RPC. The invitation remains
   pending until the confirmed user returns to the invite link and signs in.
+- If a Supabase email confirmation redirects the user to `/client-portal` before the invite is
+  accepted, the Client Portal unavailable state now tells the user to return to the original
+  invitation link to finish setup.
 - Password sign-in immediately calls `rpc_client_portal_invitation_accept(p_token)`.
 - Already-authenticated matching-email users auto-accept with
   `rpc_client_portal_invitation_accept(p_token)`.
@@ -247,12 +250,15 @@ Client-side manual invite acceptance foundation:
 - Expired, revoked, and already accepted invitations show lender-safe states.
 - The page does not switch company context, create operational company membership, or expose
   Internal/AMC workspace routes.
+- Client Portal access recognition now grants only the four `client_portal.*` client permissions
+  from active `client_portal_members`, so accepted client users can open the portal without becoming
+  operational company members.
 
 Remaining implementation work after the token, staff manual-link, and acceptance foundations:
 
 - Supabase Auth invite email Edge Function;
 - resend/revoke behavior if needed for pilot operations;
-- Client Portal auth hardening so client-only users do not require operational company membership.
+- branded sender/domain configuration and production email template polish.
 
 ## Proposed Backend Flow
 

@@ -244,7 +244,7 @@ export default function ClientPortalInvitationPage() {
         ) : status === "confirmation_needed" ? (
           <StatePanel
             title="Account created."
-            message="Please check your email to confirm your account, then return to this invite link to finish setup."
+            message="Please check your email to confirm your account, then return to this invite link to finish setup. If confirmation sends you to the Client Portal before setup is complete, reopen this invitation link and sign in."
             tone="success"
           >
             <dl className="rounded-md border border-emerald-200 bg-white px-4">

@@ -1863,10 +1863,15 @@ Client invite acceptance foundation:
 - If Supabase requires email confirmation and returns a created user without a session, the page
   shows confirmation-needed copy and leaves the invitation pending until the confirmed user returns
   and signs in.
+- If email confirmation redirects the user to `/client-portal` before the invitation has been
+  accepted, the unavailable state tells the user to return to the original invitation link to finish
+  setup.
 - Already-authenticated matching-email users auto-accept through
   `rpc_client_portal_invitation_accept(p_token)`.
 - Acceptance redirects to `/client-portal`, creates/reactivates `client_portal_members`, and does
   not create `company_memberships` or operational role assignments.
+- Active `client_portal_members` now provide only Client Portal permission recognition, allowing
+  accepted client users into `/client-portal` without operational company membership.
 - Expired, revoked, and already accepted states are shown without exposing internal workspace data.
 
 AMC-19 boundary:

@@ -407,7 +407,8 @@ describe("Client Portal pages", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create account and continue" }));
 
     expect(await screen.findByText("Account created.")).toBeInTheDocument();
-    expect(screen.getByText("Please check your email to confirm your account, then return to this invite link to finish setup.")).toBeInTheDocument();
+    expect(screen.getByText(/Please check your email to confirm your account, then return to this invite link to finish setup/i)).toBeInTheDocument();
+    expect(screen.getByText(/If confirmation sends you to the Client Portal before setup is complete/i)).toBeInTheDocument();
     expect(screen.getByText("dmiller@firstamerican.com")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sign in after confirming" })).toBeInTheDocument();
     expect(apiMock.acceptClientPortalInvitation).not.toHaveBeenCalled();

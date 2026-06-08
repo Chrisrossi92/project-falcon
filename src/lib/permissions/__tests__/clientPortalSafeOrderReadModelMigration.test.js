@@ -59,6 +59,13 @@ const invitationAcceptanceMigrationPath = resolve(
 
 const invitationAcceptanceMigrationSql = readFileSync(invitationAcceptanceMigrationPath, 'utf8');
 
+const clientPortalMemberAccessMigrationPath = resolve(
+  process.cwd(),
+  'supabase/migrations/20260608140000_client_portal_member_access_without_company_membership.sql',
+);
+
+const clientPortalMemberAccessMigrationSql = readFileSync(clientPortalMemberAccessMigrationPath, 'utf8');
+
 describe('Client Portal safe order read model migration', () => {
   it('creates dedicated Client Portal permissions, member mapping, view, and RPCs', () => {
     expect(migrationSql).toContain("'client_portal.dashboard.view'");
@@ -408,6 +415,45 @@ describe('Client Portal invitation acceptance flow migration', () => {
     );
     expect(invitationAcceptanceMigrationSql).not.toContain('grant all on table public.client_portal_invitations to authenticated');
     expect(invitationAcceptanceMigrationSql).not.toContain('grant all on table public.client_portal_members to authenticated');
+  });
+});
+
+describe('Client Portal member access without operational company membership migration', () => {
+  it('recognizes active client portal membership as the source of client portal access', () => {
+    expect(clientPortalMemberAccessMigrationSql).toContain(
+      'create or replace function public.current_app_user_has_active_client_portal_membership()',
+    );
+    expect(clientPortalMemberAccessMigrationSql).toContain('from public.client_portal_members cpm');
+    expect(clientPortalMemberAccessMigrationSql).toContain("cpm.status = 'active'");
+    expect(clientPortalMemberAccessMigrationSql).toContain(
+      'create or replace function public.current_app_user_can_read_client_portal()',
+    );
+    expect(clientPortalMemberAccessMigrationSql).toContain(
+      'public.current_app_user_has_permission(\'client_portal.dashboard.view\')',
+    );
+    expect(clientPortalMemberAccessMigrationSql).toContain(
+      'from public.current_app_user_client_portal_client_ids()',
+    );
+  });
+
+  it('adds only client portal permission keys from client portal membership', () => {
+    expect(clientPortalMemberAccessMigrationSql).toContain(
+      'create or replace function public.current_app_user_permission_keys()',
+    );
+    expect(clientPortalMemberAccessMigrationSql).toContain("'client_portal.dashboard.view'::text");
+    expect(clientPortalMemberAccessMigrationSql).toContain("'client_portal.orders.read'::text");
+    expect(clientPortalMemberAccessMigrationSql).toContain("'client_portal.orders.create'::text");
+    expect(clientPortalMemberAccessMigrationSql).toContain("'client_portal.reports.read'::text");
+    expect(clientPortalMemberAccessMigrationSql).toContain(
+      'where public.current_app_user_has_active_client_portal_membership()',
+    );
+  });
+
+  it('does not create operational company memberships or role assignments', () => {
+    expect(clientPortalMemberAccessMigrationSql).not.toContain('insert into public.company_memberships');
+    expect(clientPortalMemberAccessMigrationSql).not.toContain('update public.company_memberships');
+    expect(clientPortalMemberAccessMigrationSql).not.toContain('insert into public.user_role_assignments');
+    expect(clientPortalMemberAccessMigrationSql).not.toContain('update public.user_role_assignments');
   });
 });
 

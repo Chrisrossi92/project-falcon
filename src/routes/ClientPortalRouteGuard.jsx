@@ -28,6 +28,10 @@ function ClientPortalDeniedState() {
           This portal requires client access for the current account. Contact your appraisal team
           if you expected access.
         </p>
+        <p className="mt-3 text-sm leading-6 text-slate-600">
+          If you just confirmed your account from an invitation email, return to the original
+          invitation link to finish setup.
+        </p>
       </section>
     </div>
   );
