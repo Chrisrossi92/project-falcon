@@ -438,6 +438,30 @@ export const currentLiveNavigationEntries = freezeArray([
   }),
 
   createEntry({
+    id: 'client_requests',
+    label: 'Client Requests',
+    path: '/client-requests',
+    order: 67,
+    surfaces: [
+      CURRENT_NAV_SURFACES.DESKTOP,
+      CURRENT_NAV_SURFACES.MOBILE,
+      CURRENT_NAV_SURFACES.ROUTE,
+    ],
+    visibilityGate: gate(CURRENT_NAV_GATE_TYPES.ANY_PERMISSION, [
+      PERMISSIONS.CLIENT_PORTAL_ORDER_REQUESTS_READ,
+      PERMISSIONS.CLIENT_PORTAL_ORDER_REQUESTS_MANAGE,
+    ]),
+    routeGate: gate(CURRENT_NAV_GATE_TYPES.ANY_PERMISSION, [
+      PERMISSIONS.CLIENT_PORTAL_ORDER_REQUESTS_READ,
+      PERMISSIONS.CLIENT_PORTAL_ORDER_REQUESTS_MANAGE,
+    ]),
+    notes: [
+      'AMC-owned staff inbox for Client Portal appraisal intake requests.',
+      'Review portal-submitted appraisal requests without exposing the client portal shell.',
+    ],
+  }),
+
+  createEntry({
     id: 'users',
     label: 'Users',
     path: '/users',

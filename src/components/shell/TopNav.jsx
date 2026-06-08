@@ -411,6 +411,10 @@ export default function TopNav() {
   ]);
   const canReadRelationships = hasPermission(PERMISSIONS.RELATIONSHIPS_READ);
   const canReadVendors = hasPermission(PERMISSIONS.VENDORS_READ);
+  const canReadClientRequests = hasAnyPermission([
+    PERMISSIONS.CLIENT_PORTAL_ORDER_REQUESTS_READ,
+    PERMISSIONS.CLIENT_PORTAL_ORDER_REQUESTS_MANAGE,
+  ]);
   const canReadUsers = hasPermission(PERMISSIONS.USERS_READ);
   const canViewSettings = hasPermission(PERMISSIONS.SETTINGS_VIEW);
   const clientsPath = canReadAllClients ? "/clients" : "/clients/cards";
@@ -433,6 +437,7 @@ export default function TopNav() {
     canReadAssignments: showAssignmentsNav,
     canReadRelationships: showScopedRelationshipsNav,
     canReadVendors,
+    canReadClientRequests,
     canReadUsers: showUsersNav,
   }, {
     operationsMode,

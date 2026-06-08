@@ -264,6 +264,13 @@ Client-side manual invite acceptance foundation:
   request key, status copy, property/report details, requested due date, and submitted date only.
 - Client Portal users have a visible `Sign out` action in the portal shell. Sign-out clears the
   Supabase session and redirects to `/login`.
+- Falcon AMC staff can access the staff review inbox through `/client-requests` and AMC Client
+  Services navigation when they have `client_portal.order_requests.read` or
+  `client_portal.order_requests.manage`. The route remains staff/AMC-owned, not client-portal
+  owned, and is hidden from Internal-only, vendor, and client-only users.
+- Owner/Admin role templates now receive the staff request read/manage permissions so AMC
+  coordinators/admins can review, mark under review, and convert portal-submitted intake requests
+  after the production schema is aligned.
 
 Remaining implementation work after the token, staff manual-link, and acceptance foundations:
 

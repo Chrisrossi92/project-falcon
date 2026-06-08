@@ -1882,6 +1882,11 @@ Client invite acceptance foundation:
   dashboard and Orders page until staff review/conversion creates an operational order.
 - Client Portal shell now includes visible sign-out; client-only root/dashboard redirects remain
   active only while authenticated.
+- AMC Client Services navigation now exposes `Client Requests` for staff with
+  `client_portal.order_requests.read` or `client_portal.order_requests.manage`; `/client-requests`
+  is AMC-owned and uses the existing review/conversion RPCs.
+- Owner/Admin role templates now receive the staff request read/manage permissions for the pilot
+  review inbox.
 - Expired, revoked, and already accepted states are shown without exposing internal workspace data.
 
 AMC-19 boundary:

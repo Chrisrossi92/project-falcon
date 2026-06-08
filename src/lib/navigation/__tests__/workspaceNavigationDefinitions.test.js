@@ -89,6 +89,7 @@ describe('workspace navigation definitions', () => {
       'calendar',
       'vendors',
       'clients.primary',
+      'client_requests',
       'settings',
     ]);
     expect(sectionNavIds(definition)).not.toContain('assignments');
@@ -171,6 +172,7 @@ describe('workspace navigation definitions', () => {
       'calendar',
       'vendors',
       'clients.primary',
+      'client_requests',
       'settings',
     ]);
     expect(getWorkspaceNavigationLabelOverrides(WORKSPACE_NAVIGATION_IDS.AMC_OPERATIONS)).toEqual(

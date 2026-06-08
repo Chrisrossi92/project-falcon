@@ -164,6 +164,15 @@ AMC-19 onboarding status:
 - The Client Portal header now has a visible `Sign out` action. Signing out clears the Supabase
   session and redirects to `/login`, so the root-domain client-only redirect applies only while the
   client is authenticated.
+- Production pilot follow-up: Falcon AMC staff can now reach `/client-requests` from the AMC
+  Client Services navigation when they have `client_portal.order_requests.read` or
+  `client_portal.order_requests.manage`. The route is AMC-owned, so Internal-only, Vendor
+  Workspace, and client-only users should not see or open the staff review inbox.
+- Owner/Admin role templates are granted the staff request review/manage permissions by
+  `20260608170000_client_portal_request_review_role_grants.sql`. Production must also have the
+  existing staff review and conversion RPC migrations applied:
+  `20260607103000_client_portal_order_request_review_inbox.sql` and
+  `20260607104000_client_portal_order_request_conversion.sql`.
 - Real email delivery remains deferred, so staff must copy and send the invite link manually during
   the hands-on pilot.
 - The proposed onboarding architecture is documented in

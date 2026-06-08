@@ -14,6 +14,7 @@ export const CURRENT_PRIMARY_NAV_LINK_IDS = Object.freeze([
   'calendar',
   'vendors',
   'clients.primary',
+  'client_requests',
   'users',
 ]);
 
@@ -90,6 +91,8 @@ const shouldShowEntry = (entryId, permissions) => {
       return bool(permissions.canReadVendors);
     case 'clients.primary':
       return bool(permissions.canReadAllClients) || bool(permissions.canReadAssignedClients);
+    case 'client_requests':
+      return bool(permissions.canReadClientRequests);
     case 'users':
       return bool(permissions.canReadUsers);
     default:

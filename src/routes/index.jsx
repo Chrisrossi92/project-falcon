@@ -340,7 +340,7 @@ export default function AppRoutes() {
                 PERMISSIONS.CLIENT_PORTAL_ORDER_REQUESTS_MANAGE,
               ]}
             >
-              <WorkspaceRouteGuard workspace={ROUTE_WORKSPACE_GROUPS.OPERATIONS}>
+              <WorkspaceRouteGuard workspace={ROUTE_WORKSPACES.AMC}>
                 <ClientOrderRequestsPage />
               </WorkspaceRouteGuard>
             </ProtectedRoute>

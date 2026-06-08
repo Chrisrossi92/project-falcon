@@ -12,6 +12,7 @@ const fullyVisibleLinks = () =>
       canReadAssignments: true,
       canReadRelationships: true,
       canReadVendors: true,
+      canReadClientRequests: true,
       canReadUsers: true,
   });
 
@@ -111,6 +112,7 @@ describe('current shell mobile navigation links', () => {
       canReadAssignments: true,
       canReadRelationships: true,
       canReadVendors: true,
+      canReadClientRequests: true,
       canReadUsers: true,
     }, {
       operationsMode: OPERATIONS_MODES.AMC_OPERATIONS,
@@ -139,14 +141,22 @@ describe('current shell mobile navigation links', () => {
       'calendar',
       'vendors',
       'clients.primary',
+      'client_requests',
     ]);
     expect(labels(amcLinks)).toEqual([
       'Procurement',
       'Assignment Oversight',
       'Vendor Network',
       'Client Services',
+      'Client Requests',
     ]);
-    expect(paths(amcLinks)).toEqual(['/orders', '/calendar', '/vendors', '/clients']);
+    expect(paths(amcLinks)).toEqual([
+      '/orders',
+      '/calendar',
+      '/vendors',
+      '/clients',
+      '/client-requests',
+    ]);
     expect(amcLinks.every((link) => link.operationsMode === OPERATIONS_MODES.AMC_OPERATIONS)).toBe(
       true,
     );
@@ -180,6 +190,7 @@ describe('current shell mobile navigation links', () => {
     const amcVisibleLinks = getCurrentPrimaryNavLinks({
       canReadAllClients: true,
       canReadVendors: true,
+      canReadClientRequests: true,
     }, {
       operationsMode: OPERATIONS_MODES.AMC_OPERATIONS,
     });

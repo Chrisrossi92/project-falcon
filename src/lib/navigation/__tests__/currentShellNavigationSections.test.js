@@ -12,6 +12,7 @@ const fullyVisibleLinks = () =>
       canReadAssignments: true,
       canReadRelationships: true,
       canReadVendors: true,
+      canReadClientRequests: true,
       canReadUsers: true,
   });
 
@@ -91,6 +92,7 @@ describe('current shell navigation sections', () => {
       canReadAssignments: true,
       canReadRelationships: true,
       canReadVendors: true,
+      canReadClientRequests: true,
       canReadUsers: true,
     }, {
       operationsMode: OPERATIONS_MODES.AMC_OPERATIONS,
@@ -121,12 +123,14 @@ describe('current shell navigation sections', () => {
       'calendar',
       'vendors',
       'clients.primary',
+      'client_requests',
     ]);
     expect(amcSections.flatMap((section) => section.links.map((link) => link.path))).toEqual([
       '/orders',
       '/calendar',
       '/vendors',
       '/clients',
+      '/client-requests',
     ]);
     expect(
       amcSections.flatMap((section) => section.links.map((link) => link.path)).some((path) => path.startsWith('/amc')),
@@ -157,6 +161,34 @@ describe('current shell navigation sections', () => {
     expect(amcSections.map(({ id }) => id)).not.toContain('clients');
     expect(amcSections.map(({ id }) => id)).not.toContain('analytics');
     expect(amcSections.map(({ id }) => id)).not.toContain('system');
+  });
+
+  it('keeps AMC Client Requests in Client Services without exposing the client list when only request access is visible', () => {
+    const amcVisibleLinks = getCurrentPrimaryNavLinks({
+      canReadClientRequests: true,
+    }, {
+      operationsMode: OPERATIONS_MODES.AMC_OPERATIONS,
+    });
+    const amcSections = getCurrentShellNavigationSections(
+      amcVisibleLinks,
+      SHELL_PROFILE_IDS.OPERATIONS,
+      { operationsMode: OPERATIONS_MODES.AMC_OPERATIONS },
+    );
+
+    expect(amcSections.map(({ id, label }) => [id, label])).toEqual([
+      ['procurement', 'Management Operations'],
+      ['clients', 'Client Services'],
+    ]);
+    expect(amcSections.flatMap((section) => section.links.map((link) => link.id))).toEqual([
+      'orders',
+      'calendar',
+      'client_requests',
+    ]);
+    expect(amcSections.flatMap((section) => section.links.map((link) => link.path))).toEqual([
+      '/orders',
+      '/calendar',
+      '/client-requests',
+    ]);
   });
 
   it('falls back to current flat nav for unknown and fallback profiles', () => {

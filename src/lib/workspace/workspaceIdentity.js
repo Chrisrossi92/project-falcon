@@ -97,6 +97,7 @@ const WORKSPACE_IDENTITIES = Object.freeze({
       calendar: "Assignment Oversight",
       vendors: "Vendor Network",
       "clients.primary": "Client Services",
+      client_requests: "Client Requests",
     }),
     navigationSectionLabels: Object.freeze({
       procurement: "Management Operations",

@@ -48,6 +48,7 @@ describe('current live navigation registry', () => {
         'assignments',
         'relationships',
         'vendors',
+        'client_requests',
         'users',
         'settings',
         'settings.notifications',
@@ -74,6 +75,7 @@ describe('current live navigation registry', () => {
     );
     expect(getCurrentLiveNavigationEntry('vendors').path).toBe('/vendors');
     expect(getCurrentLiveNavigationEntry('vendors.detail').path).toBe('/vendors/:vendorProfileId');
+    expect(getCurrentLiveNavigationEntry('client_requests').path).toBe('/client-requests');
     expect(getCurrentLiveNavigationEntry('users').path).toBe('/users');
     expect(getCurrentLiveNavigationEntry('settings').path).toBe('/settings');
     expect(getCurrentLiveNavigationEntry('settings.notifications').path).toBe(
@@ -126,6 +128,14 @@ describe('current live navigation registry', () => {
       PERMISSIONS.VENDORS_READ,
     ]);
     expect(getCurrentLiveNavigationEntry('vendors').command).toBeNull();
+    expect(getCurrentLiveNavigationEntry('client_requests').routeGate.permissions).toEqual([
+      PERMISSIONS.CLIENT_PORTAL_ORDER_REQUESTS_READ,
+      PERMISSIONS.CLIENT_PORTAL_ORDER_REQUESTS_MANAGE,
+    ]);
+    expect(getCurrentLiveNavigationEntry('client_requests').visibilityGate.permissions).toEqual([
+      PERMISSIONS.CLIENT_PORTAL_ORDER_REQUESTS_READ,
+      PERMISSIONS.CLIENT_PORTAL_ORDER_REQUESTS_MANAGE,
+    ]);
     expect(getCurrentLiveNavigationEntry('users').routeGate.permissions).toEqual([
       PERMISSIONS.USERS_READ,
     ]);
@@ -249,7 +259,7 @@ describe('current live navigation registry', () => {
 
     expect(ids).not.toEqual(expect.arrayContaining(['vendor.portal', 'client.portal']));
     expect(serialized).not.toContain('vendor workspace');
-    expect(serialized).not.toContain('client portal');
+    expect(serialized).not.toContain('/client-portal');
     expect(serialized).not.toContain('submit request');
     expect(serialized).not.toContain('my requests');
     expect(serialized).not.toContain('documents / reports');

@@ -56,6 +56,14 @@ function renderWorkspaceRoutes(initialPath) {
           }
         />
         <Route
+          path="/client-requests"
+          element={
+            <WorkspaceRouteGuard workspace={ROUTE_WORKSPACES.AMC}>
+              <div data-testid="client-requests-route">Client Requests</div>
+            </WorkspaceRouteGuard>
+          }
+        />
+        <Route
           path="/orders"
           element={
             <WorkspaceRouteGuard workspace={ROUTE_WORKSPACE_GROUPS.OPERATIONS}>
@@ -153,6 +161,24 @@ describe("WorkspaceRouteGuard", () => {
 
     expect(screen.getByTestId("amc-route")).toHaveTextContent("Vendors");
     expect(screen.queryByTestId("location")).toBeNull();
+  });
+
+  it("renders the AMC-owned client request inbox only in AMC Operations", () => {
+    operationsModeState.operationsMode = OPERATIONS_MODES.AMC_OPERATIONS;
+
+    renderWorkspaceRoutes("/client-requests");
+
+    expect(screen.getByTestId("client-requests-route")).toHaveTextContent("Client Requests");
+    expect(screen.queryByTestId("location")).toBeNull();
+  });
+
+  it("redirects the AMC-owned client request inbox from Internal Operations", () => {
+    renderWorkspaceRoutes("/client-requests");
+
+    expect(screen.queryByTestId("client-requests-route")).toBeNull();
+    expect(screen.getByTestId("location")).toHaveTextContent("/dashboard");
+    expect(screen.getByTestId("redirect-state")).toHaveTextContent('"expectedWorkspace":"amc"');
+    expect(screen.getByTestId("redirect-state")).toHaveTextContent('"selectedWorkspace":"internal"');
   });
 
   it("renders shared operations-owned order routes in Internal Operations", () => {

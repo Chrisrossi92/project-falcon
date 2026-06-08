@@ -132,7 +132,7 @@ export const workspaceNavigationDefinitions = freezeArray([
       {
         id: 'clients',
         label: 'Clients',
-        navEntryIds: ['clients.primary'],
+        navEntryIds: ['clients.primary', 'client_requests'],
         notes: ['Client context remains shared by route but AMC-native by workspace meaning.'],
       },
       {
@@ -148,7 +148,15 @@ export const workspaceNavigationDefinitions = freezeArray([
         notes: ['System settings remain available only through existing permission gates.'],
       },
     ],
-    mobileOrder: ['dashboard', 'orders', 'calendar', 'vendors', 'clients.primary', 'settings'],
+    mobileOrder: [
+      'dashboard',
+      'orders',
+      'calendar',
+      'vendors',
+      'clients.primary',
+      'client_requests',
+      'settings',
+    ],
     labelOverrides: {},
     hiddenPrimaryNavEntryIds: ['assignments', 'relationships', 'users', 'my_work'],
     futurePlaceholderNavEntryIds: ['procurement.queue', 'bid_requests'],

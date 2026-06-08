@@ -29,6 +29,7 @@ describe('current primary nav links', () => {
       'calendar',
       'vendors',
       'clients.primary',
+      'client_requests',
       'users',
     ]);
     expect(idsFor(links)).toEqual([
@@ -92,6 +93,7 @@ describe('current primary nav links', () => {
       canReadAssignments: true,
       canReadRelationships: true,
       canReadVendors: true,
+      canReadClientRequests: true,
       canReadUsers: true,
     };
     const internalLinks = getCurrentPrimaryNavLinks(permissions, {
@@ -124,6 +126,7 @@ describe('current primary nav links', () => {
       canReadAssignments: true,
       canReadRelationships: true,
       canReadVendors: true,
+      canReadClientRequests: true,
       canReadUsers: true,
     };
     const amcLinks = getCurrentPrimaryNavLinks(permissions, {
@@ -135,14 +138,22 @@ describe('current primary nav links', () => {
       'calendar',
       'vendors',
       'clients.primary',
+      'client_requests',
     ]);
     expect(labelsFor(amcLinks)).toEqual([
       'Procurement',
       'Assignment Oversight',
       'Vendor Network',
       'Client Services',
+      'Client Requests',
     ]);
-    expect(pathsFor(amcLinks)).toEqual(['/orders', '/calendar', '/vendors', '/clients']);
+    expect(pathsFor(amcLinks)).toEqual([
+      '/orders',
+      '/calendar',
+      '/vendors',
+      '/clients',
+      '/client-requests',
+    ]);
     expect(idsFor(amcLinks)).not.toContain('users');
     expect(idsFor(amcLinks)).not.toContain('assignments');
     expect(idsFor(amcLinks)).not.toContain('relationships');
@@ -165,6 +176,33 @@ describe('current primary nav links', () => {
     expect(pathsFor(links)).not.toContain('/vendors');
   });
 
+  it('requires client request visibility input before showing Client Requests in AMC Operations', () => {
+    const hiddenLinks = getCurrentPrimaryNavLinks({
+      canReadAllClients: true,
+      canReadVendors: true,
+      canReadClientRequests: false,
+    }, {
+      operationsMode: OPERATIONS_MODES.AMC_OPERATIONS,
+    });
+    const visibleLinks = getCurrentPrimaryNavLinks({
+      canReadAllClients: true,
+      canReadVendors: true,
+      canReadClientRequests: true,
+    }, {
+      operationsMode: OPERATIONS_MODES.AMC_OPERATIONS,
+    });
+
+    expect(idsFor(hiddenLinks)).toEqual(['orders', 'calendar', 'vendors', 'clients.primary']);
+    expect(idsFor(visibleLinks)).toEqual([
+      'orders',
+      'calendar',
+      'vendors',
+      'clients.primary',
+      'client_requests',
+    ]);
+    expect(pathsFor(visibleLinks)).toContain('/client-requests');
+  });
+
   it('keeps unknown operations mode on the safe Internal Operations default', () => {
     const permissions = {
       canReadAllClients: true,
@@ -172,6 +210,7 @@ describe('current primary nav links', () => {
       canReadAssignments: true,
       canReadRelationships: true,
       canReadVendors: true,
+      canReadClientRequests: true,
       canReadUsers: true,
     };
     const links = getCurrentPrimaryNavLinks(permissions, {
@@ -225,10 +264,21 @@ describe('current primary nav links', () => {
     expect(
       getCurrentPrimaryNavLinks({
         canReadVendors: true,
+        canReadClientRequests: true,
       }, {
         operationsMode: OPERATIONS_MODES.AMC_OPERATIONS,
       }).find(({ id }) => id === 'vendors')?.visibilityGate.permissions,
     ).toEqual([PERMISSIONS.VENDORS_READ]);
+    expect(
+      getCurrentPrimaryNavLinks({
+        canReadClientRequests: true,
+      }, {
+        operationsMode: OPERATIONS_MODES.AMC_OPERATIONS,
+      }).find(({ id }) => id === 'client_requests')?.visibilityGate.permissions,
+    ).toEqual([
+      PERMISSIONS.CLIENT_PORTAL_ORDER_REQUESTS_READ,
+      PERMISSIONS.CLIENT_PORTAL_ORDER_REQUESTS_MANAGE,
+    ]);
     expect(links.find(({ id }) => id === 'users')?.visibilityGate.permissions).toEqual([
       PERMISSIONS.USERS_READ,
     ]);
