@@ -1785,11 +1785,62 @@ AMC-17 foundation does not certify:
 Recommended next AMC-17 slices:
 
 - Add client portal role templates and fixture coverage for mapped client users.
-- Add client invite/token onboarding after the client account model is explicit.
+- Execute AMC-19 Client Portal invite onboarding before any unaided external lender pilot.
 - Add staging Client Portal smoke fixtures and end-to-end validation for mapped client users.
 - Add operational follow-up workflow after converted client portal requests, including assignment
   planning only after staff confirms the created order is ready for internal processing.
 - Add document upload support after upload authorization and required document rules are defined.
+
+### AMC-19: Client Portal Invite & Onboarding
+
+Status: Architecture checkpoint planned as of 2026-06-08. Implementation has not started.
+
+Purpose: replace manual client portal account/mapping setup with a first-class invite flow from
+Client Relationships contacts into the Client Portal.
+
+Architecture checkpoint:
+
+- [AMC-19 Client Portal Invite Onboarding Plan](../amc/AMC_19_CLIENT_PORTAL_INVITE_ONBOARDING_PLAN.md).
+
+Current findings:
+
+- The existing company member invitation flow is useful for Auth Admin invite orchestration, but it
+  must not be reused directly because it creates operational company memberships and role
+  assignments.
+- Existing vendor token invitation flows provide the right opaque-token lifecycle shape: generate a
+  token once, store only a hash and last four characters, enforce expiration/revocation/terminal
+  status server-side, and return safe public payloads.
+- `client_portal_members` is the correct durable mapping for client user to client relationship
+  access.
+- Current Client Portal authorization still assumes current-company app access and
+  `client_portal.*` permission checks. AMC-19 should harden this so client-only users can authorize
+  through Client Portal membership without receiving Internal/AMC workspace access.
+
+Recommended first AMC-19 implementation slice:
+
+- Add `client_portal_invitations` with company/client/contact/email scope, hashed token,
+  expiration, status, Auth linkage, accepted member linkage, and pending-invite uniqueness.
+- Add `client_portal.members.invite` or an equivalent staff invite permission, in addition to
+  client management access on the selected client relationship.
+- Add prepare/finalize/read/accept RPCs for Client Portal invitations.
+- Add an `invite-client-portal-member` Edge Function that sends Supabase Auth invite email with a
+  redirect to `/client-portal/invitations/:token`.
+- Add `/client-portal/invitations/:token` for invite read/accept and route unauthenticated users
+  through login/signup while preserving the return path.
+- Add `Send Portal Invite` to Client Relationships contact cards.
+- Ensure invite acceptance creates or links `client_portal_members` only and does not grant
+  Internal Operations, AMC Operations, Vendor Workspace, Permission Center, procurement, assignment,
+  invoice, payment, or admin access.
+
+AMC-19 boundary:
+
+- Client invite tokens must be opaque, expiring, single-use, revocable, and email-scoped.
+- Staff invite must be permission-gated and current-company/client scoped.
+- Client users must land in `/client-portal`, not operational workspaces.
+- Client Portal payloads must continue to hide raw order ids, storage bucket/path, vendor bidding,
+  procurement, assignment internals, private notes, fees, margins, invoices, and payment details.
+- Full client account management, bulk invites, custom email templates, file upload, messaging,
+  configurable lender-specific request forms, and broad document browsing remain deferred.
 
 ## Dependency Graph
 

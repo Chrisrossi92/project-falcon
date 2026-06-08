@@ -139,6 +139,8 @@ AMC-19 gap:
 - There is no first-class client invite/onboarding flow yet. This is not a Client Portal request
   workflow blocker once the account exists, but it is an important pilot setup gap because staff
   cannot invite Dana through a supported UI.
+- The proposed onboarding architecture is documented in
+  [AMC-19 Client Portal Invite Onboarding Plan](./AMC_19_CLIENT_PORTAL_INVITE_ONBOARDING_PLAN.md).
 
 Required local-only records:
 

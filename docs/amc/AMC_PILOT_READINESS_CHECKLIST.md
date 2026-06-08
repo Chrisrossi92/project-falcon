@@ -9,6 +9,10 @@ the AMC-16 Permission Center checkpoint.
 AMC-17 Client Portal MVP is complete for controlled pilot readiness at the code/checkpoint level,
 but Client Portal staging or production smoke validation with mapped client users remains deferred.
 
+AMC-19 Client Portal invite onboarding is planned as the next required slice before an unaided
+external lender pilot. Until AMC-19 is implemented, client users still require manual
+environment-safe account and `client_portal_members` setup.
+
 Current readiness evidence:
 
 - Local AMC happy path completes through Vendor Payments `Paid`.
@@ -37,6 +41,7 @@ Related closeout evidence:
 - [AMC-15 Visual Identity Checkpoint](./AMC_15_VISUAL_IDENTITY_CHECKPOINT.md)
 - [AMC-16 Permission Center Checkpoint](./AMC_16_PERMISSION_CENTER_CHECKPOINT.md)
 - [AMC-17 Client Portal MVP Checkpoint](./AMC_17_CLIENT_PORTAL_MVP_FOUNDATION.md)
+- [AMC-19 Client Portal Invite Onboarding Plan](./AMC_19_CLIENT_PORTAL_INVITE_ONBOARDING_PLAN.md)
 
 ## Environment Readiness
 
@@ -231,6 +236,22 @@ upload with new order requests, client messaging/comment threads, configurable l
 forms, a deeper backend operation-entitlement model, or production/staging smoke validation for
 Client Portal.
 
+## AMC-19 Client Portal Invite Onboarding Boundary
+
+AMC-19 planning identifies the first-class onboarding flow required for lender users:
+
+- staff sends a Client Portal invite from Client Relationships contact management;
+- the invite uses an opaque, expiring, single-use token;
+- acceptance creates or links only Client Portal access through `client_portal_members`;
+- client users must not receive Internal/AMC workspace, company admin, vendor, procurement,
+  Permission Center, or operational order-management access;
+- `/client-portal/invitations/:token` becomes the dedicated public/client acceptance route;
+- `/client-portal` remains the authenticated client destination after acceptance.
+
+AMC-19 is not implemented yet. Until it is, external client pilot users cannot be onboarded through
+the product, and any Client Portal smoke requires a deliberately created local/staging/demo-safe
+mapping.
+
 ## Known Warnings
 
 - Lint currently passes with existing warnings in unrelated legacy files.
@@ -249,6 +270,8 @@ Client Portal.
   member access history is not yet app-readable.
 - Client Portal MVP is code/test complete, but has not yet been smoke-tested in staging or
   production with mapped client users.
+- Client Portal invite onboarding is not implemented; manual client user setup remains a pilot
+  blocker for unaided lender participation.
 
 ## Deferred Items
 
