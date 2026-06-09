@@ -101,6 +101,25 @@ function formatRequestBidsError(error) {
   return "Bid request could not be created. Review the details and try again.";
 }
 
+function getBidRequestDeliveryNotice(result = {}) {
+  const recipients = Array.isArray(result?.recipients) ? result.recipients : [];
+  if (recipients.length === 0) return "";
+  const missingEmailCount = recipients.filter((recipient) => (
+    recipient?.email_warning === "vendor_contact_email_missing" ||
+    recipient?.email_delivery_status === "missing_email"
+  )).length;
+  if (missingEmailCount > 0) {
+    return missingEmailCount === 1
+      ? "1 vendor needs a manual invite link because no vendor email is on file."
+      : `${missingEmailCount} vendors need manual invite links because no vendor email is on file.`;
+  }
+  const queuedCount = recipients.filter((recipient) => recipient?.email_delivery_status === "queued").length;
+  if (queuedCount > 0) {
+    return `${queuedCount} vendor bid invitation email${queuedCount === 1 ? "" : "s"} queued. Manual invite links remain available.`;
+  }
+  return "";
+}
+
 function hasCandidateOfferFields(candidate = {}) {
   return Boolean(candidate.vendor_profile_id && candidate.vendor_company_id && candidate.relationship_id);
 }
@@ -789,6 +808,7 @@ export default function VendorAssignmentCandidatesPanel({
   const [error, setError] = useState(null);
   const [selectedCandidateKeys, setSelectedCandidateKeys] = useState(() => new Set());
   const [requestBidsModalOpen, setRequestBidsModalOpen] = useState(false);
+  const [bidRequestNotice, setBidRequestNotice] = useState("");
 
   const loadCandidates = useCallback(async () => {
     if (!enabled || !orderId) return;
@@ -800,6 +820,7 @@ export default function VendorAssignmentCandidatesPanel({
       setCandidates(Array.isArray(rows) ? rows : []);
       setSelectedCandidateKeys(new Set());
       setRequestBidsModalOpen(false);
+      setBidRequestNotice("");
     } catch (candidateError) {
       if (import.meta.env.DEV || import.meta.env.MODE === "test") {
         console.warn("[VendorAssignmentCandidatesPanel] candidate load failed", {
@@ -812,6 +833,7 @@ export default function VendorAssignmentCandidatesPanel({
       setCandidates([]);
       setSelectedCandidateKeys(new Set());
       setRequestBidsModalOpen(false);
+      setBidRequestNotice("");
       setError(candidateError);
     } finally {
       setLoading(false);
@@ -883,6 +905,7 @@ export default function VendorAssignmentCandidatesPanel({
   const handleBidRequestSuccess = async (result) => {
     setRequestBidsModalOpen(false);
     setSelectedCandidateKeys(new Set());
+    setBidRequestNotice(getBidRequestDeliveryNotice(result));
     await onBidRequestSuccess?.(result);
   };
 
@@ -905,6 +928,11 @@ export default function VendorAssignmentCandidatesPanel({
               <p className="mt-1">
                 This order already has an active vendor offer or assignment, so new bid requests and direct awards are disabled.
               </p>
+            </div>
+          )}
+          {bidRequestNotice && (
+            <div className="mt-3 rounded-md border border-cyan-200 bg-cyan-50 px-3 py-2 text-sm text-cyan-900">
+              {bidRequestNotice}
             </div>
           )}
         </div>

@@ -172,6 +172,48 @@ describe("email queue worker", () => {
     expect(rendered.html).toContain("https://continentalres.com/orders/order-7");
   });
 
+  it("renders vendor bid invitation emails with a safe public bid link", () => {
+    const rendered = renderEmailQueueRow(
+      {
+        id: "email-vendor-bid",
+        to_email: "bids@acmeappraisal.com",
+        subject: "Bid request",
+        template: "VENDOR_BID_INVITATION",
+        payload: {
+          bid_invitation_path: "/vendor/bid-invitations/abc123",
+          property_address: "12969 Eckel Junction Road",
+          city: "Perrysburg",
+          state: "OH",
+          postal_code: "43551",
+          report_type: "Full Appraisal",
+          property_type: "Industrial",
+          response_due_at: "2026-06-12T16:00:00Z",
+          desired_vendor_due_at: "2026-06-20T16:00:00Z",
+          client_due_at: "2026-06-24T16:00:00Z",
+          request_message: "Please provide fee and turn time.",
+          base_fee: "9999",
+          internal_notes: "Do not render",
+        },
+      },
+      "https://continentalres.com/"
+    );
+
+    expect(rendered.subject).toBe("Bid request: 12969 Eckel Junction Road");
+    expect(rendered.text).toContain("You have been invited to bid on this appraisal assignment.");
+    expect(rendered.text).toContain("**Location:** Perrysburg, OH, 43551");
+    expect(rendered.text).toContain("**Report:** Full Appraisal");
+    expect(rendered.text).toContain("**Property type:** Industrial");
+    expect(rendered.text).toContain("Please provide fee and turn time.");
+    expect(rendered.text).toContain("https://continentalres.com/vendor/bid-invitations/abc123");
+    expect(rendered.html).toContain("Bid packet summary");
+    expect(rendered.html).toContain("Open Bid Request");
+    expect(rendered.html).toContain("https://continentalres.com/vendor/bid-invitations/abc123");
+    expect(rendered.text).not.toContain("9999");
+    expect(rendered.text).not.toContain("Do not render");
+    expect(rendered.html).not.toContain("9999");
+    expect(rendered.html).not.toContain("Do not render");
+  });
+
   it("renders appraiser assignment emails with useful order context", () => {
     const rendered = renderEmailQueueRow(
       {

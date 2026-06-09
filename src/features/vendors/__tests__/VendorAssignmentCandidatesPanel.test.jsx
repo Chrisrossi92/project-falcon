@@ -321,6 +321,54 @@ describe("VendorAssignmentCandidatesPanel", () => {
     expect(assignmentApiState.offerOrderToVendor).not.toHaveBeenCalled();
   });
 
+  it("shows a queued email notice after bid request delivery fanout", async () => {
+    vendorApiState.listVendorAssignmentCandidates.mockResolvedValue(candidateRows);
+    bidApiState.createOrderVendorBidRequest.mockResolvedValue({
+      bid_request_id: "bid-request-queued",
+      recipients: [
+        {
+          recipient_id: "recipient-1",
+          email_delivery_status: "queued",
+          sent_to_email: "bids@example.com",
+        },
+      ],
+    });
+
+    render(<VendorAssignmentCandidatesPanel orderId="order-1" enabled />);
+
+    fireEvent.click(await screen.findByRole("checkbox", { name: /select abc valuation for bid request/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Request bids" }));
+    fireEvent.click(screen.getByRole("button", { name: "Send bid request" }));
+
+    expect(await screen.findByText("1 vendor bid invitation email queued. Manual invite links remain available.")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Request bids" })).toBeNull();
+  });
+
+  it("shows a manual invite warning when bid recipient has no email", async () => {
+    vendorApiState.listVendorAssignmentCandidates.mockResolvedValue(candidateRows);
+    bidApiState.createOrderVendorBidRequest.mockResolvedValue({
+      bid_request_id: "bid-request-warning",
+      recipients: [
+        {
+          recipient_id: "recipient-1",
+          email_delivery_status: "missing_email",
+          email_warning: "vendor_contact_email_missing",
+        },
+      ],
+    });
+
+    render(<VendorAssignmentCandidatesPanel orderId="order-1" enabled />);
+
+    fireEvent.click(await screen.findByRole("checkbox", { name: /select abc valuation for bid request/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Request bids" }));
+    fireEvent.click(screen.getByRole("button", { name: "Send bid request" }));
+
+    expect(
+      await screen.findByText("1 vendor needs a manual invite link because no vendor email is on file."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Request bids" })).toBeNull();
+  });
+
   it("closes request bids modal with the close control without creating bids", async () => {
     vendorApiState.listVendorAssignmentCandidates.mockResolvedValue(candidateRows);
 

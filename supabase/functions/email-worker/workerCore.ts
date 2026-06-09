@@ -246,6 +246,24 @@ const TEMPLATE_LABELS: Record<string, { subject: string; body: string }> = {
       "{message}",
     ].join("\n"),
   },
+  VENDOR_BID_INVITATION: {
+    subject: "Bid request: {property_address}",
+    body: [
+      "You have been invited to bid on this appraisal assignment.",
+      "",
+      "**Property:** {property_address}",
+      "**Location:** {property_location}",
+      "**Report:** {report_type}",
+      "**Property type:** {property_type}",
+      "**Response due:** {response_due_at}",
+      "**Vendor report due:** {desired_vendor_due_at}",
+      "**Client due:** {client_due_at}",
+      "",
+      "{request_message}",
+      "",
+      "[Open Bid Request]({bid_invitation_url})",
+    ].join("\n"),
+  },
 };
 
 const EVENT_TEMPLATE_MAP: Record<string, string> = {
@@ -294,10 +312,16 @@ const FIELD_FALLBACKS: Record<string, string> = {
   role_label: "Not provided",
   access_change_summary: "Access settings were updated.",
   message: "",
+  property_location: "Not provided",
+  response_due_at: "Not set",
+  desired_vendor_due_at: "Not set",
+  client_due_at: "Not set",
+  request_message: "",
+  bid_invitation_url: "",
 };
 
-const OPTIONAL_LINE_KEYS = new Set(["workflow_note", "message"]);
-const DATE_ONLY_KEYS = new Set(["review_due_at", "final_due_at", "due_date"]);
+const OPTIONAL_LINE_KEYS = new Set(["workflow_note", "message", "request_message"]);
+const DATE_ONLY_KEYS = new Set(["review_due_at", "final_due_at", "due_date", "response_due_at", "desired_vendor_due_at", "client_due_at"]);
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -401,6 +425,21 @@ function isOrderSafeUrl(value: string, appBaseUrl = "") {
   }
 }
 
+function isVendorBidInvitationSafeUrl(value: string, appBaseUrl = "") {
+  const url = String(value || "").trim();
+  if (!url) return false;
+  if (url.startsWith("/vendor/bid-invitations/")) return true;
+  if (!/^https?:\/\//i.test(url)) return false;
+  try {
+    const parsed = new URL(url);
+    if (!parsed.pathname.startsWith("/vendor/bid-invitations/")) return false;
+    if (!appBaseUrl) return true;
+    return parsed.origin === new URL(appBaseUrl).origin;
+  } catch {
+    return false;
+  }
+}
+
 function normalizePayload(row: EmailQueueRow, appBaseUrl = "") {
   const rawPayload = isObject(row.payload) ? row.payload : {};
   const payload: Record<string, string> = {};
@@ -415,6 +454,9 @@ function normalizePayload(row: EmailQueueRow, appBaseUrl = "") {
     payload.property_address ||
     payload.address ||
     [payload.address_line1, payload.city, payload.state, payload.postal_code].filter(Boolean).join(", ");
+  payload.property_location =
+    payload.property_location ||
+    [payload.city, payload.state, payload.postal_code || payload.zip].filter(Boolean).join(", ");
   payload.client_name = payload.client_name || payload.client || "";
   payload.property_contact = payload.property_contact || combineContactParts(
     payload.property_contact_name || "",
@@ -451,6 +493,15 @@ function normalizePayload(row: EmailQueueRow, appBaseUrl = "") {
   if (payload.order_url && !isOrderSafeUrl(payload.order_url, base)) {
     payload.order_url = "";
   }
+  const bidInvitationPath = payload.bid_invitation_path || "";
+  if (!payload.bid_invitation_url && bidInvitationPath) {
+    payload.bid_invitation_url = base
+      ? `${base}${bidInvitationPath.startsWith("/") ? "" : "/"}${bidInvitationPath}`
+      : bidInvitationPath;
+  }
+  if (payload.bid_invitation_url && !isVendorBidInvitationSafeUrl(payload.bid_invitation_url, base)) {
+    payload.bid_invitation_url = "";
+  }
   payload.order_summary =
     payload.order_summary ||
     [
@@ -475,6 +526,7 @@ function stripEmptyOptionalLines(text: string, payload: Record<string, string>) 
     .split("\n")
     .filter((line) => {
       if (line.includes("{order_url}") && !payload.order_url) return false;
+      if (line.includes("{bid_invitation_url}") && !payload.bid_invitation_url) return false;
       const match = line.trim().match(/^\{([^}]+)\}$/);
       if (!match) return true;
       const key = match[1].trim();
@@ -527,6 +579,15 @@ function detailsForTemplate(templateName: string, payload: Record<string, string
     ["Review due", "review_due_at"],
     ["Final due", "final_due_at"],
   ];
+  const vendorBidInvitation = [
+    ["Property", "property_address"],
+    ["Location", "property_location"],
+    ["Report", "report_type"],
+    ["Property type", "property_type"],
+    ["Response due", "response_due_at"],
+    ["Vendor report due", "desired_vendor_due_at"],
+    ["Client due", "client_due_at"],
+  ];
 
   const fields = templateName === "APPRAISER_ASSIGNED"
     ? assignment
@@ -534,7 +595,9 @@ function detailsForTemplate(templateName: string, payload: Record<string, string
       ? reviewer
       : templateName === "DATES_UPDATED" || templateName === "SITE_VISIT_UPDATED"
         ? dateDetails
-        : common;
+        : templateName === "VENDOR_BID_INVITATION"
+          ? vendorBidInvitation
+          : common;
 
   return fields.map(([label, key]) => [label, detailValue(payload, key)] as const);
 }
@@ -542,11 +605,18 @@ function detailsForTemplate(templateName: string, payload: Record<string, string
 function renderFalconEmailHtml(templateName: string, subject: string, text: string, payload: Record<string, string>) {
   const details = detailsForTemplate(templateName, payload);
   const summary = payload.order_summary || subject;
-  const orderUrl = payload.order_url || "";
+  const actionUrl = templateName === "VENDOR_BID_INVITATION"
+    ? payload.bid_invitation_url || ""
+    : payload.order_url || "";
+  const eyebrow = templateName === "VENDOR_BID_INVITATION" ? "Bid invitation" : "Order notification";
+  const detailTitle = templateName === "VENDOR_BID_INVITATION" ? "Bid packet summary" : "Order summary";
+  const actionLabel = templateName === "VENDOR_BID_INVITATION" ? "Open Bid Request" : "Open Order";
   const intro = text.split("\n").find((line) => line.trim() && !line.startsWith("**")) || "";
   const supportingMessage = templateName === "NOTE_ADDRESSED"
     ? payload.note_preview
-    : payload.workflow_note || "";
+    : templateName === "VENDOR_BID_INVITATION"
+      ? payload.request_message || ""
+      : payload.workflow_note || "";
   const detailRows: string[] = [];
   for (let index = 0; index < details.length; index += 2) {
     const left = details[index];
@@ -576,18 +646,18 @@ function renderFalconEmailHtml(templateName: string, subject: string, text: stri
             </tr>
             <tr>
               <td style="padding:28px;">
-                <div style="font-size:13px;line-height:18px;color:#2563eb;font-weight:700;text-transform:uppercase;">Order notification</div>
+                <div style="font-size:13px;line-height:18px;color:#2563eb;font-weight:700;text-transform:uppercase;">${escapeHtml(eyebrow)}</div>
                 <h1 style="margin:6px 0 10px;font-size:24px;line-height:32px;color:#0f172a;">${escapeHtml(summary)}</h1>
                 ${intro ? `<p style="margin:0 0 20px;font-size:15px;line-height:24px;color:#334155;">${escapeHtml(intro)}</p>` : ""}
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border:1px solid #e5e7eb;border-radius:8px;border-collapse:separate;overflow:hidden;background:#ffffff;">
                   <tr>
-                    <td colspan="2" style="padding:14px 16px;background:#f8fafc;font-size:16px;line-height:22px;font-weight:700;color:#0f172a;">Order summary</td>
+                    <td colspan="2" style="padding:14px 16px;background:#f8fafc;font-size:16px;line-height:22px;font-weight:700;color:#0f172a;">${escapeHtml(detailTitle)}</td>
                   </tr>
                   ${detailRows.join("")}
                 </table>
                 ${supportingMessage ? `<p style="margin:20px 0 0;padding:14px 16px;background:#f8fafc;border-left:3px solid #2563eb;font-size:15px;line-height:24px;color:#334155;">${escapeHtml(supportingMessage)}</p>` : ""}
                 ${templateName === "APPRAISER_ASSIGNED" ? `<p style="margin:20px 0 0;font-size:15px;line-height:24px;color:#334155;">Please coordinate access with the contact above and let us know if you have any questions.</p>` : ""}
-                ${orderUrl ? `<table role="presentation" cellspacing="0" cellpadding="0" style="margin-top:24px;"><tr><td style="border-radius:6px;background:#2563eb;"><a href="${escapeHtml(orderUrl)}" style="display:inline-block;padding:12px 18px;color:#ffffff;text-decoration:none;font-size:15px;line-height:20px;font-weight:700;">Open Order</a></td></tr></table>` : ""}
+                ${actionUrl ? `<table role="presentation" cellspacing="0" cellpadding="0" style="margin-top:24px;"><tr><td style="border-radius:6px;background:#2563eb;"><a href="${escapeHtml(actionUrl)}" style="display:inline-block;padding:12px 18px;color:#ffffff;text-decoration:none;font-size:15px;line-height:20px;font-weight:700;">${escapeHtml(actionLabel)}</a></td></tr></table>` : ""}
               </td>
             </tr>
             <tr>
