@@ -29,19 +29,39 @@ describe("notificationWorkspaceScope", () => {
     })).toBe(OPERATIONS_MODES.INTERNAL_OPERATIONS);
   });
 
-	  it("filters operational notifications by selected operations scope while preserving global system notifications", () => {
-	    const notifications = [
-	      { id: "internal", payload: { operations_scope: OPERATIONS_MODES.INTERNAL_OPERATIONS }, title: "Internal order" },
-	      { id: "amc", payload: { operations_scope: OPERATIONS_MODES.AMC_OPERATIONS }, title: "AMC order" },
+  it("filters operational notifications by selected operations scope while preserving global system notifications", () => {
+    const notifications = [
+      { id: "internal", payload: { operations_scope: OPERATIONS_MODES.INTERNAL_OPERATIONS }, title: "Internal order" },
+      { id: "amc", payload: { operations_scope: OPERATIONS_MODES.AMC_OPERATIONS }, title: "AMC order" },
 	      { id: "legacy-internal", title: "Invoice needs review" },
 	      { id: "global", title: "System policy changed", category: "system" },
 	    ];
 	
 	    expect(filterNotificationsForOperationsScope(notifications, OPERATIONS_MODES.INTERNAL_OPERATIONS).map((n) => n.id))
 	      .toEqual(["internal", "legacy-internal", "global"]);
-	    expect(filterNotificationsForOperationsScope(notifications, OPERATIONS_MODES.AMC_OPERATIONS).map((n) => n.id))
-	      .toEqual(["amc", "global"]);
-	  });
+    expect(filterNotificationsForOperationsScope(notifications, OPERATIONS_MODES.AMC_OPERATIONS).map((n) => n.id))
+      .toEqual(["amc", "global"]);
+  });
+
+  it("shows client request submission notifications only in AMC Operations", () => {
+    const notifications = [
+      {
+        id: "client-request",
+        type: "client_portal.order_request.submitted",
+        category: "client_portal",
+        link_path: "/client-requests",
+        payload: {
+          operations_scope: OPERATIONS_MODES.AMC_OPERATIONS,
+          request_key: "request-key",
+        },
+      },
+    ];
+
+    expect(filterNotificationsForOperationsScope(notifications, OPERATIONS_MODES.AMC_OPERATIONS).map((n) => n.id))
+      .toEqual(["client-request"]);
+    expect(filterNotificationsForOperationsScope(notifications, OPERATIONS_MODES.INTERNAL_OPERATIONS).map((n) => n.id))
+      .toEqual([]);
+  });
 
   it("passes the normalized selected operations scope to notification RPCs", () => {
     expect(notificationRpcScopeParams("unknown")).toEqual({
