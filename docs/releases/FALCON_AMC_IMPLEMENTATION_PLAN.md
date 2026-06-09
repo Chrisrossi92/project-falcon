@@ -1890,6 +1890,16 @@ Client invite acceptance foundation:
 - Production alignment migration `20260608171000_client_request_review_view_alignment.sql` safely
   repairs older staff review view shapes by dropping dependent RPCs before recreating the view and
   staff list/detail/status/convert RPCs.
+- AMC dashboards now show a `Client Requests` alert when submitted/under-review portal requests
+  are waiting, linked directly to `/client-requests`; true notification-center delivery remains a
+  follow-up slice.
+- The Client Portal request form now uses controlled property type, report type, and loan purpose
+  dropdowns with `Other` detail fields so converted orders map closer to operational values.
+- Production conversion patch `20260608180000_client_request_bid_ready_conversion.sql` recreates
+  `rpc_client_portal_order_request_convert_to_order(text)` so converted requests become explicit
+  current-company `amc_operations` orders with mapped client, property/report, intended use, due
+  date, contact, notes, and request-key linkage. Conversion still does not create bid requests,
+  assignments, invoices, payments, reports, or documents.
 - Expired, revoked, and already accepted states are shown without exposing internal workspace data.
 
 AMC-19 boundary:

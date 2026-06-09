@@ -6,8 +6,11 @@ import { submitClientPortalOrderRequest } from "@/features/clientPortal/api";
 const initialForm = Object.freeze({
   propertyAddress: "",
   propertyType: "",
+  propertyTypeOther: "",
   reportType: "",
+  reportTypeOther: "",
   loanPurpose: "",
+  loanPurposeOther: "",
   requestedDueDate: "",
   borrowerContactName: "",
   clientContactName: "",
@@ -15,6 +18,35 @@ const initialForm = Object.freeze({
   clientContactEmail: "",
   notes: "",
 });
+
+const PROPERTY_TYPE_OPTIONS = Object.freeze([
+  "Office",
+  "Retail",
+  "Industrial",
+  "Multifamily",
+  "Mixed Use",
+  "Land",
+  "Special Purpose",
+  "Other",
+]);
+
+const REPORT_TYPE_OPTIONS = Object.freeze([
+  "Full Appraisal",
+  "Restricted Appraisal",
+  "Review",
+  "Desktop",
+  "Other",
+]);
+
+const LOAN_PURPOSE_OPTIONS = Object.freeze([
+  "Purchase",
+  "Refinance",
+  "Construction",
+  "Equity / HELOC",
+  "Estate / Legal",
+  "Internal Review",
+  "Other",
+]);
 
 function Field({ children, label }) {
   return (
@@ -31,6 +63,10 @@ function inputClassName(extra = "") {
     "outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200",
     extra,
   ].join(" ");
+}
+
+function resolveControlledValue(value, otherValue) {
+  return value === "Other" ? otherValue : value;
 }
 
 function orderRequestErrorMessage(error) {
@@ -85,7 +121,18 @@ export default function ClientPortalNewOrderPage() {
     setError(null);
 
     try {
-      const result = await submitClientPortalOrderRequest(form);
+      const result = await submitClientPortalOrderRequest({
+        propertyAddress: form.propertyAddress,
+        propertyType: resolveControlledValue(form.propertyType, form.propertyTypeOther),
+        reportType: resolveControlledValue(form.reportType, form.reportTypeOther),
+        loanPurpose: resolveControlledValue(form.loanPurpose, form.loanPurposeOther),
+        requestedDueDate: form.requestedDueDate,
+        borrowerContactName: form.borrowerContactName,
+        clientContactName: form.clientContactName,
+        clientContactPhone: form.clientContactPhone,
+        clientContactEmail: form.clientContactEmail,
+        notes: form.notes,
+      });
       setSubmittedRequest(result);
       setForm(initialForm);
     } catch (err) {
@@ -166,33 +213,77 @@ export default function ClientPortalNewOrderPage() {
 
           <div className="grid gap-4 md:grid-cols-2">
             <Field label="Property type">
-              <input
+              <select
                 required
                 value={form.propertyType}
                 onChange={(event) => updateField("propertyType", event.target.value)}
                 className={inputClassName()}
-                placeholder="Single family, condo, multifamily"
-              />
+              >
+                <option value="">Select property type...</option>
+                {PROPERTY_TYPE_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+              {form.propertyType === "Other" ? (
+                <input
+                  required
+                  value={form.propertyTypeOther}
+                  onChange={(event) => updateField("propertyTypeOther", event.target.value)}
+                  className={inputClassName("mt-2")}
+                  placeholder="Describe property type"
+                />
+              ) : null}
             </Field>
             <Field label="Report type">
-              <input
+              <select
                 required
                 value={form.reportType}
                 onChange={(event) => updateField("reportType", event.target.value)}
                 className={inputClassName()}
-                placeholder="Full appraisal, desktop, review"
-              />
+              >
+                <option value="">Select report type...</option>
+                {REPORT_TYPE_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+              {form.reportType === "Other" ? (
+                <input
+                  required
+                  value={form.reportTypeOther}
+                  onChange={(event) => updateField("reportTypeOther", event.target.value)}
+                  className={inputClassName("mt-2")}
+                  placeholder="Describe report type"
+                />
+              ) : null}
             </Field>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             <Field label="Loan purpose">
-              <input
+              <select
                 value={form.loanPurpose}
                 onChange={(event) => updateField("loanPurpose", event.target.value)}
                 className={inputClassName()}
-                placeholder="Purchase, refinance, equity"
-              />
+              >
+                <option value="">Select loan purpose...</option>
+                {LOAN_PURPOSE_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+              {form.loanPurpose === "Other" ? (
+                <input
+                  value={form.loanPurposeOther}
+                  onChange={(event) => updateField("loanPurposeOther", event.target.value)}
+                  className={inputClassName("mt-2")}
+                  placeholder="Describe intended use"
+                />
+              ) : null}
             </Field>
             <Field label="Requested due date">
               <input

@@ -10,6 +10,9 @@ const summaryState = vi.hoisted(() => ({
   current: null,
 }));
 const useDashboardSummaryMock = vi.hoisted(() => vi.fn());
+const clientRequestsApiMock = vi.hoisted(() => ({
+  listClientOrderRequestsForReview: vi.fn(),
+}));
 
 const permissionState = vi.hoisted(() => ({
   settingsView: false,
@@ -36,6 +39,8 @@ const DOCUMENT_POSITION_FOLLOWING = 4;
 vi.mock("@/lib/hooks/useDashboardSummary", () => ({
   useDashboardSummary: useDashboardSummaryMock,
 }));
+
+vi.mock("@/features/clientRequests/api", () => clientRequestsApiMock);
 
 vi.mock("@/lib/hooks/usePermissions", () => ({
   useCan: (permissionKey) => {
@@ -227,6 +232,8 @@ describe("DashboardPage operational polish", () => {
       refetch: vi.fn(),
     };
     useDashboardSummaryMock.mockImplementation(() => summaryState.current);
+    clientRequestsApiMock.listClientOrderRequestsForReview.mockReset();
+    clientRequestsApiMock.listClientOrderRequestsForReview.mockResolvedValue([]);
     tableMock.mockClear();
     calendarMock.mockClear();
   });
@@ -234,6 +241,7 @@ describe("DashboardPage operational polish", () => {
   afterEach(() => {
     cleanup();
     useDashboardSummaryMock.mockReset();
+    clientRequestsApiMock.listClientOrderRequestsForReview.mockReset();
   });
 
   it("renders the polished operational sections from existing summary data", () => {
@@ -293,6 +301,48 @@ describe("DashboardPage operational polish", () => {
         scope: "dashboard",
       }),
     );
+  });
+
+  it("shows a Client Requests dashboard alert for pending AMC portal requests", async () => {
+    summaryState.current = buildSummary({
+      operationsScope: "amc_operations",
+      appContext: {
+        current_company_id: "company-1",
+        company_name: "Falcon AMC",
+        has_current_company_membership: true,
+        is_owner: true,
+        is_admin_role: true,
+      },
+    });
+    clientRequestsApiMock.listClientOrderRequestsForReview.mockResolvedValue([
+      {
+        requestKey: "request-key-1",
+        status: "submitted",
+        propertyAddress: "300 Madison Ave, Toledo OH",
+      },
+    ]);
+
+    renderDashboard(operationsShell, { operationsMode: OPERATIONS_MODES.AMC_OPERATIONS });
+
+    expect(await screen.findByRole("region", { name: "Client requests awaiting review" })).toBeInTheDocument();
+    expect(screen.getByText("1 request awaiting review")).toBeInTheDocument();
+    expect(screen.getByText("300 Madison Ave, Toledo OH is waiting for AMC review.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Review requests" })).toHaveAttribute("href", "/client-requests");
+  });
+
+  it("does not show the Client Requests alert in Internal Operations", () => {
+    clientRequestsApiMock.listClientOrderRequestsForReview.mockResolvedValue([
+      {
+        requestKey: "request-key-1",
+        status: "submitted",
+        propertyAddress: "300 Madison Ave, Toledo OH",
+      },
+    ]);
+
+    renderDashboard(operationsShell, { operationsMode: OPERATIONS_MODES.INTERNAL_OPERATIONS });
+
+    expect(screen.queryByRole("region", { name: "Client requests awaiting review" })).not.toBeInTheDocument();
+    expect(clientRequestsApiMock.listClientOrderRequestsForReview).not.toHaveBeenCalled();
   });
 
   it("renders AMC Operations dashboard context with AMC-scoped dashboard reads", () => {

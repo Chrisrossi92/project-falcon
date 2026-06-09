@@ -131,9 +131,9 @@ export const workspaceNavigationDefinitions = freezeArray([
       },
       {
         id: 'clients',
-        label: 'Clients',
+        label: 'Client Services',
         navEntryIds: ['clients.primary', 'client_requests'],
-        notes: ['Client context remains shared by route but AMC-native by workspace meaning.'],
+        notes: ['Client context and portal-submitted request review stay AMC-native by workspace meaning.'],
       },
       {
         id: 'analytics',

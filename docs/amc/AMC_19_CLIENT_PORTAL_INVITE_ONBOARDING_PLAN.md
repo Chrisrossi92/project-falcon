@@ -402,8 +402,24 @@ Implement AMC-19 in four small slices:
 - Client file upload on order request.
 - Client messaging/comment threads.
 - Configurable lender-specific request forms.
+- Notification-center delivery for new Client Portal requests. The current pilot slice surfaces
+  waiting requests through an AMC dashboard alert and the `Client Requests` navigation link.
 
 ## Pilot Decision
 
 AMC-19 is required before an external lender can run an unaided pilot. Until this flow exists, the
 Client Portal can be tested only with manually created local/staging/production-safe mappings.
+
+## Production Pilot Refinement
+
+The pilot path now keeps the client/staff loop visible without requiring manual re-entry:
+
+- Client request intake uses controlled dropdowns for property type, report type, and loan purpose,
+  with `Other` detail fields when the controlled list is not enough.
+- AMC dashboards show a `Client Requests` alert for submitted or under-review portal requests and
+  link staff directly to `/client-requests`.
+- Staff-confirmed conversion creates an explicit current-company `amc_operations` order and maps
+  the client, property/report type, intended use, requested due date, borrower/property contact,
+  client contact name/email/phone, notes, and request key.
+- Converted orders remain free of assignments, bid requests, invoices, payments, reports, and
+  documents until staff explicitly starts those workflows.

@@ -4,6 +4,7 @@ import { useDashboardSummary } from "@/lib/hooks/useDashboardSummary";
 import UnifiedOrdersTable from "@/features/orders/UnifiedOrdersTable";
 import DashboardCalendarPanel from "@/components/dashboard/DashboardCalendarPanel";
 import AppraiserWorkbenchPreview from "@/features/dashboard/workbenches/AppraiserWorkbenchPreview";
+import { listClientOrderRequestsForReview } from "@/features/clientRequests/api";
 import WorkspaceBadge from "@/components/workspace/WorkspaceBadge";
 import {
   WorkspaceSurface,
@@ -15,7 +16,7 @@ import { OPERATIONS_MODES } from "@/lib/operations/operationsMode";
 import { ORDER_STATUS, normalizeOrderStatus } from "@/lib/constants/orderStatus";
 import { getShellWorkModeCue } from "@/lib/shell/shellWorkMode";
 import { getWorkspaceIdentity } from "@/lib/workspace/workspaceIdentity";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 const DASHBOARD_CONFIG = {
   owner:     { showOrdersTable: true, showReviewQueue: false },
@@ -110,6 +111,85 @@ function firstNameFromIdentity(appContext) {
 function reviewerReviewsTitle(appContext) {
   const firstName = firstNameFromIdentity(appContext);
   return firstName ? `${firstName}'s Reviews` : "My Reviews";
+}
+
+function isPendingClientRequest(request) {
+  return ["submitted", "under_review"].includes(String(request?.status || "").toLowerCase());
+}
+
+function ClientRequestDashboardAlert({ operationsMode }) {
+  const [state, setState] = useState({
+    loading: operationsMode === OPERATIONS_MODES.AMC_OPERATIONS,
+    requests: [],
+  });
+
+  useEffect(() => {
+    let active = true;
+
+    if (operationsMode !== OPERATIONS_MODES.AMC_OPERATIONS) {
+      setState({ loading: false, requests: [] });
+      return undefined;
+    }
+
+    async function loadClientRequests() {
+      setState((current) => ({ ...current, loading: true }));
+
+      try {
+        const rows = await listClientOrderRequestsForReview();
+        if (!active) return;
+        setState({
+          loading: false,
+          requests: (rows || []).filter(isPendingClientRequest),
+        });
+      } catch {
+        if (!active) return;
+        setState({ loading: false, requests: [] });
+      }
+    }
+
+    loadClientRequests();
+
+    return () => {
+      active = false;
+    };
+  }, [operationsMode]);
+
+  if (operationsMode !== OPERATIONS_MODES.AMC_OPERATIONS || state.loading || state.requests.length === 0) {
+    return null;
+  }
+
+  const requestCount = state.requests.length;
+  const firstRequest = state.requests[0];
+
+  return (
+    <WorkspaceSurface
+      variant="secondary"
+      className="border-amber-200 bg-amber-50 p-4 text-amber-950"
+      aria-label="Client requests awaiting review"
+    >
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="min-w-0">
+          <div className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">
+            Client Requests
+          </div>
+          <div className="mt-1 text-base font-semibold">
+            {requestCount} request{requestCount === 1 ? "" : "s"} awaiting review
+          </div>
+          <p className="mt-1 text-sm leading-6 text-amber-800">
+            {firstRequest?.propertyAddress
+              ? `${firstRequest.propertyAddress} is waiting for AMC review.`
+              : "Portal-submitted appraisal requests are waiting for AMC review."}
+          </p>
+        </div>
+        <Link
+          to="/client-requests"
+          className="inline-flex min-h-9 items-center justify-center rounded-md border border-amber-900 bg-amber-900 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-800"
+        >
+          Review requests
+        </Link>
+      </div>
+    </WorkspaceSurface>
+  );
 }
 
 function resolveDashboardPresentation({
@@ -358,6 +438,8 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
       </WorkspaceSurface>
 
       <OwnerSetupDashboardPrompt appContext={appContext} />
+
+      <ClientRequestDashboardAlert operationsMode={operationsMode} />
 
       {isReviewerOnlyDashboard && activeReviewerWorkLens === "review" && (
         <ReviewerStatusFilterChips

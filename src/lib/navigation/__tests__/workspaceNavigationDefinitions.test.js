@@ -79,7 +79,7 @@ describe('workspace navigation definitions', () => {
     expect(sectionLabels(definition.sections)).toEqual([
       'Procurement',
       'Vendors',
-      'Clients',
+      'Client Services',
       'Analytics',
       'System',
     ]);

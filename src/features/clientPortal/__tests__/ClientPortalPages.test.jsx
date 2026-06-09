@@ -277,10 +277,10 @@ describe("Client Portal pages", () => {
       target: { value: "200 Oak St" },
     });
     fireEvent.change(screen.getByLabelText("Property type"), {
-      target: { value: "Condo" },
+      target: { value: "Office" },
     });
     fireEvent.change(screen.getByLabelText("Report type"), {
-      target: { value: "Full appraisal" },
+      target: { value: "Full Appraisal" },
     });
     fireEvent.change(screen.getByLabelText("Loan purpose"), {
       target: { value: "Purchase" },
@@ -309,8 +309,8 @@ describe("Client Portal pages", () => {
     await waitFor(() => {
       expect(apiMock.submitClientPortalOrderRequest).toHaveBeenCalledWith({
         propertyAddress: "200 Oak St",
-        propertyType: "Condo",
-        reportType: "Full appraisal",
+        propertyType: "Office",
+        reportType: "Full Appraisal",
         loanPurpose: "Purchase",
         requestedDueDate: "2026-06-20",
         borrowerContactName: "Borrower Name",
@@ -347,7 +347,7 @@ describe("Client Portal pages", () => {
       target: { value: "Office" },
     });
     fireEvent.change(screen.getByLabelText("Report type"), {
-      target: { value: "Full" },
+      target: { value: "Full Appraisal" },
     });
     fireEvent.change(screen.getByLabelText("Loan purpose"), {
       target: { value: "Refinance" },
@@ -377,7 +377,7 @@ describe("Client Portal pages", () => {
       expect(apiMock.submitClientPortalOrderRequest).toHaveBeenCalledWith({
         propertyAddress: "300 Madison Ave, Toledo OH",
         propertyType: "Office",
-        reportType: "Full",
+        reportType: "Full Appraisal",
         loanPurpose: "Refinance",
         requestedDueDate: "2026-06-20",
         borrowerContactName: "John Smith",
@@ -391,6 +391,51 @@ describe("Client Portal pages", () => {
     expect(await screen.findByText("Request submitted")).toBeInTheDocument();
   });
 
+  it("submits Other dropdown detail values for controlled intake fields", async () => {
+    apiMock.submitClientPortalOrderRequest.mockResolvedValue({
+      requestKey: "request-key-other",
+      status: "submitted",
+      propertyAddress: "400 Market St",
+    });
+
+    renderPortalRoutes("/client-portal/new-order");
+
+    fireEvent.change(screen.getByLabelText("Property address"), {
+      target: { value: "400 Market St" },
+    });
+    fireEvent.change(screen.getByLabelText("Property type"), {
+      target: { value: "Other" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("Describe property type"), {
+      target: { value: "Medical Office" },
+    });
+    fireEvent.change(screen.getByLabelText("Report type"), {
+      target: { value: "Other" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("Describe report type"), {
+      target: { value: "Narrative Appraisal" },
+    });
+    fireEvent.change(screen.getByLabelText("Loan purpose"), {
+      target: { value: "Other" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("Describe intended use"), {
+      target: { value: "Portfolio review" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Submit request" }));
+
+    await waitFor(() => {
+      expect(apiMock.submitClientPortalOrderRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          propertyAddress: "400 Market St",
+          propertyType: "Medical Office",
+          reportType: "Narrative Appraisal",
+          loanPurpose: "Portfolio review",
+        }),
+      );
+    });
+  });
+
   it("keeps order request errors visible without losing the form", async () => {
     apiMock.submitClientPortalOrderRequest.mockRejectedValue(new Error("client_portal_order_request_create_required"));
 
@@ -400,10 +445,10 @@ describe("Client Portal pages", () => {
       target: { value: "200 Oak St" },
     });
     fireEvent.change(screen.getByLabelText("Property type"), {
-      target: { value: "Condo" },
+      target: { value: "Office" },
     });
     fireEvent.change(screen.getByLabelText("Report type"), {
-      target: { value: "Full appraisal" },
+      target: { value: "Full Appraisal" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Submit request" }));
 
@@ -422,10 +467,10 @@ describe("Client Portal pages", () => {
       target: { value: "200 Oak St" },
     });
     fireEvent.change(screen.getByLabelText("Property type"), {
-      target: { value: "Condo" },
+      target: { value: "Office" },
     });
     fireEvent.change(screen.getByLabelText("Report type"), {
-      target: { value: "Full appraisal" },
+      target: { value: "Full Appraisal" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Submit request" }));
 

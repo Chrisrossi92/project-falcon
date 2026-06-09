@@ -601,6 +601,23 @@ If the local database must be preserved temporarily:
 - capture request keys/order numbers in the UX notes;
 - reset before any staging or production deployment work.
 
+## Production Pilot Notes - Client Request Refinement
+
+The AMC-19 production clickthrough confirmed the client request loop is usable through conversion.
+The following refinements were added for the next retest:
+
+- Falcon AMC dashboard now shows a `Client Requests` alert when submitted or under-review portal
+  requests are waiting, with a direct link to `/client-requests`.
+- `Client Requests` remains in AMC `Client Services` navigation for users with
+  `client_portal.order_requests.read` or `client_portal.order_requests.manage`.
+- The Client Portal request form now uses controlled property type, report type, and loan purpose
+  dropdowns, with `Other` detail fields.
+- Staff-confirmed conversion now creates explicit current-company `amc_operations` orders and maps
+  client, property/report, intended use, requested due date, contact details, notes, and request-key
+  linkage.
+- True notification-center delivery for new client requests remains deferred; the dashboard alert
+  is the current pilot notification surface.
+
 ## Manual Evidence Template
 
 ```text
