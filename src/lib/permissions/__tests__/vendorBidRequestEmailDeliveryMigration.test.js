@@ -4,12 +4,12 @@ import { describe, expect, it } from "vitest";
 
 const migrationPath = path.resolve(
   process.cwd(),
-  "supabase/migrations/20260609120000_amc_vendor_bid_request_email_delivery.sql",
+  "supabase/migrations/20260609130000_amc_vendor_bid_email_content_alignment.sql",
 );
 const migrationSql = fs.readFileSync(migrationPath, "utf8");
 const normalizedSql = migrationSql.replace(/\s+/g, " ").toLowerCase();
 
-describe("AMC-11 vendor bid request email delivery migration", () => {
+describe("AMC-11B vendor bid email content alignment migration", () => {
   it("recreates the bid request create RPC and preserves grants", () => {
     expect(migrationSql).toContain("create or replace function public.rpc_order_vendor_bid_request_create");
     expect(migrationSql).toContain("revoke all on function public.rpc_order_vendor_bid_request_create(uuid, jsonb) from public, anon");
@@ -23,6 +23,8 @@ describe("AMC-11 vendor bid request email delivery migration", () => {
     expect(migrationSql).toContain("'/vendor/bid-invitations/' || v_token");
     expect(migrationSql).toContain("insert into public.email_queue");
     expect(migrationSql).toContain("'VENDOR_BID_INVITATION'");
+    expect(migrationSql).toContain("'message', v_email_message");
+    expect(migrationSql).toContain("'body', v_email_message");
   });
 
   it("queues a vendor-safe packet summary without operational order mutation", () => {
@@ -35,6 +37,9 @@ describe("AMC-11 vendor bid request email delivery migration", () => {
     expect(migrationSql).toContain("'response_due_at'");
     expect(migrationSql).toContain("'desired_vendor_due_at'");
     expect(migrationSql).toContain("'request_message'");
+    expect(migrationSql).toContain("'coordinator_message'");
+    expect(migrationSql).toContain("'safe_notes'");
+    expect(migrationSql).toContain("'documents_status'");
     expect(normalizedSql).not.toContain("insert into public.order_company_assignments");
     expect(normalizedSql).not.toContain("update public.orders");
     expect(normalizedSql).not.toContain("'base_fee'");

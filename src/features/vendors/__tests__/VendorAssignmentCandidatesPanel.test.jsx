@@ -237,6 +237,15 @@ describe("VendorAssignmentCandidatesPanel", () => {
         orderId="order-1"
         enabled
         canOfferAssignment
+        orderSummary={{
+          property_address: "12969 Eckel Junction Road",
+          city: "Perrysburg",
+          state: "OH",
+          postal_code: "43551",
+          property_type: "Industrial",
+          report_type: "Full Appraisal",
+          client_due_at: "2026-06-24T16:00:00Z",
+        }}
         onBidRequestSuccess={handleBidRequestSuccess}
       />,
     );
@@ -250,9 +259,17 @@ describe("VendorAssignmentCandidatesPanel", () => {
     expect(within(dialog).getByText("Ask selected vendors for fee and turnaround.")).toBeInTheDocument();
     expect(within(dialog).getByText("ABC Valuation")).toBeInTheDocument();
     expect(within(dialog).queryByText("Central Ohio Valuation")).toBeNull();
-    fireEvent.change(within(dialog).getByLabelText("Message to vendors"), {
+    expect(within(dialog).getByText("Email preview")).toBeInTheDocument();
+    expect(within(dialog).getByText("Bid request: 12969 Eckel Junction Road")).toBeInTheDocument();
+    expect(within(dialog).getByText(/Location: Perrysburg, OH 43551/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Property type: Industrial/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Report type: Full Appraisal/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Client due: Jun 24, 2026/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/\[secure vendor bid link generated at send time\]/i)).toBeInTheDocument();
+    fireEvent.change(within(dialog).getByLabelText("Coordinator message to vendors"), {
       target: { value: "Please provide fee and turn time." },
     });
+    expect(within(dialog).getAllByText(/Please provide fee and turn time./).length).toBeGreaterThanOrEqual(1);
     expect(within(dialog).getByLabelText("Response due date")).toBeInTheDocument();
     expect(within(dialog).getByLabelText("Desired vendor report due date")).toBeInTheDocument();
     expect(within(dialog).getByLabelText("Client delivery due date")).toBeInTheDocument();
@@ -308,7 +325,7 @@ describe("VendorAssignmentCandidatesPanel", () => {
     fireEvent.click(await screen.findByRole("checkbox", { name: /select abc valuation for bid request/i }));
     fireEvent.click(screen.getByRole("button", { name: "Request bids" }));
     const dialog = screen.getByRole("dialog", { name: "Request bids" });
-    fireEvent.change(within(dialog).getByLabelText("Message to vendors"), {
+    fireEvent.change(within(dialog).getByLabelText("Coordinator message to vendors"), {
       target: { value: "Keep this bid note." },
     });
     fireEvent.click(within(dialog).getByRole("button", { name: "Send bid request" }));
@@ -316,7 +333,7 @@ describe("VendorAssignmentCandidatesPanel", () => {
     expect(
       await within(dialog).findByText("Bid request could not be created. Review the details and try again."),
     ).toBeInTheDocument();
-    expect(within(dialog).getByLabelText("Message to vendors")).toHaveValue("Keep this bid note.");
+    expect(within(dialog).getByLabelText("Coordinator message to vendors")).toHaveValue("Keep this bid note.");
     expect(screen.getByRole("dialog", { name: "Request bids" })).toBeInTheDocument();
     expect(assignmentApiState.offerOrderToVendor).not.toHaveBeenCalled();
   });

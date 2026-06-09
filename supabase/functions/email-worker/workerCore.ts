@@ -251,6 +251,8 @@ const TEMPLATE_LABELS: Record<string, { subject: string; body: string }> = {
     body: [
       "You have been invited to bid on this appraisal assignment.",
       "",
+      "{coordinator_message}",
+      "",
       "**Property:** {property_address}",
       "**Location:** {property_location}",
       "**Report:** {report_type}",
@@ -259,7 +261,7 @@ const TEMPLATE_LABELS: Record<string, { subject: string; body: string }> = {
       "**Vendor report due:** {desired_vendor_due_at}",
       "**Client due:** {client_due_at}",
       "",
-      "{request_message}",
+      "{safe_notes}",
       "",
       "[Open Bid Request]({bid_invitation_url})",
     ].join("\n"),
@@ -317,10 +319,12 @@ const FIELD_FALLBACKS: Record<string, string> = {
   desired_vendor_due_at: "Not set",
   client_due_at: "Not set",
   request_message: "",
+  coordinator_message: "",
+  safe_notes: "",
   bid_invitation_url: "",
 };
 
-const OPTIONAL_LINE_KEYS = new Set(["workflow_note", "message", "request_message"]);
+const OPTIONAL_LINE_KEYS = new Set(["workflow_note", "message", "request_message", "coordinator_message", "safe_notes"]);
 const DATE_ONLY_KEYS = new Set(["review_due_at", "final_due_at", "due_date", "response_due_at", "desired_vendor_due_at", "client_due_at"]);
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -481,6 +485,8 @@ function normalizePayload(row: EmailQueueRow, appBaseUrl = "") {
     nestedString(rawPayload, ["target", "email"]);
   payload.role_label = payload.role_label || payload.role || payload.primary_role || "";
   payload.access_change_summary = payload.access_change_summary || payload.change_summary || "";
+  payload.coordinator_message = payload.coordinator_message || payload.request_message || "";
+  payload.safe_notes = payload.safe_notes || payload.special_instructions_safe || "";
 
   const base = appBaseUrl.replace(/\/+$/, "");
   const linkPath = payload.link_path || "";
@@ -615,7 +621,7 @@ function renderFalconEmailHtml(templateName: string, subject: string, text: stri
   const supportingMessage = templateName === "NOTE_ADDRESSED"
     ? payload.note_preview
     : templateName === "VENDOR_BID_INVITATION"
-      ? payload.request_message || ""
+      ? payload.coordinator_message || payload.safe_notes || ""
       : payload.workflow_note || "";
   const detailRows: string[] = [];
   for (let index = 0; index < details.length; index += 2) {

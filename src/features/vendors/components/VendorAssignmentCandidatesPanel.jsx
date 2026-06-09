@@ -74,6 +74,65 @@ function toIsoDateOnlyOrDateTime(value) {
   return toIsoDateTime(value);
 }
 
+function formatPreviewDate(value) {
+  if (!value) return "Not set";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "Not set";
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(parsed);
+}
+
+function safePreviewText(value, fallback = "Not provided") {
+  const text = String(value || "").trim();
+  return text || fallback;
+}
+
+function formatPreviewLocation(orderSummary = {}) {
+  return [
+    orderSummary.city,
+    [orderSummary.state, orderSummary.postal_code || orderSummary.zip].filter(Boolean).join(" "),
+  ].filter(Boolean).join(", ") || "Not provided";
+}
+
+function buildBidEmailPreview({
+  orderSummary = {},
+  selectedCandidates = [],
+  message = "",
+  responseDueAt = "",
+  desiredVendorDueAt = "",
+  clientDueAt = "",
+} = {}) {
+  const vendorName = selectedCandidates[0]?.vendor_company_name || "Vendor";
+  const propertyAddress = safePreviewText(orderSummary.property_address || orderSummary.address);
+  const body = [
+    `To: ${vendorName}${selectedCandidates.length > 1 ? ` and ${selectedCandidates.length - 1} more` : ""}`,
+    "",
+    "You have been invited to bid on this appraisal assignment.",
+    message.trim(),
+    "",
+    `Property: ${propertyAddress}`,
+    `Location: ${formatPreviewLocation(orderSummary)}`,
+    `Property type: ${safePreviewText(orderSummary.property_type)}`,
+    `Report type: ${safePreviewText(orderSummary.report_type)}`,
+    `Client due: ${formatPreviewDate(clientDueAt || orderSummary.client_due_at || orderSummary.final_due_at || orderSummary.due_date)}`,
+    `Vendor due: ${formatPreviewDate(desiredVendorDueAt)}`,
+    `Response due: ${formatPreviewDate(responseDueAt)}`,
+    "",
+    "Open the secure bid invitation:",
+    "[secure vendor bid link generated at send time]",
+    "",
+    "Bid documents can be added to this packet in a future release.",
+  ].filter((line) => line !== "").join("\n");
+
+  return {
+    subject: `Bid request: ${propertyAddress}`,
+    body,
+  };
+}
+
 function formatCandidateOfferError(error) {
   const message = String(error?.message || "");
   const code = String(error?.code || "");
@@ -434,7 +493,7 @@ function CandidateOfferModal({
   );
 }
 
-function RequestBidsModal({ orderId, selectedCandidates, onClose, onSuccess }) {
+function RequestBidsModal({ orderId, selectedCandidates, orderSummary = {}, onClose, onSuccess }) {
   const closeButtonRef = useRef(null);
   const [message, setMessage] = useState("");
   const [responseDueAt, setResponseDueAt] = useState("");
@@ -442,6 +501,14 @@ function RequestBidsModal({ orderId, selectedCandidates, onClose, onSuccess }) {
   const [clientDueAt, setClientDueAt] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const emailPreview = buildBidEmailPreview({
+    orderSummary,
+    selectedCandidates,
+    message,
+    responseDueAt,
+    desiredVendorDueAt,
+    clientDueAt,
+  });
 
   useEffect(() => {
     closeButtonRef.current?.focus();
@@ -543,7 +610,7 @@ function RequestBidsModal({ orderId, selectedCandidates, onClose, onSuccess }) {
           </div>
 
           <label className="grid gap-1 text-sm font-semibold text-slate-700">
-            Message to vendors
+            Coordinator message to vendors
             <textarea
               value={message}
               onChange={(event) => setMessage(event.target.value)}
@@ -581,6 +648,16 @@ function RequestBidsModal({ orderId, selectedCandidates, onClose, onSuccess }) {
                 className="rounded-md border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
               />
             </label>
+          </div>
+
+          <div className="rounded-md border border-slate-200 bg-slate-50/80 p-3">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              Email preview
+            </div>
+            <div className="mt-2 text-sm font-semibold text-slate-900">{emailPreview.subject}</div>
+            <pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap rounded-md border border-slate-200 bg-white p-3 text-xs leading-5 text-slate-700">
+              {emailPreview.body}
+            </pre>
           </div>
         </div>
 
@@ -799,6 +876,7 @@ export default function VendorAssignmentCandidatesPanel({
   activeVendorAssignment = null,
   canOfferAssignment = false,
   orderDueAt = null,
+  orderSummary = {},
   onOfferSuccess,
   onBidRequestSuccess,
   className = "",
@@ -1041,6 +1119,7 @@ export default function VendorAssignmentCandidatesPanel({
         <RequestBidsModal
           orderId={orderId}
           selectedCandidates={selectedCandidates}
+          orderSummary={orderSummary}
           onClose={() => setRequestBidsModalOpen(false)}
           onSuccess={handleBidRequestSuccess}
         />

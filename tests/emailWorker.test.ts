@@ -191,6 +191,7 @@ describe("email queue worker", () => {
           desired_vendor_due_at: "2026-06-20T16:00:00Z",
           client_due_at: "2026-06-24T16:00:00Z",
           request_message: "Please provide fee and turn time.",
+          safe_notes: "Use the secure link for questions and bid response details.",
           base_fee: "9999",
           internal_notes: "Do not render",
         },
@@ -204,6 +205,7 @@ describe("email queue worker", () => {
     expect(rendered.text).toContain("**Report:** Full Appraisal");
     expect(rendered.text).toContain("**Property type:** Industrial");
     expect(rendered.text).toContain("Please provide fee and turn time.");
+    expect(rendered.text).toContain("Use the secure link for questions and bid response details.");
     expect(rendered.text).toContain("https://continentalres.com/vendor/bid-invitations/abc123");
     expect(rendered.html).toContain("Bid packet summary");
     expect(rendered.html).toContain("Open Bid Request");
@@ -212,6 +214,31 @@ describe("email queue worker", () => {
     expect(rendered.text).not.toContain("Do not render");
     expect(rendered.html).not.toContain("9999");
     expect(rendered.html).not.toContain("Do not render");
+  });
+
+  it("renders useful vendor bid content through generic fallback when template is unavailable", () => {
+    const rendered = renderEmailQueueRow({
+      id: "email-vendor-bid-fallback",
+      to_email: "bids@acmeappraisal.com",
+      subject: "Bid request: 12969 Eckel Junction Road",
+      template: "legacy_vendor_bid_invitation",
+      payload: {
+        message: [
+          "You have been invited to bid on this appraisal assignment.",
+          "Please provide fee and turn time.",
+          "Property: 12969 Eckel Junction Road",
+          "Location: Perrysburg, OH 43551",
+          "Open the secure bid invitation:",
+          "/vendor/bid-invitations/abc123",
+        ].join("\n"),
+      },
+    });
+
+    expect(rendered.subject).toBe("Bid request: 12969 Eckel Junction Road");
+    expect(rendered.text).toContain("Please provide fee and turn time.");
+    expect(rendered.text).toContain("Property: 12969 Eckel Junction Road");
+    expect(rendered.html).toContain("Perrysburg, OH 43551");
+    expect(rendered.html).not.toContain("undefined");
   });
 
   it("renders appraiser assignment emails with useful order context", () => {
