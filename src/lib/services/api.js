@@ -4,7 +4,7 @@ import supabase from "@/lib/supabaseClient";
 import { getCurrentUserAppContext } from "@/features/auth/currentUserAppContextApi";
 import {
   filterNotificationsForOperationsScope,
-  notificationRpcScopeParams,
+  notificationListRpcParams,
 } from "@/lib/notifications/notificationWorkspaceScope";
 
 /* ----------------------------- NOTIFICATIONS ----------------------------- */
@@ -21,11 +21,14 @@ export async function rpcGetNotifications({
   after = null,
   operationsScope = null,
 } = {}) {
-  const { data, error } = await supabase.rpc("rpc_get_notifications", {
-    p_limit: limit,
-    p_before: before ?? after ?? null, // simple cursor fallback; API ignores filters today
-    ...notificationRpcScopeParams(operationsScope),
-  });
+  const { data, error } = await supabase.rpc(
+    "rpc_get_notifications",
+    notificationListRpcParams({
+      limit,
+      before: before ?? after ?? null,
+      operationsScope,
+    }),
+  );
   if (error) throw error;
   return filterNotificationsForOperationsScope(data ?? [], operationsScope);
 }

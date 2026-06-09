@@ -69,6 +69,7 @@ describe("Activity notification workspace isolation", () => {
     expect(screen.queryByText("AMC invoice update")).toBeNull();
     expect(rpcMock).toHaveBeenCalledWith("rpc_get_notifications", {
       p_limit: 100,
+      p_before: null,
       p_operations_scope: OPERATIONS_MODES.INTERNAL_OPERATIONS,
     });
   });
@@ -80,6 +81,7 @@ describe("Activity notification workspace isolation", () => {
     expect(screen.queryByText("Internal review update")).toBeNull();
     expect(rpcMock).toHaveBeenCalledWith("rpc_get_notifications", {
       p_limit: 100,
+      p_before: null,
       p_operations_scope: OPERATIONS_MODES.AMC_OPERATIONS,
     });
   });
@@ -99,6 +101,7 @@ describe("Activity notification workspace isolation", () => {
       expect(screen.getByText("Internal review update")).toBeInTheDocument();
       expect(rpcMock).toHaveBeenCalledWith("rpc_get_notifications", {
         p_limit: 100,
+        p_before: null,
         p_operations_scope: OPERATIONS_MODES.INTERNAL_OPERATIONS,
       });
     });

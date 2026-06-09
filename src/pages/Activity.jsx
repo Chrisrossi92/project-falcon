@@ -7,7 +7,7 @@ import { getOperationsScopeForMode } from "@/lib/operations/operationsMode";
 import { useOperationsMode } from "@/lib/operations/OperationsModeProvider";
 import {
   filterNotificationsForOperationsScope,
-  notificationRpcScopeParams,
+  notificationListRpcParams,
 } from "@/lib/notifications/notificationWorkspaceScope";
 import WorkspaceBadge from "@/components/workspace/WorkspaceBadge";
 import { getWorkspacePageChrome } from "@/lib/workspace/workspaceIdentity";
@@ -136,12 +136,10 @@ export default function ActivityPage() {
   const loadNotifications = async () => {
     setLoading(true);
     setError(null);
-    const { data, error } = await supabase.rpc("rpc_get_notifications", {
-      p_limit: 100,
-      ...notificationRpcScopeParams(operationsScope),
-    });
+    const requestParams = notificationListRpcParams({ limit: 100, operationsScope });
+    const { data, error } = await supabase.rpc("rpc_get_notifications", requestParams);
     if (error) {
-      console.error("Activity loadNotifications error", error);
+      console.error("Activity loadNotifications error", { requestParams, error });
       setError(error);
       setItems([]);
     } else {

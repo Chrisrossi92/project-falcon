@@ -4,6 +4,7 @@ import { OPERATIONS_MODES } from "@/lib/operations/operationsMode";
 import {
   filterNotificationsForOperationsScope,
   getNotificationOperationsScope,
+  notificationListRpcParams,
   notificationRpcScopeParams,
 } from "../notificationWorkspaceScope";
 
@@ -48,6 +49,24 @@ describe("notificationWorkspaceScope", () => {
     });
     expect(notificationRpcScopeParams(OPERATIONS_MODES.AMC_OPERATIONS)).toEqual({
       p_operations_scope: OPERATIONS_MODES.AMC_OPERATIONS,
+    });
+  });
+
+  it("builds explicit notification list RPC params with a null cursor", () => {
+    expect(notificationListRpcParams({ limit: 20, operationsScope: OPERATIONS_MODES.AMC_OPERATIONS })).toEqual({
+      p_limit: 20,
+      p_before: null,
+      p_operations_scope: OPERATIONS_MODES.AMC_OPERATIONS,
+    });
+
+    expect(notificationListRpcParams({
+      limit: 100,
+      before: "2026-06-08T12:00:00Z",
+      operationsScope: OPERATIONS_MODES.INTERNAL_OPERATIONS,
+    })).toEqual({
+      p_limit: 100,
+      p_before: "2026-06-08T12:00:00Z",
+      p_operations_scope: OPERATIONS_MODES.INTERNAL_OPERATIONS,
     });
   });
 });

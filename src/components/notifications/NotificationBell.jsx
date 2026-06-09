@@ -7,7 +7,7 @@ import { getOperationsScopeForMode } from "@/lib/operations/operationsMode";
 import { useOperationsMode } from "@/lib/operations/OperationsModeProvider";
 import {
   filterNotificationsForOperationsScope,
-  notificationRpcScopeParams,
+  notificationListRpcParams,
 } from "@/lib/notifications/notificationWorkspaceScope";
 import { WORKSPACE_SWITCH_INVALIDATION_EVENT } from "@/lib/workspace/workspaceSwitchReset";
 
@@ -68,12 +68,10 @@ export default function NotificationBell() {
     if (!userId) return;
     setLoading(true);
     setError(null);
-    const { data, error } = await supabase.rpc("rpc_get_notifications", {
-      p_limit: 20,
-      ...notificationRpcScopeParams(operationsScope),
-    });
+    const requestParams = notificationListRpcParams({ limit: 20, operationsScope });
+    const { data, error } = await supabase.rpc("rpc_get_notifications", requestParams);
     if (error) {
-      console.error("loadNotifications error", error);
+      console.error("loadNotifications error", { requestParams, error });
       setError(error);
       setItems([]);
       setUnreadCount(0);

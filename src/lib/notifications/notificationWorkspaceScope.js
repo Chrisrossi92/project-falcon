@@ -66,3 +66,11 @@ export function notificationRpcScopeParams(operationsScope) {
     p_operations_scope: normalizeOperationsMode(operationsScope),
   };
 }
+
+export function notificationListRpcParams({ limit = 50, before = null, operationsScope = null } = {}) {
+  return {
+    p_limit: limit,
+    p_before: before ?? null,
+    ...notificationRpcScopeParams(operationsScope),
+  };
+}

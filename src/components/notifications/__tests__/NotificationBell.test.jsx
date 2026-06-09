@@ -113,6 +113,7 @@ describe("NotificationBell workspace isolation", () => {
     expect(screen.getByText("System policy changed")).toBeInTheDocument();
     expect(rpcMock).toHaveBeenCalledWith("rpc_get_notifications", {
       p_limit: 20,
+      p_before: null,
       p_operations_scope: OPERATIONS_MODES.INTERNAL_OPERATIONS,
     });
   });
@@ -131,6 +132,7 @@ describe("NotificationBell workspace isolation", () => {
     expect(screen.getByText("System policy changed")).toBeInTheDocument();
     expect(rpcMock).toHaveBeenCalledWith("rpc_get_notifications", {
       p_limit: 20,
+      p_before: null,
       p_operations_scope: OPERATIONS_MODES.AMC_OPERATIONS,
     });
   });
@@ -166,6 +168,7 @@ describe("NotificationBell workspace isolation", () => {
       expect(screen.queryByText("Internal order ready")).toBeNull();
       expect(rpcMock).toHaveBeenCalledWith("rpc_get_notifications", {
         p_limit: 20,
+        p_before: null,
         p_operations_scope: OPERATIONS_MODES.INTERNAL_OPERATIONS,
       });
     });

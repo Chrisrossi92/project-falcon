@@ -1,14 +1,17 @@
 // src/features/notifications.js
 import supabase from '@/lib/supabaseClient';
-import { notificationRpcScopeParams } from "@/lib/notifications/notificationWorkspaceScope";
+import {
+  notificationListRpcParams,
+  notificationRpcScopeParams,
+} from "@/lib/notifications/notificationWorkspaceScope";
 
 // NotificationRow and UserPref types removed
 
 export async function fetchNotifications(limit = 50, operationsScope = null) {
-  const { data, error } = await supabase.rpc("rpc_get_notifications", {
-    p_limit: limit,
-    ...notificationRpcScopeParams(operationsScope),
-  });
+  const { data, error } = await supabase.rpc(
+    "rpc_get_notifications",
+    notificationListRpcParams({ limit, operationsScope }),
+  );
   if (error) throw error;
   return data || [];
 }

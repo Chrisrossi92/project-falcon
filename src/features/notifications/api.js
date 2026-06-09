@@ -1,6 +1,9 @@
 // src/features/notifications/api.js
 import supabase from "@/lib/supabaseClient";
-import { notificationRpcScopeParams } from "@/lib/notifications/notificationWorkspaceScope";
+import {
+  notificationListRpcParams,
+  notificationRpcScopeParams,
+} from "@/lib/notifications/notificationWorkspaceScope";
 
 function notificationPrefsRpcError(action, error) {
   const details = [error?.message, error?.details, error?.hint].filter(Boolean).join(" ");
@@ -66,10 +69,10 @@ export async function getUnreadCount({ operationsScope = null } = {}) {
 export const unreadCount = getUnreadCount;
 
 export async function listNotifications({ limit = 10, operationsScope = null } = {}) {
-  const { data, error } = await supabase.rpc("rpc_get_notifications", {
-    p_limit: limit,
-    ...notificationRpcScopeParams(operationsScope),
-  });
+  const { data, error } = await supabase.rpc(
+    "rpc_get_notifications",
+    notificationListRpcParams({ limit, operationsScope }),
+  );
   if (error) throw error;
   return Array.isArray(data) ? data : [];
 }
