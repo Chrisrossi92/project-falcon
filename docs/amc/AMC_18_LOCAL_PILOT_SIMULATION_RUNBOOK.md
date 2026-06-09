@@ -610,6 +610,9 @@ The following refinements were added for the next retest:
   requests are waiting, with a direct link to `/client-requests`.
 - `Client Requests` remains in AMC `Client Services` navigation for users with
   `client_portal.order_requests.read` or `client_portal.order_requests.manage`.
+- Staff must switch to Falcon AMC before opening `/client-requests`. If an Internal Operations user
+  enters that URL directly, Falcon redirects to the dashboard and explains that Client Requests are
+  available in Falcon AMC.
 - The Client Portal request form now uses controlled property type, report type, and loan purpose
   dropdowns, with `Other` detail fields.
 - Staff-confirmed conversion now creates explicit current-company `amc_operations` orders and maps
@@ -617,6 +620,8 @@ The following refinements were added for the next retest:
   linkage.
 - True notification-center delivery for new client requests remains deferred; the dashboard alert
   is the current pilot notification surface.
+- Notification bell failures, including `Failed to load notifications`, should be investigated as
+  notification-center reliability work and should not block the Client Requests review path.
 
 ## Manual Evidence Template
 

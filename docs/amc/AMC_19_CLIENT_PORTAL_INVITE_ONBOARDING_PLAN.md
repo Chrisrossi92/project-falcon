@@ -418,8 +418,12 @@ The pilot path now keeps the client/staff loop visible without requiring manual 
   with `Other` detail fields when the controlled list is not enough.
 - AMC dashboards show a `Client Requests` alert for submitted or under-review portal requests and
   link staff directly to `/client-requests`.
+- Staff review is Falcon AMC-owned. Internal Operations direct navigation to `/client-requests`
+  redirects back to the dashboard with guidance to switch to Falcon AMC.
 - Staff-confirmed conversion creates an explicit current-company `amc_operations` order and maps
   the client, property/report type, intended use, requested due date, borrower/property contact,
   client contact name/email/phone, notes, and request key.
 - Converted orders remain free of assignments, bid requests, invoices, payments, reports, and
   documents until staff explicitly starts those workflows.
+- Notification bell failures remain separate from Client Portal request review; the dashboard alert
+  is the current pilot path for surfacing waiting requests.

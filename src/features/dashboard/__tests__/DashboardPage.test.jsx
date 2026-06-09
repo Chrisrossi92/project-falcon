@@ -209,9 +209,16 @@ function buildSummary(overrides = {}) {
 }
 
 function renderDashboard(shellProfilePresentation, props = {}) {
+  const initialEntries = props.initialEntries || ["/dashboard"];
+  const dashboardProps = { ...props };
+  delete dashboardProps.initialEntries;
+
   return render(
-    <MemoryRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
-      <DashboardPage shellProfilePresentation={shellProfilePresentation} {...props} />
+    <MemoryRouter
+      initialEntries={initialEntries}
+      future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
+    >
+      <DashboardPage shellProfilePresentation={shellProfilePresentation} {...dashboardProps} />
     </MemoryRouter>,
   );
 }
@@ -343,6 +350,28 @@ describe("DashboardPage operational polish", () => {
 
     expect(screen.queryByRole("region", { name: "Client requests awaiting review" })).not.toBeInTheDocument();
     expect(clientRequestsApiMock.listClientOrderRequestsForReview).not.toHaveBeenCalled();
+  });
+
+  it("explains that Client Requests deep links require Falcon AMC when redirected from Internal mode", () => {
+    renderDashboard(operationsShell, {
+      operationsMode: OPERATIONS_MODES.INTERNAL_OPERATIONS,
+      initialEntries: [
+        {
+          pathname: "/dashboard",
+          state: {
+            workspaceRedirect: {
+              from: "/client-requests",
+              expectedWorkspace: "amc",
+              selectedWorkspace: "internal",
+            },
+          },
+        },
+      ],
+    });
+
+    expect(screen.getByRole("region", { name: "Client Requests workspace guidance" })).toBeInTheDocument();
+    expect(screen.getByText("Client Requests are available in Falcon AMC.")).toBeInTheDocument();
+    expect(screen.getByText("Switch to Falcon AMC to review portal requests.")).toBeInTheDocument();
   });
 
   it("renders AMC Operations dashboard context with AMC-scoped dashboard reads", () => {

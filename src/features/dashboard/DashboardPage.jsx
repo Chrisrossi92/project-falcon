@@ -1,5 +1,5 @@
 // src/features/dashboard/DashboardPage.jsx
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useDashboardSummary } from "@/lib/hooks/useDashboardSummary";
 import UnifiedOrdersTable from "@/features/orders/UnifiedOrdersTable";
 import DashboardCalendarPanel from "@/components/dashboard/DashboardCalendarPanel";
@@ -187,6 +187,38 @@ function ClientRequestDashboardAlert({ operationsMode }) {
         >
           Review requests
         </Link>
+      </div>
+    </WorkspaceSurface>
+  );
+}
+
+function ClientRequestWorkspaceRedirectBanner() {
+  const location = useLocation();
+  const redirect = location.state?.workspaceRedirect || null;
+
+  if (
+    redirect?.from !== "/client-requests" ||
+    redirect?.expectedWorkspace !== "amc" ||
+    redirect?.selectedWorkspace !== "internal"
+  ) {
+    return null;
+  }
+
+  return (
+    <WorkspaceSurface
+      variant="priority"
+      aria-label="Client Requests workspace guidance"
+      className="border-amber-300 bg-amber-50"
+    >
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <div>
+          <div className="text-sm font-semibold text-amber-950">
+            Client Requests are available in Falcon AMC.
+          </div>
+          <p className="mt-1 text-sm leading-6 text-amber-900">
+            Switch to Falcon AMC to review portal requests.
+          </p>
+        </div>
       </div>
     </WorkspaceSurface>
   );
@@ -438,6 +470,8 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
       </WorkspaceSurface>
 
       <OwnerSetupDashboardPrompt appContext={appContext} />
+
+      <ClientRequestWorkspaceRedirectBanner />
 
       <ClientRequestDashboardAlert operationsMode={operationsMode} />
 

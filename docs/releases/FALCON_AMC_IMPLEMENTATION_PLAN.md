@@ -1893,6 +1893,8 @@ Client invite acceptance foundation:
 - AMC dashboards now show a `Client Requests` alert when submitted/under-review portal requests
   are waiting, linked directly to `/client-requests`; true notification-center delivery remains a
   follow-up slice.
+- `/client-requests` remains Falcon AMC-owned. Internal Operations direct navigation redirects to
+  dashboard with a clear message to switch to Falcon AMC before reviewing portal requests.
 - The Client Portal request form now uses controlled property type, report type, and loan purpose
   dropdowns with `Other` detail fields so converted orders map closer to operational values.
 - Production conversion patch `20260608180000_client_request_bid_ready_conversion.sql` recreates
