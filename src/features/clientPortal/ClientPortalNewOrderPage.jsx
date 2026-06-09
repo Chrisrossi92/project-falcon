@@ -5,6 +5,10 @@ import { submitClientPortalOrderRequest } from "@/features/clientPortal/api";
 
 const initialForm = Object.freeze({
   propertyAddress: "",
+  propertyCity: "",
+  propertyState: "",
+  propertyPostalCode: "",
+  propertyCounty: "",
   propertyType: "",
   propertyTypeOther: "",
   reportType: "",
@@ -75,6 +79,15 @@ function orderRequestErrorMessage(error) {
   if (/property_address_required/i.test(message)) {
     return "Enter the property address before submitting.";
   }
+  if (/property_city_required/i.test(message)) {
+    return "Enter the property city before submitting.";
+  }
+  if (/property_state_required/i.test(message)) {
+    return "Enter the two-letter property state before submitting.";
+  }
+  if (/property_postal_code_required/i.test(message)) {
+    return "Enter the property ZIP before submitting.";
+  }
   if (/property_type_required/i.test(message)) {
     return "Enter the property type before submitting.";
   }
@@ -123,6 +136,10 @@ export default function ClientPortalNewOrderPage() {
     try {
       const result = await submitClientPortalOrderRequest({
         propertyAddress: form.propertyAddress,
+        propertyCity: form.propertyCity,
+        propertyState: form.propertyState,
+        propertyPostalCode: form.propertyPostalCode,
+        propertyCounty: form.propertyCounty,
         propertyType: resolveControlledValue(form.propertyType, form.propertyTypeOther),
         reportType: resolveControlledValue(form.reportType, form.reportTypeOther),
         loanPurpose: resolveControlledValue(form.loanPurpose, form.loanPurposeOther),
@@ -208,6 +225,42 @@ export default function ClientPortalNewOrderPage() {
               value={form.propertyAddress}
               onChange={(event) => updateField("propertyAddress", event.target.value)}
               className={inputClassName("resize-y")}
+            />
+          </Field>
+
+          <div className="grid gap-4 md:grid-cols-[1fr_96px_140px]">
+            <Field label="City">
+              <input
+                required
+                value={form.propertyCity}
+                onChange={(event) => updateField("propertyCity", event.target.value)}
+                className={inputClassName()}
+              />
+            </Field>
+            <Field label="State">
+              <input
+                required
+                value={form.propertyState}
+                onChange={(event) => updateField("propertyState", event.target.value.toUpperCase())}
+                maxLength={2}
+                className={inputClassName()}
+              />
+            </Field>
+            <Field label="ZIP">
+              <input
+                required
+                value={form.propertyPostalCode}
+                onChange={(event) => updateField("propertyPostalCode", event.target.value)}
+                className={inputClassName()}
+              />
+            </Field>
+          </div>
+
+          <Field label="County">
+            <input
+              value={form.propertyCounty}
+              onChange={(event) => updateField("propertyCounty", event.target.value)}
+              className={inputClassName()}
             />
           </Field>
 

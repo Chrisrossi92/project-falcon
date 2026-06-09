@@ -46,6 +46,21 @@ function DetailItem({ label, value }) {
   );
 }
 
+function formatStructuredAddress(request) {
+  if (!request) return "";
+
+  const locality = [
+    request.propertyCity,
+    [request.propertyState, request.propertyPostalCode].filter(Boolean).join(" "),
+  ].filter(Boolean).join(", ");
+  const county = request.propertyCounty
+    ? request.propertyCounty.replace(/\s+county$/i, "")
+    : null;
+  return [request.propertyAddress, locality, county ? `${county} County` : null]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 export default function ClientOrderRequestsPage() {
   const permissions = useEffectivePermissions();
   const [requests, setRequests] = useState([]);
@@ -244,7 +259,7 @@ export default function ClientOrderRequestsPage() {
                     request.requestKey === selectedKey ? "bg-stone-50" : "bg-white",
                   ].join(" ")}
                 >
-                  <span className="font-semibold text-slate-950">{request.propertyAddress}</span>
+                  <span className="font-semibold text-slate-950">{formatStructuredAddress(request) || request.propertyAddress}</span>
                   <span className="text-slate-600">{request.clientName}</span>
                   <span className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
                     {statusLabel(request.status)}
@@ -258,7 +273,7 @@ export default function ClientOrderRequestsPage() {
         <div className="rounded-lg border border-stone-200 bg-white" aria-label="Client request detail">
           <div className="border-b border-stone-200 p-4">
             <h2 className="text-base font-semibold text-slate-950">
-              {selectedSummary?.propertyAddress || "Request detail"}
+              {formatStructuredAddress(selectedSummary) || selectedSummary?.propertyAddress || "Request detail"}
             </h2>
             <p className="mt-1 text-sm text-slate-600">
               Review the submitted client intake details before converting a request into one operational order.
@@ -278,6 +293,10 @@ export default function ClientOrderRequestsPage() {
               <section className="grid gap-4 md:grid-cols-2" aria-label="Property request">
                 <DetailItem label="Client" value={detail.clientName} />
                 <DetailItem label="Property Address" value={detail.propertyAddress} />
+                <DetailItem label="City" value={detail.propertyCity} />
+                <DetailItem label="State" value={detail.propertyState} />
+                <DetailItem label="ZIP" value={detail.propertyPostalCode} />
+                <DetailItem label="County" value={detail.propertyCounty} />
                 <DetailItem label="Property Type" value={detail.propertyType} />
                 <DetailItem label="Report Type" value={detail.reportType} />
                 <DetailItem label="Loan Purpose" value={detail.loanPurpose} />
@@ -371,6 +390,10 @@ export default function ClientOrderRequestsPage() {
             <div className="grid gap-4 p-4 md:grid-cols-2">
               <DetailItem label="Client" value={detail.clientName} />
               <DetailItem label="Property Address" value={detail.propertyAddress} />
+              <DetailItem label="City" value={detail.propertyCity} />
+              <DetailItem label="State" value={detail.propertyState} />
+              <DetailItem label="ZIP" value={detail.propertyPostalCode} />
+              <DetailItem label="County" value={detail.propertyCounty} />
               <DetailItem label="Property Type" value={detail.propertyType} />
               <DetailItem label="Report Type" value={detail.reportType} />
               <DetailItem label="Loan Purpose" value={detail.loanPurpose} />

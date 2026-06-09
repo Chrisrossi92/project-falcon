@@ -82,6 +82,10 @@ export function normalizeClientPortalOrderRequest(row = {}) {
     status: toStringOrNull(row.status) || "submitted",
     submittedAt: toStringOrNull(row.submitted_at ?? row.submittedAt),
     propertyAddress: toStringOrNull(row.property_address ?? row.propertyAddress),
+    propertyCity: toStringOrNull(row.property_city ?? row.propertyCity),
+    propertyState: toStringOrNull(row.property_state ?? row.propertyState),
+    propertyPostalCode: toStringOrNull(row.property_postal_code ?? row.propertyPostalCode ?? row.property_zip ?? row.propertyZip),
+    propertyCounty: toStringOrNull(row.property_county ?? row.propertyCounty),
     propertyType: toStringOrNull(row.property_type ?? row.propertyType),
     reportType: toStringOrNull(row.report_type ?? row.reportType),
     requestedDueDate: toStringOrNull(row.requested_due_date ?? row.requestedDueDate),
@@ -100,6 +104,10 @@ export function normalizeClientPortalPendingOrderRequest(row = {}) {
       toStringOrNull(row.status_copy ?? row.statusCopy) ||
       "Your appraisal team is reviewing this request.",
     propertyAddress: toStringOrNull(row.property_address ?? row.propertyAddress),
+    propertyCity: toStringOrNull(row.property_city ?? row.propertyCity),
+    propertyState: toStringOrNull(row.property_state ?? row.propertyState),
+    propertyPostalCode: toStringOrNull(row.property_postal_code ?? row.propertyPostalCode ?? row.property_zip ?? row.propertyZip),
+    propertyCounty: toStringOrNull(row.property_county ?? row.propertyCounty),
     propertyType: toStringOrNull(row.property_type ?? row.propertyType),
     reportType: toStringOrNull(row.report_type ?? row.reportType),
     requestedDueDate: toStringOrNull(row.requested_due_date ?? row.requestedDueDate),
@@ -206,15 +214,25 @@ export async function createClientPortalReportDownloadUrl(orderKey) {
 
 export async function submitClientPortalOrderRequest(values = {}) {
   const propertyAddress = toStringOrNull(values.propertyAddress);
+  const propertyCity = toStringOrNull(values.propertyCity);
+  const propertyState = toStringOrNull(values.propertyState);
+  const propertyPostalCode = toStringOrNull(values.propertyPostalCode ?? values.propertyZip);
   const propertyType = toStringOrNull(values.propertyType);
   const reportType = toStringOrNull(values.reportType);
 
   if (!propertyAddress) throw new Error("Property address is required.");
+  if (!propertyCity) throw new Error("Property city is required.");
+  if (!propertyState) throw new Error("Property state is required.");
+  if (!propertyPostalCode) throw new Error("Property ZIP is required.");
   if (!propertyType) throw new Error("Property type is required.");
   if (!reportType) throw new Error("Report type is required.");
 
   const { data, error } = await supabase.rpc(CLIENT_PORTAL_ORDER_REQUEST_CREATE_RPC, {
     p_property_address: propertyAddress,
+    p_property_city: propertyCity,
+    p_property_state: propertyState,
+    p_property_postal_code: propertyPostalCode,
+    p_property_county: toStringOrNull(values.propertyCounty),
     p_property_type: propertyType,
     p_report_type: reportType,
     p_loan_purpose: toStringOrNull(values.loanPurpose),

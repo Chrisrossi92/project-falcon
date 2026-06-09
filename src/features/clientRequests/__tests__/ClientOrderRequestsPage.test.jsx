@@ -40,6 +40,10 @@ const requestSummary = {
   status: "submitted",
   clientName: "Acme Lending",
   propertyAddress: "200 Oak St",
+  propertyCity: "Toledo",
+  propertyState: "OH",
+  propertyPostalCode: "43604",
+  propertyCounty: "Lucas",
   propertyType: "Condo",
   reportType: "Full appraisal",
   requestedDueDate: "2026-06-20",
@@ -79,10 +83,14 @@ describe("ClientOrderRequestsPage", () => {
 
     expect(await screen.findByText("Client Order Requests")).toBeInTheDocument();
     const list = await screen.findByLabelText("Client request list");
-    expect(within(list).getByText("200 Oak St")).toBeInTheDocument();
+    expect(within(list).getByText("200 Oak St · Toledo, OH 43604 · Lucas County")).toBeInTheDocument();
     expect(within(list).getByText("Acme Lending")).toBeInTheDocument();
 
     const detail = await screen.findByLabelText("Client request detail");
+    expect(within(detail).getByText("Toledo")).toBeInTheDocument();
+    expect(within(detail).getByText("OH")).toBeInTheDocument();
+    expect(within(detail).getByText("43604")).toBeInTheDocument();
+    expect(within(detail).getByText("Lucas")).toBeInTheDocument();
     expect(within(detail).getByText("Full appraisal")).toBeInTheDocument();
     expect(within(detail).getAllByText("Avery Client")).toHaveLength(2);
     expect(within(detail).getByText("Gate code available.")).toBeInTheDocument();
@@ -160,6 +168,10 @@ describe("ClientOrderRequestsPage", () => {
 
     const dialog = await screen.findByRole("dialog", { name: "Convert request to order?" });
     expect(within(dialog).getByText("200 Oak St")).toBeInTheDocument();
+    expect(within(dialog).getByText("Toledo")).toBeInTheDocument();
+    expect(within(dialog).getByText("OH")).toBeInTheDocument();
+    expect(within(dialog).getByText("43604")).toBeInTheDocument();
+    expect(within(dialog).getByText("Lucas")).toBeInTheDocument();
     expect(within(dialog).getByText("Condo")).toBeInTheDocument();
     expect(within(dialog).getByText("Full appraisal")).toBeInTheDocument();
     expect(within(dialog).getByText("Purchase")).toBeInTheDocument();

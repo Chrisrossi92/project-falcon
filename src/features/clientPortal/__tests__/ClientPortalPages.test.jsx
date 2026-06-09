@@ -123,6 +123,10 @@ describe("Client Portal pages", () => {
         statusLabel: "Submitted",
         statusCopy: "Your appraisal team is reviewing this request.",
         propertyAddress: "300 Madison Ave, Toledo OH",
+        propertyCity: "Toledo",
+        propertyState: "OH",
+        propertyPostalCode: "43604",
+        propertyCounty: "Lucas",
         propertyType: "Office",
         reportType: "Full",
         requestedDueDate: "2026-06-20",
@@ -133,7 +137,7 @@ describe("Client Portal pages", () => {
     renderPortalRoutes();
 
     expect(await screen.findByText("Pending requests")).toBeInTheDocument();
-    expect(screen.getByText("300 Madison Ave, Toledo OH")).toBeInTheDocument();
+    expect(screen.getByText("300 Madison Ave, Toledo OH · Toledo, OH 43604 · Lucas County")).toBeInTheDocument();
     expect(screen.getAllByText("Submitted").length).toBeGreaterThan(0);
     expect(screen.getByText("Your appraisal team is reviewing this request.")).toBeInTheDocument();
     expect(screen.getByText("Jun 20, 2026")).toBeInTheDocument();
@@ -166,6 +170,10 @@ describe("Client Portal pages", () => {
         statusLabel: "Submitted",
         statusCopy: "Your appraisal team is reviewing this request.",
         propertyAddress: "300 Madison Ave, Toledo OH",
+        propertyCity: "Toledo",
+        propertyState: "OH",
+        propertyPostalCode: "43604",
+        propertyCounty: "Lucas",
         requestedDueDate: "2026-06-20",
         submittedAt: "2026-06-08T14:00:00Z",
       },
@@ -174,7 +182,7 @@ describe("Client Portal pages", () => {
     renderPortalRoutes("/client-portal/orders");
 
     const pendingRegion = await screen.findByRole("region", { name: "Pending requests" });
-    expect(within(pendingRegion).getByText("300 Madison Ave, Toledo OH")).toBeInTheDocument();
+    expect(within(pendingRegion).getByText("300 Madison Ave, Toledo OH · Toledo, OH 43604 · Lucas County")).toBeInTheDocument();
     expect(within(pendingRegion).getAllByText("Submitted").length).toBeGreaterThan(0);
     expect(within(pendingRegion).getByText("Your appraisal team is reviewing this request.")).toBeInTheDocument();
     expect(screen.getByText("No client portal orders are available yet.")).toBeInTheDocument();
@@ -276,6 +284,18 @@ describe("Client Portal pages", () => {
     fireEvent.change(screen.getByLabelText("Property address"), {
       target: { value: "200 Oak St" },
     });
+    fireEvent.change(screen.getByLabelText("City"), {
+      target: { value: "Toledo" },
+    });
+    fireEvent.change(screen.getByLabelText("State"), {
+      target: { value: "OH" },
+    });
+    fireEvent.change(screen.getByLabelText("ZIP"), {
+      target: { value: "43604" },
+    });
+    fireEvent.change(screen.getByLabelText("County"), {
+      target: { value: "Lucas" },
+    });
     fireEvent.change(screen.getByLabelText("Property type"), {
       target: { value: "Office" },
     });
@@ -309,6 +329,10 @@ describe("Client Portal pages", () => {
     await waitFor(() => {
       expect(apiMock.submitClientPortalOrderRequest).toHaveBeenCalledWith({
         propertyAddress: "200 Oak St",
+        propertyCity: "Toledo",
+        propertyState: "OH",
+        propertyPostalCode: "43604",
+        propertyCounty: "Lucas",
         propertyType: "Office",
         reportType: "Full Appraisal",
         loanPurpose: "Purchase",
@@ -343,6 +367,15 @@ describe("Client Portal pages", () => {
     fireEvent.change(screen.getByLabelText("Property address"), {
       target: { value: "300 Madison Ave, Toledo OH" },
     });
+    fireEvent.change(screen.getByLabelText("City"), {
+      target: { value: "Toledo" },
+    });
+    fireEvent.change(screen.getByLabelText("State"), {
+      target: { value: "OH" },
+    });
+    fireEvent.change(screen.getByLabelText("ZIP"), {
+      target: { value: "43604" },
+    });
     fireEvent.change(screen.getByLabelText("Property type"), {
       target: { value: "Office" },
     });
@@ -376,6 +409,10 @@ describe("Client Portal pages", () => {
     await waitFor(() => {
       expect(apiMock.submitClientPortalOrderRequest).toHaveBeenCalledWith({
         propertyAddress: "300 Madison Ave, Toledo OH",
+        propertyCity: "Toledo",
+        propertyState: "OH",
+        propertyPostalCode: "43604",
+        propertyCounty: "",
         propertyType: "Office",
         reportType: "Full Appraisal",
         loanPurpose: "Refinance",
@@ -403,6 +440,15 @@ describe("Client Portal pages", () => {
     fireEvent.change(screen.getByLabelText("Property address"), {
       target: { value: "400 Market St" },
     });
+    fireEvent.change(screen.getByLabelText("City"), {
+      target: { value: "Toledo" },
+    });
+    fireEvent.change(screen.getByLabelText("State"), {
+      target: { value: "OH" },
+    });
+    fireEvent.change(screen.getByLabelText("ZIP"), {
+      target: { value: "43604" },
+    });
     fireEvent.change(screen.getByLabelText("Property type"), {
       target: { value: "Other" },
     });
@@ -428,6 +474,9 @@ describe("Client Portal pages", () => {
       expect(apiMock.submitClientPortalOrderRequest).toHaveBeenCalledWith(
         expect.objectContaining({
           propertyAddress: "400 Market St",
+          propertyCity: "Toledo",
+          propertyState: "OH",
+          propertyPostalCode: "43604",
           propertyType: "Medical Office",
           reportType: "Narrative Appraisal",
           loanPurpose: "Portfolio review",
@@ -443,6 +492,15 @@ describe("Client Portal pages", () => {
 
     fireEvent.change(screen.getByLabelText("Property address"), {
       target: { value: "200 Oak St" },
+    });
+    fireEvent.change(screen.getByLabelText("City"), {
+      target: { value: "Toledo" },
+    });
+    fireEvent.change(screen.getByLabelText("State"), {
+      target: { value: "OH" },
+    });
+    fireEvent.change(screen.getByLabelText("ZIP"), {
+      target: { value: "43604" },
     });
     fireEvent.change(screen.getByLabelText("Property type"), {
       target: { value: "Office" },
@@ -465,6 +523,15 @@ describe("Client Portal pages", () => {
 
     fireEvent.change(screen.getByLabelText("Property address"), {
       target: { value: "200 Oak St" },
+    });
+    fireEvent.change(screen.getByLabelText("City"), {
+      target: { value: "Toledo" },
+    });
+    fireEvent.change(screen.getByLabelText("State"), {
+      target: { value: "OH" },
+    });
+    fireEvent.change(screen.getByLabelText("ZIP"), {
+      target: { value: "43604" },
     });
     fireEvent.change(screen.getByLabelText("Property type"), {
       target: { value: "Office" },

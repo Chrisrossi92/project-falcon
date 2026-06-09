@@ -19,6 +19,19 @@ function StatusPill({ children }) {
   );
 }
 
+function formatStructuredAddress(request = {}) {
+  const locality = [
+    request.propertyCity,
+    [request.propertyState, request.propertyPostalCode].filter(Boolean).join(" "),
+  ].filter(Boolean).join(", ");
+  const county = request.propertyCounty
+    ? request.propertyCounty.replace(/\s+county$/i, "")
+    : null;
+  return [request.propertyAddress, locality, county ? `${county} County` : null]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 export default function ClientPortalPendingRequests({
   requests = [],
   loading = false,
@@ -51,7 +64,7 @@ export default function ClientPortalPendingRequests({
                 </span>
               </div>
               <div className="mt-2 text-sm font-semibold text-slate-950">
-                {request.propertyAddress || "Property address pending"}
+                {formatStructuredAddress(request) || "Property address pending"}
               </div>
               <div className="mt-1 text-sm text-slate-600">
                 {request.reportType || "Appraisal request"}
