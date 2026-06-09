@@ -680,7 +680,7 @@ describe("VendorDirectoryPage", () => {
       target: { value: "dana@example.test" },
     });
     expect(within(dialog).getByText(/Coverage is used for directory visibility/)).toBeInTheDocument();
-    fireEvent.click(within(dialog).getByLabelText("Commercial"));
+    fireEvent.click(within(dialog).getByLabelText("Commercial Appraisal"));
     expect(within(dialog).getByLabelText("Restricted Appraisal")).toBeInTheDocument();
     expect(within(dialog).getByLabelText("Short-Term Rental")).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole("button", { name: "Add coverage" }));
@@ -717,7 +717,7 @@ describe("VendorDirectoryPage", () => {
             zip: null,
             market: null,
             radius_miles: null,
-            product_type: "commercial",
+            product_type: "commercial_appraisal",
             status: "active",
           }),
         ],
@@ -828,8 +828,8 @@ describe("VendorDirectoryPage", () => {
     fireEvent.change(within(dialog).getByLabelText("Vendor company name"), {
       target: { value: "Statewide Vendor" },
     });
-    fireEvent.click(within(dialog).getByLabelText("Commercial"));
-    fireEvent.click(within(dialog).getByLabelText("Multifamily"));
+    fireEvent.click(within(dialog).getByLabelText("Commercial Appraisal"));
+    fireEvent.click(within(dialog).getByLabelText("Residential Appraisal"));
     expect(within(dialog).getByText("OH · Statewide · 2 products")).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole("button", { name: "Add coverage" }));
     fireEvent.click(within(dialog).getByRole("button", { name: "Add Vendor" }));
@@ -837,8 +837,8 @@ describe("VendorDirectoryPage", () => {
     await waitFor(() => {
       expect(vendorApiState.createVendorProfile).toHaveBeenCalledWith(expect.objectContaining({
         service_areas: [
-          expect.objectContaining({ state: "OH", county: null, product_type: "commercial", status: "active" }),
-          expect.objectContaining({ state: "OH", county: null, product_type: "multifamily", status: "active" }),
+          expect.objectContaining({ state: "OH", county: null, product_type: "commercial_appraisal", status: "active" }),
+          expect.objectContaining({ state: "OH", county: null, product_type: "residential_appraisal", status: "active" }),
         ],
       }));
     });
@@ -861,17 +861,17 @@ describe("VendorDirectoryPage", () => {
     });
     fireEvent.click(within(dialog).getByLabelText("Franklin"));
     fireEvent.click(within(dialog).getByLabelText("Delaware"));
-    fireEvent.click(within(dialog).getByLabelText("Commercial"));
-    fireEvent.click(within(dialog).getByLabelText("Land"));
+    fireEvent.click(within(dialog).getByLabelText("Commercial Appraisal"));
+    fireEvent.click(within(dialog).getByLabelText("Review"));
     fireEvent.click(within(dialog).getByRole("button", { name: "Add coverage" }));
     fireEvent.click(within(dialog).getByRole("button", { name: "Add Vendor" }));
 
     await waitFor(() => {
       expect(vendorApiState.createVendorProfile.mock.calls[0][0].service_areas).toEqual([
-        expect.objectContaining({ state: "OH", county: "Franklin", product_type: "commercial", status: "active" }),
-        expect.objectContaining({ state: "OH", county: "Franklin", product_type: "land", status: "active" }),
-        expect.objectContaining({ state: "OH", county: "Delaware", product_type: "commercial", status: "active" }),
-        expect.objectContaining({ state: "OH", county: "Delaware", product_type: "land", status: "active" }),
+        expect.objectContaining({ state: "OH", county: "Franklin", product_type: "commercial_appraisal", status: "active" }),
+        expect.objectContaining({ state: "OH", county: "Franklin", product_type: "review", status: "active" }),
+        expect.objectContaining({ state: "OH", county: "Delaware", product_type: "commercial_appraisal", status: "active" }),
+        expect.objectContaining({ state: "OH", county: "Delaware", product_type: "review", status: "active" }),
       ]);
     });
   });
@@ -894,14 +894,14 @@ describe("VendorDirectoryPage", () => {
     fireEvent.change(within(dialog).getByLabelText("ZIP codes"), {
       target: { value: "43215, 43212" },
     });
-    fireEvent.click(within(dialog).getByLabelText("Residential"));
+    fireEvent.click(within(dialog).getByLabelText("Residential Appraisal"));
     fireEvent.click(within(dialog).getByRole("button", { name: "Add coverage" }));
     fireEvent.click(within(dialog).getByRole("button", { name: "Add Vendor" }));
 
     await waitFor(() => {
       expect(vendorApiState.createVendorProfile.mock.calls[0][0].service_areas).toEqual([
-        expect.objectContaining({ state: "OH", zip: "43215", product_type: "residential", status: "active" }),
-        expect.objectContaining({ state: "OH", zip: "43212", product_type: "residential", status: "active" }),
+        expect.objectContaining({ state: "OH", zip: "43215", product_type: "residential_appraisal", status: "active" }),
+        expect.objectContaining({ state: "OH", zip: "43212", product_type: "residential_appraisal", status: "active" }),
       ]);
     });
   });
@@ -927,7 +927,7 @@ describe("VendorDirectoryPage", () => {
     fireEvent.change(within(dialog).getByLabelText("Radius miles"), {
       target: { value: "25" },
     });
-    fireEvent.click(within(dialog).getByLabelText("Commercial"));
+    fireEvent.click(within(dialog).getByLabelText("Commercial Appraisal"));
     fireEvent.click(within(dialog).getByRole("button", { name: "Add coverage" }));
     fireEvent.click(within(dialog).getByRole("button", { name: "Add Vendor" }));
 
@@ -937,7 +937,7 @@ describe("VendorDirectoryPage", () => {
           state: "OH",
           market: "Columbus",
           radius_miles: 25,
-          product_type: "commercial",
+          product_type: "commercial_appraisal",
           status: "active",
         }),
       ]);
@@ -988,7 +988,7 @@ describe("VendorDirectoryPage", () => {
     });
     fireEvent.click(within(dialog).getByLabelText("Franklin"));
     fireEvent.click(within(dialog).getByLabelText("Delaware"));
-    fireEvent.click(within(dialog).getByLabelText("Commercial"));
+    fireEvent.click(within(dialog).getByLabelText("Commercial Appraisal"));
     fireEvent.click(within(dialog).getByRole("button", { name: "Add coverage" }));
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Add Vendor" }));
@@ -1002,8 +1002,8 @@ describe("VendorDirectoryPage", () => {
       hint: "Check coverage payload shape",
       serviceAreaCount: 2,
       serviceAreaSample: [
-        expect.objectContaining({ state: "OH", county: "Franklin", product_type: "commercial", status: "active" }),
-        expect.objectContaining({ state: "OH", county: "Delaware", product_type: "commercial", status: "active" }),
+        expect.objectContaining({ state: "OH", county: "Franklin", product_type: "commercial_appraisal", status: "active" }),
+        expect.objectContaining({ state: "OH", county: "Delaware", product_type: "commercial_appraisal", status: "active" }),
       ],
       payloadKeys: expect.arrayContaining(["vendor_company", "create_relationship", "vendor_status", "service_areas"]),
     }));

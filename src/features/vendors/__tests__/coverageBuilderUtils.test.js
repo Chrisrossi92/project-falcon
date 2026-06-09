@@ -14,7 +14,7 @@ describe("vendor coverage builder utilities", () => {
       generateCoverageRows({
         state: "OH",
         mode: VENDOR_COVERAGE_MODES.ENTIRE_STATE,
-        productTypes: ["commercial", "multifamily"],
+        productTypes: ["commercial_appraisal", "residential_appraisal"],
       }),
     ).toEqual([
       {
@@ -23,7 +23,7 @@ describe("vendor coverage builder utilities", () => {
         zip: null,
         market: null,
         radius_miles: null,
-        product_type: "commercial",
+        product_type: "commercial_appraisal",
       },
       {
         state: "OH",
@@ -31,7 +31,7 @@ describe("vendor coverage builder utilities", () => {
         zip: null,
         market: null,
         radius_miles: null,
-        product_type: "multifamily",
+        product_type: "residential_appraisal",
       },
     ]);
   });
@@ -42,13 +42,13 @@ describe("vendor coverage builder utilities", () => {
         state: "OH",
         mode: VENDOR_COVERAGE_MODES.SELECTED_COUNTIES,
         counties: ["Franklin", "Delaware"],
-        productTypes: ["commercial", "land"],
+        productTypes: ["commercial_appraisal", "review"],
       }),
     ).toEqual([
-      expect.objectContaining({ state: "OH", county: "Franklin", product_type: "commercial" }),
-      expect.objectContaining({ state: "OH", county: "Franklin", product_type: "land" }),
-      expect.objectContaining({ state: "OH", county: "Delaware", product_type: "commercial" }),
-      expect.objectContaining({ state: "OH", county: "Delaware", product_type: "land" }),
+      expect.objectContaining({ state: "OH", county: "Franklin", product_type: "commercial_appraisal" }),
+      expect.objectContaining({ state: "OH", county: "Franklin", product_type: "review" }),
+      expect.objectContaining({ state: "OH", county: "Delaware", product_type: "commercial_appraisal" }),
+      expect.objectContaining({ state: "OH", county: "Delaware", product_type: "review" }),
     ]);
   });
 
@@ -58,11 +58,11 @@ describe("vendor coverage builder utilities", () => {
         state: "OH",
         mode: VENDOR_COVERAGE_MODES.SELECTED_ZIPS,
         zips: "43215, 43212",
-        productTypes: ["residential"],
+        productTypes: ["residential_appraisal"],
       }),
     ).toEqual([
-      expect.objectContaining({ zip: "43215", product_type: "residential" }),
-      expect.objectContaining({ zip: "43212", product_type: "residential" }),
+      expect.objectContaining({ zip: "43215", product_type: "residential_appraisal" }),
+      expect.objectContaining({ zip: "43212", product_type: "residential_appraisal" }),
     ]);
 
     expect(
@@ -71,7 +71,7 @@ describe("vendor coverage builder utilities", () => {
         mode: VENDOR_COVERAGE_MODES.MARKET_RADIUS,
         market: "Columbus",
         radius_miles: "25",
-        productTypes: ["commercial"],
+        productTypes: ["commercial_appraisal"],
       }),
     ).toEqual([
       {
@@ -80,13 +80,13 @@ describe("vendor coverage builder utilities", () => {
         zip: null,
         market: "Columbus",
         radius_miles: 25,
-        product_type: "commercial",
+        product_type: "commercial_appraisal",
       },
     ]);
   });
 
   it("validates incomplete blocks and formats preview labels", () => {
-    expect(validateCoverageBlock({ state: "KY", productTypes: ["commercial"] })).toEqual(
+    expect(validateCoverageBlock({ state: "KY", productTypes: ["commercial_appraisal"] })).toEqual(
       expect.objectContaining({
         valid: false,
         errors: expect.arrayContaining(["Choose a supported state."]),
@@ -97,7 +97,7 @@ describe("vendor coverage builder utilities", () => {
         state: "OH",
         mode: VENDOR_COVERAGE_MODES.SELECTED_ZIPS,
         zips: "abc",
-        productTypes: ["residential"],
+        productTypes: ["residential_appraisal"],
       }),
     ).toEqual(
       expect.objectContaining({
@@ -109,30 +109,30 @@ describe("vendor coverage builder utilities", () => {
       formatCoverageRowPreview({
         state: "OH",
         county: "Franklin",
-        product_type: "multifamily",
+        product_type: "commercial_appraisal",
       }),
-    ).toBe("OH · Franklin County · Multifamily");
+    ).toBe("OH · Franklin County · Commercial Appraisal");
   });
 
   it("summarizes generated rows by geography and product count", () => {
     expect(
       summarizeCoverageRows(
         generateCoverageRows({
-          state: "OH",
-          mode: VENDOR_COVERAGE_MODES.ENTIRE_STATE,
-          productTypes: ["commercial", "multifamily", "land"],
-        }),
+        state: "OH",
+        mode: VENDOR_COVERAGE_MODES.ENTIRE_STATE,
+        productTypes: ["commercial_appraisal", "residential_appraisal", "review"],
+      }),
       ),
     ).toBe("OH · Statewide · 3 products");
 
     expect(
       summarizeCoverageRows(
         generateCoverageRows({
-          state: "MI",
-          mode: VENDOR_COVERAGE_MODES.SELECTED_COUNTIES,
-          counties: ["Wayne", "Oakland"],
-          productTypes: ["commercial", "review"],
-        }),
+        state: "MI",
+        mode: VENDOR_COVERAGE_MODES.SELECTED_COUNTIES,
+        counties: ["Wayne", "Oakland"],
+        productTypes: ["commercial_appraisal", "review"],
+      }),
       ),
     ).toBe("MI · 2 counties · 2 products");
   });

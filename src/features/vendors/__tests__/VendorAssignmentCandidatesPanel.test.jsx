@@ -425,7 +425,7 @@ describe("VendorAssignmentCandidatesPanel", () => {
     const dialog = screen.getByRole("dialog", { name: "Offer Assignment" });
     expect(within(dialog).getByText("ABC Valuation")).toBeInTheDocument();
     expect(within(dialog).getByText("Strong match · 100 score")).toBeInTheDocument();
-    expect(within(dialog).getByText("OH · ZIP 43215 · Commercial · Zip")).toBeInTheDocument();
+    expect(within(dialog).getByText("OH · ZIP 43215 · Commercial Appraisal · Zip")).toBeInTheDocument();
     expect(within(dialog).getByText("This will send an assignment offer to the vendor.")).toBeInTheDocument();
     expect(within(dialog).getByText("The vendor still needs to accept before work is considered assigned.")).toBeInTheDocument();
     expect(within(dialog).queryByText("relationship-1")).toBeNull();
@@ -557,11 +557,11 @@ describe("VendorAssignmentCandidatesPanel", () => {
     expect(within(candidate).getByText("Network: Active")).toBeInTheDocument();
     expect(within(candidate).getByText("Why this vendor?")).toBeInTheDocument();
     expect(within(candidate).getByText("ZIP coverage matches this order")).toBeInTheDocument();
-    expect(within(candidate).getByText("Commercial product coverage")).toBeInTheDocument();
+    expect(within(candidate).getByText("Commercial Appraisal product coverage")).toBeInTheDocument();
     expect(within(candidate).getByText("Preferred vendor")).toBeInTheDocument();
     expect(within(candidate).getByText("Active network vendor")).toBeInTheDocument();
-    expect(within(candidate).getByText("Best match: OH · ZIP 43215 · Commercial · Zip")).toBeInTheDocument();
-    expect(within(candidate).getByText("OH · ZIP 43215 · Commercial · Zip")).toBeInTheDocument();
+    expect(within(candidate).getByText("Best match: OH · ZIP 43215 · Commercial Appraisal · Zip")).toBeInTheDocument();
+    expect(within(candidate).getByText("OH · ZIP 43215 · Commercial Appraisal · Zip")).toBeInTheDocument();
     expect(within(candidate).getByText("Mary Jones")).toBeInTheDocument();
     expect(within(candidate).getByText("mary@example.test · 614-555-0100 · Coordinator")).toBeInTheDocument();
     expect(within(candidate).getByText("Review before using")).toBeInTheDocument();
@@ -620,7 +620,7 @@ describe("VendorAssignmentCandidatesPanel", () => {
     fireEvent.click(summary);
 
     expect(details).toHaveAttribute("open");
-    expect(screen.getByText("OH · Franklin County · Commercial · County")).toBeInTheDocument();
+    expect(screen.getByText("OH · Franklin County · Commercial Appraisal · County")).toBeInTheDocument();
   });
 
   it("does not render a fake reason breakdown when reason data is unavailable", async () => {

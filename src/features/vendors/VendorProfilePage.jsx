@@ -139,11 +139,15 @@ function compactObject(value = {}) {
   );
 }
 
-function metadataObjectToSelection(value = {}, options = []) {
+function metadataObjectToSelection(value = {}, options = [], { normalizeProductAliases = false } = {}) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   const allowed = new Set(options.map((option) => option.slug));
   return Object.fromEntries(
     Object.entries(value)
+      .map(([key, entryValue]) => {
+        const normalizedKey = allowed.has(key) || !normalizeProductAliases ? key : normalizeVendorProductType(key);
+        return [normalizedKey, entryValue];
+      })
       .filter(([key, entryValue]) => allowed.has(key) && entryValue !== null && entryValue !== undefined && entryValue !== false && entryValue !== "")
       .map(([key]) => [key, true]),
   );
@@ -170,7 +174,9 @@ function profileToEditForm(profile = {}) {
     addressZip: address.zip || address.postal_code || "",
     defaultAssignmentInstructions: profile.default_assignment_instructions || "",
     capabilities: metadataObjectToSelection(profile.capabilities, VENDOR_CAPABILITY_OPTIONS),
-    productEligibility: metadataObjectToSelection(profile.product_eligibility, VENDOR_PRODUCT_TYPES),
+    productEligibility: metadataObjectToSelection(profile.product_eligibility, VENDOR_PRODUCT_TYPES, {
+      normalizeProductAliases: true,
+    }),
     tags: Array.isArray(profile.tags) ? profile.tags.join(", ") : "",
     internalNotes: profile.internal_notes || "",
   };

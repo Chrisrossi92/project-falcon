@@ -91,7 +91,7 @@ const serviceAreas = [
     county: "Westchester",
     zip: "10601",
     market: "NY Metro",
-    product_type: "commercial",
+    product_type: "commercial_appraisal",
     radius_miles: 25,
   },
 ];
@@ -214,10 +214,10 @@ describe("VendorProfilePage", () => {
     expect(screen.getByText(/100 Main St/)).toBeInTheDocument();
     expect(screen.getByText("Upload report before delivery.")).toBeInTheDocument();
     expect(screen.getByText(/Commercial: Yes/)).toBeInTheDocument();
-    expect(screen.getByText(/Multifamily: Yes/)).toBeInTheDocument();
+    expect(screen.getByText(/Commercial Appraisal: Yes/)).toBeInTheDocument();
     expect(screen.getByText(/Restricted: \{"reason":"review"\}/)).toBeInTheDocument();
     expect(screen.getByText("Mary Jones")).toBeInTheDocument();
-    expect(screen.getByText("NY · 1 county · Commercial")).toBeInTheDocument();
+    expect(screen.getByText("NY · 1 county · Commercial Appraisal")).toBeInTheDocument();
     expect(screen.queryByText(/Westchester/)).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "View rows" }));
     expect(screen.getByText(/Westchester/)).toBeInTheDocument();
@@ -267,7 +267,7 @@ describe("VendorProfilePage", () => {
     const productEligibility = within(dialog).getByRole("group", { name: "Product eligibility" });
     expect(within(capabilities).getByLabelText("Commercial")).toBeChecked();
     expect(within(capabilities).getByLabelText("Rush Orders")).not.toBeChecked();
-    expect(within(productEligibility).getByLabelText("Multifamily")).toBeChecked();
+    expect(within(productEligibility).getByLabelText("Commercial Appraisal")).toBeChecked();
     expect(within(dialog).queryByDisplayValue(/"commercial"/)).toBeNull();
     expect(within(dialog).queryByDisplayValue(/"multifamily"/)).toBeNull();
   });
@@ -307,8 +307,8 @@ describe("VendorProfilePage", () => {
     fireEvent.click(within(capabilities).getByLabelText("Commercial"));
     fireEvent.click(within(capabilities).getByLabelText("Rush Orders"));
     fireEvent.click(within(capabilities).getByLabelText("Tax Appeals"));
-    fireEvent.click(within(productEligibility).getByLabelText("Multifamily"));
-    fireEvent.click(within(productEligibility).getByLabelText("Commercial"));
+    fireEvent.click(within(productEligibility).getByLabelText("Residential Appraisal"));
+    fireEvent.click(within(productEligibility).getByLabelText("Commercial Appraisal"));
     fireEvent.click(within(productEligibility).getByLabelText("Review"));
     fireEvent.change(within(dialog).getByLabelText("Tags"), {
       target: { value: " preferred, ohio, preferred " },
@@ -336,7 +336,7 @@ describe("VendorProfilePage", () => {
           tax_appeals: true,
         },
         product_eligibility: {
-          commercial: true,
+          residential_appraisal: true,
           review: true,
         },
         internal_notes: "Updated notes.",
@@ -753,8 +753,8 @@ describe("VendorProfilePage", () => {
     });
     fireEvent.click(within(dialog).getByLabelText("Franklin"));
     fireEvent.click(within(dialog).getByLabelText("Delaware"));
-    fireEvent.click(within(dialog).getByLabelText("Commercial"));
-    fireEvent.click(within(dialog).getByLabelText("Multifamily"));
+    fireEvent.click(within(dialog).getByLabelText("Commercial Appraisal"));
+    fireEvent.click(within(dialog).getByLabelText("Residential Appraisal"));
     fireEvent.click(within(dialog).getByRole("button", { name: "Add coverage" }));
 
     expect(within(dialog).getAllByText("OH · 2 counties · 2 products").length).toBeGreaterThan(0);
@@ -770,7 +770,7 @@ describe("VendorProfilePage", () => {
       zip: null,
       market: null,
       radius_miles: null,
-      product_type: "commercial",
+      product_type: "commercial_appraisal",
       status: "active",
     });
     expect(vendorApiState.createVendorServiceArea).toHaveBeenNthCalledWith(4, "profile-1", {
@@ -779,7 +779,7 @@ describe("VendorProfilePage", () => {
       zip: null,
       market: null,
       radius_miles: null,
-      product_type: "multifamily",
+      product_type: "residential_appraisal",
       status: "active",
     });
     await waitFor(() => {
@@ -801,7 +801,7 @@ describe("VendorProfilePage", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Add Coverage" }));
     const dialog = screen.getByRole("dialog", { name: "Add Coverage" });
-    fireEvent.click(within(dialog).getByLabelText("Commercial"));
+    fireEvent.click(within(dialog).getByLabelText("Commercial Appraisal"));
     fireEvent.click(within(dialog).getByRole("button", { name: "Add coverage" }));
     fireEvent.click(within(dialog).getByRole("button", { name: "Save Coverage" }));
 
@@ -853,7 +853,7 @@ describe("VendorProfilePage", () => {
       target: { value: " 25 " },
     });
     fireEvent.change(within(dialog).getByLabelText("Product type"), {
-      target: { value: "commercial" },
+      target: { value: "commercial_appraisal" },
     });
     expect(within(dialog).getByRole("option", { name: "Construction Draw" })).toHaveValue("construction_draw");
     expect(within(dialog).getByRole("option", { name: "Short-Term Rental" })).toHaveValue("short_term_rental");
@@ -867,7 +867,7 @@ describe("VendorProfilePage", () => {
         zip: "43215",
         market: "Columbus",
         radius_miles: "25",
-        product_type: "commercial",
+        product_type: "commercial_appraisal",
         status: "active",
       });
     });
@@ -895,14 +895,14 @@ describe("VendorProfilePage", () => {
     expect(within(dialog).getByLabelText("ZIP")).toHaveValue("10601");
     expect(within(dialog).getByLabelText("Market")).toHaveValue("NY Metro");
     expect(within(dialog).getByLabelText("Radius miles")).toHaveValue("25");
-    expect(within(dialog).getByLabelText("Product type")).toHaveValue("commercial");
+    expect(within(dialog).getByLabelText("Product type")).toHaveValue("commercial_appraisal");
     expect(within(dialog).getByLabelText("Status")).toHaveValue("active");
 
     fireEvent.change(within(dialog).getByLabelText("Status"), {
       target: { value: "inactive" },
     });
     fireEvent.change(within(dialog).getByLabelText("Product type"), {
-      target: { value: "residential" },
+      target: { value: "residential_appraisal" },
     });
     fireEvent.change(within(dialog).getByLabelText("Radius miles"), {
       target: { value: " 40 " },
@@ -917,7 +917,7 @@ describe("VendorProfilePage", () => {
         zip: "10601",
         market: "NY Metro",
         radius_miles: "40",
-        product_type: "residential",
+        product_type: "residential_appraisal",
         status: "inactive",
       });
     });

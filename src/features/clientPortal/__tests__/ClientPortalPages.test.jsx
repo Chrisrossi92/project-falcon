@@ -137,7 +137,7 @@ describe("Client Portal pages", () => {
     renderPortalRoutes();
 
     expect(await screen.findByText("Pending requests")).toBeInTheDocument();
-    expect(screen.getByText("300 Madison Ave, Toledo OH · Toledo, OH 43604 · Lucas County")).toBeInTheDocument();
+    expect(await screen.findByText("300 Madison Ave, Toledo OH · Toledo, OH 43604 · Lucas County")).toBeInTheDocument();
     expect(screen.getAllByText("Submitted").length).toBeGreaterThan(0);
     expect(screen.getByText("Your appraisal team is reviewing this request.")).toBeInTheDocument();
     expect(screen.getByText("Jun 20, 2026")).toBeInTheDocument();

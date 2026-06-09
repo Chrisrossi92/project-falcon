@@ -30,8 +30,8 @@ describe("CoverageBuilder", () => {
     const onRowsChange = vi.fn();
     renderBuilder({ onRowsChange });
 
-    fireEvent.click(screen.getByLabelText("Commercial"));
-    fireEvent.click(screen.getByLabelText("Multifamily"));
+    fireEvent.click(screen.getByLabelText("Commercial Appraisal"));
+    fireEvent.click(screen.getByLabelText("Residential Appraisal"));
 
     expect(screen.getByText("Coverage to add")).toBeInTheDocument();
     expect(screen.getByText("Added coverage")).toBeInTheDocument();
@@ -45,8 +45,8 @@ describe("CoverageBuilder", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add coverage" }));
 
     expect(onRowsChange).toHaveBeenCalledWith([
-      expect.objectContaining({ state: "OH", product_type: "commercial" }),
-      expect.objectContaining({ state: "OH", product_type: "multifamily" }),
+      expect.objectContaining({ state: "OH", product_type: "commercial_appraisal" }),
+      expect.objectContaining({ state: "OH", product_type: "residential_appraisal" }),
     ]);
     expect(screen.getAllByText("OH · Statewide · 2 products").length).toBeGreaterThan(0);
     expect(vendorApiState.createVendorServiceArea).not.toHaveBeenCalled();
@@ -65,21 +65,21 @@ describe("CoverageBuilder", () => {
     expect(screen.queryByLabelText("Franklin")).toBeNull();
     fireEvent.click(screen.getByLabelText("Wayne"));
     fireEvent.click(screen.getByLabelText("Oakland"));
-    fireEvent.click(screen.getByLabelText("Commercial"));
+    fireEvent.click(screen.getByLabelText("Commercial Appraisal"));
     fireEvent.click(screen.getByLabelText("Review"));
 
     fireEvent.click(screen.getByRole("button", { name: "Add coverage" }));
 
     expect(onAddCoverageBlock).toHaveBeenCalledWith([
-      expect.objectContaining({ state: "MI", county: "Wayne", product_type: "commercial" }),
+      expect.objectContaining({ state: "MI", county: "Wayne", product_type: "commercial_appraisal" }),
       expect.objectContaining({ state: "MI", county: "Wayne", product_type: "review" }),
-      expect.objectContaining({ state: "MI", county: "Oakland", product_type: "commercial" }),
+      expect.objectContaining({ state: "MI", county: "Oakland", product_type: "commercial_appraisal" }),
       expect.objectContaining({ state: "MI", county: "Oakland", product_type: "review" }),
     ]);
     expect(screen.getAllByText("MI · 2 counties · 2 products").length).toBeGreaterThan(0);
     expect(screen.queryByText("MI · Wayne County · Commercial")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "View generated rows" }));
-    expect(screen.getByText("MI · Wayne County · Commercial")).toBeInTheDocument();
+    expect(screen.getByText("MI · Wayne County · Commercial Appraisal")).toBeInTheDocument();
     expect(screen.getByText("MI · Oakland County · Review")).toBeInTheDocument();
   });
 
@@ -91,17 +91,17 @@ describe("CoverageBuilder", () => {
       target: { value: "selected_zips" },
     });
     fireEvent.change(screen.getByLabelText("ZIP codes"), { target: { value: "43215, 43212" } });
-    fireEvent.click(screen.getByLabelText("Residential"));
+    fireEvent.click(screen.getByLabelText("Residential Appraisal"));
 
     fireEvent.click(screen.getByRole("button", { name: "Add coverage" }));
 
     expect(onAddCoverageBlock).toHaveBeenCalledWith([
-      expect.objectContaining({ state: "OH", zip: "43215", product_type: "residential" }),
-      expect.objectContaining({ state: "OH", zip: "43212", product_type: "residential" }),
+      expect.objectContaining({ state: "OH", zip: "43215", product_type: "residential_appraisal" }),
+      expect.objectContaining({ state: "OH", zip: "43212", product_type: "residential_appraisal" }),
     ]);
     expect(screen.getAllByText("OH · 2 ZIPs · 1 product").length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: "View generated rows" }));
-    expect(screen.getByText("OH · ZIP 43215 · Residential")).toBeInTheDocument();
+    expect(screen.getByText("OH · ZIP 43215 · Residential Appraisal")).toBeInTheDocument();
   });
 
   it("generates market/radius rows", () => {
@@ -113,7 +113,7 @@ describe("CoverageBuilder", () => {
     });
     fireEvent.change(screen.getByLabelText("Market"), { target: { value: "Columbus" } });
     fireEvent.change(screen.getByLabelText("Radius miles"), { target: { value: "25" } });
-    fireEvent.click(screen.getByLabelText("Commercial"));
+    fireEvent.click(screen.getByLabelText("Commercial Appraisal"));
 
     fireEvent.click(screen.getByRole("button", { name: "Add coverage" }));
 
@@ -122,12 +122,12 @@ describe("CoverageBuilder", () => {
         state: "OH",
         market: "Columbus",
         radius_miles: 25,
-        product_type: "commercial",
+        product_type: "commercial_appraisal",
       }),
     ]);
     expect(screen.getAllByText("OH · Columbus · 25 mi · 1 product").length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: "View generated rows" }));
-    expect(screen.getByText("OH · Columbus · 25 mi · Commercial")).toBeInTheDocument();
+    expect(screen.getByText("OH · Columbus · 25 mi · Commercial Appraisal")).toBeInTheDocument();
   });
 
   it("prevents empty or incomplete blocks", () => {
@@ -136,7 +136,7 @@ describe("CoverageBuilder", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add coverage" }));
     expect(screen.getByRole("alert")).toHaveTextContent("Choose at least one product type.");
 
-    fireEvent.click(screen.getByLabelText("Commercial"));
+    fireEvent.click(screen.getByLabelText("Commercial Appraisal"));
     fireEvent.change(screen.getByLabelText("Coverage mode"), {
       target: { value: "selected_counties" },
     });
