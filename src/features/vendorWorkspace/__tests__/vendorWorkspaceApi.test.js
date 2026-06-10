@@ -706,6 +706,44 @@ describe("vendorWorkspace api", () => {
     });
   });
 
+  it("surfaces vendor report upload request failures that happen before an Edge Function response", async () => {
+    functionsInvokeMock.mockRejectedValue(new Error("Failed to send a request to the Edge Function"));
+
+    await expect(
+      createVendorWorkspaceReportUploadUrl("assignment-work-key-1", {
+        file_name: "report.pdf",
+        mime_type: "application/pdf",
+        file_size: 1234,
+      }),
+    ).rejects.toMatchObject({
+      message:
+        "Report upload request could not reach the Edge Function. Check CORS/preflight or network configuration.",
+      code: "edge_function_invoke_failed",
+      details: expect.objectContaining({
+        function_name: "vendor-workspace-report-upload-url",
+        before_response: true,
+        original_message: "Failed to send a request to the Edge Function",
+        body: expect.objectContaining({
+          assignment_work_key_present: true,
+          file_name: "report.pdf",
+          mime_type: "application/pdf",
+          file_size: 1234,
+          document_role: "submitted_report",
+          json_serializable: true,
+        }),
+      }),
+    });
+    expect(functionsInvokeMock).toHaveBeenCalledWith("vendor-workspace-report-upload-url", {
+      body: {
+        assignment_work_key: "assignment-work-key-1",
+        file_name: "report.pdf",
+        mime_type: "application/pdf",
+        file_size: 1234,
+        document_role: "submitted_report",
+      },
+    });
+  });
+
   it("creates a vendor invoice upload URL through the assignment-scoped Edge helper", async () => {
     const response = {
       ok: true,

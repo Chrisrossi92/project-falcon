@@ -50,6 +50,21 @@ describe("Vendor Workspace report upload production alignment", () => {
     });
   });
 
+  it("allows production preflight requests with the headers used by supabase.functions.invoke", () => {
+    [
+      '"https://continentalres.com"',
+      '"https://www.continentalres.com"',
+      '"Access-Control-Allow-Origin": allowedOrigin(req)',
+      '"Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type"',
+      '"Access-Control-Allow-Methods": "POST, OPTIONS"',
+      '"Access-Control-Max-Age": "86400"',
+      'if (req.method === "OPTIONS")',
+      'return new Response("ok", { headers: corsHeaders(req) })',
+    ].forEach((sourceSnippet) => {
+      expect(edgeSource).toContain(sourceSnippet);
+    });
+  });
+
   it("keeps report upload diagnostics free of storage paths in client responses", () => {
     expect(edgeSource).not.toContain("storage_path: prepared.upload.storage_path");
     expect(edgeSource).not.toContain("storage_bucket: prepared.upload.storage_bucket");

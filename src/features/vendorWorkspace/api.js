@@ -117,18 +117,72 @@ async function edgeFunctionErrorBody(error) {
 }
 
 async function edgeFunction(name, body, fallbackError) {
-  const { data, error } = await supabase.functions.invoke(name, { body });
+  const diagnostics = {
+    function_name: name,
+    before_response: false,
+    body: {
+      assignment_work_key_present: Boolean(body?.assignment_work_key),
+      file_name: typeof body?.file_name === "string" ? body.file_name : null,
+      mime_type: typeof body?.mime_type === "string" ? body.mime_type : null,
+      file_size: Number.isFinite(Number(body?.file_size)) ? Number(body.file_size) : null,
+      document_role: typeof body?.document_role === "string" ? body.document_role : null,
+      json_serializable: true,
+    },
+  };
+
+  try {
+    JSON.stringify(body);
+  } catch {
+    diagnostics.body.json_serializable = false;
+  }
+
+  console.info("[VendorWorkspaceEdgeFunction] invoking", diagnostics);
+
+  let result;
+  try {
+    result = await supabase.functions.invoke(name, { body });
+  } catch (invokeError) {
+    const message =
+      name === "vendor-workspace-report-upload-url"
+        ? "Report upload request could not reach the Edge Function. Check CORS/preflight or network configuration."
+        : invokeError?.message || fallbackError;
+    const wrapped = new Error(message, { cause: invokeError });
+    wrapped.code = invokeError?.code || "edge_function_invoke_failed";
+    wrapped.details = {
+      ...diagnostics,
+      before_response: true,
+      original_message: invokeError?.message || null,
+    };
+    wrapped.field_errors = {};
+    wrapped.response = null;
+    console.warn("[VendorWorkspaceEdgeFunction] invoke threw before response", wrapped.details);
+    throw wrapped;
+  }
+
+  const { data, error } = result;
 
   if (error) {
     const errorBody = await edgeFunctionErrorBody(error);
     const message = errorBody?.message || errorBody?.error || error?.message || fallbackError;
     const wrapped = new Error(message, { cause: error });
     wrapped.code = errorBody?.code || error?.code || null;
-    wrapped.details = errorBody?.details || null;
+    wrapped.details = errorBody?.details || diagnostics;
     wrapped.field_errors = errorBody?.field_errors || {};
     wrapped.response = errorBody;
+    console.warn("[VendorWorkspaceEdgeFunction] response error", {
+      ...diagnostics,
+      code: wrapped.code,
+      message: wrapped.message,
+      details: wrapped.details,
+    });
     throw wrapped;
   }
+
+  console.info("[VendorWorkspaceEdgeFunction] response ok", {
+    function_name: name,
+    ok: data?.ok,
+    has_data: Boolean(data),
+  });
 
   return data;
 }

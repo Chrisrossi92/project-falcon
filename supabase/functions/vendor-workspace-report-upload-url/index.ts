@@ -6,6 +6,8 @@ const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("ANO
 const SUPABASE_SERVICE_ROLE_KEY =
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("SERVICE_ROLE_KEY");
 const APP_ORIGINS = [
+  "https://continentalres.com",
+  "https://www.continentalres.com",
   Deno.env.get("APP_ORIGIN"),
   Deno.env.get("SITE_URL"),
   Deno.env.get("PUBLIC_SITE_URL"),
@@ -54,9 +56,10 @@ function allowedOrigin(req: Request) {
 
   const isLocalDev = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
   const isConfigured = APP_ORIGINS.includes(origin);
+  const isContinentalProduction = /^https:\/\/(www\.)?continentalres\.com$/i.test(origin);
   const isVercelPreview = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin);
 
-  return isLocalDev || isConfigured || isVercelPreview ? origin : "null";
+  return isLocalDev || isConfigured || isContinentalProduction || isVercelPreview ? origin : "null";
 }
 
 function corsHeaders(req: Request) {
