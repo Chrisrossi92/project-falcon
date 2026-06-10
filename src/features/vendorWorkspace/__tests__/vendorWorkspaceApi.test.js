@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const rpcMock = vi.hoisted(() => vi.fn());
 const functionsInvokeMock = vi.hoisted(() => vi.fn());
+const refreshSessionMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/supabaseClient", () => ({
   default: {
@@ -12,10 +13,14 @@ vi.mock("@/lib/supabaseClient", () => ({
     functions: {
       invoke: functionsInvokeMock,
     },
+    auth: {
+      refreshSession: refreshSessionMock,
+    },
   },
 }));
 
 const {
+  bootstrapVendorWorkspace,
   createVendorWorkspaceAssignmentDocumentDownloadUrl,
   createVendorWorkspaceCorrectedInvoiceUploadUrl,
   createVendorWorkspaceDocumentDownloadUrl,
@@ -49,6 +54,76 @@ describe("vendorWorkspace api", () => {
   beforeEach(() => {
     rpcMock.mockReset();
     functionsInvokeMock.mockReset();
+    refreshSessionMock.mockReset();
+  });
+
+  it("bootstraps authenticated vendor workspace access and switches to the vendor company context", async () => {
+    const response = {
+      ok: true,
+      vendor_company_id: "vendor-company-id",
+      vendor_company_name: "Acme Appraisal",
+      vendor_profile_id: "vendor-profile-id",
+      vendor_contact_id: "vendor-contact-id",
+      relationship_id: "relationship-id",
+      membership_id: "membership-id",
+      role_assignment_id: "role-assignment-id",
+      contact_linked: true,
+      permission_keys: ["vendor_workspace.view"],
+      has_vendor_workspace_view: true,
+      diagnostics: { matched_vendor_contact: true },
+    };
+    rpcMock.mockResolvedValue({ data: response, error: null });
+    functionsInvokeMock.mockResolvedValue({
+      data: { ok: true, session_refresh_required: true },
+      error: null,
+    });
+    refreshSessionMock.mockResolvedValue({ data: {}, error: null });
+
+    await expect(bootstrapVendorWorkspace()).resolves.toEqual({
+      ...response,
+      error: null,
+    });
+    expect(rpcMock).toHaveBeenCalledWith("rpc_vendor_workspace_bootstrap");
+    expect(functionsInvokeMock).toHaveBeenCalledWith("set-active-company", {
+      body: {
+        company_id: "vendor-company-id",
+        reason: "vendor_workspace_bootstrap",
+        request_id: "vendor-workspace-bootstrap-vendor-company-id",
+      },
+    });
+    expect(refreshSessionMock).toHaveBeenCalled();
+  });
+
+  it("normalizes missing vendor workspace bootstrap responses to a denied shape", async () => {
+    rpcMock.mockResolvedValue({ data: null, error: null });
+
+    await expect(bootstrapVendorWorkspace()).resolves.toEqual({
+      ok: false,
+      error: "vendor_workspace_bootstrap_unavailable",
+    });
+    expect(functionsInvokeMock).not.toHaveBeenCalled();
+  });
+
+  it("propagates vendor workspace bootstrap RPC errors for the route guard", async () => {
+    rpcMock.mockResolvedValue({ data: null, error: new Error("app_user_not_found") });
+
+    await expect(bootstrapVendorWorkspace()).rejects.toThrow("app_user_not_found");
+  });
+
+  it("propagates vendor workspace active-company switch errors", async () => {
+    rpcMock.mockResolvedValue({
+      data: {
+        ok: true,
+        vendor_company_id: "vendor-company-id",
+      },
+      error: null,
+    });
+    functionsInvokeMock.mockResolvedValue({
+      data: { ok: false, code: "company_membership_required" },
+      error: null,
+    });
+
+    await expect(bootstrapVendorWorkspace()).rejects.toThrow("company_membership_required");
   });
 
   it("loads dashboard summary through the vendor-scoped RPC", async () => {

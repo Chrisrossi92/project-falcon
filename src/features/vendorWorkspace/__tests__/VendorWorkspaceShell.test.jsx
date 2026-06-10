@@ -23,9 +23,11 @@ const permissionState = vi.hoisted(() => ({
   allowed: new Set(["vendor_workspace.view"]),
   loading: false,
   error: null,
+  reload: vi.fn(),
 }));
 
 const apiMock = vi.hoisted(() => ({
+  bootstrapVendorWorkspace: vi.fn(),
   createVendorWorkspaceAssignmentDocumentDownloadUrl: vi.fn(),
   createVendorWorkspaceDocumentDownloadUrl: vi.fn(),
   createVendorWorkspaceInvoiceUploadUrl: vi.fn(),
@@ -72,6 +74,7 @@ vi.mock("@/lib/hooks/usePermissions", () => ({
     hasAllPermissions: (permissionKeys) =>
       Array.isArray(permissionKeys) &&
       permissionKeys.every((permissionKey) => permissionState.allowed.has(permissionKey)),
+    reload: permissionState.reload,
   }),
 }));
 
@@ -1015,6 +1018,14 @@ describe("Vendor Workspace hidden shell", () => {
     permissionState.allowed = new Set([VENDOR_WORKSPACE_VIEW]);
     permissionState.loading = false;
     permissionState.error = null;
+    permissionState.reload.mockReset();
+    permissionState.reload.mockResolvedValue();
+    apiMock.bootstrapVendorWorkspace.mockReset();
+    apiMock.bootstrapVendorWorkspace.mockResolvedValue({
+      ok: true,
+      vendor_company_id: "vendor-company-1",
+      vendor_company_name: "Acme Appraisal",
+    });
     apiMock.fetchVendorWorkspaceAvailableWorkDetail.mockReset();
     apiMock.fetchVendorWorkspaceAvailableWorkDetail.mockResolvedValue(availableWorkDetail);
     apiMock.fetchVendorWorkspaceAvailableWork.mockReset();
@@ -1209,7 +1220,7 @@ describe("Vendor Workspace hidden shell", () => {
   it("renders the hidden Vendor Workspace dashboard for vendor workspace permission", async () => {
     const { container } = renderVendorWorkspace();
 
-    expect(screen.getByRole("heading", { name: "Vendor Workspace" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Vendor Workspace" })).toBeInTheDocument();
     expect(
       screen.getByText("Manage available work, bids, assignments, documents, and profile details."),
     ).toBeInTheDocument();
@@ -2509,7 +2520,7 @@ describe("Vendor Workspace hidden shell", () => {
     apiMock.fetchVendorWorkspaceAvailableWorkDetail.mockImplementation(() => new Promise(() => {}));
     const loadingView = renderVendorWorkspace("/vendor-workspace/available-work/opaque-work-key-1");
 
-    expect(screen.getByLabelText("Loading work detail")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Loading work detail")).toBeInTheDocument();
     loadingView.unmount();
 
     apiMock.fetchVendorWorkspaceAvailableWorkDetail.mockResolvedValue({
@@ -2531,7 +2542,7 @@ describe("Vendor Workspace hidden shell", () => {
     apiMock.fetchVendorWorkspaceAvailableWork.mockImplementation(() => new Promise(() => {}));
     const loadingView = renderVendorWorkspace("/vendor-workspace/available-work");
 
-    expect(screen.getByLabelText("Loading available work")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Loading available work")).toBeInTheDocument();
     loadingView.unmount();
 
     apiMock.fetchVendorWorkspaceAvailableWork.mockRejectedValue(new Error("available work failed"));
@@ -2553,7 +2564,7 @@ describe("Vendor Workspace hidden shell", () => {
     apiMock.fetchVendorWorkspaceMyBids.mockImplementation(() => new Promise(() => {}));
     const loadingView = renderVendorWorkspace("/vendor-workspace/my-bids");
 
-    expect(screen.getByLabelText("Loading my bids")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Loading my bids")).toBeInTheDocument();
     loadingView.unmount();
 
     apiMock.fetchVendorWorkspaceMyBids.mockRejectedValue(new Error("my bids failed"));
@@ -2573,7 +2584,7 @@ describe("Vendor Workspace hidden shell", () => {
     apiMock.fetchVendorWorkspacePayments.mockImplementation(() => new Promise(() => {}));
     const loadingView = renderVendorWorkspace("/vendor-workspace/payments");
 
-    expect(screen.getByLabelText("Loading payments")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Loading payments")).toBeInTheDocument();
     loadingView.unmount();
 
     apiMock.fetchVendorWorkspacePayments.mockRejectedValue(new Error("payments failed"));
@@ -2598,7 +2609,7 @@ describe("Vendor Workspace hidden shell", () => {
     apiMock.fetchVendorWorkspaceAssignedOrders.mockImplementation(() => new Promise(() => {}));
     const loadingView = renderVendorWorkspace("/vendor-workspace/assigned-orders");
 
-    expect(screen.getByLabelText("Loading assigned orders")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Loading assigned orders")).toBeInTheDocument();
     loadingView.unmount();
 
     apiMock.fetchVendorWorkspaceAssignedOrders.mockRejectedValue(new Error("assigned orders failed"));
@@ -2618,7 +2629,7 @@ describe("Vendor Workspace hidden shell", () => {
     apiMock.fetchVendorWorkspaceAssignedOrderDetail.mockImplementation(() => new Promise(() => {}));
     const loadingView = renderVendorWorkspace("/vendor-workspace/assigned-orders/assigned-work-key-1");
 
-    expect(screen.getByLabelText("Loading assigned order detail")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Loading assigned order detail")).toBeInTheDocument();
     loadingView.unmount();
 
     apiMock.fetchVendorWorkspaceAssignedOrderDetail.mockResolvedValue({
@@ -2640,7 +2651,7 @@ describe("Vendor Workspace hidden shell", () => {
     apiMock.fetchVendorWorkspaceProfile.mockImplementation(() => new Promise(() => {}));
     const loadingView = renderVendorWorkspace("/vendor-workspace/profile");
 
-    expect(screen.getByLabelText("Loading vendor profile")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Loading vendor profile")).toBeInTheDocument();
     loadingView.unmount();
 
     apiMock.fetchVendorWorkspaceProfile.mockResolvedValue({
@@ -2662,7 +2673,7 @@ describe("Vendor Workspace hidden shell", () => {
     apiMock.fetchVendorWorkspaceDashboardSummary.mockImplementation(() => new Promise(() => {}));
     const loadingView = renderVendorWorkspace();
 
-    expect(screen.getByLabelText("Loading Vendor Workspace dashboard")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Loading Vendor Workspace dashboard")).toBeInTheDocument();
     loadingView.unmount();
 
     apiMock.fetchVendorWorkspaceDashboardSummary.mockRejectedValue(new Error("vendor dashboard failed"));
@@ -2691,12 +2702,22 @@ describe("Vendor Workspace hidden shell", () => {
     ).toBeInTheDocument();
   });
 
-  it("requires vendor_workspace.view without redirecting unauthorized users into /dashboard", () => {
+  it("bootstraps authenticated vendor contact access before loading workspace data", async () => {
+    renderVendorWorkspace();
+
+    await waitFor(() => {
+      expect(apiMock.bootstrapVendorWorkspace).toHaveBeenCalledTimes(1);
+    });
+    expect(permissionState.reload).toHaveBeenCalled();
+    expect(await screen.findByRole("heading", { name: "Vendor Workspace" })).toBeInTheDocument();
+  });
+
+  it("requires vendor_workspace.view without redirecting unauthorized users into /dashboard", async () => {
     permissionState.allowed = new Set();
 
     renderVendorWorkspace();
 
-    expect(screen.getByText("Vendor Workspace unavailable")).toBeInTheDocument();
+    expect(await screen.findByText("Vendor Workspace unavailable")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Vendor Workspace" })).toBeNull();
     expect(screen.queryByTestId("location")).toBeNull();
   });

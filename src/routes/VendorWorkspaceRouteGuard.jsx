@@ -1,5 +1,7 @@
+import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 
+import { bootstrapVendorWorkspace } from "@/features/vendorWorkspace/api";
 import useSession from "@/lib/hooks/useSession";
 import { useEffectivePermissions } from "@/lib/hooks/usePermissions";
 import { PERMISSIONS } from "@/lib/permissions/constants";
@@ -31,8 +33,52 @@ function VendorWorkspaceDeniedState() {
 export default function VendorWorkspaceRouteGuard({ children }) {
   const { user, isLoading: sessionLoading } = useSession();
   const permissions = useEffectivePermissions();
+  const reloadPermissions = permissions.reload;
+  const [bootstrap, setBootstrap] = useState({
+    userId: null,
+    status: "idle",
+  });
 
-  if (sessionLoading || permissions.loading) {
+  useEffect(() => {
+    let active = true;
+
+    if (sessionLoading || !user?.id) {
+      setBootstrap({ userId: user?.id ?? null, status: "idle" });
+      return () => {
+        active = false;
+      };
+    }
+
+    setBootstrap({ userId: user.id, status: "loading" });
+
+    async function loadVendorWorkspaceAccess() {
+      try {
+        await bootstrapVendorWorkspace();
+        if (active && typeof reloadPermissions === "function") {
+          await reloadPermissions();
+        }
+        if (active) {
+          setBootstrap({ userId: user.id, status: "complete" });
+        }
+      } catch (error) {
+        if (active) {
+          setBootstrap({ userId: user.id, status: "complete", error });
+        }
+      }
+    }
+
+    loadVendorWorkspaceAccess();
+
+    return () => {
+      active = false;
+    };
+  }, [reloadPermissions, sessionLoading, user?.id]);
+
+  const bootstrapping =
+    Boolean(user?.id) &&
+    (bootstrap.userId !== user.id || bootstrap.status === "idle" || bootstrap.status === "loading");
+
+  if (sessionLoading || permissions.loading || bootstrapping) {
     return <RouteLoadingState />;
   }
 

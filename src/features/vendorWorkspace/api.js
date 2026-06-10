@@ -53,6 +53,11 @@ const EMPTY_PAYMENTS = Object.freeze({
   items: [],
 });
 
+const EMPTY_BOOTSTRAP = Object.freeze({
+  ok: false,
+  error: "vendor_workspace_bootstrap_unavailable",
+});
+
 async function edgeFunctionErrorMessage(error, fallback) {
   if (!error?.context?.json) return error?.message || fallback;
 
@@ -75,6 +80,54 @@ async function edgeFunction(name, body, fallbackError) {
   }
 
   return data;
+}
+
+export async function bootstrapVendorWorkspace() {
+  const { data, error } = await supabase.rpc("rpc_vendor_workspace_bootstrap");
+  if (error) throw error;
+
+  if (!data || typeof data !== "object") {
+    return EMPTY_BOOTSTRAP;
+  }
+
+  const result = {
+    ok: data.ok === true,
+    error: typeof data.error === "string" ? data.error : null,
+    vendor_company_id: data.vendor_company_id || null,
+    vendor_company_name: data.vendor_company_name || null,
+    vendor_profile_id: data.vendor_profile_id || null,
+    vendor_contact_id: data.vendor_contact_id || null,
+    relationship_id: data.relationship_id || null,
+    membership_id: data.membership_id || null,
+    role_assignment_id: data.role_assignment_id || null,
+    contact_linked: data.contact_linked === true,
+    permission_keys: Array.isArray(data.permission_keys) ? data.permission_keys : [],
+    has_vendor_workspace_view: data.has_vendor_workspace_view === true,
+    diagnostics: data.diagnostics && typeof data.diagnostics === "object" ? data.diagnostics : null,
+  };
+
+  if (result.ok && result.vendor_company_id) {
+    const { data: switchData, error: switchError } = await supabase.functions.invoke(
+      "set-active-company",
+      {
+        body: {
+          company_id: result.vendor_company_id,
+          reason: "vendor_workspace_bootstrap",
+          request_id: `vendor-workspace-bootstrap-${result.vendor_company_id}`,
+        },
+      },
+    );
+
+    if (switchError || switchData?.ok === false) {
+      throw switchError || new Error(switchData?.code || "vendor_workspace_company_switch_failed");
+    }
+
+    if (switchData?.session_refresh_required) {
+      await supabase.auth.refreshSession();
+    }
+  }
+
+  return result;
 }
 
 export async function fetchVendorWorkspaceDashboardSummary() {
