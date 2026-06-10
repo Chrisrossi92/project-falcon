@@ -54,6 +54,12 @@ const fmtDate = (s) => (s ? new Date(s).toLocaleDateString() : "-");
 const fmtDateTime = (s) => (s ? new Date(s).toLocaleString() : "-");
 const money = (n) =>
   n == null ? "-" : Number(n).toLocaleString(undefined, { style: "currency", currency: "USD" });
+const formatTurnTime = (days) => {
+  if (days === null || days === undefined || days === "") return "-";
+  const value = Number(days);
+  if (!Number.isFinite(value)) return "-";
+  return `${value} day${value === 1 ? "" : "s"}`;
+};
 const fileSize = (n) => {
   if (n == null || Number.isNaN(Number(n))) return null;
   const size = Number(n);
@@ -237,16 +243,23 @@ function OverviewSection({ title, children, className = "" }) {
   );
 }
 
-function BidStatusSummaryCard({ summary, activeVendorAssignment }) {
+function BidStatusSummaryCard({ summary, activeVendorAssignment, order }) {
   if (!summary) return null;
 
   const toneClass = BID_STATUS_TONE_CLASSES[summary.tone] || BID_STATUS_TONE_CLASSES.neutral;
   const assignmentPacketPath = activeVendorAssignment?.id
     ? `/assignments/${activeVendorAssignment.id}`
     : null;
-  const turnTimeValue = summary.fastestTurnTimeDays != null
-    ? `${summary.fastestTurnTimeDays} day${Number(summary.fastestTurnTimeDays) === 1 ? "" : "s"}`
-    : formatOperationalDate(summary.earliestProposedDueAt);
+  const acceptedFee = summary.selectedFee ?? null;
+  const feeLabel = acceptedFee != null ? "Accepted Fee" : "Lowest Fee";
+  const feeValue = acceptedFee != null ? money(acceptedFee) : money(summary.lowestFee);
+  const turnTimeValue =
+    summary.selectedTurnTimeDays != null
+      ? formatTurnTime(summary.selectedTurnTimeDays)
+      : summary.fastestTurnTimeDays != null
+        ? formatTurnTime(summary.fastestTurnTimeDays)
+        : formatOperationalDate(summary.selectedProposedDueAt || summary.earliestProposedDueAt);
+  const clientDueAt = summary.clientDueAt || order?.client_due_at || order?.final_due_at || order?.due_date;
 
   return (
     <section
@@ -287,14 +300,37 @@ function BidStatusSummaryCard({ summary, activeVendorAssignment }) {
         )}
       </div>
 
-      <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <SummaryField label="Lowest Fee" value={summary.lowestFee != null ? money(summary.lowestFee) : "-"} />
-        <SummaryField label="Fastest Turn" value={turnTimeValue || "-"} />
+      <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <SummaryField label={feeLabel} value={feeValue} />
+        <SummaryField label="Turn Time" value={turnTimeValue || "-"} />
         <SummaryField label="Selected Vendor" value={summary.selectedVendorName || "-"} />
-        <SummaryField label="Response Deadline" value={formatOperationalDate(summary.responseDueAt)} />
-        <SummaryField label="Client Due" value={formatOperationalDate(summary.clientDueAt)} />
+        <SummaryField label="Vendor Due" value={formatOperationalDate(summary.selectedProposedDueAt)} />
+        <SummaryField label="Client Due" value={formatOperationalDate(clientDueAt)} />
       </div>
     </section>
+  );
+}
+
+function VendorAssignmentSummaryCard({ assignment, summary }) {
+  const vendorName = assignment?.assigned_company_name || summary?.selectedVendorName || "-";
+  const status = assignment?.status || summary?.assignmentStatus;
+  const acceptedFee = assignment?.accepted_fee_amount ?? summary?.selectedFee;
+  const turnTimeDays = assignment?.accepted_turn_time_days ?? summary?.selectedTurnTimeDays;
+  const vendorDueAt =
+    assignment?.accepted_vendor_due_at ||
+    assignment?.due_at ||
+    summary?.selectedProposedDueAt ||
+    null;
+
+  return (
+    <OverviewSection title="Vendor Assignment" className="lg:col-span-5">
+      <SummaryField label="Vendor" value={vendorName} />
+      <SummaryField label="Assignment Status" value={status ? categoryLabel(status) : "-"} />
+      <SummaryField label="Accepted Fee" value={money(acceptedFee)} />
+      <SummaryField label="Turn Time" value={formatTurnTime(turnTimeDays)} />
+      <SummaryField label="Vendor Due" value={formatOperationalDate(vendorDueAt)} />
+      <SummaryField label="Accepted On" value={formatOperationalDate(assignment?.accepted_at)} />
+    </OverviewSection>
   );
 }
 
@@ -828,6 +864,10 @@ export default function OrderDetail() {
       ) || null,
     [ownerAssignments],
   );
+  const isAmcOrderDetail =
+    operationsMode === OPERATIONS_MODES.AMC_OPERATIONS &&
+    order?.operations_scope === "amc_operations";
+  const hasActiveVendorAssignment = Boolean(activeVendorAssignment);
   const bidStatusSummary = useMemo(
     () => deriveOrderBidStatus({
       bidRequests: bidRequestRows,
@@ -1065,6 +1105,7 @@ export default function OrderDetail() {
           <BidStatusSummaryCard
             summary={bidStatusSummary}
             activeVendorAssignment={activeVendorAssignment}
+            order={order}
           />
         )}
         {showDerivedContextSurfaces && (
@@ -1118,13 +1159,20 @@ export default function OrderDetail() {
               <SummaryField label="Updated" value={fmtDateTime(order.updated_at)} />
             </OverviewSection>
 
-            <OverviewSection title="Team / Fees" className="lg:col-span-5">
-              <SummaryField label="Appraiser" value={appraiserName} />
-              <SummaryField label="Reviewer" value={order.reviewer_name || "-"} />
-              <SummaryField label="Split %" value={order.split_pct != null ? `${order.split_pct}` : "-"} />
-              <SummaryField label="Base Fee" value={money(order.base_fee)} />
-              <SummaryField label="Appraiser Fee" value={money(order.appraiser_fee)} />
-            </OverviewSection>
+            {isAmcOrderDetail ? (
+              <VendorAssignmentSummaryCard
+                assignment={activeVendorAssignment}
+                summary={bidStatusSummary}
+              />
+            ) : (
+              <OverviewSection title="Team / Fees" className="lg:col-span-5">
+                <SummaryField label="Appraiser" value={appraiserName} />
+                <SummaryField label="Reviewer" value={order.reviewer_name || "-"} />
+                <SummaryField label="Split %" value={order.split_pct != null ? `${order.split_pct}` : "-"} />
+                <SummaryField label="Base Fee" value={money(order.base_fee)} />
+                <SummaryField label="Appraiser Fee" value={money(order.appraiser_fee)} />
+              </OverviewSection>
+            )}
 
             <OverviewSection title="Property Contact" className="lg:col-span-12">
               <SummaryField label="Contact" value={contactName} />
@@ -1223,54 +1271,117 @@ export default function OrderDetail() {
           />
         )}
 
-        {showVendorCandidatePanel && (
-          <VendorAssignmentCandidatesPanel
-            orderId={order.id}
-            enabled={showVendorCandidatePanel}
-            activeVendorAssignment={activeVendorAssignment}
-            canOfferAssignment={canOfferVendorCandidateAssignment}
-            orderDueAt={order.final_due_at ?? order.due_date ?? null}
-            orderSummary={{
-              property_address: order.property_address || order.address,
-              address: order.address,
-              city: order.city,
-              state: order.state,
-              postal_code: order.postal_code || order.zip,
-              property_type: order.property_type,
-              report_type: order.report_type,
-              client_due_at: order.client_due_at,
-              final_due_at: order.final_due_at,
-              due_date: order.due_date,
-            }}
-            onOfferSuccess={async () => {
-              success("Assignment offer sent.");
-              await loadOwnerAssignments();
-            }}
-            onBidRequestSuccess={() => {
-              success("Bid request created.");
-              setBidRequestsRefreshToken((value) => value + 1);
-            }}
-          />
-        )}
+        {(showVendorCandidatePanel || showBidRequestsPanel) && (
+          hasActiveVendorAssignment ? (
+            <details className="rounded-md border border-slate-200 bg-white p-3 shadow-sm">
+              <summary className="cursor-pointer text-sm font-semibold text-slate-800">
+                Show Procurement Details
+              </summary>
+              <div className="mt-3 space-y-4">
+                {showVendorCandidatePanel && (
+                  <VendorAssignmentCandidatesPanel
+                    orderId={order.id}
+                    enabled={showVendorCandidatePanel}
+                    activeVendorAssignment={activeVendorAssignment}
+                    canOfferAssignment={canOfferVendorCandidateAssignment}
+                    orderDueAt={order.final_due_at ?? order.due_date ?? null}
+                    orderSummary={{
+                      property_address: order.property_address || order.address,
+                      address: order.address,
+                      city: order.city,
+                      state: order.state,
+                      postal_code: order.postal_code || order.zip,
+                      property_type: order.property_type,
+                      report_type: order.report_type,
+                      client_due_at: order.client_due_at,
+                      final_due_at: order.final_due_at,
+                      due_date: order.due_date,
+                    }}
+                    onOfferSuccess={async () => {
+                      success("Assignment offer sent.");
+                      await loadOwnerAssignments();
+                    }}
+                    onBidRequestSuccess={() => {
+                      success("Bid request created.");
+                      setBidRequestsRefreshToken((value) => value + 1);
+                    }}
+                  />
+                )}
 
-        {showBidRequestsPanel && (
-          <BidRequestsPanel
-            orderId={order.id}
-            enabled={showBidRequestsPanel}
-            hasActiveVendorAssignment={Boolean(activeVendorAssignment)}
-            canRecordResponses={canRecordBidResponses}
-            canSelectResponses={canSelectBidResponses}
-            canCreateAssignmentOffer={canCreateBidAssignmentOffer}
-            orderSummary={{
-              order_number: titleNo,
-              city: order.city,
-              state: order.state,
-              report_type: order.report_type,
-            }}
-            refreshToken={bidRequestsRefreshToken}
-            onBidRequestsChange={handleBidRequestsChange}
-            onAssignmentOfferCreated={handleBidAssignmentOfferCreated}
-          />
+                {showBidRequestsPanel && (
+                  <BidRequestsPanel
+                    orderId={order.id}
+                    enabled={showBidRequestsPanel}
+                    hasActiveVendorAssignment={hasActiveVendorAssignment}
+                    canRecordResponses={canRecordBidResponses}
+                    canSelectResponses={canSelectBidResponses}
+                    canCreateAssignmentOffer={canCreateBidAssignmentOffer}
+                    orderSummary={{
+                      order_number: titleNo,
+                      city: order.city,
+                      state: order.state,
+                      report_type: order.report_type,
+                    }}
+                    refreshToken={bidRequestsRefreshToken}
+                    onBidRequestsChange={handleBidRequestsChange}
+                    onAssignmentOfferCreated={handleBidAssignmentOfferCreated}
+                  />
+                )}
+              </div>
+            </details>
+          ) : (
+            <>
+              {showVendorCandidatePanel && (
+                <VendorAssignmentCandidatesPanel
+                  orderId={order.id}
+                  enabled={showVendorCandidatePanel}
+                  activeVendorAssignment={activeVendorAssignment}
+                  canOfferAssignment={canOfferVendorCandidateAssignment}
+                  orderDueAt={order.final_due_at ?? order.due_date ?? null}
+                  orderSummary={{
+                    property_address: order.property_address || order.address,
+                    address: order.address,
+                    city: order.city,
+                    state: order.state,
+                    postal_code: order.postal_code || order.zip,
+                    property_type: order.property_type,
+                    report_type: order.report_type,
+                    client_due_at: order.client_due_at,
+                    final_due_at: order.final_due_at,
+                    due_date: order.due_date,
+                  }}
+                  onOfferSuccess={async () => {
+                    success("Assignment offer sent.");
+                    await loadOwnerAssignments();
+                  }}
+                  onBidRequestSuccess={() => {
+                    success("Bid request created.");
+                    setBidRequestsRefreshToken((value) => value + 1);
+                  }}
+                />
+              )}
+
+              {showBidRequestsPanel && (
+                <BidRequestsPanel
+                  orderId={order.id}
+                  enabled={showBidRequestsPanel}
+                  hasActiveVendorAssignment={hasActiveVendorAssignment}
+                  canRecordResponses={canRecordBidResponses}
+                  canSelectResponses={canSelectBidResponses}
+                  canCreateAssignmentOffer={canCreateBidAssignmentOffer}
+                  orderSummary={{
+                    order_number: titleNo,
+                    city: order.city,
+                    state: order.state,
+                    report_type: order.report_type,
+                  }}
+                  refreshToken={bidRequestsRefreshToken}
+                  onBidRequestsChange={handleBidRequestsChange}
+                  onAssignmentOfferCreated={handleBidAssignmentOfferCreated}
+                />
+              )}
+            </>
+          )
         )}
 
         {showAssignmentSurfaces && (

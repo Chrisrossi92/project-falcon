@@ -960,6 +960,7 @@ describe("OrderDetail site visit save", () => {
     });
     expect(screen.queryByTestId("assignments-panel")).not.toBeInTheDocument();
 
+    expect(screen.getByText("Show Procurement Details").closest("details")).toBeInTheDocument();
     const candidates = screen.getByLabelText("Vendor candidates");
     expect(candidates).toHaveAttribute("data-active-assignment-id", "assignment-1");
     expect(screen.getByLabelText("Bid requests")).toHaveAttribute("data-has-active-vendor-assignment", "true");
@@ -976,6 +977,58 @@ describe("OrderDetail site visit save", () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /offer assignment/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /bid/i })).not.toBeInTheDocument();
+  });
+
+  it("renders accepted AMC vendor assignment terms without internal team fee fields", async () => {
+    operationsModeMock.operationsMode = "amc_operations";
+    orderMock.operations_scope = "amc_operations";
+    orderMock.client_due_at = "2026-06-15T12:00:00.000Z";
+    permissionKeysMock.push("vendors.read", "bid_requests.read", "order_company_assignments.read_owner");
+    listOwnerAssignmentsForOrderMock.mockResolvedValue([
+      {
+        id: "assignment-accepted",
+        assignment_type: "vendor_appraisal",
+        status: "accepted",
+        assigned_company_name: "Acme Appraisal",
+        accepted_fee_amount: 1500,
+        accepted_fee_currency: "USD",
+        accepted_turn_time_days: 10,
+        accepted_vendor_due_at: "2026-06-20T12:00:00.000Z",
+        accepted_at: "2026-06-10T12:00:00.000Z",
+        due_at: "2026-06-20T12:00:00.000Z",
+      },
+    ]);
+
+    render(<OrderDetail />);
+
+    await waitFor(() => {
+      expect(listOwnerAssignmentsForOrderMock).toHaveBeenCalledWith("order-1");
+    });
+
+    const overview = screen.getByLabelText("Operational Overview");
+    expect(within(overview).getByText("Vendor Assignment")).toBeInTheDocument();
+    expect(within(overview).getByText("Acme Appraisal")).toBeInTheDocument();
+    expect(within(overview).getByText("Accepted")).toBeInTheDocument();
+    expect(within(overview).getByText("$1,500.00")).toBeInTheDocument();
+    expect(within(overview).getByText("10 days")).toBeInTheDocument();
+    expect(within(overview).getAllByText("6/20/2026").length).toBeGreaterThan(0);
+    expect(within(overview).getAllByText("6/10/2026").length).toBeGreaterThan(0);
+    expect(within(overview).queryByText("Team / Fees")).not.toBeInTheDocument();
+    expect(within(overview).queryByText("Appraiser Fee")).not.toBeInTheDocument();
+
+    const bidStatus = screen.getByLabelText("AMC bid status");
+    expect(within(bidStatus).getByText("Assigned")).toBeInTheDocument();
+    expect(within(bidStatus).getByText("Acme Appraisal")).toBeInTheDocument();
+    expect(within(bidStatus).getByText("Accepted Fee")).toBeInTheDocument();
+    expect(within(bidStatus).getByText("$1,500.00")).toBeInTheDocument();
+    expect(within(bidStatus).getByText("Turn Time")).toBeInTheDocument();
+    expect(within(bidStatus).getByText("10 days")).toBeInTheDocument();
+    expect(within(bidStatus).getByText("Client Due")).toBeInTheDocument();
+    expect(within(bidStatus).getByText("6/15/2026")).toBeInTheDocument();
+
+    const procurementDetails = screen.getByText("Show Procurement Details").closest("details");
+    expect(procurementDetails).not.toHaveAttribute("open");
+    expect(screen.getByLabelText("Bid requests")).toHaveAttribute("data-has-active-vendor-assignment", "true");
   });
 
   it("does not treat historical vendor assignment statuses as active candidate blockers", async () => {

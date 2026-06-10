@@ -39,6 +39,10 @@ describe("deriveOrderBidStatus", () => {
       contactedCount: 0,
       respondedCount: 0,
       selectedVendorName: null,
+      selectedFee: null,
+      selectedCurrency: null,
+      selectedTurnTimeDays: null,
+      selectedProposedDueAt: null,
       lowestFee: null,
       fastestTurnTimeDays: null,
       earliestProposedDueAt: null,
@@ -137,6 +141,9 @@ describe("deriveOrderBidStatus", () => {
 
     expect(result.status).toBe("bid_selected");
     expect(result.selectedVendorName).toBe("Franklin Commercial Valuation");
+    expect(result.selectedFee).toBe(1450);
+    expect(result.selectedTurnTimeDays).toBe(5);
+    expect(result.selectedProposedDueAt).toBe("2026-06-08T20:00:00.000Z");
     expect(result.respondedCount).toBe(2);
     expect(result.lowestFee).toBe(1250);
   });
@@ -153,6 +160,28 @@ describe("deriveOrderBidStatus", () => {
     expect(result.status).toBe("assignment_offered");
     expect(result.label).toBe("Assignment offered");
     expect(result.assignmentStatus).toBe("offered");
+  });
+
+  it("uses active assignment fields when selected bid rows are unavailable", () => {
+    const result = derive({
+      bidRequests: [],
+      activeVendorAssignment: {
+        id: "assignment-1",
+        status: "accepted",
+        assigned_company_name: "Acme Appraisal",
+        accepted_fee_amount: "1500",
+        accepted_fee_currency: "USD",
+        accepted_turn_time_days: "10",
+        accepted_vendor_due_at: "2026-06-12T20:00:00.000Z",
+      },
+    });
+
+    expect(result.status).toBe("assigned");
+    expect(result.selectedVendorName).toBe("Acme Appraisal");
+    expect(result.selectedFee).toBe(1500);
+    expect(result.selectedCurrency).toBe("USD");
+    expect(result.selectedTurnTimeDays).toBe(10);
+    expect(result.selectedProposedDueAt).toBe("2026-06-12T20:00:00.000Z");
   });
 
   it("lets accepted, in progress, and submitted assignment state win as assigned", () => {

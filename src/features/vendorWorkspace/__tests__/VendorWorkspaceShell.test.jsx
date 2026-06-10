@@ -832,6 +832,22 @@ const submittedAssignedOrderDetail = Object.freeze({
   },
 });
 
+const resubmittedAssignedOrderDetail = Object.freeze({
+  ok: true,
+  item: {
+    ...submittedAssignedOrderDetail.item,
+    assignment_status: "resubmitted_awaiting_review",
+    status_label: "Resubmitted / Awaiting Review",
+    report_submission: {
+      status: "resubmitted",
+      submitted_at: "2026-06-05T15:00:00.000Z",
+      resubmitted_at: "2026-06-05T15:00:00.000Z",
+      note: "Revision complete.",
+      document_count: 1,
+    },
+  },
+});
+
 const inProgressAssignedOrderDetail = Object.freeze({
   ok: true,
   item: {
@@ -1786,6 +1802,27 @@ describe("Vendor Workspace hidden shell", () => {
     expect(container.querySelector('a[href^="/clients"]')).toBeNull();
   });
 
+  it("renders resubmitted assigned orders as resubmitted awaiting review", async () => {
+    apiMock.fetchVendorWorkspaceAssignedOrders.mockResolvedValueOnce({
+      ok: true,
+      items: [
+        {
+          ...assignedOrders.items[1],
+          assignment_status: "resubmitted_awaiting_review",
+          status_label: "Resubmitted / Awaiting Review",
+          next_action_label: "Awaiting Review",
+          report_submitted: true,
+        },
+      ],
+    });
+    renderVendorWorkspace("/vendor-workspace/assigned-orders");
+
+    expect(await screen.findByRole("heading", { name: "Assigned Orders" })).toBeInTheDocument();
+    expect(screen.getAllByText("Resubmitted / Awaiting Review").length).toBeGreaterThan(0);
+    expect(screen.getByText("246 Submitted Street")).toBeInTheDocument();
+    expect(screen.queryByText("Submitted / Awaiting Review")).toBeNull();
+  });
+
   it("opens an Assigned Orders row on the authenticated assigned order detail route", async () => {
     renderVendorWorkspace("/vendor-workspace/assigned-orders");
 
@@ -1993,7 +2030,7 @@ describe("Vendor Workspace hidden shell", () => {
   it("resubmits a revision from assigned order detail and refreshes to awaiting review", async () => {
     apiMock.fetchVendorWorkspaceAssignedOrderDetail
       .mockResolvedValueOnce(revisionRequestedAssignedOrderDetail)
-      .mockResolvedValueOnce(submittedAssignedOrderDetail);
+      .mockResolvedValueOnce(resubmittedAssignedOrderDetail);
     renderVendorWorkspace("/vendor-workspace/assigned-orders/assigned-work-key-1");
 
     expect(await screen.findByRole("heading", { name: "987 Assigned Way" })).toBeInTheDocument();
@@ -2040,7 +2077,7 @@ describe("Vendor Workspace hidden shell", () => {
       });
     });
     expect(await screen.findByText("Report resubmitted.")).toBeInTheDocument();
-    expect(screen.getAllByText("Submitted / Awaiting Review").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Resubmitted / Awaiting Review").length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: "Resubmit Report" })).toBeNull();
   });
 

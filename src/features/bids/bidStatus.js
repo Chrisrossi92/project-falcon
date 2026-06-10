@@ -72,6 +72,24 @@ function getNumeric(value) {
   return Number.isFinite(numeric) ? numeric : null;
 }
 
+function getAssignmentNumeric(assignment, ...keys) {
+  if (!assignment || typeof assignment !== "object") return null;
+  for (const key of keys) {
+    const value = getNumeric(assignment[key]);
+    if (value !== null) return value;
+  }
+  return null;
+}
+
+function getAssignmentDate(assignment, ...keys) {
+  if (!assignment || typeof assignment !== "object") return null;
+  for (const key of keys) {
+    const value = getDateValue(assignment[key]);
+    if (value) return value;
+  }
+  return null;
+}
+
 function getDateValue(value) {
   if (!value) return null;
   const time = Date.parse(value);
@@ -128,6 +146,10 @@ function buildResult(status, summary) {
     contactedCount: summary.contactedCount,
     respondedCount: summary.respondedCount,
     selectedVendorName: summary.selectedVendorName,
+    selectedFee: summary.selectedFee,
+    selectedCurrency: summary.selectedCurrency,
+    selectedTurnTimeDays: summary.selectedTurnTimeDays,
+    selectedProposedDueAt: summary.selectedProposedDueAt,
     lowestFee: summary.lowestFee,
     fastestTurnTimeDays: summary.fastestTurnTimeDays,
     earliestProposedDueAt: summary.earliestProposedDueAt,
@@ -145,6 +167,23 @@ export function deriveOrderBidStatus({ bidRequests, activeVendorAssignment } = {
   const selectedRecipient = allRecipients.find(isSelectedRecipient) || null;
   const selectedResponse = selectedRecipient ? getResponse(selectedRecipient) : null;
   const relevantRequest = getMostRelevantRequest(requests);
+  const assignmentStatus = normalizeStatus(activeVendorAssignment?.status) || null;
+  const assignmentFee = getAssignmentNumeric(
+    activeVendorAssignment,
+    "accepted_fee_amount",
+    "fee_amount",
+  );
+  const assignmentTurnTimeDays = getAssignmentNumeric(
+    activeVendorAssignment,
+    "accepted_turn_time_days",
+    "turn_time_days",
+  );
+  const assignmentDueAt = getAssignmentDate(
+    activeVendorAssignment,
+    "accepted_vendor_due_at",
+    "proposed_due_at",
+    "due_at",
+  );
 
   let lowestFee = null;
   let fastestTurnTimeDays = null;
@@ -170,11 +209,21 @@ export function deriveOrderBidStatus({ bidRequests, activeVendorAssignment } = {
     );
   }
 
-  const assignmentStatus = normalizeStatus(activeVendorAssignment?.status) || null;
+  const selectedFee = getNumeric(selectedResponse?.fee_amount) ?? assignmentFee;
+  const selectedTurnTimeDays = getNumeric(selectedResponse?.turn_time_days) ?? assignmentTurnTimeDays;
+  const selectedProposedDueAt = getDateValue(selectedResponse?.proposed_due_at) ?? assignmentDueAt;
+
   const summary = {
     contactedCount: allRecipients.length,
     respondedCount: respondedRecipients.length,
-    selectedVendorName: selectedRecipient ? getVendorName(selectedRecipient) : null,
+    selectedVendorName:
+      (selectedRecipient ? getVendorName(selectedRecipient) : null) ||
+      activeVendorAssignment?.assigned_company_name ||
+      null,
+    selectedFee,
+    selectedCurrency: selectedResponse?.currency || activeVendorAssignment?.accepted_fee_currency || null,
+    selectedTurnTimeDays,
+    selectedProposedDueAt,
     lowestFee,
     fastestTurnTimeDays,
     earliestProposedDueAt,

@@ -21,6 +21,7 @@ const statusClasses = Object.freeze({
   report_submitted: "border-emerald-200 bg-emerald-50 text-emerald-700",
   awaiting_review: "border-slate-200 bg-slate-50 text-slate-600",
   revision_requested: "border-rose-200 bg-rose-50 text-rose-700",
+  resubmitted_awaiting_review: "border-violet-200 bg-violet-50 text-violet-700",
   completed_closed: "border-slate-200 bg-slate-100 text-slate-700",
 });
 
@@ -154,7 +155,13 @@ function AssignedOrderCard({ item }) {
         <DetailRow label="Inspection / Appointment" value={item?.inspection_status} />
         <DetailRow
           label="Report State"
-          value={item?.report_submitted ? "Submitted / Awaiting Review" : "Not submitted"}
+          value={
+            item?.assignment_status === "resubmitted_awaiting_review"
+              ? "Resubmitted / Awaiting Review"
+              : item?.report_submitted
+                ? "Submitted / Awaiting Review"
+                : "Not submitted"
+          }
         />
         <DetailRow label="Next Action" value={item?.next_action_label || "Review assignment"} />
       </dl>
