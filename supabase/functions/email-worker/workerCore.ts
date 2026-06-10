@@ -251,18 +251,19 @@ const TEMPLATE_LABELS: Record<string, { subject: string; body: string }> = {
     body: [
       "Bid Request",
       "",
-      "You have been invited to bid on this appraisal assignment.",
+      "Submit your bid using the secure link below.",
       "",
       "Assignment Summary",
       "**Property:** {property_address}",
       "**Location:** {property_location}",
+      "**Service:** {service_label}",
       "**Property type:** {property_type}",
       "**Report type:** {report_type}",
       "",
       "Requested Timeline",
-      "**Client due date:** {client_due_at}",
-      "**Vendor due date:** {desired_vendor_due_at}",
       "**Response deadline:** {response_due_at}",
+      "**Vendor due date:** {desired_vendor_due_at}",
+      "**Client due date:** {client_due_at}",
       "",
       "Message from Coordinator",
       "{coordinator_message}",
@@ -336,6 +337,7 @@ const FIELD_FALLBACKS: Record<string, string> = {
   why_receiving_this: "This request appears to match your coverage and appraisal services.",
   documents_status: "No supporting documents were included with this bid request.",
   bid_invitation_url: "",
+  service_label: "Not provided",
 };
 
 const OPTIONAL_LINE_KEYS = new Set(["workflow_note", "message", "request_message", "coordinator_message", "safe_notes"]);
@@ -433,7 +435,29 @@ function formatSiteVisitAt(value: string) {
   return `${datePart} at ${timePart}`;
 }
 
-function formatDateTimeWithZone(value: string) {
+function isValidTimeZone(value: string) {
+  const timeZone = String(value || "").trim();
+  if (!timeZone) return false;
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone }).format(new Date());
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function resolvePayloadTimeZone(payload: Record<string, string>) {
+  const candidates = [
+    payload.order_time_zone,
+    payload.property_time_zone,
+    payload.time_zone,
+    payload.timezone,
+    payload.tz,
+  ];
+  return candidates.find(isValidTimeZone) || "UTC";
+}
+
+function formatDateTimeInTimeZone(value: string, timeZone: string) {
   const trimmed = String(value || "").trim();
   if (!trimmed) return "";
   const normalized = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(trimmed) && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(trimmed)
@@ -448,12 +472,13 @@ function formatDateTimeWithZone(value: string) {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
-    timeZone: "UTC",
+    timeZone,
     timeZoneName: "short",
   }).format(date);
 }
 
 function normalizeDateFields(payload: Record<string, string>) {
+  const timeZone = resolvePayloadTimeZone(payload);
   if (payload.site_visit_at) payload.site_visit_at = formatSiteVisitAt(payload.site_visit_at);
   for (const key of DATE_ONLY_KEYS) {
     if (payload[key]) payload[key] = formatDateOnly(payload[key]);
@@ -462,8 +487,45 @@ function normalizeDateFields(payload: Record<string, string>) {
     if (payload[key]) payload[key] = formatShortDateOnly(payload[key]);
   }
   for (const key of DATE_TIME_WITH_ZONE_KEYS) {
-    if (payload[key]) payload[key] = formatDateTimeWithZone(payload[key]);
+    if (payload[key]) payload[key] = formatDateTimeInTimeZone(payload[key], timeZone);
   }
+}
+
+function formatServiceLabel(value: string) {
+  const normalized = String(value || "")
+    .trim()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ");
+  if (!normalized) return "";
+  const lower = normalized.toLowerCase();
+  const known: Record<string, string> = {
+    appraisal: "Appraisal",
+    "full appraisal": "Full Appraisal",
+    full: "Full Appraisal",
+    "restricted appraisal": "Restricted Appraisal",
+    restricted: "Restricted Appraisal",
+    review: "Review",
+    desktop: "Desktop",
+    office: "Office",
+    retail: "Retail",
+    industrial: "Industrial",
+    multifamily: "Multifamily",
+    "mixed use": "Mixed Use",
+    land: "Land",
+    "special purpose": "Special Purpose",
+    hospitality: "Hospitality",
+    "self storage": "Self Storage",
+    "medical office": "Medical Office",
+    restaurant: "Restaurant",
+    "single family": "Single Family",
+    condo: "Condo",
+    condominium: "Condo",
+    "two to four family": "Two-to-Four Family",
+    "2 4 family": "Two-to-Four Family",
+    "manufactured home": "Manufactured Home",
+    "residential land": "Residential Land",
+  };
+  return known[lower] || normalized.replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 function combineContactParts(name: string, phone: string) {
@@ -545,6 +607,9 @@ function normalizePayload(row: EmailQueueRow, appBaseUrl = "") {
   payload.safe_notes = payload.safe_notes || payload.special_instructions_safe || "";
   payload.why_receiving_this = payload.why_receiving_this || "This request appears to match your coverage and appraisal services.";
   payload.documents_status = payload.documents_status || "No supporting documents were included with this bid request.";
+  payload.property_type = formatServiceLabel(payload.property_type) || payload.property_type;
+  payload.report_type = formatServiceLabel(payload.report_type) || payload.report_type;
+  payload.service_label = payload.service_label || [payload.property_type, payload.report_type].filter(Boolean).join(" · ");
 
   const base = appBaseUrl.replace(/\/+$/, "");
   const linkPath = payload.link_path || "";
@@ -666,21 +731,129 @@ function detailsForTemplate(templateName: string, payload: Record<string, string
   return fields.map(([label, key]) => [label, detailValue(payload, key)] as const);
 }
 
+function renderVendorBidInvitationHtml(subject: string, payload: Record<string, string>) {
+  const actionUrl = payload.bid_invitation_url || "";
+  const propertyAddress = detailValue(payload, "property_address");
+  const propertyLocation = detailValue(payload, "property_location");
+  const serviceLabel = detailValue(payload, "service_label");
+  const coordinatorMessage = payload.coordinator_message || "";
+  const documentsStatus = payload.safe_notes || payload.documents_status;
+  const timeline = [
+    ["Response deadline", detailValue(payload, "response_due_at")],
+    ["Vendor due date", detailValue(payload, "desired_vendor_due_at")],
+    ["Client due date", detailValue(payload, "client_due_at")],
+  ];
+  const summary = [
+    ["Property", propertyAddress],
+    ["Location", propertyLocation],
+    ["Service", serviceLabel],
+    ["Property type", detailValue(payload, "property_type")],
+    ["Report type", detailValue(payload, "report_type")],
+  ];
+  const summaryRows = summary.map(([label, value]) => `
+    <tr>
+      <td style="padding:10px 0;border-top:1px solid #e2e8f0;font-size:12px;line-height:16px;color:#64748b;width:34%;vertical-align:top;">${escapeHtml(label)}</td>
+      <td style="padding:10px 0;border-top:1px solid #e2e8f0;font-size:15px;line-height:22px;color:#0f172a;font-weight:700;vertical-align:top;">${escapeHtml(value)}</td>
+    </tr>
+  `).join("");
+  const timelineRows = timeline.map(([label, value]) => `
+    <tr>
+      <td style="padding:10px 0;border-top:1px solid #e2e8f0;font-size:12px;line-height:16px;color:#64748b;width:44%;vertical-align:top;">${escapeHtml(label)}</td>
+      <td style="padding:10px 0;border-top:1px solid #e2e8f0;font-size:15px;line-height:22px;color:#0f172a;font-weight:700;vertical-align:top;">${escapeHtml(value)}</td>
+    </tr>
+  `).join("");
+
+  return `<!doctype html>
+<html>
+  <body style="margin:0;padding:0;background:#f6f8fb;color:#0f172a;font-family:Arial,Helvetica,sans-serif;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f6f8fb;padding:24px 0;">
+      <tr>
+        <td align="center" style="padding:0 16px;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:680px;background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">
+            <tr>
+              <td style="background:#0f172a;color:#ffffff;padding:24px 28px;">
+                <div style="font-size:12px;line-height:16px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#bfdbfe;">Bid request</div>
+                <h1 style="margin:8px 0 0;font-size:26px;line-height:34px;color:#ffffff;">${escapeHtml(propertyAddress || subject)}</h1>
+                <p style="margin:8px 0 0;font-size:15px;line-height:23px;color:#cbd5e1;">Submit your fee, turn time, proposed due date, and comments through the secure bid link.</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:28px;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border:1px solid #cbd5e1;border-radius:8px;border-collapse:separate;overflow:hidden;background:#f8fafc;">
+                  <tr>
+                    <td style="padding:16px 18px;">
+                      <div style="font-size:12px;line-height:16px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#475569;">Property summary</div>
+                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:8px;border-collapse:collapse;">
+                        ${summaryRows}
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:18px;border:1px solid #e2e8f0;border-radius:8px;border-collapse:separate;overflow:hidden;background:#ffffff;">
+                  <tr><td style="padding:14px 16px;background:#f8fafc;font-size:17px;line-height:23px;font-weight:700;color:#0f172a;">Requested Timeline</td></tr>
+                  <tr>
+                    <td style="padding:6px 16px 14px;">
+                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+                        ${timelineRows}
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+
+                ${coordinatorMessage ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:18px;border:1px solid #bfdbfe;border-radius:8px;border-collapse:separate;overflow:hidden;background:#eff6ff;">
+                  <tr><td style="padding:14px 16px;font-size:17px;line-height:23px;font-weight:700;color:#1e3a8a;">Message from Coordinator</td></tr>
+                  <tr><td style="padding:0 16px 16px;font-size:15px;line-height:24px;color:#1e3a8a;">${escapeHtml(coordinatorMessage)}</td></tr>
+                </table>` : ""}
+
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:18px;border:1px solid #e2e8f0;border-radius:8px;border-collapse:separate;overflow:hidden;background:#ffffff;">
+                  <tr><td style="padding:14px 16px;background:#f8fafc;font-size:17px;line-height:23px;font-weight:700;color:#0f172a;">Why You&rsquo;re Receiving This</td></tr>
+                  <tr><td style="padding:14px 16px;border-top:1px solid #e2e8f0;font-size:15px;line-height:24px;color:#334155;">${escapeHtml(payload.why_receiving_this)}</td></tr>
+                </table>
+
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:18px;border:1px solid #e2e8f0;border-radius:8px;border-collapse:separate;overflow:hidden;background:#ffffff;">
+                  <tr><td style="padding:14px 16px;background:#f8fafc;font-size:17px;line-height:23px;font-weight:700;color:#0f172a;">Supporting Documents</td></tr>
+                  <tr><td style="padding:14px 16px;border-top:1px solid #e2e8f0;font-size:15px;line-height:24px;color:#334155;">${escapeHtml(documentsStatus)}</td></tr>
+                </table>
+
+                ${actionUrl ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:24px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+                  <tr>
+                    <td style="padding:18px;text-align:center;">
+                      <div style="font-size:16px;line-height:22px;font-weight:700;color:#0f172a;">Ready to respond?</div>
+                      <p style="margin:6px 0 16px;font-size:14px;line-height:22px;color:#475569;">Open the secure bid invitation to submit your response.</p>
+                      <a href="${escapeHtml(actionUrl)}" style="display:inline-block;border-radius:6px;background:#2563eb;padding:13px 22px;color:#ffffff;text-decoration:none;font-size:15px;line-height:20px;font-weight:700;">Submit Bid</a>
+                      <p style="margin:14px 0 0;font-size:12px;line-height:18px;color:#64748b;word-break:break-all;">${escapeHtml(actionUrl)}</p>
+                    </td>
+                  </tr>
+                </table>` : ""}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:18px 28px;background:#f8fafc;border-top:1px solid #e2e8f0;color:#64748b;font-size:12px;line-height:18px;">Powered by Falcon &middot; Continental Real Estate Solutions</td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+}
+
 function renderFalconEmailHtml(templateName: string, subject: string, text: string, payload: Record<string, string>) {
+  if (templateName === "VENDOR_BID_INVITATION") {
+    return renderVendorBidInvitationHtml(subject, payload);
+  }
+
   const details = detailsForTemplate(templateName, payload);
   const summary = payload.order_summary || subject;
-  const actionUrl = templateName === "VENDOR_BID_INVITATION"
-    ? payload.bid_invitation_url || ""
-    : payload.order_url || "";
-  const eyebrow = templateName === "VENDOR_BID_INVITATION" ? "Bid invitation" : "Order notification";
-  const detailTitle = templateName === "VENDOR_BID_INVITATION" ? "Assignment Summary" : "Order summary";
-  const actionLabel = templateName === "VENDOR_BID_INVITATION" ? "Submit Bid" : "Open Order";
+  const actionUrl = payload.order_url || "";
+  const eyebrow = "Order notification";
+  const detailTitle = "Order summary";
+  const actionLabel = "Open Order";
   const intro = text.split("\n").find((line) => line.trim() && !line.startsWith("**")) || "";
   const supportingMessage = templateName === "NOTE_ADDRESSED"
     ? payload.note_preview
-    : templateName === "VENDOR_BID_INVITATION"
-      ? payload.coordinator_message || ""
-      : payload.workflow_note || "";
+    : payload.workflow_note || "";
   const detailRows: string[] = [];
   for (let index = 0; index < details.length; index += 2) {
     const left = details[index];
@@ -720,14 +893,6 @@ function renderFalconEmailHtml(templateName: string, subject: string, text: stri
                   ${detailRows.join("")}
                 </table>
                 ${supportingMessage ? `<p style="margin:20px 0 0;padding:14px 16px;background:#f8fafc;border-left:3px solid #2563eb;font-size:15px;line-height:24px;color:#334155;">${escapeHtml(supportingMessage)}</p>` : ""}
-                ${templateName === "VENDOR_BID_INVITATION" ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:18px;border:1px solid #e5e7eb;border-radius:8px;border-collapse:separate;overflow:hidden;background:#ffffff;">
-                  <tr><td style="padding:14px 16px;background:#f8fafc;font-size:16px;line-height:22px;font-weight:700;color:#0f172a;">Why You&rsquo;re Receiving This</td></tr>
-                  <tr><td style="padding:14px 16px;border-top:1px solid #e5e7eb;font-size:15px;line-height:24px;color:#334155;">${escapeHtml(payload.why_receiving_this)}</td></tr>
-                </table>
-                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:18px;border:1px solid #e5e7eb;border-radius:8px;border-collapse:separate;overflow:hidden;background:#ffffff;">
-                  <tr><td style="padding:14px 16px;background:#f8fafc;font-size:16px;line-height:22px;font-weight:700;color:#0f172a;">Supporting Documents</td></tr>
-                  <tr><td style="padding:14px 16px;border-top:1px solid #e5e7eb;font-size:15px;line-height:24px;color:#334155;">${escapeHtml(payload.safe_notes || payload.documents_status)}</td></tr>
-                </table>` : ""}
                 ${templateName === "APPRAISER_ASSIGNED" ? `<p style="margin:20px 0 0;font-size:15px;line-height:24px;color:#334155;">Please coordinate access with the contact above and let us know if you have any questions.</p>` : ""}
                 ${actionUrl ? `<table role="presentation" cellspacing="0" cellpadding="0" style="margin-top:24px;"><tr><td style="border-radius:6px;background:#2563eb;"><a href="${escapeHtml(actionUrl)}" style="display:inline-block;padding:12px 18px;color:#ffffff;text-decoration:none;font-size:15px;line-height:20px;font-weight:700;">${escapeHtml(actionLabel)}</a></td></tr></table>` : ""}
               </td>

@@ -185,8 +185,9 @@ describe("email queue worker", () => {
           city: "Perrysburg",
           state: "OH",
           postal_code: "43551",
-          report_type: "Full Appraisal",
-          property_type: "Industrial",
+          report_type: "full_appraisal",
+          property_type: "industrial",
+          property_time_zone: "America/New_York",
           response_due_at: "2026-06-12T16:00:00Z",
           desired_vendor_due_at: "2026-06-20T16:00:00Z",
           client_due_at: "2026-06-24T16:00:00Z",
@@ -206,21 +207,23 @@ describe("email queue worker", () => {
     expect(rendered.text).toContain("Message from Coordinator");
     expect(rendered.text).toContain("Why You're Receiving This");
     expect(rendered.text).toContain("Supporting Documents");
-    expect(rendered.text).toContain("You have been invited to bid on this appraisal assignment.");
+    expect(rendered.text).toContain("Submit your bid using the secure link below.");
     expect(rendered.text).toContain("**Location:** Perrysburg, OH, 43551");
+    expect(rendered.text).toContain("**Service:** Industrial · Full Appraisal");
     expect(rendered.text).toContain("**Report type:** Full Appraisal");
     expect(rendered.text).toContain("**Property type:** Industrial");
     expect(rendered.text).toContain("**Client due date:** June 24, 2026");
     expect(rendered.text).toContain("**Vendor due date:** June 20, 2026");
-    expect(rendered.text).toContain("**Response deadline:** June 12, 2026 at 4:00 PM UTC");
+    expect(rendered.text).toContain("**Response deadline:** June 12, 2026 at 12:00 PM EDT");
     expect(rendered.text).toContain("Please provide fee and turn time.");
     expect(rendered.text).toContain("Use the secure link for questions and bid response details.");
     expect(rendered.text).toContain("This request appears to match your coverage and appraisal services.");
     expect(rendered.text).toContain("https://continentalres.com/vendor/bid-invitations/abc123");
-    expect(rendered.html).toContain("Assignment Summary");
+    expect(rendered.html).toContain("Property summary");
     expect(rendered.html).toContain("Why You&rsquo;re Receiving This");
     expect(rendered.html).toContain("Supporting Documents");
     expect(rendered.html).toContain("Submit Bid");
+    expect(rendered.html).toContain("Industrial · Full Appraisal");
     expect(rendered.html).toContain("https://continentalres.com/vendor/bid-invitations/abc123");
     expect(rendered.text).not.toContain("2026-06-12T16:00:00Z");
     expect(rendered.text).not.toContain("2026-06-20T16:00:00Z");

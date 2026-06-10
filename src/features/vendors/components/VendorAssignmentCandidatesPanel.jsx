@@ -85,10 +85,16 @@ function formatPreviewDateOnly(value) {
   }).format(parsed);
 }
 
-function formatPreviewDeadline(value) {
+function formatPreviewDeadlineInTimeZone(value, timeZone) {
   if (!value) return "Not set";
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return "Not set";
+  let resolvedTimeZone = timeZone || "UTC";
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: resolvedTimeZone }).format(parsed);
+  } catch {
+    resolvedTimeZone = "UTC";
+  }
   return new Intl.DateTimeFormat("en-US", {
     month: "long",
     day: "numeric",
@@ -96,8 +102,45 @@ function formatPreviewDeadline(value) {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
+    timeZone: resolvedTimeZone,
     timeZoneName: "short",
   }).format(parsed);
+}
+
+function formatPreviewServiceLabel(value) {
+  const normalized = String(value || "")
+    .trim()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ");
+  if (!normalized) return "";
+  const known = {
+    appraisal: "Appraisal",
+    "full appraisal": "Full Appraisal",
+    full: "Full Appraisal",
+    "restricted appraisal": "Restricted Appraisal",
+    restricted: "Restricted Appraisal",
+    review: "Review",
+    desktop: "Desktop",
+    office: "Office",
+    retail: "Retail",
+    industrial: "Industrial",
+    multifamily: "Multifamily",
+    "mixed use": "Mixed Use",
+    land: "Land",
+    "special purpose": "Special Purpose",
+    hospitality: "Hospitality",
+    "self storage": "Self Storage",
+    "medical office": "Medical Office",
+    restaurant: "Restaurant",
+    "single family": "Single Family",
+    condo: "Condo",
+    condominium: "Condo",
+    "two to four family": "Two-to-Four Family",
+    "2 4 family": "Two-to-Four Family",
+    "manufactured home": "Manufactured Home",
+    "residential land": "Residential Land",
+  };
+  return known[normalized.toLowerCase()] || normalized.replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 function safePreviewText(value, fallback = "Not provided") {
@@ -122,23 +165,32 @@ function buildBidEmailPreview({
 } = {}) {
   const vendorName = selectedCandidates[0]?.vendor_company_name || "Vendor";
   const propertyAddress = safePreviewText(orderSummary.property_address || orderSummary.address);
+  const propertyType = formatPreviewServiceLabel(orderSummary.property_type) || safePreviewText(orderSummary.property_type);
+  const reportType = formatPreviewServiceLabel(orderSummary.report_type) || safePreviewText(orderSummary.report_type);
+  const serviceLabel = [propertyType, reportType].filter(Boolean).join(" · ") || "Not provided";
+  const previewTimeZone = orderSummary.order_time_zone
+    || orderSummary.property_time_zone
+    || orderSummary.time_zone
+    || orderSummary.timezone
+    || Intl.DateTimeFormat().resolvedOptions().timeZone;
   const body = [
     `To: ${vendorName}${selectedCandidates.length > 1 ? ` and ${selectedCandidates.length - 1} more` : ""}`,
     "",
     "Bid Request",
     "",
-    "You have been invited to bid on this appraisal assignment.",
+    "Submit your bid using the secure link below.",
     "",
     "Assignment Summary",
     `Property: ${propertyAddress}`,
     `Location: ${formatPreviewLocation(orderSummary)}`,
-    `Property type: ${safePreviewText(orderSummary.property_type)}`,
-    `Report type: ${safePreviewText(orderSummary.report_type)}`,
+    `Service: ${serviceLabel}`,
+    `Property type: ${propertyType}`,
+    `Report type: ${reportType}`,
     "",
     "Requested Timeline",
-    `Client due date: ${formatPreviewDateOnly(clientDueAt || orderSummary.client_due_at || orderSummary.final_due_at || orderSummary.due_date)}`,
+    `Response deadline: ${formatPreviewDeadlineInTimeZone(responseDueAt, previewTimeZone)}`,
     `Vendor due date: ${formatPreviewDateOnly(desiredVendorDueAt)}`,
-    `Response deadline: ${formatPreviewDeadline(responseDueAt)}`,
+    `Client due date: ${formatPreviewDateOnly(clientDueAt || orderSummary.client_due_at || orderSummary.final_due_at || orderSummary.due_date)}`,
     "",
     "Message from Coordinator",
     message.trim() || "No coordinator message provided.",

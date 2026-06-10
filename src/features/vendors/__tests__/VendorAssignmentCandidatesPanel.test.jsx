@@ -242,8 +242,8 @@ describe("VendorAssignmentCandidatesPanel", () => {
           city: "Perrysburg",
           state: "OH",
           postal_code: "43551",
-          property_type: "Industrial",
-          report_type: "Full Appraisal",
+          property_type: "industrial",
+          report_type: "full_appraisal",
           client_due_at: "2026-06-24T16:00:00Z",
         }}
         onBidRequestSuccess={handleBidRequestSuccess}
@@ -262,6 +262,7 @@ describe("VendorAssignmentCandidatesPanel", () => {
     expect(within(dialog).getByText("Email preview")).toBeInTheDocument();
     expect(within(dialog).getByText("Bid request: 12969 Eckel Junction Road")).toBeInTheDocument();
     expect(within(dialog).getByText(/Location: Perrysburg, OH 43551/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Service: Industrial · Full Appraisal/)).toBeInTheDocument();
     expect(within(dialog).getByText(/Property type: Industrial/)).toBeInTheDocument();
     expect(within(dialog).getByText(/Report type: Full Appraisal/)).toBeInTheDocument();
     expect(within(dialog).getByText(/Assignment Summary/)).toBeInTheDocument();
