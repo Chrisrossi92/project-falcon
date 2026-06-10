@@ -44,6 +44,7 @@ type ErrorCode =
   | "invalid_document_id"
   | "document_not_found"
   | "download_not_authorized"
+  | "storage_object_missing"
   | "signed_url_failed";
 
 function allowedOrigin(req: Request) {
@@ -76,6 +77,10 @@ function jsonResponse(req: Request, body: Record<string, unknown>, status = 200)
 
 function errorResponse(req: Request, code: ErrorCode, message: string, status: number) {
   return jsonResponse(req, { ok: false, code, message }, status);
+}
+
+function logSafe(event: string, details: Record<string, unknown> = {}) {
+  console.info("[order-document-download-url]", event, details);
 }
 
 function bearerToken(req: Request) {
@@ -141,6 +146,11 @@ serve(async (req) => {
   );
 
   if (authorizeError) {
+    logSafe("authorization_failed", {
+      document_id: documentId,
+      code: authorizeError.code,
+      message: authorizeError.message,
+    });
     const status = /not found/i.test(authorizeError.message) ? 404 : 403;
     const code = status === 404 ? "document_not_found" : "download_not_authorized";
     return errorResponse(req, code, status === 404 ? "Document not found." : "You cannot download this document.", status);
@@ -148,6 +158,7 @@ serve(async (req) => {
 
   const authorized = Array.isArray(authorizedRows) ? authorizedRows[0] : null;
   if (!authorized?.id) {
+    logSafe("authorization_empty", { document_id: documentId });
     return errorResponse(req, "document_not_found", "Document not found.", 404);
   }
 
@@ -159,12 +170,47 @@ serve(async (req) => {
     .maybeSingle();
 
   if (documentError) {
-    console.error("[order-document-download-url] metadata lookup failed", documentError);
+    console.error("[order-document-download-url] metadata lookup failed", {
+      document_id: documentId,
+      code: documentError.code,
+      message: documentError.message,
+    });
     return errorResponse(req, "signed_url_failed", "The download could not be prepared.", 500);
   }
 
   if (!documentRow?.storage_bucket || !documentRow?.storage_path) {
+    logSafe("metadata_missing_storage_target", {
+      document_id: documentId,
+      has_storage_bucket: Boolean(documentRow?.storage_bucket),
+      has_storage_path: Boolean(documentRow?.storage_path),
+    });
     return errorResponse(req, "document_not_found", "Document not found.", 404);
+  }
+
+  const { data: storageObject, error: storageObjectError } = await serviceClient
+    .schema("storage")
+    .from("objects")
+    .select("id")
+    .eq("bucket_id", documentRow.storage_bucket)
+    .eq("name", documentRow.storage_path)
+    .maybeSingle();
+
+  if (storageObjectError) {
+    console.error("[order-document-download-url] storage object lookup failed", {
+      document_id: documentId,
+      code: storageObjectError.code,
+      message: storageObjectError.message,
+    });
+    return errorResponse(req, "signed_url_failed", "The download could not be prepared.", 500);
+  }
+
+  if (!storageObject?.id) {
+    logSafe("storage_object_missing", {
+      document_id: documentId,
+      storage_bucket_present: Boolean(documentRow.storage_bucket),
+      storage_path_present: Boolean(documentRow.storage_path),
+    });
+    return errorResponse(req, "storage_object_missing", "The uploaded file is missing from storage.", 404);
   }
 
   const { data: signed, error: signedError } = await serviceClient.storage
@@ -174,7 +220,11 @@ serve(async (req) => {
     });
 
   if (signedError || !signed?.signedUrl) {
-    console.error("[order-document-download-url] signed URL failed", signedError);
+    console.error("[order-document-download-url] signed URL failed", {
+      document_id: documentId,
+      code: signedError?.code,
+      message: signedError?.message,
+    });
     return errorResponse(req, "signed_url_failed", "The download could not be prepared.", 500);
   }
 
