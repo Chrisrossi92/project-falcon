@@ -61,13 +61,16 @@ describe('AMC vendor report owner download alignment migration', () => {
 });
 
 describe('Order document download Edge function diagnostics', () => {
-  it('checks caller authorization before storage lookup and signed URL creation', () => {
-    expect(edgeSource.indexOf('rpc_order_document_authorize_download')).toBeLessThan(
-      edgeSource.indexOf('.schema("storage")'),
+  it('checks caller authorization before normalized Storage signing', () => {
+    const handlerSource = edgeSource.slice(edgeSource.indexOf('serve(async (req) => {'));
+
+    expect(handlerSource.indexOf('rpc_order_document_authorize_download')).toBeLessThan(
+      handlerSource.indexOf('normalizeStorageTarget'),
     );
-    expect(edgeSource.indexOf('.schema("storage")')).toBeLessThan(
-      edgeSource.indexOf('createSignedUrl'),
+    expect(handlerSource.indexOf('normalizeStorageTarget')).toBeLessThan(
+      handlerSource.indexOf('createSignedUrl'),
     );
+    expect(edgeSource).not.toContain('.schema("storage")');
   });
 
   it('returns structured safe errors for authorization and missing storage objects', () => {
@@ -76,8 +79,9 @@ describe('Order document download Edge function diagnostics', () => {
       'storage_object_missing',
       '"The uploaded file is missing from storage."',
       'safeRpcErrorDetails(authorizeError)',
-      'storage_bucket_present',
-      'storage_path_present',
+      'safeStorageErrorDetails',
+      'original_path_had_bucket_prefix',
+      'path_segment_count',
     ].forEach((snippet) => {
       expect(edgeSource).toContain(snippet);
     });

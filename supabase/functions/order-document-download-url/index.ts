@@ -111,6 +111,83 @@ function safeDownloadName(fileName: string | null | undefined) {
   return cleaned || fallback;
 }
 
+function normalizeStorageTarget(bucket: string, path: string) {
+  const normalizedBucket = bucket.trim().replace(/^\/+|\/+$/g, "");
+  let normalizedPath = path.trim().replace(/^\/+/g, "");
+  const bucketPrefix = `${normalizedBucket}/`;
+
+  if (normalizedPath.startsWith(bucketPrefix)) {
+    normalizedPath = normalizedPath.slice(bucketPrefix.length);
+  }
+
+  return {
+    bucket: normalizedBucket,
+    path: normalizedPath,
+    shape: {
+      bucket_present: normalizedBucket.length > 0,
+      path_present: normalizedPath.length > 0,
+      original_path_had_leading_slash: path.trim().startsWith("/"),
+      original_path_had_bucket_prefix: path.trim().replace(/^\/+/g, "").startsWith(bucketPrefix),
+      path_segment_count: normalizedPath ? normalizedPath.split("/").filter(Boolean).length : 0,
+      file_extension: normalizedPath.includes(".") ? normalizedPath.split(".").pop()?.toLowerCase() || null : null,
+    },
+  };
+}
+
+function safeStorageErrorDetails(error: unknown) {
+  const storageError = error as {
+    name?: unknown;
+    message?: unknown;
+    status?: unknown;
+    statusCode?: unknown;
+  };
+
+  return {
+    name: typeof storageError?.name === "string" ? storageError.name : null,
+    message: typeof storageError?.message === "string" ? storageError.message : null,
+    status_code:
+      typeof storageError?.statusCode === "string" || typeof storageError?.statusCode === "number"
+        ? String(storageError.statusCode)
+        : typeof storageError?.status === "string" || typeof storageError?.status === "number"
+          ? String(storageError.status)
+          : null,
+  };
+}
+
+function isStorageMissingError(error: unknown) {
+  const details = safeStorageErrorDetails(error);
+  const message = details.message || "";
+  const statusCode = details.status_code || "";
+
+  return statusCode === "404" || /not found|does not exist|object.*missing|no such/i.test(message);
+}
+
+function signedErrorDetails(error: unknown, storageShape: Record<string, unknown>) {
+  const details = safeStorageErrorDetails(error);
+
+  return {
+    storage: storageShape,
+    signed_error_name: details.name,
+    signed_error_status_code: details.status_code,
+  };
+}
+
+function signedErrorLogDetails(
+  documentId: string,
+  error: unknown,
+  storageShape: Record<string, unknown>,
+) {
+  const details = safeStorageErrorDetails(error);
+
+  return {
+    document_id: documentId,
+    storage: storageShape,
+    name: details.name,
+    status_code: details.status_code,
+    message: details.message,
+  };
+}
+
 function safeRpcErrorDetails(error: unknown) {
   const rpcError = error as {
     code?: unknown;
@@ -218,45 +295,31 @@ serve(async (req) => {
     return errorResponse(req, "document_not_found", "Document not found.", 404);
   }
 
-  const { data: storageObject, error: storageObjectError } = await serviceClient
-    .schema("storage")
-    .from("objects")
-    .select("id")
-    .eq("bucket_id", documentRow.storage_bucket)
-    .eq("name", documentRow.storage_path)
-    .maybeSingle();
-
-  if (storageObjectError) {
-    console.error("[order-document-download-url] storage object lookup failed", {
-      document_id: documentId,
-      code: storageObjectError.code,
-      message: storageObjectError.message,
-    });
-    return errorResponse(req, "signed_url_failed", "The download could not be prepared.", 500);
-  }
-
-  if (!storageObject?.id) {
-    logSafe("storage_object_missing", {
-      document_id: documentId,
-      storage_bucket_present: Boolean(documentRow.storage_bucket),
-      storage_path_present: Boolean(documentRow.storage_path),
-    });
-    return errorResponse(req, "storage_object_missing", "The uploaded file is missing from storage.", 404);
-  }
+  const storageTarget = normalizeStorageTarget(documentRow.storage_bucket, documentRow.storage_path);
 
   const { data: signed, error: signedError } = await serviceClient.storage
-    .from(documentRow.storage_bucket)
-    .createSignedUrl(documentRow.storage_path, SIGNED_URL_TTL_SECONDS, {
+    .from(storageTarget.bucket)
+    .createSignedUrl(storageTarget.path, SIGNED_URL_TTL_SECONDS, {
       download: safeDownloadName(documentRow.file_name),
     });
 
   if (signedError || !signed?.signedUrl) {
-    console.error("[order-document-download-url] signed URL failed", {
-      document_id: documentId,
-      code: signedError?.code,
-      message: signedError?.message,
+    if (isStorageMissingError(signedError)) {
+      logSafe("storage_object_missing", signedErrorLogDetails(documentId, signedError, storageTarget.shape));
+      return errorResponse(req, "storage_object_missing", "The uploaded file is missing from storage.", 404, {
+        reason: "storage_object_missing",
+        ...signedErrorDetails(signedError, storageTarget.shape),
+      });
+    }
+
+    console.error(
+      "[order-document-download-url] signed URL failed",
+      signedErrorLogDetails(documentId, signedError, storageTarget.shape),
+    );
+    return errorResponse(req, "signed_url_failed", "The download could not be prepared.", 500, {
+      reason: "signed_url_generation_failed",
+      ...signedErrorDetails(signedError, storageTarget.shape),
     });
-    return errorResponse(req, "signed_url_failed", "The download could not be prepared.", 500);
   }
 
   return jsonResponse(req, {
