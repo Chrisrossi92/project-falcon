@@ -2038,6 +2038,32 @@ describe("Vendor Workspace hidden shell", () => {
     expect(screen.queryByRole("button", { name: "Submit Report" })).toBeNull();
   });
 
+  it("shows the structured report upload URL failure reason from the Edge helper", async () => {
+    const uploadError = new Error("You cannot upload reports for this assignment.");
+    uploadError.code = "upload_not_authorized";
+    uploadError.details = {
+      rpc_code: "42501",
+      rpc_message: "vendor_documents_upload_permission_required",
+    };
+    apiMock.createVendorWorkspaceReportUploadUrl.mockRejectedValueOnce(uploadError);
+    apiMock.fetchVendorWorkspaceAssignedOrderDetail.mockResolvedValue(inProgressAssignedOrderDetail);
+
+    renderVendorWorkspace("/vendor-workspace/assigned-orders/assigned-work-key-1");
+
+    expect(await screen.findByRole("heading", { name: "987 Assigned Way" })).toBeInTheDocument();
+    const reportFile = new File(["report contents"], "report.pdf", { type: "application/pdf" });
+    fireEvent.change(screen.getByLabelText("Report PDF"), {
+      target: { files: [reportFile] },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Upload Report File" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "You cannot upload reports for this assignment.",
+    );
+    expect(apiMock.registerVendorWorkspaceReportDocument).not.toHaveBeenCalled();
+    expect(apiMock.submitVendorWorkspaceReport).not.toHaveBeenCalled();
+  });
+
   it("resubmits a revision from assigned order detail and refreshes to awaiting review", async () => {
     apiMock.fetchVendorWorkspaceAssignedOrderDetail
       .mockResolvedValueOnce(revisionRequestedAssignedOrderDetail)

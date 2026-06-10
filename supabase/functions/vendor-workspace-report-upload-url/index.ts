@@ -76,8 +76,14 @@ function jsonResponse(req: Request, body: Record<string, unknown>, status = 200)
   });
 }
 
-function errorResponse(req: Request, code: ErrorCode, message: string, status: number) {
-  return jsonResponse(req, { ok: false, code, message }, status);
+function errorResponse(
+  req: Request,
+  code: ErrorCode,
+  message: string,
+  status: number,
+  details: Record<string, unknown> = {},
+) {
+  return jsonResponse(req, { ok: false, code, message, details }, status);
 }
 
 function bearerToken(req: Request) {
@@ -114,7 +120,27 @@ function uploadErrorResponse(req: Request, prepared: Record<string, unknown>) {
       : "The report upload could not be prepared.";
 
   const status = error === "assigned_order_unavailable" ? 404 : 400;
-  return errorResponse(req, "invalid_upload_request", message, status);
+  return errorResponse(req, "invalid_upload_request", message, status, {
+    reason: error || "prepare_rejected",
+    field_errors: fieldErrors,
+    assignment_status: typeof prepared.status === "string" ? prepared.status : null,
+  });
+}
+
+function safeRpcErrorDetails(error: unknown) {
+  const rpcError = error as {
+    code?: unknown;
+    details?: unknown;
+    hint?: unknown;
+    message?: unknown;
+  };
+
+  return {
+    rpc_code: typeof rpcError?.code === "string" ? rpcError.code : null,
+    rpc_details: typeof rpcError?.details === "string" ? rpcError.details : null,
+    rpc_hint: typeof rpcError?.hint === "string" ? rpcError.hint : null,
+    rpc_message: typeof rpcError?.message === "string" ? rpcError.message : null,
+  };
 }
 
 serve(async (req) => {
@@ -176,19 +202,46 @@ serve(async (req) => {
   if (prepareError) {
     const message = String(prepareError.message || "");
     if (/permission|required|not authorized/i.test(message)) {
-      return errorResponse(req, "upload_not_authorized", "You cannot upload reports for this assignment.", 403);
+      const details = safeRpcErrorDetails(prepareError);
+      console.warn("[vendor-workspace-report-upload-url] prepare denied", details);
+      return errorResponse(
+        req,
+        "upload_not_authorized",
+        "You cannot upload reports for this assignment.",
+        403,
+        details,
+      );
     }
 
-    console.error("[vendor-workspace-report-upload-url] prepare failed", prepareError);
-    return errorResponse(req, "invalid_upload_request", "The report upload could not be prepared.", 400);
+    const details = safeRpcErrorDetails(prepareError);
+    console.error("[vendor-workspace-report-upload-url] prepare failed", details);
+    return errorResponse(
+      req,
+      "invalid_upload_request",
+      "The report upload could not be prepared.",
+      400,
+      details,
+    );
   }
 
   if (!prepared?.ok) {
+    console.warn("[vendor-workspace-report-upload-url] prepare rejected", {
+      error: prepared?.error || null,
+      status: prepared?.status || null,
+      field_errors: prepared?.field_errors || null,
+    });
     return uploadErrorResponse(req, prepared || {});
   }
 
   if (!prepared?.document?.document_key || !prepared?.upload?.storage_bucket || !prepared?.upload?.storage_path) {
-    return errorResponse(req, "invalid_upload_request", "The report upload could not be prepared.", 400);
+    console.error("[vendor-workspace-report-upload-url] prepare response missing upload target", {
+      has_document_key: Boolean(prepared?.document?.document_key),
+      has_storage_bucket: Boolean(prepared?.upload?.storage_bucket),
+      has_storage_path: Boolean(prepared?.upload?.storage_path),
+    });
+    return errorResponse(req, "invalid_upload_request", "The report upload could not be prepared.", 400, {
+      reason: "prepare_response_missing_upload_target",
+    });
   }
 
   const { data: signed, error: signedError } = await serviceClient.storage
@@ -196,8 +249,17 @@ serve(async (req) => {
     .createSignedUploadUrl(prepared.upload.storage_path);
 
   if (signedError || !signed?.signedUrl) {
-    console.error("[vendor-workspace-report-upload-url] signed upload URL failed", signedError);
-    return errorResponse(req, "signed_upload_failed", "The report upload could not be prepared.", 500);
+    console.error("[vendor-workspace-report-upload-url] signed upload URL failed", {
+      message: signedError?.message || null,
+      name: signedError?.name || null,
+      bucket_present: Boolean(prepared.upload.storage_bucket),
+      path_present: Boolean(prepared.upload.storage_path),
+    });
+    return errorResponse(req, "signed_upload_failed", "The report upload could not be prepared.", 500, {
+      reason: "signed_upload_url_failed",
+      storage_bucket_present: Boolean(prepared.upload.storage_bucket),
+      storage_path_present: Boolean(prepared.upload.storage_path),
+    });
   }
 
   return jsonResponse(req, {

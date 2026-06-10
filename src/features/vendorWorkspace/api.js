@@ -104,16 +104,15 @@ function vendorWorkspaceBootstrapError(message, diagnostics, cause) {
   return error;
 }
 
-async function edgeFunctionErrorMessage(error, fallback) {
-  if (!error?.context?.json) return error?.message || fallback;
+async function edgeFunctionErrorBody(error) {
+  if (!error?.context?.json) return null;
 
   try {
     const response =
       typeof error.context.clone === "function" ? error.context.clone() : error.context;
-    const body = await response.json();
-    return body?.message || body?.error || error?.message || fallback;
+    return await response.json();
   } catch {
-    return error?.message || fallback;
+    return null;
   }
 }
 
@@ -121,8 +120,14 @@ async function edgeFunction(name, body, fallbackError) {
   const { data, error } = await supabase.functions.invoke(name, { body });
 
   if (error) {
-    const message = await edgeFunctionErrorMessage(error, fallbackError);
-    throw new Error(message, { cause: error });
+    const errorBody = await edgeFunctionErrorBody(error);
+    const message = errorBody?.message || errorBody?.error || error?.message || fallbackError;
+    const wrapped = new Error(message, { cause: error });
+    wrapped.code = errorBody?.code || error?.code || null;
+    wrapped.details = errorBody?.details || null;
+    wrapped.field_errors = errorBody?.field_errors || {};
+    wrapped.response = errorBody;
+    throw wrapped;
   }
 
   return data;

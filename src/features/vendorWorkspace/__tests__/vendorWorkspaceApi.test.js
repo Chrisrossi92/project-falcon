@@ -670,6 +670,42 @@ describe("vendorWorkspace api", () => {
     });
   });
 
+  it("preserves structured vendor report upload URL errors from the Edge helper", async () => {
+    functionsInvokeMock.mockResolvedValue({
+      data: null,
+      error: {
+        message: "Edge Function returned a non-2xx status code",
+        context: new globalThis.Response(
+          JSON.stringify({
+            ok: false,
+            code: "upload_not_authorized",
+            message: "You cannot upload reports for this assignment.",
+            details: {
+              rpc_code: "42501",
+              rpc_message: "vendor_documents_upload_permission_required",
+            },
+          }),
+          { status: 403, headers: { "content-type": "application/json" } },
+        ),
+      },
+    });
+
+    await expect(
+      createVendorWorkspaceReportUploadUrl("assignment-work-key-1", {
+        file_name: "report.pdf",
+        mime_type: "application/pdf",
+        file_size: 1234,
+      }),
+    ).rejects.toMatchObject({
+      message: "You cannot upload reports for this assignment.",
+      code: "upload_not_authorized",
+      details: {
+        rpc_code: "42501",
+        rpc_message: "vendor_documents_upload_permission_required",
+      },
+    });
+  });
+
   it("creates a vendor invoice upload URL through the assignment-scoped Edge helper", async () => {
     const response = {
       ok: true,

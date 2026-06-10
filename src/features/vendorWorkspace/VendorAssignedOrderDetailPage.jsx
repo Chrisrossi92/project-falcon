@@ -250,7 +250,24 @@ const submitErrorMessages = Object.freeze({
 const uploadErrorMessages = Object.freeze({
   assigned_order_unavailable: "This assigned order is no longer available.",
   report_upload_invalid: "This report file cannot be uploaded.",
+  invalid_upload_request: "The report upload could not be prepared.",
+  upload_not_authorized: "You cannot upload reports for this assignment.",
+  signed_upload_failed: "The report upload could not be prepared.",
 });
+
+function reportUploadErrorMessage(error, fallback) {
+  const fieldErrors = error?.field_errors || error?.details?.field_errors || {};
+  return (
+    fieldErrors.file_name ||
+    fieldErrors.mime_type ||
+    fieldErrors.file_size ||
+    fieldErrors.document_role ||
+    fieldErrors.action ||
+    error?.message ||
+    uploadErrorMessages[error?.code] ||
+    fallback
+  );
+}
 
 function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, onUnavailable }) {
   const [isStarting, setIsStarting] = useState(false);
@@ -386,8 +403,19 @@ function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, 
           uploadErrorMessages[registered.error] ||
           "Report file could not be registered. Try again or contact the AMC coordinator.",
         );
-      } catch {
-          setActionError("Report file could not be uploaded. Please try again or contact the AMC coordinator.");
+      } catch (error) {
+        console.warn("[VendorWorkspaceReportUpload] upload failed", {
+          code: error?.code || null,
+          message: error?.message || null,
+          details: error?.details || null,
+          field_errors: error?.field_errors || null,
+        });
+        setActionError(
+          reportUploadErrorMessage(
+            error,
+            "Report file could not be uploaded. Please try again or contact the AMC coordinator.",
+          ),
+        );
       } finally {
         setIsUploadingReport(false);
       }
