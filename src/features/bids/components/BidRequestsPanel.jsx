@@ -11,7 +11,7 @@ import {
 
 const RECORDABLE_REQUEST_STATUSES = new Set(["draft", "sent", "partially_responded"]);
 const RECORDABLE_RECIPIENT_STATUSES = new Set(["pending", "sent", "viewed"]);
-const SELECTABLE_REQUEST_STATUSES = new Set(["sent", "partially_responded"]);
+const SELECTABLE_REQUEST_STATUSES = new Set(["sent", "partially_responded", "closed"]);
 
 function humanize(value) {
   return String(value || "")

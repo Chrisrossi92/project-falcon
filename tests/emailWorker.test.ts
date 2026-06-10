@@ -187,7 +187,6 @@ describe("email queue worker", () => {
           postal_code: "43551",
           report_type: "full_appraisal",
           property_type: "industrial",
-          property_time_zone: "America/New_York",
           response_due_at: "2026-06-12T16:00:00Z",
           desired_vendor_due_at: "2026-06-20T16:00:00Z",
           client_due_at: "2026-06-24T16:00:00Z",
@@ -209,7 +208,6 @@ describe("email queue worker", () => {
     expect(rendered.text).toContain("Supporting Documents");
     expect(rendered.text).toContain("Submit your bid using the secure link below.");
     expect(rendered.text).toContain("**Location:** Perrysburg, OH, 43551");
-    expect(rendered.text).toContain("**Service:** Industrial · Full Appraisal");
     expect(rendered.text).toContain("**Report type:** Full Appraisal");
     expect(rendered.text).toContain("**Property type:** Industrial");
     expect(rendered.text).toContain("**Client due date:** June 24, 2026");
@@ -223,7 +221,8 @@ describe("email queue worker", () => {
     expect(rendered.html).toContain("Why You&rsquo;re Receiving This");
     expect(rendered.html).toContain("Supporting Documents");
     expect(rendered.html).toContain("Submit Bid");
-    expect(rendered.html).toContain("Industrial · Full Appraisal");
+    expect(rendered.text).not.toContain("**Service:**");
+    expect(rendered.html).not.toContain("Industrial · Full Appraisal");
     expect(rendered.html).toContain("https://continentalres.com/vendor/bid-invitations/abc123");
     expect(rendered.text).not.toContain("2026-06-12T16:00:00Z");
     expect(rendered.text).not.toContain("2026-06-20T16:00:00Z");

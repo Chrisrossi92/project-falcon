@@ -262,9 +262,9 @@ describe("VendorAssignmentCandidatesPanel", () => {
     expect(within(dialog).getByText("Email preview")).toBeInTheDocument();
     expect(within(dialog).getByText("Bid request: 12969 Eckel Junction Road")).toBeInTheDocument();
     expect(within(dialog).getByText(/Location: Perrysburg, OH 43551/)).toBeInTheDocument();
-    expect(within(dialog).getByText(/Service: Industrial · Full Appraisal/)).toBeInTheDocument();
     expect(within(dialog).getByText(/Property type: Industrial/)).toBeInTheDocument();
     expect(within(dialog).getByText(/Report type: Full Appraisal/)).toBeInTheDocument();
+    expect(within(dialog).queryByText(/Service: Industrial · Full Appraisal/)).toBeNull();
     expect(within(dialog).getByText(/Assignment Summary/)).toBeInTheDocument();
     expect(within(dialog).getByText(/Requested Timeline/)).toBeInTheDocument();
     expect(within(dialog).getByText(/Client due date: June 24, 2026/)).toBeInTheDocument();

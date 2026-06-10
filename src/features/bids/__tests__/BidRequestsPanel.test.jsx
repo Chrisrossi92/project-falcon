@@ -233,6 +233,30 @@ describe("BidRequestsPanel", () => {
     expect(screen.queryByRole("button", { name: "Select bid for Metro Valuation Group" })).toBeNull();
   });
 
+  it("shows select bid for responded unselected responses after the bid request closes", async () => {
+    bidApiState.listOrderVendorBidRequests.mockResolvedValue([
+      {
+        ...bidRequests[0],
+        status: "closed",
+        recipients: [
+          {
+            ...bidRequests[0].recipients[0],
+            status: "responded",
+            response: {
+              ...bidRequests[0].recipients[0].response,
+              selected_at: null,
+            },
+          },
+        ],
+      },
+    ]);
+
+    render(<BidRequestsPanel orderId="order-1" enabled canSelectResponses />);
+
+    expect(await screen.findByRole("heading", { name: "Bid request" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Select bid for Franklin Commercial Valuation" })).toBeInTheDocument();
+  });
+
   it("hides select bid without select access", async () => {
     bidApiState.listOrderVendorBidRequests.mockResolvedValue(bidRequests);
 

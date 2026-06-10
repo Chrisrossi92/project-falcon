@@ -256,7 +256,6 @@ const TEMPLATE_LABELS: Record<string, { subject: string; body: string }> = {
       "Assignment Summary",
       "**Property:** {property_address}",
       "**Location:** {property_location}",
-      "**Service:** {service_label}",
       "**Property type:** {property_type}",
       "**Report type:** {report_type}",
       "",
@@ -337,7 +336,6 @@ const FIELD_FALLBACKS: Record<string, string> = {
   why_receiving_this: "This request appears to match your coverage and appraisal services.",
   documents_status: "No supporting documents were included with this bid request.",
   bid_invitation_url: "",
-  service_label: "Not provided",
 };
 
 const OPTIONAL_LINE_KEYS = new Set(["workflow_note", "message", "request_message", "coordinator_message", "safe_notes"]);
@@ -454,7 +452,7 @@ function resolvePayloadTimeZone(payload: Record<string, string>) {
     payload.timezone,
     payload.tz,
   ];
-  return candidates.find(isValidTimeZone) || "UTC";
+  return candidates.find(isValidTimeZone) || "America/New_York";
 }
 
 function formatDateTimeInTimeZone(value: string, timeZone: string) {
@@ -609,7 +607,6 @@ function normalizePayload(row: EmailQueueRow, appBaseUrl = "") {
   payload.documents_status = payload.documents_status || "No supporting documents were included with this bid request.";
   payload.property_type = formatServiceLabel(payload.property_type) || payload.property_type;
   payload.report_type = formatServiceLabel(payload.report_type) || payload.report_type;
-  payload.service_label = payload.service_label || [payload.property_type, payload.report_type].filter(Boolean).join(" · ");
 
   const base = appBaseUrl.replace(/\/+$/, "");
   const linkPath = payload.link_path || "";
@@ -735,7 +732,6 @@ function renderVendorBidInvitationHtml(subject: string, payload: Record<string, 
   const actionUrl = payload.bid_invitation_url || "";
   const propertyAddress = detailValue(payload, "property_address");
   const propertyLocation = detailValue(payload, "property_location");
-  const serviceLabel = detailValue(payload, "service_label");
   const coordinatorMessage = payload.coordinator_message || "";
   const documentsStatus = payload.safe_notes || payload.documents_status;
   const timeline = [
@@ -746,7 +742,6 @@ function renderVendorBidInvitationHtml(subject: string, payload: Record<string, 
   const summary = [
     ["Property", propertyAddress],
     ["Location", propertyLocation],
-    ["Service", serviceLabel],
     ["Property type", detailValue(payload, "property_type")],
     ["Report type", detailValue(payload, "report_type")],
   ];

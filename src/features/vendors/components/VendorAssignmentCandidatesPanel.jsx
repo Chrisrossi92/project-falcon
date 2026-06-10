@@ -167,12 +167,11 @@ function buildBidEmailPreview({
   const propertyAddress = safePreviewText(orderSummary.property_address || orderSummary.address);
   const propertyType = formatPreviewServiceLabel(orderSummary.property_type) || safePreviewText(orderSummary.property_type);
   const reportType = formatPreviewServiceLabel(orderSummary.report_type) || safePreviewText(orderSummary.report_type);
-  const serviceLabel = [propertyType, reportType].filter(Boolean).join(" · ") || "Not provided";
   const previewTimeZone = orderSummary.order_time_zone
     || orderSummary.property_time_zone
     || orderSummary.time_zone
     || orderSummary.timezone
-    || Intl.DateTimeFormat().resolvedOptions().timeZone;
+    || "America/New_York";
   const body = [
     `To: ${vendorName}${selectedCandidates.length > 1 ? ` and ${selectedCandidates.length - 1} more` : ""}`,
     "",
@@ -183,7 +182,6 @@ function buildBidEmailPreview({
     "Assignment Summary",
     `Property: ${propertyAddress}`,
     `Location: ${formatPreviewLocation(orderSummary)}`,
-    `Service: ${serviceLabel}`,
     `Property type: ${propertyType}`,
     `Report type: ${reportType}`,
     "",
