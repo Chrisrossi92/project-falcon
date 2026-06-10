@@ -23,6 +23,13 @@ async function edgeFunction(name, body, fallbackError) {
   const { data, error } = await supabase.functions.invoke(name, { body });
 
   if (error) {
+    console.error("[OrderDocumentDownload] Edge Function request failed", {
+      function_name: name,
+      message: error?.message || null,
+      status: error?.context?.status || null,
+      status_text: error?.context?.statusText || null,
+      body_keys: body && typeof body === "object" ? Object.keys(body) : [],
+    });
     const message = await edgeFunctionErrorMessage(error, fallbackError);
     throw new Error(message, { cause: error });
   }

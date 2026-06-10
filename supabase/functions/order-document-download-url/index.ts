@@ -7,6 +7,8 @@ const SUPABASE_SERVICE_ROLE_KEY =
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("SERVICE_ROLE_KEY");
 const SIGNED_URL_TTL_SECONDS = Number(Deno.env.get("ORDER_DOCUMENT_SIGNED_URL_TTL_SECONDS") || "300");
 const APP_ORIGINS = [
+  "https://continentalres.com",
+  "https://www.continentalres.com",
   Deno.env.get("APP_ORIGIN"),
   Deno.env.get("SITE_URL"),
   Deno.env.get("PUBLIC_SITE_URL"),
@@ -53,9 +55,10 @@ function allowedOrigin(req: Request) {
 
   const isLocalDev = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
   const isConfigured = APP_ORIGINS.includes(origin);
+  const isContinentalProduction = /^https:\/\/(www\.)?continentalres\.com$/i.test(origin);
   const isVercelPreview = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin);
 
-  return isLocalDev || isConfigured || isVercelPreview ? origin : "null";
+  return isLocalDev || isConfigured || isContinentalProduction || isVercelPreview ? origin : "null";
 }
 
 function corsHeaders(req: Request) {
@@ -75,8 +78,14 @@ function jsonResponse(req: Request, body: Record<string, unknown>, status = 200)
   });
 }
 
-function errorResponse(req: Request, code: ErrorCode, message: string, status: number) {
-  return jsonResponse(req, { ok: false, code, message }, status);
+function errorResponse(
+  req: Request,
+  code: ErrorCode,
+  message: string,
+  status: number,
+  details: Record<string, unknown> = {},
+) {
+  return jsonResponse(req, { ok: false, code, message, details }, status);
 }
 
 function logSafe(event: string, details: Record<string, unknown> = {}) {
@@ -100,6 +109,22 @@ function safeDownloadName(fileName: string | null | undefined) {
   const fallback = "order-document";
   const cleaned = String(fileName || fallback).replace(/[\r\n"]/g, "").trim();
   return cleaned || fallback;
+}
+
+function safeRpcErrorDetails(error: unknown) {
+  const rpcError = error as {
+    code?: unknown;
+    details?: unknown;
+    hint?: unknown;
+    message?: unknown;
+  };
+
+  return {
+    rpc_code: typeof rpcError?.code === "string" ? rpcError.code : null,
+    rpc_details: typeof rpcError?.details === "string" ? rpcError.details : null,
+    rpc_hint: typeof rpcError?.hint === "string" ? rpcError.hint : null,
+    rpc_message: typeof rpcError?.message === "string" ? rpcError.message : null,
+  };
 }
 
 serve(async (req) => {
@@ -153,7 +178,13 @@ serve(async (req) => {
     });
     const status = /not found/i.test(authorizeError.message) ? 404 : 403;
     const code = status === 404 ? "document_not_found" : "download_not_authorized";
-    return errorResponse(req, code, status === 404 ? "Document not found." : "You cannot download this document.", status);
+    return errorResponse(
+      req,
+      code,
+      status === 404 ? "Document not found." : "You cannot download this document.",
+      status,
+      safeRpcErrorDetails(authorizeError),
+    );
   }
 
   const authorized = Array.isArray(authorizedRows) ? authorizedRows[0] : null;

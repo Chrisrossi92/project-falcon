@@ -75,19 +75,23 @@ describe('Order document download Edge function diagnostics', () => {
       'authorization_failed',
       'storage_object_missing',
       '"The uploaded file is missing from storage."',
+      'safeRpcErrorDetails(authorizeError)',
       'storage_bucket_present',
       'storage_path_present',
     ].forEach((snippet) => {
       expect(edgeSource).toContain(snippet);
     });
 
-    expect(edgeSource).toContain('return jsonResponse(req, { ok: false, code, message }, status)');
+    expect(edgeSource).toContain('return jsonResponse(req, { ok: false, code, message, details }, status)');
     expect(edgeSource).not.toContain('storage_path: documentRow.storage_path');
     expect(edgeSource).not.toContain('storage_bucket: documentRow.storage_bucket');
   });
 
   it('keeps CORS and POST contract compatible with frontend invoke', () => {
     [
+      '"https://continentalres.com"',
+      '"https://www.continentalres.com"',
+      'isContinentalProduction',
       '"Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type"',
       '"Access-Control-Allow-Methods": "POST, OPTIONS"',
       'if (req.method === "OPTIONS")',
