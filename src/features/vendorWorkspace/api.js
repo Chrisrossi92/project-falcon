@@ -58,6 +58,52 @@ const EMPTY_BOOTSTRAP = Object.freeze({
   error: "vendor_workspace_bootstrap_unavailable",
 });
 
+function authCompanyClaims(session) {
+  const appMetadata = session?.user?.app_metadata || {};
+  return {
+    active_company_id: appMetadata.active_company_id || null,
+    current_company_id: appMetadata.current_company_id || null,
+    user_email: session?.user?.email || null,
+  };
+}
+
+async function fetchVendorWorkspacePermissionDiagnostics() {
+  const diagnostics = {
+    current_company_id: null,
+    permission_keys: [],
+    has_vendor_workspace_view: false,
+    context_error: null,
+    permission_error: null,
+  };
+
+  const { data: contextData, error: contextError } = await supabase.rpc("rpc_current_company_context");
+  if (contextError) {
+    diagnostics.context_error = contextError.message || String(contextError);
+  } else {
+    const contextRow = Array.isArray(contextData) ? contextData[0] : contextData;
+    diagnostics.current_company_id = contextRow?.current_company_id || null;
+  }
+
+  const { data: permissionsData, error: permissionsError } = await supabase.rpc(
+    "current_app_user_permission_keys",
+  );
+  if (permissionsError) {
+    diagnostics.permission_error = permissionsError.message || String(permissionsError);
+  } else {
+    diagnostics.permission_keys = Array.isArray(permissionsData) ? permissionsData : [];
+    diagnostics.has_vendor_workspace_view =
+      diagnostics.permission_keys.includes("vendor_workspace.view");
+  }
+
+  return diagnostics;
+}
+
+function vendorWorkspaceBootstrapError(message, diagnostics, cause) {
+  const error = new Error(message, { cause });
+  error.vendorWorkspaceDiagnostics = diagnostics;
+  return error;
+}
+
 async function edgeFunctionErrorMessage(error, fallback) {
   if (!error?.context?.json) return error?.message || fallback;
 
@@ -83,10 +129,25 @@ async function edgeFunction(name, body, fallbackError) {
 }
 
 export async function bootstrapVendorWorkspace() {
+  const debug = {
+    bootstrap: null,
+    set_active_company: null,
+    session_after_refresh: null,
+    permission_reload: null,
+  };
   const { data, error } = await supabase.rpc("rpc_vendor_workspace_bootstrap");
-  if (error) throw error;
+  if (error) {
+    debug.bootstrap = {
+      ok: false,
+      error: error.message || String(error),
+    };
+    console.warn("[VendorWorkspaceBootstrap] bootstrap RPC failed", debug);
+    throw vendorWorkspaceBootstrapError(error.message || "vendor_workspace_bootstrap_failed", debug, error);
+  }
 
   if (!data || typeof data !== "object") {
+    debug.bootstrap = EMPTY_BOOTSTRAP;
+    console.warn("[VendorWorkspaceBootstrap] bootstrap RPC returned empty response", debug);
     return EMPTY_BOOTSTRAP;
   }
 
@@ -100,34 +161,73 @@ export async function bootstrapVendorWorkspace() {
     relationship_id: data.relationship_id || null,
     membership_id: data.membership_id || null,
     role_assignment_id: data.role_assignment_id || null,
+    role_id: data.role_id || null,
+    role_name: data.role_name || null,
     contact_linked: data.contact_linked === true,
     permission_keys: Array.isArray(data.permission_keys) ? data.permission_keys : [],
     has_vendor_workspace_view: data.has_vendor_workspace_view === true,
     diagnostics: data.diagnostics && typeof data.diagnostics === "object" ? data.diagnostics : null,
   };
+  debug.bootstrap = result;
+  console.info("[VendorWorkspaceBootstrap] bootstrap RPC response", {
+    vendor_company_id: result.vendor_company_id,
+    vendor_company_name: result.vendor_company_name,
+    membership_id: result.membership_id,
+    role_assignment_id: result.role_assignment_id,
+    role_id: result.role_id,
+    role_name: result.role_name,
+    has_vendor_workspace_view: result.has_vendor_workspace_view,
+    error: result.error,
+    diagnostics: result.diagnostics,
+  });
 
   if (result.ok && result.vendor_company_id) {
+    const switchPayload = {
+      company_id: result.vendor_company_id,
+      reason: "vendor_workspace_bootstrap",
+      request_id: `vendor-workspace-bootstrap-${result.vendor_company_id}`,
+    };
     const { data: switchData, error: switchError } = await supabase.functions.invoke(
       "set-active-company",
       {
-        body: {
-          company_id: result.vendor_company_id,
-          reason: "vendor_workspace_bootstrap",
-          request_id: `vendor-workspace-bootstrap-${result.vendor_company_id}`,
-        },
+        body: switchPayload,
       },
     );
+    debug.set_active_company = {
+      active_company_id_sent: result.vendor_company_id,
+      payload: switchPayload,
+      response: switchData || null,
+      error: switchError?.message || null,
+    };
+    console.info("[VendorWorkspaceBootstrap] set-active-company response", debug.set_active_company);
 
     if (switchError || switchData?.ok === false) {
-      throw switchError || new Error(switchData?.code || "vendor_workspace_company_switch_failed");
+      throw vendorWorkspaceBootstrapError(
+        switchError?.message || switchData?.code || "vendor_workspace_company_switch_failed",
+        debug,
+        switchError,
+      );
     }
 
     if (switchData?.session_refresh_required) {
       await supabase.auth.refreshSession();
     }
+
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    debug.session_after_refresh = {
+      ...authCompanyClaims(sessionData?.session),
+      error: sessionError?.message || null,
+    };
+    console.info("[VendorWorkspaceBootstrap] session after refresh", debug.session_after_refresh);
+
+    debug.permission_reload = await fetchVendorWorkspacePermissionDiagnostics();
+    console.info("[VendorWorkspaceBootstrap] permission context after refresh", debug.permission_reload);
   }
 
-  return result;
+  return {
+    ...result,
+    debug,
+  };
 }
 
 export async function fetchVendorWorkspaceDashboardSummary() {

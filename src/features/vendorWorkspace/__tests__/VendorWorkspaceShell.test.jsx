@@ -2712,6 +2712,47 @@ describe("Vendor Workspace hidden shell", () => {
     expect(await screen.findByRole("heading", { name: "Vendor Workspace" })).toBeInTheDocument();
   });
 
+  it("shows unavailable state when vendor bootstrap cannot switch active company", async () => {
+    const error = new Error("Function not found");
+    error.vendorWorkspaceDiagnostics = {
+      bootstrap: {
+        ok: true,
+        vendor_company_id: "acme-company-id",
+        vendor_company_name: "Acme Appraisal",
+        membership_id: "membership-id",
+        role_assignment_id: "role-assignment-id",
+        has_vendor_workspace_view: true,
+      },
+      set_active_company: {
+        active_company_id_sent: "acme-company-id",
+        response: null,
+        error: "Function not found",
+      },
+      session_after_refresh: {
+        active_company_id: "continental-company-id",
+        user_email: "chris@therossicompany.com",
+      },
+      permission_reload: {
+        current_company_id: "continental-company-id",
+        permission_keys: [],
+        has_vendor_workspace_view: false,
+      },
+    };
+    apiMock.bootstrapVendorWorkspace.mockRejectedValue(error);
+    permissionState.allowed = new Set();
+
+    renderVendorWorkspace();
+
+    expect(await screen.findByText("Vendor Workspace unavailable")).toBeInTheDocument();
+    expect(screen.getByText("Vendor Workspace diagnostics")).toBeInTheDocument();
+    expect(screen.getAllByText("acme-company-id").length).toBeGreaterThan(0);
+    expect(screen.getByText("Acme Appraisal")).toBeInTheDocument();
+    expect(screen.getAllByText("Function not found").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("continental-company-id").length).toBeGreaterThan(0);
+    expect(screen.getByText("chris@therossicompany.com")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Vendor Workspace" })).toBeNull();
+  });
+
   it("requires vendor_workspace.view without redirecting unauthorized users into /dashboard", async () => {
     permissionState.allowed = new Set();
 

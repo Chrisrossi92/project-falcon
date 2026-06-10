@@ -34,6 +34,7 @@ type ErrorCode =
 
 type RequestBody = {
   company_id?: unknown;
+  active_company_id?: unknown;
   reason?: unknown;
   request_id?: unknown;
 };
@@ -101,11 +102,13 @@ serve(async (req) => {
     return errorResponse("invalid_company_id", "A valid company id is required.", 400);
   }
 
-  if (!isUuid(body.company_id)) {
+  const requestedCompanyId = body.company_id ?? body.active_company_id;
+
+  if (!isUuid(requestedCompanyId)) {
     return errorResponse("invalid_company_id", "A valid company id is required.", 400);
   }
 
-  const companyId = body.company_id.trim().toLowerCase();
+  const companyId = requestedCompanyId.trim().toLowerCase();
   const reason = optionalText(body.reason, 240);
   const requestId = optionalText(body.request_id, 120);
 

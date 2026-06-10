@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const rpcMock = vi.hoisted(() => vi.fn());
 const functionsInvokeMock = vi.hoisted(() => vi.fn());
 const refreshSessionMock = vi.hoisted(() => vi.fn());
+const getSessionMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/supabaseClient", () => ({
   default: {
@@ -15,6 +16,7 @@ vi.mock("@/lib/supabaseClient", () => ({
     },
     auth: {
       refreshSession: refreshSessionMock,
+      getSession: getSessionMock,
     },
   },
 }));
@@ -55,6 +57,20 @@ describe("vendorWorkspace api", () => {
     rpcMock.mockReset();
     functionsInvokeMock.mockReset();
     refreshSessionMock.mockReset();
+    getSessionMock.mockReset();
+    getSessionMock.mockResolvedValue({
+      data: {
+        session: {
+          user: {
+            email: "vendor@example.com",
+            app_metadata: {
+              active_company_id: "vendor-company-id",
+            },
+          },
+        },
+      },
+      error: null,
+    });
   });
 
   it("bootstraps authenticated vendor workspace access and switches to the vendor company context", async () => {
@@ -72,17 +88,52 @@ describe("vendorWorkspace api", () => {
       has_vendor_workspace_view: true,
       diagnostics: { matched_vendor_contact: true },
     };
-    rpcMock.mockResolvedValue({ data: response, error: null });
+    rpcMock.mockImplementation((functionName) => {
+      if (functionName === "rpc_vendor_workspace_bootstrap") {
+        return Promise.resolve({ data: response, error: null });
+      }
+      if (functionName === "rpc_current_company_context") {
+        return Promise.resolve({
+          data: { current_company_id: "vendor-company-id" },
+          error: null,
+        });
+      }
+      if (functionName === "current_app_user_permission_keys") {
+        return Promise.resolve({ data: ["vendor_workspace.view"], error: null });
+      }
+      return Promise.resolve({ data: null, error: null });
+    });
     functionsInvokeMock.mockResolvedValue({
       data: { ok: true, session_refresh_required: true },
       error: null,
     });
     refreshSessionMock.mockResolvedValue({ data: {}, error: null });
 
-    await expect(bootstrapVendorWorkspace()).resolves.toEqual({
-      ...response,
-      error: null,
-    });
+    await expect(bootstrapVendorWorkspace()).resolves.toEqual(
+      expect.objectContaining({
+        ...response,
+        error: null,
+        debug: expect.objectContaining({
+          bootstrap: expect.objectContaining({
+            vendor_company_id: "vendor-company-id",
+            membership_id: "membership-id",
+            has_vendor_workspace_view: true,
+          }),
+          set_active_company: expect.objectContaining({
+            active_company_id_sent: "vendor-company-id",
+            response: { ok: true, session_refresh_required: true },
+          }),
+          session_after_refresh: expect.objectContaining({
+            active_company_id: "vendor-company-id",
+            user_email: "vendor@example.com",
+          }),
+          permission_reload: expect.objectContaining({
+            current_company_id: "vendor-company-id",
+            has_vendor_workspace_view: true,
+          }),
+        }),
+      }),
+    );
     expect(rpcMock).toHaveBeenCalledWith("rpc_vendor_workspace_bootstrap");
     expect(functionsInvokeMock).toHaveBeenCalledWith("set-active-company", {
       body: {
@@ -92,6 +143,9 @@ describe("vendorWorkspace api", () => {
       },
     });
     expect(refreshSessionMock).toHaveBeenCalled();
+    expect(getSessionMock).toHaveBeenCalled();
+    expect(rpcMock).toHaveBeenCalledWith("rpc_current_company_context");
+    expect(rpcMock).toHaveBeenCalledWith("current_app_user_permission_keys");
   });
 
   it("normalizes missing vendor workspace bootstrap responses to a denied shape", async () => {
@@ -124,6 +178,34 @@ describe("vendorWorkspace api", () => {
     });
 
     await expect(bootstrapVendorWorkspace()).rejects.toThrow("company_membership_required");
+  });
+
+  it("propagates missing set-active-company function errors for graceful route denial", async () => {
+    rpcMock.mockResolvedValue({
+      data: {
+        ok: true,
+        vendor_company_id: "vendor-company-id",
+      },
+      error: null,
+    });
+    functionsInvokeMock.mockResolvedValue({
+      data: null,
+      error: new Error("Function not found"),
+    });
+
+    await expect(bootstrapVendorWorkspace()).rejects.toMatchObject({
+      message: "Function not found",
+      vendorWorkspaceDiagnostics: expect.objectContaining({
+        bootstrap: expect.objectContaining({
+          vendor_company_id: "vendor-company-id",
+        }),
+        set_active_company: expect.objectContaining({
+          active_company_id_sent: "vendor-company-id",
+          error: "Function not found",
+        }),
+      }),
+    });
+    expect(refreshSessionMock).not.toHaveBeenCalled();
   });
 
   it("loads dashboard summary through the vendor-scoped RPC", async () => {
