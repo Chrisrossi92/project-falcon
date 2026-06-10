@@ -26,6 +26,12 @@ const permissionState = vi.hoisted(() => ({
   reload: vi.fn(),
 }));
 
+const supabaseMock = vi.hoisted(() => ({
+  auth: {
+    signOut: vi.fn(),
+  },
+}));
+
 const apiMock = vi.hoisted(() => ({
   bootstrapVendorWorkspace: vi.fn(),
   createVendorWorkspaceAssignmentDocumentDownloadUrl: vi.fn(),
@@ -76,6 +82,10 @@ vi.mock("@/lib/hooks/usePermissions", () => ({
       permissionKeys.every((permissionKey) => permissionState.allowed.has(permissionKey)),
     reload: permissionState.reload,
   }),
+}));
+
+vi.mock("@/lib/supabaseClient", () => ({
+  default: supabaseMock,
 }));
 
 vi.mock("@/features/vendorWorkspace/api.js", () => apiMock);
@@ -1013,8 +1023,10 @@ function renderVendorRouteIsolation(path) {
 describe("Vendor Workspace hidden shell", () => {
   beforeEach(() => {
     vi.spyOn(window, "open").mockImplementation(() => null);
-    sessionState.user = { id: "vendor-user-1" };
+    sessionState.user = { id: "vendor-user-1", email: "chris@therossicompany.com" };
     sessionState.isLoading = false;
+    supabaseMock.auth.signOut.mockReset();
+    supabaseMock.auth.signOut.mockResolvedValue({ error: null });
     permissionState.allowed = new Set([VENDOR_WORKSPACE_VIEW]);
     permissionState.loading = false;
     permissionState.error = null;
@@ -1234,6 +1246,20 @@ describe("Vendor Workspace hidden shell", () => {
     expect(screen.getByText("Needs Attention")).toBeInTheDocument();
     expect(container.querySelector('[data-testid="operations-mode-switcher"]')).toBeNull();
     expect(screen.queryByText("Operations Command")).toBeNull();
+  });
+
+  it("shows the signed-in vendor email and signs out from the Vendor Workspace shell", async () => {
+    renderVendorWorkspace("/vendor-workspace/assigned-orders");
+
+    expect(await screen.findByRole("heading", { name: "Assigned Orders" })).toBeInTheDocument();
+    expect(screen.getByText("chris@therossicompany.com")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Sign Out" }));
+
+    await waitFor(() => {
+      expect(supabaseMock.auth.signOut).toHaveBeenCalledTimes(1);
+      expect(screen.getByTestId("location")).toHaveTextContent("/login");
+    });
   });
 
   it("renders dashboard counts and safe action summary fields", async () => {
