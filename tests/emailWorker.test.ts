@@ -200,16 +200,31 @@ describe("email queue worker", () => {
     );
 
     expect(rendered.subject).toBe("Bid request: 12969 Eckel Junction Road");
+    expect(rendered.text).toContain("Bid Request");
+    expect(rendered.text).toContain("Assignment Summary");
+    expect(rendered.text).toContain("Requested Timeline");
+    expect(rendered.text).toContain("Message from Coordinator");
+    expect(rendered.text).toContain("Why You're Receiving This");
+    expect(rendered.text).toContain("Supporting Documents");
     expect(rendered.text).toContain("You have been invited to bid on this appraisal assignment.");
     expect(rendered.text).toContain("**Location:** Perrysburg, OH, 43551");
-    expect(rendered.text).toContain("**Report:** Full Appraisal");
+    expect(rendered.text).toContain("**Report type:** Full Appraisal");
     expect(rendered.text).toContain("**Property type:** Industrial");
+    expect(rendered.text).toContain("**Client due date:** June 24, 2026");
+    expect(rendered.text).toContain("**Vendor due date:** June 20, 2026");
+    expect(rendered.text).toContain("**Response deadline:** June 12, 2026 at 4:00 PM UTC");
     expect(rendered.text).toContain("Please provide fee and turn time.");
     expect(rendered.text).toContain("Use the secure link for questions and bid response details.");
+    expect(rendered.text).toContain("This request appears to match your coverage and appraisal services.");
     expect(rendered.text).toContain("https://continentalres.com/vendor/bid-invitations/abc123");
-    expect(rendered.html).toContain("Bid packet summary");
-    expect(rendered.html).toContain("Open Bid Request");
+    expect(rendered.html).toContain("Assignment Summary");
+    expect(rendered.html).toContain("Why You&rsquo;re Receiving This");
+    expect(rendered.html).toContain("Supporting Documents");
+    expect(rendered.html).toContain("Submit Bid");
     expect(rendered.html).toContain("https://continentalres.com/vendor/bid-invitations/abc123");
+    expect(rendered.text).not.toContain("2026-06-12T16:00:00Z");
+    expect(rendered.text).not.toContain("2026-06-20T16:00:00Z");
+    expect(rendered.text).not.toContain("2026-06-24T16:00:00Z");
     expect(rendered.text).not.toContain("9999");
     expect(rendered.text).not.toContain("Do not render");
     expect(rendered.html).not.toContain("9999");
@@ -217,27 +232,32 @@ describe("email queue worker", () => {
   });
 
   it("renders useful vendor bid content through generic fallback when template is unavailable", () => {
-    const rendered = renderEmailQueueRow({
-      id: "email-vendor-bid-fallback",
-      to_email: "bids@acmeappraisal.com",
-      subject: "Bid request: 12969 Eckel Junction Road",
-      template: "legacy_vendor_bid_invitation",
-      payload: {
-        message: [
-          "You have been invited to bid on this appraisal assignment.",
-          "Please provide fee and turn time.",
-          "Property: 12969 Eckel Junction Road",
-          "Location: Perrysburg, OH 43551",
-          "Open the secure bid invitation:",
-          "/vendor/bid-invitations/abc123",
-        ].join("\n"),
+    const rendered = renderEmailQueueRow(
+      {
+        id: "email-vendor-bid-fallback",
+        to_email: "bids@acmeappraisal.com",
+        subject: "Bid request: 12969 Eckel Junction Road",
+        template: "legacy_vendor_bid_invitation",
+        payload: {
+          bid_invitation_path: "/vendor/bid-invitations/abc123",
+          message: [
+            "You have been invited to bid on this appraisal assignment.",
+            "Please provide fee and turn time.",
+            "Property: 12969 Eckel Junction Road",
+            "Location: Perrysburg, OH 43551",
+          ].join("\n"),
+        },
       },
-    });
+      "https://continentalres.com",
+    );
 
     expect(rendered.subject).toBe("Bid request: 12969 Eckel Junction Road");
     expect(rendered.text).toContain("Please provide fee and turn time.");
     expect(rendered.text).toContain("Property: 12969 Eckel Junction Road");
+    expect(rendered.text).toContain("[Submit Bid](https://continentalres.com/vendor/bid-invitations/abc123)");
+    expect(rendered.text).not.toContain("\n/vendor/bid-invitations/abc123");
     expect(rendered.html).toContain("Perrysburg, OH 43551");
+    expect(rendered.html).toContain("https://continentalres.com/vendor/bid-invitations/abc123");
     expect(rendered.html).not.toContain("undefined");
   });
 

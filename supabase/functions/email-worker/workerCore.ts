@@ -249,21 +249,33 @@ const TEMPLATE_LABELS: Record<string, { subject: string; body: string }> = {
   VENDOR_BID_INVITATION: {
     subject: "Bid request: {property_address}",
     body: [
+      "Bid Request",
+      "",
       "You have been invited to bid on this appraisal assignment.",
       "",
-      "{coordinator_message}",
-      "",
+      "Assignment Summary",
       "**Property:** {property_address}",
       "**Location:** {property_location}",
-      "**Report:** {report_type}",
       "**Property type:** {property_type}",
-      "**Response due:** {response_due_at}",
-      "**Vendor report due:** {desired_vendor_due_at}",
-      "**Client due:** {client_due_at}",
+      "**Report type:** {report_type}",
       "",
+      "Requested Timeline",
+      "**Client due date:** {client_due_at}",
+      "**Vendor due date:** {desired_vendor_due_at}",
+      "**Response deadline:** {response_due_at}",
+      "",
+      "Message from Coordinator",
+      "{coordinator_message}",
+      "",
+      "Why You're Receiving This",
+      "{why_receiving_this}",
+      "",
+      "Supporting Documents",
       "{safe_notes}",
+      "{documents_status}",
       "",
-      "[Open Bid Request]({bid_invitation_url})",
+      "Submit Bid",
+      "[Submit Bid]({bid_invitation_url})",
     ].join("\n"),
   },
 };
@@ -321,11 +333,15 @@ const FIELD_FALLBACKS: Record<string, string> = {
   request_message: "",
   coordinator_message: "",
   safe_notes: "",
+  why_receiving_this: "This request appears to match your coverage and appraisal services.",
+  documents_status: "No supporting documents were included with this bid request.",
   bid_invitation_url: "",
 };
 
 const OPTIONAL_LINE_KEYS = new Set(["workflow_note", "message", "request_message", "coordinator_message", "safe_notes"]);
-const DATE_ONLY_KEYS = new Set(["review_due_at", "final_due_at", "due_date", "response_due_at", "desired_vendor_due_at", "client_due_at"]);
+const DATE_ONLY_KEYS = new Set(["review_due_at", "final_due_at", "due_date"]);
+const SHORT_DATE_ONLY_KEYS = new Set(["desired_vendor_due_at", "client_due_at"]);
+const DATE_TIME_WITH_ZONE_KEYS = new Set(["response_due_at"]);
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -385,6 +401,20 @@ function formatDateOnly(value: string) {
   }).format(date);
 }
 
+function formatShortDateOnly(value: string) {
+  const parts = parseDateParts(value);
+  const date = parts
+    ? new Date(Date.UTC(parts.year, parts.month - 1, parts.day))
+    : new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date);
+}
+
 function formatSiteVisitAt(value: string) {
   const trimmed = String(value || "").trim();
   if (!trimmed) return "";
@@ -403,10 +433,36 @@ function formatSiteVisitAt(value: string) {
   return `${datePart} at ${timePart}`;
 }
 
+function formatDateTimeWithZone(value: string) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return "";
+  const normalized = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(trimmed) && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(trimmed)
+    ? `${trimmed}Z`
+    : trimmed;
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "UTC",
+    timeZoneName: "short",
+  }).format(date);
+}
+
 function normalizeDateFields(payload: Record<string, string>) {
   if (payload.site_visit_at) payload.site_visit_at = formatSiteVisitAt(payload.site_visit_at);
   for (const key of DATE_ONLY_KEYS) {
     if (payload[key]) payload[key] = formatDateOnly(payload[key]);
+  }
+  for (const key of SHORT_DATE_ONLY_KEYS) {
+    if (payload[key]) payload[key] = formatShortDateOnly(payload[key]);
+  }
+  for (const key of DATE_TIME_WITH_ZONE_KEYS) {
+    if (payload[key]) payload[key] = formatDateTimeWithZone(payload[key]);
   }
 }
 
@@ -487,6 +543,8 @@ function normalizePayload(row: EmailQueueRow, appBaseUrl = "") {
   payload.access_change_summary = payload.access_change_summary || payload.change_summary || "";
   payload.coordinator_message = payload.coordinator_message || payload.request_message || "";
   payload.safe_notes = payload.safe_notes || payload.special_instructions_safe || "";
+  payload.why_receiving_this = payload.why_receiving_this || "This request appears to match your coverage and appraisal services.";
+  payload.documents_status = payload.documents_status || "No supporting documents were included with this bid request.";
 
   const base = appBaseUrl.replace(/\/+$/, "");
   const linkPath = payload.link_path || "";
@@ -588,11 +646,11 @@ function detailsForTemplate(templateName: string, payload: Record<string, string
   const vendorBidInvitation = [
     ["Property", "property_address"],
     ["Location", "property_location"],
-    ["Report", "report_type"],
     ["Property type", "property_type"],
-    ["Response due", "response_due_at"],
-    ["Vendor report due", "desired_vendor_due_at"],
-    ["Client due", "client_due_at"],
+    ["Report type", "report_type"],
+    ["Client due date", "client_due_at"],
+    ["Vendor due date", "desired_vendor_due_at"],
+    ["Response deadline", "response_due_at"],
   ];
 
   const fields = templateName === "APPRAISER_ASSIGNED"
@@ -615,13 +673,13 @@ function renderFalconEmailHtml(templateName: string, subject: string, text: stri
     ? payload.bid_invitation_url || ""
     : payload.order_url || "";
   const eyebrow = templateName === "VENDOR_BID_INVITATION" ? "Bid invitation" : "Order notification";
-  const detailTitle = templateName === "VENDOR_BID_INVITATION" ? "Bid packet summary" : "Order summary";
-  const actionLabel = templateName === "VENDOR_BID_INVITATION" ? "Open Bid Request" : "Open Order";
+  const detailTitle = templateName === "VENDOR_BID_INVITATION" ? "Assignment Summary" : "Order summary";
+  const actionLabel = templateName === "VENDOR_BID_INVITATION" ? "Submit Bid" : "Open Order";
   const intro = text.split("\n").find((line) => line.trim() && !line.startsWith("**")) || "";
   const supportingMessage = templateName === "NOTE_ADDRESSED"
     ? payload.note_preview
     : templateName === "VENDOR_BID_INVITATION"
-      ? payload.coordinator_message || payload.safe_notes || ""
+      ? payload.coordinator_message || ""
       : payload.workflow_note || "";
   const detailRows: string[] = [];
   for (let index = 0; index < details.length; index += 2) {
@@ -662,6 +720,14 @@ function renderFalconEmailHtml(templateName: string, subject: string, text: stri
                   ${detailRows.join("")}
                 </table>
                 ${supportingMessage ? `<p style="margin:20px 0 0;padding:14px 16px;background:#f8fafc;border-left:3px solid #2563eb;font-size:15px;line-height:24px;color:#334155;">${escapeHtml(supportingMessage)}</p>` : ""}
+                ${templateName === "VENDOR_BID_INVITATION" ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:18px;border:1px solid #e5e7eb;border-radius:8px;border-collapse:separate;overflow:hidden;background:#ffffff;">
+                  <tr><td style="padding:14px 16px;background:#f8fafc;font-size:16px;line-height:22px;font-weight:700;color:#0f172a;">Why You&rsquo;re Receiving This</td></tr>
+                  <tr><td style="padding:14px 16px;border-top:1px solid #e5e7eb;font-size:15px;line-height:24px;color:#334155;">${escapeHtml(payload.why_receiving_this)}</td></tr>
+                </table>
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:18px;border:1px solid #e5e7eb;border-radius:8px;border-collapse:separate;overflow:hidden;background:#ffffff;">
+                  <tr><td style="padding:14px 16px;background:#f8fafc;font-size:16px;line-height:22px;font-weight:700;color:#0f172a;">Supporting Documents</td></tr>
+                  <tr><td style="padding:14px 16px;border-top:1px solid #e5e7eb;font-size:15px;line-height:24px;color:#334155;">${escapeHtml(payload.safe_notes || payload.documents_status)}</td></tr>
+                </table>` : ""}
                 ${templateName === "APPRAISER_ASSIGNED" ? `<p style="margin:20px 0 0;font-size:15px;line-height:24px;color:#334155;">Please coordinate access with the contact above and let us know if you have any questions.</p>` : ""}
                 ${actionUrl ? `<table role="presentation" cellspacing="0" cellpadding="0" style="margin-top:24px;"><tr><td style="border-radius:6px;background:#2563eb;"><a href="${escapeHtml(actionUrl)}" style="display:inline-block;padding:12px 18px;color:#ffffff;text-decoration:none;font-size:15px;line-height:20px;font-weight:700;">${escapeHtml(actionLabel)}</a></td></tr></table>` : ""}
               </td>
@@ -704,7 +770,9 @@ export function renderEmailQueueRow(row: EmailQueueRow, appBaseUrl = "") {
 
   const subject = row.subject || "Falcon notification";
   const message = payload.message || payload.body || subject;
-  const link = payload.order_url ? `\n\n[Open in Falcon](${payload.order_url})` : "";
+  const fallbackUrl = payload.bid_invitation_url || payload.order_url || "";
+  const fallbackLabel = payload.bid_invitation_url ? "Submit Bid" : "Open in Falcon";
+  const link = fallbackUrl ? `\n\n[${fallbackLabel}](${fallbackUrl})` : "";
   const text = `${message}${link}`;
   return { subject, html: markdownToHtml(text), text };
 }

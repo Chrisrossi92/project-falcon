@@ -4,12 +4,12 @@ import { describe, expect, it } from "vitest";
 
 const migrationPath = path.resolve(
   process.cwd(),
-  "supabase/migrations/20260609130000_amc_vendor_bid_email_content_alignment.sql",
+  "supabase/migrations/20260609140000_amc_vendor_bid_email_experience_alignment.sql",
 );
 const migrationSql = fs.readFileSync(migrationPath, "utf8");
 const normalizedSql = migrationSql.replace(/\s+/g, " ").toLowerCase();
 
-describe("AMC-11B vendor bid email content alignment migration", () => {
+describe("AMC-11C vendor bid email experience alignment migration", () => {
   it("recreates the bid request create RPC and preserves grants", () => {
     expect(migrationSql).toContain("create or replace function public.rpc_order_vendor_bid_request_create");
     expect(migrationSql).toContain("revoke all on function public.rpc_order_vendor_bid_request_create(uuid, jsonb) from public, anon");
@@ -38,8 +38,14 @@ describe("AMC-11B vendor bid email content alignment migration", () => {
     expect(migrationSql).toContain("'desired_vendor_due_at'");
     expect(migrationSql).toContain("'request_message'");
     expect(migrationSql).toContain("'coordinator_message'");
+    expect(migrationSql).toContain("'why_receiving_this'");
     expect(migrationSql).toContain("'safe_notes'");
     expect(migrationSql).toContain("'documents_status'");
+    expect(migrationSql).toContain("No supporting documents were included with this bid request.");
+    expect(migrationSql).toContain("This request appears to match your coverage and appraisal services.");
+    expect(migrationSql).toContain("FMMonth FMDD, YYYY");
+    expect(migrationSql).toContain("FMMonth FMDD, YYYY \"at\" FMHH12:MI AM \"UTC\"");
+    expect(normalizedSql).not.toContain("v_invitation_path, '', 'please submit");
     expect(normalizedSql).not.toContain("insert into public.order_company_assignments");
     expect(normalizedSql).not.toContain("update public.orders");
     expect(normalizedSql).not.toContain("'base_fee'");

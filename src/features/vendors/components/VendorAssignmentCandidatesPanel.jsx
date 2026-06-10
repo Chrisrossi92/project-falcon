@@ -74,14 +74,29 @@ function toIsoDateOnlyOrDateTime(value) {
   return toIsoDateTime(value);
 }
 
-function formatPreviewDate(value) {
+function formatPreviewDateOnly(value) {
   if (!value) return "Not set";
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return "Not set";
   return new Intl.DateTimeFormat("en-US", {
-    month: "short",
+    month: "long",
     day: "numeric",
     year: "numeric",
+  }).format(parsed);
+}
+
+function formatPreviewDeadline(value) {
+  if (!value) return "Not set";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "Not set";
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZoneName: "short",
   }).format(parsed);
 }
 
@@ -110,21 +125,32 @@ function buildBidEmailPreview({
   const body = [
     `To: ${vendorName}${selectedCandidates.length > 1 ? ` and ${selectedCandidates.length - 1} more` : ""}`,
     "",
-    "You have been invited to bid on this appraisal assignment.",
-    message.trim(),
+    "Bid Request",
     "",
+    "You have been invited to bid on this appraisal assignment.",
+    "",
+    "Assignment Summary",
     `Property: ${propertyAddress}`,
     `Location: ${formatPreviewLocation(orderSummary)}`,
     `Property type: ${safePreviewText(orderSummary.property_type)}`,
     `Report type: ${safePreviewText(orderSummary.report_type)}`,
-    `Client due: ${formatPreviewDate(clientDueAt || orderSummary.client_due_at || orderSummary.final_due_at || orderSummary.due_date)}`,
-    `Vendor due: ${formatPreviewDate(desiredVendorDueAt)}`,
-    `Response due: ${formatPreviewDate(responseDueAt)}`,
     "",
-    "Open the secure bid invitation:",
+    "Requested Timeline",
+    `Client due date: ${formatPreviewDateOnly(clientDueAt || orderSummary.client_due_at || orderSummary.final_due_at || orderSummary.due_date)}`,
+    `Vendor due date: ${formatPreviewDateOnly(desiredVendorDueAt)}`,
+    `Response deadline: ${formatPreviewDeadline(responseDueAt)}`,
+    "",
+    "Message from Coordinator",
+    message.trim() || "No coordinator message provided.",
+    "",
+    "Why You're Receiving This",
+    "This request appears to match your coverage and appraisal services.",
+    "",
+    "Supporting Documents",
+    "No supporting documents were included with this bid request.",
+    "",
+    "Submit Bid",
     "[secure vendor bid link generated at send time]",
-    "",
-    "Bid documents can be added to this packet in a future release.",
   ].filter((line) => line !== "").join("\n");
 
   return {

@@ -264,7 +264,15 @@ describe("VendorAssignmentCandidatesPanel", () => {
     expect(within(dialog).getByText(/Location: Perrysburg, OH 43551/)).toBeInTheDocument();
     expect(within(dialog).getByText(/Property type: Industrial/)).toBeInTheDocument();
     expect(within(dialog).getByText(/Report type: Full Appraisal/)).toBeInTheDocument();
-    expect(within(dialog).getByText(/Client due: Jun 24, 2026/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Assignment Summary/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Requested Timeline/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Client due date: June 24, 2026/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Message from Coordinator/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Why You're Receiving This/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/This request appears to match your coverage and appraisal services./)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Supporting Documents/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/No supporting documents were included with this bid request./)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Submit Bid/)).toBeInTheDocument();
     expect(within(dialog).getByText(/\[secure vendor bid link generated at send time\]/i)).toBeInTheDocument();
     fireEvent.change(within(dialog).getByLabelText("Coordinator message to vendors"), {
       target: { value: "Please provide fee and turn time." },
