@@ -3,50 +3,56 @@ import { resolve } from "node:path";
 
 import { createClient } from "@supabase/supabase-js";
 
-const STAGING_REF = "voompccpkjfcsmehdoqu";
-const PRODUCTION_PROJECT_REFS = new Set(
-  (process.env.AMC_PRODUCTION_PROJECT_REFS || "okwqhkrsjgxrhyisaovc")
-    .split(",")
-    .map((value) => value.trim())
-    .filter(Boolean),
-);
+import {
+  AMC_STAGING_REF as STAGING_REF,
+  invalidStagingEnv,
+  loadStagingEnvFile,
+  productionRefs,
+  projectRefFromUrl,
+} from "./lib/amc-staging-env.mjs";
 
+loadStagingEnvFile();
 const stagingRef = process.env.AMC_STAGING_PROJECT_REF || "";
 const supabaseUrl = process.env.AMC_STAGING_SUPABASE_URL || "";
 const serviceRoleKey = process.env.AMC_STAGING_SUPABASE_SERVICE_ROLE_KEY || "";
 const anonKey = process.env.AMC_STAGING_SUPABASE_ANON_KEY || "";
 const artifactDir = process.env.AMC_SMOKE_ARTIFACT_DIR || "/private/tmp/project-falcon-amc-smoke";
 
-const PASSWORD = "FalconSmoke123!";
-const OWNER_EMAIL = "amc.smoke.owner+staging@example.test";
-const VENDOR_EMAIL = "amc.smoke.vendor+staging@example.test";
-const WRONG_VENDOR_EMAIL = "amc.smoke.wrongvendor+staging@example.test";
+const PASSWORD = process.env.AMC_STAGING_SMOKE_PASSWORD || "FalconSmoke123!";
+const OWNER_EMAIL = process.env.AMC_STAGING_SMOKE_OWNER_EMAIL || "amc.smoke.owner+staging@example.test";
+const VENDOR_EMAIL = process.env.AMC_STAGING_SMOKE_VENDOR_EMAIL || "amc.smoke.vendor+staging@example.test";
+const WRONG_VENDOR_EMAIL =
+  process.env.AMC_STAGING_SMOKE_WRONG_VENDOR_EMAIL || "amc.smoke.wrongvendor+staging@example.test";
 const ORDER_NUMBER = "AMC-STAGING-SMOKE-001";
+const SMOKE_LABEL = "AMC SMOKE - DO NOT USE";
 
 function usage() {
   console.error(`AMC staging fixture loader requires explicit staging-only environment variables:
 
   AMC_STAGING_PROJECT_REF=${STAGING_REF}
   AMC_STAGING_SUPABASE_URL=https://${STAGING_REF}.supabase.co
-  AMC_STAGING_SUPABASE_SERVICE_ROLE_KEY=<staging-service-role-key>
-  AMC_STAGING_SUPABASE_ANON_KEY=<staging-anon-key>
+  AMC_STAGING_SUPABASE_SERVICE_ROLE_KEY=<staging-service-role-or-secret-key>
+  AMC_STAGING_SUPABASE_ANON_KEY=<staging-anon-or-publishable-key>
 
 Optional:
   AMC_PRODUCTION_PROJECT_REFS=comma,separated,refs,to,refuse
   AMC_SMOKE_ARTIFACT_DIR=/private/tmp/project-falcon-amc-smoke
-`);
+  AMC_STAGING_SMOKE_OWNER_EMAIL=amc.smoke.owner+staging@example.test
+  AMC_STAGING_SMOKE_VENDOR_EMAIL=amc.smoke.vendor+staging@example.test
+  AMC_STAGING_SMOKE_WRONG_VENDOR_EMAIL=amc.smoke.wrongvendor+staging@example.test
+  AMC_STAGING_SMOKE_PASSWORD=FalconSmoke123!
+  `);
 }
 
-function projectRefFromUrl(url) {
-  try {
-    return new URL(url).host.split(".")[0] || "";
-  } catch {
-    return "";
+function assertDisposableEmail(name, email) {
+  if (!/@(example\.test|example\.com|test\.local)$/i.test(email)) {
+    console.error(`Refusing fixture load: ${name} must use a disposable test email domain.`);
+    process.exit(2);
   }
 }
 
 function assertStagingTarget() {
-  if (!stagingRef || !supabaseUrl || !serviceRoleKey || !anonKey) {
+  if (invalidStagingEnv().length > 0) {
     usage();
     process.exit(2);
   }
@@ -57,10 +63,14 @@ function assertStagingTarget() {
     process.exit(2);
   }
 
-  if (PRODUCTION_PROJECT_REFS.has(actualRef)) {
+  if (productionRefs().has(actualRef)) {
     console.error(`Refusing fixture load: ${actualRef} is listed as a production project ref.`);
     process.exit(2);
   }
+
+  assertDisposableEmail("AMC_STAGING_SMOKE_OWNER_EMAIL", OWNER_EMAIL);
+  assertDisposableEmail("AMC_STAGING_SMOKE_VENDOR_EMAIL", VENDOR_EMAIL);
+  assertDisposableEmail("AMC_STAGING_SMOKE_WRONG_VENDOR_EMAIL", WRONG_VENDOR_EMAIL);
 }
 
 function assertOk(response, label) {
@@ -218,11 +228,11 @@ function firstRow(payload) {
 async function main() {
   assertStagingTarget();
   mkdirSync(artifactDir, { recursive: true });
-  writeDisposablePdf("amc-staging-smoke-report.pdf", "AMC staging smoke disposable report PDF");
-  writeDisposablePdf("amc-staging-smoke-invoice.pdf", "AMC staging smoke disposable invoice PDF");
+  writeDisposablePdf("amc-staging-smoke-report.pdf", `${SMOKE_LABEL} disposable report PDF`);
+  writeDisposablePdf("amc-staging-smoke-invoice.pdf", `${SMOKE_LABEL} disposable invoice PDF`);
   const sourceDocumentPdf = writeDisposablePdf(
     "amc-staging-smoke-engagement.pdf",
-    "AMC staging smoke disposable engagement letter PDF",
+    `${SMOKE_LABEL} disposable engagement letter PDF`,
   );
 
   const admin = createClient(supabaseUrl, serviceRoleKey, {
@@ -239,7 +249,7 @@ async function main() {
     "companies",
     {
       slug: "amc-staging-smoke-disposable-vendor",
-      name: "AMC Staging Smoke Disposable Vendor",
+      name: `${SMOKE_LABEL} Vendor`,
       status: "active",
       timezone: "America/New_York",
       locale: "en-US",
@@ -256,7 +266,7 @@ async function main() {
     "companies",
     {
       slug: "amc-staging-smoke-wrong-vendor",
-      name: "AMC Staging Smoke Wrong Vendor",
+      name: `${SMOKE_LABEL} Wrong Vendor`,
       status: "active",
       timezone: "America/New_York",
       locale: "en-US",
@@ -300,11 +310,11 @@ async function main() {
     admin,
     "users",
     {
-      name: "AMC Staging Smoke Owner",
+      name: `${SMOKE_LABEL} Owner`,
       email: OWNER_EMAIL,
       role: "owner",
-      display_name: "AMC Staging Smoke Owner",
-      full_name: "AMC Staging Smoke Owner",
+      display_name: `${SMOKE_LABEL} Owner`,
+      full_name: `${SMOKE_LABEL} Owner`,
       status: "active",
       auth_id: ownerAuth.id,
       uid: ownerAuth.id,
@@ -318,11 +328,11 @@ async function main() {
     admin,
     "users",
     {
-      name: "AMC Staging Smoke Vendor",
+      name: `${SMOKE_LABEL} Vendor`,
       email: VENDOR_EMAIL,
       role: "manager",
-      display_name: "AMC Staging Smoke Vendor",
-      full_name: "AMC Staging Smoke Vendor",
+      display_name: `${SMOKE_LABEL} Vendor`,
+      full_name: `${SMOKE_LABEL} Vendor`,
       status: "active",
       auth_id: vendorAuth.id,
       uid: vendorAuth.id,
@@ -336,11 +346,11 @@ async function main() {
     admin,
     "users",
     {
-      name: "AMC Staging Smoke Wrong Vendor",
+      name: `${SMOKE_LABEL} Wrong Vendor`,
       email: WRONG_VENDOR_EMAIL,
       role: "manager",
-      display_name: "AMC Staging Smoke Wrong Vendor",
-      full_name: "AMC Staging Smoke Wrong Vendor",
+      display_name: `${SMOKE_LABEL} Wrong Vendor`,
+      full_name: `${SMOKE_LABEL} Wrong Vendor`,
       status: "active",
       auth_id: wrongVendorAuth.id,
       uid: wrongVendorAuth.id,
@@ -378,7 +388,7 @@ async function main() {
     starts_at: new Date().toISOString(),
     settings: { demo_seed: "amc_13e", disposable: true, staging_smoke: true },
     compliance: { summary: "Disposable AMC staging smoke compliance summary", demo_seed: "amc_13e" },
-    notes: "AMC-13E disposable staging smoke vendor relationship.",
+      notes: `${SMOKE_LABEL}. AMC-13E disposable staging smoke vendor relationship.`,
   });
   const wrongRelationship = await updateOrInsertRelationship(admin, {
     source_company_id: ownerCompany.id,
@@ -392,7 +402,7 @@ async function main() {
     starts_at: new Date().toISOString(),
     settings: { demo_seed: "amc_13e", disposable: true, staging_smoke: true, fixture_role: "wrong_vendor_denial" },
     compliance: { summary: "Wrong-vendor staging edge smoke relationship", demo_seed: "amc_13e" },
-    notes: "AMC-13E disposable wrong-vendor denial relationship.",
+    notes: `${SMOKE_LABEL}. AMC-13E disposable wrong-vendor denial relationship.`,
   });
 
   const vendorProfile = await upsertSingle(
@@ -407,7 +417,7 @@ async function main() {
       default_assignment_instructions: "Disposable AMC staging smoke fixture.",
       capabilities: { commercial: true, residential: true, default_turn_time_days: 5 },
       product_eligibility: { commercial_appraisal: true, residential_appraisal: true, appraisal: true },
-      internal_notes: "Disposable AMC-13E staging smoke fixture.",
+      internal_notes: `${SMOKE_LABEL}. Disposable AMC-13E staging smoke fixture.`,
       tags: ["amc-smoke", "staging-smoke", "disposable"],
     },
     "owner_company_id,vendor_company_id",
@@ -425,7 +435,7 @@ async function main() {
       default_assignment_instructions: "Disposable AMC staging wrong-vendor fixture.",
       capabilities: { commercial: true, residential: true, default_turn_time_days: 6 },
       product_eligibility: { commercial_appraisal: true, residential_appraisal: true, appraisal: true },
-      internal_notes: "Disposable AMC-13E wrong-vendor edge fixture.",
+      internal_notes: `${SMOKE_LABEL}. Disposable AMC-13E wrong-vendor edge fixture.`,
       tags: ["amc-smoke", "staging-smoke", "wrong-vendor"],
     },
     "owner_company_id,vendor_company_id",
@@ -439,13 +449,13 @@ async function main() {
     [{
       vendor_profile_id: vendorProfile.id,
       user_id: vendorUser.id,
-      name: "AMC Staging Smoke Vendor",
+      name: `${SMOKE_LABEL} Vendor`,
       email: VENDOR_EMAIL,
       phone: "555-1138",
       role_label: "Smoke Test Vendor Contact",
       is_primary: true,
       receives_assignment_notifications: true,
-      notes: "Disposable AMC-13E vendor contact.",
+      notes: `${SMOKE_LABEL}. Disposable AMC-13E vendor contact.`,
     }],
     "vendor contacts",
   );
@@ -486,12 +496,12 @@ async function main() {
       owner_id: ownerUser.id,
       order_number: ORDER_NUMBER,
       external_order_no: ORDER_NUMBER,
-      title: "AMC Staging Smoke Disposable Full MVP Order",
+      title: `${SMOKE_LABEL} Disposable Full MVP Order`,
       status: "new",
-      manual_client: "AMC Staging Smoke Demo Lender",
-      manual_client_name: "AMC Staging Smoke Demo Lender",
-      property_address: "1313 Staging Smoke Test Lane",
-      address: "1313 Staging Smoke Test Lane",
+      manual_client: `${SMOKE_LABEL} Demo Lender`,
+      manual_client_name: `${SMOKE_LABEL} Demo Lender`,
+      property_address: `${SMOKE_LABEL} - 1313 Staging Smoke Test Lane`,
+      address: `${SMOKE_LABEL} - 1313 Staging Smoke Test Lane`,
       city: "Columbus",
       state: "OH",
       county: "Franklin",
@@ -504,8 +514,8 @@ async function main() {
       client_due_at: new Date(Date.now() + 14 * 86400000).toISOString(),
       final_due_at: new Date(Date.now() + 14 * 86400000).toISOString(),
       review_due_at: new Date(Date.now() + 12 * 86400000).toISOString(),
-      special_instructions: "Disposable AMC-13E staging smoke order. Do not use outside staging testing.",
-      notes: "AMC-13E disposable staging smoke fixture.",
+      special_instructions: `${SMOKE_LABEL}. Disposable AMC-13E staging smoke order. Do not use outside staging testing.`,
+      notes: `${SMOKE_LABEL}. AMC-13E disposable staging smoke fixture.`,
       operations_scope: "amc_operations",
       fee_amount: 1200,
       appraiser_fee: 650,
@@ -539,7 +549,7 @@ async function main() {
         company_id: ownerCompany.id,
         order_id: order.id,
         requested_by_user_id: ownerUser.id,
-        request_message: "Disposable AMC staging smoke bid request. Please submit fee, turn time, and availability.",
+        request_message: `${SMOKE_LABEL}. Disposable AMC staging smoke bid request. Please submit fee, turn time, and availability.`,
         response_due_at: new Date(Date.now() + 3 * 86400000).toISOString(),
         client_due_at: new Date(Date.now() + 14 * 86400000).toISOString(),
         desired_vendor_due_at: new Date(Date.now() + 10 * 86400000).toISOString(),
@@ -589,7 +599,7 @@ async function main() {
     order_id: order.id,
     uploaded_by_user_id: ownerUser.id,
     category: "source_documents",
-    title: "Disposable Staging Engagement Letter",
+    title: `${SMOKE_LABEL} Engagement Letter`,
     file_name: "amc-staging-smoke-engagement.pdf",
     mime_type: "application/pdf",
     file_size: 512,

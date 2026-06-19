@@ -1,3 +1,15 @@
+import {
+  AMC_STAGING_REF as STAGING_REF,
+  STAGING_FULL_SMOKE_ENV as FULL_SMOKE_ENV,
+  STAGING_RUNTIME_ENV as REQUIRED_RUNTIME_ENV,
+  invalidStagingEnv,
+  isServiceRoleOrSecretKey,
+  isUnsetOrPlaceholder,
+  loadStagingEnvFile,
+  productionRefs,
+  projectRefFromUrl,
+} from "./lib/amc-staging-env.mjs";
+
 const REQUIRED_RPCS = Object.freeze([
   "rpc_vendor_workspace_dashboard_summary",
   "rpc_vendor_workspace_available_work",
@@ -87,42 +99,56 @@ const RPC_PROBE_PAYLOADS = Object.freeze({
   rpc_amc_mark_vendor_payment_paid: { p_payment_key: INVALID_KEY, p_payload: {} },
 });
 
-const PRODUCTION_PROJECT_REFS = new Set(
-  (process.env.AMC_PRODUCTION_PROJECT_REFS || "okwqhkrsjgxrhyisaovc")
-    .split(",")
-    .map((value) => value.trim())
-    .filter(Boolean),
-);
-
+loadStagingEnvFile();
 const stagingUrl = process.env.AMC_STAGING_SUPABASE_URL || process.env.SUPABASE_URL || "";
 const serviceRoleKey =
   process.env.AMC_STAGING_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const expectedProjectRef = process.env.AMC_STAGING_PROJECT_REF || "";
 
 function usage() {
+  const missingRuntimeVars = invalidStagingEnv(REQUIRED_RUNTIME_ENV);
+  const missingFullSmokeVars = invalidStagingEnv(FULL_SMOKE_ENV);
+
   console.error(`AMC staging runtime probe requires staging-only environment variables:
 
-  AMC_STAGING_PROJECT_REF=<staging-project-ref>
-  AMC_STAGING_SUPABASE_URL=https://<staging-project-ref>.supabase.co
-  AMC_STAGING_SUPABASE_SERVICE_ROLE_KEY=<staging-service-role-key>
+Missing runtime variables:
+  ${missingRuntimeVars.length ? missingRuntimeVars.join("\n  ") : "(none)"}
+
+Required runtime variables:
+  AMC_STAGING_PROJECT_REF=${STAGING_REF}
+  AMC_STAGING_SUPABASE_URL=https://${STAGING_REF}.supabase.co
+  AMC_STAGING_SUPABASE_SERVICE_ROLE_KEY=<staging-service-role-or-secret-key>
+
+Full staging smoke harness variables:
+  ${FULL_SMOKE_ENV.join("\n  ")}
+
+Missing full-harness variables:
+  ${missingFullSmokeVars.length ? missingFullSmokeVars.join("\n  ") : "(none)"}
+
+Setup:
+  cp .env.staging.example .env.staging.local
+  set -a
+  . ./.env.staging.local
+  set +a
 
 Optional:
   AMC_PRODUCTION_PROJECT_REFS=comma,separated,refs,to,refuse
+
+Safety:
+  - Service role / secret keys must never be committed.
+  - Supabase sb_secret_ and JWT-style service keys are accepted.
+  - Supabase sb_publishable_ and JWT-style anon keys are accepted for the full smoke harness.
+  - Use only the approved staging/final-rehearsal Supabase project.
+  - Do not run this probe, fixture loader, or mutation smoke scripts against production.
 `);
 }
 
-function projectRefFromUrl(url) {
-  try {
-    const host = new URL(url).host;
-    const [projectRef] = host.split(".");
-    return projectRef || "";
-  } catch {
-    return "";
-  }
-}
-
 function assertStagingTarget() {
-  if (!stagingUrl || !serviceRoleKey || !expectedProjectRef) {
+  if (
+    isUnsetOrPlaceholder(stagingUrl) ||
+    !isServiceRoleOrSecretKey(serviceRoleKey) ||
+    isUnsetOrPlaceholder(expectedProjectRef)
+  ) {
     usage();
     process.exit(2);
   }
@@ -135,9 +161,29 @@ function assertStagingTarget() {
     process.exit(2);
   }
 
-  if (PRODUCTION_PROJECT_REFS.has(actualProjectRef)) {
+  if (productionRefs().has(actualProjectRef)) {
     console.error(`Refusing probe: ${actualProjectRef} is listed as a production project ref.`);
     process.exit(2);
+  }
+
+  if (process.env.AMC_STAGING_VALIDATE_ENV_ONLY === "1") {
+    console.log(
+      JSON.stringify(
+        {
+          ok: true,
+          project_ref: expectedProjectRef,
+          credentials: {
+            service_role_or_secret_key: "present",
+            anon_or_publishable_key: invalidStagingEnv(["AMC_STAGING_SUPABASE_ANON_KEY"]).length
+              ? "missing_or_invalid"
+              : "present",
+          },
+        },
+        null,
+        2,
+      ),
+    );
+    process.exit(0);
   }
 }
 
