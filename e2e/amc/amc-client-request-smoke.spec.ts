@@ -138,7 +138,7 @@ async function seedDisposableClientRequest() {
     {
       name: `${SMOKE_LABEL} Client`,
       email: CLIENT_EMAIL,
-      role: "client",
+      role: "manager",
       display_name: `${SMOKE_LABEL} Client`,
       full_name: `${SMOKE_LABEL} Client`,
       status: "active",

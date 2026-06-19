@@ -292,34 +292,36 @@ async function readVendorPaymentItem(assignmentWorkKey) {
   return (payments.items || []).find((item) => item.assignment_work_key === assignmentWorkKey);
 }
 
-async function readOwnerInvoice(invoiceStatus) {
+async function readOwnerInvoice(invoiceStatus, assignmentWorkKey = smokeState?.assignmentWorkKey) {
   const queue = assertRpcOk(
     await rpc(ownerSession.client, "rpc_amc_vendor_invoices", { p_status: invoiceStatus }),
     `invoice queue ${invoiceStatus}`,
   );
-  return (queue.items || []).find((item) => item.assignment_work_key === smokeState.assignmentWorkKey);
+  return (queue.items || []).find((item) => item.assignment_work_key === assignmentWorkKey);
 }
 
-async function readOwnerPayment(status) {
+async function readOwnerPayment(status, assignmentWorkKey = smokeState?.assignmentWorkKey) {
   const ledger = assertRpcOk(
     await rpc(ownerSession.client, "rpc_amc_vendor_payment_ledger", { p_status: status }),
     `payment ledger ${status}`,
   );
-  return (ledger.items || []).find((item) => item.assignment_work_key === smokeState.assignmentWorkKey);
+  return (ledger.items || []).find((item) => item.assignment_work_key === assignmentWorkKey);
 }
 
-async function ensureInvoicePaymentReady() {
-  let vendorPayment = await readVendorPaymentItem(smokeState.assignmentWorkKey);
+async function ensureInvoicePaymentReady(assignmentWorkKey) {
+  if (!assignmentWorkKey) throw new Error("Invoice/payment smoke requires an assignment work key.");
+
+  let vendorPayment = await readVendorPaymentItem(assignmentWorkKey);
   if (!vendorPayment) throw new Error("Vendor Payments did not expose the completed assignment.");
   if (vendorPayment.payment_status_key === "paid") {
     throw new Error("Smoke payment is already paid. Refresh disposable staging fixtures before this payment-ready smoke.");
   }
 
   if (vendorPayment.payment_status_key === "ready_for_invoice") {
-    const invoiceDocKey = await uploadPreparedInvoice(vendorSession.client, smokeState.assignmentWorkKey);
+    const invoiceDocKey = await uploadPreparedInvoice(vendorSession.client, assignmentWorkKey);
     const submitted = assertRpcOk(
       await rpc(vendorSession.client, "rpc_vendor_workspace_submit_invoice", {
-        p_assignment_work_key: smokeState.assignmentWorkKey,
+        p_assignment_work_key: assignmentWorkKey,
         p_payload: {
           invoice_number: INVOICE_NUMBER,
           invoice_amount: INVOICE_AMOUNT,
@@ -334,11 +336,11 @@ async function ensureInvoicePaymentReady() {
     if (submitted.invoice?.invoice_number !== INVOICE_NUMBER) {
       throw new Error(`Submitted invoice number mismatch: ${JSON.stringify(submitted)}`);
     }
-    vendorPayment = await readVendorPaymentItem(smokeState.assignmentWorkKey);
+    vendorPayment = await readVendorPaymentItem(assignmentWorkKey);
   }
 
   if (vendorPayment.payment_status_key === "invoice_received") {
-    const invoiceRow = await readOwnerInvoice("invoice_received");
+    const invoiceRow = await readOwnerInvoice("invoice_received", assignmentWorkKey);
     if (!invoiceRow?.invoice_key) throw new Error("Owner invoice queue missing submitted smoke invoice.");
     assertRpcOk(
       await rpc(ownerSession.client, "rpc_amc_review_vendor_invoice", {
@@ -352,11 +354,11 @@ async function ensureInvoicePaymentReady() {
       }),
       "approve invoice",
     );
-    vendorPayment = await readVendorPaymentItem(smokeState.assignmentWorkKey);
+    vendorPayment = await readVendorPaymentItem(assignmentWorkKey);
   }
 
   if (vendorPayment.payment_status_key === "approved") {
-    const approvedPayment = await readOwnerPayment("approved");
+    const approvedPayment = await readOwnerPayment("approved", assignmentWorkKey);
     if (!approvedPayment?.invoice_key) throw new Error("Owner payment ledger missing approved smoke invoice.");
     const scheduled = assertRpcOk(
       await rpc(ownerSession.client, "rpc_amc_schedule_vendor_payment", {
@@ -372,14 +374,14 @@ async function ensureInvoicePaymentReady() {
       "schedule payment",
     );
     if (!scheduled.payment_key) throw new Error(`Scheduled payment missing key: ${JSON.stringify(scheduled)}`);
-    vendorPayment = await readVendorPaymentItem(smokeState.assignmentWorkKey);
+    vendorPayment = await readVendorPaymentItem(assignmentWorkKey);
   }
 
   if (vendorPayment.payment_status_key !== "scheduled") {
     throw new Error(`Expected scheduled payment-ready state, got ${vendorPayment.payment_status_key || "(unknown)"}.`);
   }
 
-  const scheduledPayment = await readOwnerPayment("scheduled");
+  const scheduledPayment = await readOwnerPayment("scheduled", assignmentWorkKey);
   if (!scheduledPayment?.payment_key) throw new Error("Owner payment ledger missing scheduled smoke payment.");
   if (scheduledPayment.paid_at || scheduledPayment.payment_status === "paid") {
     throw new Error("Smoke payment unexpectedly reached paid state.");
@@ -431,7 +433,7 @@ test.describe("AMC staging invoice/payment visibility smoke", () => {
     const completed = await ensureCompletedAssignment();
     smokeState = {
       ...completed,
-      ...(await ensureInvoicePaymentReady()),
+      ...(await ensureInvoicePaymentReady(completed.assignmentWorkKey)),
     };
   });
 
