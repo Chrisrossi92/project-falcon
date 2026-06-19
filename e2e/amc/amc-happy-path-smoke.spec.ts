@@ -90,13 +90,13 @@ async function readVendorAssignmentsForOrder(ownerClient, orderId) {
 async function readOwnerFixtureState(ownerClient) {
   const { data: order, error: orderError } = await ownerClient
     .from("orders")
-    .select("id, order_number, client_name, manual_client_name")
+    .select("id, order_number, manual_client_name, manual_client")
     .eq("order_number", ORDER_NUMBER)
     .maybeSingle();
 
   if (orderError) throw new Error(`Smoke fixture order lookup failed: ${orderError.message}`);
   if (!order?.id) throw new Error(`Smoke fixture order ${ORDER_NUMBER} was not found.`);
-  if (!order.client_name && !order.manual_client_name) {
+  if (!order.manual_client_name && !order.manual_client) {
     throw new Error(`Smoke fixture order ${ORDER_NUMBER} is missing client fixture labeling.`);
   }
 

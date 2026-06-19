@@ -64,7 +64,7 @@ function readBidFixtureState(order, bidRequests) {
 async function readOwnerFixtureState(ownerClient) {
   const { data: order, error: orderError } = await ownerClient
     .from("orders")
-    .select("id, order_number, client_name, manual_client_name")
+    .select("id, order_number, manual_client_name, manual_client")
     .eq("order_number", ORDER_NUMBER)
     .maybeSingle();
 
