@@ -86,6 +86,7 @@ To run it manually:
 
 The workflow does not include live credentials and should not be enabled on schedules until staging
 fixture ownership, runtime cost, and secret governance are reviewed.
+CI uses Node 22 because Supabase Realtime expects native WebSocket support when initialized in Node.
 
 ## Required Environment
 
