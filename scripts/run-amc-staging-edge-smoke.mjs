@@ -3,6 +3,8 @@ import { readFileSync, statSync } from "node:fs";
 
 import { createClient } from "@supabase/supabase-js";
 
+import { amcSmokeArtifactPath } from "./lib/amc-smoke-artifacts.mjs";
+
 const STAGING_REF = "voompccpkjfcsmehdoqu";
 const PRODUCTION_PROJECT_REFS = new Set(
   (process.env.AMC_PRODUCTION_PROJECT_REFS || "okwqhkrsjgxrhyisaovc")
@@ -22,8 +24,8 @@ const VENDOR_EMAIL = "amc.smoke.vendor+staging@example.test";
 const WRONG_VENDOR_EMAIL = "amc.smoke.wrongvendor+staging@example.test";
 const ORDER_NUMBER = "AMC-STAGING-SMOKE-001";
 const VENDOR_COMPANY_SLUG = "amc-staging-smoke-disposable-vendor";
-const REPORT_PATH = "/private/tmp/project-falcon-amc-smoke/amc-staging-smoke-report.pdf";
-const INVOICE_PATH = "/private/tmp/project-falcon-amc-smoke/amc-staging-smoke-invoice.pdf";
+const REPORT_PATH = amcSmokeArtifactPath("amc-staging-smoke-report.pdf");
+const INVOICE_PATH = amcSmokeArtifactPath("amc-staging-smoke-invoice.pdf");
 
 const results = [];
 const defects = [];

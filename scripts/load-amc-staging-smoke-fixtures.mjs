@@ -10,13 +10,14 @@ import {
   productionRefs,
   projectRefFromUrl,
 } from "./lib/amc-staging-env.mjs";
+import { amcSmokeArtifactDir } from "./lib/amc-smoke-artifacts.mjs";
 
 loadStagingEnvFile();
 const stagingRef = process.env.AMC_STAGING_PROJECT_REF || "";
 const supabaseUrl = process.env.AMC_STAGING_SUPABASE_URL || "";
 const serviceRoleKey = process.env.AMC_STAGING_SUPABASE_SERVICE_ROLE_KEY || "";
 const anonKey = process.env.AMC_STAGING_SUPABASE_ANON_KEY || "";
-const artifactDir = process.env.AMC_SMOKE_ARTIFACT_DIR || "/private/tmp/project-falcon-amc-smoke";
+const artifactDir = amcSmokeArtifactDir();
 
 const PASSWORD = process.env.AMC_STAGING_SMOKE_PASSWORD || "FalconSmoke123!";
 const OWNER_EMAIL = process.env.AMC_STAGING_SMOKE_OWNER_EMAIL || "amc.smoke.owner+staging@example.test";
@@ -36,7 +37,7 @@ function usage() {
 
 Optional:
   AMC_PRODUCTION_PROJECT_REFS=comma,separated,refs,to,refuse
-  AMC_SMOKE_ARTIFACT_DIR=/private/tmp/project-falcon-amc-smoke
+  AMC_SMOKE_ARTIFACT_DIR=<optional; defaults to RUNNER_TEMP/TMPDIR/os.tmpdir()>/project-falcon-amc-smoke
   AMC_STAGING_SMOKE_OWNER_EMAIL=amc.smoke.owner+staging@example.test
   AMC_STAGING_SMOKE_VENDOR_EMAIL=amc.smoke.vendor+staging@example.test
   AMC_STAGING_SMOKE_WRONG_VENDOR_EMAIL=amc.smoke.wrongvendor+staging@example.test
