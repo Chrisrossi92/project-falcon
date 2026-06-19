@@ -2,11 +2,13 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
+import { amcSmokeArtifactDir } from './lib/amc-smoke-artifacts.mjs';
+
 const repoRoot = resolve(new URL('..', import.meta.url).pathname);
 const projectName = process.env.SUPABASE_LOCAL_PROJECT || 'project-falcon';
 const dbContainer = `supabase_db_${projectName}`;
 const fixturePath = resolve(repoRoot, 'supabase/manual/20260606_amc_full_mvp_smoke_fixture.sql');
-const artifactDir = process.env.AMC_SMOKE_ARTIFACT_DIR || '/private/tmp/project-falcon-amc-smoke';
+const artifactDir = amcSmokeArtifactDir();
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {

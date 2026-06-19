@@ -159,11 +159,15 @@ AMC_STAGING_SMOKE_BID_TURN_TIME_DAYS=6
 AMC_STAGING_SMOKE_BID_COMMENTS=AMC staging Playwright disposable token bid response.
 E2E_AMC_PREPARE_FIXTURE=1
 AMC_STAGING_SUPABASE_SERVICE_ROLE_KEY=<staging-service-role-or-secret-key>
+AMC_SMOKE_ARTIFACT_DIR=<optional artifact directory>
 ```
 
 Use `E2E_AMC_PREPARE_FIXTURE=1` only when the disposable fixture should be loaded or refreshed.
 That path reuses `scripts/load-amc-staging-smoke-fixtures.mjs`, which is staging-guarded and
 refuses production refs.
+
+When `AMC_SMOKE_ARTIFACT_DIR` is not set, fixture artifacts are written under the first available
+temp root: `RUNNER_TEMP`, `TMPDIR`, then the OS temp directory, in `project-falcon-amc-smoke/`.
 
 The token bid submission, owner bid selection, owner assignment-offer creation, vendor assignment
 acceptance, vendor start-work action, report upload, report submission, and owner report completion

@@ -23,9 +23,10 @@ describe('AMC local smoke fixture load', () => {
     );
     expect(packageJson.scripts['amc:smoke:edge']).toBe('node scripts/run-amc-edge-smoke.mjs');
     expect(loaderScript).toContain('20260606_amc_full_mvp_smoke_fixture.sql');
-    expect(loaderScript).toContain('/private/tmp/project-falcon-amc-smoke');
+    expect(loaderScript).toContain('amcSmokeArtifactDir');
     expect(loaderScript).toContain('amc-smoke-report.pdf');
     expect(loaderScript).toContain('amc-smoke-invoice.pdf');
+    expect(edgeRunnerScript).toContain('amcSmokeArtifactPath');
     expect(edgeRunnerScript).toContain('Local-only AMC edge smoke runner');
   });
 

@@ -17,10 +17,14 @@ The fixture load creates disposable records only:
 - AMC order: `AMC-SMOKE-001`
 - Open bid request and sent bid recipient for the disposable vendor
 - Vendor-visible source document metadata
-- Disposable report PDF: `/private/tmp/project-falcon-amc-smoke/amc-smoke-report.pdf`
-- Disposable invoice PDF: `/private/tmp/project-falcon-amc-smoke/amc-smoke-invoice.pdf`
+- Disposable report PDF: `<artifact-dir>/amc-smoke-report.pdf`
+- Disposable invoice PDF: `<artifact-dir>/amc-smoke-invoice.pdf`
 - Owner auth app metadata sets active company to `falcon_default`.
 - Vendor auth app metadata sets active company to `AMC Smoke Disposable Vendor`.
+
+The artifact directory defaults to `RUNNER_TEMP`, then `TMPDIR`, then the OS temp directory, under
+`project-falcon-amc-smoke/`. Override it with `AMC_SMOKE_ARTIFACT_DIR` when a fixed local path is
+needed.
 
 Fixture scope:
 

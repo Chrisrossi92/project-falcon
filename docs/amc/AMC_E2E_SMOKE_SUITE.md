@@ -109,9 +109,12 @@ AMC_STAGING_SMOKE_CLIENT_EMAIL=amc.smoke.client+staging@example.test
 AMC_STAGING_SMOKE_VENDOR_EMAIL=amc.smoke.vendor+staging@example.test
 AMC_STAGING_SMOKE_WRONG_VENDOR_EMAIL=amc.smoke.wrongvendor+staging@example.test
 AMC_STAGING_SMOKE_PASSWORD=<smoke-password>
+AMC_SMOKE_ARTIFACT_DIR=<optional artifact directory>
 ```
 
 Only reserved `example.test` or `example.invalid` addresses are accepted by the AMC smoke guards.
+If `AMC_SMOKE_ARTIFACT_DIR` is unset, fixture artifacts are written below `RUNNER_TEMP`, `TMPDIR`,
+or the OS temp directory, in that order, under `project-falcon-amc-smoke/`.
 
 ## Safety Guards
 

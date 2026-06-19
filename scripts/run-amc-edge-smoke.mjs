@@ -1,6 +1,8 @@
 import { execFileSync } from "node:child_process";
 import { statSync } from "node:fs";
 
+import { amcSmokeArtifactPath } from "./lib/amc-smoke-artifacts.mjs";
+
 // Local-only AMC edge smoke runner.
 // Run after:
 //   npm run supabase:reset:local
@@ -12,8 +14,8 @@ const PASSWORD = "FalconSmoke123!";
 const OWNER_EMAIL = "amc.smoke.owner@example.test";
 const VENDOR_EMAIL = "amc.smoke.vendor@example.test";
 const WRONG_VENDOR_EMAIL = "amc.smoke.wrongvendor@example.test";
-const REPORT_PATH = "/private/tmp/project-falcon-amc-smoke/amc-smoke-report.pdf";
-const INVOICE_PATH = "/private/tmp/project-falcon-amc-smoke/amc-smoke-invoice.pdf";
+const REPORT_PATH = amcSmokeArtifactPath("amc-smoke-report.pdf");
+const INVOICE_PATH = amcSmokeArtifactPath("amc-smoke-invoice.pdf");
 
 const results = [];
 const defects = [];
