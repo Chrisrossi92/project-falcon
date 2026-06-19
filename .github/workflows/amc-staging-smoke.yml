@@ -1,0 +1,102 @@
+name: AMC Staging E2E Smoke
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: amc-staging-smoke
+  cancel-in-progress: false
+
+jobs:
+  amc-staging-smoke:
+    name: AMC staging smoke suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      E2E_TARGET: staging
+      E2E_ALLOW_STAGING: "1"
+      E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
+      FALCON_APP_BASE_URL: ${{ secrets.E2E_BASE_URL }}
+      FALCON_ENV_PROFILE: staging
+      FALCON_DEPLOY_TARGET: staging
+      FALCON_E2E_TARGET_PROFILE: staging
+      FALCON_MIGRATION_STATE: staging
+      FALCON_SUPABASE_PROJECT_REF: voompccpkjfcsmehdoqu
+      FALCON_SUPABASE_URL: ${{ secrets.FALCON_SUPABASE_URL }}
+      FALCON_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.FALCON_SUPABASE_SERVICE_ROLE_KEY }}
+      FALCON_SUPABASE_ANON_KEY: ${{ secrets.FALCON_SUPABASE_ANON_KEY }}
+      AMC_STAGING_PROJECT_REF: voompccpkjfcsmehdoqu
+      AMC_STAGING_SUPABASE_URL: ${{ secrets.FALCON_SUPABASE_URL }}
+      AMC_STAGING_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.FALCON_SUPABASE_SERVICE_ROLE_KEY }}
+      AMC_STAGING_SUPABASE_ANON_KEY: ${{ secrets.FALCON_SUPABASE_ANON_KEY }}
+      VITE_SUPABASE_URL: ${{ secrets.FALCON_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.FALCON_SUPABASE_ANON_KEY }}
+      AMC_STAGING_SMOKE_OWNER_EMAIL: ${{ secrets.AMC_STAGING_SMOKE_OWNER_EMAIL }}
+      AMC_STAGING_SMOKE_VENDOR_EMAIL: ${{ secrets.AMC_STAGING_SMOKE_VENDOR_EMAIL }}
+      AMC_STAGING_SMOKE_WRONG_VENDOR_EMAIL: ${{ secrets.AMC_STAGING_SMOKE_WRONG_VENDOR_EMAIL }}
+      AMC_STAGING_SMOKE_CLIENT_EMAIL: ${{ secrets.AMC_STAGING_SMOKE_CLIENT_EMAIL }}
+      AMC_STAGING_SMOKE_PASSWORD: ${{ secrets.AMC_STAGING_SMOKE_PASSWORD }}
+      AMC_PRODUCTION_PROJECT_REFS: ${{ secrets.AMC_PRODUCTION_PROJECT_REFS }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Verify required staging secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          required=(
+            E2E_BASE_URL
+            FALCON_SUPABASE_URL
+            FALCON_SUPABASE_SERVICE_ROLE_KEY
+            FALCON_SUPABASE_ANON_KEY
+            AMC_STAGING_SMOKE_OWNER_EMAIL
+            AMC_STAGING_SMOKE_VENDOR_EMAIL
+            AMC_STAGING_SMOKE_WRONG_VENDOR_EMAIL
+            AMC_STAGING_SMOKE_CLIENT_EMAIL
+            AMC_STAGING_SMOKE_PASSWORD
+          )
+
+          missing=()
+          for name in "${required[@]}"; do
+            if [ -z "${!name:-}" ]; then
+              missing+=("$name")
+            fi
+          done
+
+          if [ "${#missing[@]}" -gt 0 ]; then
+            printf 'Missing required AMC staging smoke secret/env values:\n'
+            printf ' - %s\n' "${missing[@]}"
+            exit 1
+          fi
+
+      - name: Validate staging environment profile
+        run: npm run env:check:staging
+
+      - name: Run staging deployment preflight
+        run: npm run deploy:preflight:staging
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Run AMC staging smoke suite
+        run: npm run e2e:amc:staging
+
+      - name: Upload Playwright failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: amc-staging-smoke-artifacts
+          if-no-files-found: ignore
+          path: |
+            test-results/
+            playwright-report/
+            blob-report/
