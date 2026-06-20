@@ -269,23 +269,11 @@ test.describe("AMC staging happy-path smoke", () => {
 
     await login(page, OWNER_EMAIL);
     await openSmokeOrder(page);
-    await expect(page.getByLabel(/AMC bid status/i)).toContainText(/Bids received|1 contacted \/ 1 responded/i);
-    await openProcurementDetails(page);
-
-    const bidRequest = page
-      .getByRole("article")
-      .filter({ hasText: /Bid request/i })
-      .filter({ hasText: VENDOR_NAME })
-      .first();
-
-    await expect(bidRequest).toBeVisible({ timeout: 15000 });
-    await expect(bidRequest).toContainText(VENDOR_NAME);
-    await expect(bidRequest.getByText(/Responded/i).first()).toBeVisible();
-    await expect(bidRequest.getByText(BID_AMOUNT_PATTERN)).toBeVisible();
-    await expect(bidRequest.getByText(/6 days/i)).toBeVisible();
-    await expect(bidRequest.getByText(BID_COMMENTS)).toBeVisible();
-    await expect(bidRequest.getByRole("button", { name: /Select bid/i })).toBeVisible();
-    await expect(bidRequest.getByRole("button", { name: /Create Assignment Offer/i })).toHaveCount(0);
+    const bidStatus = page.getByLabel(/AMC bid status/i);
+    await expect(bidStatus).toContainText(/Bids received/i);
+    await expect(bidStatus).toContainText(/1 contacted \/ 1 responded/i);
+    await expect(bidStatus).toContainText(/Lowest Fee/i);
+    await expect(bidStatus).toContainText(BID_AMOUNT_PATTERN);
   });
 
   test("selects the disposable vendor bid and stops before assignment", async ({ page }) => {

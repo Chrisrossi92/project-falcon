@@ -40,6 +40,15 @@ async function login(page, email: string) {
   await loginWithPassword(page, email, PASSWORD);
 }
 
+async function resetBrowserStateBeforeRoleSwitch(page, label) {
+  console.log(`[amc revision smoke] ${label}: resetting browser auth state from ${page.url()}`);
+  await page.context().clearCookies();
+  await page.evaluate(() => {
+    window.localStorage.clear();
+    window.sessionStorage.clear();
+  }).catch(() => {});
+}
+
 function readBidFixtureState(order, bidRequests) {
   const requestRows = Array.isArray(bidRequests) ? bidRequests : [];
   const fixtureBidRequest = requestRows.find((request) =>
@@ -219,6 +228,7 @@ async function progressFixtureToSubmittedReport(page) {
   await expect(page.getByText(/Your bid has been submitted/i)).toBeVisible({ timeout: 15000 });
 
   await logAmcWorkspaceDiagnostics(page, "before owner login for bid selection");
+  await resetBrowserStateBeforeRoleSwitch(page, "after public bid submission before owner login");
   await login(page, OWNER_EMAIL);
   await logAmcWorkspaceDiagnostics(page, "after owner login before opening smoke order for bid selection");
   await openSmokeOrder(page);
@@ -269,6 +279,7 @@ async function progressFixtureToSubmittedReport(page) {
   const vendorClient = await signIn(VENDOR_EMAIL);
   const assignedWork = await readVendorAssignedWork(vendorClient);
   await logAmcWorkspaceDiagnostics(page, "before vendor login for start work");
+  await resetBrowserStateBeforeRoleSwitch(page, "after public assignment acceptance before vendor login");
   await login(page, VENDOR_EMAIL);
   console.log(`[amc revision smoke] navigating to vendor work item ${assignedWork.assignment_work_key} from ${page.url()}`);
   await page.goto(`/vendor-workspace/assigned-orders/${encodeURIComponent(assignedWork.assignment_work_key)}`, {
@@ -356,6 +367,7 @@ test.describe("AMC staging revision smoke", () => {
     expect(revisionAssignment.completed_at || null).toBeNull();
 
     await logAmcWorkspaceDiagnostics(page, "before vendor login for revision resubmission");
+    await resetBrowserStateBeforeRoleSwitch(page, "after owner revision request before vendor login");
     await login(page, VENDOR_EMAIL);
     console.log(`[amc revision smoke] navigating to vendor revision work item ${assignedWork.assignment_work_key} from ${page.url()}`);
     await page.goto(`/vendor-workspace/assigned-orders/${encodeURIComponent(assignedWork.assignment_work_key)}`, {
@@ -373,6 +385,7 @@ test.describe("AMC staging revision smoke", () => {
     await expect(page.getByText(RESUBMISSION_NOTE)).toBeVisible();
 
     await logAmcWorkspaceDiagnostics(page, "before owner login after revision resubmission");
+    await resetBrowserStateBeforeRoleSwitch(page, "after vendor revision resubmission before owner login");
     await login(page, OWNER_EMAIL);
     await logAmcWorkspaceDiagnostics(page, "after owner login before opening smoke order after revision resubmission");
     await openSmokeOrder(page);

@@ -516,14 +516,21 @@ test.describe("AMC staging invoice/payment visibility smoke", () => {
     await navigateWithinAmc(page, "/vendors");
     await expect(page.getByRole("heading", { name: /Falcon AMC Vendor Network/i })).toBeVisible({ timeout: 15000 });
     await expect(page.getByLabel(/Vendor invoice review queue/i)).toContainText(/Vendor Invoice Review/i);
-    await expect(page.getByLabel(/Vendor payment ledger queue/i)).toContainText(/No bank transfer is initiated/i);
-
-    await page.getByLabel(/^Payment status$/i).selectOption("scheduled");
-    await expect(page.getByLabel(/Vendor payment ledger queue/i)).toContainText(VENDOR_NAME, { timeout: 15000 });
-    await expect(page.getByLabel(/Vendor payment ledger queue/i)).toContainText(INVOICE_NUMBER);
-    await expect(page.getByLabel(/Vendor payment ledger queue/i)).toContainText(PAYMENT_REFERENCE);
-    await expect(page.getByLabel(/Vendor payment ledger queue/i)).toContainText(/Scheduled/i);
-    await expect(page.getByRole("button", { name: /^Mark Paid$/i })).toBeVisible();
+    const paymentLedger = page.getByLabel(/Vendor payment ledger queue/i);
+    await expect(paymentLedger).toContainText(/No bank transfer is initiated/i);
+    if (!(await paymentLedger.getByText(INVOICE_NUMBER).isVisible({ timeout: 5000 }).catch(() => false))) {
+      const paymentStatusFilter = paymentLedger.locator("select").first();
+      if (!(await paymentStatusFilter.isVisible({ timeout: 1000 }).catch(() => false))) {
+        const ledgerText = await paymentLedger.textContent().catch(() => "");
+        throw new Error(`Vendor payment ledger scheduled row was not visible and no status filter was available. Ledger: ${ledgerText}`);
+      }
+      await paymentStatusFilter.selectOption("scheduled");
+    }
+    await expect(paymentLedger).toContainText(VENDOR_NAME, { timeout: 15000 });
+    await expect(paymentLedger).toContainText(INVOICE_NUMBER);
+    await expect(paymentLedger).toContainText(PAYMENT_REFERENCE);
+    await expect(paymentLedger).toContainText(/Scheduled/i);
+    await expect(paymentLedger.getByRole("button", { name: /^Mark Paid$/i })).toBeVisible();
 
     await login(page, VENDOR_EMAIL);
     await page.goto("/vendor-workspace/payments", { waitUntil: "networkidle" });
