@@ -32,9 +32,17 @@ const BASE_URL = (process.env.E2E_BASE_URL || "http://127.0.0.1:5173").replace(/
 
 let fixtureState = null;
 let ownerFixtureClient = null;
+let vendorFixtureClient = null;
 
 async function signIn(email: string) {
   return (await signInWithPassword(email, PASSWORD)).client;
+}
+
+async function getVendorFixtureClient() {
+  if (!vendorFixtureClient) {
+    vendorFixtureClient = await signIn(VENDOR_EMAIL);
+  }
+  return vendorFixtureClient;
 }
 
 async function login(page, email: string) {
@@ -262,7 +270,7 @@ async function readRevisionStatusDiagnostics(assignmentWorkKey = null) {
   }
 
   try {
-    const vendorClient = await signIn(VENDOR_EMAIL);
+    const vendorClient = await getVendorFixtureClient();
     const assignedWork = await readVendorAssignedWork(vendorClient);
     diagnostics.vendorStatus = {
       assignment_work_key: assignedWork.assignment_work_key || null,
@@ -446,7 +454,7 @@ async function progressFixtureToSubmittedReport(browser) {
     closeIsolatedPage(page, "public assignment acceptance"),
   );
 
-  const vendorClient = await runRevisionStep(null, "sign in vendor fixture client", () => signIn(VENDOR_EMAIL));
+  const vendorClient = await runRevisionStep(null, "get cached vendor fixture client", () => getVendorFixtureClient());
   const assignedWork = await runRevisionStep(null, "read vendor assigned work", () => readVendorAssignedWork(vendorClient));
   await logRevisionStep(null, "after reading vendor assigned work before start work", {
     assignmentWorkKey: assignedWork.assignment_work_key,

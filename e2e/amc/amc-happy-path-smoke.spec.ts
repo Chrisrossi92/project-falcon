@@ -509,7 +509,7 @@ test.describe("AMC staging happy-path smoke", () => {
     await page.getByLabel(/^Delivery Note$/i).fill(REPORT_DELIVERY_NOTE);
     await page.getByRole("button", { name: /^Submit Report$/i }).click();
 
-    await expect(page.getByText(/Report submitted/i)).toBeVisible({ timeout: 30000 });
+    await expect(page.getByText(/Submitted Report/i).first()).toBeVisible({ timeout: 30000 });
     await expect(page.getByText(/Submitted \/ Awaiting Review/i).first()).toBeVisible({ timeout: 15000 });
     await expect(page.getByText(REPORT_DELIVERY_NOTE)).toBeVisible();
     await expect(page.getByRole("button", { name: /^Submit Report$/i })).toHaveCount(0);
