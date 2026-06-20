@@ -128,29 +128,26 @@ export async function login(page, email: string, password: string) {
 export async function ensureAmcWorkspace(page) {
   await page.waitForLoadState("domcontentloaded").catch(() => {});
 
-  await page.evaluate(
-    ({ storageKey, mode }) => window.localStorage.setItem(storageKey, mode),
-    { storageKey: OPERATIONS_MODE_STORAGE_KEY, mode: AMC_OPERATIONS_MODE },
-  );
   await page.goto("/dashboard", { waitUntil: "networkidle" });
 
-  await expect
-    .poll(
-      () => page.evaluate((storageKey) => window.localStorage.getItem(storageKey), OPERATIONS_MODE_STORAGE_KEY),
-      { timeout: 10000 },
-    )
-    .toBe(AMC_OPERATIONS_MODE);
+  const workspaceSwitcher = page
+    .getByTestId("operations-mode-switcher")
+    .filter({ has: page.getByRole("button", { name: /^Falcon AMC$/i }) })
+    .first();
+  await expect(workspaceSwitcher).toBeVisible({ timeout: 15000 });
 
-  const amcWorkspaceButton = page.getByRole("button", { name: /^Falcon AMC$/i }).first();
-  if (await amcWorkspaceButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-    const pressed = await amcWorkspaceButton.getAttribute("aria-pressed");
-    if (pressed !== "true") {
-      await amcWorkspaceButton.click();
-      await page.waitForLoadState("networkidle").catch(() => {});
-    }
-    await expect(amcWorkspaceButton).toHaveAttribute("aria-pressed", "true", { timeout: 10000 });
+  const amcWorkspaceButton = workspaceSwitcher.getByRole("button", { name: /^Falcon AMC$/i });
+  const internalWorkspaceButton = workspaceSwitcher.getByRole("button", { name: /^Continental Internal Operations$/i });
+
+  if ((await amcWorkspaceButton.getAttribute("aria-pressed")) !== "true") {
+    await amcWorkspaceButton.click();
+    await page.waitForLoadState("networkidle").catch(() => {});
   }
 
+  await expect(amcWorkspaceButton).toHaveAttribute("aria-pressed", "true", { timeout: 10000 });
+  if (await internalWorkspaceButton.isVisible({ timeout: 1000 }).catch(() => false)) {
+    await expect(internalWorkspaceButton).toHaveAttribute("aria-pressed", "false", { timeout: 10000 });
+  }
   await expect
     .poll(
       () => page.evaluate((storageKey) => window.localStorage.getItem(storageKey), OPERATIONS_MODE_STORAGE_KEY),

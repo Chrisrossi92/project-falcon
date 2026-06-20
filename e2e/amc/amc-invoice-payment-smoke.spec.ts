@@ -323,7 +323,42 @@ function logInvoicePaymentDiagnostics(label, details) {
   console.log(`[AMC invoice/payment diagnostics] ${label}: ${JSON.stringify(details)}`);
 }
 
-async function ensureInvoicePaymentReady(assignmentWorkKey) {
+async function readRawInvoicePaymentDiagnostics(assignmentId) {
+  if (!assignmentId) return { assignmentId: null, error: "missing_assignment_id" };
+
+  const { data: assignment, error: assignmentError } = await adminClient
+    .from("order_company_assignments")
+    .select("id, status, submitted_at, completed_at, submission_payload")
+    .eq("id", assignmentId)
+    .maybeSingle();
+  const { data: ledgerRows, error: ledgerError } = await adminClient
+    .from("amc_vendor_payment_ledger")
+    .select("id, status, invoice_key, scheduled_payment_date, paid_at, payment_method_label, reference_label")
+    .eq("assignment_id", assignmentId)
+    .order("created_at", { ascending: false });
+
+  return {
+    assignmentId,
+    assignmentError: assignmentError?.message || null,
+    ledgerError: ledgerError?.message || null,
+    assignmentStatus: assignment?.status || null,
+    assignmentSubmittedAt: assignment?.submitted_at || null,
+    assignmentCompletedAt: assignment?.completed_at || null,
+    invoiceStatus: assignment?.submission_payload?.invoice?.status || null,
+    paymentStatus: assignment?.submission_payload?.payment?.status || null,
+    physicalLedgerRows: (ledgerRows || []).map((row) => ({
+      id: row.id,
+      status: row.status,
+      hasInvoiceKey: Boolean(row.invoice_key),
+      scheduledPaymentDate: row.scheduled_payment_date,
+      paidAt: row.paid_at,
+      paymentMethodLabel: row.payment_method_label,
+      referenceLabel: row.reference_label,
+    })),
+  };
+}
+
+async function ensureInvoicePaymentReady(assignmentWorkKey, assignmentId) {
   if (!assignmentWorkKey) throw new Error("Invoice/payment smoke requires an assignment work key.");
 
   let vendorPayment = await readVendorPaymentItem(assignmentWorkKey);
@@ -386,6 +421,7 @@ async function ensureInvoicePaymentReady(assignmentWorkKey) {
       const latestVendorPayment = await readVendorPaymentItem(assignmentWorkKey);
       logInvoicePaymentDiagnostics("approved ledger missing fixture assignment", {
         assignmentWorkKey,
+        rawState: await readRawInvoicePaymentDiagnostics(assignmentId),
         vendorPaymentStatus: latestVendorPayment?.payment_status_key || null,
         approvedInvoicePresent: Boolean(approvedInvoice?.invoice_key),
         approvedInvoiceStatus: approvedInvoice?.invoice_status || null,
@@ -434,9 +470,7 @@ async function openSmokeOrder(page) {
   await expect(page.getByText(ORDER_NUMBER).first()).toBeVisible({ timeout: 15000 });
   await page.getByText(ORDER_NUMBER).first().click();
 
-  await expect(page.getByTestId("order-workspace-context").filter({ hasText: /Order workspace:\s*Falcon AMC/i })).toBeVisible({
-    timeout: 15000,
-  });
+  await expect(page.getByText(/Falcon AMC procurement record scoped/i)).toBeVisible({ timeout: 15000 });
 }
 
 async function blockExternalPaymentProviders(page) {
@@ -468,7 +502,7 @@ test.describe("AMC staging invoice/payment visibility smoke", () => {
     const completed = await ensureCompletedAssignment();
     smokeState = {
       ...completed,
-      ...(await ensureInvoicePaymentReady(completed.assignmentWorkKey)),
+      ...(await ensureInvoicePaymentReady(completed.assignmentWorkKey, completed.assignment?.id)),
     };
   });
 
