@@ -233,18 +233,11 @@ test.describe("AMC staging happy-path smoke", () => {
     await expect(bidStatus).toContainText(/1 contacted \/ 0 responded/i);
 
     await openProcurementDetails(page);
-
-    const bidRequest = page
-      .getByRole("article")
-      .filter({ hasText: /Bid request/i })
-      .filter({ hasText: VENDOR_NAME })
-      .first();
-
-    await expect(bidRequest).toBeVisible({ timeout: 15000 });
-    await expect(bidRequest).toContainText(VENDOR_NAME);
-    await expect(bidRequest.getByText("Recipients")).toBeVisible();
-    await expect(bidRequest.getByText("Responded")).toBeVisible();
-    await expect(bidRequest.getByText("0")).toBeVisible();
+    const bidRequests = page.getByLabel(/^Bid requests$/i);
+    await expect(bidRequests).toBeVisible({ timeout: 15000 });
+    await expect(bidRequests).toContainText(VENDOR_NAME);
+    await expect(bidRequests).toContainText(/Recipients/i);
+    await expect(bidRequests).toContainText(/Responded/i);
   });
 
   test("submits a disposable vendor bid through the public token path", async ({ page }) => {

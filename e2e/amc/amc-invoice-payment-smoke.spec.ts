@@ -514,7 +514,7 @@ test.describe("AMC staging invoice/payment visibility smoke", () => {
     await expect(bidStatus).toContainText(VENDOR_NAME);
 
     await navigateWithinAmc(page, "/vendors");
-    await expect(page.getByRole("heading", { name: /Vendor Directory/i })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole("heading", { name: /Falcon AMC Vendor Network/i })).toBeVisible({ timeout: 15000 });
     await expect(page.getByLabel(/Vendor invoice review queue/i)).toContainText(/Vendor Invoice Review/i);
     await expect(page.getByLabel(/Vendor payment ledger queue/i)).toContainText(/No bank transfer is initiated/i);
 
