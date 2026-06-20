@@ -3,8 +3,11 @@ import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
 
 import {
+  assertAmcWorkspaceActive,
   assertAmcStagingSmokeTarget,
+  ensureAmcWorkspace,
   login as loginWithPassword,
+  navigateWithinAmc,
   prepareFixtureIfRequested,
   signIn as signInWithPassword,
 } from "./helpers/stagingSmoke";
@@ -139,25 +142,15 @@ async function login(page, email: string) {
   await loginWithPassword(page, email, PASSWORD);
 }
 
-async function ensureFalconAmcWorkspace(page) {
-  const workspaceLabel = page.getByTestId("persistent-workspace-label");
-  try {
-    await expect(workspaceLabel.filter({ hasText: /Workspace:\s*Falcon AMC/i })).toBeVisible({ timeout: 5000 });
-    return;
-  } catch {
-    await page.getByRole("button", { name: /^Falcon AMC$/i }).click();
-    await expect(workspaceLabel.filter({ hasText: /Workspace:\s*Falcon AMC/i })).toBeVisible({ timeout: 10000 });
-  }
-}
-
 async function openSmokeOrder(page) {
-  await page.goto(`/orders?q=${encodeURIComponent(ORDER_NUMBER)}`, { waitUntil: "networkidle" });
+  await navigateWithinAmc(page, `/orders?q=${encodeURIComponent(ORDER_NUMBER)}`);
   await expect(page.getByText(ORDER_NUMBER).first()).toBeVisible({ timeout: 15000 });
   await page.getByText(ORDER_NUMBER).first().click();
 
-  await expect(page.getByTestId("order-workspace-context").filter({ hasText: /Order workspace:\s*Falcon AMC/i })).toBeVisible({
-    timeout: 15000,
-  });
+  await expect(page.getByText(ORDER_NUMBER).first()).toBeVisible({ timeout: 15000 });
+  await expect(page.getByText(/Orders/i).first()).toBeVisible({ timeout: 15000 });
+  await expect(page.getByText(/Procurement\s+Falcon AMC/i).first()).toBeVisible({ timeout: 15000 });
+  await assertAmcWorkspaceActive(page, "AMC workspace on smoke order detail");
 }
 
 async function openProcurementDetails(page) {
@@ -223,8 +216,8 @@ test.describe("AMC staging happy-path smoke", () => {
   test("opens the AMC dashboard and disposable smoke order", async ({ page }) => {
     await login(page, OWNER_EMAIL);
 
+    await ensureAmcWorkspace(page);
     await page.goto("/dashboard", { waitUntil: "networkidle" });
-    await ensureFalconAmcWorkspace(page);
     await expect(page.getByRole("heading", { name: /Falcon AMC Dashboard|Dashboard/i }).first()).toBeVisible();
 
     await openSmokeOrder(page);

@@ -1,9 +1,13 @@
 import { spawnSync } from "node:child_process";
 
+import { expect } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 
 import { AMC_STAGING_REF, productionRefs, projectRefFromUrl } from "../../../scripts/lib/amc-staging-env.mjs";
 import { resolveEnvironmentProfile } from "../../../scripts/validate-env-profile.mjs";
+
+const OPERATIONS_MODE_STORAGE_KEY = "falcon.operationsMode";
+const AMC_OPERATIONS_MODE = "amc_operations";
 
 export function requiredValue(name: string) {
   const value = process.env[name]?.trim();
@@ -119,4 +123,83 @@ export async function login(page, email: string, password: string) {
   await page.getByLabel(/password/i).fill(password);
   await page.getByRole("button", { name: /^sign in$/i }).click();
   await page.waitForLoadState("networkidle");
+}
+
+async function visibleWorkspaceSwitcher(page) {
+  const workspaceSwitcher = page.locator('[data-testid="operations-mode-switcher"]:visible').first();
+  await expect(workspaceSwitcher).toBeVisible({ timeout: 15000 });
+  return workspaceSwitcher;
+}
+
+export async function readAmcWorkspaceDiagnostics(page) {
+  const visibleSwitcher = page.locator('[data-testid="operations-mode-switcher"]:visible').first();
+  const switcherVisible = await visibleSwitcher.isVisible({ timeout: 1000 }).catch(() => false);
+  const amcWorkspaceButton = visibleSwitcher.getByRole("button", { name: /^Falcon AMC$/i });
+  const internalWorkspaceButton = visibleSwitcher.getByRole("button", { name: /^Continental Internal Operations$/i });
+
+  return {
+    url: page.url(),
+    localStorageMode: await page.evaluate((storageKey) => window.localStorage.getItem(storageKey), OPERATIONS_MODE_STORAGE_KEY),
+    switcherVisible,
+    amcButtonVisible: await amcWorkspaceButton.isVisible({ timeout: 500 }).catch(() => false),
+    internalButtonVisible: await internalWorkspaceButton.isVisible({ timeout: 500 }).catch(() => false),
+    amcPressed: (await amcWorkspaceButton.getAttribute("aria-pressed").catch(() => null)) || "(missing)",
+    internalPressed: (await internalWorkspaceButton.getAttribute("aria-pressed").catch(() => null)) || "(missing)",
+  };
+}
+
+export async function logAmcWorkspaceDiagnostics(page, label) {
+  console.log(`[AMC workspace diagnostics] ${label}: ${JSON.stringify(await readAmcWorkspaceDiagnostics(page))}`);
+}
+
+export async function assertAmcWorkspaceActive(page, label = "AMC workspace") {
+  try {
+    await expect
+      .poll(() => readAmcWorkspaceDiagnostics(page), { timeout: 15000 })
+      .toMatchObject({
+        amcPressed: "true",
+        internalPressed: "false",
+        localStorageMode: AMC_OPERATIONS_MODE,
+      });
+  } catch (error) {
+    const state = await readAmcWorkspaceDiagnostics(page);
+    throw new Error(`${label} is not active. State: ${JSON.stringify(state)}`, { cause: error });
+  }
+}
+
+export async function ensureAmcWorkspace(page) {
+  await page.waitForLoadState("domcontentloaded").catch(() => {});
+
+  await page.goto("/dashboard", { waitUntil: "networkidle" });
+
+  const workspaceSwitcher = await visibleWorkspaceSwitcher(page);
+
+  const amcWorkspaceButton = workspaceSwitcher.getByRole("button", { name: /^Falcon AMC$/i });
+  await expect(amcWorkspaceButton).toBeVisible({ timeout: 15000 });
+
+  if ((await amcWorkspaceButton.getAttribute("aria-pressed")) !== "true") {
+    await amcWorkspaceButton.scrollIntoViewIfNeeded();
+    await amcWorkspaceButton.click({ timeout: 10000 });
+    await page.waitForURL(/\/dashboard(?:[?#].*)?$/, { timeout: 10000 }).catch(() => {});
+    await page.waitForLoadState("networkidle").catch(() => {});
+  }
+
+  await assertAmcWorkspaceActive(page, "Falcon AMC workspace switch after clicking Falcon AMC");
+}
+
+export async function navigateWithinAmc(page, path: string) {
+  await ensureAmcWorkspace(page);
+  await logAmcWorkspaceDiagnostics(page, `before ${path} navigation`);
+
+  await page.evaluate((nextPath) => {
+    window.history.pushState({}, "", nextPath);
+    window.dispatchEvent(new PopStateEvent("popstate", { state: window.history.state }));
+  }, path);
+
+  await expect(page).toHaveURL(new RegExp(`${path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:$|[#?])`), {
+    timeout: 10000,
+  });
+  await page.waitForLoadState("networkidle").catch(() => {});
+  await logAmcWorkspaceDiagnostics(page, `after ${path} navigation`);
+  await assertAmcWorkspaceActive(page, `AMC workspace after ${path} navigation`);
 }

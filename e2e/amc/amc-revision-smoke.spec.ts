@@ -3,7 +3,9 @@ import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
 
 import {
+  assertAmcWorkspaceActive,
   assertAmcStagingSmokeTarget,
+  navigateWithinAmc,
   login as loginWithPassword,
   prepareFixtureIfRequested,
   signIn as signInWithPassword,
@@ -154,12 +156,13 @@ async function createDisposableAssignmentInvitationToken(assignmentId) {
 }
 
 async function openSmokeOrder(page) {
-  await page.goto(`/orders?q=${encodeURIComponent(ORDER_NUMBER)}`, { waitUntil: "networkidle" });
+  await navigateWithinAmc(page, `/orders?q=${encodeURIComponent(ORDER_NUMBER)}`);
   await expect(page.getByText(ORDER_NUMBER).first()).toBeVisible({ timeout: 15000 });
   await page.getByText(ORDER_NUMBER).first().click();
-  await expect(page.getByTestId("order-workspace-context").filter({ hasText: /Order workspace:\s*Falcon AMC/i })).toBeVisible({
-    timeout: 15000,
-  });
+  await expect(page.getByText(ORDER_NUMBER).first()).toBeVisible({ timeout: 15000 });
+  await expect(page.getByText(/Orders/i).first()).toBeVisible({ timeout: 15000 });
+  await expect(page.getByText(/Procurement\s+Falcon AMC/i).first()).toBeVisible({ timeout: 15000 });
+  await assertAmcWorkspaceActive(page, "AMC workspace on smoke order detail");
 }
 
 async function openProcurementDetails(page) {
