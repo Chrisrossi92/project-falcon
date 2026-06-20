@@ -420,31 +420,71 @@ async function progressFixtureToSubmittedReport(browser) {
   });
   page = await newIsolatedPage(browser, "vendor start work and report submission");
   await logAmcWorkspaceDiagnostics(page, "before vendor login for start work");
-  await login(page, VENDOR_EMAIL);
+  await runRevisionStep(page, "vendor login for start work", () => login(page, VENDOR_EMAIL), {
+    assignmentWorkKey: assignedWork.assignment_work_key,
+  });
   console.log(`[amc revision smoke] navigating to vendor work item ${assignedWork.assignment_work_key} from ${page.url()}`);
-  await page.goto(`/vendor-workspace/assigned-orders/${encodeURIComponent(assignedWork.assignment_work_key)}`, {
-    waitUntil: "networkidle",
-  });
-  await logRevisionStep(page, "after opening vendor work item before start work", {
+  await runRevisionStep(
+    page,
+    "navigate to vendor work item",
+    () =>
+      page.goto(`/vendor-workspace/assigned-orders/${encodeURIComponent(assignedWork.assignment_work_key)}`, {
+        waitUntil: "domcontentloaded",
+      }),
+    { assignmentWorkKey: assignedWork.assignment_work_key },
+  );
+  await runRevisionStep(
+    page,
+    "wait for assigned-order page signal",
+    async () => {
+      await expect(page).toHaveURL(/\/vendor-workspace\/assigned-orders\/[^/?#]+(?:[?#].*)?$/, { timeout: 15000 });
+      await expect(page.getByText(ORDER_NUMBER).first()).toBeVisible({ timeout: 15000 });
+      await expect(page.getByRole("button", { name: /^Start Work$/i })).toBeVisible({ timeout: 15000 });
+    },
+    { assignmentWorkKey: assignedWork.assignment_work_key },
+  );
+  await logRevisionStep(page, "after assigned-order page signal before start work", {
     assignmentWorkKey: assignedWork.assignment_work_key,
   });
-  await page.getByRole("button", { name: /^Start Work$/i }).click();
-  await expectRevisionVisible(page, page.getByText(/Work started/i), "vendor work started", {
+  await runRevisionStep(page, "click Start Work", () => page.getByRole("button", { name: /^Start Work$/i }).click(), {
     assignmentWorkKey: assignedWork.assignment_work_key,
   });
-
-  await page.getByLabel(/^Report PDF$/i).setInputFiles(REPORT_FIXTURE_PATH);
-  await page.getByRole("button", { name: /^Upload Report File$/i }).click();
-  await expectRevisionVisible(page, page.getByText(REPORT_FIXTURE_FILE_NAME).first(), "vendor report upload visible", {
+  await runRevisionStep(
+    page,
+    "wait for Work started",
+    () => expect(page.getByText(/Work started/i)).toBeVisible({ timeout: 15000 }),
+    { assignmentWorkKey: assignedWork.assignment_work_key },
+  );
+  await runRevisionStep(page, "set Report PDF", () => page.getByLabel(/^Report PDF$/i).setInputFiles(REPORT_FIXTURE_PATH), {
     assignmentWorkKey: assignedWork.assignment_work_key,
-    timeout: 30000,
   });
-  await page.getByLabel(/^Delivery Note$/i).fill(REPORT_DELIVERY_NOTE);
-  await page.getByRole("button", { name: /^Submit Report$/i }).click();
-  await expectRevisionVisible(page, page.getByText(/Submitted \/ Awaiting Review/i).first(), "vendor report submitted state", {
+  await runRevisionStep(
+    page,
+    "click Upload Report File",
+    () => page.getByRole("button", { name: /^Upload Report File$/i }).click(),
+    { assignmentWorkKey: assignedWork.assignment_work_key },
+  );
+  await runRevisionStep(
+    page,
+    "wait for uploaded report filename",
+    () => expect(page.getByText(REPORT_FIXTURE_FILE_NAME).first()).toBeVisible({ timeout: 30000 }),
+    { assignmentWorkKey: assignedWork.assignment_work_key },
+  );
+  await runRevisionStep(page, "fill Delivery Note", () => page.getByLabel(/^Delivery Note$/i).fill(REPORT_DELIVERY_NOTE), {
     assignmentWorkKey: assignedWork.assignment_work_key,
-    timeout: 30000,
   });
+  await runRevisionStep(
+    page,
+    "click Submit Report",
+    () => page.getByRole("button", { name: /^Submit Report$/i }).click(),
+    { assignmentWorkKey: assignedWork.assignment_work_key },
+  );
+  await runRevisionStep(
+    page,
+    "wait for Submitted / Awaiting Review",
+    () => expect(page.getByText(/Submitted \/ Awaiting Review/i).first()).toBeVisible({ timeout: 30000 }),
+    { assignmentWorkKey: assignedWork.assignment_work_key },
+  );
 
   const submittedAssignments = await readVendorAssignmentsForOrder(ownerFixtureClient, selectedState.orderId);
   expect(submittedAssignments).toHaveLength(1);
