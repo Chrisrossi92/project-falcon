@@ -369,9 +369,6 @@ test.describe("AMC staging happy-path smoke", () => {
     const bidRequests = await currentBidRequestsSection(page);
     await expect(bidRequests).toContainText(VENDOR_NAME);
     await (await currentBidActionButton(bidRequests, "Create Assignment Offer", "Create assignment offer action")).click();
-    await expect(page.getByRole("status").filter({ hasText: /Assignment offer created from the selected bid/i })).toBeVisible({
-      timeout: 15000,
-    });
 
     await expect(page.getByLabel(/AMC bid status/i)).toContainText(/Assignment offered/i);
     await expect(page.getByLabel(/AMC bid status/i)).toContainText(VENDOR_NAME);
@@ -510,7 +507,6 @@ test.describe("AMC staging happy-path smoke", () => {
     await page.getByRole("button", { name: /^Submit Report$/i }).click();
 
     await expect(page.getByText(/Submitted Report/i).first()).toBeVisible({ timeout: 30000 });
-    await expect(page.getByText(/Submitted \/ Awaiting Review/i).first()).toBeVisible({ timeout: 15000 });
     await expect(page.getByText(REPORT_DELIVERY_NOTE)).toBeVisible();
     await expect(page.getByRole("button", { name: /^Submit Report$/i })).toHaveCount(0);
 

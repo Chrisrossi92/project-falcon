@@ -219,6 +219,10 @@ function DocumentsList({ documents, assignmentWorkKey }) {
   );
 }
 
+function isReportSubmissionDocument(document) {
+  return document?.category === "final_report" || /submitted report|report/i.test(document?.title || "");
+}
+
 function Timeline({ item }) {
   const entries = [
     ["Accepted", item.accepted_at || item.timeline?.accepted_at],
@@ -462,6 +466,13 @@ function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, 
           return;
         }
 
+        console.warn("[VendorWorkspaceReportSubmit] submit rejected", {
+          error: result.error || null,
+          status: result.status || null,
+          field_errors: result.field_errors || null,
+          document_count: documentKeys.length,
+        });
+
         setActionError(
           result.field_errors?.action ||
           result.field_errors?.payload ||
@@ -471,7 +482,12 @@ function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, 
             ? "Report could not be resubmitted. Please try again or contact the AMC coordinator."
             : "Report could not be submitted. Please try again or contact the AMC coordinator."),
         );
-      } catch {
+      } catch (error) {
+        console.warn("[VendorWorkspaceReportSubmit] submit failed", {
+          code: error?.code || null,
+          message: error?.message || null,
+          details: error?.details || null,
+        });
         setActionError(
           isRevisionFlow
             ? "Report could not be resubmitted. Please try again or contact the AMC coordinator."
@@ -547,7 +563,7 @@ function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, 
         </div>
         <button
           type="button"
-          disabled={isSubmittingReport || isUploadingReport}
+          disabled={isSubmittingReport || isUploadingReport || Boolean(selectedReportFile && !uploadedReportDocuments.length)}
           onClick={handleSubmitReport}
           className="w-full rounded-md border border-slate-900 bg-slate-900 px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-500"
         >
@@ -639,7 +655,11 @@ export default function VendorAssignedOrderDetailPage() {
   const status = item?.assignment_status || "accepted_not_started";
   const statusClass = statusClasses[status] || statusClasses.accepted_not_started;
   const statusLabel = displayStatusLabel(item);
-  const documents = useMemo(() => (Array.isArray(item?.documents) ? item.documents : []), [item?.documents]);
+  const documents = useMemo(() => {
+    if (!Array.isArray(item?.documents)) return [];
+    if (item?.report_submission?.submitted_at) return item.documents;
+    return item.documents.filter((document) => !isReportSubmissionDocument(document));
+  }, [item?.documents, item?.report_submission?.submitted_at]);
   const market = getMarket(order);
 
   if (isLoading) return <LoadingState />;
