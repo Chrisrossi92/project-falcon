@@ -313,12 +313,18 @@ async function expectRevisionText(page, locator, text, label, options = {}) {
 }
 
 async function runRevisionStep(page, label, action, options = {}) {
+  const startedAt = new Date().toISOString();
+  console.log(`[amc revision smoke] step start ${startedAt}: ${label}`);
   await logRevisionStep(page, `before step: ${label}`, options);
   try {
     const result = await action();
+    const endedAt = new Date().toISOString();
+    console.log(`[amc revision smoke] step end ${endedAt}: ${label}`);
     await logRevisionStep(page, `after step: ${label}`, options);
     return result;
   } catch (error) {
+    const failedAt = new Date().toISOString();
+    console.log(`[amc revision smoke] step failed ${failedAt}: ${label}: ${error?.message || error}`);
     await logRevisionStep(page, `failed step: ${label}`, options);
     throw error;
   }
@@ -335,98 +341,124 @@ async function expectCurrentActionButton(page, locator, context, diagnosticScope
 
 async function progressFixtureToSubmittedReport(browser) {
   let page = await newIsolatedPage(browser, "public bid submission");
-  const bidInvitation = await createDisposableBidInvitationToken();
+  const bidInvitation = await runRevisionStep(page, "create public bid invitation token", () =>
+    createDisposableBidInvitationToken(),
+  );
   console.log(`[amc revision smoke] navigating to public bid invitation from ${page.url()}`);
-  await page.goto(bidInvitation.path, { waitUntil: "networkidle" });
-  await logRevisionStep(page, "after opening public bid invitation");
-  await page.getByLabel(/Fee amount/i).fill(BID_AMOUNT);
-  await page.getByLabel(/Turn time days/i).fill(BID_TURN_TIME_DAYS);
-  await page.getByLabel(/Comments/i).fill(BID_COMMENTS);
-  await page.getByLabel(/Contact email/i).fill(VENDOR_EMAIL);
-  await page.getByRole("button", { name: /^Submit Bid$/i }).click();
-  await expectRevisionVisible(page, page.getByText(/Your bid has been submitted/i), "public bid submission success");
-  await closeIsolatedPage(page, "public bid submission");
+  await runRevisionStep(page, "open public bid invitation", () => page.goto(bidInvitation.path, { waitUntil: "networkidle" }));
+  await runRevisionStep(page, "fill public bid amount", () => page.getByLabel(/Fee amount/i).fill(BID_AMOUNT));
+  await runRevisionStep(page, "fill public bid turn time", () => page.getByLabel(/Turn time days/i).fill(BID_TURN_TIME_DAYS));
+  await runRevisionStep(page, "fill public bid comments", () => page.getByLabel(/Comments/i).fill(BID_COMMENTS));
+  await runRevisionStep(page, "fill public bid contact email", () => page.getByLabel(/Contact email/i).fill(VENDOR_EMAIL));
+  await runRevisionStep(page, "public bid submit", () => page.getByRole("button", { name: /^Submit Bid$/i }).click());
+  await runRevisionStep(page, "wait for public bid submission success", () =>
+    expect(page.getByText(/Your bid has been submitted/i)).toBeVisible({ timeout: 15000 }),
+  );
+  await runRevisionStep(page, "close public bid submission page", () => closeIsolatedPage(page, "public bid submission"));
 
   page = await newIsolatedPage(browser, "owner bid selection");
-  await logAmcWorkspaceDiagnostics(page, "before owner login for bid selection");
   await runRevisionStep(page, "owner login for bid selection", () => login(page, OWNER_EMAIL));
-  await logAmcWorkspaceDiagnostics(page, "after owner login before opening smoke order for bid selection");
   await runRevisionStep(page, "open smoke order for bid selection", () => openSmokeOrder(page));
   await runRevisionStep(page, "assert AMC checkpoint after opening smoke order for bid selection", () =>
     assertRevisionAmcCheckpoint(page, "after opening smoke order for bid selection"),
   );
-  await expectRevisionText(
-    page,
-    page.getByLabel(/AMC bid status/i),
-    /Bids received|1 contacted \/ 1 responded/i,
-    "AMC bid status shows received bid before selection",
+  await runRevisionStep(page, "wait for received bid before selection", () =>
+    expect(page.getByLabel(/AMC bid status/i)).toContainText(/Bids received|1 contacted \/ 1 responded/i, {
+      timeout: 15000,
+    }),
   );
   await runRevisionStep(page, "open procurement details for bid selection", () => openProcurementDetails(page));
   await runRevisionStep(page, "assert AMC checkpoint after opening procurement details for bid selection", () =>
     assertRevisionAmcCheckpoint(page, "after opening procurement details for bid selection"),
   );
   const procurementSection = page.getByLabel(/^Bid requests$/i);
-  await expectRevisionVisible(page, procurementSection, "bid requests section before bid selection");
+  await runRevisionStep(page, "wait for bid requests section before bid selection", () =>
+    expect(procurementSection).toBeVisible({ timeout: 15000 }),
+  );
 
-  await visibleButtonDiagnostics(page, "before bid selection", procurementSection);
-  const selectBidButton = await expectCurrentActionButton(
-    page,
-    procurementSection.getByRole("button", {
-      name: new RegExp(`^Select bid(?: for ${escapeRegExp(VENDOR_NAME)})?$`, "i"),
+  await runRevisionStep(page, "log bid selection button diagnostics", () =>
+    visibleButtonDiagnostics(page, "before bid selection", procurementSection),
+  );
+  const selectBidButton = await runRevisionStep(page, "find Select bid action", () =>
+    expectCurrentActionButton(
+      page,
+      procurementSection.getByRole("button", {
+        name: new RegExp(`^Select bid(?: for ${escapeRegExp(VENDOR_NAME)})?$`, "i"),
+      }),
+      "Select bid",
+      procurementSection,
+    ),
+  );
+  await runRevisionStep(page, "click Select bid", () => selectBidButton.click());
+  await runRevisionStep(page, "confirm selected bid", () =>
+    page.getByRole("dialog", { name: /Select bid/i }).getByRole("button", { name: /Confirm selection/i }).click(),
+  );
+  await runRevisionStep(page, "wait for bid selected status", async () => {
+    await expect(page.getByLabel(/AMC bid status/i)).toContainText(/Bid selected/i, { timeout: 15000 });
+    await expect(page.getByLabel(/AMC bid status/i)).toContainText(VENDOR_NAME);
+    await expect(page.getByLabel(/AMC bid status/i)).toContainText(/Accepted Fee/i);
+    await expect(page.getByLabel(/AMC bid status/i)).toContainText(BID_AMOUNT_PATTERN);
+  });
+
+  await runRevisionStep(page, "log assignment offer button diagnostics", () =>
+    visibleButtonDiagnostics(page, "before assignment offer creation", procurementSection),
+  );
+  const createOfferButton = await runRevisionStep(page, "find Create Assignment Offer action", () =>
+    expectCurrentActionButton(
+      page,
+      procurementSection.getByRole("button", { name: /Create Assignment Offer/i }),
+      "Create Assignment Offer",
+      procurementSection,
+    ),
+  );
+  await runRevisionStep(page, "create assignment offer", () => createOfferButton.click());
+  await runRevisionStep(page, "wait for assignment offer created status", () =>
+    expect(page.getByRole("status").filter({ hasText: /Assignment offer created from the selected bid/i })).toBeVisible({
+      timeout: 15000,
     }),
-    "Select bid",
-    procurementSection,
-  );
-  await selectBidButton.click();
-  await page.getByRole("dialog", { name: /Select bid/i }).getByRole("button", { name: /Confirm selection/i }).click();
-  await expect(page.getByLabel(/AMC bid status/i)).toContainText(/Bid selected/i);
-  await expect(page.getByLabel(/AMC bid status/i)).toContainText(VENDOR_NAME);
-  await expect(page.getByLabel(/AMC bid status/i)).toContainText(/Accepted Fee/i);
-  await expect(page.getByLabel(/AMC bid status/i)).toContainText(BID_AMOUNT_PATTERN);
-
-  await visibleButtonDiagnostics(page, "before assignment offer creation", procurementSection);
-  const createOfferButton = await expectCurrentActionButton(
-    page,
-    procurementSection.getByRole("button", { name: /Create Assignment Offer/i }),
-    "Create Assignment Offer",
-    procurementSection,
-  );
-  await createOfferButton.click();
-  await expectRevisionVisible(
-    page,
-    page.getByRole("status").filter({ hasText: /Assignment offer created from the selected bid/i }),
-    "assignment offer created status",
   );
 
-  const selectedState = await readOwnerFixtureState(ownerFixtureClient);
-  const offeredAssignments = await readVendorAssignmentsForOrder(ownerFixtureClient, selectedState.orderId);
-  expect(offeredAssignments).toHaveLength(1);
+  const selectedState = await runRevisionStep(page, "read owner fixture state after bid selection", () =>
+    readOwnerFixtureState(ownerFixtureClient),
+  );
+  const offeredAssignments = await runRevisionStep(page, "read offered vendor assignments", () =>
+    readVendorAssignmentsForOrder(ownerFixtureClient, selectedState.orderId),
+  );
+  await runRevisionStep(page, "assert one offered assignment", async () => {
+    expect(offeredAssignments).toHaveLength(1);
+  });
   const [offeredAssignment] = offeredAssignments;
-  const assignmentInvitation = await createDisposableAssignmentInvitationToken(offeredAssignment.id);
-  await closeIsolatedPage(page, "owner bid selection");
+  const assignmentInvitation = await runRevisionStep(page, "create assignment invitation token", () =>
+    createDisposableAssignmentInvitationToken(offeredAssignment.id),
+  );
+  await runRevisionStep(page, "close owner bid selection page", () => closeIsolatedPage(page, "owner bid selection"));
 
   page = await newIsolatedPage(browser, "public assignment acceptance");
   console.log(`[amc revision smoke] navigating to public assignment invitation from ${page.url()}`);
-  await page.goto(assignmentInvitation.path, { waitUntil: "networkidle" });
-  await logRevisionStep(page, "after opening public assignment invitation");
-  await page.getByRole("button", { name: /^Accept Assignment$/i }).click();
-  await expectRevisionVisible(page, page.getByText(/Assignment accepted/i), "public assignment accepted");
-  await closeIsolatedPage(page, "public assignment acceptance");
+  await runRevisionStep(page, "open public assignment invitation", () =>
+    page.goto(assignmentInvitation.path, { waitUntil: "networkidle" }),
+  );
+  await runRevisionStep(page, "accept assignment", () => page.getByRole("button", { name: /^Accept Assignment$/i }).click());
+  await runRevisionStep(page, "wait for assignment accepted", () =>
+    expect(page.getByText(/Assignment accepted/i)).toBeVisible({ timeout: 15000 }),
+  );
+  await runRevisionStep(page, "close public assignment acceptance page", () =>
+    closeIsolatedPage(page, "public assignment acceptance"),
+  );
 
-  const vendorClient = await signIn(VENDOR_EMAIL);
-  const assignedWork = await readVendorAssignedWork(vendorClient);
+  const vendorClient = await runRevisionStep(null, "sign in vendor fixture client", () => signIn(VENDOR_EMAIL));
+  const assignedWork = await runRevisionStep(null, "read vendor assigned work", () => readVendorAssignedWork(vendorClient));
   await logRevisionStep(null, "after reading vendor assigned work before start work", {
     assignmentWorkKey: assignedWork.assignment_work_key,
   });
   page = await newIsolatedPage(browser, "vendor start work and report submission");
-  await logAmcWorkspaceDiagnostics(page, "before vendor login for start work");
   await runRevisionStep(page, "vendor login for start work", () => login(page, VENDOR_EMAIL), {
     assignmentWorkKey: assignedWork.assignment_work_key,
   });
   console.log(`[amc revision smoke] navigating to vendor work item ${assignedWork.assignment_work_key} from ${page.url()}`);
   await runRevisionStep(
     page,
-    "navigate to vendor work item",
+    "open assigned work item",
     () =>
       page.goto(`/vendor-workspace/assigned-orders/${encodeURIComponent(assignedWork.assignment_work_key)}`, {
         waitUntil: "domcontentloaded",
@@ -460,7 +492,7 @@ async function progressFixtureToSubmittedReport(browser) {
   });
   await runRevisionStep(
     page,
-    "click Upload Report File",
+    "upload report",
     () => page.getByRole("button", { name: /^Upload Report File$/i }).click(),
     { assignmentWorkKey: assignedWork.assignment_work_key },
   );
@@ -475,7 +507,7 @@ async function progressFixtureToSubmittedReport(browser) {
   });
   await runRevisionStep(
     page,
-    "click Submit Report",
+    "submit report",
     () => page.getByRole("button", { name: /^Submit Report$/i }).click(),
     { assignmentWorkKey: assignedWork.assignment_work_key },
   );
