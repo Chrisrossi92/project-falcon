@@ -219,6 +219,10 @@ function DocumentsList({ documents, assignmentWorkKey }) {
   );
 }
 
+function isReportSubmissionDocument(document) {
+  return document?.category === "final_report" || /submitted report|report/i.test(document?.title || "");
+}
+
 function Timeline({ item }) {
   const entries = [
     ["Accepted", item.accepted_at || item.timeline?.accepted_at],
@@ -639,7 +643,11 @@ export default function VendorAssignedOrderDetailPage() {
   const status = item?.assignment_status || "accepted_not_started";
   const statusClass = statusClasses[status] || statusClasses.accepted_not_started;
   const statusLabel = displayStatusLabel(item);
-  const documents = useMemo(() => (Array.isArray(item?.documents) ? item.documents : []), [item?.documents]);
+  const documents = useMemo(() => {
+    if (!Array.isArray(item?.documents)) return [];
+    if (item?.report_submission?.submitted_at) return item.documents;
+    return item.documents.filter((document) => !isReportSubmissionDocument(document));
+  }, [item?.documents, item?.report_submission?.submitted_at]);
   const market = getMarket(order);
 
   if (isLoading) return <LoadingState />;
