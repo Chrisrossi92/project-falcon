@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
 
+import { expect } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 
 import { AMC_STAGING_REF, productionRefs, projectRefFromUrl } from "../../../scripts/lib/amc-staging-env.mjs";
@@ -119,4 +120,20 @@ export async function login(page, email: string, password: string) {
   await page.getByLabel(/password/i).fill(password);
   await page.getByRole("button", { name: /^sign in$/i }).click();
   await page.waitForLoadState("networkidle");
+}
+
+export async function ensureAmcWorkspace(page) {
+  const amcWorkspaceLabel = page
+    .getByTestId("persistent-workspace-label")
+    .filter({ hasText: /Workspace:\s*Falcon AMC/i });
+
+  if (await amcWorkspaceLabel.isVisible({ timeout: 5000 }).catch(() => false)) {
+    return;
+  }
+
+  const amcWorkspaceButton = page.getByRole("button", { name: /^Falcon AMC$/i }).first();
+  await expect(amcWorkspaceButton).toBeVisible({ timeout: 10000 });
+  await amcWorkspaceButton.click();
+  await page.waitForLoadState("networkidle").catch(() => {});
+  await expect(amcWorkspaceLabel).toBeVisible({ timeout: 15000 });
 }
