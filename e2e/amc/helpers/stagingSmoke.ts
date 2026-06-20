@@ -6,6 +6,9 @@ import { createClient } from "@supabase/supabase-js";
 import { AMC_STAGING_REF, productionRefs, projectRefFromUrl } from "../../../scripts/lib/amc-staging-env.mjs";
 import { resolveEnvironmentProfile } from "../../../scripts/validate-env-profile.mjs";
 
+const OPERATIONS_MODE_STORAGE_KEY = "falcon.operationsMode";
+const AMC_OPERATIONS_MODE = "amc_operations";
+
 export function requiredValue(name: string) {
   const value = process.env[name]?.trim();
   if (!value) throw new Error(`AMC staging smoke requires ${name}.`);
@@ -123,17 +126,41 @@ export async function login(page, email: string, password: string) {
 }
 
 export async function ensureAmcWorkspace(page) {
-  const amcWorkspaceLabel = page
-    .getByTestId("persistent-workspace-label")
-    .filter({ hasText: /Workspace:\s*Falcon AMC/i });
+  await page.waitForLoadState("domcontentloaded").catch(() => {});
 
-  if (await amcWorkspaceLabel.isVisible({ timeout: 5000 }).catch(() => false)) {
-    return;
+  const currentMode = await page.evaluate((storageKey) => window.localStorage.getItem(storageKey), OPERATIONS_MODE_STORAGE_KEY);
+  if (currentMode !== AMC_OPERATIONS_MODE) {
+    await page.evaluate(
+      ({ storageKey, mode }) => window.localStorage.setItem(storageKey, mode),
+      { storageKey: OPERATIONS_MODE_STORAGE_KEY, mode: AMC_OPERATIONS_MODE },
+    );
+    await page.goto("/dashboard", { waitUntil: "networkidle" });
   }
 
-  const amcWorkspaceButton = page.getByRole("button", { name: /^Falcon AMC$/i }).first();
-  await expect(amcWorkspaceButton).toBeVisible({ timeout: 10000 });
-  await amcWorkspaceButton.click();
-  await page.waitForLoadState("networkidle").catch(() => {});
-  await expect(amcWorkspaceLabel).toBeVisible({ timeout: 15000 });
+  await expect
+    .poll(
+      () => page.evaluate((storageKey) => window.localStorage.getItem(storageKey), OPERATIONS_MODE_STORAGE_KEY),
+      { timeout: 10000 },
+    )
+    .toBe(AMC_OPERATIONS_MODE);
+
+  const amcSignals = [
+    page.getByRole("heading", { name: /Falcon AMC Dashboard/i }).first(),
+    page.getByText(/Procurement Command/i).first(),
+    page.getByText(/Falcon AMC Environment/i).first(),
+    page.getByTestId("workspace-identity-title").filter({ hasText: /Falcon AMC Environment/i }).first(),
+    page.getByTestId("operations-mode-current").filter({ hasText: /Falcon AMC/i }).first(),
+    page.getByTestId("operations-mode-selected-label").filter({ hasText: /Falcon AMC/i }).first(),
+    page.getByTestId("persistent-workspace-label").filter({ hasText: /Workspace:\s*Falcon AMC/i }).first(),
+  ];
+
+  for (const signal of amcSignals) {
+    if (await signal.isVisible({ timeout: 1000 }).catch(() => false)) {
+      return;
+    }
+  }
+
+  await expect(page.getByText(/Falcon AMC|Procurement Command|Falcon AMC Environment/i).first()).toBeVisible({
+    timeout: 15000,
+  });
 }
