@@ -122,20 +122,20 @@ export async function signIn(email: string, password: string) {
 }
 
 export async function readAuthenticatedShellDiagnostics(page) {
-  const emailVisible = await page.getByLabel(/email/i).isVisible({ timeout: 250 }).catch(() => false);
-  const passwordVisible = await page.getByLabel(/password/i).isVisible({ timeout: 250 }).catch(() => false);
+  const emailVisible = await page.getByLabel(/email/i).isVisible({ timeout: 0 }).catch(() => false);
+  const passwordVisible = await page.getByLabel(/password/i).isVisible({ timeout: 0 }).catch(() => false);
   const shellVisible = !emailVisible
     ? await page
         .locator('[data-testid="operations-mode-switcher"]:visible')
         .first()
-        .isVisible({ timeout: 250 })
+        .isVisible({ timeout: 0 })
         .catch(() => false)
     : false;
   const dashboardVisible = !emailVisible
     ? await page
         .getByRole("heading", { name: /dashboard|falcon amc|appraisal production/i })
         .first()
-        .isVisible({ timeout: 250 })
+        .isVisible({ timeout: 0 })
         .catch(() => false)
     : false;
 
@@ -186,6 +186,7 @@ export async function login(page, email: string, password: string) {
 
 async function visibleWorkspaceSwitcher(page) {
   const authState = await readAuthenticatedShellDiagnostics(page);
+  console.log(`[AMC workspace diagnostics] before workspace switcher lookup: ${JSON.stringify(authState)}`);
   if (authState.loginFormVisible) {
     throw new Error(`Workspace switcher requested before authentication completed. State: ${JSON.stringify(authState)}`);
   }
@@ -204,7 +205,7 @@ async function visibleWorkspaceSwitcher(page) {
 export async function readAmcWorkspaceDiagnostics(page) {
   const authState = await readAuthenticatedShellDiagnostics(page);
   const visibleSwitcher = page.locator('[data-testid="operations-mode-switcher"]:visible').first();
-  const switcherVisible = await visibleSwitcher.isVisible({ timeout: 1000 }).catch(() => false);
+  const switcherVisible = await visibleSwitcher.isVisible({ timeout: 0 }).catch(() => false);
   const amcWorkspaceButton = visibleSwitcher.getByRole("button", { name: /^Falcon AMC$/i });
   const internalWorkspaceButton = visibleSwitcher.getByRole("button", { name: /^Continental Internal Operations$/i });
   const localStorageMode = await page
@@ -222,10 +223,11 @@ export async function readAmcWorkspaceDiagnostics(page) {
     url: page.url(),
     localStorageMode,
     switcherVisible,
-    amcButtonVisible: await amcWorkspaceButton.isVisible({ timeout: 500 }).catch(() => false),
-    internalButtonVisible: await internalWorkspaceButton.isVisible({ timeout: 500 }).catch(() => false),
-    amcPressed: (await amcWorkspaceButton.getAttribute("aria-pressed").catch(() => null)) || "(missing)",
-    internalPressed: (await internalWorkspaceButton.getAttribute("aria-pressed").catch(() => null)) || "(missing)",
+    amcButtonVisible: await amcWorkspaceButton.isVisible({ timeout: 0 }).catch(() => false),
+    internalButtonVisible: await internalWorkspaceButton.isVisible({ timeout: 0 }).catch(() => false),
+    amcPressed: (await amcWorkspaceButton.getAttribute("aria-pressed", { timeout: 0 }).catch(() => null)) || "(missing)",
+    internalPressed:
+      (await internalWorkspaceButton.getAttribute("aria-pressed", { timeout: 0 }).catch(() => null)) || "(missing)",
   };
 }
 
@@ -256,6 +258,11 @@ export async function ensureAmcWorkspace(page) {
   await page.waitForLoadState("domcontentloaded").catch(() => {});
 
   await page.goto("/dashboard", { waitUntil: "networkidle" });
+  console.log(
+    `[AMC workspace diagnostics] after dashboard navigation before switcher lookup: ${JSON.stringify(
+      await readAuthenticatedShellDiagnostics(page),
+    )}`,
+  );
 
   const workspaceSwitcher = await visibleWorkspaceSwitcher(page);
 

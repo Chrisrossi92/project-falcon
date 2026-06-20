@@ -466,7 +466,7 @@ test.describe("AMC staging happy-path smoke", () => {
 
     await expect(page.getByText(/Work started/i)).toBeVisible({ timeout: 15000 });
     await expect(page.getByText(/In Progress/i).first()).toBeVisible({ timeout: 15000 });
-    await expect(page.getByText(/Report PDF/i)).toBeVisible();
+    await expect(page.getByLabel(/^Report PDF$/i)).toBeVisible();
     await expect(page.getByRole("button", { name: /^Submit Report$/i })).toBeVisible();
 
     const inProgressAssignments = await readVendorAssignmentsForOrder(ownerFixtureClient, fixtureState.orderId);
