@@ -159,9 +159,7 @@ async function openSmokeOrder(page) {
   await page.goto(`/orders?q=${encodeURIComponent(ORDER_NUMBER)}`, { waitUntil: "networkidle" });
   await expect(page.getByText(ORDER_NUMBER).first()).toBeVisible({ timeout: 15000 });
   await page.getByText(ORDER_NUMBER).first().click();
-  await expect(page.getByTestId("order-workspace-context").filter({ hasText: /Order workspace:\s*Falcon AMC/i })).toBeVisible({
-    timeout: 15000,
-  });
+  await expect(page.getByText(/Falcon AMC procurement record scoped/i)).toBeVisible({ timeout: 15000 });
 }
 
 async function openProcurementDetails(page) {
