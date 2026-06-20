@@ -3,11 +3,11 @@ import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
 
 import {
-  assertAmcWorkspaceActive,
+  assertOwnerAssignmentPacketLoaded,
   assertAmcStagingSmokeTarget,
   ensureAmcWorkspace,
   login as loginWithPassword,
-  navigateWithinAmc,
+  openAmcOrderDetail,
   prepareFixtureIfRequested,
   signIn as signInWithPassword,
 } from "./helpers/stagingSmoke";
@@ -143,13 +143,7 @@ async function login(page, email: string) {
 }
 
 async function openSmokeOrder(page) {
-  await navigateWithinAmc(page, `/orders?q=${encodeURIComponent(ORDER_NUMBER)}`);
-  await expect(page.getByText(ORDER_NUMBER).first()).toBeVisible({ timeout: 15000 });
-  await page.getByText(ORDER_NUMBER).first().click();
-
-  await expect(page.getByText(ORDER_NUMBER).first()).toBeVisible({ timeout: 15000 });
-  await expect(page.getByRole("heading", { name: /Orders/i }).first()).toBeVisible({ timeout: 15000 });
-  await assertAmcWorkspaceActive(page, "AMC workspace on smoke order detail");
+  await openAmcOrderDetail(page, ORDER_NUMBER);
 }
 
 async function openProcurementDetails(page) {
@@ -567,9 +561,12 @@ test.describe("AMC staging happy-path smoke", () => {
       .first();
     await expect(submittedOwnerAssignment).toBeVisible({ timeout: 15000 });
     await expect(submittedOwnerAssignment.getByText(/Submitted/i).first()).toBeVisible();
-    await submittedOwnerAssignment.getByRole("link", { name: /Open assignment packet/i }).click();
+    await Promise.all([
+      page.waitForURL(/\/assignments\/[^/?#]+(?:[?#].*)?$/, { timeout: 15000 }),
+      submittedOwnerAssignment.getByRole("link", { name: /Open assignment packet/i }).click(),
+    ]);
 
-    await expect(page.getByText(/^Owner Packet$/i)).toBeVisible({ timeout: 15000 });
+    await assertOwnerAssignmentPacketLoaded(page, "Submitted owner assignment packet");
     await expect(page.getByText(VENDOR_NAME)).toBeVisible();
     await expect(page.getByText(/Submitted/i).first()).toBeVisible();
     await expect(page.getByText(/Submission/i)).toBeVisible();

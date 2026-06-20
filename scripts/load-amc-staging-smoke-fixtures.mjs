@@ -226,6 +226,36 @@ function firstRow(payload) {
   return Array.isArray(payload) ? payload[0] : payload;
 }
 
+async function cleanupSmokeWorkflowState(admin, { order, ownerCompany, vendorCompanies }) {
+  const vendorCompanyIds = vendorCompanies.map((company) => company?.id).filter(Boolean);
+  if (!order?.id || !ownerCompany?.id || vendorCompanyIds.length === 0) {
+    throw new Error("Smoke workflow cleanup requires order, owner company, and disposable vendor companies.");
+  }
+
+  const assignments = assertOk(
+    await admin
+      .from("order_company_assignments")
+      .select("id")
+      .eq("order_id", order.id)
+      .eq("owner_company_id", ownerCompany.id)
+      .eq("assignment_type", "vendor_appraisal")
+      .in("assigned_company_id", vendorCompanyIds),
+    "lookup existing smoke assignment packets",
+  );
+  const assignmentIds = assignments.map((assignment) => assignment.id);
+
+  if (assignmentIds.length > 0) {
+    assertOk(
+      await admin.from("amc_vendor_payment_ledger").delete().in("assignment_id", assignmentIds),
+      "delete existing smoke payment ledger rows",
+    );
+    assertOk(
+      await admin.from("order_company_assignments").delete().in("id", assignmentIds),
+      "delete existing smoke assignment packets",
+    );
+  }
+}
+
 async function main() {
   assertStagingTarget();
   mkdirSync(artifactDir, { recursive: true });
@@ -525,6 +555,12 @@ async function main() {
     "upsert smoke order",
   );
 
+  await cleanupSmokeWorkflowState(admin, {
+    order,
+    ownerCompany,
+    vendorCompanies: [vendorCompany, wrongVendorCompany],
+  });
+
   const existingRequests = assertOk(
     await admin.from("order_vendor_bid_requests").select("id").eq("order_id", order.id),
     "lookup existing bid requests",
@@ -651,7 +687,6 @@ async function main() {
     owner_login: OWNER_EMAIL,
     vendor_login: VENDOR_EMAIL,
     wrong_vendor_login: WRONG_VENDOR_EMAIL,
-    temporary_password: PASSWORD,
     owner_company_slug: ownerCompany.slug,
     vendor_company_slug: vendorCompany.slug,
     wrong_vendor_company_slug: wrongVendorCompany.slug,

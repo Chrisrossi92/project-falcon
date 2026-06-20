@@ -9,6 +9,10 @@ import { resolveEnvironmentProfile } from "../../../scripts/validate-env-profile
 const OPERATIONS_MODE_STORAGE_KEY = "falcon.operationsMode";
 const AMC_OPERATIONS_MODE = "amc_operations";
 
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 export function requiredValue(name: string) {
   const value = process.env[name]?.trim();
   if (!value) throw new Error(`AMC staging smoke requires ${name}.`);
@@ -202,4 +206,43 @@ export async function navigateWithinAmc(page, path: string) {
   await page.waitForLoadState("networkidle").catch(() => {});
   await logAmcWorkspaceDiagnostics(page, `after ${path} navigation`);
   await assertAmcWorkspaceActive(page, `AMC workspace after ${path} navigation`);
+}
+
+export async function visibleBodyText(page, limit = 2500) {
+  return page.evaluate((maxLength) => document.body?.innerText?.slice(0, maxLength) || "", limit).catch(() => "");
+}
+
+export async function openAmcOrderDetail(page, orderNumber: string) {
+  await navigateWithinAmc(page, `/orders?q=${encodeURIComponent(orderNumber)}`);
+  await expect(page.getByRole("heading", { name: /Orders/i }).first()).toBeVisible({ timeout: 15000 });
+
+  const orderLink = page.getByRole("link", { name: new RegExp(`^${escapeRegExp(orderNumber)}$`) }).first();
+  try {
+    await expect(orderLink).toBeVisible({ timeout: 15000 });
+    await Promise.all([
+      page.waitForURL(/\/orders\/[^/?#]+(?:[?#].*)?$/, { timeout: 15000 }),
+      orderLink.click(),
+    ]);
+    await page.waitForLoadState("networkidle").catch(() => {});
+    await expect(page.getByText(orderNumber).first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByLabel(/AMC bid status/i)).toBeVisible({ timeout: 15000 });
+    await assertAmcWorkspaceActive(page, "AMC workspace on smoke order detail");
+  } catch (error) {
+    const state = await readAmcWorkspaceDiagnostics(page);
+    const bodyText = await visibleBodyText(page);
+    throw new Error(
+      `AMC smoke order detail did not open from Orders list. State: ${JSON.stringify(state)} Body: ${bodyText}`,
+      { cause: error },
+    );
+  }
+}
+
+export async function assertOwnerAssignmentPacketLoaded(page, label = "Owner assignment packet") {
+  try {
+    await expect(page).toHaveURL(/\/assignments\/[^/?#]+(?:[?#].*)?$/, { timeout: 15000 });
+    await expect(page.getByLabel(/^Owner Packet detail$/i)).toBeVisible({ timeout: 15000 });
+  } catch (error) {
+    const bodyText = await visibleBodyText(page);
+    throw new Error(`${label} did not load. URL: ${page.url()} Body: ${bodyText}`, { cause: error });
+  }
 }

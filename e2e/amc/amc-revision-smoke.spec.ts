@@ -3,10 +3,10 @@ import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
 
 import {
-  assertAmcWorkspaceActive,
+  assertOwnerAssignmentPacketLoaded,
   assertAmcStagingSmokeTarget,
-  navigateWithinAmc,
   login as loginWithPassword,
+  openAmcOrderDetail,
   prepareFixtureIfRequested,
   signIn as signInWithPassword,
 } from "./helpers/stagingSmoke";
@@ -156,12 +156,7 @@ async function createDisposableAssignmentInvitationToken(assignmentId) {
 }
 
 async function openSmokeOrder(page) {
-  await navigateWithinAmc(page, `/orders?q=${encodeURIComponent(ORDER_NUMBER)}`);
-  await expect(page.getByText(ORDER_NUMBER).first()).toBeVisible({ timeout: 15000 });
-  await page.getByText(ORDER_NUMBER).first().click();
-  await expect(page.getByText(ORDER_NUMBER).first()).toBeVisible({ timeout: 15000 });
-  await expect(page.getByRole("heading", { name: /Orders/i }).first()).toBeVisible({ timeout: 15000 });
-  await assertAmcWorkspaceActive(page, "AMC workspace on smoke order detail");
+  await openAmcOrderDetail(page, ORDER_NUMBER);
 }
 
 async function openProcurementDetails(page) {
@@ -258,9 +253,12 @@ test.describe("AMC staging revision smoke", () => {
       .filter({ hasText: /Submitted/i })
       .first();
     await expect(submittedOwnerAssignment).toBeVisible({ timeout: 15000 });
-    await submittedOwnerAssignment.getByRole("link", { name: /Open assignment packet/i }).click();
+    await Promise.all([
+      page.waitForURL(/\/assignments\/[^/?#]+(?:[?#].*)?$/, { timeout: 15000 }),
+      submittedOwnerAssignment.getByRole("link", { name: /Open assignment packet/i }).click(),
+    ]);
 
-    await expect(page.getByText(/^Owner Packet$/i)).toBeVisible({ timeout: 15000 });
+    await assertOwnerAssignmentPacketLoaded(page, "Revision owner assignment packet");
     await expect(page.getByRole("button", { name: /^Request Revision$/i })).toBeVisible();
     await page.getByRole("button", { name: /^Request Revision$/i }).click();
     await expect(page.getByRole("heading", { name: /^Request revision$/i })).toBeVisible();
@@ -313,7 +311,11 @@ test.describe("AMC staging revision smoke", () => {
       .filter({ hasText: /Submitted/i })
       .first();
     await expect(resubmittedOwnerAssignment).toBeVisible({ timeout: 15000 });
-    await resubmittedOwnerAssignment.getByRole("link", { name: /Open assignment packet/i }).click();
+    await Promise.all([
+      page.waitForURL(/\/assignments\/[^/?#]+(?:[?#].*)?$/, { timeout: 15000 }),
+      resubmittedOwnerAssignment.getByRole("link", { name: /Open assignment packet/i }).click(),
+    ]);
+    await assertOwnerAssignmentPacketLoaded(page, "Resubmitted owner assignment packet");
     await expect(page.getByText(/Resubmitted|resubmission|Revision/i).first()).toBeVisible({ timeout: 15000 });
     await expect(page.getByRole("button", { name: /^Complete$/i })).toBeVisible();
     await expect(page.getByRole("button", { name: /^Request Revision$/i })).toBeVisible();

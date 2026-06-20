@@ -5,10 +5,10 @@ import { expect, test } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 
 import {
-  assertAmcWorkspaceActive,
   assertAmcStagingSmokeTarget,
   login as loginWithPassword,
   navigateWithinAmc,
+  openAmcOrderDetail,
   prepareFixtureIfRequested,
   requiredValue,
   signIn as signInWithPassword,
@@ -466,13 +466,7 @@ async function login(page, email: string) {
 }
 
 async function openSmokeOrder(page) {
-  await navigateWithinAmc(page, `/orders?q=${encodeURIComponent(ORDER_NUMBER)}`);
-  await expect(page.getByText(ORDER_NUMBER).first()).toBeVisible({ timeout: 15000 });
-  await page.getByText(ORDER_NUMBER).first().click();
-
-  await expect(page.getByText(ORDER_NUMBER).first()).toBeVisible({ timeout: 15000 });
-  await expect(page.getByRole("heading", { name: /Orders/i }).first()).toBeVisible({ timeout: 15000 });
-  await assertAmcWorkspaceActive(page, "AMC workspace on smoke order detail");
+  await openAmcOrderDetail(page, ORDER_NUMBER);
 }
 
 async function blockExternalPaymentProviders(page) {
