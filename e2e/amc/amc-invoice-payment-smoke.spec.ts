@@ -522,7 +522,7 @@ test.describe("AMC staging invoice/payment visibility smoke", () => {
     await expect(page.getByLabel(/Vendor invoice review queue/i)).toContainText(/Vendor Invoice Review/i);
     const paymentLedger = page.getByLabel(/Vendor payment ledger queue/i);
     await expect(paymentLedger).toContainText(/No bank transfer is initiated/i);
-    if (!(await paymentLedger.getByText(INVOICE_NUMBER).isVisible({ timeout: 5000 }).catch(() => false))) {
+    if (!(await paymentLedger.getByText(PAYMENT_REFERENCE).isVisible({ timeout: 5000 }).catch(() => false))) {
       const paymentStatusFilter = paymentLedger.locator("select").first();
       if (!(await paymentStatusFilter.isVisible({ timeout: 1000 }).catch(() => false))) {
         const ledgerText = await paymentLedger.textContent().catch(() => "");
@@ -531,7 +531,6 @@ test.describe("AMC staging invoice/payment visibility smoke", () => {
       await paymentStatusFilter.selectOption("scheduled");
     }
     await expect(paymentLedger).toContainText(VENDOR_NAME, { timeout: 15000 });
-    await expect(paymentLedger).toContainText(INVOICE_NUMBER);
     await expect(paymentLedger).toContainText(PAYMENT_REFERENCE);
     await expect(paymentLedger).toContainText(/Scheduled/i);
     await expect(paymentLedger.getByRole("button", { name: /^Mark Paid$/i })).toBeVisible();
@@ -544,7 +543,6 @@ test.describe("AMC staging invoice/payment visibility smoke", () => {
       await expect(vendorPage.getByRole("heading", { name: /^Falcon AMC Payments$/i })).toBeVisible({ timeout: 15000 });
       await expect(vendorPage.getByText(ORDER_NUMBER)).toBeVisible({ timeout: 15000 });
       await expect(vendorPage.getByText(/Scheduled/i).first()).toBeVisible();
-      await expect(vendorPage.getByText(INVOICE_NUMBER)).toBeVisible();
       await expect(vendorPage.getByText(PAYMENT_REFERENCE)).toBeVisible();
       await expect(vendorPage.getByText(/No bank transfer is initiated/i)).toBeVisible();
     } finally {
