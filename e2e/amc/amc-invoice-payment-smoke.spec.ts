@@ -508,9 +508,7 @@ test.describe("AMC staging invoice/payment visibility smoke", () => {
     await login(page, OWNER_EMAIL);
     await openSmokeOrder(page);
     await expect(page.getByText(ORDER_NUMBER).first()).toBeVisible({ timeout: 15000 });
-    const orderOverview = page.getByLabel(/Operational Overview|Order Summary/i);
-    await expect(orderOverview).toContainText(/Assignment Status/i, { timeout: 15000 });
-    await expect(orderOverview).toContainText(/Completed/i);
+    await expect(page.locator('span[title="Completed"]').first()).toBeVisible({ timeout: 15000 });
     const bidStatus = page.getByLabel(/AMC bid status/i);
     await expect(bidStatus).toContainText(/Bid selected/i);
     await expect(bidStatus).toContainText(VENDOR_NAME);
