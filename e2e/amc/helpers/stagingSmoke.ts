@@ -128,13 +128,27 @@ export async function login(page, email: string, password: string) {
 export async function ensureAmcWorkspace(page) {
   await page.waitForLoadState("domcontentloaded").catch(() => {});
 
-  const currentMode = await page.evaluate((storageKey) => window.localStorage.getItem(storageKey), OPERATIONS_MODE_STORAGE_KEY);
-  if (currentMode !== AMC_OPERATIONS_MODE) {
-    await page.evaluate(
-      ({ storageKey, mode }) => window.localStorage.setItem(storageKey, mode),
-      { storageKey: OPERATIONS_MODE_STORAGE_KEY, mode: AMC_OPERATIONS_MODE },
-    );
-    await page.goto("/dashboard", { waitUntil: "networkidle" });
+  await page.evaluate(
+    ({ storageKey, mode }) => window.localStorage.setItem(storageKey, mode),
+    { storageKey: OPERATIONS_MODE_STORAGE_KEY, mode: AMC_OPERATIONS_MODE },
+  );
+  await page.goto("/dashboard", { waitUntil: "networkidle" });
+
+  await expect
+    .poll(
+      () => page.evaluate((storageKey) => window.localStorage.getItem(storageKey), OPERATIONS_MODE_STORAGE_KEY),
+      { timeout: 10000 },
+    )
+    .toBe(AMC_OPERATIONS_MODE);
+
+  const amcWorkspaceButton = page.getByRole("button", { name: /^Falcon AMC$/i }).first();
+  if (await amcWorkspaceButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+    const pressed = await amcWorkspaceButton.getAttribute("aria-pressed");
+    if (pressed !== "true") {
+      await amcWorkspaceButton.click();
+      await page.waitForLoadState("networkidle").catch(() => {});
+    }
+    await expect(amcWorkspaceButton).toHaveAttribute("aria-pressed", "true", { timeout: 10000 });
   }
 
   await expect
@@ -151,7 +165,6 @@ export async function ensureAmcWorkspace(page) {
     page.getByTestId("workspace-identity-title").filter({ hasText: /Falcon AMC Environment/i }).first(),
     page.getByTestId("operations-mode-current").filter({ hasText: /Falcon AMC/i }).first(),
     page.getByTestId("operations-mode-selected-label").filter({ hasText: /Falcon AMC/i }).first(),
-    page.getByTestId("persistent-workspace-label").filter({ hasText: /Workspace:\s*Falcon AMC/i }).first(),
   ];
 
   for (const signal of amcSignals) {

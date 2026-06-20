@@ -294,19 +294,33 @@ async function readVendorPaymentItem(assignmentWorkKey) {
 }
 
 async function readOwnerInvoice(invoiceStatus, assignmentWorkKey = smokeState?.assignmentWorkKey) {
+  const queue = await readOwnerInvoiceQueue(invoiceStatus);
+  return queue.find((item) => item.assignment_work_key === assignmentWorkKey);
+}
+
+async function readOwnerInvoiceQueue(invoiceStatus) {
   const queue = assertRpcOk(
     await rpc(ownerSession.client, "rpc_amc_vendor_invoices", { p_status: invoiceStatus }),
     `invoice queue ${invoiceStatus}`,
   );
-  return (queue.items || []).find((item) => item.assignment_work_key === assignmentWorkKey);
+  return queue.items || [];
 }
 
 async function readOwnerPayment(status, assignmentWorkKey = smokeState?.assignmentWorkKey) {
+  const ledger = await readOwnerPaymentLedger(status);
+  return ledger.find((item) => item.assignment_work_key === assignmentWorkKey);
+}
+
+async function readOwnerPaymentLedger(status) {
   const ledger = assertRpcOk(
     await rpc(ownerSession.client, "rpc_amc_vendor_payment_ledger", { p_status: status }),
     `payment ledger ${status}`,
   );
-  return (ledger.items || []).find((item) => item.assignment_work_key === assignmentWorkKey);
+  return ledger.items || [];
+}
+
+function logInvoicePaymentDiagnostics(label, details) {
+  console.log(`[AMC invoice/payment diagnostics] ${label}: ${JSON.stringify(details)}`);
 }
 
 async function ensureInvoicePaymentReady(assignmentWorkKey) {
@@ -343,7 +357,7 @@ async function ensureInvoicePaymentReady(assignmentWorkKey) {
   if (vendorPayment.payment_status_key === "invoice_received") {
     const invoiceRow = await readOwnerInvoice("invoice_received", assignmentWorkKey);
     if (!invoiceRow?.invoice_key) throw new Error("Owner invoice queue missing submitted smoke invoice.");
-    assertRpcOk(
+    const approval = assertRpcOk(
       await rpc(ownerSession.client, "rpc_amc_review_vendor_invoice", {
         p_invoice_key: invoiceRow.invoice_key,
         p_payload: {
@@ -355,12 +369,31 @@ async function ensureInvoicePaymentReady(assignmentWorkKey) {
       }),
       "approve invoice",
     );
+    logInvoicePaymentDiagnostics("invoice approval result", {
+      assignmentWorkKey,
+      invoiceKey: invoiceRow.invoice_key,
+      invoiceStatus: approval.invoice?.invoice_status || null,
+      approvedAmount: approval.invoice?.approved_amount || null,
+    });
     vendorPayment = await readVendorPaymentItem(assignmentWorkKey);
   }
 
   if (vendorPayment.payment_status_key === "approved") {
-    const approvedPayment = await readOwnerPayment("approved", assignmentWorkKey);
-    if (!approvedPayment?.invoice_key) throw new Error("Owner payment ledger missing approved smoke invoice.");
+    const approvedLedger = await readOwnerPaymentLedger("approved");
+    const approvedPayment = approvedLedger.find((item) => item.assignment_work_key === assignmentWorkKey);
+    if (!approvedPayment?.invoice_key) {
+      const approvedInvoice = await readOwnerInvoice("approved", assignmentWorkKey);
+      const latestVendorPayment = await readVendorPaymentItem(assignmentWorkKey);
+      logInvoicePaymentDiagnostics("approved ledger missing fixture assignment", {
+        assignmentWorkKey,
+        vendorPaymentStatus: latestVendorPayment?.payment_status_key || null,
+        approvedInvoicePresent: Boolean(approvedInvoice?.invoice_key),
+        approvedInvoiceStatus: approvedInvoice?.invoice_status || null,
+        approvedLedgerCount: approvedLedger.length,
+        approvedLedgerAssignmentKeys: approvedLedger.map((item) => item.assignment_work_key).slice(0, 10),
+      });
+      throw new Error("Owner payment ledger missing approved smoke invoice.");
+    }
     const scheduled = assertRpcOk(
       await rpc(ownerSession.client, "rpc_amc_schedule_vendor_payment", {
         p_invoice_key: approvedPayment.invoice_key,
@@ -398,7 +431,6 @@ async function login(page, email: string) {
 async function openSmokeOrder(page) {
   await ensureAmcWorkspace(page);
   await page.goto(`/orders?q=${encodeURIComponent(ORDER_NUMBER)}`, { waitUntil: "networkidle" });
-  await ensureAmcWorkspace(page);
   await expect(page.getByText(ORDER_NUMBER).first()).toBeVisible({ timeout: 15000 });
   await page.getByText(ORDER_NUMBER).first().click();
 
@@ -455,7 +487,6 @@ test.describe("AMC staging invoice/payment visibility smoke", () => {
 
     await ensureAmcWorkspace(page);
     await page.goto("/vendors", { waitUntil: "networkidle" });
-    await ensureAmcWorkspace(page);
     await expect(page.getByRole("heading", { name: /Vendor Directory/i })).toBeVisible({ timeout: 15000 });
     await expect(page.getByLabel(/Vendor invoice review queue/i)).toContainText(/Vendor Invoice Review/i);
     await expect(page.getByLabel(/Vendor payment ledger queue/i)).toContainText(/No bank transfer is initiated/i);

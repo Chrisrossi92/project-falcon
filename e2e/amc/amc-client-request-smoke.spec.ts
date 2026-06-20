@@ -229,7 +229,6 @@ test.describe("AMC staging client request conversion smoke", () => {
     await login(page, OWNER_EMAIL);
     await ensureAmcWorkspace(page);
     await page.goto("/client-requests", { waitUntil: "networkidle" });
-    await ensureAmcWorkspace(page);
 
     await expect(page.getByRole("heading", { name: /Client Order Requests/i })).toBeVisible({ timeout: 15000 });
     await expect(page.getByText(requestState.propertyAddress).first()).toBeVisible({ timeout: 15000 });
