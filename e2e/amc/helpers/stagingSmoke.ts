@@ -116,9 +116,19 @@ export async function signIn(email: string, password: string) {
   const supabase = createClient(requiredValue("AMC_STAGING_SUPABASE_URL"), requiredValue("AMC_STAGING_SUPABASE_ANON_KEY"), {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) throw new Error(`Smoke fixture login failed for ${email}: ${error.message}`);
-  return { client: supabase, session: data.session || null, token: data.session?.access_token || null };
+
+  let lastError = null;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (!error) return { client: supabase, session: data.session || null, token: data.session?.access_token || null };
+
+    lastError = error;
+    if (!/rate limit/i.test(error.message || "") || attempt === 3) break;
+
+    await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
+  }
+
+  throw new Error(`Smoke fixture login failed for ${email}: ${lastError?.message || "unknown error"}`);
 }
 
 export async function readAuthenticatedShellDiagnostics(page) {
