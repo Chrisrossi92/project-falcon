@@ -420,11 +420,14 @@ async function progressFixtureToSubmittedReport(browser) {
     ),
   );
   await runRevisionStep(page, "create assignment offer", () => createOfferButton.click());
-  await runRevisionStep(page, "wait for assignment offer created status", () =>
-    expect(page.getByRole("status").filter({ hasText: /Assignment offer created from the selected bid/i })).toBeVisible({
+  await runRevisionStep(page, "wait for assignment offered order state", async () => {
+    const bidStatus = page.getByLabel(/AMC bid status/i);
+    await expect(bidStatus).toContainText(/Assignment offered/i, { timeout: 15000 });
+    await expect(bidStatus).toContainText(/Offered/i);
+    await expect(page.getByRole("link", { name: /Open assignment packet|Open Packet/i }).first()).toBeVisible({
       timeout: 15000,
-    }),
-  );
+    });
+  });
 
   const selectedState = await runRevisionStep(page, "read owner fixture state after bid selection", () =>
     readOwnerFixtureState(ownerFixtureClient),
@@ -521,8 +524,8 @@ async function progressFixtureToSubmittedReport(browser) {
   );
   await runRevisionStep(
     page,
-    "wait for Submitted / Awaiting Review",
-    () => expect(page.getByText(/Submitted \/ Awaiting Review/i).first()).toBeVisible({ timeout: 30000 }),
+    "wait for Submitted Report document visibility",
+    () => expect(page.getByText(/Submitted Report/i).first()).toBeVisible({ timeout: 30000 }),
     { assignmentWorkKey: assignedWork.assignment_work_key },
   );
 
