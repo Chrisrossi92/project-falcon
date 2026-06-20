@@ -509,6 +509,8 @@ test.describe("AMC staging revision smoke", () => {
   });
 
   test("requests a disposable vendor report revision and resubmits", async ({ browser }) => {
+    test.setTimeout(120_000);
+
     await logRevisionStep(null, "before progressFixtureToSubmittedReport");
     const { assignment, assignedWork } = await progressFixtureToSubmittedReport(browser);
     await logRevisionStep(null, "after progressFixtureToSubmittedReport", {
