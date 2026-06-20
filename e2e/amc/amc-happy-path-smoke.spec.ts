@@ -228,7 +228,9 @@ test.describe("AMC staging happy-path smoke", () => {
 
     await login(page, OWNER_EMAIL);
     await openSmokeOrder(page);
-    await expect(page.getByLabel(/AMC bid status/i)).toContainText(/Out for bid|Waiting for bid responses/i);
+    const bidStatus = page.getByLabel(/AMC bid status/i);
+    await expect(bidStatus).toContainText(/Out for bid/i);
+    await expect(bidStatus).toContainText(/1 contacted \/ 0 responded/i);
 
     await openProcurementDetails(page);
 
@@ -240,7 +242,6 @@ test.describe("AMC staging happy-path smoke", () => {
 
     await expect(bidRequest).toBeVisible({ timeout: 15000 });
     await expect(bidRequest).toContainText(VENDOR_NAME);
-    await expect(bidRequest.getByText(/^Sent$/i).first()).toBeVisible();
     await expect(bidRequest.getByText("Recipients")).toBeVisible();
     await expect(bidRequest.getByText("Responded")).toBeVisible();
     await expect(bidRequest.getByText("0")).toBeVisible();

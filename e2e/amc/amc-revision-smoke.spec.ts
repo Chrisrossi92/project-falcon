@@ -166,6 +166,37 @@ async function openProcurementDetails(page) {
   }
 }
 
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+async function visibleButtonDiagnostics(page, context) {
+  const buttons = await page.getByRole("button").evaluateAll((nodes) =>
+    nodes
+      .filter((node) => {
+        const style = window.getComputedStyle(node);
+        const box = node.getBoundingClientRect();
+        return style.visibility !== "hidden" && style.display !== "none" && box.width > 0 && box.height > 0;
+      })
+      .map((node) => ({
+        text: node.textContent?.replace(/\s+/g, " ").trim() || "",
+        ariaLabel: node.getAttribute("aria-label") || "",
+        disabled: node.hasAttribute("disabled"),
+      })),
+  );
+  console.log(`[amc revision smoke] ${context} visible buttons: ${JSON.stringify(buttons)}`);
+  return buttons;
+}
+
+async function expectCurrentActionButton(page, locator, context) {
+  if (await locator.isVisible({ timeout: 10000 }).catch(() => false)) {
+    return locator;
+  }
+
+  const buttons = await visibleButtonDiagnostics(page, context);
+  throw new Error(`${context} action button was not visible. Current URL: ${page.url()}. Buttons: ${JSON.stringify(buttons)}`);
+}
+
 async function progressFixtureToSubmittedReport(page) {
   const bidInvitation = await createDisposableBidInvitationToken();
   await page.goto(bidInvitation.path, { waitUntil: "networkidle" });
@@ -178,21 +209,31 @@ async function progressFixtureToSubmittedReport(page) {
 
   await login(page, OWNER_EMAIL);
   await openSmokeOrder(page);
+  await expect(page.getByLabel(/AMC bid status/i)).toContainText(/Bids received|1 contacted \/ 1 responded/i);
   await openProcurementDetails(page);
-  const bidRequest = page
-    .getByRole("article")
-    .filter({ hasText: /Bid request/i })
-    .filter({ hasText: VENDOR_NAME })
-    .first();
-  await expect(bidRequest).toBeVisible({ timeout: 15000 });
-  await bidRequest.getByRole("button", { name: /Select bid/i }).click();
+  await expect(page.getByLabel(/^Bid requests$/i)).toBeVisible({ timeout: 15000 });
+
+  await visibleButtonDiagnostics(page, "before bid selection");
+  const selectBidButton = await expectCurrentActionButton(
+    page,
+    page.getByRole("button", { name: new RegExp(`^Select bid for ${escapeRegExp(VENDOR_NAME)}$`, "i") }),
+    "Select bid",
+  );
+  await selectBidButton.click();
   await page.getByRole("dialog", { name: /Select bid/i }).getByRole("button", { name: /Confirm selection/i }).click();
   await expect(page.getByLabel(/AMC bid status/i)).toContainText(/Bid selected/i);
   await expect(page.getByLabel(/AMC bid status/i)).toContainText(VENDOR_NAME);
   await expect(page.getByLabel(/AMC bid status/i)).toContainText(/Accepted Fee/i);
   await expect(page.getByLabel(/AMC bid status/i)).toContainText(BID_AMOUNT_PATTERN);
-  await bidRequest.getByRole("button", { name: /Create Assignment Offer/i }).click();
-  await expect(bidRequest.getByText(/Assignment offer created from the selected bid/i)).toBeVisible({
+
+  await visibleButtonDiagnostics(page, "before assignment offer creation");
+  const createOfferButton = await expectCurrentActionButton(
+    page,
+    page.getByRole("button", { name: /^Create Assignment Offer$/i }),
+    "Create Assignment Offer",
+  );
+  await createOfferButton.click();
+  await expect(page.getByRole("status").filter({ hasText: /Assignment offer created from the selected bid/i })).toBeVisible({
     timeout: 15000,
   });
 
