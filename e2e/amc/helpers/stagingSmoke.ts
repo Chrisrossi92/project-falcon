@@ -121,32 +121,64 @@ export async function signIn(email: string, password: string) {
   return { client: supabase, session: data.session || null, token: data.session?.access_token || null };
 }
 
+async function authenticatedShellState(page) {
+  const emailVisible = await page.getByLabel(/email/i).isVisible({ timeout: 250 }).catch(() => false);
+  const shellVisible = !emailVisible
+    ? await page
+        .locator('[data-testid="operations-mode-switcher"]:visible')
+        .first()
+        .isVisible({ timeout: 250 })
+        .catch(() => false)
+    : false;
+  const dashboardVisible = !emailVisible
+    ? await page
+        .getByRole("heading", { name: /dashboard|falcon amc|appraisal production/i })
+        .first()
+        .isVisible({ timeout: 250 })
+        .catch(() => false)
+    : false;
+
+  return {
+    url: page.url(),
+    emailVisible,
+    shellVisible,
+    dashboardVisible,
+  };
+}
+
+export async function waitForAuthenticatedShell(page, label = "authenticated shell") {
+  try {
+    await expect
+      .poll(
+        async () => {
+          const state = await authenticatedShellState(page);
+          return !state.emailVisible && (state.shellVisible || state.dashboardVisible);
+        },
+        { timeout: 15000 },
+      )
+      .toBe(true);
+  } catch (error) {
+    throw new Error(`${label} did not become ready. State: ${JSON.stringify(await authenticatedShellState(page))}`, {
+      cause: error,
+    });
+  }
+}
+
 export async function login(page, email: string, password: string) {
   await page.goto("/login", { waitUntil: "domcontentloaded" });
   await page.waitForLoadState("networkidle").catch(() => {});
 
   const emailField = page.getByLabel(/email/i);
   if (!(await emailField.isVisible({ timeout: 5000 }).catch(() => false))) {
-    const authenticatedShellVisible = await page
-      .locator('[data-testid="operations-mode-switcher"]:visible')
-      .first()
-      .isVisible({ timeout: 1000 })
-      .catch(() => false);
-    const dashboardVisible = await page
-      .getByRole("heading", { name: /dashboard|falcon amc|appraisal production/i })
-      .first()
-      .isVisible({ timeout: 1000 })
-      .catch(() => false);
-
-    if (authenticatedShellVisible || dashboardVisible) {
-      return;
-    }
+    await waitForAuthenticatedShell(page, `authenticated shell for ${email}`);
+    return;
   }
 
   await emailField.fill(email);
   await page.getByLabel(/password/i).fill(password);
   await page.getByRole("button", { name: /^sign in$/i }).click();
-  await page.waitForLoadState("networkidle");
+  await page.waitForLoadState("networkidle").catch(() => {});
+  await waitForAuthenticatedShell(page, `authenticated shell after signing in ${email}`);
 }
 
 async function visibleWorkspaceSwitcher(page) {
