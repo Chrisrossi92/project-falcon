@@ -123,7 +123,27 @@ export async function signIn(email: string, password: string) {
 
 export async function login(page, email: string, password: string) {
   await page.goto("/login", { waitUntil: "domcontentloaded" });
-  await page.getByLabel(/email/i).fill(email);
+  await page.waitForLoadState("networkidle").catch(() => {});
+
+  const emailField = page.getByLabel(/email/i);
+  if (!(await emailField.isVisible({ timeout: 5000 }).catch(() => false))) {
+    const authenticatedShellVisible = await page
+      .locator('[data-testid="operations-mode-switcher"]:visible')
+      .first()
+      .isVisible({ timeout: 1000 })
+      .catch(() => false);
+    const dashboardVisible = await page
+      .getByRole("heading", { name: /dashboard|falcon amc|appraisal production/i })
+      .first()
+      .isVisible({ timeout: 1000 })
+      .catch(() => false);
+
+    if (authenticatedShellVisible || dashboardVisible) {
+      return;
+    }
+  }
+
+  await emailField.fill(email);
   await page.getByLabel(/password/i).fill(password);
   await page.getByRole("button", { name: /^sign in$/i }).click();
   await page.waitForLoadState("networkidle");
@@ -140,10 +160,19 @@ export async function readAmcWorkspaceDiagnostics(page) {
   const switcherVisible = await visibleSwitcher.isVisible({ timeout: 1000 }).catch(() => false);
   const amcWorkspaceButton = visibleSwitcher.getByRole("button", { name: /^Falcon AMC$/i });
   const internalWorkspaceButton = visibleSwitcher.getByRole("button", { name: /^Continental Internal Operations$/i });
+  const localStorageMode = await page
+    .evaluate((storageKey) => {
+      try {
+        return window.localStorage.getItem(storageKey) || null;
+      } catch {
+        return "unavailable";
+      }
+    }, OPERATIONS_MODE_STORAGE_KEY)
+    .catch(() => "unavailable");
 
   return {
     url: page.url(),
-    localStorageMode: await page.evaluate((storageKey) => window.localStorage.getItem(storageKey), OPERATIONS_MODE_STORAGE_KEY),
+    localStorageMode,
     switcherVisible,
     amcButtonVisible: await amcWorkspaceButton.isVisible({ timeout: 500 }).catch(() => false),
     internalButtonVisible: await internalWorkspaceButton.isVisible({ timeout: 500 }).catch(() => false),
@@ -153,7 +182,11 @@ export async function readAmcWorkspaceDiagnostics(page) {
 }
 
 export async function logAmcWorkspaceDiagnostics(page, label) {
-  console.log(`[AMC workspace diagnostics] ${label}: ${JSON.stringify(await readAmcWorkspaceDiagnostics(page))}`);
+  try {
+    console.log(`[AMC workspace diagnostics] ${label}: ${JSON.stringify(await readAmcWorkspaceDiagnostics(page))}`);
+  } catch (error) {
+    console.log(`[AMC workspace diagnostics] ${label}: unavailable (${error?.message || error})`);
+  }
 }
 
 export async function assertAmcWorkspaceActive(page, label = "AMC workspace") {
