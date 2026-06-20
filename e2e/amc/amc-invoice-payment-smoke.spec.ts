@@ -6,6 +6,7 @@ import { createClient } from "@supabase/supabase-js";
 
 import {
   assertAmcStagingSmokeTarget,
+  ensureAmcWorkspace,
   login as loginWithPassword,
   prepareFixtureIfRequested,
   requiredValue,
@@ -395,7 +396,9 @@ async function login(page, email: string) {
 }
 
 async function openSmokeOrder(page) {
+  await ensureAmcWorkspace(page);
   await page.goto(`/orders?q=${encodeURIComponent(ORDER_NUMBER)}`, { waitUntil: "networkidle" });
+  await ensureAmcWorkspace(page);
   await expect(page.getByText(ORDER_NUMBER).first()).toBeVisible({ timeout: 15000 });
   await page.getByText(ORDER_NUMBER).first().click();
 
@@ -450,7 +453,9 @@ test.describe("AMC staging invoice/payment visibility smoke", () => {
     await expect(completedOwnerAssignment).toBeVisible({ timeout: 15000 });
     await expect(completedOwnerAssignment.getByText(/Completed/i).first()).toBeVisible();
 
+    await ensureAmcWorkspace(page);
     await page.goto("/vendors", { waitUntil: "networkidle" });
+    await ensureAmcWorkspace(page);
     await expect(page.getByRole("heading", { name: /Vendor Directory/i })).toBeVisible({ timeout: 15000 });
     await expect(page.getByLabel(/Vendor invoice review queue/i)).toContainText(/Vendor Invoice Review/i);
     await expect(page.getByLabel(/Vendor payment ledger queue/i)).toContainText(/No bank transfer is initiated/i);

@@ -4,6 +4,7 @@ import { expect, test } from "@playwright/test";
 
 import {
   assertAmcStagingSmokeTarget,
+  ensureAmcWorkspace,
   login as loginWithPassword,
   prepareFixtureIfRequested,
   signIn as signInWithPassword,
@@ -139,19 +140,10 @@ async function login(page, email: string) {
   await loginWithPassword(page, email, PASSWORD);
 }
 
-async function ensureFalconAmcWorkspace(page) {
-  const workspaceLabel = page.getByTestId("persistent-workspace-label");
-  try {
-    await expect(workspaceLabel.filter({ hasText: /Workspace:\s*Falcon AMC/i })).toBeVisible({ timeout: 5000 });
-    return;
-  } catch {
-    await page.getByRole("button", { name: /^Falcon AMC$/i }).click();
-    await expect(workspaceLabel.filter({ hasText: /Workspace:\s*Falcon AMC/i })).toBeVisible({ timeout: 10000 });
-  }
-}
-
 async function openSmokeOrder(page) {
+  await ensureAmcWorkspace(page);
   await page.goto(`/orders?q=${encodeURIComponent(ORDER_NUMBER)}`, { waitUntil: "networkidle" });
+  await ensureAmcWorkspace(page);
   await expect(page.getByText(ORDER_NUMBER).first()).toBeVisible({ timeout: 15000 });
   await page.getByText(ORDER_NUMBER).first().click();
 
@@ -223,8 +215,9 @@ test.describe("AMC staging happy-path smoke", () => {
   test("opens the AMC dashboard and disposable smoke order", async ({ page }) => {
     await login(page, OWNER_EMAIL);
 
+    await ensureAmcWorkspace(page);
     await page.goto("/dashboard", { waitUntil: "networkidle" });
-    await ensureFalconAmcWorkspace(page);
+    await ensureAmcWorkspace(page);
     await expect(page.getByRole("heading", { name: /Falcon AMC Dashboard|Dashboard/i }).first()).toBeVisible();
 
     await openSmokeOrder(page);
