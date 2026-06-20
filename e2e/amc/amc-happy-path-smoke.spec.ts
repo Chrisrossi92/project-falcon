@@ -143,7 +143,6 @@ async function login(page, email: string) {
 async function openSmokeOrder(page) {
   await ensureAmcWorkspace(page);
   await page.goto(`/orders?q=${encodeURIComponent(ORDER_NUMBER)}`, { waitUntil: "networkidle" });
-  await ensureAmcWorkspace(page);
   await expect(page.getByText(ORDER_NUMBER).first()).toBeVisible({ timeout: 15000 });
   await page.getByText(ORDER_NUMBER).first().click();
 
@@ -217,7 +216,6 @@ test.describe("AMC staging happy-path smoke", () => {
 
     await ensureAmcWorkspace(page);
     await page.goto("/dashboard", { waitUntil: "networkidle" });
-    await ensureAmcWorkspace(page);
     await expect(page.getByRole("heading", { name: /Falcon AMC Dashboard|Dashboard/i }).first()).toBeVisible();
 
     await openSmokeOrder(page);
