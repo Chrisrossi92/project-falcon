@@ -121,39 +121,122 @@ export async function signIn(email: string, password: string) {
   return { client: supabase, session: data.session || null, token: data.session?.access_token || null };
 }
 
+export async function readAuthenticatedShellDiagnostics(page) {
+  const emailVisible = await page.getByLabel(/email/i).isVisible({ timeout: 0 }).catch(() => false);
+  const passwordVisible = await page.getByLabel(/password/i).isVisible({ timeout: 0 }).catch(() => false);
+  const shellVisible = !emailVisible
+    ? await page
+        .locator('[data-testid="operations-mode-switcher"]:visible')
+        .first()
+        .isVisible({ timeout: 0 })
+        .catch(() => false)
+    : false;
+  const dashboardVisible = !emailVisible
+    ? await page
+        .getByRole("heading", { name: /dashboard|falcon amc|appraisal production/i })
+        .first()
+        .isVisible({ timeout: 0 })
+        .catch(() => false)
+    : false;
+
+  return {
+    url: page.url(),
+    loginFormVisible: emailVisible || passwordVisible,
+    emailFieldVisible: emailVisible,
+    passwordFieldVisible: passwordVisible,
+    authenticatedShellVisible: shellVisible,
+    dashboardVisible,
+  };
+}
+
+export async function waitForAuthenticatedShell(page, label = "authenticated shell") {
+  try {
+    await expect
+      .poll(
+        async () => {
+          const state = await readAuthenticatedShellDiagnostics(page);
+          return !state.loginFormVisible && (state.authenticatedShellVisible || state.dashboardVisible);
+        },
+        { timeout: 15000 },
+      )
+      .toBe(true);
+  } catch (error) {
+    throw new Error(`${label} did not become ready. State: ${JSON.stringify(await readAuthenticatedShellDiagnostics(page))}`, {
+      cause: error,
+    });
+  }
+}
+
 export async function login(page, email: string, password: string) {
   await page.goto("/login", { waitUntil: "domcontentloaded" });
-  await page.getByLabel(/email/i).fill(email);
+  await page.waitForLoadState("networkidle").catch(() => {});
+
+  const emailField = page.getByLabel(/email/i);
+  if (!(await emailField.isVisible({ timeout: 5000 }).catch(() => false))) {
+    await waitForAuthenticatedShell(page, `authenticated shell for ${email}`);
+    return;
+  }
+
+  await emailField.fill(email);
   await page.getByLabel(/password/i).fill(password);
   await page.getByRole("button", { name: /^sign in$/i }).click();
-  await page.waitForLoadState("networkidle");
+  await page.waitForLoadState("networkidle").catch(() => {});
+  await waitForAuthenticatedShell(page, `authenticated shell after signing in ${email}`);
 }
 
 async function visibleWorkspaceSwitcher(page) {
+  const authState = await readAuthenticatedShellDiagnostics(page);
+  console.log(`[AMC workspace diagnostics] before workspace switcher lookup: ${JSON.stringify(authState)}`);
+  if (authState.loginFormVisible) {
+    throw new Error(`Workspace switcher requested before authentication completed. State: ${JSON.stringify(authState)}`);
+  }
+
   const workspaceSwitcher = page.locator('[data-testid="operations-mode-switcher"]:visible').first();
-  await expect(workspaceSwitcher).toBeVisible({ timeout: 15000 });
+  try {
+    await expect(workspaceSwitcher).toBeVisible({ timeout: 15000 });
+  } catch (error) {
+    throw new Error(`Workspace switcher was not visible after authentication. State: ${JSON.stringify(authState)}`, {
+      cause: error,
+    });
+  }
   return workspaceSwitcher;
 }
 
 export async function readAmcWorkspaceDiagnostics(page) {
+  const authState = await readAuthenticatedShellDiagnostics(page);
   const visibleSwitcher = page.locator('[data-testid="operations-mode-switcher"]:visible').first();
-  const switcherVisible = await visibleSwitcher.isVisible({ timeout: 1000 }).catch(() => false);
+  const switcherVisible = await visibleSwitcher.isVisible({ timeout: 0 }).catch(() => false);
   const amcWorkspaceButton = visibleSwitcher.getByRole("button", { name: /^Falcon AMC$/i });
   const internalWorkspaceButton = visibleSwitcher.getByRole("button", { name: /^Continental Internal Operations$/i });
+  const localStorageMode = await page
+    .evaluate((storageKey) => {
+      try {
+        return window.localStorage.getItem(storageKey) || null;
+      } catch {
+        return "unavailable";
+      }
+    }, OPERATIONS_MODE_STORAGE_KEY)
+    .catch(() => "unavailable");
 
   return {
+    ...authState,
     url: page.url(),
-    localStorageMode: await page.evaluate((storageKey) => window.localStorage.getItem(storageKey), OPERATIONS_MODE_STORAGE_KEY),
+    localStorageMode,
     switcherVisible,
-    amcButtonVisible: await amcWorkspaceButton.isVisible({ timeout: 500 }).catch(() => false),
-    internalButtonVisible: await internalWorkspaceButton.isVisible({ timeout: 500 }).catch(() => false),
-    amcPressed: (await amcWorkspaceButton.getAttribute("aria-pressed").catch(() => null)) || "(missing)",
-    internalPressed: (await internalWorkspaceButton.getAttribute("aria-pressed").catch(() => null)) || "(missing)",
+    amcButtonVisible: await amcWorkspaceButton.isVisible({ timeout: 0 }).catch(() => false),
+    internalButtonVisible: await internalWorkspaceButton.isVisible({ timeout: 0 }).catch(() => false),
+    amcPressed: (await amcWorkspaceButton.getAttribute("aria-pressed", { timeout: 0 }).catch(() => null)) || "(missing)",
+    internalPressed:
+      (await internalWorkspaceButton.getAttribute("aria-pressed", { timeout: 0 }).catch(() => null)) || "(missing)",
   };
 }
 
 export async function logAmcWorkspaceDiagnostics(page, label) {
-  console.log(`[AMC workspace diagnostics] ${label}: ${JSON.stringify(await readAmcWorkspaceDiagnostics(page))}`);
+  try {
+    console.log(`[AMC workspace diagnostics] ${label}: ${JSON.stringify(await readAmcWorkspaceDiagnostics(page))}`);
+  } catch (error) {
+    console.log(`[AMC workspace diagnostics] ${label}: unavailable (${error?.message || error})`);
+  }
 }
 
 export async function assertAmcWorkspaceActive(page, label = "AMC workspace") {
@@ -175,6 +258,11 @@ export async function ensureAmcWorkspace(page) {
   await page.waitForLoadState("domcontentloaded").catch(() => {});
 
   await page.goto("/dashboard", { waitUntil: "networkidle" });
+  console.log(
+    `[AMC workspace diagnostics] after dashboard navigation before switcher lookup: ${JSON.stringify(
+      await readAuthenticatedShellDiagnostics(page),
+    )}`,
+  );
 
   const workspaceSwitcher = await visibleWorkspaceSwitcher(page);
 

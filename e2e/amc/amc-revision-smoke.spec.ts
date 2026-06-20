@@ -210,6 +210,120 @@ async function visibleButtonDiagnostics(page, context, scope = null) {
   return buttons;
 }
 
+async function visibleHeadingDiagnostics(page) {
+  if (!page) return [];
+  return page
+    .getByRole("heading")
+    .evaluateAll((nodes) =>
+      nodes
+        .filter((node) => {
+          const style = window.getComputedStyle(node);
+          const box = node.getBoundingClientRect();
+          return style.visibility !== "hidden" && style.display !== "none" && box.width > 0 && box.height > 0;
+        })
+        .map((node) => node.textContent?.replace(/\s+/g, " ").trim() || "")
+        .filter(Boolean),
+    )
+    .catch((error) => [`<headings unavailable: ${error?.message || error}>`]);
+}
+
+async function readRevisionStatusDiagnostics(assignmentWorkKey = null) {
+  const diagnostics = {
+    assignmentStatus: [] as unknown[],
+    vendorStatus: null as unknown,
+    revisionRequestStatus: [] as unknown[],
+  };
+
+  try {
+    if (ownerFixtureClient && fixtureState?.orderId) {
+      const assignments = await readVendorAssignmentsForOrder(ownerFixtureClient, fixtureState.orderId);
+      diagnostics.assignmentStatus = assignments.map((assignment) => ({
+        id: assignment.id,
+        status: assignment.status || null,
+        assigned_company_name: assignment.assigned_company_name || null,
+        accepted_at: assignment.accepted_at || null,
+        started_at: assignment.started_at || null,
+        submitted_at: assignment.submitted_at || null,
+        revision_requested_at: assignment.revision_requested_at || null,
+        completed_at: assignment.completed_at || null,
+      }));
+      diagnostics.revisionRequestStatus = assignments.map((assignment) => ({
+        id: assignment.id,
+        status: assignment.status || null,
+        revision_requested_at: assignment.revision_requested_at || null,
+        revision_payload_present: Boolean(assignment.submission_payload?.revision),
+        resubmission_payload_present: Boolean(assignment.submission_payload?.resubmission),
+        completed_at: assignment.completed_at || null,
+      }));
+    }
+  } catch (error) {
+    diagnostics.assignmentStatus = [`<assignment status unavailable: ${error?.message || error}>`];
+    diagnostics.revisionRequestStatus = [`<revision status unavailable: ${error?.message || error}>`];
+  }
+
+  try {
+    const vendorClient = await signIn(VENDOR_EMAIL);
+    const assignedWork = await readVendorAssignedWork(vendorClient);
+    diagnostics.vendorStatus = {
+      assignment_work_key: assignedWork.assignment_work_key || null,
+      matches_expected_key: assignmentWorkKey ? assignedWork.assignment_work_key === assignmentWorkKey : null,
+      assignment_status: assignedWork.assignment_status || null,
+      status_label: assignedWork.status_label || null,
+      next_action_label: assignedWork.next_action_label || null,
+      payment_status_key: assignedWork.payment_status_key || null,
+    };
+  } catch (error) {
+    diagnostics.vendorStatus = `<vendor status unavailable: ${error?.message || error}>`;
+  }
+
+  return diagnostics;
+}
+
+async function logRevisionStep(page, label, { assignmentWorkKey = null } = {}) {
+  const diagnostics = await readRevisionStatusDiagnostics(assignmentWorkKey);
+  console.log(
+    `[amc revision smoke] ${label}: ${JSON.stringify({
+      url: page?.url?.() || "(no page)",
+      headings: await visibleHeadingDiagnostics(page),
+      ...diagnostics,
+    })}`,
+  );
+}
+
+async function expectRevisionVisible(page, locator, label, options = {}) {
+  await logRevisionStep(page, `before wait: ${label}`, options);
+  try {
+    await expect(locator).toBeVisible({ timeout: options.timeout || 15000 });
+    await logRevisionStep(page, `after wait: ${label}`, options);
+  } catch (error) {
+    await logRevisionStep(page, `timeout waiting: ${label}`, options);
+    throw error;
+  }
+}
+
+async function expectRevisionText(page, locator, text, label, options = {}) {
+  await logRevisionStep(page, `before wait: ${label}`, options);
+  try {
+    await expect(locator).toContainText(text, { timeout: options.timeout || 15000 });
+    await logRevisionStep(page, `after wait: ${label}`, options);
+  } catch (error) {
+    await logRevisionStep(page, `timeout waiting: ${label}`, options);
+    throw error;
+  }
+}
+
+async function runRevisionStep(page, label, action, options = {}) {
+  await logRevisionStep(page, `before step: ${label}`, options);
+  try {
+    const result = await action();
+    await logRevisionStep(page, `after step: ${label}`, options);
+    return result;
+  } catch (error) {
+    await logRevisionStep(page, `failed step: ${label}`, options);
+    throw error;
+  }
+}
+
 async function expectCurrentActionButton(page, locator, context, diagnosticScope = page) {
   if (await locator.isVisible({ timeout: 10000 }).catch(() => false)) {
     return locator;
@@ -224,25 +338,35 @@ async function progressFixtureToSubmittedReport(browser) {
   const bidInvitation = await createDisposableBidInvitationToken();
   console.log(`[amc revision smoke] navigating to public bid invitation from ${page.url()}`);
   await page.goto(bidInvitation.path, { waitUntil: "networkidle" });
+  await logRevisionStep(page, "after opening public bid invitation");
   await page.getByLabel(/Fee amount/i).fill(BID_AMOUNT);
   await page.getByLabel(/Turn time days/i).fill(BID_TURN_TIME_DAYS);
   await page.getByLabel(/Comments/i).fill(BID_COMMENTS);
   await page.getByLabel(/Contact email/i).fill(VENDOR_EMAIL);
   await page.getByRole("button", { name: /^Submit Bid$/i }).click();
-  await expect(page.getByText(/Your bid has been submitted/i)).toBeVisible({ timeout: 15000 });
+  await expectRevisionVisible(page, page.getByText(/Your bid has been submitted/i), "public bid submission success");
   await closeIsolatedPage(page, "public bid submission");
 
   page = await newIsolatedPage(browser, "owner bid selection");
   await logAmcWorkspaceDiagnostics(page, "before owner login for bid selection");
-  await login(page, OWNER_EMAIL);
+  await runRevisionStep(page, "owner login for bid selection", () => login(page, OWNER_EMAIL));
   await logAmcWorkspaceDiagnostics(page, "after owner login before opening smoke order for bid selection");
-  await openSmokeOrder(page);
-  await assertRevisionAmcCheckpoint(page, "after opening smoke order for bid selection");
-  await expect(page.getByLabel(/AMC bid status/i)).toContainText(/Bids received|1 contacted \/ 1 responded/i);
-  await openProcurementDetails(page);
-  await assertRevisionAmcCheckpoint(page, "after opening procurement details for bid selection");
+  await runRevisionStep(page, "open smoke order for bid selection", () => openSmokeOrder(page));
+  await runRevisionStep(page, "assert AMC checkpoint after opening smoke order for bid selection", () =>
+    assertRevisionAmcCheckpoint(page, "after opening smoke order for bid selection"),
+  );
+  await expectRevisionText(
+    page,
+    page.getByLabel(/AMC bid status/i),
+    /Bids received|1 contacted \/ 1 responded/i,
+    "AMC bid status shows received bid before selection",
+  );
+  await runRevisionStep(page, "open procurement details for bid selection", () => openProcurementDetails(page));
+  await runRevisionStep(page, "assert AMC checkpoint after opening procurement details for bid selection", () =>
+    assertRevisionAmcCheckpoint(page, "after opening procurement details for bid selection"),
+  );
   const procurementSection = page.getByLabel(/^Bid requests$/i);
-  await expect(procurementSection).toBeVisible({ timeout: 15000 });
+  await expectRevisionVisible(page, procurementSection, "bid requests section before bid selection");
 
   await visibleButtonDiagnostics(page, "before bid selection", procurementSection);
   const selectBidButton = await expectCurrentActionButton(
@@ -268,9 +392,11 @@ async function progressFixtureToSubmittedReport(browser) {
     procurementSection,
   );
   await createOfferButton.click();
-  await expect(page.getByRole("status").filter({ hasText: /Assignment offer created from the selected bid/i })).toBeVisible({
-    timeout: 15000,
-  });
+  await expectRevisionVisible(
+    page,
+    page.getByRole("status").filter({ hasText: /Assignment offer created from the selected bid/i }),
+    "assignment offer created status",
+  );
 
   const selectedState = await readOwnerFixtureState(ownerFixtureClient);
   const offeredAssignments = await readVendorAssignmentsForOrder(ownerFixtureClient, selectedState.orderId);
@@ -282,28 +408,83 @@ async function progressFixtureToSubmittedReport(browser) {
   page = await newIsolatedPage(browser, "public assignment acceptance");
   console.log(`[amc revision smoke] navigating to public assignment invitation from ${page.url()}`);
   await page.goto(assignmentInvitation.path, { waitUntil: "networkidle" });
+  await logRevisionStep(page, "after opening public assignment invitation");
   await page.getByRole("button", { name: /^Accept Assignment$/i }).click();
-  await expect(page.getByText(/Assignment accepted/i)).toBeVisible({ timeout: 15000 });
+  await expectRevisionVisible(page, page.getByText(/Assignment accepted/i), "public assignment accepted");
   await closeIsolatedPage(page, "public assignment acceptance");
 
   const vendorClient = await signIn(VENDOR_EMAIL);
   const assignedWork = await readVendorAssignedWork(vendorClient);
+  await logRevisionStep(null, "after reading vendor assigned work before start work", {
+    assignmentWorkKey: assignedWork.assignment_work_key,
+  });
   page = await newIsolatedPage(browser, "vendor start work and report submission");
   await logAmcWorkspaceDiagnostics(page, "before vendor login for start work");
-  await login(page, VENDOR_EMAIL);
-  console.log(`[amc revision smoke] navigating to vendor work item ${assignedWork.assignment_work_key} from ${page.url()}`);
-  await page.goto(`/vendor-workspace/assigned-orders/${encodeURIComponent(assignedWork.assignment_work_key)}`, {
-    waitUntil: "networkidle",
+  await runRevisionStep(page, "vendor login for start work", () => login(page, VENDOR_EMAIL), {
+    assignmentWorkKey: assignedWork.assignment_work_key,
   });
-  await page.getByRole("button", { name: /^Start Work$/i }).click();
-  await expect(page.getByText(/Work started/i)).toBeVisible({ timeout: 15000 });
-
-  await page.getByLabel(/^Report PDF$/i).setInputFiles(REPORT_FIXTURE_PATH);
-  await page.getByRole("button", { name: /^Upload Report File$/i }).click();
-  await expect(page.getByText(REPORT_FIXTURE_FILE_NAME).first()).toBeVisible({ timeout: 30000 });
-  await page.getByLabel(/^Delivery Note$/i).fill(REPORT_DELIVERY_NOTE);
-  await page.getByRole("button", { name: /^Submit Report$/i }).click();
-  await expect(page.getByText(/Submitted \/ Awaiting Review/i).first()).toBeVisible({ timeout: 30000 });
+  console.log(`[amc revision smoke] navigating to vendor work item ${assignedWork.assignment_work_key} from ${page.url()}`);
+  await runRevisionStep(
+    page,
+    "navigate to vendor work item",
+    () =>
+      page.goto(`/vendor-workspace/assigned-orders/${encodeURIComponent(assignedWork.assignment_work_key)}`, {
+        waitUntil: "domcontentloaded",
+      }),
+    { assignmentWorkKey: assignedWork.assignment_work_key },
+  );
+  await runRevisionStep(
+    page,
+    "wait for assigned-order page signal",
+    async () => {
+      await expect(page).toHaveURL(/\/vendor-workspace\/assigned-orders\/[^/?#]+(?:[?#].*)?$/, { timeout: 15000 });
+      await expect(page.getByText(ORDER_NUMBER).first()).toBeVisible({ timeout: 15000 });
+      await expect(page.getByRole("button", { name: /^Start Work$/i })).toBeVisible({ timeout: 15000 });
+    },
+    { assignmentWorkKey: assignedWork.assignment_work_key },
+  );
+  await logRevisionStep(page, "after assigned-order page signal before start work", {
+    assignmentWorkKey: assignedWork.assignment_work_key,
+  });
+  await runRevisionStep(page, "click Start Work", () => page.getByRole("button", { name: /^Start Work$/i }).click(), {
+    assignmentWorkKey: assignedWork.assignment_work_key,
+  });
+  await runRevisionStep(
+    page,
+    "wait for Work started",
+    () => expect(page.getByText(/Work started/i)).toBeVisible({ timeout: 15000 }),
+    { assignmentWorkKey: assignedWork.assignment_work_key },
+  );
+  await runRevisionStep(page, "set Report PDF", () => page.getByLabel(/^Report PDF$/i).setInputFiles(REPORT_FIXTURE_PATH), {
+    assignmentWorkKey: assignedWork.assignment_work_key,
+  });
+  await runRevisionStep(
+    page,
+    "click Upload Report File",
+    () => page.getByRole("button", { name: /^Upload Report File$/i }).click(),
+    { assignmentWorkKey: assignedWork.assignment_work_key },
+  );
+  await runRevisionStep(
+    page,
+    "wait for uploaded report filename",
+    () => expect(page.getByText(REPORT_FIXTURE_FILE_NAME).first()).toBeVisible({ timeout: 30000 }),
+    { assignmentWorkKey: assignedWork.assignment_work_key },
+  );
+  await runRevisionStep(page, "fill Delivery Note", () => page.getByLabel(/^Delivery Note$/i).fill(REPORT_DELIVERY_NOTE), {
+    assignmentWorkKey: assignedWork.assignment_work_key,
+  });
+  await runRevisionStep(
+    page,
+    "click Submit Report",
+    () => page.getByRole("button", { name: /^Submit Report$/i }).click(),
+    { assignmentWorkKey: assignedWork.assignment_work_key },
+  );
+  await runRevisionStep(
+    page,
+    "wait for Submitted / Awaiting Review",
+    () => expect(page.getByText(/Submitted \/ Awaiting Review/i).first()).toBeVisible({ timeout: 30000 }),
+    { assignmentWorkKey: assignedWork.assignment_work_key },
+  );
 
   const submittedAssignments = await readVendorAssignmentsForOrder(ownerFixtureClient, selectedState.orderId);
   expect(submittedAssignments).toHaveLength(1);
@@ -328,7 +509,11 @@ test.describe("AMC staging revision smoke", () => {
   });
 
   test("requests a disposable vendor report revision and resubmits", async ({ browser }) => {
+    await logRevisionStep(null, "before progressFixtureToSubmittedReport");
     const { assignment, assignedWork } = await progressFixtureToSubmittedReport(browser);
+    await logRevisionStep(null, "after progressFixtureToSubmittedReport", {
+      assignmentWorkKey: assignedWork.assignment_work_key,
+    });
 
     let page = await newIsolatedPage(browser, "owner revision request");
     await logAmcWorkspaceDiagnostics(page, "before owner login for revision request");
@@ -341,7 +526,9 @@ test.describe("AMC staging revision smoke", () => {
       .filter({ hasText: VENDOR_NAME })
       .filter({ hasText: /Submitted/i })
       .first();
-    await expect(submittedOwnerAssignment).toBeVisible({ timeout: 15000 });
+    await expectRevisionVisible(page, submittedOwnerAssignment, "submitted owner assignment card before revision request", {
+      assignmentWorkKey: assignedWork.assignment_work_key,
+    });
     await Promise.all([
       page.waitForURL(/\/assignments\/[^/?#]+(?:[?#].*)?$/, { timeout: 15000 }),
       submittedOwnerAssignment.getByRole("link", { name: /Open assignment packet/i }).click(),

@@ -459,16 +459,14 @@ test.describe("AMC staging happy-path smoke", () => {
       waitUntil: "networkidle",
     });
 
-    await expect(page.getByRole("heading", { name: /Falcon AMC Assigned Order|Assigned Order Detail/i })).toBeVisible({
-      timeout: 15000,
-    });
-    await expect(page.getByText(ORDER_NUMBER)).toBeVisible();
+    await expect(page).toHaveURL(/\/vendor-workspace\/assigned-orders\/[^/?#]+(?:[?#].*)?$/, { timeout: 15000 });
+    await expect(page.getByText(ORDER_NUMBER).first()).toBeVisible({ timeout: 15000 });
     await expect(page.getByRole("button", { name: /^Start Work$/i })).toBeVisible();
     await page.getByRole("button", { name: /^Start Work$/i }).click();
 
     await expect(page.getByText(/Work started/i)).toBeVisible({ timeout: 15000 });
     await expect(page.getByText(/In Progress/i).first()).toBeVisible({ timeout: 15000 });
-    await expect(page.getByText(/Report PDF/i)).toBeVisible();
+    await expect(page.getByLabel(/^Report PDF$/i)).toBeVisible();
     await expect(page.getByRole("button", { name: /^Submit Report$/i })).toBeVisible();
 
     const inProgressAssignments = await readVendorAssignmentsForOrder(ownerFixtureClient, fixtureState.orderId);
@@ -498,10 +496,8 @@ test.describe("AMC staging happy-path smoke", () => {
       waitUntil: "networkidle",
     });
 
-    await expect(page.getByRole("heading", { name: /Falcon AMC Assigned Order|Assigned Order Detail/i })).toBeVisible({
-      timeout: 15000,
-    });
-    await expect(page.getByText(ORDER_NUMBER)).toBeVisible();
+    await expect(page).toHaveURL(/\/vendor-workspace\/assigned-orders\/[^/?#]+(?:[?#].*)?$/, { timeout: 15000 });
+    await expect(page.getByText(ORDER_NUMBER).first()).toBeVisible({ timeout: 15000 });
     await expect(page.getByText(/In Progress/i).first()).toBeVisible({ timeout: 15000 });
 
     await page.getByLabel(/^Report PDF$/i).setInputFiles(REPORT_FIXTURE_PATH);
