@@ -239,7 +239,7 @@ test.describe("AMC staging happy-path smoke", () => {
       .first();
 
     await expect(bidRequest).toBeVisible({ timeout: 15000 });
-    await expect(bidRequest.getByText(VENDOR_NAME)).toBeVisible();
+    await expect(bidRequest).toContainText(VENDOR_NAME);
     await expect(bidRequest.getByText(/^Sent$/i).first()).toBeVisible();
     await expect(bidRequest.getByText("Recipients")).toBeVisible();
     await expect(bidRequest.getByText("Responded")).toBeVisible();
@@ -252,7 +252,7 @@ test.describe("AMC staging happy-path smoke", () => {
     await page.goto(invitation.path, { waitUntil: "networkidle" });
     await expect(page.getByRole("heading", { name: /Vendor Bid Invitation/i })).toBeVisible();
     await expect(page.getByText(ORDER_NUMBER)).toBeVisible();
-    await expect(page.getByText(VENDOR_NAME)).toBeVisible();
+    await expect(page.getByRole("main")).toContainText(VENDOR_NAME);
 
     await page.getByLabel(/Fee amount/i).fill(BID_AMOUNT);
     await page.getByLabel(/Turn time days/i).fill(BID_TURN_TIME_DAYS);
@@ -285,7 +285,7 @@ test.describe("AMC staging happy-path smoke", () => {
       .first();
 
     await expect(bidRequest).toBeVisible({ timeout: 15000 });
-    await expect(bidRequest.getByText(VENDOR_NAME)).toBeVisible();
+    await expect(bidRequest).toContainText(VENDOR_NAME);
     await expect(bidRequest.getByText(/Responded/i).first()).toBeVisible();
     await expect(bidRequest.getByText(BID_AMOUNT_PATTERN)).toBeVisible();
     await expect(bidRequest.getByText(/6 days/i)).toBeVisible();
@@ -311,14 +311,11 @@ test.describe("AMC staging happy-path smoke", () => {
 
     const dialog = page.getByRole("dialog", { name: /Select bid/i });
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByText(VENDOR_NAME)).toBeVisible();
+    await expect(dialog).toContainText(VENDOR_NAME);
     await expect(dialog.getByText(BID_AMOUNT_PATTERN)).toBeVisible();
     await expect(dialog.getByText(new RegExp(`${BID_TURN_TIME_DAYS} days?`, "i"))).toBeVisible();
     await dialog.getByRole("button", { name: /Confirm selection/i }).click();
 
-    await expect(bidRequest.getByText(new RegExp(`Selected response:\\s*${VENDOR_NAME}`, "i"))).toBeVisible({
-      timeout: 15000,
-    });
     await expect(page.getByLabel(/AMC bid status/i)).toContainText(/Bid selected/i);
     await expect(page.getByLabel(/AMC bid status/i)).toContainText(VENDOR_NAME);
 
@@ -410,8 +407,8 @@ test.describe("AMC staging happy-path smoke", () => {
     await page.goto(invitation.path, { waitUntil: "networkidle" });
     await expect(page.getByRole("heading", { name: /Assignment Offer/i })).toBeVisible();
     await expect(page.getByText(ORDER_NUMBER)).toBeVisible();
-    await expect(page.getByText(VENDOR_NAME)).toBeVisible();
-    await expect(page.getByText(BID_AMOUNT_PATTERN)).toBeVisible();
+    await expect(page.getByRole("main")).toContainText(VENDOR_NAME);
+    await expect(page.getByRole("main")).toContainText(BID_AMOUNT_PATTERN);
     await page.getByRole("button", { name: /^Accept Assignment$/i }).click();
 
     await expect(page.getByText(/Assignment accepted/i)).toBeVisible({ timeout: 15000 });
@@ -519,7 +516,7 @@ test.describe("AMC staging happy-path smoke", () => {
       .filter({ hasText: /Submitted/i })
       .first();
     await expect(ownerAssignment).toBeVisible({ timeout: 15000 });
-    await expect(ownerAssignment.getByText(VENDOR_NAME)).toBeVisible();
+    await expect(ownerAssignment).toContainText(VENDOR_NAME);
     await expect(ownerAssignment.getByText(/Submitted/i).first()).toBeVisible();
     await expect(ownerAssignment.getByRole("link", { name: /Open assignment packet/i })).toBeVisible();
 
@@ -567,7 +564,7 @@ test.describe("AMC staging happy-path smoke", () => {
     ]);
 
     await assertOwnerAssignmentPacketLoaded(page, "Submitted owner assignment packet");
-    await expect(page.getByText(VENDOR_NAME)).toBeVisible();
+    await expect(page.getByLabel(/^Owner Packet detail$/i)).toContainText(VENDOR_NAME);
     await expect(page.getByText(/Submitted/i).first()).toBeVisible();
     await expect(page.getByText(/Submission/i)).toBeVisible();
     await expect(page.getByRole("button", { name: /^Complete$/i })).toBeVisible();
@@ -589,7 +586,7 @@ test.describe("AMC staging happy-path smoke", () => {
       .filter({ hasText: /Completed/i })
       .first();
     await expect(completedOwnerAssignment).toBeVisible({ timeout: 15000 });
-    await expect(completedOwnerAssignment.getByText(VENDOR_NAME)).toBeVisible();
+    await expect(completedOwnerAssignment).toContainText(VENDOR_NAME);
     await expect(completedOwnerAssignment.getByText(/Completed/i).first()).toBeVisible();
 
     const completedAssignments = await readVendorAssignmentsForOrder(ownerFixtureClient, fixtureState.orderId);

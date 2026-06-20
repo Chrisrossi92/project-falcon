@@ -184,12 +184,13 @@ async function progressFixtureToSubmittedReport(page) {
     .filter({ hasText: /Bid request/i })
     .filter({ hasText: VENDOR_NAME })
     .first();
-  await expect(bidRequest.getByText(BID_AMOUNT_PATTERN)).toBeVisible({ timeout: 15000 });
+  await expect(bidRequest).toBeVisible({ timeout: 15000 });
   await bidRequest.getByRole("button", { name: /Select bid/i }).click();
   await page.getByRole("dialog", { name: /Select bid/i }).getByRole("button", { name: /Confirm selection/i }).click();
-  await expect(bidRequest.getByText(new RegExp(`Selected response:\\s*${VENDOR_NAME}`, "i"))).toBeVisible({
-    timeout: 15000,
-  });
+  await expect(page.getByLabel(/AMC bid status/i)).toContainText(/Bid selected/i);
+  await expect(page.getByLabel(/AMC bid status/i)).toContainText(VENDOR_NAME);
+  await expect(page.getByLabel(/AMC bid status/i)).toContainText(/Accepted Fee/i);
+  await expect(page.getByLabel(/AMC bid status/i)).toContainText(BID_AMOUNT_PATTERN);
   await bidRequest.getByRole("button", { name: /Create Assignment Offer/i }).click();
   await expect(bidRequest.getByText(/Assignment offer created from the selected bid/i)).toBeVisible({
     timeout: 15000,

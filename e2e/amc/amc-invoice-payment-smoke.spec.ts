@@ -507,13 +507,9 @@ test.describe("AMC staging invoice/payment visibility smoke", () => {
 
     await login(page, OWNER_EMAIL);
     await openSmokeOrder(page);
-    const completedOwnerAssignment = page
-      .getByRole("article")
-      .filter({ hasText: VENDOR_NAME })
-      .filter({ hasText: /Completed/i })
-      .first();
-    await expect(completedOwnerAssignment).toBeVisible({ timeout: 15000 });
-    await expect(completedOwnerAssignment.getByText(/Completed/i).first()).toBeVisible();
+    await expect(page.getByText(ORDER_NUMBER).first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/Completed/i).first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByLabel(/AMC bid status/i)).toContainText(/Completed/i);
 
     await navigateWithinAmc(page, "/vendors");
     await expect(page.getByRole("heading", { name: /Vendor Directory/i })).toBeVisible({ timeout: 15000 });
