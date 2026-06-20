@@ -537,7 +537,7 @@ test.describe("AMC staging invoice/payment visibility smoke", () => {
 
     await login(page, VENDOR_EMAIL);
     await page.goto("/vendor-workspace/payments", { waitUntil: "networkidle" });
-    await expect(page.getByRole("heading", { name: /^Payments$/i })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole("heading", { name: /^Falcon AMC Payments$/i })).toBeVisible({ timeout: 15000 });
     await expect(page.getByText(ORDER_NUMBER)).toBeVisible({ timeout: 15000 });
     await expect(page.getByText(/Scheduled/i).first()).toBeVisible();
     await expect(page.getByText(INVOICE_NUMBER)).toBeVisible();
