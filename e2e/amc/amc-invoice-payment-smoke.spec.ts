@@ -507,16 +507,14 @@ test.describe("AMC staging invoice/payment visibility smoke", () => {
 
     await login(page, OWNER_EMAIL);
     await openSmokeOrder(page);
-    const completedOwnerAssignment = page
-      .getByRole("article")
-      .filter({ hasText: VENDOR_NAME })
-      .filter({ hasText: /Completed/i })
-      .first();
-    await expect(completedOwnerAssignment).toBeVisible({ timeout: 15000 });
-    await expect(completedOwnerAssignment.getByText(/Completed/i).first()).toBeVisible();
+    await expect(page.getByText(ORDER_NUMBER).first()).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('span[title="Completed"]').first()).toBeVisible({ timeout: 15000 });
+    const bidStatus = page.getByLabel(/AMC bid status/i);
+    await expect(bidStatus).toContainText(/Bid selected/i);
+    await expect(bidStatus).toContainText(VENDOR_NAME);
 
     await navigateWithinAmc(page, "/vendors");
-    await expect(page.getByRole("heading", { name: /Vendor Directory/i })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole("heading", { name: /Falcon AMC Vendor Network/i })).toBeVisible({ timeout: 15000 });
     await expect(page.getByLabel(/Vendor invoice review queue/i)).toContainText(/Vendor Invoice Review/i);
     await expect(page.getByLabel(/Vendor payment ledger queue/i)).toContainText(/No bank transfer is initiated/i);
 

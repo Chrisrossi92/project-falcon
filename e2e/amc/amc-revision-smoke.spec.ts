@@ -4,7 +4,9 @@ import { expect, test } from "@playwright/test";
 
 import {
   assertOwnerAssignmentPacketLoaded,
+  assertAmcWorkspaceActive,
   assertAmcStagingSmokeTarget,
+  logAmcWorkspaceDiagnostics,
   login as loginWithPassword,
   openAmcOrderDetail,
   prepareFixtureIfRequested,
@@ -159,6 +161,11 @@ async function openSmokeOrder(page) {
   await openAmcOrderDetail(page, ORDER_NUMBER);
 }
 
+async function assertRevisionAmcCheckpoint(page, label) {
+  await logAmcWorkspaceDiagnostics(page, label);
+  await assertAmcWorkspaceActive(page, label);
+}
+
 async function openProcurementDetails(page) {
   const procurementToggle = page.getByText(/^Show Procurement Details$/i).first();
   if (await procurementToggle.isVisible({ timeout: 5000 }).catch(() => false)) {
@@ -166,8 +173,43 @@ async function openProcurementDetails(page) {
   }
 }
 
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+async function visibleButtonDiagnostics(page, context, scope = null) {
+  const diagnosticScope = scope || page.locator("body");
+  const buttons = await diagnosticScope.getByRole("button").evaluateAll((nodes) =>
+    nodes
+      .filter((node) => {
+        const style = window.getComputedStyle(node);
+        const box = node.getBoundingClientRect();
+        return style.visibility !== "hidden" && style.display !== "none" && box.width > 0 && box.height > 0;
+      })
+      .map((node) => ({
+        text: node.textContent?.replace(/\s+/g, " ").trim() || "",
+        ariaLabel: node.getAttribute("aria-label") || "",
+        disabled: node.hasAttribute("disabled"),
+      })),
+  );
+  const text = await diagnosticScope.textContent().catch(() => "");
+  console.log(`[amc revision smoke] ${context} visible procurement buttons: ${JSON.stringify(buttons)}`);
+  console.log(`[amc revision smoke] ${context} procurement text: ${String(text || "").replace(/\s+/g, " ").trim()}`);
+  return buttons;
+}
+
+async function expectCurrentActionButton(page, locator, context, diagnosticScope = page) {
+  if (await locator.isVisible({ timeout: 10000 }).catch(() => false)) {
+    return locator;
+  }
+
+  const buttons = await visibleButtonDiagnostics(page, context, diagnosticScope);
+  throw new Error(`${context} action button was not visible. Current URL: ${page.url()}. Buttons: ${JSON.stringify(buttons)}`);
+}
+
 async function progressFixtureToSubmittedReport(page) {
   const bidInvitation = await createDisposableBidInvitationToken();
+  console.log(`[amc revision smoke] navigating to public bid invitation from ${page.url()}`);
   await page.goto(bidInvitation.path, { waitUntil: "networkidle" });
   await page.getByLabel(/Fee amount/i).fill(BID_AMOUNT);
   await page.getByLabel(/Turn time days/i).fill(BID_TURN_TIME_DAYS);
@@ -176,22 +218,40 @@ async function progressFixtureToSubmittedReport(page) {
   await page.getByRole("button", { name: /^Submit Bid$/i }).click();
   await expect(page.getByText(/Your bid has been submitted/i)).toBeVisible({ timeout: 15000 });
 
+  await logAmcWorkspaceDiagnostics(page, "before owner login for bid selection");
   await login(page, OWNER_EMAIL);
+  await logAmcWorkspaceDiagnostics(page, "after owner login before opening smoke order for bid selection");
   await openSmokeOrder(page);
+  await assertRevisionAmcCheckpoint(page, "after opening smoke order for bid selection");
+  await expect(page.getByLabel(/AMC bid status/i)).toContainText(/Bids received|1 contacted \/ 1 responded/i);
   await openProcurementDetails(page);
-  const bidRequest = page
-    .getByRole("article")
-    .filter({ hasText: /Bid request/i })
-    .filter({ hasText: VENDOR_NAME })
-    .first();
-  await expect(bidRequest.getByText(BID_AMOUNT_PATTERN)).toBeVisible({ timeout: 15000 });
-  await bidRequest.getByRole("button", { name: /Select bid/i }).click();
+  await assertRevisionAmcCheckpoint(page, "after opening procurement details for bid selection");
+  const procurementSection = page.getByLabel(/^Bid requests$/i);
+  await expect(procurementSection).toBeVisible({ timeout: 15000 });
+
+  await visibleButtonDiagnostics(page, "before bid selection", procurementSection);
+  const selectBidButton = await expectCurrentActionButton(
+    page,
+    procurementSection.getByRole("button", { name: new RegExp(`^Select bid for ${escapeRegExp(VENDOR_NAME)}$`, "i") }),
+    "Select bid",
+    procurementSection,
+  );
+  await selectBidButton.click();
   await page.getByRole("dialog", { name: /Select bid/i }).getByRole("button", { name: /Confirm selection/i }).click();
-  await expect(bidRequest.getByText(new RegExp(`Selected response:\\s*${VENDOR_NAME}`, "i"))).toBeVisible({
-    timeout: 15000,
-  });
-  await bidRequest.getByRole("button", { name: /Create Assignment Offer/i }).click();
-  await expect(bidRequest.getByText(/Assignment offer created from the selected bid/i)).toBeVisible({
+  await expect(page.getByLabel(/AMC bid status/i)).toContainText(/Bid selected/i);
+  await expect(page.getByLabel(/AMC bid status/i)).toContainText(VENDOR_NAME);
+  await expect(page.getByLabel(/AMC bid status/i)).toContainText(/Accepted Fee/i);
+  await expect(page.getByLabel(/AMC bid status/i)).toContainText(BID_AMOUNT_PATTERN);
+
+  await visibleButtonDiagnostics(page, "before assignment offer creation", procurementSection);
+  const createOfferButton = await expectCurrentActionButton(
+    page,
+    procurementSection.getByRole("button", { name: /Create Assignment Offer/i }),
+    "Create Assignment Offer",
+    procurementSection,
+  );
+  await createOfferButton.click();
+  await expect(page.getByRole("status").filter({ hasText: /Assignment offer created from the selected bid/i })).toBeVisible({
     timeout: 15000,
   });
 
@@ -201,13 +261,16 @@ async function progressFixtureToSubmittedReport(page) {
   const [offeredAssignment] = offeredAssignments;
   const assignmentInvitation = await createDisposableAssignmentInvitationToken(offeredAssignment.id);
 
+  console.log(`[amc revision smoke] navigating to public assignment invitation from ${page.url()}`);
   await page.goto(assignmentInvitation.path, { waitUntil: "networkidle" });
   await page.getByRole("button", { name: /^Accept Assignment$/i }).click();
   await expect(page.getByText(/Assignment accepted/i)).toBeVisible({ timeout: 15000 });
 
   const vendorClient = await signIn(VENDOR_EMAIL);
   const assignedWork = await readVendorAssignedWork(vendorClient);
+  await logAmcWorkspaceDiagnostics(page, "before vendor login for start work");
   await login(page, VENDOR_EMAIL);
+  console.log(`[amc revision smoke] navigating to vendor work item ${assignedWork.assignment_work_key} from ${page.url()}`);
   await page.goto(`/vendor-workspace/assigned-orders/${encodeURIComponent(assignedWork.assignment_work_key)}`, {
     waitUntil: "networkidle",
   });
@@ -245,8 +308,11 @@ test.describe("AMC staging revision smoke", () => {
   test("requests a disposable vendor report revision and resubmits", async ({ page }) => {
     const { assignment, assignedWork } = await progressFixtureToSubmittedReport(page);
 
+    await logAmcWorkspaceDiagnostics(page, "before owner login for revision request");
     await login(page, OWNER_EMAIL);
+    await logAmcWorkspaceDiagnostics(page, "after owner login before opening smoke order for revision request");
     await openSmokeOrder(page);
+    await assertRevisionAmcCheckpoint(page, "after opening smoke order for revision request");
     const submittedOwnerAssignment = page
       .getByRole("article")
       .filter({ hasText: VENDOR_NAME })
@@ -259,6 +325,7 @@ test.describe("AMC staging revision smoke", () => {
     ]);
 
     await assertOwnerAssignmentPacketLoaded(page, "Revision owner assignment packet");
+    await assertRevisionAmcCheckpoint(page, "after opening owner assignment packet for revision request");
     await expect(page.getByRole("button", { name: /^Request Revision$/i })).toBeVisible();
     await page.getByRole("button", { name: /^Request Revision$/i }).click();
     await expect(page.getByRole("heading", { name: /^Request revision$/i })).toBeVisible();
@@ -288,7 +355,9 @@ test.describe("AMC staging revision smoke", () => {
     expect(revisionAssignment.revision_requested_at).toBeTruthy();
     expect(revisionAssignment.completed_at || null).toBeNull();
 
+    await logAmcWorkspaceDiagnostics(page, "before vendor login for revision resubmission");
     await login(page, VENDOR_EMAIL);
+    console.log(`[amc revision smoke] navigating to vendor revision work item ${assignedWork.assignment_work_key} from ${page.url()}`);
     await page.goto(`/vendor-workspace/assigned-orders/${encodeURIComponent(assignedWork.assignment_work_key)}`, {
       waitUntil: "networkidle",
     });
@@ -303,8 +372,11 @@ test.describe("AMC staging revision smoke", () => {
     await expect(page.getByText(/Resubmitted \/ Awaiting Review/i).first()).toBeVisible({ timeout: 15000 });
     await expect(page.getByText(RESUBMISSION_NOTE)).toBeVisible();
 
+    await logAmcWorkspaceDiagnostics(page, "before owner login after revision resubmission");
     await login(page, OWNER_EMAIL);
+    await logAmcWorkspaceDiagnostics(page, "after owner login before opening smoke order after revision resubmission");
     await openSmokeOrder(page);
+    await assertRevisionAmcCheckpoint(page, "after opening smoke order after revision resubmission");
     const resubmittedOwnerAssignment = page
       .getByRole("article")
       .filter({ hasText: VENDOR_NAME })
