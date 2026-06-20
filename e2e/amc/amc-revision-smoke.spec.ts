@@ -28,6 +28,7 @@ const REPORT_FIXTURE_PATH = resolve(process.cwd(), "e2e/fixtures", REPORT_FIXTUR
 const REPORT_DELIVERY_NOTE = "AMC staging Playwright disposable report submission for revision branch.";
 const REVISION_NOTE = "AMC staging Playwright disposable revision request. Please resubmit the smoke report fixture.";
 const RESUBMISSION_NOTE = "AMC staging Playwright disposable revision resubmission.";
+const BASE_URL = (process.env.E2E_BASE_URL || "http://127.0.0.1:5173").replace(/\/+$/, "");
 
 let fixtureState = null;
 let ownerFixtureClient = null;
@@ -38,6 +39,17 @@ async function signIn(email: string) {
 
 async function login(page, email: string) {
   await loginWithPassword(page, email, PASSWORD);
+}
+
+async function newIsolatedPage(browser, label) {
+  console.log(`[amc revision smoke] opening isolated page for ${label}`);
+  const context = await browser.newContext({ baseURL: BASE_URL });
+  return context.newPage();
+}
+
+async function closeIsolatedPage(page, label) {
+  console.log(`[amc revision smoke] closing isolated page for ${label} at ${page.url()}`);
+  await page.context().close().catch(() => {});
 }
 
 function readBidFixtureState(order, bidRequests) {
@@ -207,7 +219,8 @@ async function expectCurrentActionButton(page, locator, context, diagnosticScope
   throw new Error(`${context} action button was not visible. Current URL: ${page.url()}. Buttons: ${JSON.stringify(buttons)}`);
 }
 
-async function progressFixtureToSubmittedReport(page) {
+async function progressFixtureToSubmittedReport(browser) {
+  let page = await newIsolatedPage(browser, "public bid submission");
   const bidInvitation = await createDisposableBidInvitationToken();
   console.log(`[amc revision smoke] navigating to public bid invitation from ${page.url()}`);
   await page.goto(bidInvitation.path, { waitUntil: "networkidle" });
@@ -217,7 +230,9 @@ async function progressFixtureToSubmittedReport(page) {
   await page.getByLabel(/Contact email/i).fill(VENDOR_EMAIL);
   await page.getByRole("button", { name: /^Submit Bid$/i }).click();
   await expect(page.getByText(/Your bid has been submitted/i)).toBeVisible({ timeout: 15000 });
+  await closeIsolatedPage(page, "public bid submission");
 
+  page = await newIsolatedPage(browser, "owner bid selection");
   await logAmcWorkspaceDiagnostics(page, "before owner login for bid selection");
   await login(page, OWNER_EMAIL);
   await logAmcWorkspaceDiagnostics(page, "after owner login before opening smoke order for bid selection");
@@ -232,7 +247,9 @@ async function progressFixtureToSubmittedReport(page) {
   await visibleButtonDiagnostics(page, "before bid selection", procurementSection);
   const selectBidButton = await expectCurrentActionButton(
     page,
-    procurementSection.getByRole("button", { name: new RegExp(`^Select bid for ${escapeRegExp(VENDOR_NAME)}$`, "i") }),
+    procurementSection.getByRole("button", {
+      name: new RegExp(`^Select bid(?: for ${escapeRegExp(VENDOR_NAME)})?$`, "i"),
+    }),
     "Select bid",
     procurementSection,
   );
@@ -260,14 +277,18 @@ async function progressFixtureToSubmittedReport(page) {
   expect(offeredAssignments).toHaveLength(1);
   const [offeredAssignment] = offeredAssignments;
   const assignmentInvitation = await createDisposableAssignmentInvitationToken(offeredAssignment.id);
+  await closeIsolatedPage(page, "owner bid selection");
 
+  page = await newIsolatedPage(browser, "public assignment acceptance");
   console.log(`[amc revision smoke] navigating to public assignment invitation from ${page.url()}`);
   await page.goto(assignmentInvitation.path, { waitUntil: "networkidle" });
   await page.getByRole("button", { name: /^Accept Assignment$/i }).click();
   await expect(page.getByText(/Assignment accepted/i)).toBeVisible({ timeout: 15000 });
+  await closeIsolatedPage(page, "public assignment acceptance");
 
   const vendorClient = await signIn(VENDOR_EMAIL);
   const assignedWork = await readVendorAssignedWork(vendorClient);
+  page = await newIsolatedPage(browser, "vendor start work and report submission");
   await logAmcWorkspaceDiagnostics(page, "before vendor login for start work");
   await login(page, VENDOR_EMAIL);
   console.log(`[amc revision smoke] navigating to vendor work item ${assignedWork.assignment_work_key} from ${page.url()}`);
@@ -294,6 +315,7 @@ async function progressFixtureToSubmittedReport(page) {
   });
   expect(submittedAssignment.submitted_at).toBeTruthy();
   expect(submittedAssignment.completed_at || null).toBeNull();
+  await closeIsolatedPage(page, "vendor start work and report submission");
 
   return { assignment: submittedAssignment, assignedWork };
 }
@@ -305,9 +327,10 @@ test.describe("AMC staging revision smoke", () => {
     fixtureState = await assertFixtureExists();
   });
 
-  test("requests a disposable vendor report revision and resubmits", async ({ page }) => {
-    const { assignment, assignedWork } = await progressFixtureToSubmittedReport(page);
+  test("requests a disposable vendor report revision and resubmits", async ({ browser }) => {
+    const { assignment, assignedWork } = await progressFixtureToSubmittedReport(browser);
 
+    let page = await newIsolatedPage(browser, "owner revision request");
     await logAmcWorkspaceDiagnostics(page, "before owner login for revision request");
     await login(page, OWNER_EMAIL);
     await logAmcWorkspaceDiagnostics(page, "after owner login before opening smoke order for revision request");
@@ -354,7 +377,9 @@ test.describe("AMC staging revision smoke", () => {
     });
     expect(revisionAssignment.revision_requested_at).toBeTruthy();
     expect(revisionAssignment.completed_at || null).toBeNull();
+    await closeIsolatedPage(page, "owner revision request");
 
+    page = await newIsolatedPage(browser, "vendor revision resubmission");
     await logAmcWorkspaceDiagnostics(page, "before vendor login for revision resubmission");
     await login(page, VENDOR_EMAIL);
     console.log(`[amc revision smoke] navigating to vendor revision work item ${assignedWork.assignment_work_key} from ${page.url()}`);
@@ -371,7 +396,9 @@ test.describe("AMC staging revision smoke", () => {
     await expect(page.getByText(/Report resubmitted/i)).toBeVisible({ timeout: 30000 });
     await expect(page.getByText(/Resubmitted \/ Awaiting Review/i).first()).toBeVisible({ timeout: 15000 });
     await expect(page.getByText(RESUBMISSION_NOTE)).toBeVisible();
+    await closeIsolatedPage(page, "vendor revision resubmission");
 
+    page = await newIsolatedPage(browser, "owner resubmission review");
     await logAmcWorkspaceDiagnostics(page, "before owner login after revision resubmission");
     await login(page, OWNER_EMAIL);
     await logAmcWorkspaceDiagnostics(page, "after owner login before opening smoke order after revision resubmission");
@@ -391,6 +418,7 @@ test.describe("AMC staging revision smoke", () => {
     await expect(page.getByText(/Resubmitted|resubmission|Revision/i).first()).toBeVisible({ timeout: 15000 });
     await expect(page.getByRole("button", { name: /^Complete$/i })).toBeVisible();
     await expect(page.getByRole("button", { name: /^Request Revision$/i })).toBeVisible();
+    await closeIsolatedPage(page, "owner resubmission review");
 
     assignments = await readVendorAssignmentsForOrder(ownerFixtureClient, fixtureState.orderId);
     expect(assignments).toHaveLength(1);

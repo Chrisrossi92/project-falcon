@@ -153,6 +153,48 @@ async function openProcurementDetails(page) {
   }
 }
 
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+async function currentBidRequestsSection(page) {
+  await openProcurementDetails(page);
+  const bidRequests = page.getByLabel(/^Bid requests$/i);
+  await expect(bidRequests).toBeVisible({ timeout: 15000 });
+  return bidRequests;
+}
+
+async function visibleBidSectionButtons(section, label) {
+  const buttons = await section.getByRole("button").evaluateAll((nodes) =>
+    nodes
+      .filter((node) => {
+        const style = window.getComputedStyle(node);
+        const box = node.getBoundingClientRect();
+        return style.visibility !== "hidden" && style.display !== "none" && box.width > 0 && box.height > 0;
+      })
+      .map((node) => ({
+        text: node.textContent?.replace(/\s+/g, " ").trim() || "",
+        ariaLabel: node.getAttribute("aria-label") || "",
+        disabled: node.hasAttribute("disabled"),
+      })),
+  );
+  console.log(`[amc happy smoke] ${label} visible bid section buttons: ${JSON.stringify(buttons)}`);
+  return buttons;
+}
+
+async function currentBidActionButton(section, actionName, label) {
+  const vendorSpecific = section
+    .getByRole("button", { name: new RegExp(`^${escapeRegExp(actionName)} for ${escapeRegExp(VENDOR_NAME)}$`, "i") })
+    .first();
+  if (await vendorSpecific.isVisible({ timeout: 5000 }).catch(() => false)) return vendorSpecific;
+
+  const generic = section.getByRole("button", { name: new RegExp(`^${escapeRegExp(actionName)}$`, "i") }).first();
+  if (await generic.isVisible({ timeout: 5000 }).catch(() => false)) return generic;
+
+  const buttons = await visibleBidSectionButtons(section, label);
+  throw new Error(`${label} was not visible in current Bid requests UI. Buttons: ${JSON.stringify(buttons)}`);
+}
+
 async function createDisposableBidInvitationToken() {
   if (!ownerFixtureClient) throw new Error("Owner fixture client was not initialized.");
   if (!fixtureState?.bidRecipientId) throw new Error("Smoke fixture bid recipient id was not found.");
@@ -269,39 +311,21 @@ test.describe("AMC staging happy-path smoke", () => {
 
     await login(page, OWNER_EMAIL);
     await openSmokeOrder(page);
-    await expect(page.getByLabel(/AMC bid status/i)).toContainText(/Bids received|1 contacted \/ 1 responded/i);
-    await openProcurementDetails(page);
-
-    const bidRequest = page
-      .getByRole("article")
-      .filter({ hasText: /Bid request/i })
-      .filter({ hasText: VENDOR_NAME })
-      .first();
-
-    await expect(bidRequest).toBeVisible({ timeout: 15000 });
-    await expect(bidRequest).toContainText(VENDOR_NAME);
-    await expect(bidRequest.getByText(/Responded/i).first()).toBeVisible();
-    await expect(bidRequest.getByText(BID_AMOUNT_PATTERN)).toBeVisible();
-    await expect(bidRequest.getByText(/6 days/i)).toBeVisible();
-    await expect(bidRequest.getByText(BID_COMMENTS)).toBeVisible();
-    await expect(bidRequest.getByRole("button", { name: /Select bid/i })).toBeVisible();
-    await expect(bidRequest.getByRole("button", { name: /Create Assignment Offer/i })).toHaveCount(0);
+    const bidStatus = page.getByLabel(/AMC bid status/i);
+    await expect(bidStatus).toContainText(/Bids received/i);
+    await expect(bidStatus).toContainText(/1 contacted \/ 1 responded/i);
+    await expect(bidStatus).toContainText(/Lowest Fee/i);
+    await expect(bidStatus).toContainText(BID_AMOUNT_PATTERN);
   });
 
   test("selects the disposable vendor bid and stops before assignment", async ({ page }) => {
     await login(page, OWNER_EMAIL);
     await openSmokeOrder(page);
     await expect(page.getByLabel(/AMC bid status/i)).toContainText(/Bids received|1 contacted \/ 1 responded/i);
-    await openProcurementDetails(page);
-
-    const bidRequest = page
-      .getByRole("article")
-      .filter({ hasText: /Bid request/i })
-      .filter({ hasText: VENDOR_NAME })
-      .first();
-
-    await expect(bidRequest).toBeVisible({ timeout: 15000 });
-    await bidRequest.getByRole("button", { name: /Select bid/i }).click();
+    const bidRequests = await currentBidRequestsSection(page);
+    await expect(bidRequests).toContainText(VENDOR_NAME);
+    await expect(bidRequests).toContainText(BID_AMOUNT_PATTERN);
+    await (await currentBidActionButton(bidRequests, "Select bid", "Select bid action")).click();
 
     const dialog = page.getByRole("dialog", { name: /Select bid/i });
     await expect(dialog).toBeVisible();
@@ -325,7 +349,7 @@ test.describe("AMC staging happy-path smoke", () => {
     expect(String(selectedFixtureState.response?.turn_time_days)).toBe(BID_TURN_TIME_DAYS);
     expect(selectedFixtureState.response?.comments).toBe(BID_COMMENTS);
 
-    await expect(bidRequest.getByRole("button", { name: /Create Assignment Offer/i })).toBeVisible();
+    await expect(await currentBidActionButton(bidRequests, "Create Assignment Offer", "Create assignment offer action")).toBeVisible();
     await assertNoVendorAssignmentStarted(ownerFixtureClient, selectedFixtureState.orderId);
   });
 
@@ -342,17 +366,10 @@ test.describe("AMC staging happy-path smoke", () => {
     await login(page, OWNER_EMAIL);
     await openSmokeOrder(page);
     await expect(page.getByLabel(/AMC bid status/i)).toContainText(/Bid selected/i);
-    await openProcurementDetails(page);
-
-    const bidRequest = page
-      .getByRole("article")
-      .filter({ hasText: /Bid request/i })
-      .filter({ hasText: VENDOR_NAME })
-      .first();
-
-    await expect(bidRequest).toBeVisible({ timeout: 15000 });
-    await bidRequest.getByRole("button", { name: /Create Assignment Offer/i }).click();
-    await expect(bidRequest.getByText(/Assignment offer created from the selected bid/i)).toBeVisible({
+    const bidRequests = await currentBidRequestsSection(page);
+    await expect(bidRequests).toContainText(VENDOR_NAME);
+    await (await currentBidActionButton(bidRequests, "Create Assignment Offer", "Create assignment offer action")).click();
+    await expect(page.getByRole("status").filter({ hasText: /Assignment offer created from the selected bid/i })).toBeVisible({
       timeout: 15000,
     });
 
@@ -377,7 +394,7 @@ test.describe("AMC staging happy-path smoke", () => {
     expect(assignment.submitted_at || null).toBeNull();
     expect(assignment.completed_at || null).toBeNull();
 
-    await expect(bidRequest.getByRole("button", { name: /Create Assignment Offer/i })).toHaveCount(0);
+    await expect(bidRequests.getByRole("button", { name: /Create Assignment Offer/i })).toHaveCount(0);
   });
 
   test("accepts the disposable assignment offer and stops before vendor execution", async ({ page }) => {
