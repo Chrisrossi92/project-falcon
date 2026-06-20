@@ -125,24 +125,57 @@ export async function login(page, email: string, password: string) {
   await page.waitForLoadState("networkidle");
 }
 
+async function visibleWorkspaceSwitcher(page) {
+  const workspaceSwitcher = page.locator('[data-testid="operations-mode-switcher"]:visible').first();
+  await expect(workspaceSwitcher).toBeVisible({ timeout: 15000 });
+  return workspaceSwitcher;
+}
+
+export async function readAmcWorkspaceDiagnostics(page) {
+  const visibleSwitcher = page.locator('[data-testid="operations-mode-switcher"]:visible').first();
+  const switcherVisible = await visibleSwitcher.isVisible({ timeout: 1000 }).catch(() => false);
+  const amcWorkspaceButton = visibleSwitcher.getByRole("button", { name: /^Falcon AMC$/i });
+  const internalWorkspaceButton = visibleSwitcher.getByRole("button", { name: /^Continental Internal Operations$/i });
+
+  return {
+    url: page.url(),
+    localStorageMode: await page.evaluate((storageKey) => window.localStorage.getItem(storageKey), OPERATIONS_MODE_STORAGE_KEY),
+    switcherVisible,
+    amcButtonVisible: await amcWorkspaceButton.isVisible({ timeout: 500 }).catch(() => false),
+    internalButtonVisible: await internalWorkspaceButton.isVisible({ timeout: 500 }).catch(() => false),
+    amcPressed: (await amcWorkspaceButton.getAttribute("aria-pressed").catch(() => null)) || "(missing)",
+    internalPressed: (await internalWorkspaceButton.getAttribute("aria-pressed").catch(() => null)) || "(missing)",
+  };
+}
+
+export async function logAmcWorkspaceDiagnostics(page, label) {
+  console.log(`[AMC workspace diagnostics] ${label}: ${JSON.stringify(await readAmcWorkspaceDiagnostics(page))}`);
+}
+
+export async function assertAmcWorkspaceActive(page, label = "AMC workspace") {
+  try {
+    await expect
+      .poll(() => readAmcWorkspaceDiagnostics(page), { timeout: 15000 })
+      .toMatchObject({
+        amcPressed: "true",
+        internalPressed: "false",
+        localStorageMode: AMC_OPERATIONS_MODE,
+      });
+  } catch (error) {
+    const state = await readAmcWorkspaceDiagnostics(page);
+    throw new Error(`${label} is not active. State: ${JSON.stringify(state)}`, { cause: error });
+  }
+}
+
 export async function ensureAmcWorkspace(page) {
   await page.waitForLoadState("domcontentloaded").catch(() => {});
 
   await page.goto("/dashboard", { waitUntil: "networkidle" });
 
-  const workspaceSwitcher = page.locator('[data-testid="operations-mode-switcher"]:visible').first();
-  await expect(workspaceSwitcher).toBeVisible({ timeout: 15000 });
+  const workspaceSwitcher = await visibleWorkspaceSwitcher(page);
 
   const amcWorkspaceButton = workspaceSwitcher.getByRole("button", { name: /^Falcon AMC$/i });
-  const internalWorkspaceButton = workspaceSwitcher.getByRole("button", { name: /^Continental Internal Operations$/i });
   await expect(amcWorkspaceButton).toBeVisible({ timeout: 15000 });
-
-  const readWorkspaceState = async () => ({
-    amcPressed: (await amcWorkspaceButton.getAttribute("aria-pressed")) || "(missing)",
-    internalPressed: (await internalWorkspaceButton.getAttribute("aria-pressed").catch(() => null)) || "(missing)",
-    localStorageMode: await page.evaluate((storageKey) => window.localStorage.getItem(storageKey), OPERATIONS_MODE_STORAGE_KEY),
-    url: page.url(),
-  });
 
   if ((await amcWorkspaceButton.getAttribute("aria-pressed")) !== "true") {
     await amcWorkspaceButton.scrollIntoViewIfNeeded();
@@ -151,19 +184,22 @@ export async function ensureAmcWorkspace(page) {
     await page.waitForLoadState("networkidle").catch(() => {});
   }
 
-  try {
-    await expect
-      .poll(readWorkspaceState, { timeout: 15000 })
-      .toMatchObject({
-        amcPressed: "true",
-        internalPressed: "false",
-        localStorageMode: AMC_OPERATIONS_MODE,
-      });
-  } catch (error) {
-    const state = await readWorkspaceState();
-    throw new Error(
-      `Falcon AMC workspace switch did not become active after clicking Falcon AMC. State: ${JSON.stringify(state)}`,
-      { cause: error },
-    );
-  }
+  await assertAmcWorkspaceActive(page, "Falcon AMC workspace switch after clicking Falcon AMC");
+}
+
+export async function navigateWithinAmc(page, path: string) {
+  await ensureAmcWorkspace(page);
+  await logAmcWorkspaceDiagnostics(page, `before ${path} navigation`);
+
+  await page.evaluate((nextPath) => {
+    window.history.pushState({}, "", nextPath);
+    window.dispatchEvent(new PopStateEvent("popstate", { state: window.history.state }));
+  }, path);
+
+  await expect(page).toHaveURL(new RegExp(`${path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:$|[#?])`), {
+    timeout: 10000,
+  });
+  await page.waitForLoadState("networkidle").catch(() => {});
+  await logAmcWorkspaceDiagnostics(page, `after ${path} navigation`);
+  await assertAmcWorkspaceActive(page, `AMC workspace after ${path} navigation`);
 }

@@ -3,8 +3,8 @@ import { createClient } from "@supabase/supabase-js";
 
 import {
   assertAmcStagingSmokeTarget,
-  ensureAmcWorkspace,
   login as loginWithPassword,
+  navigateWithinAmc,
   prepareFixtureIfRequested,
   requiredValue,
   signIn as signInWithPassword,
@@ -227,8 +227,7 @@ test.describe("AMC staging client request conversion smoke", () => {
 
   test("converts a disposable client portal request into an AMC order and stops before procurement", async ({ page }) => {
     await login(page, OWNER_EMAIL);
-    await ensureAmcWorkspace(page);
-    await page.goto("/client-requests", { waitUntil: "networkidle" });
+    await navigateWithinAmc(page, "/client-requests");
 
     await expect(page.getByRole("heading", { name: /Client Order Requests/i })).toBeVisible({ timeout: 15000 });
     await expect(page.getByText(requestState.propertyAddress).first()).toBeVisible({ timeout: 15000 });

@@ -6,6 +6,7 @@ import {
   assertAmcStagingSmokeTarget,
   ensureAmcWorkspace,
   login as loginWithPassword,
+  navigateWithinAmc,
   prepareFixtureIfRequested,
   signIn as signInWithPassword,
 } from "./helpers/stagingSmoke";
@@ -141,8 +142,7 @@ async function login(page, email: string) {
 }
 
 async function openSmokeOrder(page) {
-  await ensureAmcWorkspace(page);
-  await page.goto(`/orders?q=${encodeURIComponent(ORDER_NUMBER)}`, { waitUntil: "networkidle" });
+  await navigateWithinAmc(page, `/orders?q=${encodeURIComponent(ORDER_NUMBER)}`);
   await expect(page.getByText(ORDER_NUMBER).first()).toBeVisible({ timeout: 15000 });
   await page.getByText(ORDER_NUMBER).first().click();
 
