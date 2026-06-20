@@ -130,47 +130,40 @@ export async function ensureAmcWorkspace(page) {
 
   await page.goto("/dashboard", { waitUntil: "networkidle" });
 
-  const workspaceSwitcher = page
-    .getByTestId("operations-mode-switcher")
-    .filter({ has: page.getByRole("button", { name: /^Falcon AMC$/i }) })
-    .first();
+  const workspaceSwitcher = page.locator('[data-testid="operations-mode-switcher"]:visible').first();
   await expect(workspaceSwitcher).toBeVisible({ timeout: 15000 });
 
   const amcWorkspaceButton = workspaceSwitcher.getByRole("button", { name: /^Falcon AMC$/i });
   const internalWorkspaceButton = workspaceSwitcher.getByRole("button", { name: /^Continental Internal Operations$/i });
+  await expect(amcWorkspaceButton).toBeVisible({ timeout: 15000 });
+
+  const readWorkspaceState = async () => ({
+    amcPressed: (await amcWorkspaceButton.getAttribute("aria-pressed")) || "(missing)",
+    internalPressed: (await internalWorkspaceButton.getAttribute("aria-pressed").catch(() => null)) || "(missing)",
+    localStorageMode: await page.evaluate((storageKey) => window.localStorage.getItem(storageKey), OPERATIONS_MODE_STORAGE_KEY),
+    url: page.url(),
+  });
 
   if ((await amcWorkspaceButton.getAttribute("aria-pressed")) !== "true") {
-    await amcWorkspaceButton.click();
+    await amcWorkspaceButton.scrollIntoViewIfNeeded();
+    await amcWorkspaceButton.click({ timeout: 10000 });
+    await page.waitForURL(/\/dashboard(?:[?#].*)?$/, { timeout: 10000 }).catch(() => {});
     await page.waitForLoadState("networkidle").catch(() => {});
   }
 
-  await expect(amcWorkspaceButton).toHaveAttribute("aria-pressed", "true", { timeout: 10000 });
-  if (await internalWorkspaceButton.isVisible({ timeout: 1000 }).catch(() => false)) {
-    await expect(internalWorkspaceButton).toHaveAttribute("aria-pressed", "false", { timeout: 10000 });
+  try {
+    await expect
+      .poll(readWorkspaceState, { timeout: 15000 })
+      .toMatchObject({
+        amcPressed: "true",
+        internalPressed: "false",
+        localStorageMode: AMC_OPERATIONS_MODE,
+      });
+  } catch (error) {
+    const state = await readWorkspaceState();
+    throw new Error(
+      `Falcon AMC workspace switch did not become active after clicking Falcon AMC. State: ${JSON.stringify(state)}`,
+      { cause: error },
+    );
   }
-  await expect
-    .poll(
-      () => page.evaluate((storageKey) => window.localStorage.getItem(storageKey), OPERATIONS_MODE_STORAGE_KEY),
-      { timeout: 10000 },
-    )
-    .toBe(AMC_OPERATIONS_MODE);
-
-  const amcSignals = [
-    page.getByRole("heading", { name: /Falcon AMC Dashboard/i }).first(),
-    page.getByText(/Procurement Command/i).first(),
-    page.getByText(/Falcon AMC Environment/i).first(),
-    page.getByTestId("workspace-identity-title").filter({ hasText: /Falcon AMC Environment/i }).first(),
-    page.getByTestId("operations-mode-current").filter({ hasText: /Falcon AMC/i }).first(),
-    page.getByTestId("operations-mode-selected-label").filter({ hasText: /Falcon AMC/i }).first(),
-  ];
-
-  for (const signal of amcSignals) {
-    if (await signal.isVisible({ timeout: 1000 }).catch(() => false)) {
-      return;
-    }
-  }
-
-  await expect(page.getByText(/Falcon AMC|Procurement Command|Falcon AMC Environment/i).first()).toBeVisible({
-    timeout: 15000,
-  });
 }
