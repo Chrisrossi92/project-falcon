@@ -247,7 +247,9 @@ async function progressFixtureToSubmittedReport(browser) {
   await visibleButtonDiagnostics(page, "before bid selection", procurementSection);
   const selectBidButton = await expectCurrentActionButton(
     page,
-    procurementSection.getByRole("button", { name: new RegExp(`^Select bid for ${escapeRegExp(VENDOR_NAME)}$`, "i") }),
+    procurementSection.getByRole("button", {
+      name: new RegExp(`^Select bid(?: for ${escapeRegExp(VENDOR_NAME)})?$`, "i"),
+    }),
     "Select bid",
     procurementSection,
   );
