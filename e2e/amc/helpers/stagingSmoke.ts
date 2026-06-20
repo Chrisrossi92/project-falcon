@@ -121,8 +121,9 @@ export async function signIn(email: string, password: string) {
   return { client: supabase, session: data.session || null, token: data.session?.access_token || null };
 }
 
-async function authenticatedShellState(page) {
+export async function readAuthenticatedShellDiagnostics(page) {
   const emailVisible = await page.getByLabel(/email/i).isVisible({ timeout: 250 }).catch(() => false);
+  const passwordVisible = await page.getByLabel(/password/i).isVisible({ timeout: 250 }).catch(() => false);
   const shellVisible = !emailVisible
     ? await page
         .locator('[data-testid="operations-mode-switcher"]:visible')
@@ -140,8 +141,10 @@ async function authenticatedShellState(page) {
 
   return {
     url: page.url(),
-    emailVisible,
-    shellVisible,
+    loginFormVisible: emailVisible || passwordVisible,
+    emailFieldVisible: emailVisible,
+    passwordFieldVisible: passwordVisible,
+    authenticatedShellVisible: shellVisible,
     dashboardVisible,
   };
 }
@@ -151,14 +154,14 @@ export async function waitForAuthenticatedShell(page, label = "authenticated she
     await expect
       .poll(
         async () => {
-          const state = await authenticatedShellState(page);
-          return !state.emailVisible && (state.shellVisible || state.dashboardVisible);
+          const state = await readAuthenticatedShellDiagnostics(page);
+          return !state.loginFormVisible && (state.authenticatedShellVisible || state.dashboardVisible);
         },
         { timeout: 15000 },
       )
       .toBe(true);
   } catch (error) {
-    throw new Error(`${label} did not become ready. State: ${JSON.stringify(await authenticatedShellState(page))}`, {
+    throw new Error(`${label} did not become ready. State: ${JSON.stringify(await readAuthenticatedShellDiagnostics(page))}`, {
       cause: error,
     });
   }
@@ -182,12 +185,24 @@ export async function login(page, email: string, password: string) {
 }
 
 async function visibleWorkspaceSwitcher(page) {
+  const authState = await readAuthenticatedShellDiagnostics(page);
+  if (authState.loginFormVisible) {
+    throw new Error(`Workspace switcher requested before authentication completed. State: ${JSON.stringify(authState)}`);
+  }
+
   const workspaceSwitcher = page.locator('[data-testid="operations-mode-switcher"]:visible').first();
-  await expect(workspaceSwitcher).toBeVisible({ timeout: 15000 });
+  try {
+    await expect(workspaceSwitcher).toBeVisible({ timeout: 15000 });
+  } catch (error) {
+    throw new Error(`Workspace switcher was not visible after authentication. State: ${JSON.stringify(authState)}`, {
+      cause: error,
+    });
+  }
   return workspaceSwitcher;
 }
 
 export async function readAmcWorkspaceDiagnostics(page) {
+  const authState = await readAuthenticatedShellDiagnostics(page);
   const visibleSwitcher = page.locator('[data-testid="operations-mode-switcher"]:visible').first();
   const switcherVisible = await visibleSwitcher.isVisible({ timeout: 1000 }).catch(() => false);
   const amcWorkspaceButton = visibleSwitcher.getByRole("button", { name: /^Falcon AMC$/i });
@@ -203,6 +218,7 @@ export async function readAmcWorkspaceDiagnostics(page) {
     .catch(() => "unavailable");
 
   return {
+    ...authState,
     url: page.url(),
     localStorageMode,
     switcherVisible,

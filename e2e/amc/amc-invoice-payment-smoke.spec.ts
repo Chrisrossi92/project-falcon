@@ -10,6 +10,7 @@ import {
   navigateWithinAmc,
   openAmcOrderDetail,
   prepareFixtureIfRequested,
+  readAuthenticatedShellDiagnostics,
   requiredValue,
   signIn as signInWithPassword,
 } from "./helpers/stagingSmoke";
@@ -462,7 +463,9 @@ async function ensureInvoicePaymentReady(assignmentWorkKey, assignmentId) {
 }
 
 async function login(page, email: string) {
+  console.log(`[amc invoice smoke] before login ${email}: ${JSON.stringify(await readAuthenticatedShellDiagnostics(page))}`);
   await loginWithPassword(page, email, PASSWORD);
+  console.log(`[amc invoice smoke] after login ${email}: ${JSON.stringify(await readAuthenticatedShellDiagnostics(page))}`);
 }
 
 async function openSmokeOrder(page) {

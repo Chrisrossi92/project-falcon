@@ -301,6 +301,29 @@ async function expectRevisionVisible(page, locator, label, options = {}) {
   }
 }
 
+async function expectRevisionText(page, locator, text, label, options = {}) {
+  await logRevisionStep(page, `before wait: ${label}`, options);
+  try {
+    await expect(locator).toContainText(text, { timeout: options.timeout || 15000 });
+    await logRevisionStep(page, `after wait: ${label}`, options);
+  } catch (error) {
+    await logRevisionStep(page, `timeout waiting: ${label}`, options);
+    throw error;
+  }
+}
+
+async function runRevisionStep(page, label, action, options = {}) {
+  await logRevisionStep(page, `before step: ${label}`, options);
+  try {
+    const result = await action();
+    await logRevisionStep(page, `after step: ${label}`, options);
+    return result;
+  } catch (error) {
+    await logRevisionStep(page, `failed step: ${label}`, options);
+    throw error;
+  }
+}
+
 async function expectCurrentActionButton(page, locator, context, diagnosticScope = page) {
   if (await locator.isVisible({ timeout: 10000 }).catch(() => false)) {
     return locator;
@@ -326,15 +349,22 @@ async function progressFixtureToSubmittedReport(browser) {
 
   page = await newIsolatedPage(browser, "owner bid selection");
   await logAmcWorkspaceDiagnostics(page, "before owner login for bid selection");
-  await login(page, OWNER_EMAIL);
+  await runRevisionStep(page, "owner login for bid selection", () => login(page, OWNER_EMAIL));
   await logAmcWorkspaceDiagnostics(page, "after owner login before opening smoke order for bid selection");
-  await openSmokeOrder(page);
-  await assertRevisionAmcCheckpoint(page, "after opening smoke order for bid selection");
-  await logRevisionStep(page, "before waiting for bids received status");
-  await expect(page.getByLabel(/AMC bid status/i)).toContainText(/Bids received|1 contacted \/ 1 responded/i);
-  await logRevisionStep(page, "after waiting for bids received status");
-  await openProcurementDetails(page);
-  await assertRevisionAmcCheckpoint(page, "after opening procurement details for bid selection");
+  await runRevisionStep(page, "open smoke order for bid selection", () => openSmokeOrder(page));
+  await runRevisionStep(page, "assert AMC checkpoint after opening smoke order for bid selection", () =>
+    assertRevisionAmcCheckpoint(page, "after opening smoke order for bid selection"),
+  );
+  await expectRevisionText(
+    page,
+    page.getByLabel(/AMC bid status/i),
+    /Bids received|1 contacted \/ 1 responded/i,
+    "AMC bid status shows received bid before selection",
+  );
+  await runRevisionStep(page, "open procurement details for bid selection", () => openProcurementDetails(page));
+  await runRevisionStep(page, "assert AMC checkpoint after opening procurement details for bid selection", () =>
+    assertRevisionAmcCheckpoint(page, "after opening procurement details for bid selection"),
+  );
   const procurementSection = page.getByLabel(/^Bid requests$/i);
   await expectRevisionVisible(page, procurementSection, "bid requests section before bid selection");
 
