@@ -9,7 +9,13 @@ const navigateMock = vi.hoisted(() => vi.fn());
 const updateSiteVisitAtViaRpcMock = vi.hoisted(() => vi.fn());
 const archiveOrderViaRpcMock = vi.hoisted(() => vi.fn());
 const cancelOrderViaRpcMock = vi.hoisted(() => vi.fn());
+const clearReviewMock = vi.hoisted(() => vi.fn());
+const completeOrderMock = vi.hoisted(() => vi.fn());
+const markReadyForClientMock = vi.hoisted(() => vi.fn());
 const overrideOrderStatusViaRpcMock = vi.hoisted(() => vi.fn());
+const requestFinalApprovalMock = vi.hoisted(() => vi.fn());
+const sendOrderBackToAppraiserMock = vi.hoisted(() => vi.fn());
+const sendOrderToReviewMock = vi.hoisted(() => vi.fn());
 const voidOrderViaRpcMock = vi.hoisted(() => vi.fn());
 const listOrderDocumentsMock = vi.hoisted(() => vi.fn());
 const createOrderDocumentDownloadUrlMock = vi.hoisted(() => vi.fn());
@@ -82,7 +88,13 @@ vi.mock("@/lib/hooks/useOrder", () => ({
 vi.mock("@/lib/services/ordersService", () => ({
   archiveOrderViaRpc: archiveOrderViaRpcMock,
   cancelOrderViaRpc: cancelOrderViaRpcMock,
+  clearReview: clearReviewMock,
+  completeOrder: completeOrderMock,
+  markReadyForClient: markReadyForClientMock,
   overrideOrderStatusViaRpc: overrideOrderStatusViaRpcMock,
+  requestFinalApproval: requestFinalApprovalMock,
+  sendOrderBackToAppraiser: sendOrderBackToAppraiserMock,
+  sendOrderToReview: sendOrderToReviewMock,
   updateSiteVisitAtViaRpc: updateSiteVisitAtViaRpcMock,
   voidOrderViaRpc: voidOrderViaRpcMock,
 }));
@@ -316,6 +328,24 @@ describe("OrderDetail site visit save", () => {
       to_status: "in_review",
       reason: "Correcting field reality",
     });
+    clearReviewMock.mockReset();
+    clearReviewMock.mockResolvedValue({ id: "order-1", status: "review_cleared" });
+    completeOrderMock.mockReset();
+    completeOrderMock.mockResolvedValue({ id: "order-1", status: "completed" });
+    markReadyForClientMock.mockReset();
+    markReadyForClientMock.mockResolvedValue({ id: "order-1", status: "ready_for_client" });
+    requestFinalApprovalMock.mockReset();
+    requestFinalApprovalMock.mockResolvedValue({
+      id: "order-1",
+      status: "pending_final_approval",
+    });
+    sendOrderBackToAppraiserMock.mockReset();
+    sendOrderBackToAppraiserMock.mockResolvedValue({
+      id: "order-1",
+      status: "needs_revisions",
+    });
+    sendOrderToReviewMock.mockReset();
+    sendOrderToReviewMock.mockResolvedValue({ id: "order-1", status: "in_review" });
     permissionKeysMock.splice(
       0,
       permissionKeysMock.length,
@@ -725,6 +755,80 @@ describe("OrderDetail site visit save", () => {
     expect(screen.getByLabelText("Operational context controls")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Edit" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Archive order" })).toBeInTheDocument();
+  });
+
+  it("shows a primary recommended workflow action for a normal guided transition", async () => {
+    permissionKeysMock.push("workflow.status.submit_to_review");
+
+    render(<OrderDetail />);
+
+    const recommendation = screen.getByLabelText("Recommended workflow action");
+    expect(within(recommendation).getByText("Recommended next step")).toBeInTheDocument();
+    expect(within(recommendation).getByText("Internal workflow guidance")).toBeInTheDocument();
+
+    fireEvent.click(within(recommendation).getByRole("button", { name: "Send to Review" }));
+
+    await waitFor(() => {
+      expect(sendOrderToReviewMock).toHaveBeenCalledWith("order-1", null);
+    });
+    expect(refreshMock).toHaveBeenCalledTimes(1);
+    expect(toastSuccessMock).toHaveBeenCalledWith("Workflow action completed.");
+  });
+
+  it("shows neutral workflow guidance instead of a smart action for completed, archived, cancelled, and voided orders", () => {
+    permissionKeysMock.push(
+      "workflow.status.submit_to_review",
+      "workflow.status.complete",
+      "workflow.status.ready_for_client",
+    );
+    orderMock.status = "completed";
+
+    render(<OrderDetail />);
+    expect(within(screen.getByLabelText("Recommended workflow action")).getByText("No guided action")).toBeInTheDocument();
+    cleanup();
+
+    orderMock.status = "new";
+    orderMock.is_archived = true;
+    render(<OrderDetail />);
+    expect(within(screen.getByLabelText("Recommended workflow action")).getByText("No guided action")).toBeInTheDocument();
+    cleanup();
+
+    orderMock.is_archived = false;
+    orderMock.status = "cancelled";
+    render(<OrderDetail />);
+    expect(within(screen.getByLabelText("Recommended workflow action")).getByText("No guided action")).toBeInTheDocument();
+    cleanup();
+
+    orderMock.status = "voided";
+    render(<OrderDetail />);
+    expect(within(screen.getByLabelText("Recommended workflow action")).getByText("No guided action")).toBeInTheDocument();
+  });
+
+  it("keeps override out of smart recommendations while preserving owner/admin More actions", () => {
+    permissionKeysMock.push("workflow.override_status", "workflow.status.submit_to_review");
+
+    render(<OrderDetail />);
+
+    const recommendation = screen.getByLabelText("Recommended workflow action");
+    expect(within(recommendation).queryByText("Override status")).not.toBeInTheDocument();
+    expect(within(recommendation).getByRole("button", { name: "Send to Review" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+    expect(screen.getByRole("menuitem", { name: "Override status" })).toBeInTheDocument();
+  });
+
+  it("shows Falcon AMC context in the recommended workflow guidance", () => {
+    operationsModeMock.operationsMode = "amc_operations";
+    orderMock.operations_scope = "amc_operations";
+    permissionKeysMock.push("workflow.status.submit_to_review");
+
+    render(<OrderDetail />);
+
+    expect(
+      within(screen.getByLabelText("Recommended workflow action")).getByText(
+        "Falcon AMC workflow guidance",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("hides the status override action without workflow override permission", () => {

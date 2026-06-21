@@ -40,10 +40,17 @@ import VendorAssignmentCandidatesPanel from "@/features/vendors/components/Vendo
 import {
   archiveOrderViaRpc,
   cancelOrderViaRpc,
+  clearReview,
+  completeOrder,
+  markReadyForClient,
   overrideOrderStatusViaRpc,
+  requestFinalApproval,
+  sendOrderBackToAppraiser,
+  sendOrderToReview,
   updateSiteVisitAtViaRpc,
   voidOrderViaRpc,
 } from "@/lib/services/ordersService";
+import { getSmartOrderActions } from "@/features/orders/smartActions";
 import { formatPhoneForDisplay } from "@/lib/utils/phoneFormat";
 import { formatOperationalDate } from "@/lib/utils/dateOnly";
 import { useOperationsMode } from "@/lib/operations/OperationsModeProvider";
@@ -704,6 +711,8 @@ export default function OrderDetail() {
   const [statusOverrideReason, setStatusOverrideReason] = useState("");
   const [statusOverrideSubmitting, setStatusOverrideSubmitting] = useState(false);
   const [statusOverrideError, setStatusOverrideError] = useState("");
+  const [smartActionSubmitting, setSmartActionSubmitting] = useState("");
+  const [smartActionError, setSmartActionError] = useState("");
   const [lifecycleAction, setLifecycleAction] = useState(null);
   const [lifecycleReason, setLifecycleReason] = useState("");
   const [lifecycleSubmitting, setLifecycleSubmitting] = useState(false);
@@ -849,6 +858,11 @@ export default function OrderDetail() {
     !order?.is_archived &&
     !TERMINAL_STATUS_OVERRIDE_BLOCKLIST.has(normalizedOrderStatus) &&
     permissions.hasPermission(PERMISSIONS.WORKFLOW_OVERRIDE_STATUS);
+  const smartActionRole = isOwnerAdminStaffAppraisalShell
+    ? "admin"
+    : isReviewerReviewWorkspace
+      ? "reviewer"
+      : "appraiser";
   const showVendorCandidatePanel =
     operationsMode === OPERATIONS_MODES.AMC_OPERATIONS &&
     order?.operations_scope === "amc_operations" &&
@@ -911,6 +925,7 @@ export default function OrderDetail() {
   const lifecycleReasonTrimmed = lifecycleReason.trim();
   const statusOverrideReasonTrimmed = statusOverrideReason.trim();
   const statusOverrideWorkspaceLabel = isAmcOrderDetail ? "Falcon AMC" : "Internal";
+  const smartActionWorkspaceLabel = statusOverrideWorkspaceLabel;
   const canSubmitStatusOverride =
     Boolean(statusOverrideTarget) &&
     statusOverrideTarget !== normalizedOrderStatus &&
@@ -918,6 +933,73 @@ export default function OrderDetail() {
     !statusOverrideSubmitting;
   const lifecycleHistoryNotice =
     LIFECYCLE_HISTORY_NOTICE[String(order?.status || "").toLowerCase()] || null;
+
+  const runSmartWorkflowAction = React.useCallback(async (actionId, runner) => {
+    if (!order?.id || smartActionSubmitting) return;
+
+    setSmartActionSubmitting(actionId);
+    setSmartActionError("");
+
+    try {
+      await runner();
+      success("Workflow action completed.");
+      await refresh();
+    } catch (error) {
+      const message = error?.message || "Could not complete the recommended workflow action.";
+      setSmartActionError(message);
+      toastError(message);
+    } finally {
+      setSmartActionSubmitting("");
+    }
+  }, [order?.id, refresh, smartActionSubmitting, success, toastError]);
+
+  const smartWorkflowActions = useMemo(() => {
+    if (!order || order.is_archived || TERMINAL_STATUS_OVERRIDE_BLOCKLIST.has(normalizedOrderStatus)) {
+      return [];
+    }
+
+    return getSmartOrderActions({
+      order,
+      role: smartActionRole,
+      permissions: {
+        loading: permissions.loading,
+        error: permissions.error,
+        canSubmitToReview: permissions.hasPermission(PERMISSIONS.WORKFLOW_STATUS_SUBMIT_TO_REVIEW),
+        canResubmit: permissions.hasPermission(PERMISSIONS.WORKFLOW_STATUS_RESUBMIT),
+        canRequestRevisions: permissions.hasPermission(PERMISSIONS.WORKFLOW_STATUS_REQUEST_REVISIONS),
+        canApproveReview: permissions.hasPermission(PERMISSIONS.WORKFLOW_STATUS_APPROVE_REVIEW),
+        canReadyForClient: permissions.hasPermission(PERMISSIONS.WORKFLOW_STATUS_READY_FOR_CLIENT),
+        canComplete: permissions.hasPermission(PERMISSIONS.WORKFLOW_STATUS_COMPLETE),
+      },
+      handlers: {
+        onSendToReview: () =>
+          runSmartWorkflowAction("send_to_review", () => sendOrderToReview(order.id, null)),
+        onSendBackToAppraiser: () =>
+          runSmartWorkflowAction("send_back_to_appraiser", () =>
+            sendOrderBackToAppraiser(order.id, null),
+          ),
+        onClearReview: () =>
+          runSmartWorkflowAction("clear_review", () => clearReview(order.id)),
+        onRequestFinalApproval: () =>
+          runSmartWorkflowAction("request_final_approval", () => requestFinalApproval(order.id)),
+        onReadyForClient: () =>
+          runSmartWorkflowAction("ready_for_client", () => markReadyForClient(order.id)),
+        onComplete: () =>
+          runSmartWorkflowAction("complete", () => completeOrder(order.id, null)),
+      },
+    });
+  }, [
+    normalizedOrderStatus,
+    order,
+    permissions,
+    runSmartWorkflowAction,
+    smartActionRole,
+  ]);
+  const visibleSmartActions = smartWorkflowActions.filter((action) => action.visible);
+  const primarySmartAction =
+    visibleSmartActions.find((action) => action.isPrimary && !action.disabled) ||
+    visibleSmartActions.find((action) => !action.disabled) ||
+    null;
 
   async function saveAppt(iso) {
     try {
@@ -1100,90 +1182,126 @@ export default function OrderDetail() {
               </p>
             ) : null}
           </div>
-          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-2">
-            {canOfferAssignment && (
-              <button
-                type="button"
-                onClick={() => setOfferAssignmentOpen(true)}
-                className="px-3 py-1.5 border border-slate-950 bg-slate-950 text-white rounded text-sm font-semibold hover:bg-slate-800"
-              >
-                Offer Assignment
-              </button>
-            )}
-            {canArchiveThisOrder && (
-              <button
-                type="button"
-                onClick={() => {
-                  setArchiveError("");
-                  setArchiveConfirmOpen(true);
-                }}
-                className="px-3 py-1.5 border border-amber-300 bg-amber-50 text-amber-800 rounded text-sm font-semibold hover:bg-amber-100"
-              >
-                Archive order
-              </button>
-            )}
-            {canCancelThisOrder && (
-              <button
-                type="button"
-                onClick={() => openLifecycleAction("cancel")}
-                className={LIFECYCLE_ACTION_COPY.cancel.buttonClass}
-              >
-                Cancel order
-              </button>
-            )}
-            {canVoidThisOrder && (
-              <button
-                type="button"
-                onClick={() => openLifecycleAction("void")}
-                className={LIFECYCLE_ACTION_COPY.void.buttonClass}
-              >
-                Void order
-              </button>
-            )}
-            {canOverrideOrderStatus && (
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setMoreActionsOpen((value) => !value)}
-                  aria-expanded={moreActionsOpen}
-                  aria-haspopup="menu"
-                  className="px-3 py-1.5 border rounded text-sm font-semibold text-gray-700 hover:bg-gray-50"
-                >
-                  More actions
-                </button>
-                {moreActionsOpen && (
-                  <div
-                    role="menu"
-                    aria-label="More order actions"
-                    className="absolute right-0 top-full z-20 mt-2 w-48 rounded-md border border-slate-200 bg-white p-1 shadow-lg"
+          <div className="flex w-full flex-col gap-2 md:w-auto md:min-w-[320px] md:items-end">
+            <section
+              aria-label="Recommended workflow action"
+              className="w-full rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-slate-800 shadow-sm md:max-w-[380px]"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-sky-700">
+                    Recommended next step
+                  </div>
+                  <div className="mt-1 text-xs text-slate-600">
+                    {smartActionWorkspaceLabel} workflow guidance
+                  </div>
+                  {smartActionError ? (
+                    <div className="mt-2 text-xs font-medium text-rose-700">{smartActionError}</div>
+                  ) : null}
+                </div>
+                {primarySmartAction ? (
+                  <button
+                    type="button"
+                    onClick={primarySmartAction.onClick}
+                    disabled={primarySmartAction.disabled || Boolean(smartActionSubmitting)}
+                    className="shrink-0 rounded-md border border-sky-700 bg-sky-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={openStatusOverride}
-                      className="w-full rounded px-3 py-2 text-left text-sm font-medium text-slate-800 hover:bg-slate-50"
-                    >
-                      Override status
-                    </button>
+                    {smartActionSubmitting === primarySmartAction.id
+                      ? "Working..."
+                      : primarySmartAction.label}
+                  </button>
+                ) : (
+                  <div className="shrink-0 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-500">
+                    No guided action
                   </div>
                 )}
               </div>
-            )}
-            <button
-              type="button"
-              onClick={() => setPrintPacketOpen(true)}
-              className="px-3 py-1.5 border rounded text-sm font-semibold text-gray-700 hover:bg-gray-50"
-            >
-              Print Packet
-            </button>
-            <Link to="/orders" className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50">
-              {"<- Back"}
-            </Link>
-            {showOrderEditAction && (
-              <Link to={`/orders/${order.id}/edit`} className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50">
-                Edit
+            </section>
+            <div className="flex flex-wrap items-center justify-end gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-2">
+              {canOfferAssignment && (
+                <button
+                  type="button"
+                  onClick={() => setOfferAssignmentOpen(true)}
+                  className="px-3 py-1.5 border border-slate-950 bg-slate-950 text-white rounded text-sm font-semibold hover:bg-slate-800"
+                >
+                  Offer Assignment
+                </button>
+              )}
+              {canArchiveThisOrder && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setArchiveError("");
+                    setArchiveConfirmOpen(true);
+                  }}
+                  className="px-3 py-1.5 border border-amber-300 bg-amber-50 text-amber-800 rounded text-sm font-semibold hover:bg-amber-100"
+                >
+                  Archive order
+                </button>
+              )}
+              {canCancelThisOrder && (
+                <button
+                  type="button"
+                  onClick={() => openLifecycleAction("cancel")}
+                  className={LIFECYCLE_ACTION_COPY.cancel.buttonClass}
+                >
+                  Cancel order
+                </button>
+              )}
+              {canVoidThisOrder && (
+                <button
+                  type="button"
+                  onClick={() => openLifecycleAction("void")}
+                  className={LIFECYCLE_ACTION_COPY.void.buttonClass}
+                >
+                  Void order
+                </button>
+              )}
+              {canOverrideOrderStatus && (
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setMoreActionsOpen((value) => !value)}
+                    aria-expanded={moreActionsOpen}
+                    aria-haspopup="menu"
+                    className="px-3 py-1.5 border rounded text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                  >
+                    More actions
+                  </button>
+                  {moreActionsOpen && (
+                    <div
+                      role="menu"
+                      aria-label="More order actions"
+                      className="absolute right-0 top-full z-20 mt-2 w-48 rounded-md border border-slate-200 bg-white p-1 shadow-lg"
+                    >
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={openStatusOverride}
+                        className="w-full rounded px-3 py-2 text-left text-sm font-medium text-slate-800 hover:bg-slate-50"
+                      >
+                        Override status
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => setPrintPacketOpen(true)}
+                className="px-3 py-1.5 border rounded text-sm font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                Print Packet
+              </button>
+              <Link to="/orders" className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50">
+                {"<- Back"}
               </Link>
-            )}
+              {showOrderEditAction && (
+                <Link to={`/orders/${order.id}/edit`} className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50">
+                  Edit
+                </Link>
+              )}
+            </div>
           </div>
         </div>
         {order.is_archived === true && (
