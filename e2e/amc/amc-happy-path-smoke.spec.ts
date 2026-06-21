@@ -25,20 +25,13 @@ const BID_AMOUNT_PATTERN = new RegExp(`\\$${BID_AMOUNT.replace(/[.*+?^${}()|[\]\
 const REPORT_FIXTURE_FILE_NAME = "amc-smoke-report.pdf";
 const REPORT_FIXTURE_PATH = resolve(process.cwd(), "e2e/fixtures", REPORT_FIXTURE_FILE_NAME);
 const REPORT_DELIVERY_NOTE = "AMC staging Playwright disposable report submission.";
+const BASE_URL = (process.env.E2E_BASE_URL || "http://127.0.0.1:5173").replace(/\/+$/, "");
 
 let fixtureState = null;
 let ownerFixtureClient = null;
 
 async function signIn(email: string) {
   return (await signInWithPassword(email, PASSWORD)).client;
-}
-
-async function logReportUploadDebug(page, label: string) {
-  const debugText = await page
-    .getByTestId("report-upload-debug")
-    .textContent({ timeout: 1000 })
-    .catch((error) => `unavailable: ${error?.message || error}`);
-  console.log(`[amc happy smoke] report upload debug ${label}: ${debugText}`);
 }
 
 async function readVendorAssignedWork(vendorClient) {
@@ -148,6 +141,17 @@ async function assertFixtureExists() {
 
 async function login(page, email: string) {
   await loginWithPassword(page, email, PASSWORD);
+}
+
+async function withFreshOwnerPage(browser, action) {
+  const ownerContext = await browser.newContext({ baseURL: BASE_URL });
+  const ownerPage = await ownerContext.newPage();
+  try {
+    await login(ownerPage, OWNER_EMAIL);
+    await action(ownerPage);
+  } finally {
+    await ownerContext.close();
+  }
 }
 
 async function openSmokeOrder(page) {
@@ -488,7 +492,7 @@ test.describe("AMC staging happy-path smoke", () => {
     expect(assignment.completed_at || null).toBeNull();
   });
 
-  test("submits a disposable vendor report and stops before owner review", async ({ page }) => {
+  test("submits a disposable vendor report and stops before owner review", async ({ page, browser }) => {
     const vendorClient = await signIn(VENDOR_EMAIL);
     const assignedWork = await readVendorAssignedWork(vendorClient);
     expect(assignedWork).toMatchObject({
@@ -509,7 +513,6 @@ test.describe("AMC staging happy-path smoke", () => {
     await expect(page.getByText(`Selected: ${REPORT_FIXTURE_FILE_NAME}`)).toBeVisible();
     await page.getByRole("button", { name: /^Upload Report File$/i }).click();
     await expect(page.getByText(REPORT_FIXTURE_FILE_NAME).first()).toBeVisible({ timeout: 30000 });
-    await logReportUploadDebug(page, "after uploaded filename visible");
     await expect(page.getByRole("button", { name: /^Submit Report$/i })).toBeEnabled();
 
     await page.getByLabel(/^Delivery Note$/i).fill(REPORT_DELIVERY_NOTE);
@@ -519,18 +522,16 @@ test.describe("AMC staging happy-path smoke", () => {
     await expect(page.getByText(REPORT_DELIVERY_NOTE)).toBeVisible();
     await expect(page.getByRole("button", { name: /^Submit Report$/i })).toHaveCount(0);
 
-    await login(page, OWNER_EMAIL);
-    await openSmokeOrder(page);
+    await withFreshOwnerPage(browser, async (ownerPage) => {
+      await openSmokeOrder(ownerPage);
 
-    const ownerAssignment = page
-      .getByRole("article")
-      .filter({ hasText: VENDOR_NAME })
-      .filter({ hasText: /Submitted/i })
-      .first();
-    await expect(ownerAssignment).toBeVisible({ timeout: 15000 });
-    await expect(ownerAssignment).toContainText(VENDOR_NAME);
-    await expect(ownerAssignment.getByText(/Submitted/i).first()).toBeVisible();
-    await expect(ownerAssignment.getByRole("link", { name: /Open assignment packet/i })).toBeVisible();
+      const bidStatus = ownerPage.getByLabel(/^AMC bid status$/i);
+      await expect(bidStatus).toBeVisible({ timeout: 15000 });
+      await expect(bidStatus).toContainText(VENDOR_NAME);
+      await expect(bidStatus).toContainText(/Assignment status/i);
+      await expect(bidStatus).toContainText(/Submitted/i);
+      await expect(bidStatus.getByRole("link", { name: /Open Packet/i })).toBeVisible();
+    });
 
     const submittedAssignments = await readVendorAssignmentsForOrder(ownerFixtureClient, fixtureState.orderId);
     expect(submittedAssignments).toHaveLength(1);
