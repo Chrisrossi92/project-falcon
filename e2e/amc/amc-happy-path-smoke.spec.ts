@@ -525,15 +525,12 @@ test.describe("AMC staging happy-path smoke", () => {
     await withFreshOwnerPage(browser, async (ownerPage) => {
       await openSmokeOrder(ownerPage);
 
-      const ownerAssignment = ownerPage
-        .getByRole("article")
-        .filter({ hasText: VENDOR_NAME })
-        .filter({ hasText: /Submitted/i })
-        .first();
-      await expect(ownerAssignment).toBeVisible({ timeout: 15000 });
-      await expect(ownerAssignment).toContainText(VENDOR_NAME);
-      await expect(ownerAssignment.getByText(/Submitted/i).first()).toBeVisible();
-      await expect(ownerAssignment.getByRole("link", { name: /Open assignment packet/i })).toBeVisible();
+      const bidStatus = ownerPage.getByLabel(/^AMC bid status$/i);
+      await expect(bidStatus).toBeVisible({ timeout: 15000 });
+      await expect(bidStatus).toContainText(VENDOR_NAME);
+      await expect(bidStatus).toContainText(/Assignment status/i);
+      await expect(bidStatus).toContainText(/Submitted/i);
+      await expect(bidStatus.getByRole("link", { name: /Open Packet/i })).toBeVisible();
     });
 
     const submittedAssignments = await readVendorAssignmentsForOrder(ownerFixtureClient, fixtureState.orderId);
