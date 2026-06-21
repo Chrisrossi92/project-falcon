@@ -273,6 +273,67 @@ function reportUploadErrorMessage(error, fallback) {
   );
 }
 
+function reportUploadDebugJson(value) {
+  try {
+    return JSON.stringify(value, (_key, nestedValue) => {
+      if (nestedValue instanceof Error) {
+        return {
+          name: nestedValue.name || null,
+          message: nestedValue.message || null,
+          stack: nestedValue.stack ? nestedValue.stack.split("\n").slice(0, 4).join(" | ") : null,
+        };
+      }
+      if (typeof nestedValue === "string" && nestedValue.length > 500) {
+        return `${nestedValue.slice(0, 500)}...`;
+      }
+      return nestedValue;
+    });
+  } catch (error) {
+    return `unserializable:${error?.message || String(error)}`;
+  }
+}
+
+function serializeReportUploadError(error) {
+  const cause = error?.cause || null;
+  return {
+    name: error?.name || null,
+    code: error?.code || null,
+    message: error?.message || null,
+    stack: error?.stack ? error.stack.split("\n").slice(0, 5).join(" | ") : null,
+    details: error?.details || null,
+    field_errors: error?.field_errors || null,
+    response: error?.response || null,
+    serialized_error: reportUploadDebugJson(error),
+    cause: cause
+      ? {
+          name: cause.name || null,
+          code: cause.code || null,
+          message: cause.message || null,
+          status: cause.status || cause.context?.status || null,
+        }
+      : null,
+  };
+}
+
+function formatReportUploadDebugEvent(event) {
+  const detailEntries = Object.entries(event).filter(
+    ([key, value]) =>
+      ![
+        "step",
+        "assignment_work_key_present",
+        "selected_file_name",
+        "uploaded_report_document_count",
+        "is_uploading",
+      ].includes(key) &&
+      value !== null &&
+      value !== undefined &&
+      value !== "" &&
+      (!Array.isArray(value) || value.length > 0),
+  );
+  const detailText = detailEntries.length ? `:${reportUploadDebugJson(Object.fromEntries(detailEntries))}` : "";
+  return `${event.step}(${event.uploaded_report_document_count}${detailText})`;
+}
+
 function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, onUnavailable }) {
   const [isStarting, setIsStarting] = useState(false);
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
@@ -281,6 +342,20 @@ function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, 
   const [deliveryNote, setDeliveryNote] = useState("");
   const [selectedReportFile, setSelectedReportFile] = useState(null);
   const [uploadedReportDocuments, setUploadedReportDocuments] = useState([]);
+  const [reportUploadDebugEvents, setReportUploadDebugEvents] = useState([]);
+
+  function recordReportUploadDebug(step, details = {}) {
+    const event = {
+      step,
+      assignment_work_key_present: Boolean(assignmentWorkKey),
+      selected_file_name: selectedReportFile?.name || null,
+      uploaded_report_document_count: uploadedReportDocuments.length,
+      is_uploading: isUploadingReport,
+      ...details,
+    };
+    console.log("[VendorWorkspaceReportUpload] trace", event);
+    setReportUploadDebugEvents((current) => [...current.slice(-11), event]);
+  }
 
   if (status === "accepted_not_started") {
     async function handleStartWork() {
@@ -359,24 +434,46 @@ function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, 
     });
 
     async function handleUploadReport() {
-      if (isUploadingReport) return;
+      setReportUploadDebugEvents([]);
+      recordReportUploadDebug("click:entered");
+      if (isUploadingReport) {
+        recordReportUploadDebug("return:already-uploading");
+        return;
+      }
 
       if (!selectedReportFile) {
+        recordReportUploadDebug("return:no-selected-file");
         setActionError(isRevisionFlow ? "Choose a revised report PDF before uploading." : "Choose a report PDF before uploading.");
         return;
       }
 
+      recordReportUploadDebug("state:set-uploading-before");
       setIsUploadingReport(true);
       setActionError("");
 
       try {
+        recordReportUploadDebug("await:create-upload-url:before", {
+          file_name: selectedReportFile.name,
+          file_size: selectedReportFile.size,
+          mime_type: selectedReportFile.type || "application/pdf",
+        });
         const prepared = await createVendorWorkspaceReportUploadUrl(assignmentWorkKey, {
           file_name: selectedReportFile.name,
           mime_type: selectedReportFile.type || "application/pdf",
           file_size: selectedReportFile.size,
           document_role: "submitted_report",
         });
+        recordReportUploadDebug("await:create-upload-url:after", {
+          prepared_ok: prepared?.ok === true,
+          has_signed_url: Boolean(prepared?.upload?.signed_url),
+          prepared_document_key: prepared?.document?.document_key || prepared?.document?.documentKey || null,
+          prepared_document_role: prepared?.document?.document_role || null,
+          prepared_category: prepared?.document?.category || null,
+        });
 
+        recordReportUploadDebug("await:signed-put:before", {
+          prepared_document_key: prepared?.document?.document_key || prepared?.document?.documentKey || null,
+        });
         const uploadResponse = await fetch(prepared.upload.signed_url, {
           method: "PUT",
           headers: {
@@ -385,17 +482,40 @@ function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, 
           },
           body: selectedReportFile,
         });
+        recordReportUploadDebug("await:signed-put:after", {
+          upload_ok: uploadResponse.ok,
+          upload_status: uploadResponse.status,
+          upload_status_text: uploadResponse.statusText || null,
+        });
 
         if (!uploadResponse.ok) {
+          recordReportUploadDebug("throw:signed-put-not-ok", {
+            upload_status: uploadResponse.status,
+            upload_status_text: uploadResponse.statusText || null,
+          });
           throw new Error("upload_failed");
         }
 
+        recordReportUploadDebug("await:register-document:before", {
+          document_key: prepared.document.document_key,
+          file_name: selectedReportFile.name,
+          file_size: selectedReportFile.size,
+          mime_type: selectedReportFile.type || "application/pdf",
+        });
         const registered = await registerVendorWorkspaceReportDocument(assignmentWorkKey, {
           document_key: prepared.document.document_key,
           file_name: selectedReportFile.name,
           mime_type: selectedReportFile.type || "application/pdf",
           file_size: selectedReportFile.size,
           document_role: "submitted_report",
+        });
+        recordReportUploadDebug("await:register-document:after", {
+          registered_ok: registered?.ok === true,
+          registered_error: registered?.error || null,
+          registered_document_key: registered?.document?.document_key || registered?.document?.documentKey || null,
+          registered_document_role: registered?.document?.document_role || null,
+          registered_category: registered?.document?.category || null,
+          field_error_keys: Object.keys(registered?.field_errors || {}),
         });
 
         const registeredDocumentKey =
@@ -404,8 +524,15 @@ function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, 
           prepared.document?.document_key ||
           prepared.document?.documentKey ||
           null;
+        recordReportUploadDebug("derive-document-key:after", {
+          registered_document_key: registeredDocumentKey,
+          registered_ok: registered?.ok === true,
+        });
 
         if (registered.ok && registeredDocumentKey) {
+          recordReportUploadDebug("merge:before", {
+            registered_document_key: registeredDocumentKey,
+          });
           const uploadedDocument = {
             ...prepared.document,
             ...registered.document,
@@ -434,15 +561,24 @@ function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, 
             });
             return nextDocuments;
           });
+          recordReportUploadDebug("state:set-selected-file-null-before");
           setSelectedReportFile(null);
+          recordReportUploadDebug("return:merge-success");
           return;
         }
 
         if (registered.error === "assigned_order_unavailable") {
+          recordReportUploadDebug("return:assigned-order-unavailable");
           onUnavailable?.();
           return;
         }
 
+        recordReportUploadDebug("return:registration-rejected", {
+          registered_ok: registered?.ok === true,
+          registered_error: registered?.error || null,
+          registered_document_key: registered?.document?.document_key || registered?.document?.documentKey || null,
+          prepared_document_key: prepared?.document?.document_key || prepared?.document?.documentKey || null,
+        });
         console.warn("[VendorWorkspaceReportUpload] registration rejected", {
           ok: registered.ok,
           error: registered.error || null,
@@ -460,11 +596,26 @@ function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, 
           "Report file could not be registered. Try again or contact the AMC coordinator.",
         );
       } catch (error) {
+        const serializedError = serializeReportUploadError(error);
+        recordReportUploadDebug("catch:upload-handler", {
+          code: error?.code || null,
+          message: error?.message || null,
+          stack: serializedError.stack,
+          details: serializedError.details,
+          response: serializedError.response,
+          serialized_error: serializedError.serialized_error,
+          cause: serializedError.cause,
+          detail_keys: error?.details && typeof error.details === "object" ? Object.keys(error.details) : [],
+          field_error_keys: error?.field_errors && typeof error.field_errors === "object" ? Object.keys(error.field_errors) : [],
+        });
         console.warn("[VendorWorkspaceReportUpload] upload failed", {
           code: error?.code || null,
           message: error?.message || null,
+          stack: error?.stack || null,
           details: error?.details || null,
           field_errors: error?.field_errors || null,
+          response: error?.response || null,
+          serialized_error: serializedError,
         });
         setActionError(
           reportUploadErrorMessage(
@@ -473,6 +624,7 @@ function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, 
           ),
         );
       } finally {
+        recordReportUploadDebug("finally:set-uploading-false");
         setIsUploadingReport(false);
       }
     }
@@ -603,7 +755,12 @@ function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, 
         </div>
         <div data-testid="report-upload-debug" className="text-[10px] text-slate-500">
           uploadedReportDocuments.length={uploadedReportDocuments.length}; selectedReportFile={selectedReportFile?.name || "none"};
-          submitDisabled={String(submitReportDisabled)}
+          submitDisabled={String(submitReportDisabled)}; events=
+          {reportUploadDebugEvents.length
+            ? reportUploadDebugEvents
+                .map((event) => formatReportUploadDebugEvent(event))
+                .join(" > ")
+            : "none"}
         </div>
         <button
           type="button"

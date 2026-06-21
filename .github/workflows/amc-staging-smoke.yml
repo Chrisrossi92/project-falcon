@@ -87,6 +87,11 @@ jobs:
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
+      - name: Debug E2E base host and CSP
+        run: |
+          node -e "const u=new URL(process.env.E2E_BASE_URL); console.log('E2E_BASE_HOST=' + u.host)"
+          curl -I "$E2E_BASE_URL" | grep -i content-security-policy || true
+
       - name: Run AMC staging smoke suite
         run: npm run e2e:amc:staging
 
