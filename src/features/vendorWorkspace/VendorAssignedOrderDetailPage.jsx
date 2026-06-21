@@ -364,16 +364,13 @@ function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, 
           document_role: "submitted_report",
         });
 
-        const uploadBody = new FormData();
-        uploadBody.append("cacheControl", "3600");
-        uploadBody.append("", selectedReportFile);
-
         const uploadResponse = await fetch(prepared.upload.signed_url, {
           method: "PUT",
           headers: {
+            "content-type": selectedReportFile.type || "application/pdf",
             "x-upsert": "false",
           },
-          body: uploadBody,
+          body: selectedReportFile,
         });
 
         if (!uploadResponse.ok) {
@@ -388,8 +385,30 @@ function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, 
           document_role: "submitted_report",
         });
 
-        if (registered.ok && registered.document?.document_key) {
-          setUploadedReportDocuments((current) => [...current, registered.document]);
+        const registeredDocumentKey =
+          registered.document?.document_key ||
+          registered.document?.documentKey ||
+          prepared.document?.document_key ||
+          prepared.document?.documentKey ||
+          null;
+
+        if (registered.ok && registeredDocumentKey) {
+          const uploadedDocument = {
+            ...prepared.document,
+            ...registered.document,
+            document_key: registeredDocumentKey,
+            document_role: registered.document?.document_role || prepared.document?.document_role || "submitted_report",
+            category: registered.document?.category || prepared.document?.category || "final_report",
+            title: registered.document?.title || prepared.document?.title || "Submitted Report",
+            file_name: registered.document?.file_name || prepared.document?.file_name || selectedReportFile.name,
+            mime_type: registered.document?.mime_type || prepared.document?.mime_type || selectedReportFile.type || "application/pdf",
+            file_size: registered.document?.file_size ?? prepared.document?.file_size ?? selectedReportFile.size,
+          };
+
+          setUploadedReportDocuments((current) => {
+            const withoutDuplicate = current.filter((document) => document.document_key !== registeredDocumentKey);
+            return [...withoutDuplicate, uploadedDocument];
+          });
           setSelectedReportFile(null);
           return;
         }
@@ -398,6 +417,14 @@ function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, 
           onUnavailable?.();
           return;
         }
+
+        console.warn("[VendorWorkspaceReportUpload] registration rejected", {
+          ok: registered.ok,
+          error: registered.error || null,
+          field_errors: registered.field_errors || null,
+          has_registered_document_key: Boolean(registered.document?.document_key || registered.document?.documentKey),
+          has_prepared_document_key: Boolean(prepared.document?.document_key || prepared.document?.documentKey),
+        });
 
         setActionError(
           registered.field_errors?.document_key ||
@@ -466,13 +493,6 @@ function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, 
           return;
         }
 
-        console.warn("[VendorWorkspaceReportSubmit] submit rejected", {
-          error: result.error || null,
-          status: result.status || null,
-          field_errors: result.field_errors || null,
-          document_count: documentKeys.length,
-        });
-
         setActionError(
           result.field_errors?.action ||
           result.field_errors?.payload ||
@@ -482,12 +502,7 @@ function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, 
             ? "Report could not be resubmitted. Please try again or contact the AMC coordinator."
             : "Report could not be submitted. Please try again or contact the AMC coordinator."),
         );
-      } catch (error) {
-        console.warn("[VendorWorkspaceReportSubmit] submit failed", {
-          code: error?.code || null,
-          message: error?.message || null,
-          details: error?.details || null,
-        });
+      } catch {
         setActionError(
           isRevisionFlow
             ? "Report could not be resubmitted. Please try again or contact the AMC coordinator."
