@@ -37,6 +37,7 @@ import BidRequestsPanel from "@/features/bids/components/BidRequestsPanel";
 import { deriveOrderBidStatus } from "@/features/bids/bidStatus";
 import OrderPrintPacket from "@/features/orders/print/OrderPrintPacket";
 import VendorAssignmentCandidatesPanel from "@/features/vendors/components/VendorAssignmentCandidatesPanel";
+import { getMatchingVendorsForOrder } from "@/features/vendors/api";
 import {
   archiveOrderViaRpc,
   cancelOrderViaRpc,
@@ -219,6 +220,118 @@ const buildDocumentCategoryCounts = (documents) => {
     .map(([label, count]) => ({ label, count }))
     .sort((a, b) => a.label.localeCompare(b.label));
 };
+
+function formatMatchDimension(value) {
+  return categoryLabel(value);
+}
+
+function EligibleVendorsPanel({ orderId, enabled }) {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(null);
+
+  useEffect(() => {
+    if (!enabled || !orderId) {
+      setRows([]);
+      setLoading(false);
+      setLoadError(null);
+      return undefined;
+    }
+
+    let active = true;
+    setLoading(true);
+    setLoadError(null);
+
+    getMatchingVendorsForOrder(orderId)
+      .then((matchingVendors) => {
+        if (!active) return;
+        setRows(Array.isArray(matchingVendors) ? matchingVendors : []);
+      })
+      .catch((error) => {
+        if (!active) return;
+        console.warn("[EligibleVendorsPanel] deterministic vendor matching failed", {
+          code: error?.code,
+          message: error?.message,
+        });
+        setRows([]);
+        setLoadError(error);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [enabled, orderId]);
+
+  if (!enabled) return null;
+
+  return (
+    <section aria-label="Eligible vendors" className="rounded-md border border-slate-200 bg-white p-3 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-slate-950">Eligible vendors</h2>
+          <p className="mt-1 text-xs text-slate-500">
+            Deterministic coverage matching only. This is not a recommendation, score, ranking, or bid request.
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-3 text-sm text-slate-600">
+        {loading ? (
+          <div>Loading eligible vendors...</div>
+        ) : loadError ? (
+          <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-amber-800">
+            Eligible vendor matching could not load.
+          </div>
+        ) : rows.length === 0 ? (
+          <div>No eligible vendors matched this order&apos;s normalized coverage.</div>
+        ) : (
+          <div className="grid gap-2">
+            {rows.map((vendor) => {
+              const key = vendor.vendor_profile_id || vendor.vendorProfileId || vendor.company_id || vendor.vendorCompanyId;
+              const companyName =
+                vendor.company_name ||
+                vendor.companyName ||
+                vendor.vendor_company_name ||
+                vendor.vendorCompanyName ||
+                "Vendor";
+
+              return (
+                <article key={key} className="rounded-md border border-slate-100 bg-slate-50 p-3">
+                  <div className="font-medium text-slate-950">{companyName}</div>
+                  <dl className="mt-2 grid gap-2 text-xs text-slate-600 sm:grid-cols-2">
+                    <div>
+                      <dt className="font-semibold uppercase tracking-[0.12em] text-slate-400">State</dt>
+                      <dd className="mt-0.5">{vendor.matchedState || vendor.matched_state || "-"}</dd>
+                    </div>
+                    <div>
+                      <dt className="font-semibold uppercase tracking-[0.12em] text-slate-400">County</dt>
+                      <dd className="mt-0.5">{vendor.matchedCounty || vendor.matched_county || "-"}</dd>
+                    </div>
+                    <div>
+                      <dt className="font-semibold uppercase tracking-[0.12em] text-slate-400">Property type</dt>
+                      <dd className="mt-0.5">
+                        {formatMatchDimension(vendor.matchedPropertyType || vendor.matched_property_type)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="font-semibold uppercase tracking-[0.12em] text-slate-400">Assignment type</dt>
+                      <dd className="mt-0.5">
+                        {formatMatchDimension(vendor.matchedAssignmentType || vendor.matched_assignment_type)}
+                      </dd>
+                    </div>
+                  </dl>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
 
 function resolveOrderWorkspaceRedirect(orderOperationsScope, operationsMode) {
   const expectedScope = ORDER_SCOPE_BY_OPERATIONS_MODE[operationsMode];
@@ -870,6 +983,7 @@ export default function OrderDetail() {
     !permissions.error &&
     permissions.hasPermission(PERMISSIONS.VENDORS_READ) &&
     Boolean(order?.id);
+  const showEligibleVendorsPanel = showVendorCandidatePanel;
   const showBidRequestsPanel =
     operationsMode === OPERATIONS_MODES.AMC_OPERATIONS &&
     order?.operations_scope === "amc_operations" &&
@@ -1499,6 +1613,10 @@ export default function OrderDetail() {
                 Show Procurement Details
               </summary>
               <div className="mt-3 space-y-4">
+                {showEligibleVendorsPanel && (
+                  <EligibleVendorsPanel orderId={order.id} enabled={showEligibleVendorsPanel} />
+                )}
+
                 {showVendorCandidatePanel && (
                   <VendorAssignmentCandidatesPanel
                     orderId={order.id}
@@ -1552,6 +1670,10 @@ export default function OrderDetail() {
             </details>
           ) : (
             <>
+              {showEligibleVendorsPanel && (
+                <EligibleVendorsPanel orderId={order.id} enabled={showEligibleVendorsPanel} />
+              )}
+
               {showVendorCandidatePanel && (
                 <VendorAssignmentCandidatesPanel
                   orderId={order.id}

@@ -7,9 +7,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const vendorApiState = vi.hoisted(() => ({
   createVendorContact: vi.fn(),
   createVendorServiceArea: vi.fn(),
+  getVendorCoverage: vi.fn(),
   getVendorProfileDetail: vi.fn(),
   getVendorProfileContacts: vi.fn(),
   getVendorProfileServiceAreas: vi.fn(),
+  saveVendorCoverage: vi.fn(),
   updateVendorContact: vi.fn(),
   updateVendorProfile: vi.fn(),
   updateVendorServiceArea: vi.fn(),
@@ -22,9 +24,11 @@ const permissionState = vi.hoisted(() => ({
 vi.mock("../api", () => ({
   createVendorContact: vendorApiState.createVendorContact,
   createVendorServiceArea: vendorApiState.createVendorServiceArea,
+  getVendorCoverage: vendorApiState.getVendorCoverage,
   getVendorProfileDetail: vendorApiState.getVendorProfileDetail,
   getVendorProfileContacts: vendorApiState.getVendorProfileContacts,
   getVendorProfileServiceAreas: vendorApiState.getVendorProfileServiceAreas,
+  saveVendorCoverage: vendorApiState.saveVendorCoverage,
   updateVendorContact: vendorApiState.updateVendorContact,
   updateVendorProfile: vendorApiState.updateVendorProfile,
   updateVendorServiceArea: vendorApiState.updateVendorServiceArea,
@@ -96,6 +100,13 @@ const serviceAreas = [
   },
 ];
 
+const normalizedCoverage = {
+  states: ["NY"],
+  counties: [{ state_code: "NY", county_name: "Westchester" }],
+  propertyTypes: ["commercial", "office"],
+  assignmentTypes: ["appraisal", "review"],
+};
+
 const generatedCoverageRows = [
   ...["commercial", "multifamily", "land", "review", "industrial"].map((productType, index) => ({
     vendor_service_area_id: `mi-state-${index}`,
@@ -160,9 +171,13 @@ describe("VendorProfilePage", () => {
   beforeEach(() => {
     vendorApiState.createVendorContact.mockReset();
     vendorApiState.createVendorServiceArea.mockReset();
+    vendorApiState.getVendorCoverage.mockReset();
+    vendorApiState.getVendorCoverage.mockResolvedValue(normalizedCoverage);
     vendorApiState.getVendorProfileDetail.mockReset();
     vendorApiState.getVendorProfileContacts.mockReset();
     vendorApiState.getVendorProfileServiceAreas.mockReset();
+    vendorApiState.saveVendorCoverage.mockReset();
+    vendorApiState.saveVendorCoverage.mockResolvedValue(normalizedCoverage);
     vendorApiState.updateVendorContact.mockReset();
     vendorApiState.updateVendorProfile.mockReset();
     vendorApiState.updateVendorServiceArea.mockReset();
@@ -218,9 +233,9 @@ describe("VendorProfilePage", () => {
     expect(screen.getByText(/Restricted: \{"reason":"review"\}/)).toBeInTheDocument();
     expect(screen.getByText("Mary Jones")).toBeInTheDocument();
     expect(screen.getByText("NY · 1 county · Commercial Appraisal")).toBeInTheDocument();
-    expect(screen.queryByText(/Westchester/)).toBeNull();
+    expect(screen.getAllByText(/Westchester/)).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "View rows" }));
-    expect(screen.getByText(/Westchester/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Westchester/).length).toBeGreaterThan(1);
     expect(screen.getByText("Reliable preferred panel vendor.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /create|save|assign|invite|add|delete|archive|edit/i })).toBeNull();
   });
@@ -699,6 +714,136 @@ describe("VendorProfilePage", () => {
     expect(await screen.findByRole("button", { name: "Add single coverage row" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "View rows" }));
     expect(screen.getByRole("button", { name: "Edit coverage row" })).toBeInTheDocument();
+  });
+
+  it("loads normalized coverage on the vendor profile", async () => {
+    vendorApiState.getVendorProfileDetail.mockResolvedValue(profile);
+    vendorApiState.getVendorProfileContacts.mockResolvedValue(contacts);
+    vendorApiState.getVendorProfileServiceAreas.mockResolvedValue(serviceAreas);
+
+    renderPage();
+
+    expect(await screen.findByRole("heading", { name: "ABC Valuation" })).toBeInTheDocument();
+    expect(vendorApiState.getVendorCoverage).toHaveBeenCalledWith("profile-1");
+    const coverageSummary = screen.getByLabelText("Normalized vendor coverage");
+    expect(within(coverageSummary).getByText("NY")).toBeInTheDocument();
+    expect(within(coverageSummary).getByText("NY Westchester")).toBeInTheDocument();
+    expect(within(coverageSummary).getByText("Commercial, Office")).toBeInTheDocument();
+    expect(within(coverageSummary).getByText("Appraisal, Review")).toBeInTheDocument();
+  });
+
+  it("shows normalized coverage editor only with vendors.service_areas.manage permission", async () => {
+    vendorApiState.getVendorProfileDetail.mockResolvedValue(profile);
+    vendorApiState.getVendorProfileContacts.mockResolvedValue(contacts);
+    vendorApiState.getVendorProfileServiceAreas.mockResolvedValue(serviceAreas);
+
+    renderPage();
+
+    expect(await screen.findByRole("heading", { name: "ABC Valuation" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit Normalized Coverage" })).toBeNull();
+
+    cleanup();
+    permissionState.allowed = new Set(["vendors.service_areas.manage"]);
+    vendorApiState.getVendorProfileDetail.mockResolvedValue(profile);
+    vendorApiState.getVendorProfileContacts.mockResolvedValue(contacts);
+    vendorApiState.getVendorProfileServiceAreas.mockResolvedValue(serviceAreas);
+
+    renderPage();
+
+    expect(await screen.findByRole("button", { name: "Edit Normalized Coverage" })).toBeInTheDocument();
+  });
+
+  it("saves normalized coverage with normalized deduplicated payload", async () => {
+    permissionState.allowed = new Set(["vendors.service_areas.manage"]);
+    vendorApiState.getVendorProfileDetail.mockResolvedValue(profile);
+    vendorApiState.getVendorProfileContacts.mockResolvedValue(contacts);
+    vendorApiState.getVendorProfileServiceAreas.mockResolvedValue(serviceAreas);
+    vendorApiState.saveVendorCoverage.mockResolvedValue({
+      states: ["OH"],
+      counties: [{ state_code: "OH", county_name: "Franklin" }],
+      propertyTypes: ["commercial", "retail"],
+      assignmentTypes: ["appraisal", "evaluation"],
+    });
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Edit Normalized Coverage" }));
+    const dialog = screen.getByRole("dialog", { name: "Edit Normalized Coverage" });
+
+    fireEvent.click(within(dialog).getByRole("button", { name: /^NY remove$/ }));
+    fireEvent.click(within(dialog).getByRole("button", { name: /^NY Westchester remove$/ }));
+    fireEvent.change(within(dialog).getByLabelText("State code"), {
+      target: { value: " oh " },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add state" }));
+    fireEvent.change(within(dialog).getByLabelText("State code"), {
+      target: { value: "OH" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add state" }));
+    fireEvent.change(within(dialog).getByLabelText("County state code"), {
+      target: { value: "oh" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("County name"), {
+      target: { value: " Franklin " },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add county" }));
+    fireEvent.change(within(dialog).getByLabelText("County state code"), {
+      target: { value: "OH" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("County name"), {
+      target: { value: "Franklin" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add county" }));
+    fireEvent.click(within(dialog).getByLabelText("Office"));
+    fireEvent.click(within(dialog).getByLabelText("Review"));
+    fireEvent.click(within(dialog).getByLabelText("Retail"));
+    fireEvent.click(within(dialog).getByLabelText("Evaluation"));
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save Normalized Coverage" }));
+
+    await waitFor(() => {
+      expect(vendorApiState.saveVendorCoverage).toHaveBeenCalledWith("profile-1", {
+        states: ["OH"],
+        counties: [{ state_code: "OH", county_name: "Franklin" }],
+        propertyTypes: ["commercial", "retail"],
+        assignmentTypes: ["appraisal", "evaluation"],
+      });
+    });
+    expect(await screen.findByText("Normalized coverage saved.")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Edit Normalized Coverage" })).toBeNull();
+  });
+
+  it("displays normalized coverage save errors and keeps the editor open", async () => {
+    permissionState.allowed = new Set(["vendors.service_areas.manage"]);
+    vendorApiState.getVendorProfileDetail.mockResolvedValue(profile);
+    vendorApiState.getVendorProfileContacts.mockResolvedValue(contacts);
+    vendorApiState.getVendorProfileServiceAreas.mockResolvedValue(serviceAreas);
+    vendorApiState.saveVendorCoverage.mockRejectedValue(Object.assign(new Error("vendor_service_areas_manage_permission_required"), {
+      code: "42501",
+    }));
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Edit Normalized Coverage" }));
+    const dialog = screen.getByRole("dialog", { name: "Edit Normalized Coverage" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save Normalized Coverage" }));
+
+    expect(await within(dialog).findByText("You do not have permission to manage vendor coverage.")).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Edit Normalized Coverage" })).toBeInTheDocument();
+  });
+
+  it("does not add matching recommendation or bid automation controls to coverage editing", async () => {
+    permissionState.allowed = new Set(["vendors.service_areas.manage"]);
+    vendorApiState.getVendorProfileDetail.mockResolvedValue(profile);
+    vendorApiState.getVendorProfileContacts.mockResolvedValue(contacts);
+    vendorApiState.getVendorProfileServiceAreas.mockResolvedValue(serviceAreas);
+
+    renderPage();
+
+    expect(await screen.findByRole("button", { name: "Edit Normalized Coverage" })).toBeInTheDocument();
+    expect(screen.getByText(/does not assign work or request bids/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /match vendors|recommend vendors|request bids|create bid/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /match vendors|recommend vendors|request bids|create bid/i })).toBeNull();
   });
 
   it("summarizes generated coverage rows by state and geography type", async () => {

@@ -179,6 +179,107 @@ describe("vendor directory API", () => {
     });
   });
 
+  it("gets normalized Vendor Coverage through the coverage read RPC", async () => {
+    supabase.rpc.mockResolvedValue({
+      data: {
+        states: ["OH"],
+        counties: [{ state_code: "OH", county_name: "Franklin" }],
+        property_types: ["commercial", "office"],
+        assignment_types: ["appraisal", "review"],
+      },
+      error: null,
+    });
+
+    await expect(vendorApi.getVendorCoverage("profile-1")).resolves.toEqual({
+      states: ["OH"],
+      counties: [{ state_code: "OH", county_name: "Franklin" }],
+      propertyTypes: ["commercial", "office"],
+      assignmentTypes: ["appraisal", "review"],
+    });
+
+    expect(supabase.rpc).toHaveBeenCalledWith("rpc_get_vendor_coverage", {
+      p_vendor_profile_id: "profile-1",
+    });
+  });
+
+  it("normalizes null or malformed Vendor Coverage read payloads safely", async () => {
+    supabase.rpc.mockResolvedValue({
+      data: {
+        states: null,
+        counties: [{ stateCode: "OH", countyName: "Delaware" }, null, "invalid"],
+        property_types: null,
+        assignmentTypes: ["desktop"],
+      },
+      error: null,
+    });
+
+    await expect(vendorApi.getVendorCoverage("profile-1")).resolves.toEqual({
+      states: [],
+      counties: [{ state_code: "OH", county_name: "Delaware" }],
+      propertyTypes: [],
+      assignmentTypes: ["desktop"],
+    });
+  });
+
+  it("saves Vendor Coverage through the coverage save RPC and returns normalized coverage", async () => {
+    const coverage = {
+      states: ["oh"],
+      counties: [{ stateCode: "oh", countyName: "Franklin" }],
+      propertyTypes: ["commercial", "retail"],
+      assignmentTypes: ["appraisal", "evaluation"],
+    };
+    supabase.rpc.mockResolvedValue({
+      data: {
+        states: ["OH"],
+        counties: [{ state_code: "OH", county_name: "Franklin" }],
+        property_types: ["commercial", "retail"],
+        assignment_types: ["appraisal", "evaluation"],
+      },
+      error: null,
+    });
+
+    await expect(vendorApi.saveVendorCoverage("profile-1", coverage)).resolves.toEqual({
+      states: ["OH"],
+      counties: [{ state_code: "OH", county_name: "Franklin" }],
+      propertyTypes: ["commercial", "retail"],
+      assignmentTypes: ["appraisal", "evaluation"],
+    });
+
+    expect(supabase.rpc).toHaveBeenCalledWith("rpc_save_vendor_coverage", {
+      p_vendor_profile_id: "profile-1",
+      p_states: ["oh"],
+      p_counties: [{ state_code: "oh", county_name: "Franklin" }],
+      p_property_types: ["commercial", "retail"],
+      p_assignment_types: ["appraisal", "evaluation"],
+    });
+  });
+
+  it("uses empty arrays when saving empty Vendor Coverage", async () => {
+    supabase.rpc.mockResolvedValue({ data: null, error: null });
+
+    await expect(vendorApi.saveVendorCoverage("profile-1")).resolves.toEqual({
+      states: [],
+      counties: [],
+      propertyTypes: [],
+      assignmentTypes: [],
+    });
+
+    expect(supabase.rpc).toHaveBeenCalledWith("rpc_save_vendor_coverage", {
+      p_vendor_profile_id: "profile-1",
+      p_states: [],
+      p_counties: [],
+      p_property_types: [],
+      p_assignment_types: [],
+    });
+  });
+
+  it("surfaces Vendor Coverage RPC errors for callers to handle", async () => {
+    const error = Object.assign(new Error("vendor coverage denied"), { code: "42501" });
+    supabase.rpc.mockResolvedValue({ data: null, error });
+
+    await expect(vendorApi.getVendorCoverage("profile-1")).rejects.toBe(error);
+  });
+
   it("surfaces RPC errors for callers to handle", async () => {
     const error = Object.assign(new Error("vendor directory denied"), { code: "42501" });
     supabase.rpc.mockResolvedValue({ data: null, error });
@@ -222,6 +323,55 @@ describe("vendor directory API", () => {
     supabase.rpc.mockResolvedValue({ data: null, error });
 
     await expect(vendorApi.listVendorAssignmentCandidates("order-1")).rejects.toBe(error);
+  });
+
+  it("gets deterministic matching vendors through the normalized coverage matching RPC", async () => {
+    supabase.rpc.mockResolvedValue({
+      data: [
+        {
+          vendor_profile_id: "profile-1",
+          company_id: "company-2",
+          company_name: "ABC Valuation",
+          matched_state: "OH",
+          matched_county: "Franklin",
+          matched_property_type: "commercial",
+          matched_assignment_type: "appraisal",
+        },
+      ],
+      error: null,
+    });
+
+    await expect(vendorApi.getMatchingVendorsForOrder("order-1")).resolves.toEqual([
+      expect.objectContaining({
+        vendor_profile_id: "profile-1",
+        company_id: "company-2",
+        company_name: "ABC Valuation",
+        vendorProfileId: "profile-1",
+        vendorCompanyId: "company-2",
+        vendorCompanyName: "ABC Valuation",
+        matchedState: "OH",
+        matchedCounty: "Franklin",
+        matchedPropertyType: "commercial",
+        matchedAssignmentType: "appraisal",
+      }),
+    ]);
+
+    expect(supabase.rpc).toHaveBeenCalledWith("rpc_get_matching_vendors_for_order", {
+      p_order_id: "order-1",
+    });
+  });
+
+  it("returns an empty deterministic match list when the matching RPC returns a non-array payload", async () => {
+    supabase.rpc.mockResolvedValue({ data: null, error: null });
+
+    await expect(vendorApi.getMatchingVendorsForOrder("order-1")).resolves.toEqual([]);
+  });
+
+  it("surfaces deterministic matching RPC errors for callers to handle", async () => {
+    const error = Object.assign(new Error("matching denied"), { code: "42501" });
+    supabase.rpc.mockResolvedValue({ data: null, error });
+
+    await expect(vendorApi.getMatchingVendorsForOrder("order-1")).rejects.toBe(error);
   });
 
   it("creates Vendor Profile records through the mutation RPC and returns the first row", async () => {
@@ -467,17 +617,20 @@ describe("vendor directory API", () => {
       "createVendorContact",
       "createVendorProfile",
       "createVendorServiceArea",
-      "listVendorAssignmentCandidates",
+      "getMatchingVendorsForOrder",
+      "getVendorCoverage",
       "getVendorProfileContacts",
       "getVendorProfileDetail",
       "getVendorProfileServiceAreas",
       "listAmcVendorInvoices",
       "listAmcVendorPaymentLedger",
+      "listVendorAssignmentCandidates",
       "listVendorDirectory",
       "listVendorProfileUpdateRequests",
       "markAmcVendorPaymentPaid",
       "reviewAmcVendorInvoice",
       "reviewVendorProfileUpdateRequest",
+      "saveVendorCoverage",
       "scheduleAmcVendorPayment",
       "updateVendorContact",
       "updateVendorProfile",

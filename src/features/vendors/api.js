@@ -56,6 +56,70 @@ function normalizeVendorServiceArea(row = {}) {
   };
 }
 
+function normalizeVendorCoverage(payload = {}) {
+  const data = payload && typeof payload === "object" ? payload : {};
+  const counties = Array.isArray(data.counties) ? data.counties : [];
+
+  return {
+    states: Array.isArray(data.states) ? data.states.filter(Boolean) : [],
+    counties: counties
+      .filter((county) => county && typeof county === "object")
+      .map((county) => ({
+        state_code: county.state_code || county.stateCode || "",
+        county_name: county.county_name || county.countyName || "",
+      }))
+      .filter((county) => county.state_code && county.county_name),
+    propertyTypes: Array.isArray(data.property_types)
+      ? data.property_types.filter(Boolean)
+      : Array.isArray(data.propertyTypes)
+        ? data.propertyTypes.filter(Boolean)
+        : [],
+    assignmentTypes: Array.isArray(data.assignment_types)
+      ? data.assignment_types.filter(Boolean)
+      : Array.isArray(data.assignmentTypes)
+        ? data.assignmentTypes.filter(Boolean)
+        : [],
+  };
+}
+
+function normalizeMatchingVendor(row = {}) {
+  return {
+    ...row,
+    vendorProfileId: row.vendor_profile_id || row.vendorProfileId || null,
+    vendorCompanyId: row.vendor_company_id || row.vendorCompanyId || row.company_id || null,
+    vendorCompanyName: row.vendor_company_name || row.vendorCompanyName || row.company_name || "",
+    matchedState: row.matched_state || row.matchedState || "",
+    matchedCounty: row.matched_county || row.matchedCounty || "",
+    matchedPropertyType: row.matched_property_type || row.matchedPropertyType || "",
+    matchedAssignmentType: row.matched_assignment_type || row.matchedAssignmentType || "",
+  };
+}
+
+function serializeVendorCoverage(coverage = {}) {
+  const data = coverage && typeof coverage === "object" ? coverage : {};
+  const counties = Array.isArray(data.counties) ? data.counties : [];
+
+  return {
+    states: Array.isArray(data.states) ? data.states : [],
+    counties: counties
+      .filter((county) => county && typeof county === "object")
+      .map((county) => ({
+        state_code: county.state_code || county.stateCode || "",
+        county_name: county.county_name || county.countyName || "",
+      })),
+    propertyTypes: Array.isArray(data.propertyTypes)
+      ? data.propertyTypes
+      : Array.isArray(data.property_types)
+        ? data.property_types
+        : [],
+    assignmentTypes: Array.isArray(data.assignmentTypes)
+      ? data.assignmentTypes
+      : Array.isArray(data.assignment_types)
+        ? data.assignment_types
+        : [],
+  };
+}
+
 export async function listVendorDirectory({ status = null, query = null } = {}) {
   const data = await rpc("rpc_vendor_directory_list", {
     p_status: status || null,
@@ -85,11 +149,37 @@ export async function getVendorProfileServiceAreas(vendorProfileId) {
   return Array.isArray(data) ? data.map(normalizeVendorServiceArea) : [];
 }
 
+export async function getVendorCoverage(vendorProfileId) {
+  const data = await rpc("rpc_get_vendor_coverage", {
+    p_vendor_profile_id: vendorProfileId,
+  });
+  return normalizeVendorCoverage(data);
+}
+
+export async function saveVendorCoverage(vendorProfileId, coverage = {}) {
+  const payload = serializeVendorCoverage(coverage);
+  const data = await rpc("rpc_save_vendor_coverage", {
+    p_vendor_profile_id: vendorProfileId,
+    p_states: payload.states,
+    p_counties: payload.counties,
+    p_property_types: payload.propertyTypes,
+    p_assignment_types: payload.assignmentTypes,
+  });
+  return normalizeVendorCoverage(data);
+}
+
 export async function listVendorAssignmentCandidates(orderId) {
   const data = await rpc("rpc_vendor_assignment_candidates", {
     p_order_id: orderId,
   });
   return Array.isArray(data) ? data : [];
+}
+
+export async function getMatchingVendorsForOrder(orderId) {
+  const data = await rpc("rpc_get_matching_vendors_for_order", {
+    p_order_id: orderId,
+  });
+  return Array.isArray(data) ? data.map(normalizeMatchingVendor) : [];
 }
 
 export async function createVendorProfile(payload) {

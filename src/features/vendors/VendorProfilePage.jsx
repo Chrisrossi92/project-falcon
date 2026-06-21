@@ -7,9 +7,11 @@ import { PERMISSIONS } from "@/lib/permissions/constants";
 import {
   createVendorContact,
   createVendorServiceArea,
+  getVendorCoverage,
   getVendorProfileContacts,
   getVendorProfileDetail,
   getVendorProfileServiceAreas,
+  saveVendorCoverage,
   updateVendorContact,
   updateVendorProfile,
   updateVendorServiceArea,
@@ -30,6 +32,25 @@ const VENDOR_STATUS_OPTIONS = Object.freeze([
 const SERVICE_AREA_STATUS_OPTIONS = Object.freeze([
   { value: "active", label: "Active" },
   { value: "inactive", label: "Inactive" },
+]);
+
+const COVERAGE_PROPERTY_TYPE_OPTIONS = Object.freeze([
+  { value: "commercial", label: "Commercial" },
+  { value: "industrial", label: "Industrial" },
+  { value: "retail", label: "Retail" },
+  { value: "office", label: "Office" },
+  { value: "multifamily", label: "Multifamily" },
+  { value: "agricultural", label: "Agricultural" },
+  { value: "land", label: "Land" },
+  { value: "residential", label: "Residential" },
+]);
+
+const COVERAGE_ASSIGNMENT_TYPE_OPTIONS = Object.freeze([
+  { value: "appraisal", label: "Appraisal" },
+  { value: "review", label: "Review" },
+  { value: "desktop", label: "Desktop" },
+  { value: "restricted", label: "Restricted" },
+  { value: "evaluation", label: "Evaluation" },
 ]);
 
 const VENDOR_CAPABILITY_OPTIONS = Object.freeze([
@@ -120,6 +141,61 @@ function formatAddress(address = {}) {
 function textOrNull(value) {
   const nextValue = String(value || "").trim();
   return nextValue || null;
+}
+
+function normalizeCoverageState(value) {
+  const normalized = textOrNull(value);
+  return normalized ? normalized.toUpperCase() : null;
+}
+
+function normalizeCoverageCountyName(value) {
+  return textOrNull(value);
+}
+
+function normalizeVendorCoverage(value = {}) {
+  const states = [
+    ...new Set(
+      (Array.isArray(value.states) ? value.states : [])
+        .map(normalizeCoverageState)
+        .filter(Boolean),
+    ),
+  ].sort();
+
+  const countyKeys = new Set();
+  const counties = [];
+  for (const county of Array.isArray(value.counties) ? value.counties : []) {
+    if (!county || typeof county !== "object") continue;
+    const stateCode = normalizeCoverageState(county.state_code || county.stateCode);
+    const countyName = normalizeCoverageCountyName(county.county_name || county.countyName);
+    if (!stateCode || !countyName) continue;
+    const key = `${stateCode}:${countyName.toLowerCase()}`;
+    if (countyKeys.has(key)) continue;
+    countyKeys.add(key);
+    counties.push({ state_code: stateCode, county_name: countyName });
+  }
+  counties.sort((a, b) => `${a.state_code} ${a.county_name}`.localeCompare(`${b.state_code} ${b.county_name}`));
+
+  const propertyTypeValues = new Set(COVERAGE_PROPERTY_TYPE_OPTIONS.map((option) => option.value));
+  const assignmentTypeValues = new Set(COVERAGE_ASSIGNMENT_TYPE_OPTIONS.map((option) => option.value));
+
+  return {
+    states,
+    counties,
+    propertyTypes: [
+      ...new Set(
+        (Array.isArray(value.propertyTypes) ? value.propertyTypes : [])
+          .map((entry) => String(entry || "").trim().toLowerCase())
+          .filter((entry) => propertyTypeValues.has(entry)),
+      ),
+    ].sort(),
+    assignmentTypes: [
+      ...new Set(
+        (Array.isArray(value.assignmentTypes) ? value.assignmentTypes : [])
+          .map((entry) => String(entry || "").trim().toLowerCase())
+          .filter((entry) => assignmentTypeValues.has(entry)),
+      ),
+    ].sort(),
+  };
 }
 
 function tagsFromText(value) {
@@ -707,6 +783,234 @@ function BulkCoverageModal({ open, vendorProfileId, onClose, onSaved }) {
   );
 }
 
+function NormalizedCoverageSummary({ coverage }) {
+  const normalized = normalizeVendorCoverage(coverage);
+
+  return (
+    <div className="grid gap-3" aria-label="Normalized vendor coverage">
+      <div>
+        <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">States</div>
+        <div className="mt-1">{normalized.states.length ? normalized.states.join(", ") : "No states listed"}</div>
+      </div>
+      <div>
+        <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Counties</div>
+        <div className="mt-1">
+          {normalized.counties.length
+            ? normalized.counties.map((county) => `${county.state_code} ${county.county_name}`).join(", ")
+            : "No counties listed"}
+        </div>
+      </div>
+      <div>
+        <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Property types</div>
+        <div className="mt-1">
+          {normalized.propertyTypes.length
+            ? normalized.propertyTypes.map(formatStatus).join(", ")
+            : "No property types listed"}
+        </div>
+      </div>
+      <div>
+        <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Assignment types</div>
+        <div className="mt-1">
+          {normalized.assignmentTypes.length
+            ? normalized.assignmentTypes.map(formatStatus).join(", ")
+            : "No assignment types listed"}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NormalizedCoverageModal({ coverage, open, onClose, onSaved }) {
+  const [draft, setDraft] = useState(() => normalizeVendorCoverage(coverage));
+  const [stateInput, setStateInput] = useState("");
+  const [countyStateInput, setCountyStateInput] = useState("");
+  const [countyNameInput, setCountyNameInput] = useState("");
+  const [submitError, setSubmitError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setDraft(normalizeVendorCoverage(coverage));
+    setStateInput("");
+    setCountyStateInput("");
+    setCountyNameInput("");
+    setSubmitError("");
+  }, [coverage, open]);
+
+  if (!open) return null;
+
+  const addState = () => {
+    const stateCode = normalizeCoverageState(stateInput);
+    if (!stateCode) return;
+    setDraft((current) => normalizeVendorCoverage({
+      ...current,
+      states: [...current.states, stateCode],
+    }));
+    setStateInput("");
+  };
+
+  const removeState = (stateCode) => {
+    setDraft((current) => normalizeVendorCoverage({
+      ...current,
+      states: current.states.filter((entry) => entry !== stateCode),
+    }));
+  };
+
+  const addCounty = () => {
+    const stateCode = normalizeCoverageState(countyStateInput);
+    const countyName = normalizeCoverageCountyName(countyNameInput);
+    if (!stateCode || !countyName) return;
+    setDraft((current) => normalizeVendorCoverage({
+      ...current,
+      counties: [...current.counties, { state_code: stateCode, county_name: countyName }],
+    }));
+    setCountyStateInput("");
+    setCountyNameInput("");
+  };
+
+  const removeCounty = (stateCode, countyName) => {
+    setDraft((current) => normalizeVendorCoverage({
+      ...current,
+      counties: current.counties.filter(
+        (county) => !(county.state_code === stateCode && county.county_name === countyName),
+      ),
+    }));
+  };
+
+  const toggleValue = (field, value) => (event) => {
+    setDraft((current) => normalizeVendorCoverage({
+      ...current,
+      [field]: event.target.checked
+        ? [...current[field], value]
+        : current[field].filter((entry) => entry !== value),
+    }));
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (saving) return;
+
+    setSubmitError("");
+    setSaving(true);
+    try {
+      await onSaved?.(normalizeVendorCoverage(draft));
+    } catch (error) {
+      setSubmitError(getVendorErrorMessage(error));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/40 px-4 py-8"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !saving) onClose?.();
+      }}
+    >
+      <form
+        onSubmit={handleSubmit}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="normalized-coverage-title"
+        className="w-full max-w-3xl rounded-lg border border-slate-200 bg-white shadow-xl"
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Vendor Coverage Engine</div>
+            <h2 id="normalized-coverage-title" className="mt-1 text-xl font-semibold text-slate-950">Edit Normalized Coverage</h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            className="rounded-md border border-slate-200 p-2 text-slate-500 hover:bg-slate-50 disabled:opacity-60"
+            aria-label="Close Edit Normalized Coverage"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="grid gap-5 px-5 py-5">
+          {submitError ? (
+            <div className="flex gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+              <div>{submitError}</div>
+            </div>
+          ) : null}
+
+          <section className="grid gap-2" aria-label="Coverage states editor">
+            <h3 className="text-sm font-semibold text-slate-950">States</h3>
+            <div className="flex flex-wrap gap-2">
+              {draft.states.map((stateCode) => (
+                <button key={stateCode} type="button" onClick={() => removeState(stateCode)} className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
+                  {stateCode} <span className="sr-only">remove</span>
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <label className="sr-only" htmlFor="coverage-state-code">State code</label>
+              <input id="coverage-state-code" value={stateInput} onChange={(event) => setStateInput(event.target.value)} placeholder="State code" className="min-w-0 flex-1 rounded-md border border-slate-200 px-3 py-2 text-sm" />
+              <button type="button" onClick={addState} className="rounded-md border border-slate-200 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">Add state</button>
+            </div>
+          </section>
+
+          <section className="grid gap-2" aria-label="Coverage counties editor">
+            <h3 className="text-sm font-semibold text-slate-950">Counties</h3>
+            <div className="flex flex-wrap gap-2">
+              {draft.counties.map((county) => (
+                <button key={`${county.state_code}-${county.county_name}`} type="button" onClick={() => removeCounty(county.state_code, county.county_name)} className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
+                  {county.state_code} {county.county_name} <span className="sr-only">remove</span>
+                </button>
+              ))}
+            </div>
+            <div className="grid gap-2 sm:grid-cols-[0.5fr_1fr_auto]">
+              <label className="sr-only" htmlFor="coverage-county-state-code">County state code</label>
+              <input id="coverage-county-state-code" value={countyStateInput} onChange={(event) => setCountyStateInput(event.target.value)} placeholder="State code" className="rounded-md border border-slate-200 px-3 py-2 text-sm" />
+              <label className="sr-only" htmlFor="coverage-county-name">County name</label>
+              <input id="coverage-county-name" value={countyNameInput} onChange={(event) => setCountyNameInput(event.target.value)} placeholder="County name" className="rounded-md border border-slate-200 px-3 py-2 text-sm" />
+              <button type="button" onClick={addCounty} className="rounded-md border border-slate-200 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">Add county</button>
+            </div>
+          </section>
+
+          <fieldset className="grid gap-2">
+            <legend className="text-sm font-semibold text-slate-950">Property types</legend>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {COVERAGE_PROPERTY_TYPE_OPTIONS.map((option) => (
+                <label key={option.value} className="flex items-center gap-2 rounded-md border border-slate-100 px-3 py-2 text-sm">
+                  <input type="checkbox" checked={draft.propertyTypes.includes(option.value)} onChange={toggleValue("propertyTypes", option.value)} />
+                  {option.label}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
+          <fieldset className="grid gap-2">
+            <legend className="text-sm font-semibold text-slate-950">Assignment types</legend>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {COVERAGE_ASSIGNMENT_TYPE_OPTIONS.map((option) => (
+                <label key={option.value} className="flex items-center gap-2 rounded-md border border-slate-100 px-3 py-2 text-sm">
+                  <input type="checkbox" checked={draft.assignmentTypes.includes(option.value)} onChange={toggleValue("assignmentTypes", option.value)} />
+                  {option.label}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        </div>
+
+        <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 px-5 py-4">
+          <button type="button" onClick={onClose} disabled={saving} className="inline-flex h-9 items-center justify-center rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60">
+            Cancel
+          </button>
+          <button type="submit" disabled={saving} className="inline-flex h-9 items-center justify-center rounded-md border border-slate-950 bg-slate-950 px-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60">
+            {saving ? "Saving..." : "Save Normalized Coverage"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 function EditProfileModal({ open, profile, onClose, onSaved }) {
   const [form, setForm] = useState(() => profileToEditForm(profile));
   const [formError, setFormError] = useState("");
@@ -1214,6 +1518,8 @@ export default function VendorProfilePage() {
   const [profile, setProfile] = useState(null);
   const [contacts, setContacts] = useState([]);
   const [serviceAreas, setServiceAreas] = useState([]);
+  const [coverage, setCoverage] = useState(() => normalizeVendorCoverage());
+  const [coverageMessage, setCoverageMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
@@ -1222,6 +1528,7 @@ export default function VendorProfilePage() {
   const [serviceAreaModalMode, setServiceAreaModalMode] = useState(null);
   const [editingServiceArea, setEditingServiceArea] = useState(null);
   const [bulkCoverageOpen, setBulkCoverageOpen] = useState(false);
+  const [normalizedCoverageOpen, setNormalizedCoverageOpen] = useState(false);
 
   const loadProfile = useCallback(async () => {
     setLoading(true);
@@ -1231,19 +1538,22 @@ export default function VendorProfilePage() {
       setProfile(null);
       setContacts([]);
       setServiceAreas([]);
+      setCoverage(normalizeVendorCoverage());
       setLoading(false);
       return;
     }
 
     try {
-      const [detail, contactRows, serviceAreaRows] = await Promise.all([
+      const [detail, contactRows, serviceAreaRows, normalizedCoverage] = await Promise.all([
         getVendorProfileDetail(vendorProfileId),
         getVendorProfileContacts(vendorProfileId),
         getVendorProfileServiceAreas(vendorProfileId),
+        getVendorCoverage(vendorProfileId),
       ]);
       setProfile(detail);
       setContacts(Array.isArray(contactRows) ? contactRows : []);
       setServiceAreas(Array.isArray(serviceAreaRows) ? serviceAreaRows : []);
+      setCoverage(normalizeVendorCoverage(normalizedCoverage));
     } catch (loadError) {
       console.debug("Vendor profile load failed", {
         code: loadError?.code,
@@ -1252,6 +1562,7 @@ export default function VendorProfilePage() {
       setProfile(null);
       setContacts([]);
       setServiceAreas([]);
+      setCoverage(normalizeVendorCoverage());
       setError(loadError);
     } finally {
       setLoading(false);
@@ -1296,6 +1607,13 @@ export default function VendorProfilePage() {
   const closeServiceAreaModal = () => {
     setServiceAreaModalMode(null);
     setEditingServiceArea(null);
+  };
+
+  const handleSaveNormalizedCoverage = async (nextCoverage) => {
+    const savedCoverage = await saveVendorCoverage(vendorProfileId, normalizeVendorCoverage(nextCoverage));
+    setCoverage(normalizeVendorCoverage(savedCoverage));
+    setCoverageMessage("Normalized coverage saved.");
+    setNormalizedCoverageOpen(false);
   };
 
   if (loading) return <LoadingState />;
@@ -1386,6 +1704,36 @@ export default function VendorProfilePage() {
 
         <div className="grid gap-4 content-start">
           <DetailCard title="Coverage">
+            <section className="mb-5 rounded-md border border-slate-100 bg-slate-50 p-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-950">Normalized Coverage</h3>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Structured coverage for future eligibility matching. This does not assign work or request bids.
+                  </p>
+                  {coverageMessage ? (
+                    <div className="mt-2 text-xs font-medium text-emerald-700">{coverageMessage}</div>
+                  ) : null}
+                </div>
+                {canManageServiceAreas.allowed && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCoverageMessage("");
+                      setNormalizedCoverageOpen(true);
+                    }}
+                    className="inline-flex h-8 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                    Edit Normalized Coverage
+                  </button>
+                )}
+              </div>
+              <div className="mt-3">
+                <NormalizedCoverageSummary coverage={coverage} />
+              </div>
+            </section>
+
             {canManageServiceAreas.allowed && (
               <div className="mb-3 flex flex-wrap gap-2">
                 <button
@@ -1406,6 +1754,9 @@ export default function VendorProfilePage() {
                 </button>
               </div>
             )}
+            <div className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
+              Legacy service-area rows
+            </div>
             <ServiceAreasList
               serviceAreas={serviceAreas}
               canManage={canManageServiceAreas.allowed}
@@ -1486,6 +1837,12 @@ export default function VendorProfilePage() {
           await loadProfile();
           setBulkCoverageOpen(false);
         }}
+      />
+      <NormalizedCoverageModal
+        open={normalizedCoverageOpen}
+        coverage={coverage}
+        onClose={() => setNormalizedCoverageOpen(false)}
+        onSaved={handleSaveNormalizedCoverage}
       />
     </main>
   );

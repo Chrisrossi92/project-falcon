@@ -122,7 +122,21 @@ OH    | Franklin | null  | null   | null         | multifamily
 null  | null     | 43215 | null   | null         | residential
 ```
 
-Do not introduce normalized coverage-region tables yet. The current table is sufficient for initial management UI, read summaries, and future assignment-matching discovery.
+Vendor Coverage Engine V1A adds normalized coverage dimension tables as a backend data foundation:
+
+- `vendor_coverage_states`
+- `vendor_coverage_counties`
+- `vendor_property_types`
+- `vendor_assignment_types`
+
+These V1A tables are owner-scoped through `company_vendor_profiles` and retain `company_id` as the
+vendor company id for future matching indexes. They are additive and do not replace the current
+`vendor_service_areas` UI/read-summary path yet.
+
+V1A does not add matching logic, recommendation UI, bid-request integration, assignment behavior,
+vendor portal behavior, or production automation. The current `vendor_service_areas` table remains
+the active management/read surface until a later migration explicitly moves reads/writes to the
+normalized tables.
 
 Avoid unnecessary row explosion. Full-state coverage should not expand into every county unless a later matching algorithm requires positive county rows. A full-state row can be represented by `state` with `county`, `zip`, `market`, and `radius_miles` empty.
 
@@ -130,7 +144,8 @@ Selected county coverage can be represented with one row per county and product 
 
 ## Future Normalized Model
 
-Normalized coverage-region tables may be introduced later if assignment matching, exclusion handling, or high-volume coverage management requires them.
+V1A creates normalized dimensions, but full normalized coverage-region modeling remains future work
+if assignment matching, exclusion handling, or high-volume coverage management requires it.
 
 Possible future structure:
 

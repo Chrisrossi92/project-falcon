@@ -26,6 +26,7 @@ const createOrderOperationalInputMock = vi.hoisted(() => vi.fn());
 const clearOrderOperationalInputMock = vi.hoisted(() => vi.fn());
 const operationalInputsMock = vi.hoisted(() => []);
 const refreshOperationalInputsMock = vi.hoisted(() => vi.fn());
+const getMatchingVendorsForOrderMock = vi.hoisted(() => vi.fn());
 const permissionKeysMock = vi.hoisted(() => []);
 const bidRequestsPanelRowsMock = vi.hoisted(() => []);
 const operationsModeMock = vi.hoisted(() => ({
@@ -259,6 +260,10 @@ vi.mock("@/features/vendors/components/VendorAssignmentCandidatesPanel", () => (
   ),
 }));
 
+vi.mock("@/features/vendors/api", () => ({
+  getMatchingVendorsForOrder: getMatchingVendorsForOrderMock,
+}));
+
 const { default: OrderDetail } = await import("../OrderDetail.jsx");
 
 describe("OrderDetail site visit save", () => {
@@ -404,6 +409,8 @@ describe("OrderDetail site visit save", () => {
     operationalInputsMock.splice(0, operationalInputsMock.length);
     refreshOperationalInputsMock.mockReset();
     refreshOperationalInputsMock.mockResolvedValue([]);
+    getMatchingVendorsForOrderMock.mockReset();
+    getMatchingVendorsForOrderMock.mockResolvedValue([]);
     Object.defineProperty(window, "print", {
       configurable: true,
       value: vi.fn(),
@@ -1030,6 +1037,75 @@ describe("OrderDetail site visit save", () => {
     expect(within(candidates).getByText("Suggested vendors")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /assign/i })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Mock bid request success" })).toBeInTheDocument();
+  });
+
+  it("loads deterministic eligible vendors for AMC orders with vendor read access", async () => {
+    operationsModeMock.operationsMode = "amc_operations";
+    orderMock.operations_scope = "amc_operations";
+    permissionKeysMock.push("vendors.read");
+    getMatchingVendorsForOrderMock.mockResolvedValue([
+      {
+        vendor_profile_id: "profile-1",
+        company_id: "company-1",
+        company_name: "Franklin Commercial Valuation",
+        matchedState: "OH",
+        matchedCounty: "Franklin",
+        matchedPropertyType: "commercial",
+        matchedAssignmentType: "appraisal",
+      },
+    ]);
+
+    render(<OrderDetail />);
+
+    const eligibleVendors = screen.getByLabelText("Eligible vendors");
+    expect(within(eligibleVendors).getByText("Loading eligible vendors...")).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(getMatchingVendorsForOrderMock).toHaveBeenCalledWith("order-1");
+    });
+
+    expect(await within(eligibleVendors).findByText("Franklin Commercial Valuation")).toBeInTheDocument();
+    expect(within(eligibleVendors).getByText("OH")).toBeInTheDocument();
+    expect(within(eligibleVendors).getByText("Franklin")).toBeInTheDocument();
+    expect(within(eligibleVendors).getByText("Commercial")).toBeInTheDocument();
+    expect(within(eligibleVendors).getByText("Appraisal")).toBeInTheDocument();
+    expect(within(eligibleVendors).getByText(/Deterministic coverage matching only/i)).toBeInTheDocument();
+  });
+
+  it("renders an empty deterministic eligible vendors state", async () => {
+    operationsModeMock.operationsMode = "amc_operations";
+    orderMock.operations_scope = "amc_operations";
+    permissionKeysMock.push("vendors.read");
+    getMatchingVendorsForOrderMock.mockResolvedValue([]);
+
+    render(<OrderDetail />);
+
+    const eligibleVendors = screen.getByLabelText("Eligible vendors");
+    expect(await within(eligibleVendors).findByText("No eligible vendors matched this order's normalized coverage.")).toBeInTheDocument();
+  });
+
+  it("renders deterministic eligible vendors errors without exposing bid automation", async () => {
+    operationsModeMock.operationsMode = "amc_operations";
+    orderMock.operations_scope = "amc_operations";
+    permissionKeysMock.push("vendors.read");
+    getMatchingVendorsForOrderMock.mockRejectedValue(new Error("matching unavailable"));
+
+    render(<OrderDetail />);
+
+    const eligibleVendors = screen.getByLabelText("Eligible vendors");
+    expect(await within(eligibleVendors).findByText("Eligible vendor matching could not load.")).toBeInTheDocument();
+    expect(within(eligibleVendors).queryByRole("button", { name: /request bids|bulk|bid/i })).not.toBeInTheDocument();
+    expect(within(eligibleVendors).queryByRole("link", { name: /request bids|bulk|bid/i })).not.toBeInTheDocument();
+  });
+
+  it("hides deterministic eligible vendors without vendor read access", () => {
+    operationsModeMock.operationsMode = "amc_operations";
+    orderMock.operations_scope = "amc_operations";
+
+    render(<OrderDetail />);
+
+    expect(screen.queryByLabelText("Eligible vendors")).not.toBeInTheDocument();
+    expect(getMatchingVendorsForOrderMock).not.toHaveBeenCalled();
   });
 
   it("shows read-only bid requests in AMC Operations with bid read access", () => {
