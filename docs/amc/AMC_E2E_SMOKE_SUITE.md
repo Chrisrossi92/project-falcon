@@ -47,6 +47,43 @@ The grouped scripts set `E2E_AMC_PREPARE_FIXTURE=1` and `--workers=1` so each br
 guarded disposable staging fixture before it runs. Individual spec scripts are still available when a
 single branch needs targeted debugging.
 
+## Debugging Strategy
+
+The full end-to-end AMC smoke suite is for release confidence, staging promotion confidence, and
+manual CI dispatch. It should not be the default tool for everyday workflow debugging because it
+consumes fixture state across many phases and can obscure the actual failure point.
+
+Prefer targeted smokes for isolated workflow phases. A targeted smoke should declare the fixture
+state it requires before it starts and the state it intentionally leaves behind. For example,
+`e2e/amc/amc-revision-smoke.spec.ts` includes a targeted revision resubmission branch that starts
+from a disposable assignment in `revision_requested` and ends with the owner assignment read model in
+`submitted`, `submitted_at` populated, `completed_at` empty, and the vendor workspace read model in
+`resubmitted_awaiting_review`.
+
+Assertions must match the surface being tested:
+
+- Owner read model assertions should use fields returned by owner/order RPCs.
+- Vendor workspace assertions should use fields returned by vendor workspace RPCs and UI.
+- Raw DB or RPC payload assertions should only be used when the test directly reads that raw payload
+  through an intentionally exposed diagnostic or service-role path.
+
+Do not assert private or raw payload fields through RPCs that intentionally do not expose them. In
+the revision smoke debugging incident, a stale assertion expected
+`submission_payload.resubmission.resubmitted_at` on the owner assignment list result. That owner read
+model did not expose `submission_payload`; the correct assertion used `submitted_at` from the owner
+assignment list plus the vendor workspace status `resubmitted_awaiting_review`, which is derived
+from the persisted resubmission metadata.
+
+If a full smoke hangs, do not blindly rerun it. Create or expand a targeted diagnostic smoke for the
+phase under investigation, then return to the full smoke only after the isolated phase is understood.
+
+Recommended cadence:
+
+- Use targeted smokes during feature work and debugging.
+- Run the full smoke before release, staging promotion, or a major AMC workflow merge.
+- Let GitHub Actions run the full smoke through manual dispatch, and only add schedules after
+  staging fixture ownership, runtime cost, and secret governance are reviewed.
+
 ## GitHub Actions
 
 `.github/workflows/amc-staging-smoke.yml` provides an optional manual-only CI entrypoint. It is

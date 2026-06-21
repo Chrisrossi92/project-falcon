@@ -59,10 +59,17 @@ It does not automate invoice handling, payment state, wrong-vendor denial, or de
 - the disposable vendor can upload the tiny committed report fixture again as a revised report;
 - the vendor can resubmit the report from Vendor Workspace;
 - the owner UI returns to submitted / awaiting-review state;
-- latest resubmission metadata exists while `completed_at` remains empty.
+- the owner assignment read model shows `submitted_at` while `completed_at` remains empty;
+- the vendor workspace read model shows `resubmitted_awaiting_review`.
 
 The revision branch does not complete the assignment, request a second revision, invoice, pay, or
 clean up records.
+
+The targeted revision resubmission branch in `amc-revision-smoke.spec.ts` is intended for isolated
+debugging. It requires the disposable assignment to start in `revision_requested` and leaves it in
+`submitted` / `resubmitted_awaiting_review`. Do not use owner assignment-list assertions for private
+payload fields such as `submission_payload.resubmission.resubmitted_at`; assert the owner and vendor
+read models actually returned by the workflow.
 
 `amc-isolation-smoke.spec.ts` is a separate staging-only security branch. It verifies:
 
@@ -176,6 +183,9 @@ before rerunning the full smoke against the same staging records.
 
 The revision branch uses the same single disposable staging smoke order. Run it separately from the
 completion branch and refresh the fixture first so the branch starts from a clean bid-request state.
+For revision resubmission debugging, prefer the targeted branch over rerunning the full
+bid-to-resubmission chain. If the full revision smoke hangs, add diagnostics to the targeted phase
+instead of repeatedly rerunning the full smoke.
 
 The client-request conversion branch requires `AMC_STAGING_SUPABASE_SERVICE_ROLE_KEY` because it
 creates or refreshes a disposable client portal member and request directly in approved staging test
