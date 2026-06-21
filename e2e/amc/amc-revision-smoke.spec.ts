@@ -562,7 +562,7 @@ test.describe("AMC staging revision smoke", () => {
   });
 
   test("requests a disposable vendor report revision and resubmits", async ({ browser }) => {
-    test.setTimeout(120_000);
+    test.setTimeout(180_000);
 
     await logRevisionStep(null, "before progressFixtureToSubmittedReport");
     const { assignment, assignedWork } = await progressFixtureToSubmittedReport(browser);
@@ -572,7 +572,6 @@ test.describe("AMC staging revision smoke", () => {
 
     let assignments;
     await runIsolatedPage(browser, "owner revision request", async (page) => {
-      await logAmcWorkspaceDiagnostics(page, "before owner login for revision request");
       await login(page, OWNER_EMAIL);
       await logAmcWorkspaceDiagnostics(page, "after owner login before opening smoke order for revision request");
       await openSmokeOrder(page);

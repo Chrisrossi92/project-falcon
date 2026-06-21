@@ -564,16 +564,14 @@ test.describe("AMC staging happy-path smoke", () => {
     await login(page, OWNER_EMAIL);
     await openSmokeOrder(page);
 
-    const submittedOwnerAssignment = page
-      .getByRole("article")
-      .filter({ hasText: VENDOR_NAME })
-      .filter({ hasText: /Submitted/i })
-      .first();
-    await expect(submittedOwnerAssignment).toBeVisible({ timeout: 15000 });
-    await expect(submittedOwnerAssignment.getByText(/Submitted/i).first()).toBeVisible();
+    const submittedBidStatus = page.getByLabel(/^AMC bid status$/i);
+    await expect(submittedBidStatus).toBeVisible({ timeout: 15000 });
+    await expect(submittedBidStatus).toContainText(VENDOR_NAME);
+    await expect(submittedBidStatus).toContainText(/Assignment status/i);
+    await expect(submittedBidStatus).toContainText(/Submitted/i);
     await Promise.all([
       page.waitForURL(/\/assignments\/[^/?#]+(?:[?#].*)?$/, { timeout: 15000 }),
-      submittedOwnerAssignment.getByRole("link", { name: /Open assignment packet/i }).click(),
+      submittedBidStatus.getByRole("link", { name: /Open Packet/i }).click(),
     ]);
 
     await assertOwnerAssignmentPacketLoaded(page, "Submitted owner assignment packet");
