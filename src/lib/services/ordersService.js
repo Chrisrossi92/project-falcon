@@ -324,6 +324,21 @@ export async function voidOrderViaRpc(orderId, reason) {
   return data ?? null;
 }
 
+export async function overrideOrderStatusViaRpc(orderId, targetStatus, reason) {
+  const normalizedReason = String(reason ?? "").trim();
+  if (!normalizedReason) {
+    throw new Error("Order status override reason is required.");
+  }
+
+  const { data, error } = await supabase.rpc("rpc_order_status_override", {
+    p_order_id: orderId,
+    p_target_status: targetStatus,
+    p_reason: normalizedReason,
+  });
+  if (error) throw error;
+  return data ?? null;
+}
+
 export async function updateOrder(orderId, patch) {
   warnDeprecatedDirectOrderMutation("updateOrder", "updateOrderViaRpc");
   if (Object.prototype.hasOwnProperty.call(patch || {}, "status")) {

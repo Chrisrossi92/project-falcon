@@ -9,6 +9,7 @@ const navigateMock = vi.hoisted(() => vi.fn());
 const updateSiteVisitAtViaRpcMock = vi.hoisted(() => vi.fn());
 const archiveOrderViaRpcMock = vi.hoisted(() => vi.fn());
 const cancelOrderViaRpcMock = vi.hoisted(() => vi.fn());
+const overrideOrderStatusViaRpcMock = vi.hoisted(() => vi.fn());
 const voidOrderViaRpcMock = vi.hoisted(() => vi.fn());
 const listOrderDocumentsMock = vi.hoisted(() => vi.fn());
 const createOrderDocumentDownloadUrlMock = vi.hoisted(() => vi.fn());
@@ -81,6 +82,7 @@ vi.mock("@/lib/hooks/useOrder", () => ({
 vi.mock("@/lib/services/ordersService", () => ({
   archiveOrderViaRpc: archiveOrderViaRpcMock,
   cancelOrderViaRpc: cancelOrderViaRpcMock,
+  overrideOrderStatusViaRpc: overrideOrderStatusViaRpcMock,
   updateSiteVisitAtViaRpc: updateSiteVisitAtViaRpcMock,
   voidOrderViaRpc: voidOrderViaRpcMock,
 }));
@@ -305,6 +307,14 @@ describe("OrderDetail site visit save", () => {
       order_number: "2026001",
       status: "voided",
       is_archived: false,
+    });
+    overrideOrderStatusViaRpcMock.mockReset();
+    overrideOrderStatusViaRpcMock.mockResolvedValue({
+      status: "updated",
+      order_id: "order-1",
+      from_status: "new",
+      to_status: "in_review",
+      reason: "Correcting field reality",
     });
     permissionKeysMock.splice(
       0,
@@ -715,6 +725,192 @@ describe("OrderDetail site visit save", () => {
     expect(screen.getByLabelText("Operational context controls")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Edit" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Archive order" })).toBeInTheDocument();
+  });
+
+  it("hides the status override action without workflow override permission", () => {
+    render(<OrderDetail />);
+
+    expect(screen.queryByRole("button", { name: "More actions" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Override status" })).not.toBeInTheDocument();
+  });
+
+  it("hides the status override action in appraiser and reviewer workspaces even with permission", () => {
+    permissionKeysMock.push("workflow.override_status");
+    Object.assign(shellProfileMock, {
+      profileId: "my_work",
+      loading: false,
+      error: null,
+    });
+
+    render(<OrderDetail />);
+
+    expect(screen.queryByRole("button", { name: "More actions" })).not.toBeInTheDocument();
+    cleanup();
+
+    Object.assign(shellProfileMock, {
+      profileId: "review_queue",
+      loading: false,
+      error: null,
+    });
+    render(<OrderDetail />);
+
+    expect(screen.queryByRole("button", { name: "More actions" })).not.toBeInTheDocument();
+  });
+
+  it("shows the owner/admin status override modal with current status, workspace, and audit warning", () => {
+    permissionKeysMock.push("workflow.override_status");
+
+    render(<OrderDetail />);
+
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Override status" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Override status" });
+    expect(within(dialog).getByText(/owner\/admin override changes the order workflow status/i)).toBeInTheDocument();
+    expect(within(dialog).getByText(/will be recorded in activity/i)).toBeInTheDocument();
+    expect(within(dialog).getByText("Workspace:")).toBeInTheDocument();
+    expect(within(dialog).getByText("Internal")).toBeInTheDocument();
+    expect(within(dialog).getByText("Current status:")).toBeInTheDocument();
+    expect(within(dialog).getByText("new")).toBeInTheDocument();
+  });
+
+  it("shows Falcon AMC workspace context in the status override modal", () => {
+    operationsModeMock.operationsMode = "amc_operations";
+    orderMock.operations_scope = "amc_operations";
+    permissionKeysMock.push("workflow.override_status");
+
+    render(<OrderDetail />);
+
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Override status" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Override status" });
+    expect(within(dialog).getByText("Falcon AMC")).toBeInTheDocument();
+  });
+
+  it("keeps status override submit disabled until target differs and reason is present", () => {
+    permissionKeysMock.push("workflow.override_status");
+
+    render(<OrderDetail />);
+
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Override status" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Override status" });
+    const submit = within(dialog).getByRole("button", { name: "Override status" });
+    expect(submit).toBeDisabled();
+
+    fireEvent.change(within(dialog).getByLabelText("Target status"), {
+      target: { value: "in_review" },
+    });
+    expect(submit).toBeDisabled();
+
+    fireEvent.change(within(dialog).getByLabelText("Override reason"), {
+      target: { value: "   " },
+    });
+    expect(submit).toBeDisabled();
+
+    fireEvent.change(within(dialog).getByLabelText("Override reason"), {
+      target: { value: "Correcting field reality" },
+    });
+    expect(submit).not.toBeDisabled();
+  });
+
+  it("keeps status override submit disabled when target matches current status", () => {
+    permissionKeysMock.push("workflow.override_status");
+
+    render(<OrderDetail />);
+
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Override status" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Override status" });
+    fireEvent.change(within(dialog).getByLabelText("Target status"), {
+      target: { value: "new" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Override reason"), {
+      target: { value: "Correcting field reality" },
+    });
+
+    expect(within(dialog).getByRole("button", { name: "Override status" })).toBeDisabled();
+    expect(overrideOrderStatusViaRpcMock).not.toHaveBeenCalled();
+  });
+
+  it("calls the status override RPC wrapper, refreshes, and closes the modal on success", async () => {
+    permissionKeysMock.push("workflow.override_status");
+
+    render(<OrderDetail />);
+
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Override status" }));
+    const dialog = screen.getByRole("dialog", { name: "Override status" });
+    fireEvent.change(within(dialog).getByLabelText("Target status"), {
+      target: { value: "in_review" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Override reason"), {
+      target: { value: "Correcting field reality" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Override status" }));
+
+    await waitFor(() => {
+      expect(overrideOrderStatusViaRpcMock).toHaveBeenCalledWith(
+        "order-1",
+        "in_review",
+        "Correcting field reality",
+      );
+    });
+    expect(refreshMock).toHaveBeenCalledTimes(1);
+    expect(toastSuccessMock).toHaveBeenCalledWith(
+      "Order status overridden. The override reason was recorded in activity.",
+    );
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: "Override status" })).not.toBeInTheDocument();
+    });
+  });
+
+  it("keeps the status override modal open and displays errors", async () => {
+    const error = new Error("status_override_noop");
+    overrideOrderStatusViaRpcMock.mockRejectedValue(error);
+    permissionKeysMock.push("workflow.override_status");
+
+    render(<OrderDetail />);
+
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Override status" }));
+    const dialog = screen.getByRole("dialog", { name: "Override status" });
+    fireEvent.change(within(dialog).getByLabelText("Target status"), {
+      target: { value: "in_review" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Override reason"), {
+      target: { value: "Correcting field reality" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Override status" }));
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledWith("status_override_noop");
+    });
+    expect(screen.getByRole("dialog", { name: "Override status" })).toBeInTheDocument();
+    expect(within(screen.getByRole("dialog", { name: "Override status" })).getByText("status_override_noop")).toBeInTheDocument();
+    expect(refreshMock).not.toHaveBeenCalled();
+  });
+
+  it("hides status override for archived, cancelled, and voided orders", () => {
+    permissionKeysMock.push("workflow.override_status");
+    orderMock.is_archived = true;
+
+    render(<OrderDetail />);
+    expect(screen.queryByRole("button", { name: "More actions" })).not.toBeInTheDocument();
+    cleanup();
+
+    orderMock.is_archived = false;
+    orderMock.status = "cancelled";
+    render(<OrderDetail />);
+    expect(screen.queryByRole("button", { name: "More actions" })).not.toBeInTheDocument();
+    cleanup();
+
+    orderMock.status = "voided";
+    render(<OrderDetail />);
+    expect(screen.queryByRole("button", { name: "More actions" })).not.toBeInTheDocument();
   });
 
   it("shows read-only vendor candidates in AMC Operations with vendor read access", () => {

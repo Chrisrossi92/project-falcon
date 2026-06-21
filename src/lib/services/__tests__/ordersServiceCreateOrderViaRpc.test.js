@@ -39,6 +39,7 @@ const {
   isOrderNumberAvailableV2,
   listOrders,
   overrideOrderNumber,
+  overrideOrderStatusViaRpc,
   markReadyForClient,
   requestFinalApproval,
   setOrderStatus,
@@ -740,6 +741,91 @@ describe("voidOrderViaRpc", () => {
     supabaseMock.rpc.mockResolvedValue({ data: null, error });
 
     await expect(voidOrderViaRpc("order-1", "Duplicate order")).rejects.toBe(error);
+  });
+});
+
+describe("overrideOrderStatusViaRpc", () => {
+  beforeEach(() => {
+    supabaseMock.rpc.mockReset();
+    supabaseMock.from.mockReset();
+  });
+
+  it("calls the guarded order status override RPC with expected args", async () => {
+    const result = {
+      status: "updated",
+      order_id: "order-1",
+      from_status: "in_review",
+      to_status: "ready_for_client",
+      reason: "Correcting field reality",
+    };
+    supabaseMock.rpc.mockResolvedValue({ data: result, error: null });
+
+    await expect(
+      overrideOrderStatusViaRpc("order-1", "ready_for_client", "Correcting field reality"),
+    ).resolves.toBe(result);
+
+    expect(supabaseMock.rpc).toHaveBeenCalledTimes(1);
+    expect(supabaseMock.rpc).toHaveBeenCalledWith("rpc_order_status_override", {
+      p_order_id: "order-1",
+      p_target_status: "ready_for_client",
+      p_reason: "Correcting field reality",
+    });
+  });
+
+  it("requires and trims the override reason before calling the RPC", async () => {
+    supabaseMock.rpc.mockResolvedValue({
+      data: { status: "updated", order_id: "order-1" },
+      error: null,
+    });
+
+    await expect(
+      overrideOrderStatusViaRpc("order-1", "review_cleared", "  Reviewer cleared offline  "),
+    ).resolves.toEqual({
+      status: "updated",
+      order_id: "order-1",
+    });
+
+    expect(supabaseMock.rpc).toHaveBeenCalledWith("rpc_order_status_override", {
+      p_order_id: "order-1",
+      p_target_status: "review_cleared",
+      p_reason: "Reviewer cleared offline",
+    });
+
+    supabaseMock.rpc.mockClear();
+    await expect(overrideOrderStatusViaRpc("order-1", "review_cleared", "   ")).rejects.toThrow(
+      "Order status override reason is required.",
+    );
+    expect(supabaseMock.rpc).not.toHaveBeenCalled();
+  });
+
+  it("does not direct update orders", async () => {
+    supabaseMock.rpc.mockResolvedValue({
+      data: { status: "updated", order_id: "order-1" },
+      error: null,
+    });
+
+    await overrideOrderStatusViaRpc("order-1", "in_progress", "Work happened offline");
+
+    expect(supabaseMock.from).not.toHaveBeenCalled();
+  });
+
+  it("throws status override RPC errors for callers to handle", async () => {
+    const error = Object.assign(new Error("order_status_override_not_authorized"), {
+      code: "42501",
+    });
+    supabaseMock.rpc.mockResolvedValue({ data: null, error });
+
+    await expect(
+      overrideOrderStatusViaRpc("order-1", "ready_for_client", "Correcting field reality"),
+    ).rejects.toBe(error);
+  });
+
+  it("returns null when the status override RPC returns no result and no error", async () => {
+    supabaseMock.rpc.mockResolvedValue({ data: null, error: null });
+
+    await expect(
+      overrideOrderStatusViaRpc("order-1", "ready_for_client", "Correcting field reality"),
+    ).resolves.toBeNull();
   });
 });
 

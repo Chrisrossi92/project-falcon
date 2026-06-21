@@ -40,6 +40,7 @@ import VendorAssignmentCandidatesPanel from "@/features/vendors/components/Vendo
 import {
   archiveOrderViaRpc,
   cancelOrderViaRpc,
+  overrideOrderStatusViaRpc,
   updateSiteVisitAtViaRpc,
   voidOrderViaRpc,
 } from "@/lib/services/ordersService";
@@ -134,6 +135,17 @@ const LIFECYCLE_HISTORY_NOTICE = Object.freeze({
       "This order is preserved for history. It is hidden from active operational queues and voiding does not delete the order, release the order number, or remove documents/activity.",
   },
 });
+const STATUS_OVERRIDE_TARGETS = Object.freeze([
+  { value: "new", label: "New" },
+  { value: "in_progress", label: "In progress" },
+  { value: "in_review", label: "In review" },
+  { value: "needs_revisions", label: "Needs revisions" },
+  { value: "review_cleared", label: "Review cleared" },
+  { value: "pending_final_approval", label: "Pending final approval" },
+  { value: "ready_for_client", label: "Ready for client" },
+  { value: "completed", label: "Completed" },
+]);
+const TERMINAL_STATUS_OVERRIDE_BLOCKLIST = new Set(["cancelled", "voided"]);
 const ACTIVE_VENDOR_ASSIGNMENT_STATUSES = new Set([
   "offered",
   "accepted",
@@ -686,6 +698,12 @@ export default function OrderDetail() {
   const [archiveReason, setArchiveReason] = useState("");
   const [archiveSubmitting, setArchiveSubmitting] = useState(false);
   const [archiveError, setArchiveError] = useState("");
+  const [moreActionsOpen, setMoreActionsOpen] = useState(false);
+  const [statusOverrideOpen, setStatusOverrideOpen] = useState(false);
+  const [statusOverrideTarget, setStatusOverrideTarget] = useState("");
+  const [statusOverrideReason, setStatusOverrideReason] = useState("");
+  const [statusOverrideSubmitting, setStatusOverrideSubmitting] = useState(false);
+  const [statusOverrideError, setStatusOverrideError] = useState("");
   const [lifecycleAction, setLifecycleAction] = useState(null);
   const [lifecycleReason, setLifecycleReason] = useState("");
   const [lifecycleSubmitting, setLifecycleSubmitting] = useState(false);
@@ -732,6 +750,11 @@ export default function OrderDetail() {
     setArchiveConfirmOpen(false);
     setArchiveReason("");
     setArchiveError("");
+    setMoreActionsOpen(false);
+    setStatusOverrideOpen(false);
+    setStatusOverrideTarget("");
+    setStatusOverrideReason("");
+    setStatusOverrideError("");
     setLifecycleAction(null);
     setLifecycleReason("");
     setLifecycleError("");
@@ -817,6 +840,15 @@ export default function OrderDetail() {
   const canArchiveThisOrder = showManagementSurfaces && canArchiveOrder(order, permissions);
   const canCancelThisOrder = showManagementSurfaces && canCancelOrder(order, permissions);
   const canVoidThisOrder = showManagementSurfaces && canVoidOrder(order, permissions);
+  const normalizedOrderStatus = String(order?.status || "").toLowerCase().trim();
+  const canOverrideOrderStatus =
+    showManagementSurfaces &&
+    isOwnerAdminStaffAppraisalShell &&
+    !permissions.loading &&
+    !permissions.error &&
+    !order?.is_archived &&
+    !TERMINAL_STATUS_OVERRIDE_BLOCKLIST.has(normalizedOrderStatus) &&
+    permissions.hasPermission(PERMISSIONS.WORKFLOW_OVERRIDE_STATUS);
   const showVendorCandidatePanel =
     operationsMode === OPERATIONS_MODES.AMC_OPERATIONS &&
     order?.operations_scope === "amc_operations" &&
@@ -877,6 +909,13 @@ export default function OrderDetail() {
   );
   const lifecycleCopy = lifecycleAction ? LIFECYCLE_ACTION_COPY[lifecycleAction] : null;
   const lifecycleReasonTrimmed = lifecycleReason.trim();
+  const statusOverrideReasonTrimmed = statusOverrideReason.trim();
+  const statusOverrideWorkspaceLabel = isAmcOrderDetail ? "Falcon AMC" : "Internal";
+  const canSubmitStatusOverride =
+    Boolean(statusOverrideTarget) &&
+    statusOverrideTarget !== normalizedOrderStatus &&
+    Boolean(statusOverrideReasonTrimmed) &&
+    !statusOverrideSubmitting;
   const lifecycleHistoryNotice =
     LIFECYCLE_HISTORY_NOTICE[String(order?.status || "").toLowerCase()] || null;
 
@@ -964,6 +1003,21 @@ export default function OrderDetail() {
     setLifecycleError("");
   }
 
+  function openStatusOverride() {
+    setMoreActionsOpen(false);
+    setStatusOverrideTarget("");
+    setStatusOverrideReason("");
+    setStatusOverrideError("");
+    setStatusOverrideOpen(true);
+  }
+
+  function closeStatusOverride() {
+    setStatusOverrideOpen(false);
+    setStatusOverrideTarget("");
+    setStatusOverrideReason("");
+    setStatusOverrideError("");
+  }
+
   async function handleLifecycleAction() {
     if (!order?.id || !lifecycleCopy || lifecycleSubmitting || !lifecycleReasonTrimmed) return;
 
@@ -980,6 +1034,26 @@ export default function OrderDetail() {
       toastError(lifecycleCopy.failure);
     } finally {
       setLifecycleSubmitting(false);
+    }
+  }
+
+  async function handleStatusOverride() {
+    if (!order?.id || !canSubmitStatusOverride) return;
+
+    setStatusOverrideSubmitting(true);
+    setStatusOverrideError("");
+
+    try {
+      await overrideOrderStatusViaRpc(order.id, statusOverrideTarget, statusOverrideReasonTrimmed);
+      closeStatusOverride();
+      success("Order status overridden. The override reason was recorded in activity.");
+      await refresh();
+    } catch (error) {
+      const message = error?.message || "Could not override order status. No changes were made.";
+      setStatusOverrideError(message);
+      toastError(message);
+    } finally {
+      setStatusOverrideSubmitting(false);
     }
   }
 
@@ -1065,6 +1139,35 @@ export default function OrderDetail() {
               >
                 Void order
               </button>
+            )}
+            {canOverrideOrderStatus && (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setMoreActionsOpen((value) => !value)}
+                  aria-expanded={moreActionsOpen}
+                  aria-haspopup="menu"
+                  className="px-3 py-1.5 border rounded text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                >
+                  More actions
+                </button>
+                {moreActionsOpen && (
+                  <div
+                    role="menu"
+                    aria-label="More order actions"
+                    className="absolute right-0 top-full z-20 mt-2 w-48 rounded-md border border-slate-200 bg-white p-1 shadow-lg"
+                  >
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={openStatusOverride}
+                      className="w-full rounded px-3 py-2 text-left text-sm font-medium text-slate-800 hover:bg-slate-50"
+                    >
+                      Override status
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
             <button
               type="button"
@@ -1502,6 +1605,99 @@ export default function OrderDetail() {
                 className="rounded border border-amber-700 bg-amber-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-amber-800 disabled:opacity-50"
               >
                 {archiveSubmitting ? "Archiving..." : ARCHIVE_ORDER_COPY.confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {statusOverrideOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4"
+          role="presentation"
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="order-status-override-title"
+            className="w-full max-w-md rounded-lg border bg-white p-4 shadow-xl"
+          >
+            <div id="order-status-override-title" className="text-base font-semibold text-gray-950">
+              Override status
+            </div>
+            <p className="mt-2 text-sm leading-6 text-gray-700">
+              This owner/admin override changes the order workflow status outside the suggested path.
+              The reason is required and will be recorded in activity.
+            </p>
+
+            <div className="mt-4 grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm">
+              <div>
+                <span className="font-medium text-slate-600">Workspace: </span>
+                <span className="font-semibold text-slate-950">{statusOverrideWorkspaceLabel}</span>
+              </div>
+              <div>
+                <span className="font-medium text-slate-600">Current status: </span>
+                <span className="font-semibold text-slate-950">{order.status || "Unknown"}</span>
+              </div>
+            </div>
+
+            <label className="mt-4 block text-sm font-medium text-gray-700">
+              Target status
+              <select
+                value={statusOverrideTarget}
+                onChange={(event) => {
+                  setStatusOverrideTarget(event.target.value);
+                  setStatusOverrideError("");
+                }}
+                disabled={statusOverrideSubmitting}
+                className="mt-2 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500 disabled:bg-gray-50 disabled:text-gray-500"
+              >
+                <option value="">Select status</option>
+                {STATUS_OVERRIDE_TARGETS.map((target) => (
+                  <option key={target.value} value={target.value}>
+                    {target.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="mt-4 block text-sm font-medium text-gray-700">
+              Override reason
+              <textarea
+                value={statusOverrideReason}
+                onChange={(event) => {
+                  setStatusOverrideReason(event.target.value);
+                  setStatusOverrideError("");
+                }}
+                disabled={statusOverrideSubmitting}
+                rows={3}
+                required
+                className="mt-2 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500 disabled:bg-gray-50 disabled:text-gray-500"
+              />
+            </label>
+
+            {statusOverrideError && (
+              <div className="mt-3 rounded border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                {statusOverrideError}
+              </div>
+            )}
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeStatusOverride}
+                disabled={statusOverrideSubmitting}
+                className="rounded border px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleStatusOverride}
+                disabled={!canSubmitStatusOverride}
+                className="rounded border border-slate-900 bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+              >
+                {statusOverrideSubmitting ? "Overriding..." : "Override status"}
               </button>
             </div>
           </div>
