@@ -47,6 +47,19 @@ Stop if Supabase reports drift, destructive changes, or a target project mismatc
 Note: this repository's installed Supabase CLI does not support `db push --project-ref`. Use the
 linked-project command only when the link metadata points at staging.
 
+Migration history safety checklist:
+
+- Every file in `supabase/migrations/` must have a unique 14-digit version prefix.
+- Supabase records only the migration version in `supabase_migrations.schema_migrations`, not the
+  full filename. Two local files with the same version cannot be distinguished remotely.
+- Duplicate local versions block `supabase db push` with a `schema_migrations_pkey` duplicate-key
+  failure once the first file records that version.
+- If a duplicate existed in a prior branch or staging attempt, inspect the staging catalog for the
+  SQL effects before using `supabase migration repair`; do not mark a renamed migration as applied
+  unless its tables, functions, grants, policies, and comments already exist on the target.
+- Repair staging history only after confirming `supabase/.temp/project-ref` is
+  `voompccpkjfcsmehdoqu` and after taking any required staging backup/snapshot.
+
 ### 2. Edge Function Deployment
 
 Deploy the Vendor Workspace document/upload functions after database migrations are present.

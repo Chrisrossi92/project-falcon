@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 const migrationPath = resolve(
   process.cwd(),
-  'supabase/migrations/20260607100000_client_portal_safe_order_read_model.sql',
+  'supabase/migrations/20260607100500_client_portal_safe_order_read_model.sql',
 );
 
 const migrationSql = readFileSync(migrationPath, 'utf8');
@@ -26,7 +26,7 @@ const reportDownloadFunctionSource = readFileSync(reportDownloadFunctionPath, 'u
 
 const orderRequestIntakeMigrationPath = resolve(
   process.cwd(),
-  'supabase/migrations/20260607102000_client_portal_order_request_intake.sql',
+  'supabase/migrations/20260607102500_client_portal_order_request_intake.sql',
 );
 
 const orderRequestIntakeMigrationSql = readFileSync(orderRequestIntakeMigrationPath, 'utf8');

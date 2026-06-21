@@ -159,7 +159,7 @@ created operational order id only for the Internal/AMC order-detail link after c
 
 ## Backend Read Model
 
-Added in `20260607100000_client_portal_safe_order_read_model.sql`:
+Added in `20260607100500_client_portal_safe_order_read_model.sql`:
 
 - `client_portal_members`;
 - `current_app_user_client_portal_client_ids()`;
@@ -174,7 +174,7 @@ Added in `20260607101000_client_portal_report_download_authorization.sql`:
 
 - `rpc_client_portal_report_authorize_download(p_order_key text)`.
 
-Added in `20260607102000_client_portal_order_request_intake.sql`:
+Added in `20260607102500_client_portal_order_request_intake.sql`:
 
 - `client_portal_order_requests`;
 - `client_portal_order_request_key(...)`;
