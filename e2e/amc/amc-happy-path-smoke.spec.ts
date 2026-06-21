@@ -33,6 +33,14 @@ async function signIn(email: string) {
   return (await signInWithPassword(email, PASSWORD)).client;
 }
 
+async function logReportUploadDebug(page, label: string) {
+  const debugText = await page
+    .getByTestId("report-upload-debug")
+    .textContent({ timeout: 1000 })
+    .catch((error) => `unavailable: ${error?.message || error}`);
+  console.log(`[amc happy smoke] report upload debug ${label}: ${debugText}`);
+}
+
 async function readVendorAssignedWork(vendorClient) {
   const { data, error } = await vendorClient.rpc("rpc_vendor_workspace_assigned_orders");
   if (error) throw new Error(`Smoke fixture vendor assigned orders lookup failed: ${error.message}`);
@@ -501,6 +509,7 @@ test.describe("AMC staging happy-path smoke", () => {
     await expect(page.getByText(`Selected: ${REPORT_FIXTURE_FILE_NAME}`)).toBeVisible();
     await page.getByRole("button", { name: /^Upload Report File$/i }).click();
     await expect(page.getByText(REPORT_FIXTURE_FILE_NAME).first()).toBeVisible({ timeout: 30000 });
+    await logReportUploadDebug(page, "after uploaded filename visible");
     await expect(page.getByRole("button", { name: /^Submit Report$/i })).toBeEnabled();
 
     await page.getByLabel(/^Delivery Note$/i).fill(REPORT_DELIVERY_NOTE);

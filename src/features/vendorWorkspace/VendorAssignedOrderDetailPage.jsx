@@ -601,6 +601,10 @@ function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, 
             </p>
           )}
         </div>
+        <div data-testid="report-upload-debug" className="text-[10px] text-slate-500">
+          uploadedReportDocuments.length={uploadedReportDocuments.length}; selectedReportFile={selectedReportFile?.name || "none"};
+          submitDisabled={String(submitReportDisabled)}
+        </div>
         <button
           type="button"
           disabled={submitReportDisabled}

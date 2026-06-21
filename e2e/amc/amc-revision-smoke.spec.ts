@@ -38,6 +38,14 @@ async function signIn(email: string) {
   return (await signInWithPassword(email, PASSWORD)).client;
 }
 
+async function logReportUploadDebug(page, label: string) {
+  const debugText = await page
+    .getByTestId("report-upload-debug")
+    .textContent({ timeout: 1000 })
+    .catch((error) => `unavailable: ${error?.message || error}`);
+  console.log(`[amc revision smoke] report upload debug ${label}: ${debugText}`);
+}
+
 async function getVendorFixtureClient() {
   if (!vendorFixtureClient) {
     vendorFixtureClient = await signIn(VENDOR_EMAIL);
@@ -511,6 +519,12 @@ async function progressFixtureToSubmittedReport(browser) {
     page,
     "wait for uploaded report filename",
     () => expect(page.getByText(REPORT_FIXTURE_FILE_NAME).first()).toBeVisible({ timeout: 30000 }),
+    { assignmentWorkKey: assignedWork.assignment_work_key },
+  );
+  await runRevisionStep(
+    page,
+    "log report upload debug after uploaded filename visible",
+    () => logReportUploadDebug(page, "after uploaded filename visible"),
     { assignmentWorkKey: assignedWork.assignment_work_key },
   );
   await runRevisionStep(page, "fill Delivery Note", () => page.getByLabel(/^Delivery Note$/i).fill(REPORT_DELIVERY_NOTE), {
