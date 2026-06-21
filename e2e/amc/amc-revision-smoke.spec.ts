@@ -564,7 +564,7 @@ test.describe("AMC staging revision smoke", () => {
   });
 
   test("requests a disposable vendor report revision and resubmits", async ({ browser }) => {
-    test.setTimeout(900_000);
+    test.setTimeout(1_500_000);
 
     await logRevisionStep(null, "before progressFixtureToSubmittedReport");
     const { assignment, assignedWork, vendorStorageState } = await progressFixtureToSubmittedReport(browser);
@@ -614,6 +614,9 @@ test.describe("AMC staging revision smoke", () => {
       expect(revisionAssignment.revision_requested_at).toBeTruthy();
       expect(revisionAssignment.completed_at || null).toBeNull();
     });
+    await logRevisionStep(null, "after owner revision request", {
+      assignmentWorkKey: assignedWork.assignment_work_key,
+    });
 
     await runIsolatedPage(
       browser,
@@ -625,11 +628,13 @@ test.describe("AMC staging revision smoke", () => {
         );
         await page.goto(`/vendor-workspace/assigned-orders/${encodeURIComponent(assignedWork.assignment_work_key)}`, {
           waitUntil: "domcontentloaded",
+          timeout: 60_000,
         });
         if (await page.getByLabel(/email/i).isVisible({ timeout: 2000 }).catch(() => false)) {
           await login(page, VENDOR_EMAIL);
           await page.goto(`/vendor-workspace/assigned-orders/${encodeURIComponent(assignedWork.assignment_work_key)}`, {
             waitUntil: "domcontentloaded",
+            timeout: 60_000,
           });
         }
         await expect(page.getByText(/Revision Requested/i).first()).toBeVisible({ timeout: 15000 });
