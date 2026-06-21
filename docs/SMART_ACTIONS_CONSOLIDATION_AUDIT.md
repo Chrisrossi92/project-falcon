@@ -45,6 +45,37 @@ This is the best current renderer and should be extracted rather than duplicated
 
 ## Other action surfaces
 
+### `src/pages/orders/OrderDetail.jsx`
+
+Current status:
+
+- Order Detail now uses `getSmartOrderActions()` for a visually distinct `Recommended next step`
+  surface.
+- This surface is for normal guided workflow actions only.
+- The recommendation is based on the order status, current shell role, workflow permissions, and
+  workspace context.
+- When no safe guided action exists, including completed, archived, cancelled, or voided orders, the
+  panel shows a neutral `No guided action` state instead of forcing a bad transition.
+- Internal versus Falcon AMC context remains visible in the guidance copy.
+
+Owner/admin override separation:
+
+- `Override status` is intentionally excluded from Smart Actions.
+- Owner/admin override lives only in the secondary `More actions` menu.
+- The override action is permission-gated by `workflow.override_status`, requires a reason, and
+  calls `overrideOrderStatusViaRpc(...)` / `rpc_order_status_override(...)`.
+- Cancel and void remain separate terminal lifecycle controls and are not smart recommendations or
+  status override targets in the Order Detail UI.
+
+Test notes:
+
+- `src/pages/orders/__tests__/OrderDetail.test.jsx` covers guided action rendering, neutral terminal
+  states, override exclusion from smart recommendations, owner/admin `More actions > Override
+  status`, normal-user override suppression, and AMC/Internal context labels.
+- Backend RPC/event expectations are covered by the order status override migration and service
+  wrapper tests: permission `workflow.override_status`, required reason, invalid/no-op/terminal
+  guards, and `order.status_override` activity detail with from/to status and reason.
+
 ### `src/components/orders/view/QuickActionsDrawerPanel.jsx`
 
 Current status:

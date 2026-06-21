@@ -22,6 +22,10 @@ Use this checklist to track validation for the new `rpc_transition_order_status`
 - [x] Full lifecycle tested through backend RPC: `new` -> `in_review` -> `review_cleared` -> `pending_final_approval` -> `ready_for_client` -> `completed`.
 - [x] Request revisions path tested: `in_review` -> `needs_revisions`.
 - [x] Notification/toast behavior preserved.
+- [x] Owner/admin status override has a separate backend path, `rpc_order_status_override`, and is
+  not part of normal Smart Actions.
+- [x] Order Detail separates normal `Recommended next step` guidance from owner/admin `More actions
+  > Override status`.
 
 ## 1. Pre-Apply Checks
 
@@ -77,3 +81,31 @@ Use this checklist to track validation for the new `rpc_transition_order_status`
 - [ ] Audit remaining generic status helpers/RPCs before restriction.
 - [ ] Do not tighten RLS until the generic usage audit is complete.
 - [ ] Consider backend notification ownership later.
+
+## 7. Owner/Admin Override Validation
+
+Override is an exceptional owner/admin control, not a normal workflow recommendation.
+
+- [x] `rpc_order_status_override(p_order_id uuid, p_target_status text, p_reason text)` exists as
+  the backend-owned override path.
+- [x] Override requires an authenticated current-company actor with `workflow.override_status`.
+- [x] Override requires a non-empty reason and rejects invalid target statuses.
+- [x] Override rejects no-op transitions, archived orders, and cancelled/voided reversal in the
+  current slice.
+- [x] Override writes explicit activity event `order.status_override`.
+- [x] Override activity detail includes `from_status`, `to_status`, `reason`,
+  `source: "rpc_order_status_override"`, and `override: true`.
+- [x] `overrideOrderStatusViaRpc(...)` calls the RPC and surfaces errors to the UI.
+- [x] Order Detail exposes override only through owner/admin `More actions > Override status`.
+- [x] Order Detail does not include override in the `Recommended next step` smart-action surface.
+- [x] Cancel and void remain separate terminal lifecycle actions rather than override targets in the
+  UI.
+
+Test notes:
+
+- Backend/service tests should cover authorized override, missing permission, blank reason, invalid
+  status, no-op status, archived order, cancelled/voided reversal, activity detail, and service
+  wrapper error handling.
+- Presentation tests should cover override visibility, modal warning/current status/workspace,
+  disabled submit states, successful refresh, error handling, terminal/archived hiding, smart-action
+  separation, and AMC/Internal context labels.

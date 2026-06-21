@@ -16,6 +16,11 @@ rpc_transition_order_status
 
 This RPC should become the only supported backend entry point for normal order lifecycle transitions.
 
+Owner/admin status override is intentionally separate from this normal transition path. The
+exceptional override path is `rpc_order_status_override(...)`, is permission-gated by
+`workflow.override_status`, requires a reason, and records an explicit audit/activity event. It
+should not be rendered as a Smart Action or recommended next step.
+
 ## Input
 
 The RPC should accept:
@@ -168,6 +173,21 @@ Move in small slices so product behavior stays stable:
 6. Keep generic status update helpers deprecated and unavailable from normal product UI.
 7. Audit remaining direct `orders.status` writes.
 8. Restrict direct status updates with RLS or database privileges so normal clients must use the RPC.
-9. Keep a separate administrative override path only if needed, guarded by `workflow.override_status` and explicit activity logging.
+9. Keep administrative override separate from normal workflow transitions, guarded by
+   `workflow.override_status`, required reason capture, and explicit `order.status_override`
+   activity logging.
 
 The end state is that normal lifecycle actions use `rpc_transition_order_status`, generic status mutation helpers are removed or limited to controlled administrative paths, and Supabase enforces the same workflow rules the frontend displays.
+
+## Order Detail UX Boundary
+
+Order Detail should present workflow control in two different surfaces:
+
+- `Recommended next step`: normal guided workflow actions derived from Smart Actions and existing
+  workflow transition permissions.
+- `More actions > Override status`: owner/admin-only exceptional control for when operational
+  reality requires a status correction outside the normal path.
+
+Override must never be promoted as the recommended action. Cancel and void remain separate terminal
+lifecycle actions with their own reason-required flows and should not be folded into generic status
+override UI.
