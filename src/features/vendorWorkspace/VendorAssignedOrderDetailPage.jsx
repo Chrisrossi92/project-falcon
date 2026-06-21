@@ -364,16 +364,13 @@ function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, 
           document_role: "submitted_report",
         });
 
-        const uploadBody = new FormData();
-        uploadBody.append("cacheControl", "3600");
-        uploadBody.append("", selectedReportFile);
-
         const uploadResponse = await fetch(prepared.upload.signed_url, {
           method: "PUT",
           headers: {
+            "content-type": selectedReportFile.type || "application/pdf",
             "x-upsert": "false",
           },
-          body: uploadBody,
+          body: selectedReportFile,
         });
 
         if (!uploadResponse.ok) {
@@ -466,13 +463,6 @@ function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, 
           return;
         }
 
-        console.warn("[VendorWorkspaceReportSubmit] submit rejected", {
-          error: result.error || null,
-          status: result.status || null,
-          field_errors: result.field_errors || null,
-          document_count: documentKeys.length,
-        });
-
         setActionError(
           result.field_errors?.action ||
           result.field_errors?.payload ||
@@ -482,12 +472,7 @@ function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, 
             ? "Report could not be resubmitted. Please try again or contact the AMC coordinator."
             : "Report could not be submitted. Please try again or contact the AMC coordinator."),
         );
-      } catch (error) {
-        console.warn("[VendorWorkspaceReportSubmit] submit failed", {
-          code: error?.code || null,
-          message: error?.message || null,
-          details: error?.details || null,
-        });
+      } catch {
         setActionError(
           isRevisionFlow
             ? "Report could not be resubmitted. Please try again or contact the AMC coordinator."
