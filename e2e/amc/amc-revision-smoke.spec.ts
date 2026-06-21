@@ -154,6 +154,22 @@ async function assertFixtureExists() {
   return ownerFixtureState;
 }
 
+async function assertPreparedRevisionRequestedFixtureExists() {
+  const ownerClient = await signIn(OWNER_EMAIL);
+  ownerFixtureClient = ownerClient;
+  const ownerFixtureState = await readOwnerFixtureState(ownerClient);
+  const assignments = await readVendorAssignmentsForOrder(ownerClient, ownerFixtureState.orderId);
+  const revisionAssignment = assignments.find(
+    (assignment) => assignment?.assigned_company_name === VENDOR_NAME && assignment?.status === "revision_requested",
+  );
+  if (!revisionAssignment) {
+    throw new Error(
+      `Prepared revision smoke requires ${ORDER_NUMBER} to have a ${VENDOR_NAME} assignment in revision_requested status.`,
+    );
+  }
+  return ownerFixtureState;
+}
+
 async function createDisposableBidInvitationToken() {
   const { data, error } = await ownerFixtureClient.rpc("rpc_order_vendor_bid_invitation_create", {
     p_recipient_id: fixtureState.bidRecipientId,
@@ -246,6 +262,64 @@ async function visibleHeadingDiagnostics(page) {
     .catch((error) => [`<headings unavailable: ${error?.message || error}>`]);
 }
 
+async function visiblePageButtonDiagnostics(page) {
+  if (!page) return [];
+  return page
+    .getByRole("button")
+    .evaluateAll((nodes) =>
+      nodes
+        .filter((node) => {
+          const style = window.getComputedStyle(node);
+          const box = node.getBoundingClientRect();
+          return style.visibility !== "hidden" && style.display !== "none" && box.width > 0 && box.height > 0;
+        })
+        .map((node) => ({
+          text: node.textContent?.replace(/\s+/g, " ").trim() || "",
+          ariaLabel: node.getAttribute("aria-label") || "",
+          disabled: node.hasAttribute("disabled"),
+        })),
+    )
+    .catch((error) => [`<buttons unavailable: ${error?.message || error}>`]);
+}
+
+async function visibleSectionDiagnostics(page) {
+  if (!page) return [];
+  return page
+    .locator("section")
+    .evaluateAll((nodes) =>
+      nodes
+        .filter((node) => {
+          const style = window.getComputedStyle(node);
+          const box = node.getBoundingClientRect();
+          return style.visibility !== "hidden" && style.display !== "none" && box.width > 0 && box.height > 0;
+        })
+        .map((node) => {
+          const heading = node.querySelector("h1,h2,h3,h4,h5,h6")?.textContent?.replace(/\s+/g, " ").trim();
+          const ariaLabel = node.getAttribute("aria-label");
+          return heading || ariaLabel || node.textContent?.replace(/\s+/g, " ").trim().slice(0, 80) || "";
+        })
+        .filter(Boolean),
+    )
+    .catch((error) => [`<sections unavailable: ${error?.message || error}>`]);
+}
+
+async function authStateDiagnostics(page) {
+  if (!page) {
+    return {
+      loginFormVisible: false,
+      emailFieldVisible: false,
+      passwordFieldVisible: false,
+      authenticatedShellVisible: false,
+    };
+  }
+  return {
+    loginFormVisible: await page.getByRole("heading", { name: /sign in|log in/i }).isVisible({ timeout: 500 }).catch(() => false),
+    emailFieldVisible: await page.getByLabel(/email/i).isVisible({ timeout: 500 }).catch(() => false),
+    passwordFieldVisible: await page.getByLabel(/password/i).isVisible({ timeout: 500 }).catch(() => false),
+    authenticatedShellVisible: await page.getByTestId("app-shell").isVisible({ timeout: 500 }).catch(() => false),
+  };
+}
+
 async function readRevisionStatusDiagnostics(assignmentWorkKey = null) {
   const diagnostics = {
     assignmentStatus: [] as unknown[],
@@ -304,6 +378,20 @@ async function logRevisionStep(page, label, { assignmentWorkKey = null } = {}) {
     `[amc revision smoke] ${label}: ${JSON.stringify({
       url: page?.url?.() || "(no page)",
       headings: await visibleHeadingDiagnostics(page),
+      ...diagnostics,
+    })}`,
+  );
+}
+
+async function logVendorRevisionResubmissionDiagnostics(page, label, assignmentWorkKey) {
+  const diagnostics = await readRevisionStatusDiagnostics(assignmentWorkKey);
+  console.log(
+    `[amc revision resubmission smoke] ${label}: ${JSON.stringify({
+      url: page?.url?.() || "(no page)",
+      auth: await authStateDiagnostics(page),
+      headings: await visibleHeadingDiagnostics(page),
+      sections: await visibleSectionDiagnostics(page),
+      buttons: await visiblePageButtonDiagnostics(page),
       ...diagnostics,
     })}`,
   );
@@ -686,6 +774,97 @@ test.describe("AMC staging revision smoke", () => {
     });
     expect(resubmittedAssignment.submitted_at).toBeTruthy();
     expect(resubmittedAssignment.completed_at || null).toBeNull();
-    expect(resubmittedAssignment.submission_payload?.resubmission?.resubmitted_at || null).toBeTruthy();
+    const resubmittedVendorWork = await readVendorAssignedWork(await getVendorFixtureClient());
+    expect(resubmittedVendorWork.assignment_status).toBe("resubmitted_awaiting_review");
+    expect(resubmittedVendorWork.status_label).toMatch(/Resubmitted/i);
+  });
+});
+
+test.describe("AMC staging targeted revision resubmission smoke", () => {
+  test.beforeAll(async () => {
+    assertAmcStagingSmokeTarget({ ownerEmail: OWNER_EMAIL, vendorEmail: VENDOR_EMAIL });
+    fixtureState = await assertPreparedRevisionRequestedFixtureExists();
+  });
+
+  test("resubmits a prepared revision-requested disposable vendor assignment", async ({ browser }) => {
+    test.setTimeout(240_000);
+
+    const assignments = await readVendorAssignmentsForOrder(ownerFixtureClient, fixtureState.orderId);
+    const revisionAssignment = assignments.find(
+      (assignment) => assignment?.assigned_company_name === VENDOR_NAME && assignment?.status === "revision_requested",
+    );
+    expect(revisionAssignment?.revision_requested_at).toBeTruthy();
+
+    const vendorClient = await getVendorFixtureClient();
+    const assignedWork = await readVendorAssignedWork(vendorClient);
+    expect(assignedWork.assignment_status).toBe("revision_requested");
+
+    await runIsolatedPage(browser, "targeted vendor revision resubmission", async (page) => {
+      const assignedOrderPath = `/vendor-workspace/assigned-orders/${encodeURIComponent(assignedWork.assignment_work_key)}`;
+
+      await logVendorRevisionResubmissionDiagnostics(page, "before vendor login", assignedWork.assignment_work_key);
+      await login(page, VENDOR_EMAIL);
+      await logVendorRevisionResubmissionDiagnostics(page, "after vendor login before goto", assignedWork.assignment_work_key);
+
+      await page.goto(assignedOrderPath, {
+        waitUntil: "domcontentloaded",
+        timeout: 60_000,
+      });
+      await logVendorRevisionResubmissionDiagnostics(page, "after goto", assignedWork.assignment_work_key);
+
+      if (await page.getByLabel(/email/i).isVisible({ timeout: 2000 }).catch(() => false)) {
+        await logVendorRevisionResubmissionDiagnostics(page, "login visible after goto", assignedWork.assignment_work_key);
+        await login(page, VENDOR_EMAIL);
+        await page.goto(assignedOrderPath, {
+          waitUntil: "domcontentloaded",
+          timeout: 60_000,
+        });
+        await logVendorRevisionResubmissionDiagnostics(page, "after fallback login and goto", assignedWork.assignment_work_key);
+      }
+
+      const revisionRequestedVisible = await page.getByText(/Revision Requested/i).first().isVisible({ timeout: 5000 }).catch(() => false);
+      const uploadControlVisible = await page.getByLabel(/^Revised Report PDF$/i).isVisible({ timeout: 5000 }).catch(() => false);
+      const uploadButtonVisible = await page.getByRole("button", { name: /^Upload Revision File$/i }).isVisible({ timeout: 5000 }).catch(() => false);
+      const resubmitButtonVisible = await page.getByRole("button", { name: /^Resubmit Report$/i }).isVisible({ timeout: 5000 }).catch(() => false);
+      console.log(
+        `[amc revision resubmission smoke] page-load classification: ${JSON.stringify({
+          navigation: page.url().includes(assignedWork.assignment_work_key) ? "assigned-order route loaded" : "unexpected route",
+          auth: (await authStateDiagnostics(page)).emailFieldVisible ? "login visible" : "authenticated or public shell",
+          revisionRequestedVisible,
+          uploadControlVisible,
+          uploadButtonVisible,
+          resubmitButtonVisible,
+        })}`,
+      );
+
+      await expect(page.getByText(/Revision Requested/i).first()).toBeVisible({ timeout: 15000 });
+      const scopeInstructions = page
+        .locator("section")
+        .filter({ has: page.getByRole("heading", { name: /^Scope & Instructions$/i }) });
+      await expect(scopeInstructions).toContainText(REVISION_NOTE);
+      await page.getByLabel(/^Revised Report PDF$/i).setInputFiles(REPORT_FIXTURE_PATH);
+      await page.getByRole("button", { name: /^Upload Revision File$/i }).click();
+      await expect(page.getByText(REPORT_FIXTURE_FILE_NAME).first()).toBeVisible({ timeout: 30000 });
+      await logVendorRevisionResubmissionDiagnostics(page, "after revision upload", assignedWork.assignment_work_key);
+
+      await page.getByLabel(/^Revision Response Note$/i).fill(RESUBMISSION_NOTE);
+      await page.getByRole("button", { name: /^Resubmit Report$/i }).click();
+      await expect(page.getByText(/Report resubmitted/i)).toBeVisible({ timeout: 30000 });
+      await expect(page.getByText(/Resubmitted \/ Awaiting Review/i).first()).toBeVisible({ timeout: 15000 });
+      const reportSubmission = page
+        .locator("section")
+        .filter({ has: page.getByRole("heading", { name: /^Report Submission$/i }) });
+      await expect(reportSubmission).toContainText(RESUBMISSION_NOTE);
+      await logVendorRevisionResubmissionDiagnostics(page, "after revision resubmission", assignedWork.assignment_work_key);
+    });
+
+    const resubmittedAssignments = await readVendorAssignmentsForOrder(ownerFixtureClient, fixtureState.orderId);
+    const resubmittedAssignment = resubmittedAssignments.find((assignment) => assignment?.id === revisionAssignment?.id);
+    expect(resubmittedAssignment?.status).toBe("submitted");
+    expect(resubmittedAssignment?.submitted_at).toBeTruthy();
+    const resubmittedVendorWork = await readVendorAssignedWork(await getVendorFixtureClient());
+    expect(resubmittedVendorWork.assignment_status).toBe("resubmitted_awaiting_review");
+    expect(resubmittedVendorWork.status_label).toMatch(/Resubmitted/i);
+    expect(resubmittedAssignment?.completed_at || null).toBeNull();
   });
 });
