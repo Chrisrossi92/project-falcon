@@ -344,6 +344,19 @@ function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, 
     const emptyUploadText = isRevisionFlow
       ? "Upload at least one revised PDF report file before resubmitting this assignment for review."
       : "Upload at least one PDF report file before submitting this assignment for review.";
+    const submitReportDisabled =
+      isSubmittingReport || isUploadingReport || Boolean(selectedReportFile && !uploadedReportDocuments.length);
+
+    console.log("[VendorWorkspaceReportUpload] submit button state", {
+      assignment_work_key_present: Boolean(assignmentWorkKey),
+      status,
+      selected_file_name: selectedReportFile?.name || null,
+      uploaded_report_document_count: uploadedReportDocuments.length,
+      uploaded_report_document_keys: uploadedReportDocuments.map((document) => document.document_key || null),
+      is_uploading: isUploadingReport,
+      is_submitting: isSubmittingReport,
+      submit_disabled: submitReportDisabled,
+    });
 
     async function handleUploadReport() {
       if (isUploadingReport) return;
@@ -407,7 +420,19 @@ function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, 
 
           setUploadedReportDocuments((current) => {
             const withoutDuplicate = current.filter((document) => document.document_key !== registeredDocumentKey);
-            return [...withoutDuplicate, uploadedDocument];
+            const nextDocuments = [...withoutDuplicate, uploadedDocument];
+            console.log("[VendorWorkspaceReportUpload] merged document", {
+              assignment_work_key_present: Boolean(assignmentWorkKey),
+              document_key: registeredDocumentKey,
+              file_name: uploadedDocument.file_name || null,
+              previous_count: current.length,
+              next_count: nextDocuments.length,
+            });
+            console.log("[VendorWorkspaceReportUpload] uploadedReportDocuments length after merge", {
+              length: nextDocuments.length,
+              document_keys: nextDocuments.map((document) => document.document_key || null),
+            });
+            return nextDocuments;
           });
           setSelectedReportFile(null);
           return;
@@ -578,7 +603,7 @@ function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, 
         </div>
         <button
           type="button"
-          disabled={isSubmittingReport || isUploadingReport || Boolean(selectedReportFile && !uploadedReportDocuments.length)}
+          disabled={submitReportDisabled}
           onClick={handleSubmitReport}
           className="w-full rounded-md border border-slate-900 bg-slate-900 px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-500"
         >
