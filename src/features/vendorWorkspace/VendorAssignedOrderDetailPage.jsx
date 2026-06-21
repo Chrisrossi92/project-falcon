@@ -273,6 +273,67 @@ function reportUploadErrorMessage(error, fallback) {
   );
 }
 
+function reportUploadDebugJson(value) {
+  try {
+    return JSON.stringify(value, (_key, nestedValue) => {
+      if (nestedValue instanceof Error) {
+        return {
+          name: nestedValue.name || null,
+          message: nestedValue.message || null,
+          stack: nestedValue.stack ? nestedValue.stack.split("\n").slice(0, 4).join(" | ") : null,
+        };
+      }
+      if (typeof nestedValue === "string" && nestedValue.length > 500) {
+        return `${nestedValue.slice(0, 500)}...`;
+      }
+      return nestedValue;
+    });
+  } catch (error) {
+    return `unserializable:${error?.message || String(error)}`;
+  }
+}
+
+function serializeReportUploadError(error) {
+  const cause = error?.cause || null;
+  return {
+    name: error?.name || null,
+    code: error?.code || null,
+    message: error?.message || null,
+    stack: error?.stack ? error.stack.split("\n").slice(0, 5).join(" | ") : null,
+    details: error?.details || null,
+    field_errors: error?.field_errors || null,
+    response: error?.response || null,
+    serialized_error: reportUploadDebugJson(error),
+    cause: cause
+      ? {
+          name: cause.name || null,
+          code: cause.code || null,
+          message: cause.message || null,
+          status: cause.status || cause.context?.status || null,
+        }
+      : null,
+  };
+}
+
+function formatReportUploadDebugEvent(event) {
+  const detailEntries = Object.entries(event).filter(
+    ([key, value]) =>
+      ![
+        "step",
+        "assignment_work_key_present",
+        "selected_file_name",
+        "uploaded_report_document_count",
+        "is_uploading",
+      ].includes(key) &&
+      value !== null &&
+      value !== undefined &&
+      value !== "" &&
+      (!Array.isArray(value) || value.length > 0),
+  );
+  const detailText = detailEntries.length ? `:${reportUploadDebugJson(Object.fromEntries(detailEntries))}` : "";
+  return `${event.step}(${event.uploaded_report_document_count}${detailText})`;
+}
+
 function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, onUnavailable }) {
   const [isStarting, setIsStarting] = useState(false);
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
@@ -535,17 +596,26 @@ function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, 
           "Report file could not be registered. Try again or contact the AMC coordinator.",
         );
       } catch (error) {
+        const serializedError = serializeReportUploadError(error);
         recordReportUploadDebug("catch:upload-handler", {
           code: error?.code || null,
           message: error?.message || null,
+          stack: serializedError.stack,
+          details: serializedError.details,
+          response: serializedError.response,
+          serialized_error: serializedError.serialized_error,
+          cause: serializedError.cause,
           detail_keys: error?.details && typeof error.details === "object" ? Object.keys(error.details) : [],
           field_error_keys: error?.field_errors && typeof error.field_errors === "object" ? Object.keys(error.field_errors) : [],
         });
         console.warn("[VendorWorkspaceReportUpload] upload failed", {
           code: error?.code || null,
           message: error?.message || null,
+          stack: error?.stack || null,
           details: error?.details || null,
           field_errors: error?.field_errors || null,
+          response: error?.response || null,
+          serialized_error: serializedError,
         });
         setActionError(
           reportUploadErrorMessage(
@@ -688,7 +758,7 @@ function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, 
           submitDisabled={String(submitReportDisabled)}; events=
           {reportUploadDebugEvents.length
             ? reportUploadDebugEvents
-                .map((event) => `${event.step}(${event.uploaded_report_document_count})`)
+                .map((event) => formatReportUploadDebugEvent(event))
                 .join(" > ")
             : "none"}
         </div>
