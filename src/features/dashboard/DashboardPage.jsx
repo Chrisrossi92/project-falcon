@@ -532,7 +532,7 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
   const amcAttentionActionLabelForOrder = useCallback(
     (order) => {
       const stage = getAmcPipelineStage(amcProcurementSummariesByOrderId[orderIdOf(order)]);
-      return stage.actionLabel || "Open order";
+      return stage.actionLabel || "Open Order";
     },
     [amcProcurementSummariesByOrderId],
   );
@@ -695,8 +695,8 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
                   ? "Use All attention to return to owner-side next actions."
                   : "Orders waiting on vendor responses or already in progress stay out of this attention list."
               }
-              orderDetailLinkLabel="Open order"
-              orderDetailLinkLabelForOrder={amcAttentionActionLabelForOrder}
+              primaryActionLinkLabelForOrder={amcAttentionActionLabelForOrder}
+              secondaryActionLinkLabel="Open Order"
               orderDetailLinkHash="#amc-procurement"
               orderDetailLinkState={{ operationsMode: OPERATIONS_MODES.AMC_OPERATIONS }}
               onOrderDatesChanged={() => setDashboardRefreshKey((key) => key + 1)}

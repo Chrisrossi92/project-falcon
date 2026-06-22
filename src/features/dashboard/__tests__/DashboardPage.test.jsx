@@ -80,6 +80,27 @@ vi.mock("@/features/orders/UnifiedOrdersTable", () => ({
     return (
       <div data-testid="unified-orders-table">
         <div>rows: {props.rowsOverride?.length ?? 0}</div>
+        {props.primaryActionLinkLabelForOrder || props.secondaryActionLinkLabel
+          ? (props.rowsOverride || []).flatMap((row) => {
+              const href = `/orders/${row.id || row.order_id}${props.orderDetailLinkHash || ""}`;
+              const primaryLabel =
+                typeof props.primaryActionLinkLabelForOrder === "function"
+                  ? props.primaryActionLinkLabelForOrder(row)
+                  : null;
+              return [
+                primaryLabel ? (
+                  <a key={`${row.id || row.order_id}-primary`} href={href}>
+                    {primaryLabel}
+                  </a>
+                ) : null,
+                props.secondaryActionLinkLabel ? (
+                  <a key={`${row.id || row.order_id}-secondary`} href={href}>
+                    {props.secondaryActionLinkLabel}
+                  </a>
+                ) : null,
+              ].filter(Boolean);
+            })
+          : null}
         {props.orderDetailLinkLabel || props.orderDetailLinkLabelForOrder
           ? (props.rowsOverride || []).map((row) => (
               <a
@@ -329,7 +350,7 @@ describe("DashboardPage operational polish", () => {
     expect(screen.getByRole("button", { name: /new/i })).toHaveClass("bg-blue-50");
     expect(screen.getByRole("button", { name: /in review/i })).toHaveClass("bg-indigo-50");
     expect(screen.queryByText("Operational Attention")).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Open order" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Open Order" })).not.toBeInTheDocument();
 
     expect(calendarMock).toHaveBeenLastCalledWith(
       expect.objectContaining({ orders: summaryState.current.ordersRows }),
@@ -513,8 +534,8 @@ describe("DashboardPage operational polish", () => {
           ],
           tableLabel: "AMC Attention Queue",
           tableSummary: "Procurement and execution items needing owner/admin review.",
-          orderDetailLinkLabel: "Open order",
-          orderDetailLinkLabelForOrder: expect.any(Function),
+          primaryActionLinkLabelForOrder: expect.any(Function),
+          secondaryActionLinkLabel: "Open Order",
           orderDetailLinkHash: "#amc-procurement",
           orderDetailLinkState: { operationsMode: OPERATIONS_MODES.AMC_OPERATIONS },
           operationsScope: "amc_operations",
@@ -523,6 +544,10 @@ describe("DashboardPage operational polish", () => {
       ),
     );
     expect(screen.getByRole("link", { name: "Request Bids" })).toHaveAttribute(
+      "href",
+      "/orders/needs-bids#amc-procurement",
+    );
+    expect(screen.getAllByRole("link", { name: "Open Order" })[0]).toHaveAttribute(
       "href",
       "/orders/needs-bids#amc-procurement",
     );
@@ -538,6 +563,8 @@ describe("DashboardPage operational polish", () => {
       "href",
       "/orders/review#amc-procurement",
     );
+    expect(screen.queryByRole("button", { name: /send to review/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /send to review/i })).not.toBeInTheDocument();
     expect(tableMock.mock.calls.map(([props]) => props.rowsOverride)).not.toContain(
       summaryState.current.ordersRows,
     );
@@ -629,8 +656,8 @@ describe("DashboardPage operational polish", () => {
       expect(findAttentionTableCall()).toEqual(
         expect.objectContaining({
           rowsOverride: [expect.objectContaining({ id: "select-bid" })],
-          orderDetailLinkLabel: "Open order",
-          orderDetailLinkLabelForOrder: expect.any(Function),
+          primaryActionLinkLabelForOrder: expect.any(Function),
+          secondaryActionLinkLabel: "Open Order",
           orderDetailLinkHash: "#amc-procurement",
           emptyTitle: "No Select Bid orders.",
           tableSummary: "Showing: Select Bid",
@@ -640,6 +667,10 @@ describe("DashboardPage operational polish", () => {
     expect(screen.getByText("Showing: Select Bid")).toBeInTheDocument();
     expect(screen.getByText("Select Bid · 1 order")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Select Bid" })).toHaveAttribute(
+      "href",
+      "/orders/select-bid#amc-procurement",
+    );
+    expect(screen.getByRole("link", { name: "Open Order" })).toHaveAttribute(
       "href",
       "/orders/select-bid#amc-procurement",
     );
@@ -657,6 +688,12 @@ describe("DashboardPage operational polish", () => {
       "href",
       "/orders/awaiting-responses#amc-procurement",
     );
+    expect(screen.getByRole("link", { name: "Open Order" })).toHaveAttribute(
+      "href",
+      "/orders/awaiting-responses#amc-procurement",
+    );
+    expect(screen.queryByRole("button", { name: /send to review/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /send to review/i })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /in progress/i }));
     await waitFor(() =>

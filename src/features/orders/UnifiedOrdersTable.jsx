@@ -139,6 +139,8 @@ export default function UnifiedOrdersTable({
   emptyDescription = null,
   orderDetailLinkLabel = null,
   orderDetailLinkLabelForOrder = null,
+  primaryActionLinkLabelForOrder = null,
+  secondaryActionLinkLabel = null,
   orderDetailLinkHash = "",
   orderDetailLinkState = null,
   onOrderChanged,
@@ -852,6 +854,39 @@ export default function UnifiedOrdersTable({
                               <div className="mt-1.5">
                                 <ProcurementStatusChip summary={procurementSummary} />
                               </div>
+                            </div>
+                          );
+                        }
+
+                        if (c.key === "actions" && typeof primaryActionLinkLabelForOrder === "function" && orderPk) {
+                          const primaryActionLabel = primaryActionLinkLabelForOrder(o);
+
+                          return (
+                            <div
+                              key={c.key}
+                              className="flex flex-col items-start gap-1 text-left"
+                              data-interactive
+                            >
+                              {primaryActionLabel ? (
+                                <Link
+                                  to={`/orders/${orderPk}${orderDetailLinkHash || ""}`}
+                                  state={orderDetailLinkState || undefined}
+                                  onClick={(event) => event.stopPropagation()}
+                                  className="inline-flex min-h-7 items-center rounded-md border border-slate-900 bg-slate-950 px-2.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-800"
+                                >
+                                  {primaryActionLabel}
+                                </Link>
+                              ) : null}
+                              {secondaryActionLinkLabel ? (
+                                <Link
+                                  to={`/orders/${orderPk}${orderDetailLinkHash || ""}`}
+                                  state={orderDetailLinkState || undefined}
+                                  onClick={(event) => event.stopPropagation()}
+                                  className="inline-flex min-h-7 items-center rounded-md border border-slate-200 bg-white px-2.5 text-[11px] font-semibold text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-950"
+                                >
+                                  {secondaryActionLinkLabel}
+                                </Link>
+                              ) : null}
                             </div>
                           );
                         }
