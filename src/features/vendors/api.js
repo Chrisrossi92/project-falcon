@@ -182,6 +182,14 @@ export async function getMatchingVendorsForOrder(orderId) {
   return Array.isArray(data) ? data.map(normalizeMatchingVendor) : [];
 }
 
+export async function createBidRequestFromEligibleVendors(orderId, vendorProfileIds = [], payload = {}) {
+  return rpc("rpc_order_vendor_bid_request_create_from_eligible", {
+    p_order_id: orderId,
+    p_vendor_profile_ids: Array.isArray(vendorProfileIds) ? vendorProfileIds : [],
+    p_payload: payload || {},
+  });
+}
+
 export async function createVendorProfile(payload) {
   return firstRow(await rpc("rpc_vendor_profile_create", {
     p_payload: payload || {},

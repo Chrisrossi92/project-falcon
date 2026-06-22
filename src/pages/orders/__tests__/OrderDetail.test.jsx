@@ -27,6 +27,7 @@ const clearOrderOperationalInputMock = vi.hoisted(() => vi.fn());
 const operationalInputsMock = vi.hoisted(() => []);
 const refreshOperationalInputsMock = vi.hoisted(() => vi.fn());
 const getMatchingVendorsForOrderMock = vi.hoisted(() => vi.fn());
+const createBidRequestFromEligibleVendorsMock = vi.hoisted(() => vi.fn());
 const permissionKeysMock = vi.hoisted(() => []);
 const bidRequestsPanelRowsMock = vi.hoisted(() => []);
 const operationsModeMock = vi.hoisted(() => ({
@@ -261,6 +262,7 @@ vi.mock("@/features/vendors/components/VendorAssignmentCandidatesPanel", () => (
 }));
 
 vi.mock("@/features/vendors/api", () => ({
+  createBidRequestFromEligibleVendors: createBidRequestFromEligibleVendorsMock,
   getMatchingVendorsForOrder: getMatchingVendorsForOrderMock,
 }));
 
@@ -411,6 +413,11 @@ describe("OrderDetail site visit save", () => {
     refreshOperationalInputsMock.mockResolvedValue([]);
     getMatchingVendorsForOrderMock.mockReset();
     getMatchingVendorsForOrderMock.mockResolvedValue([]);
+    createBidRequestFromEligibleVendorsMock.mockReset();
+    createBidRequestFromEligibleVendorsMock.mockResolvedValue({
+      bid_request_id: "bid-request-eligible",
+      status: "sent",
+    });
     Object.defineProperty(window, "print", {
       configurable: true,
       value: vi.fn(),
@@ -1070,6 +1077,7 @@ describe("OrderDetail site visit save", () => {
     expect(within(eligibleVendors).getByText("Commercial")).toBeInTheDocument();
     expect(within(eligibleVendors).getByText("Appraisal")).toBeInTheDocument();
     expect(within(eligibleVendors).getByText(/Deterministic coverage matching only/i)).toBeInTheDocument();
+    expect(within(eligibleVendors).queryByRole("button", { name: "Request bids" })).not.toBeInTheDocument();
   });
 
   it("renders an empty deterministic eligible vendors state", async () => {
@@ -1082,6 +1090,7 @@ describe("OrderDetail site visit save", () => {
 
     const eligibleVendors = screen.getByLabelText("Eligible vendors");
     expect(await within(eligibleVendors).findByText("No eligible vendors matched this order's normalized coverage.")).toBeInTheDocument();
+    expect(within(eligibleVendors).queryByRole("button", { name: "Request bids" })).not.toBeInTheDocument();
   });
 
   it("renders deterministic eligible vendors errors without exposing bid automation", async () => {
@@ -1106,6 +1115,163 @@ describe("OrderDetail site visit save", () => {
 
     expect(screen.queryByLabelText("Eligible vendors")).not.toBeInTheDocument();
     expect(getMatchingVendorsForOrderMock).not.toHaveBeenCalled();
+  });
+
+  it("hides eligible vendor request bids for terminal orders", async () => {
+    operationsModeMock.operationsMode = "amc_operations";
+    orderMock.operations_scope = "amc_operations";
+    orderMock.status = "completed";
+    permissionKeysMock.push("vendors.read", "bid_requests.create");
+    getMatchingVendorsForOrderMock.mockResolvedValue([
+      {
+        vendor_profile_id: "profile-1",
+        company_id: "company-1",
+        company_name: "Franklin Commercial Valuation",
+        matchedState: "OH",
+        matchedCounty: "Franklin",
+        matchedPropertyType: "commercial",
+        matchedAssignmentType: "appraisal",
+      },
+    ]);
+
+    render(<OrderDetail />);
+
+    const eligibleVendors = screen.getByLabelText("Eligible vendors");
+    expect(await within(eligibleVendors).findByText("Franklin Commercial Valuation")).toBeInTheDocument();
+    expect(within(eligibleVendors).queryByRole("button", { name: "Request bids" })).not.toBeInTheDocument();
+  });
+
+  it("opens eligible vendor request confirmation with all vendors selected", async () => {
+    operationsModeMock.operationsMode = "amc_operations";
+    orderMock.operations_scope = "amc_operations";
+    permissionKeysMock.push("vendors.read", "bid_requests.create");
+    getMatchingVendorsForOrderMock.mockResolvedValue([
+      {
+        vendor_profile_id: "profile-1",
+        company_id: "company-1",
+        company_name: "Franklin Commercial Valuation",
+        matchedState: "OH",
+        matchedCounty: "Franklin",
+        matchedPropertyType: "commercial",
+        matchedAssignmentType: "appraisal",
+      },
+      {
+        vendor_profile_id: "profile-2",
+        company_id: "company-2",
+        company_name: "Lucas Review Group",
+        matchedState: "OH",
+        matchedCounty: "Franklin",
+        matchedPropertyType: "commercial",
+        matchedAssignmentType: "appraisal",
+      },
+    ]);
+
+    render(<OrderDetail />);
+
+    const eligibleVendors = screen.getByLabelText("Eligible vendors");
+    fireEvent.click(await within(eligibleVendors).findByRole("button", { name: "Request bids" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Request bids from eligible vendors" });
+    expect(within(dialog).getByText(/Bid requests will be sent only after you confirm/i)).toBeInTheDocument();
+    expect(within(dialog).getByLabelText(/Franklin Commercial Valuation/i)).toBeChecked();
+    expect(within(dialog).getByLabelText(/Lucas Review Group/i)).toBeChecked();
+    expect(within(dialog).getByRole("button", { name: "Send bid requests" })).toBeDisabled();
+  });
+
+  it("submits eligible vendor bid requests with selected vendors and payload", async () => {
+    operationsModeMock.operationsMode = "amc_operations";
+    orderMock.operations_scope = "amc_operations";
+    permissionKeysMock.push("vendors.read", "bid_requests.create", "bid_requests.read");
+    getMatchingVendorsForOrderMock.mockResolvedValue([
+      {
+        vendor_profile_id: "profile-1",
+        company_id: "company-1",
+        company_name: "Franklin Commercial Valuation",
+        matchedState: "OH",
+        matchedCounty: "Franklin",
+        matchedPropertyType: "commercial",
+        matchedAssignmentType: "appraisal",
+      },
+      {
+        vendor_profile_id: "profile-2",
+        company_id: "company-2",
+        company_name: "Lucas Review Group",
+        matchedState: "OH",
+        matchedCounty: "Franklin",
+        matchedPropertyType: "commercial",
+        matchedAssignmentType: "appraisal",
+      },
+    ]);
+
+    render(<OrderDetail />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Request bids" }));
+    const dialog = screen.getByRole("dialog", { name: "Request bids from eligible vendors" });
+    fireEvent.click(within(dialog).getByLabelText(/Lucas Review Group/i));
+    fireEvent.change(within(dialog).getByLabelText("Message/instructions"), {
+      target: { value: "Please provide fee and turn time." },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Response due date"), {
+      target: { value: "2026-06-30" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Vendor due date"), {
+      target: { value: "2026-07-03" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Client due date"), {
+      target: { value: "2026-07-10" },
+    });
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Send bid requests" }));
+
+    await waitFor(() => {
+      expect(createBidRequestFromEligibleVendorsMock).toHaveBeenCalledWith("order-1", ["profile-1"], {
+        request_message: "Please provide fee and turn time.",
+        response_due_at: "2026-06-30",
+        desired_vendor_due_at: "2026-07-03",
+        client_due_at: "2026-07-10",
+      });
+    });
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: "Request bids from eligible vendors" })).not.toBeInTheDocument();
+    });
+    expect(toastSuccessMock).toHaveBeenCalledWith("Bid requests sent to selected eligible vendors.");
+    expect(refreshMock).toHaveBeenCalled();
+    expect(createBidRequestFromEligibleVendorsMock).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/assignment created/i)).not.toBeInTheDocument();
+  });
+
+  it("keeps eligible vendor request modal open and displays errors", async () => {
+    operationsModeMock.operationsMode = "amc_operations";
+    orderMock.operations_scope = "amc_operations";
+    permissionKeysMock.push("vendors.read", "bid_requests.create");
+    getMatchingVendorsForOrderMock.mockResolvedValue([
+      {
+        vendor_profile_id: "profile-1",
+        company_id: "company-1",
+        company_name: "Franklin Commercial Valuation",
+        matchedState: "OH",
+        matchedCounty: "Franklin",
+        matchedPropertyType: "commercial",
+        matchedAssignmentType: "appraisal",
+      },
+    ]);
+    createBidRequestFromEligibleVendorsMock.mockRejectedValue(new Error("duplicate open recipient"));
+
+    render(<OrderDetail />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Request bids" }));
+    const dialog = screen.getByRole("dialog", { name: "Request bids from eligible vendors" });
+    fireEvent.change(within(dialog).getByLabelText("Message/instructions"), {
+      target: { value: "Please provide fee." },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Response due date"), {
+      target: { value: "2026-06-30" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Send bid requests" }));
+
+    expect(await within(dialog).findByText("duplicate open recipient")).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Request bids from eligible vendors" })).toBeInTheDocument();
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
   it("shows read-only bid requests in AMC Operations with bid read access", () => {

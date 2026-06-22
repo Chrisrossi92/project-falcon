@@ -18,6 +18,7 @@ const MATCHING_VENDOR_NAME = `${SMOKE_LABEL} Matching Vendor`;
 const NON_MATCHING_VENDOR_NAME = `${SMOKE_LABEL} Non Matching Vendor`;
 const INACTIVE_VENDOR_NAME = `${SMOKE_LABEL} Inactive Vendor`;
 const SUSPENDED_VENDOR_NAME = `${SMOKE_LABEL} Suspended Vendor`;
+const BID_REQUEST_MESSAGE = `${SMOKE_LABEL}. Targeted V2C request-bids smoke. Do not respond.`;
 
 let adminClient = null;
 let ownerClient = null;
@@ -100,6 +101,61 @@ async function replaceCoverage(vendorProfileId, vendorCompanyId, coverage) {
   }
 }
 
+async function ensureActiveVendorRelationship(vendorCompanyId, name) {
+  const existing = assertOk(
+    await adminClient
+      .from("company_relationships")
+      .select("*")
+      .eq("source_company_id", fixtureState.ownerCompany.id)
+      .eq("target_company_id", vendorCompanyId)
+      .eq("relationship_type", "amc_vendor")
+      .in("status", ["active", "invited", "suspended"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    `lookup ${name} relationship`,
+  );
+
+  const relationshipPayload = {
+    status: "active",
+    invited_by_user_id: fixtureState.ownerUser.id,
+    approved_by_user_id: fixtureState.ownerUser.id,
+    invited_at: new Date().toISOString(),
+    approved_at: new Date().toISOString(),
+    suspended_by_user_id: null,
+    suspended_at: null,
+    settings: { disposable: true, staging_smoke: true, vendor_coverage_smoke: true },
+    compliance: {},
+    notes: `${SMOKE_LABEL}. Disposable targeted coverage matching relationship.`,
+  };
+
+  if (existing?.id) {
+    return assertOk(
+      await adminClient
+        .from("company_relationships")
+        .update(relationshipPayload)
+        .eq("id", existing.id)
+        .select("*")
+        .single(),
+      `activate ${name} relationship`,
+    );
+  }
+
+  return assertOk(
+    await adminClient
+      .from("company_relationships")
+      .insert({
+        source_company_id: fixtureState.ownerCompany.id,
+        target_company_id: vendorCompanyId,
+        relationship_type: "amc_vendor",
+        ...relationshipPayload,
+      })
+      .select("*")
+      .single(),
+    `insert ${name} relationship`,
+  );
+}
+
 async function seedVendorProfile({ slug, name, status, coverage }) {
   const company = await upsertSingle(
     adminClient,
@@ -118,12 +174,15 @@ async function seedVendorProfile({ slug, name, status, coverage }) {
     `upsert ${name} company`,
   );
 
+  const relationship = await ensureActiveVendorRelationship(company.id, name);
+
   const profile = await upsertSingle(
     adminClient,
     "company_vendor_profiles",
     {
       owner_company_id: fixtureState.ownerCompany.id,
       vendor_company_id: company.id,
+      relationship_id: relationship.id,
       vendor_status: status,
       public_phone: "555-1720",
       default_assignment_instructions: "Disposable vendor coverage matching smoke fixture.",
@@ -137,7 +196,64 @@ async function seedVendorProfile({ slug, name, status, coverage }) {
   );
 
   await replaceCoverage(profile.id, company.id, coverage);
-  return { company, profile };
+  return { company, profile, relationship };
+}
+
+async function bidRequestRowsForOrder() {
+  return assertOk(
+    await adminClient.from("order_vendor_bid_requests").select("id, status, metadata").eq("order_id", fixtureState.order.id),
+    "lookup coverage bid requests",
+  );
+}
+
+async function recipientRowsForBidRequests(bidRequestIds) {
+  if (!bidRequestIds.length) return [];
+
+  return assertOk(
+    await adminClient
+      .from("order_vendor_bid_request_recipients")
+      .select("id, bid_request_id, vendor_profile_id, vendor_company_id, relationship_id, status, metadata")
+      .in("bid_request_id", bidRequestIds),
+    "lookup coverage bid request recipients",
+  );
+}
+
+async function cleanupCoverageBidRequests() {
+  const bidRequests = await bidRequestRowsForOrder();
+  const bidRequestIds = bidRequests.map((row) => row.id);
+  const recipients = await recipientRowsForBidRequests(bidRequestIds);
+  const recipientIds = recipients.map((row) => row.id);
+
+  if (recipientIds.length) {
+    assertOk(
+      await adminClient.from("order_vendor_bid_responses").delete().in("recipient_id", recipientIds),
+      "clear coverage bid responses",
+    );
+  }
+
+  if (bidRequestIds.length) {
+    assertOk(
+      await adminClient.from("order_vendor_bid_request_recipient_invitations").delete().in("bid_request_id", bidRequestIds),
+      "clear coverage bid recipient invitations",
+    );
+    assertOk(
+      await adminClient.from("order_vendor_bid_request_recipients").delete().in("bid_request_id", bidRequestIds),
+      "clear coverage bid request recipients",
+    );
+    assertOk(
+      await adminClient.from("order_vendor_bid_requests").delete().in("id", bidRequestIds),
+      "clear coverage bid requests",
+    );
+  }
+
+  assertOk(
+    await adminClient.from("order_company_assignments").delete().eq("order_id", fixtureState.order.id),
+    "clear coverage smoke assignments",
+  );
+}
+
+function futureDate(daysFromNow) {
+  return new Date(Date.now() + daysFromNow * 86400000).toISOString().slice(0, 10);
 }
 
 async function seedCoverageFixture() {
@@ -296,7 +412,8 @@ test("matches only active vendors with exact normalized coverage", async () => {
   });
 });
 
-test("shows eligible vendors on Order Detail without bid automation controls", async ({ page }) => {
+test("shows eligible vendors on Order Detail without sending bid requests before confirmation", async ({ page }) => {
+  await cleanupCoverageBidRequests();
   await login(page, OWNER_EMAIL, PASSWORD);
   await openAmcOrderDetail(page, ORDER_NUMBER);
 
@@ -311,6 +428,68 @@ test("shows eligible vendors on Order Detail without bid automation controls", a
   await expect(eligibleVendors.getByText("Commercial")).toBeVisible();
   await expect(eligibleVendors.getByText("Appraisal")).toBeVisible();
   await expect(eligibleVendors.getByText(/not a recommendation, score, ranking, or bid request/i)).toBeVisible();
-  await expect(eligibleVendors.getByRole("button", { name: /request bids|bulk|bid/i })).toHaveCount(0);
-  await expect(eligibleVendors.getByRole("link", { name: /request bids|bulk|bid/i })).toHaveCount(0);
+
+  const bidRequests = await bidRequestRowsForOrder();
+  expect(bidRequests).toHaveLength(0);
+});
+
+test("manually requests bids from one eligible vendor and stops before vendor response", async ({ page }) => {
+  await cleanupCoverageBidRequests();
+  await login(page, OWNER_EMAIL, PASSWORD);
+  await openAmcOrderDetail(page, ORDER_NUMBER);
+
+  const eligibleVendors = page.getByLabel("Eligible vendors");
+  await expect(eligibleVendors).toBeVisible({ timeout: 15000 });
+  await expect(eligibleVendors.getByText(MATCHING_VENDOR_NAME)).toBeVisible({ timeout: 15000 });
+  await expect(eligibleVendors.getByText(NON_MATCHING_VENDOR_NAME)).toHaveCount(0);
+  await expect(eligibleVendors.getByText(INACTIVE_VENDOR_NAME)).toHaveCount(0);
+  await expect(eligibleVendors.getByText(SUSPENDED_VENDOR_NAME)).toHaveCount(0);
+
+  const requestBidsButton = eligibleVendors.getByRole("button", { name: /^Request bids$/i });
+  await expect(requestBidsButton).toBeVisible({ timeout: 15000 });
+  await requestBidsButton.click();
+
+  const dialog = page.getByRole("dialog", { name: /Request bids from eligible vendors/i });
+  await expect(dialog).toBeVisible();
+  const matchingVendorCheckbox = dialog.getByLabel(new RegExp(MATCHING_VENDOR_NAME));
+  await expect(matchingVendorCheckbox).toBeChecked();
+  await expect(dialog.getByText(NON_MATCHING_VENDOR_NAME)).toHaveCount(0);
+  await expect(dialog.getByText(INACTIVE_VENDOR_NAME)).toHaveCount(0);
+  await expect(dialog.getByText(SUSPENDED_VENDOR_NAME)).toHaveCount(0);
+
+  await dialog.getByLabel(/Message\/instructions/i).fill(BID_REQUEST_MESSAGE);
+  await dialog.getByLabel(/Response due date/i).fill(futureDate(7));
+  await dialog.getByRole("button", { name: /^Send bid requests$/i }).click();
+
+  await expect(page.getByText("Bid requests sent to selected eligible vendors.")).toBeVisible({ timeout: 15000 });
+
+  const bidRequests = await bidRequestRowsForOrder();
+  expect(bidRequests).toHaveLength(1);
+  expect(bidRequests[0]).toMatchObject({ status: "sent" });
+
+  const recipients = await recipientRowsForBidRequests(bidRequests.map((row) => row.id));
+  expect(recipients).toHaveLength(1);
+  expect(recipients[0]).toMatchObject({
+    vendor_profile_id: fixtureState.matchingVendor.profile.id,
+    vendor_company_id: fixtureState.matchingVendor.company.id,
+    relationship_id: fixtureState.matchingVendor.relationship.id,
+    status: "sent",
+  });
+
+  const recipientProfileIds = recipients.map((row) => row.vendor_profile_id);
+  expect(recipientProfileIds).not.toContain(fixtureState.nonMatchingVendor.profile.id);
+  expect(recipientProfileIds).not.toContain(fixtureState.inactiveVendor.profile.id);
+  expect(recipientProfileIds).not.toContain(fixtureState.suspendedVendor.profile.id);
+
+  const responses = assertOk(
+    await adminClient.from("order_vendor_bid_responses").select("id").in("recipient_id", recipients.map((row) => row.id)),
+    "lookup coverage bid responses after request",
+  );
+  expect(responses).toHaveLength(0);
+
+  const assignments = assertOk(
+    await adminClient.from("order_company_assignments").select("id").eq("order_id", fixtureState.order.id),
+    "lookup coverage assignments after request",
+  );
+  expect(assignments).toHaveLength(0);
 });

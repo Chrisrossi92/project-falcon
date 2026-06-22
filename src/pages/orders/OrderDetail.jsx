@@ -37,7 +37,10 @@ import BidRequestsPanel from "@/features/bids/components/BidRequestsPanel";
 import { deriveOrderBidStatus } from "@/features/bids/bidStatus";
 import OrderPrintPacket from "@/features/orders/print/OrderPrintPacket";
 import VendorAssignmentCandidatesPanel from "@/features/vendors/components/VendorAssignmentCandidatesPanel";
-import { getMatchingVendorsForOrder } from "@/features/vendors/api";
+import {
+  createBidRequestFromEligibleVendors,
+  getMatchingVendorsForOrder,
+} from "@/features/vendors/api";
 import {
   archiveOrderViaRpc,
   cancelOrderViaRpc,
@@ -154,6 +157,7 @@ const STATUS_OVERRIDE_TARGETS = Object.freeze([
   { value: "completed", label: "Completed" },
 ]);
 const TERMINAL_STATUS_OVERRIDE_BLOCKLIST = new Set(["cancelled", "voided"]);
+const TERMINAL_BID_REQUEST_STATUS_BLOCKLIST = new Set(["archived", "cancelled", "canceled", "voided", "completed"]);
 const ACTIVE_VENDOR_ASSIGNMENT_STATUSES = new Set([
   "offered",
   "accepted",
@@ -225,10 +229,38 @@ function formatMatchDimension(value) {
   return categoryLabel(value);
 }
 
-function EligibleVendorsPanel({ orderId, enabled }) {
+function vendorProfileIdOf(vendor) {
+  return vendor?.vendorProfileId || vendor?.vendor_profile_id || vendor?.id || null;
+}
+
+function vendorCompanyNameOf(vendor) {
+  return (
+    vendor?.vendorCompanyName ||
+    vendor?.vendor_company_name ||
+    vendor?.companyName ||
+    vendor?.company_name ||
+    "Vendor"
+  );
+}
+
+function EligibleVendorsPanel({
+  order,
+  orderId,
+  enabled,
+  canRequestBids,
+  onBidRequestCreated,
+}) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(null);
+  const [requestModalOpen, setRequestModalOpen] = useState(false);
+  const [selectedVendorIds, setSelectedVendorIds] = useState([]);
+  const [requestMessage, setRequestMessage] = useState("");
+  const [responseDueDate, setResponseDueDate] = useState("");
+  const [vendorDueDate, setVendorDueDate] = useState("");
+  const [clientDueDate, setClientDueDate] = useState("");
+  const [submitError, setSubmitError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!enabled || !orderId) {
@@ -267,6 +299,67 @@ function EligibleVendorsPanel({ orderId, enabled }) {
 
   if (!enabled) return null;
 
+  const visibleRows = rows.filter((vendor) => Boolean(vendorProfileIdOf(vendor)));
+  const canOpenRequestModal = Boolean(canRequestBids) && !loading && !loadError && visibleRows.length > 0;
+  const selectedVendorSet = new Set(selectedVendorIds);
+  const selectedRows = visibleRows.filter((vendor) => selectedVendorSet.has(vendorProfileIdOf(vendor)));
+  const requestMessageTrimmed = requestMessage.trim();
+  const canSubmitBidRequest =
+    selectedRows.length > 0 &&
+    Boolean(requestMessageTrimmed) &&
+    Boolean(responseDueDate) &&
+    !submitting;
+
+  function openRequestBidsModal() {
+    setSelectedVendorIds(visibleRows.map((vendor) => vendorProfileIdOf(vendor)));
+    setRequestMessage("");
+    setResponseDueDate("");
+    setVendorDueDate("");
+    setClientDueDate("");
+    setSubmitError("");
+    setRequestModalOpen(true);
+  }
+
+  function closeRequestBidsModal() {
+    if (submitting) return;
+    setRequestModalOpen(false);
+    setSubmitError("");
+  }
+
+  function toggleSelectedVendor(vendorProfileId) {
+    setSelectedVendorIds((current) =>
+      current.includes(vendorProfileId)
+        ? current.filter((id) => id !== vendorProfileId)
+        : [...current, vendorProfileId],
+    );
+  }
+
+  async function submitBidRequest() {
+    if (!canSubmitBidRequest) return;
+
+    setSubmitting(true);
+    setSubmitError("");
+
+    try {
+      await createBidRequestFromEligibleVendors(
+        orderId,
+        selectedRows.map((vendor) => vendorProfileIdOf(vendor)),
+        {
+          request_message: requestMessageTrimmed,
+          response_due_at: responseDueDate,
+          desired_vendor_due_at: vendorDueDate || null,
+          client_due_at: clientDueDate || null,
+        },
+      );
+      setRequestModalOpen(false);
+      onBidRequestCreated?.();
+    } catch (error) {
+      setSubmitError(error?.message || "Could not request bids from eligible vendors.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
     <section aria-label="Eligible vendors" className="rounded-md border border-slate-200 bg-white p-3 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -276,6 +369,15 @@ function EligibleVendorsPanel({ orderId, enabled }) {
             Deterministic coverage matching only. This is not a recommendation, score, ranking, or bid request.
           </p>
         </div>
+        {canOpenRequestModal && (
+          <button
+            type="button"
+            onClick={openRequestBidsModal}
+            className="rounded border border-slate-900 bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-800"
+          >
+            Request bids
+          </button>
+        )}
       </div>
 
       <div className="mt-3 text-sm text-slate-600">
@@ -290,13 +392,8 @@ function EligibleVendorsPanel({ orderId, enabled }) {
         ) : (
           <div className="grid gap-2">
             {rows.map((vendor) => {
-              const key = vendor.vendor_profile_id || vendor.vendorProfileId || vendor.company_id || vendor.vendorCompanyId;
-              const companyName =
-                vendor.company_name ||
-                vendor.companyName ||
-                vendor.vendor_company_name ||
-                vendor.vendorCompanyName ||
-                "Vendor";
+              const key = vendorProfileIdOf(vendor) || vendor.company_id || vendor.vendorCompanyId;
+              const companyName = vendorCompanyNameOf(vendor);
 
               return (
                 <article key={key} className="rounded-md border border-slate-100 bg-slate-50 p-3">
@@ -329,6 +426,132 @@ function EligibleVendorsPanel({ orderId, enabled }) {
           </div>
         )}
       </div>
+
+      {requestModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="eligible-vendor-bid-request-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+        >
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-md bg-white p-4 shadow-xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 id="eligible-vendor-bid-request-title" className="text-base font-semibold text-slate-950">
+                  Request bids from eligible vendors
+                </h3>
+                <p className="mt-1 text-sm text-slate-600">
+                  Bid requests will be sent only after you confirm this action. Matching is deterministic coverage matching, not a score or recommendation.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeRequestBidsModal}
+                className="rounded border border-slate-200 px-2 py-1 text-sm text-slate-600 hover:bg-slate-50"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              Confirm the selected vendors before sending. This will create bid request recipient records; it will not create an assignment.
+            </div>
+
+            <fieldset className="mt-4 space-y-2">
+              <legend className="text-sm font-semibold text-slate-800">Selected vendors</legend>
+              {visibleRows.map((vendor) => {
+                const vendorProfileId = vendorProfileIdOf(vendor);
+                const selected = selectedVendorSet.has(vendorProfileId);
+                return (
+                  <label
+                    key={vendorProfileId}
+                    className="flex gap-3 rounded-md border border-slate-200 p-3 text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      onChange={() => toggleSelectedVendor(vendorProfileId)}
+                      className="mt-1"
+                    />
+                    <span>
+                      <span className="block font-medium text-slate-950">{vendorCompanyNameOf(vendor)}</span>
+                      <span className="mt-1 block text-xs text-slate-600">
+                        {vendor.matchedState || vendor.matched_state || "-"} / {vendor.matchedCounty || vendor.matched_county || "-"} /{" "}
+                        {formatMatchDimension(vendor.matchedPropertyType || vendor.matched_property_type)} /{" "}
+                        {formatMatchDimension(vendor.matchedAssignmentType || vendor.matched_assignment_type)}
+                      </span>
+                    </span>
+                  </label>
+                );
+              })}
+            </fieldset>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <label className="sm:col-span-2">
+                <span className="text-sm font-medium text-slate-800">Message/instructions</span>
+                <textarea
+                  value={requestMessage}
+                  onChange={(event) => setRequestMessage(event.target.value)}
+                  rows={4}
+                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                  placeholder={`Please provide a fee and timing for order ${order?.order_number || ""}.`}
+                />
+              </label>
+              <label>
+                <span className="text-sm font-medium text-slate-800">Response due date</span>
+                <input
+                  type="date"
+                  value={responseDueDate}
+                  onChange={(event) => setResponseDueDate(event.target.value)}
+                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                />
+              </label>
+              <label>
+                <span className="text-sm font-medium text-slate-800">Vendor due date</span>
+                <input
+                  type="date"
+                  value={vendorDueDate}
+                  onChange={(event) => setVendorDueDate(event.target.value)}
+                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                />
+              </label>
+              <label>
+                <span className="text-sm font-medium text-slate-800">Client due date</span>
+                <input
+                  type="date"
+                  value={clientDueDate}
+                  onChange={(event) => setClientDueDate(event.target.value)}
+                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                />
+              </label>
+            </div>
+
+            {submitError && (
+              <div className="mt-4 rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
+                {submitError}
+              </div>
+            )}
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeRequestBidsModal}
+                className="rounded border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={submitBidRequest}
+                disabled={!canSubmitBidRequest}
+                className="rounded border border-slate-900 bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+              >
+                {submitting ? "Sending..." : "Send bid requests"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
@@ -984,6 +1207,12 @@ export default function OrderDetail() {
     permissions.hasPermission(PERMISSIONS.VENDORS_READ) &&
     Boolean(order?.id);
   const showEligibleVendorsPanel = showVendorCandidatePanel;
+  const canRequestEligibleVendorBids =
+    showEligibleVendorsPanel &&
+    !order?.is_archived &&
+    !TERMINAL_BID_REQUEST_STATUS_BLOCKLIST.has(normalizedOrderStatus) &&
+    permissions.hasPermission(PERMISSIONS.BID_REQUESTS_CREATE) &&
+    permissions.hasPermission(PERMISSIONS.VENDORS_READ);
   const showBidRequestsPanel =
     operationsMode === OPERATIONS_MODES.AMC_OPERATIONS &&
     order?.operations_scope === "amc_operations" &&
@@ -1165,6 +1394,12 @@ export default function OrderDetail() {
     await loadOwnerAssignments();
     setBidRequestsRefreshToken((value) => value + 1);
   }, [loadOwnerAssignments, success]);
+
+  const handleEligibleVendorBidRequestCreated = React.useCallback(async () => {
+    success("Bid requests sent to selected eligible vendors.");
+    setBidRequestsRefreshToken((value) => value + 1);
+    await refresh();
+  }, [refresh, success]);
 
   async function handleArchiveOrder() {
     if (!order?.id || archiveSubmitting) return;
@@ -1614,7 +1849,13 @@ export default function OrderDetail() {
               </summary>
               <div className="mt-3 space-y-4">
                 {showEligibleVendorsPanel && (
-                  <EligibleVendorsPanel orderId={order.id} enabled={showEligibleVendorsPanel} />
+                  <EligibleVendorsPanel
+                    order={order}
+                    orderId={order.id}
+                    enabled={showEligibleVendorsPanel}
+                    canRequestBids={canRequestEligibleVendorBids}
+                    onBidRequestCreated={handleEligibleVendorBidRequestCreated}
+                  />
                 )}
 
                 {showVendorCandidatePanel && (
@@ -1671,7 +1912,13 @@ export default function OrderDetail() {
           ) : (
             <>
               {showEligibleVendorsPanel && (
-                <EligibleVendorsPanel orderId={order.id} enabled={showEligibleVendorsPanel} />
+                <EligibleVendorsPanel
+                  order={order}
+                  orderId={order.id}
+                  enabled={showEligibleVendorsPanel}
+                  canRequestBids={canRequestEligibleVendorBids}
+                  onBidRequestCreated={handleEligibleVendorBidRequestCreated}
+                />
               )}
 
               {showVendorCandidatePanel && (

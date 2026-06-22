@@ -149,11 +149,17 @@ It verifies:
 - inactive and suspended disposable vendors with otherwise matching coverage are excluded;
 - `rpc_get_matching_vendors_for_order(order_id)` returns only the exact active match and includes
   matched state, county, property type, and assignment type;
-- the Order Detail `Eligible vendors` diagnostic panel shows the matching vendor and does not add
-  request-bid or bulk automation controls.
+- the Order Detail `Eligible vendors` diagnostic panel shows the matching vendor;
+- the manual `Request bids` confirmation flow opens with only eligible vendors available;
+- confirming one selected eligible vendor creates one disposable bid request and one recipient row;
+- active mismatched, inactive, and suspended vendors do not receive bid request recipient rows;
+- no vendor bid response or assignment row is created by the targeted request-bids smoke.
 
 The vendor coverage branch is not a full AMC workflow. It does not submit bids, select bids, create
-assignments, accept work, upload reports, invoice, pay, or mutate procurement records.
+assignments, accept work, upload reports, invoice, or pay. The request-bids smoke mutates only
+disposable bid-request, recipient, invitation, response-cleanup, and assignment-cleanup rows for
+the single coverage order `AMC-STAGING-COVERAGE-MATCH-001` unless overridden by
+`AMC_STAGING_VENDOR_COVERAGE_ORDER_NUMBER`.
 
 Before running the vendor coverage smoke against hosted staging, confirm the target database has
 the Vendor Coverage Engine migrations applied through V1C:
@@ -164,6 +170,12 @@ the Vendor Coverage Engine migrations applied through V1C:
 
 The smoke seeds normalized coverage rows directly and will fail before matching if the target is
 missing the V1A coverage tables or the V1C matching RPC.
+
+The request-bids branch additionally requires the Vendor Coverage V2A/V2B backend and UI slices on
+the target app/database:
+
+- `20260621107000_vendor_coverage_v2a_bid_request_from_eligible_rpc.sql`
+- Order Detail Eligible Vendors panel with the manual `Request bids` confirmation flow.
 
 ## Required Environment
 

@@ -374,6 +374,52 @@ describe("vendor directory API", () => {
     await expect(vendorApi.getMatchingVendorsForOrder("order-1")).rejects.toBe(error);
   });
 
+  it("creates bid requests from eligible vendors through the guarded wrapper RPC", async () => {
+    const payload = {
+      request_message: "Please provide fee and timing.",
+      response_due_at: "2026-06-30T12:00:00.000Z",
+    };
+    const result = {
+      bid_request_id: "bid-request-1",
+      order_id: "order-1",
+      status: "sent",
+      recipient_count: 2,
+      recipients: [
+        {
+          recipient_id: "recipient-1",
+          vendor_profile_id: "profile-1",
+          status: "sent",
+        },
+      ],
+    };
+    supabase.rpc.mockResolvedValue({ data: result, error: null });
+
+    await expect(
+      vendorApi.createBidRequestFromEligibleVendors("order-1", ["profile-1", "profile-2"], payload),
+    ).resolves.toEqual(result);
+
+    expect(supabase.rpc).toHaveBeenCalledWith("rpc_order_vendor_bid_request_create_from_eligible", {
+      p_order_id: "order-1",
+      p_vendor_profile_ids: ["profile-1", "profile-2"],
+      p_payload: payload,
+    });
+  });
+
+  it("normalizes invalid eligible vendor input to an empty profile id array and payload object", async () => {
+    const result = { bid_request_id: "bid-request-1" };
+    supabase.rpc.mockResolvedValue({ data: result, error: null });
+
+    await expect(
+      vendorApi.createBidRequestFromEligibleVendors("order-1", null, null),
+    ).resolves.toEqual(result);
+
+    expect(supabase.rpc).toHaveBeenCalledWith("rpc_order_vendor_bid_request_create_from_eligible", {
+      p_order_id: "order-1",
+      p_vendor_profile_ids: [],
+      p_payload: {},
+    });
+  });
+
   it("creates Vendor Profile records through the mutation RPC and returns the first row", async () => {
     const payload = {
       vendor_company: { name: "ABC Valuation" },
@@ -614,6 +660,7 @@ describe("vendor directory API", () => {
 
   it("exports only read, candidate lookup, and approved mutation wrappers with no assignment offer, delete, or archive functions", () => {
     expect(Object.keys(vendorApi).sort()).toEqual([
+      "createBidRequestFromEligibleVendors",
       "createVendorContact",
       "createVendorProfile",
       "createVendorServiceArea",
