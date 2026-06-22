@@ -138,6 +138,7 @@ export default function UnifiedOrdersTable({
   emptyTitle = null,
   emptyDescription = null,
   orderDetailLinkLabel = null,
+  orderDetailLinkLabelForOrder = null,
   orderDetailLinkHash = "",
   orderDetailLinkState = null,
   onOrderChanged,
@@ -830,17 +831,22 @@ export default function UnifiedOrdersTable({
                     >
                       {columns.map((c, cIdx) => {
                         if (c.key === "order") {
+                          const detailLinkLabel =
+                            typeof orderDetailLinkLabelForOrder === "function"
+                              ? orderDetailLinkLabelForOrder(o)
+                              : orderDetailLinkLabel;
+
                           return (
                             <div key={c.key} className={`${cIdx === 0 ? stickyCell : ""} ${c.align === "center" ? "text-center" : ""}`}>
                               {c.cell(o)}
-                              {orderDetailLinkLabel && orderPk ? (
+                              {detailLinkLabel && orderPk ? (
                                 <Link
                                   to={`/orders/${orderPk}${orderDetailLinkHash || ""}`}
                                   state={orderDetailLinkState || undefined}
                                   onClick={(event) => event.stopPropagation()}
                                   className="mt-1.5 inline-flex w-fit rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-950"
                                 >
-                                  {orderDetailLinkLabel}
+                                  {detailLinkLabel}
                                 </Link>
                               ) : null}
                               <div className="mt-1.5">

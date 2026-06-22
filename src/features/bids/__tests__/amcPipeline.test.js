@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  AMC_PIPELINE_STAGES,
   buildAmcPipelineStageCounts,
   getAmcPipelineAttentionRows,
   getAmcPipelineRowsForStage,
@@ -15,6 +16,17 @@ const amcOrder = (id, dueDate = "2026-06-10") => ({
 });
 
 describe("AMC procurement pipeline helpers", () => {
+  it("keeps AMC stage action labels routing-focused", () => {
+    expect(Object.fromEntries(AMC_PIPELINE_STAGES.map((stage) => [stage.label, stage.actionLabel]))).toEqual({
+      "Needs Bids": "Request Bids",
+      "Awaiting Responses": "View Responses",
+      "Select Bid": "Select Bid",
+      "Send Offer": "Create Offer",
+      "In Progress": "View Assignment",
+      Review: "Review Report",
+    });
+  });
+
   it("maps procurement summaries to plain-English AMC pipeline stages", () => {
     expect(getAmcPipelineStage(null).label).toBe("Needs Bids");
     expect(getAmcPipelineStage({ status: "bids_requested" }).label).toBe("Awaiting Responses");

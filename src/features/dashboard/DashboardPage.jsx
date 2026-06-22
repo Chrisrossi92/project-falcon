@@ -9,6 +9,7 @@ import {
   buildAmcPipelineStageCounts,
   getAmcPipelineAttentionRows,
   getAmcPipelineRowsForStage,
+  getAmcPipelineStage,
 } from "@/features/bids/amcPipeline";
 import { listClientOrderRequestsForReview } from "@/features/clientRequests/api";
 import WorkspaceBadge from "@/components/workspace/WorkspaceBadge";
@@ -528,6 +529,13 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
     () => amcPipelineStages.find((stage) => stage.id === amcPipelineStageFilter) || null,
     [amcPipelineStageFilter, amcPipelineStages],
   );
+  const amcAttentionActionLabelForOrder = useCallback(
+    (order) => {
+      const stage = getAmcPipelineStage(amcProcurementSummariesByOrderId[orderIdOf(order)]);
+      return stage.actionLabel || "Open order";
+    },
+    [amcProcurementSummariesByOrderId],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -648,11 +656,11 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
             <div className="flex items-baseline justify-between gap-2">
               <div>
                 <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                  Orders Requiring Attention
+                  AMC Attention Queue
                 </h2>
                 <p className="mt-1 text-sm text-slate-600">
                   {selectedAmcPipelineStage
-                    ? `${selectedAmcPipelineStage.label} orders in the AMC pipeline.`
+                    ? `Showing: ${selectedAmcPipelineStage.label}`
                     : "Procurement and execution work with an owner-side next action."}
                 </p>
               </div>
@@ -671,10 +679,10 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
               pageSize={8}
               scope="dashboard"
               tableEyebrow=""
-              tableLabel={selectedAmcPipelineStage?.label || "AMC Attention Queue"}
+              tableLabel="AMC Attention Queue"
               tableSummary={
                 selectedAmcPipelineStage
-                  ? `AMC orders currently in ${selectedAmcPipelineStage.label}.`
+                  ? `Showing: ${selectedAmcPipelineStage.label}`
                   : "Procurement and execution items needing owner/admin review."
               }
               emptyTitle={
@@ -688,6 +696,7 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
                   : "Orders waiting on vendor responses or already in progress stay out of this attention list."
               }
               orderDetailLinkLabel="Open order"
+              orderDetailLinkLabelForOrder={amcAttentionActionLabelForOrder}
               orderDetailLinkHash="#amc-procurement"
               orderDetailLinkState={{ operationsMode: OPERATIONS_MODES.AMC_OPERATIONS }}
               onOrderDatesChanged={() => setDashboardRefreshKey((key) => key + 1)}

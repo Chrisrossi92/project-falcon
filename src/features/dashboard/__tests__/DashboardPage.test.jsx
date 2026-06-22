@@ -80,13 +80,15 @@ vi.mock("@/features/orders/UnifiedOrdersTable", () => ({
     return (
       <div data-testid="unified-orders-table">
         <div>rows: {props.rowsOverride?.length ?? 0}</div>
-        {props.orderDetailLinkLabel
+        {props.orderDetailLinkLabel || props.orderDetailLinkLabelForOrder
           ? (props.rowsOverride || []).map((row) => (
               <a
                 key={row.id || row.order_id}
                 href={`/orders/${row.id || row.order_id}${props.orderDetailLinkHash || ""}`}
               >
-                {props.orderDetailLinkLabel}
+                {typeof props.orderDetailLinkLabelForOrder === "function"
+                  ? props.orderDetailLinkLabelForOrder(row)
+                  : props.orderDetailLinkLabel}
               </a>
             ))
           : null}
@@ -482,9 +484,9 @@ describe("DashboardPage operational polish", () => {
       ]),
     );
     for (const label of ["Needs Bids", "Awaiting Responses", "Select Bid", "Send Offer", "In Progress", "Review"]) {
-      expect(screen.getByText(label)).toBeInTheDocument();
+      expect(screen.getAllByText(label).length).toBeGreaterThan(0);
     }
-    expect(screen.getByText("Orders Requiring Attention")).toBeInTheDocument();
+    expect(screen.getAllByText("AMC Attention Queue").length).toBeGreaterThan(0);
     expect(screen.getByText("Procurement and execution work with an owner-side next action.")).toBeInTheDocument();
     expect(screen.queryByRole("group", { name: /status filters/i })).not.toBeInTheDocument();
     expect(screen.queryByText("Active Worklist")).not.toBeInTheDocument();
@@ -492,7 +494,7 @@ describe("DashboardPage operational polish", () => {
     expect(screen.queryByText("Order records in this view.")).not.toBeInTheDocument();
 
     const pipeline = screen.getByRole("region", { name: "AMC procurement pipeline" });
-    const attentionHeading = screen.getByText("Orders Requiring Attention");
+    const attentionHeading = screen.getAllByText("AMC Attention Queue")[0];
     const calendarHeading = screen.getByText("Calendar");
     expect(pipeline.compareDocumentPosition(attentionHeading)).toBe(DOCUMENT_POSITION_FOLLOWING);
     expect(attentionHeading.compareDocumentPosition(calendarHeading)).toBe(DOCUMENT_POSITION_FOLLOWING);
@@ -512,6 +514,7 @@ describe("DashboardPage operational polish", () => {
           tableLabel: "AMC Attention Queue",
           tableSummary: "Procurement and execution items needing owner/admin review.",
           orderDetailLinkLabel: "Open order",
+          orderDetailLinkLabelForOrder: expect.any(Function),
           orderDetailLinkHash: "#amc-procurement",
           orderDetailLinkState: { operationsMode: OPERATIONS_MODES.AMC_OPERATIONS },
           operationsScope: "amc_operations",
@@ -519,9 +522,21 @@ describe("DashboardPage operational polish", () => {
         }),
       ),
     );
-    expect(screen.getAllByRole("link", { name: "Open order" })[0]).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Request Bids" })).toHaveAttribute(
       "href",
       "/orders/needs-bids#amc-procurement",
+    );
+    expect(screen.getByRole("link", { name: "Select Bid" })).toHaveAttribute(
+      "href",
+      "/orders/select-bid#amc-procurement",
+    );
+    expect(screen.getByRole("link", { name: "Create Offer" })).toHaveAttribute(
+      "href",
+      "/orders/send-offer#amc-procurement",
+    );
+    expect(screen.getByRole("link", { name: "Review Report" })).toHaveAttribute(
+      "href",
+      "/orders/review#amc-procurement",
     );
     expect(tableMock.mock.calls.map(([props]) => props.rowsOverride)).not.toContain(
       summaryState.current.ordersRows,
@@ -544,6 +559,12 @@ describe("DashboardPage operational polish", () => {
           operations_scope: "amc_operations",
         },
         {
+          id: "awaiting-responses",
+          order_number: "AMC-002",
+          status: "new",
+          operations_scope: "amc_operations",
+        },
+        {
           id: "select-bid",
           order_number: "AMC-003",
           status: "new",
@@ -561,12 +582,20 @@ describe("DashboardPage operational polish", () => {
           status: "in_progress",
           operations_scope: "amc_operations",
         },
+        {
+          id: "review",
+          order_number: "AMC-006",
+          status: "in_review",
+          operations_scope: "amc_operations",
+        },
       ],
     });
     bidsApiMock.fetchAmcOrderProcurementSummaries.mockResolvedValue([
+      { order_id: "awaiting-responses", status: "bids_requested" },
       { order_id: "select-bid", status: "responses_received" },
       { order_id: "send-offer", status: "bid_selected" },
       { order_id: "in-progress", status: "assigned", assignment_status: "in_progress" },
+      { order_id: "review", status: "assigned", assignment_status: "submitted" },
     ]);
 
     renderDashboard(operationsShell, { operationsMode: OPERATIONS_MODES.AMC_OPERATIONS });
@@ -576,7 +605,20 @@ describe("DashboardPage operational polish", () => {
         "needs-bids",
         "select-bid",
         "send-offer",
+        "review",
       ]),
+    );
+    expect(screen.getByRole("link", { name: "Request Bids" })).toHaveAttribute(
+      "href",
+      "/orders/needs-bids#amc-procurement",
+    );
+    expect(screen.getByRole("link", { name: "Create Offer" })).toHaveAttribute(
+      "href",
+      "/orders/send-offer#amc-procurement",
+    );
+    expect(screen.getByRole("link", { name: "Review Report" })).toHaveAttribute(
+      "href",
+      "/orders/review#amc-procurement",
     );
 
     const selectBidButton = screen.getByRole("button", { name: /select bid/i });
@@ -584,20 +626,50 @@ describe("DashboardPage operational polish", () => {
 
     expect(selectBidButton).toHaveAttribute("aria-pressed", "true");
     await waitFor(() =>
-      expect(findTableCallByLabel("Select Bid")).toEqual(
+      expect(findAttentionTableCall()).toEqual(
         expect.objectContaining({
           rowsOverride: [expect.objectContaining({ id: "select-bid" })],
           orderDetailLinkLabel: "Open order",
+          orderDetailLinkLabelForOrder: expect.any(Function),
           orderDetailLinkHash: "#amc-procurement",
           emptyTitle: "No Select Bid orders.",
-          tableSummary: "AMC orders currently in Select Bid.",
+          tableSummary: "Showing: Select Bid",
         }),
       ),
     );
+    expect(screen.getByText("Showing: Select Bid")).toBeInTheDocument();
     expect(screen.getByText("Select Bid · 1 order")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Open order" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Select Bid" })).toHaveAttribute(
       "href",
       "/orders/select-bid#amc-procurement",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /awaiting responses/i }));
+    await waitFor(() =>
+      expect(findAttentionTableCall()).toEqual(
+        expect.objectContaining({
+          rowsOverride: [expect.objectContaining({ id: "awaiting-responses" })],
+          tableSummary: "Showing: Awaiting Responses",
+        }),
+      ),
+    );
+    expect(screen.getByRole("link", { name: "View Responses" })).toHaveAttribute(
+      "href",
+      "/orders/awaiting-responses#amc-procurement",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /in progress/i }));
+    await waitFor(() =>
+      expect(findAttentionTableCall()).toEqual(
+        expect.objectContaining({
+          rowsOverride: [expect.objectContaining({ id: "in-progress" })],
+          tableSummary: "Showing: In Progress",
+        }),
+      ),
+    );
+    expect(screen.getByRole("link", { name: "View Assignment" })).toHaveAttribute(
+      "href",
+      "/orders/in-progress#amc-procurement",
     );
 
     fireEvent.click(screen.getByRole("button", { name: /all attention/i }));
@@ -607,6 +679,7 @@ describe("DashboardPage operational polish", () => {
         "needs-bids",
         "select-bid",
         "send-offer",
+        "review",
       ]),
     );
     expect(screen.getByRole("button", { name: /all attention/i })).toHaveAttribute("aria-pressed", "true");
@@ -636,14 +709,16 @@ describe("DashboardPage operational polish", () => {
     fireEvent.click(screen.getByRole("button", { name: /review/i }));
 
     await waitFor(() =>
-      expect(findTableCallByLabel("Review")).toEqual(
+      expect(findAttentionTableCall()).toEqual(
         expect.objectContaining({
           rowsOverride: [],
           emptyTitle: "No Review orders.",
           emptyDescription: "Use All attention to return to owner-side next actions.",
+          tableSummary: "Showing: Review",
         }),
       ),
     );
+    expect(screen.getByText("Showing: Review")).toBeInTheDocument();
     expect(screen.getByText("Review · 0 orders")).toBeInTheDocument();
   });
 
