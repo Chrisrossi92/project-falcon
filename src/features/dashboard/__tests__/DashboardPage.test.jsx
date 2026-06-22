@@ -228,6 +228,17 @@ function renderDashboard(shellProfilePresentation, props = {}) {
   );
 }
 
+function findTableCallByLabel(label) {
+  return [...tableMock.mock.calls]
+    .map(([props]) => props)
+    .reverse()
+    .find((props) => props.tableLabel === label);
+}
+
+function findAttentionTableCall() {
+  return findTableCallByLabel("Attention queue");
+}
+
 describe("DashboardPage operational polish", () => {
   beforeEach(() => {
     summaryState.current = buildSummary();
@@ -474,7 +485,7 @@ describe("DashboardPage operational polish", () => {
       expect.objectContaining({ orders: summaryState.current.ordersRows }),
     );
     await waitFor(() =>
-      expect(tableMock).toHaveBeenCalledWith(
+      expect(findAttentionTableCall()).toEqual(
         expect.objectContaining({
           rowsOverride: [
             expect.objectContaining({ id: "needs-bids" }),
@@ -500,6 +511,114 @@ describe("DashboardPage operational polish", () => {
         operationsMode: OPERATIONS_MODES.AMC_OPERATIONS,
       }),
     );
+  });
+
+  it("filters the AMC attention table by selected pipeline stage and resets to all attention", async () => {
+    summaryState.current = buildSummary({
+      operationsScope: "amc_operations",
+      ordersRows: [
+        {
+          id: "needs-bids",
+          order_number: "AMC-001",
+          status: "new",
+          operations_scope: "amc_operations",
+        },
+        {
+          id: "select-bid",
+          order_number: "AMC-003",
+          status: "new",
+          operations_scope: "amc_operations",
+        },
+        {
+          id: "send-offer",
+          order_number: "AMC-004",
+          status: "new",
+          operations_scope: "amc_operations",
+        },
+        {
+          id: "in-progress",
+          order_number: "AMC-005",
+          status: "in_progress",
+          operations_scope: "amc_operations",
+        },
+      ],
+    });
+    bidsApiMock.fetchAmcOrderProcurementSummaries.mockResolvedValue([
+      { order_id: "select-bid", status: "responses_received" },
+      { order_id: "send-offer", status: "bid_selected" },
+      { order_id: "in-progress", status: "assigned", assignment_status: "in_progress" },
+    ]);
+
+    renderDashboard(operationsShell, { operationsMode: OPERATIONS_MODES.AMC_OPERATIONS });
+
+    await waitFor(() =>
+      expect(findAttentionTableCall()?.rowsOverride?.map((row) => row.id)).toEqual([
+        "needs-bids",
+        "select-bid",
+        "send-offer",
+      ]),
+    );
+
+    const selectBidButton = screen.getByRole("button", { name: /select bid/i });
+    fireEvent.click(selectBidButton);
+
+    expect(selectBidButton).toHaveAttribute("aria-pressed", "true");
+    await waitFor(() =>
+      expect(findTableCallByLabel("Select Bid")).toEqual(
+        expect.objectContaining({
+          rowsOverride: [expect.objectContaining({ id: "select-bid" })],
+          emptyTitle: "No Select Bid orders.",
+          tableSummary: "AMC orders currently in Select Bid.",
+        }),
+      ),
+    );
+    expect(screen.getByText("Select Bid · 1 order")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /all attention/i }));
+
+    await waitFor(() =>
+      expect(findAttentionTableCall()?.rowsOverride?.map((row) => row.id)).toEqual([
+        "needs-bids",
+        "select-bid",
+        "send-offer",
+      ]),
+    );
+    expect(screen.getByRole("button", { name: /all attention/i })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("shows an empty selected-stage state when an AMC pipeline stage has no rows", async () => {
+    summaryState.current = buildSummary({
+      operationsScope: "amc_operations",
+      ordersRows: [
+        {
+          id: "needs-bids",
+          order_number: "AMC-001",
+          status: "new",
+          operations_scope: "amc_operations",
+        },
+      ],
+    });
+
+    renderDashboard(operationsShell, { operationsMode: OPERATIONS_MODES.AMC_OPERATIONS });
+
+    await waitFor(() =>
+      expect(findAttentionTableCall()?.rowsOverride).toEqual([
+        expect.objectContaining({ id: "needs-bids" }),
+      ]),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /review/i }));
+
+    await waitFor(() =>
+      expect(findTableCallByLabel("Review")).toEqual(
+        expect.objectContaining({
+          rowsOverride: [],
+          emptyTitle: "No Review orders.",
+          emptyDescription: "Use All attention to return to owner-side next actions.",
+        }),
+      ),
+    );
+    expect(screen.getByText("Review · 0 orders")).toBeInTheDocument();
   });
 
   it("keeps the current owner/admin dashboard support copy outside operations shell presentation", () => {

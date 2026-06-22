@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildAmcPipelineStageCounts,
   getAmcPipelineAttentionRows,
+  getAmcPipelineRowsForStage,
   getAmcPipelineStage,
 } from "../amcPipeline";
 
@@ -62,5 +63,23 @@ describe("AMC procurement pipeline helpers", () => {
     );
 
     expect(rows.map((row) => row.id)).toEqual(["needs-bids", "select-bid", "send-offer"]);
+  });
+
+  it("returns rows for a selected stage, including non-action stages", () => {
+    const rows = getAmcPipelineRowsForStage(
+      [
+        amcOrder("needs-bids", "2026-06-12"),
+        amcOrder("awaiting-response", "2026-06-08"),
+        amcOrder("in-progress", "2026-06-06"),
+      ],
+      {
+        "awaiting-response": { status: "bids_requested" },
+        "in-progress": { status: "assigned", assignment_status: "accepted" },
+      },
+      "in_progress",
+    );
+
+    expect(rows.map((row) => row.id)).toEqual(["in-progress"]);
+    expect(getAmcPipelineRowsForStage([], {}, "unknown")).toEqual([]);
   });
 });

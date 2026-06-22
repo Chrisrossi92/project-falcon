@@ -8,6 +8,7 @@ import { fetchAmcOrderProcurementSummaries } from "@/features/bids/api";
 import {
   buildAmcPipelineStageCounts,
   getAmcPipelineAttentionRows,
+  getAmcPipelineRowsForStage,
 } from "@/features/bids/amcPipeline";
 import { listClientOrderRequestsForReview } from "@/features/clientRequests/api";
 import WorkspaceBadge from "@/components/workspace/WorkspaceBadge";
@@ -233,7 +234,9 @@ function ClientRequestWorkspaceRedirectBanner() {
   );
 }
 
-function AmcPipelineCommandStrip({ stages }) {
+function AmcPipelineCommandStrip({ stages, selectedStageId, onSelectStage, onShowAllAttention }) {
+  const allSelected = !selectedStageId;
+
   return (
     <WorkspaceSurface
       variant="primary"
@@ -249,23 +252,47 @@ function AmcPipelineCommandStrip({ stages }) {
             Work that needs bids, response decisions, offers, progress tracking, or report review.
           </p>
         </div>
+        <button
+          type="button"
+          aria-pressed={allSelected}
+          onClick={onShowAllAttention}
+          className={
+            "inline-flex min-h-8 items-center justify-center rounded-md border px-3 text-xs font-semibold transition " +
+            (allSelected
+              ? "border-slate-900 bg-slate-950 text-white"
+              : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-950")
+          }
+        >
+          All attention
+        </button>
       </div>
       <div role="list" className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
-        {stages.map((stage) => (
-          <div
-            key={stage.id}
-            role="listitem"
-            className={`flex min-h-16 items-center justify-between gap-3 rounded-lg border px-3 py-2 ${stage.tone}`}
-          >
-            <div className="min-w-0">
-              <div className="text-xs font-semibold leading-tight">{stage.label}</div>
-              <div className="mt-1 text-[11px] font-medium opacity-80">{stage.actionLabel}</div>
+        {stages.map((stage) => {
+          const selected = selectedStageId === stage.id;
+          return (
+            <div key={stage.id} role="listitem">
+              <button
+                type="button"
+                aria-pressed={selected}
+                onClick={() => onSelectStage(stage.id)}
+                className={
+                  `flex min-h-16 w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left transition ${stage.tone} ` +
+                  (selected ? "ring-2 ring-slate-900 ring-offset-1" : "hover:border-slate-400")
+                }
+              >
+                <span className="min-w-0">
+                  <span className="block text-xs font-semibold leading-tight">{stage.label}</span>
+                  <span className="mt-1 block text-[11px] font-medium opacity-80">
+                    {stage.actionLabel}
+                  </span>
+                </span>
+                <span className="text-2xl font-semibold leading-none tracking-tight tabular-nums">
+                  {stage.count || 0}
+                </span>
+              </button>
             </div>
-            <div className="text-2xl font-semibold leading-none tracking-tight tabular-nums">
-              {stage.count || 0}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </WorkspaceSurface>
   );
@@ -315,6 +342,7 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
   const [dashboardRefreshKey, setDashboardRefreshKey] = useState(0);
   const [amcProcurementSummariesByOrderId, setAmcProcurementSummariesByOrderId] = useState({});
   const [amcProcurementSummariesLoading, setAmcProcurementSummariesLoading] = useState(false);
+  const [amcPipelineStageFilter, setAmcPipelineStageFilter] = useState("");
   const summary = useDashboardSummary({ operationsMode, refreshKey: dashboardRefreshKey });
   const {
     role: summaryRole,
@@ -484,8 +512,20 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
     [amcPipelineRows, amcProcurementSummariesByOrderId],
   );
   const amcAttentionRows = useMemo(
-    () => getAmcPipelineAttentionRows(amcPipelineRows, amcProcurementSummariesByOrderId, 8),
-    [amcPipelineRows, amcProcurementSummariesByOrderId],
+    () =>
+      amcPipelineStageFilter
+        ? getAmcPipelineRowsForStage(
+            amcPipelineRows,
+            amcProcurementSummariesByOrderId,
+            amcPipelineStageFilter,
+            8,
+          )
+        : getAmcPipelineAttentionRows(amcPipelineRows, amcProcurementSummariesByOrderId, 8),
+    [amcPipelineRows, amcProcurementSummariesByOrderId, amcPipelineStageFilter],
+  );
+  const selectedAmcPipelineStage = useMemo(
+    () => amcPipelineStages.find((stage) => stage.id === amcPipelineStageFilter) || null,
+    [amcPipelineStageFilter, amcPipelineStages],
   );
 
   useEffect(() => {
@@ -596,7 +636,12 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
 
       {isAmcOperationsDashboard && (
         <>
-          <AmcPipelineCommandStrip stages={amcPipelineStages} />
+          <AmcPipelineCommandStrip
+            stages={amcPipelineStages}
+            selectedStageId={amcPipelineStageFilter}
+            onSelectStage={setAmcPipelineStageFilter}
+            onShowAllAttention={() => setAmcPipelineStageFilter("")}
+          />
 
           <WorkspaceSurface variant="primary" className="space-y-3 p-3">
             <div className="flex items-baseline justify-between gap-2">
@@ -605,10 +650,13 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
                   Orders Requiring Attention
                 </h2>
                 <p className="mt-1 text-sm text-slate-600">
-                  Procurement and execution work with an owner-side next action.
+                  {selectedAmcPipelineStage
+                    ? `${selectedAmcPipelineStage.label} orders in the AMC pipeline.`
+                    : "Procurement and execution work with an owner-side next action."}
                 </p>
               </div>
               <div className="text-sm text-slate-500">
+                {selectedAmcPipelineStage ? `${selectedAmcPipelineStage.label} · ` : ""}
                 {amcAttentionRows.length} order{amcAttentionRows.length === 1 ? "" : "s"}
               </div>
             </div>
@@ -622,10 +670,22 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
               pageSize={8}
               scope="dashboard"
               tableEyebrow=""
-              tableLabel="Attention queue"
-              tableSummary="AMC orders that need bids, bid selection, offer send, or report review."
-              emptyTitle="No AMC orders need action right now."
-              emptyDescription="Orders waiting on vendor responses or already in progress stay out of this attention list."
+              tableLabel={selectedAmcPipelineStage?.label || "Attention queue"}
+              tableSummary={
+                selectedAmcPipelineStage
+                  ? `AMC orders currently in ${selectedAmcPipelineStage.label}.`
+                  : "AMC orders that need bids, bid selection, offer send, or report review."
+              }
+              emptyTitle={
+                selectedAmcPipelineStage
+                  ? `No ${selectedAmcPipelineStage.label} orders.`
+                  : "No AMC orders need action right now."
+              }
+              emptyDescription={
+                selectedAmcPipelineStage
+                  ? "Use All attention to return to owner-side next actions."
+                  : "Orders waiting on vendor responses or already in progress stay out of this attention list."
+              }
               onOrderDatesChanged={() => setDashboardRefreshKey((key) => key + 1)}
               onOrderChanged={handleDashboardOrderChanged}
             />

@@ -61,6 +61,32 @@ function orderIdOf(order = {}) {
   return order?.id || order?.order_id || null;
 }
 
+function stageIndex(stageId) {
+  const index = AMC_PIPELINE_STAGES.findIndex((stage) => stage.id === stageId);
+  return index === -1 ? AMC_PIPELINE_STAGES.length : index;
+}
+
+function buildAmcPipelineItems(orders = [], summariesByOrderId = {}) {
+  return (Array.isArray(orders) ? orders : [])
+    .filter(isAmcOperationsOrder)
+    .map((order) => {
+      const summary = summariesByOrderId[orderIdOf(order)] || null;
+      const stage = getAmcPipelineStage(summary);
+      return {
+        order,
+        summary,
+        stage,
+      };
+    })
+    .sort((a, b) => {
+      const stageDelta = stageIndex(a.stage.id) - stageIndex(b.stage.id);
+      if (stageDelta !== 0) return stageDelta;
+      return String(a.order?.final_due_at || a.order?.due_date || "").localeCompare(
+        String(b.order?.final_due_at || b.order?.due_date || ""),
+      );
+    });
+}
+
 export function isAmcOperationsOrder(order = {}) {
   return normalize(order?.operations_scope) === OPERATIONS_MODES.AMC_OPERATIONS;
 }
@@ -95,27 +121,23 @@ export function buildAmcPipelineStageCounts(orders = [], summariesByOrderId = {}
 }
 
 export function getAmcPipelineAttentionRows(orders = [], summariesByOrderId = {}, limit = 8) {
-  return (Array.isArray(orders) ? orders : [])
-    .filter(isAmcOperationsOrder)
-    .map((order) => {
-      const summary = summariesByOrderId[orderIdOf(order)] || null;
-      const stage = getAmcPipelineStage(summary);
-      return {
-        order,
-        summary,
-        stage,
-      };
-    })
+  return buildAmcPipelineItems(orders, summariesByOrderId)
     .filter((item) => ACTION_REQUIRED_STAGE_IDS.has(item.stage.id))
-    .sort((a, b) => {
-      const stageDelta =
-        AMC_PIPELINE_STAGES.findIndex((stage) => stage.id === a.stage.id) -
-        AMC_PIPELINE_STAGES.findIndex((stage) => stage.id === b.stage.id);
-      if (stageDelta !== 0) return stageDelta;
-      return String(a.order?.final_due_at || a.order?.due_date || "").localeCompare(
-        String(b.order?.final_due_at || b.order?.due_date || ""),
-      );
-    })
+    .slice(0, limit)
+    .map((item) => item.order);
+}
+
+export function getAmcPipelineRowsForStage(
+  orders = [],
+  summariesByOrderId = {},
+  stageId = "",
+  limit = 8,
+) {
+  const normalizedStageId = normalize(stageId);
+  if (!normalizedStageId || !STAGE_BY_ID[normalizedStageId]) return [];
+
+  return buildAmcPipelineItems(orders, summariesByOrderId)
+    .filter((item) => item.stage.id === normalizedStageId)
     .slice(0, limit)
     .map((item) => item.order);
 }
