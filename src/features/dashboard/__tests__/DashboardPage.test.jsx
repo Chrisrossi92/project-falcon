@@ -16,6 +16,9 @@ const clientRequestsApiMock = vi.hoisted(() => ({
 const bidsApiMock = vi.hoisted(() => ({
   fetchAmcOrderProcurementSummaries: vi.fn(),
 }));
+const ownerSetupStateApiMock = vi.hoisted(() => ({
+  getOwnerSetupState: vi.fn(),
+}));
 
 const permissionState = vi.hoisted(() => ({
   settingsView: false,
@@ -46,6 +49,8 @@ vi.mock("@/lib/hooks/useDashboardSummary", () => ({
 vi.mock("@/features/clientRequests/api", () => clientRequestsApiMock);
 
 vi.mock("@/features/bids/api", () => bidsApiMock);
+
+vi.mock("@/features/company-setup/ownerSetupStateApi", () => ownerSetupStateApiMock);
 
 vi.mock("@/lib/hooks/usePermissions", () => ({
   useCan: (permissionKey) => {
@@ -292,6 +297,12 @@ describe("DashboardPage operational polish", () => {
     clientRequestsApiMock.listClientOrderRequestsForReview.mockResolvedValue([]);
     bidsApiMock.fetchAmcOrderProcurementSummaries.mockReset();
     bidsApiMock.fetchAmcOrderProcurementSummaries.mockResolvedValue([]);
+    ownerSetupStateApiMock.getOwnerSetupState.mockReset();
+    ownerSetupStateApiMock.getOwnerSetupState.mockResolvedValue({
+      state_exists: false,
+      setup_banner_dismissed_at: null,
+      banner_should_show: true,
+    });
     tableMock.mockClear();
     calendarMock.mockClear();
   });
@@ -301,6 +312,7 @@ describe("DashboardPage operational polish", () => {
     useDashboardSummaryMock.mockReset();
     clientRequestsApiMock.listClientOrderRequestsForReview.mockReset();
     bidsApiMock.fetchAmcOrderProcurementSummaries.mockReset();
+    ownerSetupStateApiMock.getOwnerSetupState.mockReset();
   });
 
   it("renders the polished operational sections from existing summary data", () => {
@@ -772,6 +784,60 @@ describe("DashboardPage operational polish", () => {
     expect(
       screen.queryByText("Track active work, review handoffs, due pressure, and workflow coordination."),
     ).not.toBeInTheDocument();
+  });
+
+  it("shows Owner Setup guidance when persisted setup state has no banner dismissal", async () => {
+    permissionState.settingsView = true;
+    ownerSetupStateApiMock.getOwnerSetupState.mockResolvedValue({
+      state_exists: false,
+      setup_banner_dismissed_at: null,
+      banner_should_show: true,
+    });
+
+    renderDashboard(operationsShell, { operationsMode: OPERATIONS_MODES.INTERNAL_OPERATIONS });
+
+    expect(await screen.findByText("Owner Setup Guidance")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Review Owner Setup" })).toHaveAttribute(
+      "href",
+      "/settings/owner-setup",
+    );
+    expect(ownerSetupStateApiMock.getOwnerSetupState).toHaveBeenCalledTimes(1);
+    expect(calendarMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ orders: summaryState.current.ordersRows }),
+    );
+  });
+
+  it("hides Owner Setup guidance when persisted setup state has banner dismissal", async () => {
+    permissionState.settingsView = true;
+    ownerSetupStateApiMock.getOwnerSetupState.mockResolvedValue({
+      state_exists: true,
+      setup_banner_dismissed_at: "2026-06-22T15:00:00Z",
+      banner_should_show: false,
+    });
+
+    renderDashboard(operationsShell, { operationsMode: OPERATIONS_MODES.INTERNAL_OPERATIONS });
+
+    await waitFor(() => {
+      expect(screen.queryByText("Owner Setup Guidance")).not.toBeInTheDocument();
+    });
+    expect(ownerSetupStateApiMock.getOwnerSetupState).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("Calendar")).toBeInTheDocument();
+  });
+
+  it("keeps Owner Setup guidance visible when setup-state RPC fails", async () => {
+    permissionState.settingsView = true;
+    ownerSetupStateApiMock.getOwnerSetupState.mockRejectedValue(
+      Object.assign(new Error("owner_setup_state_read_permission_required"), { code: "42501" }),
+    );
+
+    renderDashboard(operationsShell, { operationsMode: OPERATIONS_MODES.INTERNAL_OPERATIONS });
+
+    expect(await screen.findByText("Owner Setup Guidance")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Review Owner Setup" })).toHaveAttribute(
+      "href",
+      "/settings/owner-setup",
+    );
+    expect(ownerSetupStateApiMock.getOwnerSetupState).toHaveBeenCalledTimes(1);
   });
 
   it("filters the existing dashboard rows when a status card is selected and cleared", () => {

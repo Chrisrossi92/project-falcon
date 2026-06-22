@@ -5,6 +5,7 @@ import UnifiedOrdersTable from "@/features/orders/UnifiedOrdersTable";
 import DashboardCalendarPanel from "@/components/dashboard/DashboardCalendarPanel";
 import AppraiserWorkbenchPreview from "@/features/dashboard/workbenches/AppraiserWorkbenchPreview";
 import { fetchAmcOrderProcurementSummaries } from "@/features/bids/api";
+import { getOwnerSetupState } from "@/features/company-setup/ownerSetupStateApi";
 import {
   buildAmcPipelineStageCounts,
   getAmcPipelineAttentionRows,
@@ -992,12 +993,43 @@ function StatusTimelineRail({ counts, onClear, onSelect, selectedStatus }) {
 
 export function OwnerSetupDashboardPrompt({ appContext } = {}) {
   const canViewSettings = useCan(PERMISSIONS.SETTINGS_VIEW);
-
-  if (!canViewSettings.allowed) return null;
+  const [setupBannerDismissed, setSetupBannerDismissed] = useState(false);
 
   const isOwner = appContext?.is_owner === true;
 
+  useEffect(() => {
+    let active = true;
+
+    if (!canViewSettings.allowed || !isOwner) {
+      setSetupBannerDismissed(false);
+      return undefined;
+    }
+
+    getOwnerSetupState()
+      .then((setupState) => {
+        if (!active) return;
+        setSetupBannerDismissed(Boolean(setupState?.setup_banner_dismissed_at));
+      })
+      .catch((error) => {
+        if (!active) return;
+        if (import.meta.env.DEV || import.meta.env.MODE === "test") {
+          console.warn("[DashboardPage] Owner setup state could not load", {
+            code: error?.code,
+            message: error?.message,
+          });
+        }
+        setSetupBannerDismissed(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [canViewSettings.allowed, isOwner]);
+
+  if (!canViewSettings.allowed) return null;
+
   if (!isOwner) return null;
+  if (setupBannerDismissed) return null;
 
   const description =
     "Diagnostic guidance only. This does not change permissions, workflow, route access, or operational visibility.";
