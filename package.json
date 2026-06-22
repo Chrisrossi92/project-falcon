@@ -20,6 +20,7 @@
     "e2e:amc:tokens:staging": "E2E_TARGET=staging E2E_ALLOW_STAGING=1 FALCON_ENV_PROFILE=staging playwright test e2e/amc/amc-public-token-smoke.spec.ts",
     "e2e:amc:client-request:staging": "E2E_TARGET=staging E2E_ALLOW_STAGING=1 FALCON_ENV_PROFILE=staging playwright test e2e/amc/amc-client-request-smoke.spec.ts",
     "e2e:amc:invoice-payment:staging": "E2E_TARGET=staging E2E_ALLOW_STAGING=1 FALCON_ENV_PROFILE=staging playwright test e2e/amc/amc-invoice-payment-smoke.spec.ts",
+    "e2e:amc:vendor-coverage:staging": "E2E_TARGET=staging E2E_ALLOW_STAGING=1 FALCON_ENV_PROFILE=staging playwright test --workers=1 e2e/amc/amc-vendor-coverage-smoke.spec.ts",
     "env:check:local": "FALCON_ENV_PROFILE=local node scripts/validate-env-profile.mjs",
     "env:check:staging": "FALCON_ENV_PROFILE=staging node scripts/validate-env-profile.mjs",
     "env:check:preview": "FALCON_ENV_PROFILE=preview node scripts/validate-env-profile.mjs",

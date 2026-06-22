@@ -138,6 +138,33 @@ verifies:
 The invoice/payment branch stops at scheduled/payment-ready state. It does not mark payments paid,
 call external payment processors, invoice/pay clients, or clean up records.
 
+`amc-vendor-coverage-smoke.spec.ts` is a targeted staging/local-configured coverage matching smoke.
+It verifies:
+
+- the same approved staging profile, URL, Supabase ref, and disposable owner-email guards;
+- the disposable owner fixture exists, or can be prepared with `E2E_AMC_PREPARE_FIXTURE=1`;
+- one disposable AMC order is seeded with `OH / Lucas / commercial / Appraisal`;
+- one active disposable vendor is seeded with exact normalized coverage for that order;
+- one active non-matching disposable vendor is seeded with mismatched county coverage;
+- inactive and suspended disposable vendors with otherwise matching coverage are excluded;
+- `rpc_get_matching_vendors_for_order(order_id)` returns only the exact active match and includes
+  matched state, county, property type, and assignment type;
+- the Order Detail `Eligible vendors` diagnostic panel shows the matching vendor and does not add
+  request-bid or bulk automation controls.
+
+The vendor coverage branch is not a full AMC workflow. It does not submit bids, select bids, create
+assignments, accept work, upload reports, invoice, pay, or mutate procurement records.
+
+Before running the vendor coverage smoke against hosted staging, confirm the target database has
+the Vendor Coverage Engine migrations applied through V1C:
+
+- `20260621103000_vendor_coverage_engine_v1a.sql`
+- `20260621104000_vendor_coverage_engine_v1b_rpcs.sql`
+- `20260621105000_vendor_coverage_engine_v1c_matching_rpc.sql`
+
+The smoke seeds normalized coverage rows directly and will fail before matching if the target is
+missing the V1A coverage tables or the V1C matching RPC.
+
 ## Required Environment
 
 Required:
@@ -202,6 +229,7 @@ npx playwright test --list e2e/amc/amc-isolation-smoke.spec.ts
 npx playwright test --list e2e/amc/amc-public-token-smoke.spec.ts
 npx playwright test --list e2e/amc/amc-client-request-smoke.spec.ts
 npx playwright test --list e2e/amc/amc-invoice-payment-smoke.spec.ts
+npx playwright test --list e2e/amc/amc-vendor-coverage-smoke.spec.ts
 ```
 
 Run the staging smoke:
@@ -213,6 +241,7 @@ npm run e2e:amc:isolation:staging
 npm run e2e:amc:tokens:staging
 npm run e2e:amc:client-request:staging
 npm run e2e:amc:invoice-payment:staging
+npm run e2e:amc:vendor-coverage:staging
 ```
 
 ## Safety Rules
