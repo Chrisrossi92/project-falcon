@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import useSession from "@/lib/hooks/useSession";
 import { useOrders } from "@/lib/hooks/useOrders";
 import { normalizeOrderStatus, ORDER_STATUS } from "@/lib/constants/orderStatus";
@@ -136,6 +137,8 @@ export default function UnifiedOrdersTable({
   tableSummary: tableSummaryOverride = null,
   emptyTitle = null,
   emptyDescription = null,
+  orderDetailLinkLabel = null,
+  orderDetailLinkState = null,
   onOrderChanged,
 }) {
   const { user: sessionUser } = useSession() || {};
@@ -829,6 +832,16 @@ export default function UnifiedOrdersTable({
                           return (
                             <div key={c.key} className={`${cIdx === 0 ? stickyCell : ""} ${c.align === "center" ? "text-center" : ""}`}>
                               {c.cell(o)}
+                              {orderDetailLinkLabel && orderPk ? (
+                                <Link
+                                  to={`/orders/${orderPk}`}
+                                  state={orderDetailLinkState || undefined}
+                                  onClick={(event) => event.stopPropagation()}
+                                  className="mt-1.5 inline-flex w-fit rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-950"
+                                >
+                                  {orderDetailLinkLabel}
+                                </Link>
+                              ) : null}
                               <div className="mt-1.5">
                                 <ProcurementStatusChip summary={procurementSummary} />
                               </div>
