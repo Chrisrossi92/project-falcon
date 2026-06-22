@@ -26,7 +26,7 @@ const VENDOR_BID_AMOUNT = process.env.AMC_STAGING_VENDOR_COVERAGE_BID_AMOUNT || 
 const VENDOR_BID_TURN_TIME_DAYS = process.env.AMC_STAGING_VENDOR_COVERAGE_BID_TURN_TIME_DAYS || "5";
 const VENDOR_BID_COMMENTS =
   process.env.AMC_STAGING_VENDOR_COVERAGE_BID_COMMENTS ||
-  "AMC vendor coverage V2D disposable public token bid response.";
+  "AMC vendor coverage V2D/V2E disposable public token bid response.";
 const VENDOR_BID_AMOUNT_PATTERN = new RegExp(`\\$${VENDOR_BID_AMOUNT.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`);
 
 let adminClient = null;
@@ -494,6 +494,21 @@ async function createCoverageBidInvitationToken(recipientId) {
   return data;
 }
 
+async function submitCoverageBidResponse(page, invitation) {
+  await page.goto(invitation.path, { waitUntil: "networkidle" });
+  await expect(page.getByRole("heading", { name: /Vendor Bid Invitation/i })).toBeVisible();
+  await expect(page.getByText(ORDER_NUMBER)).toBeVisible();
+  await expect(page.getByRole("main")).toContainText(MATCHING_VENDOR_NAME);
+
+  await page.getByLabel(/Fee amount/i).fill(VENDOR_BID_AMOUNT);
+  await page.getByLabel(/Turn time days/i).fill(VENDOR_BID_TURN_TIME_DAYS);
+  await page.getByLabel(/Comments/i).fill(VENDOR_BID_COMMENTS);
+  await page.getByLabel(/Contact email/i).fill(VENDOR_BID_EMAIL);
+  await page.getByRole("button", { name: /^Submit Bid$/i }).click();
+
+  await expect(page.getByText(/Your bid has been submitted/i)).toBeVisible({ timeout: 15000 });
+}
+
 test.beforeAll(async () => {
   assertAmcStagingSmokeTarget({
     ownerEmail: OWNER_EMAIL,
@@ -594,18 +609,7 @@ test("submits one eligible vendor bid response and shows it to the owner without
   });
 
   await timedSmokeStep("submit public/vendor bid response", async () => {
-    await page.goto(invitation.path, { waitUntil: "networkidle" });
-    await expect(page.getByRole("heading", { name: /Vendor Bid Invitation/i })).toBeVisible();
-    await expect(page.getByText(ORDER_NUMBER)).toBeVisible();
-    await expect(page.getByRole("main")).toContainText(MATCHING_VENDOR_NAME);
-
-    await page.getByLabel(/Fee amount/i).fill(VENDOR_BID_AMOUNT);
-    await page.getByLabel(/Turn time days/i).fill(VENDOR_BID_TURN_TIME_DAYS);
-    await page.getByLabel(/Comments/i).fill(VENDOR_BID_COMMENTS);
-    await page.getByLabel(/Contact email/i).fill(VENDOR_BID_EMAIL);
-    await page.getByRole("button", { name: /^Submit Bid$/i }).click();
-
-    await expect(page.getByText(/Your bid has been submitted/i)).toBeVisible({ timeout: 15000 });
+    await submitCoverageBidResponse(page, invitation);
   });
 
   let refreshedRecipients = [];
@@ -675,5 +679,105 @@ test("submits one eligible vendor bid response and shows it to the owner without
 
     const bidRequestsSection = page.getByLabel(/^Bid requests$/i);
     await expect(bidRequestsSection.getByRole("button", { name: /Create Assignment Offer/i })).toHaveCount(0);
+  });
+});
+
+test("selects one eligible vendor bid response and stops before assignment offer", async ({ page }) => {
+  test.setTimeout(90_000);
+
+  await timedSmokeStep("seed/request setup", async () => {
+    await cleanupCoverageBidRequests();
+  });
+
+  await timedSmokeStep("owner opens order detail", async () => {
+    await login(page, OWNER_EMAIL, PASSWORD);
+    await openAmcOrderDetail(page, ORDER_NUMBER);
+  });
+
+  const { bidRequests, recipients } = await timedSmokeStep("request bid from eligible vendor", async () =>
+    requestBidFromVisibleMatchingVendor(page),
+  );
+  const matchingRecipient = recipients[0];
+
+  const invitation = await timedSmokeStep("find token/recipient", async () => {
+    expect(matchingRecipient).toMatchObject({
+      vendor_profile_id: fixtureState.matchingVendor.profile.id,
+      vendor_company_id: fixtureState.matchingVendor.company.id,
+      relationship_id: fixtureState.matchingVendor.relationship.id,
+      status: "sent",
+    });
+    return createCoverageBidInvitationToken(matchingRecipient.id);
+  });
+
+  await timedSmokeStep("submit public/vendor bid response", async () => {
+    await submitCoverageBidResponse(page, invitation);
+  });
+
+  await timedSmokeStep("owner selects bid", async () => {
+    await login(page, OWNER_EMAIL, PASSWORD);
+    await openAmcOrderDetail(page, ORDER_NUMBER);
+    await openProcurementDetails(page);
+
+    const bidRequestsSection = page.getByLabel(/^Bid requests$/i);
+    await expect(bidRequestsSection).toBeVisible({ timeout: 15000 });
+    await expect(bidRequestsSection).toContainText(MATCHING_VENDOR_NAME);
+    await expect(bidRequestsSection).toContainText(VENDOR_BID_AMOUNT_PATTERN);
+    await expect(bidRequestsSection).toContainText(new RegExp(`${VENDOR_BID_TURN_TIME_DAYS} days?`, "i"));
+    await expect(bidRequestsSection).toContainText(VENDOR_BID_COMMENTS);
+
+    await bidRequestsSection.getByRole("button", { name: new RegExp(`Select bid for ${MATCHING_VENDOR_NAME}`) }).click();
+    const dialog = page.getByRole("dialog", { name: /^Select bid$/i });
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText(MATCHING_VENDOR_NAME);
+    await expect(dialog).toContainText("Selecting this bid does not create an assignment yet.");
+    await dialog.getByRole("button", { name: /^Confirm selection$/i }).click();
+
+    await expect(dialog).toHaveCount(0);
+    await expect(page.getByLabel(/AMC bid status/i)).toContainText(/Bid selected/i, { timeout: 15000 });
+    await expect(bidRequestsSection).toContainText(`Selected response: ${MATCHING_VENDOR_NAME}`);
+  });
+
+  await timedSmokeStep("assert selected bid state without assignment", async () => {
+    const refreshedBidRequests = await bidRequestRowsForOrder();
+    expect(refreshedBidRequests).toHaveLength(1);
+    expect(refreshedBidRequests[0]).toMatchObject({ id: bidRequests[0].id, status: "closed" });
+
+    const refreshedRecipients = await recipientRowsForBidRequests(bidRequests.map((row) => row.id));
+    expect(refreshedRecipients).toHaveLength(1);
+    expect(refreshedRecipients[0]).toMatchObject({
+      id: matchingRecipient.id,
+      vendor_profile_id: fixtureState.matchingVendor.profile.id,
+      vendor_company_id: fixtureState.matchingVendor.company.id,
+      relationship_id: fixtureState.matchingVendor.relationship.id,
+      status: "selected",
+    });
+
+    const recipientProfileIds = refreshedRecipients.map((row) => row.vendor_profile_id);
+    expect(recipientProfileIds).not.toContain(fixtureState.nonMatchingVendor.profile.id);
+    expect(recipientProfileIds).not.toContain(fixtureState.inactiveVendor.profile.id);
+    expect(recipientProfileIds).not.toContain(fixtureState.suspendedVendor.profile.id);
+
+    const responses = assertOk(
+      await adminClient
+        .from("order_vendor_bid_responses")
+        .select("id, recipient_id, fee_amount, turn_time_days, comments, submitted_at, selected_at")
+        .eq("recipient_id", matchingRecipient.id),
+      "lookup coverage selected bid response",
+    );
+    expect(responses).toHaveLength(1);
+    expect(responses[0]).toMatchObject({
+      recipient_id: matchingRecipient.id,
+      turn_time_days: Number(VENDOR_BID_TURN_TIME_DAYS),
+      comments: VENDOR_BID_COMMENTS,
+    });
+    expect(String(responses[0].fee_amount)).toBe(VENDOR_BID_AMOUNT);
+    expect(responses[0].submitted_at).toBeTruthy();
+    expect(responses[0].selected_at).toBeTruthy();
+
+    const assignments = assertOk(
+      await adminClient.from("order_company_assignments").select("id").eq("order_id", fixtureState.order.id),
+      "lookup coverage assignments after bid selection",
+    );
+    expect(assignments).toHaveLength(0);
   });
 });
