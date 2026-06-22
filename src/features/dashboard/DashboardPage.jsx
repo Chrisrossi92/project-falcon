@@ -437,6 +437,7 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
       ? workspaceIdentity.shellCueLabel || shellWorkMode.label
       : shellWorkMode.label;
   const isAmcOperationsDashboard = operationsMode === OPERATIONS_MODES.AMC_OPERATIONS;
+  const activeCountLabel = isAmcOperationsDashboard ? "Pipeline Orders" : "Active";
   const ordersCount = summary.orders.count ?? 0;
   const patchedOrdersRows = useMemo(
     () =>
@@ -618,7 +619,7 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
             </div>
             <div className="rounded-xl border border-slate-900 bg-slate-950 px-3 py-2 text-white">
               <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-300">
-                Active
+                {activeCountLabel}
               </div>
               <div className="mt-1 text-2xl font-semibold leading-none tracking-tight tabular-nums">
                 {loading ? "-" : ordersCount}
@@ -670,11 +671,11 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
               pageSize={8}
               scope="dashboard"
               tableEyebrow=""
-              tableLabel={selectedAmcPipelineStage?.label || "Attention queue"}
+              tableLabel={selectedAmcPipelineStage?.label || "AMC Attention Queue"}
               tableSummary={
                 selectedAmcPipelineStage
                   ? `AMC orders currently in ${selectedAmcPipelineStage.label}.`
-                  : "AMC orders that need bids, bid selection, offer send, or report review."
+                  : "Procurement and execution items needing owner/admin review."
               }
               emptyTitle={
                 selectedAmcPipelineStage
@@ -741,7 +742,7 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
 
       <section className={!isReviewerOnlyDashboard && !isAdmin ? "grid gap-3 xl:grid-cols-[minmax(0,1fr)_12rem]" : "grid gap-3"}>
         {/* Orders section */}
-        {cfg.showOrdersTable && (
+        {!isAmcOperationsDashboard && cfg.showOrdersTable && (
           <WorkspaceSurface variant="primary" className="space-y-3 p-3">
             <div className="flex items-baseline justify-between gap-2">
               <div className="flex flex-wrap items-center gap-3">

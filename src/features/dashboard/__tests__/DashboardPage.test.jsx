@@ -246,7 +246,7 @@ function findTableCallByLabel(label) {
 }
 
 function findAttentionTableCall() {
-  return findTableCallByLabel("Attention queue");
+  return findTableCallByLabel("AMC Attention Queue");
 }
 
 describe("DashboardPage operational polish", () => {
@@ -467,6 +467,7 @@ describe("DashboardPage operational polish", () => {
     expect(screen.getByTestId("workspace-identity-badge")).toHaveTextContent("AMC");
     expect(screen.getByText("Environment")).toBeInTheDocument();
     expect(screen.getByText("Falcon AMC")).toBeInTheDocument();
+    expect(screen.getByText("Pipeline Orders")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Appraisal Production Dashboard", level: 1 })).toBeNull();
 
     expect(await screen.findByRole("region", { name: "AMC procurement pipeline" })).toBeInTheDocument();
@@ -484,7 +485,11 @@ describe("DashboardPage operational polish", () => {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
     expect(screen.getByText("Orders Requiring Attention")).toBeInTheDocument();
+    expect(screen.getByText("Procurement and execution work with an owner-side next action.")).toBeInTheDocument();
     expect(screen.queryByRole("group", { name: /status filters/i })).not.toBeInTheDocument();
+    expect(screen.queryByText("Active Worklist")).not.toBeInTheDocument();
+    expect(screen.queryByText("Active orders")).not.toBeInTheDocument();
+    expect(screen.queryByText("Order records in this view.")).not.toBeInTheDocument();
 
     const pipeline = screen.getByRole("region", { name: "AMC procurement pipeline" });
     const attentionHeading = screen.getByText("Orders Requiring Attention");
@@ -504,7 +509,8 @@ describe("DashboardPage operational polish", () => {
             expect.objectContaining({ id: "send-offer" }),
             expect.objectContaining({ id: "review" }),
           ],
-          tableLabel: "Attention queue",
+          tableLabel: "AMC Attention Queue",
+          tableSummary: "Procurement and execution items needing owner/admin review.",
           orderDetailLinkLabel: "Open order",
           orderDetailLinkHash: "#amc-procurement",
           orderDetailLinkState: { operationsMode: OPERATIONS_MODES.AMC_OPERATIONS },
@@ -517,12 +523,8 @@ describe("DashboardPage operational polish", () => {
       "href",
       "/orders/needs-bids#amc-procurement",
     );
-    expect(tableMock).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        rowsOverride: summaryState.current.ordersRows,
-        operationsScope: "amc_operations",
-        scope: "dashboard",
-      }),
+    expect(tableMock.mock.calls.map(([props]) => props.rowsOverride)).not.toContain(
+      summaryState.current.ordersRows,
     );
     expect(useDashboardSummaryMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
