@@ -4,6 +4,11 @@ import { useDashboardSummary } from "@/lib/hooks/useDashboardSummary";
 import UnifiedOrdersTable from "@/features/orders/UnifiedOrdersTable";
 import DashboardCalendarPanel from "@/components/dashboard/DashboardCalendarPanel";
 import AppraiserWorkbenchPreview from "@/features/dashboard/workbenches/AppraiserWorkbenchPreview";
+import { fetchAmcOrderProcurementSummaries } from "@/features/bids/api";
+import {
+  buildAmcPipelineStageCounts,
+  getAmcPipelineAttentionRows,
+} from "@/features/bids/amcPipeline";
 import { listClientOrderRequestsForReview } from "@/features/clientRequests/api";
 import WorkspaceBadge from "@/components/workspace/WorkspaceBadge";
 import {
@@ -88,6 +93,10 @@ const REVIEWER_STATUS_FILTERS = Object.freeze([
     selectedTone: "border-rose-500 bg-rose-100 text-rose-950 ring-rose-300",
   },
 ]);
+
+function orderIdOf(order = {}) {
+  return order?.id || order?.order_id || null;
+}
 
 function getShellProfilePresentationId(shellProfilePresentation) {
   return (
@@ -224,6 +233,44 @@ function ClientRequestWorkspaceRedirectBanner() {
   );
 }
 
+function AmcPipelineCommandStrip({ stages }) {
+  return (
+    <WorkspaceSurface
+      variant="primary"
+      className="bg-white p-3"
+      aria-label="AMC procurement pipeline"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+            Procurement Pipeline
+          </h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Work that needs bids, response decisions, offers, progress tracking, or report review.
+          </p>
+        </div>
+      </div>
+      <div role="list" className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
+        {stages.map((stage) => (
+          <div
+            key={stage.id}
+            role="listitem"
+            className={`flex min-h-16 items-center justify-between gap-3 rounded-lg border px-3 py-2 ${stage.tone}`}
+          >
+            <div className="min-w-0">
+              <div className="text-xs font-semibold leading-tight">{stage.label}</div>
+              <div className="mt-1 text-[11px] font-medium opacity-80">{stage.actionLabel}</div>
+            </div>
+            <div className="text-2xl font-semibold leading-none tracking-tight tabular-nums">
+              {stage.count || 0}
+            </div>
+          </div>
+        ))}
+      </div>
+    </WorkspaceSurface>
+  );
+}
+
 function resolveDashboardPresentation({
   shellProfilePresentation,
   operationsMode,
@@ -266,6 +313,8 @@ function resolveDashboardPresentation({
 export default function DashboardPage({ shellProfilePresentation, operationsMode } = {}) {
   const nav = useNavigate();
   const [dashboardRefreshKey, setDashboardRefreshKey] = useState(0);
+  const [amcProcurementSummariesByOrderId, setAmcProcurementSummariesByOrderId] = useState({});
+  const [amcProcurementSummariesLoading, setAmcProcurementSummariesLoading] = useState(false);
   const summary = useDashboardSummary({ operationsMode, refreshKey: dashboardRefreshKey });
   const {
     role: summaryRole,
@@ -359,6 +408,7 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
     operationsMode === OPERATIONS_MODES.AMC_OPERATIONS
       ? workspaceIdentity.shellCueLabel || shellWorkMode.label
       : shellWorkMode.label;
+  const isAmcOperationsDashboard = operationsMode === OPERATIONS_MODES.AMC_OPERATIONS;
   const ordersCount = summary.orders.count ?? 0;
   const patchedOrdersRows = useMemo(
     () =>
@@ -413,6 +463,75 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
       (order) => normalizeOrderStatus(order?.status_normalized || order?.status) === statusFilter,
     );
   }, [patchedOrdersRows, statusFilter]);
+  const amcDashboardOrderIds = useMemo(() => {
+    if (!isAmcOperationsDashboard) return [];
+    return [
+      ...new Set(
+        (patchedOrdersRows || [])
+          .filter((order) => order?.operations_scope === OPERATIONS_MODES.AMC_OPERATIONS)
+          .map(orderIdOf)
+          .filter(Boolean),
+      ),
+    ];
+  }, [isAmcOperationsDashboard, patchedOrdersRows]);
+  const amcDashboardOrderIdsKey = amcDashboardOrderIds.join("|");
+  const amcPipelineRows = useMemo(
+    () => (amcProcurementSummariesLoading ? [] : patchedOrdersRows || []),
+    [amcProcurementSummariesLoading, patchedOrdersRows],
+  );
+  const amcPipelineStages = useMemo(
+    () => buildAmcPipelineStageCounts(amcPipelineRows, amcProcurementSummariesByOrderId),
+    [amcPipelineRows, amcProcurementSummariesByOrderId],
+  );
+  const amcAttentionRows = useMemo(
+    () => getAmcPipelineAttentionRows(amcPipelineRows, amcProcurementSummariesByOrderId, 8),
+    [amcPipelineRows, amcProcurementSummariesByOrderId],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    const orderIds = amcDashboardOrderIdsKey ? amcDashboardOrderIdsKey.split("|") : [];
+
+    if (!isAmcOperationsDashboard || orderIds.length === 0) {
+      setAmcProcurementSummariesLoading(false);
+      setAmcProcurementSummariesByOrderId({});
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setAmcProcurementSummariesLoading(true);
+    setAmcProcurementSummariesByOrderId({});
+    fetchAmcOrderProcurementSummaries(orderIds)
+      .then((rows) => {
+        if (cancelled) return;
+        setAmcProcurementSummariesByOrderId(
+          Object.fromEntries(
+            (Array.isArray(rows) ? rows : [])
+              .filter((row) => row?.order_id)
+              .map((row) => [row.order_id, row]),
+          ),
+        );
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        if (import.meta.env.DEV || import.meta.env.MODE === "test") {
+          console.warn("[DashboardPage] AMC procurement summaries could not load", {
+            code: error?.code,
+            message: error?.message,
+          });
+        }
+        setAmcProcurementSummariesByOrderId({});
+      })
+      .finally(() => {
+        if (!cancelled) setAmcProcurementSummariesLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [amcDashboardOrderIdsKey, isAmcOperationsDashboard]);
+
   const handleOpenOrder = (orderId) => {
     if (!orderId) return;
     nav(`/orders/${orderId}`);
@@ -475,6 +594,45 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
 
       <ClientRequestDashboardAlert operationsMode={operationsMode} />
 
+      {isAmcOperationsDashboard && (
+        <>
+          <AmcPipelineCommandStrip stages={amcPipelineStages} />
+
+          <WorkspaceSurface variant="primary" className="space-y-3 p-3">
+            <div className="flex items-baseline justify-between gap-2">
+              <div>
+                <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                  Orders Requiring Attention
+                </h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  Procurement and execution work with an owner-side next action.
+                </p>
+              </div>
+              <div className="text-sm text-slate-500">
+                {amcAttentionRows.length} order{amcAttentionRows.length === 1 ? "" : "s"}
+              </div>
+            </div>
+            <UnifiedOrdersTable
+              role={selectedDashboardRole}
+              mode={selectedDashboardMode}
+              reviewerId={selectedDashboardReviewerId}
+              filters={{ ...appliedFilters, page: 0 }}
+              operationsScope={summary.operationsScope}
+              rowsOverride={amcAttentionRows}
+              pageSize={8}
+              scope="dashboard"
+              tableEyebrow=""
+              tableLabel="Attention queue"
+              tableSummary="AMC orders that need bids, bid selection, offer send, or report review."
+              emptyTitle="No AMC orders need action right now."
+              emptyDescription="Orders waiting on vendor responses or already in progress stay out of this attention list."
+              onOrderDatesChanged={() => setDashboardRefreshKey((key) => key + 1)}
+              onOrderChanged={handleDashboardOrderChanged}
+            />
+          </WorkspaceSurface>
+        </>
+      )}
+
       {isReviewerOnlyDashboard && activeReviewerWorkLens === "review" && (
         <ReviewerStatusFilterChips
           counts={statusCounts}
@@ -509,7 +667,7 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
         />
       </WorkspaceSurface>
 
-      {isAdmin && (
+      {isAdmin && !isAmcOperationsDashboard && (
         <StatusTimelineBar
           counts={statusCounts}
           selectedStatus={statusFilter}

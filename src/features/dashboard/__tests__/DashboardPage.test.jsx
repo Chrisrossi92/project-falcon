@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -12,6 +12,9 @@ const summaryState = vi.hoisted(() => ({
 const useDashboardSummaryMock = vi.hoisted(() => vi.fn());
 const clientRequestsApiMock = vi.hoisted(() => ({
   listClientOrderRequestsForReview: vi.fn(),
+}));
+const bidsApiMock = vi.hoisted(() => ({
+  fetchAmcOrderProcurementSummaries: vi.fn(),
 }));
 
 const permissionState = vi.hoisted(() => ({
@@ -41,6 +44,8 @@ vi.mock("@/lib/hooks/useDashboardSummary", () => ({
 }));
 
 vi.mock("@/features/clientRequests/api", () => clientRequestsApiMock);
+
+vi.mock("@/features/bids/api", () => bidsApiMock);
 
 vi.mock("@/lib/hooks/usePermissions", () => ({
   useCan: (permissionKey) => {
@@ -241,6 +246,8 @@ describe("DashboardPage operational polish", () => {
     useDashboardSummaryMock.mockImplementation(() => summaryState.current);
     clientRequestsApiMock.listClientOrderRequestsForReview.mockReset();
     clientRequestsApiMock.listClientOrderRequestsForReview.mockResolvedValue([]);
+    bidsApiMock.fetchAmcOrderProcurementSummaries.mockReset();
+    bidsApiMock.fetchAmcOrderProcurementSummaries.mockResolvedValue([]);
     tableMock.mockClear();
     calendarMock.mockClear();
   });
@@ -249,6 +256,7 @@ describe("DashboardPage operational polish", () => {
     cleanup();
     useDashboardSummaryMock.mockReset();
     clientRequestsApiMock.listClientOrderRequestsForReview.mockReset();
+    bidsApiMock.fetchAmcOrderProcurementSummaries.mockReset();
   });
 
   it("renders the polished operational sections from existing summary data", () => {
@@ -374,8 +382,55 @@ describe("DashboardPage operational polish", () => {
     expect(screen.getByText("Switch to Falcon AMC to review portal requests.")).toBeInTheDocument();
   });
 
-  it("renders AMC Operations dashboard context with AMC-scoped dashboard reads", () => {
-    summaryState.current = buildSummary({ operationsScope: "amc_operations" });
+  it("renders AMC Operations dashboard context with a procurement pipeline first", async () => {
+    summaryState.current = buildSummary({
+      operationsScope: "amc_operations",
+      ordersRows: [
+        {
+          id: "needs-bids",
+          order_number: "AMC-001",
+          status: "new",
+          operations_scope: "amc_operations",
+        },
+        {
+          id: "awaiting-responses",
+          order_number: "AMC-002",
+          status: "new",
+          operations_scope: "amc_operations",
+        },
+        {
+          id: "select-bid",
+          order_number: "AMC-003",
+          status: "new",
+          operations_scope: "amc_operations",
+        },
+        {
+          id: "send-offer",
+          order_number: "AMC-004",
+          status: "new",
+          operations_scope: "amc_operations",
+        },
+        {
+          id: "in-progress",
+          order_number: "AMC-005",
+          status: "in_progress",
+          operations_scope: "amc_operations",
+        },
+        {
+          id: "review",
+          order_number: "AMC-006",
+          status: "in_review",
+          operations_scope: "amc_operations",
+        },
+      ],
+    });
+    bidsApiMock.fetchAmcOrderProcurementSummaries.mockResolvedValue([
+      { order_id: "awaiting-responses", status: "bids_requested" },
+      { order_id: "select-bid", status: "responses_received" },
+      { order_id: "send-offer", status: "bid_selected" },
+      { order_id: "in-progress", status: "assigned", assignment_status: "in_progress" },
+      { order_id: "review", status: "assigned", assignment_status: "submitted" },
+    ]);
 
     renderDashboard(operationsShell, { operationsMode: OPERATIONS_MODES.AMC_OPERATIONS });
 
@@ -392,8 +447,46 @@ describe("DashboardPage operational polish", () => {
     expect(screen.getByText("Falcon AMC")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Appraisal Production Dashboard", level: 1 })).toBeNull();
 
+    expect(await screen.findByRole("region", { name: "AMC procurement pipeline" })).toBeInTheDocument();
+    await waitFor(() =>
+      expect(bidsApiMock.fetchAmcOrderProcurementSummaries).toHaveBeenCalledWith([
+        "needs-bids",
+        "awaiting-responses",
+        "select-bid",
+        "send-offer",
+        "in-progress",
+        "review",
+      ]),
+    );
+    for (const label of ["Needs Bids", "Awaiting Responses", "Select Bid", "Send Offer", "In Progress", "Review"]) {
+      expect(screen.getByText(label)).toBeInTheDocument();
+    }
+    expect(screen.getByText("Orders Requiring Attention")).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: /status filters/i })).not.toBeInTheDocument();
+
+    const pipeline = screen.getByRole("region", { name: "AMC procurement pipeline" });
+    const attentionHeading = screen.getByText("Orders Requiring Attention");
+    const calendarHeading = screen.getByText("Calendar");
+    expect(pipeline.compareDocumentPosition(attentionHeading)).toBe(DOCUMENT_POSITION_FOLLOWING);
+    expect(attentionHeading.compareDocumentPosition(calendarHeading)).toBe(DOCUMENT_POSITION_FOLLOWING);
+
     expect(calendarMock).toHaveBeenLastCalledWith(
       expect.objectContaining({ orders: summaryState.current.ordersRows }),
+    );
+    await waitFor(() =>
+      expect(tableMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          rowsOverride: [
+            expect.objectContaining({ id: "needs-bids" }),
+            expect.objectContaining({ id: "select-bid" }),
+            expect.objectContaining({ id: "send-offer" }),
+            expect.objectContaining({ id: "review" }),
+          ],
+          tableLabel: "Attention queue",
+          operationsScope: "amc_operations",
+          scope: "dashboard",
+        }),
+      ),
     );
     expect(tableMock).toHaveBeenLastCalledWith(
       expect.objectContaining({

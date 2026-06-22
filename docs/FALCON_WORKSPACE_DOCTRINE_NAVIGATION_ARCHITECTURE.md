@@ -42,6 +42,29 @@ Workspace surfaces should also follow the decision-first UX doctrine in
 what is happening, what action should be taken, and why that action is recommended before exposing
 reference detail.
 
+## Workspace Dashboard Philosophy
+
+Every workspace gets one primary question. The first screen should answer that question immediately,
+with no scrolling on a normal laptop.
+
+Current and planned primary questions:
+
+| Workspace | Primary Question | Primary View |
+|---|---|---|
+| Internal Operations | What is happening today? | Calendar. The calendar remains the visual anchor. |
+| AMC Operations | What needs action right now? | Procurement / execution pipeline. The pipeline becomes the visual anchor. |
+| Future Owner / Executive | How is the business performing? | Metrics and trends. |
+
+Dashboard design rule:
+
+- Before adding anything to a dashboard, ask whether it helps answer the workspace's primary
+  question.
+- If it does not, move it to a detail page, report page, drawer/modal, or leave it out.
+- Do not use workspace dashboards as a place for every useful metric. Dense operational detail
+  belongs in worklists, order detail, vendor detail, reports, or explicit review queues.
+- Internal Operations must not lose its calendar-first posture while AMC Operations moves toward a
+  pipeline-first command center.
+
 ## Workspace Transition Rule
 
 Switching workspaces is a context reset, not a view filter.
@@ -141,6 +164,12 @@ Navigation should emphasize:
 
 Visual identity should be appraisal-production native: calm, operational, dense enough for review/production comparison, and focused on internal lifecycle state.
 
+Dashboard anchor:
+
+- Primary question: What is happening today?
+- The first screen should lead with the production calendar and immediate schedule context.
+- Status strips, worklists, and supporting panels are secondary to the calendar anchor.
+
 ## AMC Operations Workspace
 
 AMC Operations should feel like a procurement and vendor-management system.
@@ -177,6 +206,17 @@ Navigation should emphasize:
 - Clients/lenders where explicitly supported
 
 Visual identity should remain recognizably Falcon but use a distinct AMC accent/header treatment and procurement/vendor language. It should not look like Internal Operations with only a hidden Vendors menu added.
+
+Dashboard anchor:
+
+- Primary question: What needs action right now?
+- The first screen should lead with a compact procurement / execution pipeline and an attention
+  worklist.
+- Initial pipeline language should stay plain-English: Needs Bids, Awaiting Responses, Select Bid,
+  Send Offer, In Progress, and Review.
+- Do not add revenue charts, vendor performance analytics, margin trends, or other executive
+  analytics to the AMC Operations dashboard unless they directly answer the immediate-action
+  question. Those belong in reports, analytics, or future owner/executive surfaces.
 
 ## Future Vendor Workspace
 

@@ -191,6 +191,11 @@ Success Criteria:
 
 ### AMC-4: AMC Dashboard
 
+Status: V2F.1 begins the AMC Workspace Pipeline Foundation. AMC Dashboard direction is now
+pipeline-first rather than analytics-card-first: the first AMC Operations screen answers "What needs
+action right now?" with a compact procurement/execution pipeline and an orders-requiring-attention
+table. Internal Operations remains calendar-first.
+
 Purpose: create the AMC operational command center.
 
 Dependencies:
@@ -207,6 +212,23 @@ Deliverables:
 - Orders awaiting assignment.
 - Orders delivered.
 - Margin visibility.
+- V2F.1 workspace dashboard philosophy lock in `docs/FALCON_WORKSPACE_DOCTRINE_NAVIGATION_ARCHITECTURE.md`.
+- V2F.1 centralized AMC pipeline stage language:
+  - Needs Bids
+  - Awaiting Responses
+  - Select Bid
+  - Send Offer
+  - In Progress
+  - Review
+- V2F.1 AMC dashboard foundation using the existing batched procurement summary read model:
+  compact stage counts and a small owner-action attention table.
+
+V2F.1 non-goals:
+
+- No analytics cards, revenue charts, margin trends, or vendor performance charts.
+- No changes to Internal Operations calendar-first dashboard behavior.
+- No vendor appraiser/team modeling.
+- No new procurement writes, assignment writes, order mutations, route trees, or `/amc/*` routes.
 
 Testing Strategy:
 
@@ -219,6 +241,8 @@ Success Criteria:
 - Owner/Admin can manage AMC activity from one dashboard.
 - AMC visibility does not duplicate or replace Internal Operations Dashboard behavior.
 - Dashboard gives faster operational awareness than a static order list.
+- The first AMC Operations viewport is anchored by procurement/action state, not a generic calendar
+  or analytics wall.
 
 ### AMC-5: Vendor Assignment Engine MVP
 
@@ -428,6 +452,8 @@ Deliverables:
 - AMC-6X status precedence is `Assigned`, `Assignment Offered`, `Bid Selected`, `Responses Received`, `Bids Requested`, then `No Bids`.
 - AMC-6X missing summaries render no chip, and fetch errors do not break the Orders table.
 - AMC-6X does not add procurement filters, dashboard queue work, client-facing bid review, vendor self-service bidding, stored order bid status, bid-row converted markers, route/nav changes, or `/amc/*` routes.
+- V2F.1 reuses the AMC-6X batched procurement summary read model for the dashboard pipeline
+  foundation instead of adding per-order bid-history fetches or a new stored dashboard status.
 - AMC-6V.6 closes out the internal manual bid workflow validation through AMC-scoped order visibility, candidate loading, multi-vendor selection, bid request/recipient creation, Bid Requests history display, and owner/admin manual response recording.
 - AMC-6V.6 explicitly defers vendor self-service bid response to future AMC-7.
 - AMC-7 should cover secure/tokenized bid response links, a minimal vendor-facing response page, no full vendor account requirement for the first version, fee/turn-time/proposed-due-date/comments submission, expiration handling, audit trail, and later authenticated vendor portal workflows.
