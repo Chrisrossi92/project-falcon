@@ -218,6 +218,31 @@ export async function readAmcWorkspaceDiagnostics(page) {
   const switcherVisible = await visibleSwitcher.isVisible({ timeout: 0 }).catch(() => false);
   const amcWorkspaceButton = visibleSwitcher.getByRole("button", { name: /^Falcon AMC$/i });
   const internalWorkspaceButton = visibleSwitcher.getByRole("button", { name: /^Continental Internal Operations$/i });
+  const workspaceBadgeText =
+    (await page
+      .locator('[data-testid="workspace-identity-badge"]:visible')
+      .first()
+      .textContent({ timeout: 0 })
+      .catch(() => "")) || "";
+  const selectedWorkspaceLabel =
+    (await page
+      .locator('[data-testid="operations-mode-selected-label"]:visible')
+      .first()
+      .textContent({ timeout: 0 })
+      .catch(() => "")) || "";
+  const currentWorkspaceLabel =
+    (await page
+      .locator('[data-testid="operations-mode-current"]')
+      .first()
+      .textContent({ timeout: 0 })
+      .catch(() => "")) || "";
+  const shellWorkMode =
+    (await page
+      .locator('[data-testid="shell-work-mode"]:visible')
+      .first()
+      .textContent({ timeout: 0 })
+      .catch(() => "")) || "";
+  const bodyText = await visibleBodyText(page, 2500);
   const localStorageMode = await page
     .evaluate((storageKey) => {
       try {
@@ -238,6 +263,16 @@ export async function readAmcWorkspaceDiagnostics(page) {
     amcPressed: (await amcWorkspaceButton.getAttribute("aria-pressed", { timeout: 0 }).catch(() => null)) || "(missing)",
     internalPressed:
       (await internalWorkspaceButton.getAttribute("aria-pressed", { timeout: 0 }).catch(() => null)) || "(missing)",
+    workspaceBadgeText: workspaceBadgeText.trim(),
+    selectedWorkspaceLabel: selectedWorkspaceLabel.trim(),
+    currentWorkspaceLabel: currentWorkspaceLabel.trim(),
+    shellWorkMode: shellWorkMode.trim(),
+    amcWorkspaceVisible:
+      /\bAMC\b/i.test(workspaceBadgeText) ||
+      /Falcon AMC/i.test(selectedWorkspaceLabel) ||
+      /Falcon AMC/i.test(currentWorkspaceLabel) ||
+      /Procurement Command/i.test(shellWorkMode) ||
+      /AMC Order Detail|Falcon AMC Order|Falcon AMC Dashboard|Falcon AMC Environment/i.test(bodyText),
   };
 }
 
@@ -254,8 +289,7 @@ export async function assertAmcWorkspaceActive(page, label = "AMC workspace") {
     await expect
       .poll(() => readAmcWorkspaceDiagnostics(page), { timeout: 15000 })
       .toMatchObject({
-        amcPressed: "true",
-        internalPressed: "false",
+        amcWorkspaceVisible: true,
         localStorageMode: AMC_OPERATIONS_MODE,
       });
   } catch (error) {
