@@ -443,6 +443,7 @@ describe("OrderDetail site visit save", () => {
     expect(
       screen.getByText("Internal appraisal production record scoped to Continental workflow, review, and client delivery."),
     ).toBeInTheDocument();
+    expect(document.getElementById("amc-procurement")).toBeNull();
   });
 
   it("renders AMC order detail chrome for Falcon AMC procurement records", async () => {
@@ -1282,6 +1283,9 @@ describe("OrderDetail site visit save", () => {
     render(<OrderDetail />);
 
     const bidRequests = screen.getByLabelText("Bid requests");
+    const procurementAnchor = document.getElementById("amc-procurement");
+    expect(procurementAnchor).toBeInTheDocument();
+    expect(procurementAnchor).toContainElement(bidRequests);
     expect(bidRequests).toHaveAttribute("data-order-id", "order-1");
     expect(bidRequests).toHaveAttribute("data-enabled", "true");
     expect(bidRequests).toHaveAttribute("data-has-active-vendor-assignment", "false");

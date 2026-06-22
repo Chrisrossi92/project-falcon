@@ -138,6 +138,7 @@ export default function UnifiedOrdersTable({
   emptyTitle = null,
   emptyDescription = null,
   orderDetailLinkLabel = null,
+  orderDetailLinkHash = "",
   orderDetailLinkState = null,
   onOrderChanged,
 }) {
@@ -834,7 +835,7 @@ export default function UnifiedOrdersTable({
                               {c.cell(o)}
                               {orderDetailLinkLabel && orderPk ? (
                                 <Link
-                                  to={`/orders/${orderPk}`}
+                                  to={`/orders/${orderPk}${orderDetailLinkHash || ""}`}
                                   state={orderDetailLinkState || undefined}
                                   onClick={(event) => event.stopPropagation()}
                                   className="mt-1.5 inline-flex w-fit rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-950"

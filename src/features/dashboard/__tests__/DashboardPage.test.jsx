@@ -82,7 +82,10 @@ vi.mock("@/features/orders/UnifiedOrdersTable", () => ({
         <div>rows: {props.rowsOverride?.length ?? 0}</div>
         {props.orderDetailLinkLabel
           ? (props.rowsOverride || []).map((row) => (
-              <a key={row.id || row.order_id} href={`/orders/${row.id || row.order_id}`}>
+              <a
+                key={row.id || row.order_id}
+                href={`/orders/${row.id || row.order_id}${props.orderDetailLinkHash || ""}`}
+              >
                 {props.orderDetailLinkLabel}
               </a>
             ))
@@ -503,6 +506,7 @@ describe("DashboardPage operational polish", () => {
           ],
           tableLabel: "Attention queue",
           orderDetailLinkLabel: "Open order",
+          orderDetailLinkHash: "#amc-procurement",
           orderDetailLinkState: { operationsMode: OPERATIONS_MODES.AMC_OPERATIONS },
           operationsScope: "amc_operations",
           scope: "dashboard",
@@ -511,7 +515,7 @@ describe("DashboardPage operational polish", () => {
     );
     expect(screen.getAllByRole("link", { name: "Open order" })[0]).toHaveAttribute(
       "href",
-      "/orders/needs-bids",
+      "/orders/needs-bids#amc-procurement",
     );
     expect(tableMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -582,6 +586,7 @@ describe("DashboardPage operational polish", () => {
         expect.objectContaining({
           rowsOverride: [expect.objectContaining({ id: "select-bid" })],
           orderDetailLinkLabel: "Open order",
+          orderDetailLinkHash: "#amc-procurement",
           emptyTitle: "No Select Bid orders.",
           tableSummary: "AMC orders currently in Select Bid.",
         }),
@@ -590,7 +595,7 @@ describe("DashboardPage operational polish", () => {
     expect(screen.getByText("Select Bid · 1 order")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open order" })).toHaveAttribute(
       "href",
-      "/orders/select-bid",
+      "/orders/select-bid#amc-procurement",
     );
 
     fireEvent.click(screen.getByRole("button", { name: /all attention/i }));

@@ -687,6 +687,7 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
                   : "Orders waiting on vendor responses or already in progress stay out of this attention list."
               }
               orderDetailLinkLabel="Open order"
+              orderDetailLinkHash="#amc-procurement"
               orderDetailLinkState={{ operationsMode: OPERATIONS_MODES.AMC_OPERATIONS }}
               onOrderDatesChanged={() => setDashboardRefreshKey((key) => key + 1)}
               onOrderChanged={handleDashboardOrderChanged}

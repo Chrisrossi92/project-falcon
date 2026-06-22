@@ -1842,12 +1842,76 @@ export default function OrderDetail() {
         )}
 
         {(showVendorCandidatePanel || showBidRequestsPanel) && (
-          hasActiveVendorAssignment ? (
-            <details className="rounded-md border border-slate-200 bg-white p-3 shadow-sm">
-              <summary className="cursor-pointer text-sm font-semibold text-slate-800">
-                Show Procurement Details
-              </summary>
-              <div className="mt-3 space-y-4">
+          <div id="amc-procurement">
+            {hasActiveVendorAssignment ? (
+              <details className="rounded-md border border-slate-200 bg-white p-3 shadow-sm">
+                <summary className="cursor-pointer text-sm font-semibold text-slate-800">
+                  Show Procurement Details
+                </summary>
+                <div className="mt-3 space-y-4">
+                  {showEligibleVendorsPanel && (
+                    <EligibleVendorsPanel
+                      order={order}
+                      orderId={order.id}
+                      enabled={showEligibleVendorsPanel}
+                      canRequestBids={canRequestEligibleVendorBids}
+                      onBidRequestCreated={handleEligibleVendorBidRequestCreated}
+                    />
+                  )}
+
+                  {showVendorCandidatePanel && (
+                    <VendorAssignmentCandidatesPanel
+                      orderId={order.id}
+                      enabled={showVendorCandidatePanel}
+                      activeVendorAssignment={activeVendorAssignment}
+                      canOfferAssignment={canOfferVendorCandidateAssignment}
+                      orderDueAt={order.final_due_at ?? order.due_date ?? null}
+                      orderSummary={{
+                        property_address: order.property_address || order.address,
+                        address: order.address,
+                        city: order.city,
+                        state: order.state,
+                        postal_code: order.postal_code || order.zip,
+                        property_type: order.property_type,
+                        report_type: order.report_type,
+                        client_due_at: order.client_due_at,
+                        final_due_at: order.final_due_at,
+                        due_date: order.due_date,
+                      }}
+                      onOfferSuccess={async () => {
+                        success("Assignment offer sent.");
+                        await loadOwnerAssignments();
+                      }}
+                      onBidRequestSuccess={() => {
+                        success("Bid request created.");
+                        setBidRequestsRefreshToken((value) => value + 1);
+                      }}
+                    />
+                  )}
+
+                  {showBidRequestsPanel && (
+                    <BidRequestsPanel
+                      orderId={order.id}
+                      enabled={showBidRequestsPanel}
+                      hasActiveVendorAssignment={hasActiveVendorAssignment}
+                      canRecordResponses={canRecordBidResponses}
+                      canSelectResponses={canSelectBidResponses}
+                      canCreateAssignmentOffer={canCreateBidAssignmentOffer}
+                      orderSummary={{
+                        order_number: titleNo,
+                        city: order.city,
+                        state: order.state,
+                        report_type: order.report_type,
+                      }}
+                      refreshToken={bidRequestsRefreshToken}
+                      onBidRequestsChange={handleBidRequestsChange}
+                      onAssignmentOfferCreated={handleBidAssignmentOfferCreated}
+                    />
+                  )}
+                </div>
+              </details>
+            ) : (
+              <>
                 {showEligibleVendorsPanel && (
                   <EligibleVendorsPanel
                     order={order}
@@ -1907,71 +1971,9 @@ export default function OrderDetail() {
                     onAssignmentOfferCreated={handleBidAssignmentOfferCreated}
                   />
                 )}
-              </div>
-            </details>
-          ) : (
-            <>
-              {showEligibleVendorsPanel && (
-                <EligibleVendorsPanel
-                  order={order}
-                  orderId={order.id}
-                  enabled={showEligibleVendorsPanel}
-                  canRequestBids={canRequestEligibleVendorBids}
-                  onBidRequestCreated={handleEligibleVendorBidRequestCreated}
-                />
-              )}
-
-              {showVendorCandidatePanel && (
-                <VendorAssignmentCandidatesPanel
-                  orderId={order.id}
-                  enabled={showVendorCandidatePanel}
-                  activeVendorAssignment={activeVendorAssignment}
-                  canOfferAssignment={canOfferVendorCandidateAssignment}
-                  orderDueAt={order.final_due_at ?? order.due_date ?? null}
-                  orderSummary={{
-                    property_address: order.property_address || order.address,
-                    address: order.address,
-                    city: order.city,
-                    state: order.state,
-                    postal_code: order.postal_code || order.zip,
-                    property_type: order.property_type,
-                    report_type: order.report_type,
-                    client_due_at: order.client_due_at,
-                    final_due_at: order.final_due_at,
-                    due_date: order.due_date,
-                  }}
-                  onOfferSuccess={async () => {
-                    success("Assignment offer sent.");
-                    await loadOwnerAssignments();
-                  }}
-                  onBidRequestSuccess={() => {
-                    success("Bid request created.");
-                    setBidRequestsRefreshToken((value) => value + 1);
-                  }}
-                />
-              )}
-
-              {showBidRequestsPanel && (
-                <BidRequestsPanel
-                  orderId={order.id}
-                  enabled={showBidRequestsPanel}
-                  hasActiveVendorAssignment={hasActiveVendorAssignment}
-                  canRecordResponses={canRecordBidResponses}
-                  canSelectResponses={canSelectBidResponses}
-                  canCreateAssignmentOffer={canCreateBidAssignmentOffer}
-                  orderSummary={{
-                    order_number: titleNo,
-                    city: order.city,
-                    state: order.state,
-                    report_type: order.report_type,
-                  }}
-                  refreshToken={bidRequestsRefreshToken}
-                  onBidRequestsChange={handleBidRequestsChange}
-                  onAssignmentOfferCreated={handleBidAssignmentOfferCreated}
-                />
-              )}
-            </>
-          )
+              </>
+            )}
+          </div>
         )}
 
         {showAssignmentSurfaces && (
