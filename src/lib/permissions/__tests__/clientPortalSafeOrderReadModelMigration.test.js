@@ -259,6 +259,25 @@ describe('Client Portal order request intake migration', () => {
 });
 
 describe('Client Portal order request staff review migration', () => {
+  it('drops any existing incompatible staff review view before recreating it', () => {
+    const dropFunctionsIndex = orderRequestReviewMigrationSql.indexOf(
+      'drop function if exists public.rpc_client_portal_order_requests_for_review();',
+    );
+    const dropViewIndex = orderRequestReviewMigrationSql.indexOf(
+      'drop view if exists public.v_client_portal_order_request_staff_review;',
+    );
+    const createViewIndex = orderRequestReviewMigrationSql.indexOf(
+      'create view public.v_client_portal_order_request_staff_review',
+    );
+
+    expect(dropFunctionsIndex).toBeGreaterThan(-1);
+    expect(dropViewIndex).toBeGreaterThan(dropFunctionsIndex);
+    expect(createViewIndex).toBeGreaterThan(dropViewIndex);
+    expect(orderRequestReviewMigrationSql).not.toContain(
+      'create or replace view public.v_client_portal_order_request_staff_review',
+    );
+  });
+
   it('creates staff read/manage permissions and review RPCs', () => {
     expect(orderRequestReviewMigrationSql).toContain("'client_portal.order_requests.read'");
     expect(orderRequestReviewMigrationSql).toContain("'client_portal.order_requests.manage'");

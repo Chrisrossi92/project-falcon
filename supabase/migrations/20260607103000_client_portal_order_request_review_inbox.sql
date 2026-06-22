@@ -48,7 +48,13 @@ as $$
     and public.current_app_user_has_permission('client_portal.order_requests.manage');
 $$;
 
-create or replace view public.v_client_portal_order_request_staff_review
+drop function if exists public.rpc_client_portal_order_request_review_update_status(text, text);
+drop function if exists public.rpc_client_portal_order_request_review_detail(text);
+drop function if exists public.rpc_client_portal_order_requests_for_review();
+
+drop view if exists public.v_client_portal_order_request_staff_review;
+
+create view public.v_client_portal_order_request_staff_review
 with (security_invoker = false) as
 select
   cpor.id as request_id,
