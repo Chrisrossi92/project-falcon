@@ -9,6 +9,11 @@ import {
 } from "../../lib/companyBootstrap/companyReadinessResolver.js";
 import { useCompanySetupContext } from "../../features/company-setup/useCompanySetupContext.js";
 import { updateCompanyProfile } from "../../features/company-setup/companyProfileApi.js";
+import { completeOwnerSetup } from "../../features/company-setup/ownerSetupStateApi.js";
+import {
+  OWNER_SETUP_SECTION_STATUSES,
+  mapOwnerSetupReadiness,
+} from "../../features/company-setup/ownerSetupReadinessMapper.js";
 import { useCan } from "../../lib/hooks/usePermissions.js";
 import { PERMISSIONS } from "../../lib/permissions/constants.js";
 
@@ -42,114 +47,14 @@ const SAMPLE_READINESS = resolveCompanyReadiness(SAMPLE_SETUP_CONTEXT, {
 
 const STATUS_STYLES = Object.freeze({
   Available: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  Complete: "border-emerald-200 bg-emerald-50 text-emerald-800",
   Ready: "border-slate-200 bg-slate-50 text-slate-700",
   "Needs attention": "border-amber-200 bg-amber-50 text-amber-800",
   "Coming later": "border-sky-200 bg-sky-50 text-sky-800",
+  Optional: "border-sky-200 bg-sky-50 text-sky-800",
   "Diagnostic only": "border-indigo-200 bg-indigo-50 text-indigo-800",
   Deferred: "border-slate-200 bg-slate-100 text-slate-600",
 });
-
-const SETUP_CARD_GROUPS = Object.freeze([
-  {
-    title: "Company Setup",
-    description: "Confirm company identity and first-owner basics without changing authority.",
-    cards: Object.freeze([
-      {
-        title: "Company Profile",
-        description: "Update the company name, timezone, and locale used by this workspace.",
-        status: "Available",
-        profileCard: true,
-      },
-      {
-        title: "Owner Profile",
-        description: "Review owner identity for attribution and future setup audit context.",
-        status: "Coming later",
-        readinessKeys: Object.freeze(["owner_presence", "owner_active_membership"]),
-        readyStatus: "Ready",
-        attentionStatus: "Needs attention",
-      },
-      {
-        title: "Workspace Defaults",
-        description:
-          "Workspace defaults remain deferred until narrow guarded settings contracts exist.",
-        status: "Deferred",
-        deferredReason:
-          "Planned later after narrow settings storage and security boundaries are defined.",
-      },
-    ]),
-  },
-  {
-    title: "Operational Setup",
-    description: "Review operational assumptions while backend workflow authority remains separate.",
-    cards: Object.freeze([
-      {
-        title: "Order Numbering",
-        description:
-          "Company-safe order numbering is backend-controlled. Configuration remains deferred.",
-        status: "Deferred",
-        deferredReason:
-          "Planned later after company-safe numbering configuration is ready for owners.",
-      },
-      {
-        title: "Workflow Settings",
-        description: "Review lifecycle assumptions without changing workflow authority.",
-        status: "Diagnostic only",
-      },
-      {
-        title: "Team Access",
-        description:
-          "Open Team Access to manage company members and invitations through the existing guarded team workflow.",
-        status: "Coming later",
-        readinessKeys: Object.freeze(["invitation_pipeline", "staff_readiness"]),
-        readyStatus: "Ready",
-        attentionStatus: "Coming later",
-        teamAccessBridge: true,
-      },
-      {
-        title: "Role Review",
-        description: "Review role presets and responsibilities without exposing raw permissions.",
-        status: "Diagnostic only",
-        readinessKeys: Object.freeze(["role_presets", "owner_role_assignment"]),
-        readyStatus: "Ready",
-        attentionStatus: "Needs attention",
-      },
-    ]),
-  },
-  {
-    title: "Company Communication & Branding",
-    description: "Keep communication defaults and branding behind future company-safe contracts.",
-    cards: Object.freeze([
-      {
-        title: "Company Notification Settings",
-        description:
-          "Personal notification preferences are separate; company defaults remain deferred.",
-        status: "Deferred",
-        deferredReason:
-          "Planned later after company notification-default storage and policy rules exist.",
-      },
-      {
-        title: "Branding",
-        description:
-          "Branding metadata and logo uploads require guarded storage design before configuration.",
-        status: "Deferred",
-        deferredReason:
-          "Planned later after branding storage, upload, and security rules are designed.",
-      },
-    ]),
-  },
-  {
-    title: "Operational Readiness",
-    description: "Use setup diagnostics for orientation only; runtime guards remain authoritative.",
-    cards: Object.freeze([
-      {
-        title: "Operational Readiness Checklist",
-        description:
-          "Review live setup guidance. Permissions and RPC/RLS checks remain the source of truth.",
-        status: "Diagnostic only",
-      },
-    ]),
-  },
-]);
 
 const NO_GO_RULES = Object.freeze([
   "Setup progress does not grant access.",
@@ -191,6 +96,22 @@ function safeCompanyProfileError(error) {
   return "Falcon could not update this company profile.";
 }
 
+function safeCompleteSetupError(error) {
+  const message = String(error?.message || "");
+  if (message.includes("owner_setup_minimum_readiness_required")) {
+    return "Falcon could not complete setup because required setup is still missing. Review the required sections and try again.";
+  }
+  if (
+    message.includes("owner_setup_manage_permission_required")
+    || message.includes("current_company_membership_required")
+    || message.includes("company_inactive")
+    || error?.code === "42501"
+  ) {
+    return "Falcon could not complete setup with your current permissions.";
+  }
+  return "Falcon could not complete setup.";
+}
+
 const formatSeverityCounts = (counts = {}) =>
   Object.entries(counts)
     .map(([severity, count]) => `${severity}: ${count}`)
@@ -199,28 +120,15 @@ const formatSeverityCounts = (counts = {}) =>
 const getReadinessStatusLabel = (readiness) =>
   readiness?.blockingItems?.length || readiness?.warningItems?.length ? "Needs attention" : "Ready";
 
-const isReadinessItemPass = (item) => item?.status === COMPANY_READINESS_ITEM_STATUSES.PASS;
+const OWNER_SETUP_STATUS_LABELS = Object.freeze({
+  [OWNER_SETUP_SECTION_STATUSES.COMPLETE]: "Complete",
+  [OWNER_SETUP_SECTION_STATUSES.NEEDS_ATTENTION]: "Needs attention",
+  [OWNER_SETUP_SECTION_STATUSES.OPTIONAL]: "Optional",
+  [OWNER_SETUP_SECTION_STATUSES.DEFERRED]: "Deferred",
+  [OWNER_SETUP_SECTION_STATUSES.DIAGNOSTIC_ONLY]: "Diagnostic only",
+});
 
-function getReadinessItemsByKey(readiness, keys = []) {
-  if (!readiness || keys.length === 0) return [];
-
-  return keys
-    .map((key) => readiness.checklistItems.find((item) => item.key === key))
-    .filter(Boolean);
-}
-
-function getCardStatus(card, readiness) {
-  if (!card.readinessKeys) return card.status;
-
-  const items = getReadinessItemsByKey(readiness, card.readinessKeys);
-  if (items.length !== card.readinessKeys.length) return card.status;
-  if (items.every(isReadinessItemPass)) return card.readyStatus || card.status;
-  if (items.some((item) => item.blocking || item.severity === COMPANY_READINESS_SEVERITIES.CRITICAL)) {
-    return card.attentionStatus || "Needs attention";
-  }
-
-  return card.status;
-}
+const getOwnerSetupStatusLabel = (status) => OWNER_SETUP_STATUS_LABELS[status] || "Optional";
 
 function StatusBadge({ status }) {
   return (
@@ -234,20 +142,161 @@ function StatusBadge({ status }) {
   );
 }
 
-function SetupCard({ card, readiness, canOpenTeamAccess = false }) {
-  const status = getCardStatus(card, readiness);
+function SetupProgressSummary({
+  setupCompleted,
+  setupReadiness,
+  completingSetup,
+  completionError,
+  onCompleteSetup,
+}) {
+  const minimumStatus = setupCompleted
+    ? "Setup complete"
+    : setupReadiness.minimumReady
+      ? "Minimum ready"
+      : "Needs setup";
+  const incompleteRequiredSections = setupReadiness.sections.filter(
+    (section) => section.requiredForMinimumReadiness && !section.completed,
+  );
+
+  return (
+    <section className="rounded-lg border border-slate-200 bg-white p-5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Company Setup
+          </div>
+          <h2 className="mt-1 text-xl font-semibold text-slate-950">
+            What needs to be done before Falcon is operational?
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+            Complete the required company setup sections first. Optional and deferred sections can
+            be reviewed later when the related governed settings are ready.
+          </p>
+        </div>
+        <div className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-left lg:min-w-48">
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Minimum readiness
+          </div>
+          <div className="mt-1 text-lg font-semibold text-slate-950">{minimumStatus}</div>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-4">
+        <ReadinessMetric
+          label="Progress"
+          value={`${setupReadiness.percentComplete}%`}
+          helper="Required company setup sections complete."
+        />
+        <ReadinessMetric
+          label="Required Complete"
+          value={setupReadiness.completedRequiredSections}
+          helper="Required sections completed."
+        />
+        <ReadinessMetric
+          label="Required Sections"
+          value={setupReadiness.requiredSections}
+          helper="Needed for minimum readiness."
+        />
+        <ReadinessMetric
+          label="Next Step"
+          value={setupReadiness.minimumReady ? "Ready" : "Review"}
+          helper={setupReadiness.nextRecommendedAction}
+        />
+      </div>
+
+      <div className="mt-5 rounded-md border border-slate-200 bg-slate-50 p-4">
+        {setupCompleted ? (
+          <div>
+            <div className="text-sm font-semibold text-slate-950">Setup complete</div>
+            <p className="mt-1 text-sm leading-6 text-slate-600">
+              Setup is complete. Dashboard setup guidance will no longer appear for this company.
+            </p>
+          </div>
+        ) : setupReadiness.minimumReady ? (
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="text-sm font-semibold text-slate-950">
+                Required setup is ready.
+              </div>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                Complete setup records launch readiness without changing permissions, routes, or
+                dashboard banner behavior.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onCompleteSetup}
+              disabled={completingSetup}
+              className="inline-flex rounded-md border border-slate-900 bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+            >
+              {completingSetup ? "Completing..." : "Complete setup"}
+            </button>
+          </div>
+        ) : (
+          <div>
+            <div className="text-sm font-semibold text-slate-950">
+              Complete the required sections first.
+            </div>
+            <p className="mt-1 text-sm leading-6 text-slate-600">
+              {setupReadiness.nextRecommendedAction}
+            </p>
+            {incompleteRequiredSections.length ? (
+              <ul className="mt-2 space-y-1 text-sm leading-6 text-slate-600">
+                {incompleteRequiredSections.map((section) => (
+                  <li key={section.id}>{section.title}</li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        )}
+        {completionError ? (
+          <p className="mt-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+            {completionError}
+          </p>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+function OwnerSetupSectionCard({ section, setupContextState, canOpenTeamAccess = false }) {
+  const statusLabel = getOwnerSetupStatusLabel(section.status);
+
+  if (section.id === "company_profile") {
+    return (
+      <CompanyProfileCard
+        setupContextState={setupContextState}
+        section={section}
+        statusLabel={statusLabel}
+      />
+    );
+  }
 
   return (
     <article
       className="rounded-lg border border-slate-200 bg-white p-4"
-      aria-label={`${card.title} setup card`}
+      aria-label={`${section.title} setup section`}
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <h3 className="text-sm font-semibold text-slate-950">{card.title}</h3>
-        <StatusBadge status={status} />
+        <div>
+          <h3 className="text-sm font-semibold text-slate-950">{section.title}</h3>
+          {section.requiredForMinimumReadiness ? (
+            <p className="mt-1 text-xs font-medium text-slate-500">Required for minimum readiness</p>
+          ) : (
+            <p className="mt-1 text-xs font-medium text-slate-500">Not required for launch</p>
+          )}
+        </div>
+        <StatusBadge status={statusLabel} />
       </div>
-      <p className="mt-2 text-sm leading-6 text-slate-600">{card.description}</p>
-      {card.teamAccessBridge && canOpenTeamAccess ? (
+      <p className="mt-2 text-sm leading-6 text-slate-600">{section.description}</p>
+      {section.missingItems.length ? (
+        <ul className="mt-3 space-y-1 text-sm leading-6 text-slate-600">
+          {section.missingItems.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      ) : null}
+      {section.id === "team_access" && canOpenTeamAccess ? (
         <div className="mt-4">
           <Link
             to={TEAM_ACCESS_ROUTE}
@@ -257,37 +306,36 @@ function SetupCard({ card, readiness, canOpenTeamAccess = false }) {
           </Link>
         </div>
       ) : null}
-      {status === "Deferred" ? (
+      {section.status === OWNER_SETUP_SECTION_STATUSES.DEFERRED ? (
         <p className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-600">
           <span className="font-medium text-slate-800">Planned later:</span>{" "}
-          {card.deferredReason ||
-            "This card is intentionally waiting on a governed backend, storage, or security model."}
+          This section is intentionally waiting on a governed backend, storage, or settings model.
         </p>
       ) : null}
     </article>
   );
 }
 
-function SetupCardGroup({ group, setupContextState, readiness, canOpenTeamAccess }) {
+function OwnerSetupSections({ setupReadiness, setupContextState, canOpenTeamAccess }) {
   return (
-    <section className="space-y-3">
+    <section className="space-y-4">
       <div>
-        <h2 className="text-base font-semibold text-slate-950">{group.title}</h2>
-        <p className="mt-1 text-sm leading-6 text-slate-600">{group.description}</p>
+        <h2 className="text-base font-semibold text-slate-950">Company Setup Sections</h2>
+        <p className="mt-1 text-sm leading-6 text-slate-600">
+          Required sections are the minimum practical setup needed before Falcon can be treated as
+          operational. Optional and deferred sections are visible for planning but do not block
+          minimum readiness.
+        </p>
       </div>
-      <div className="grid gap-3">
-        {group.cards.map((card) =>
-          card.profileCard ? (
-            <CompanyProfileCard key={card.title} setupContextState={setupContextState} />
-          ) : (
-            <SetupCard
-              key={card.title}
-              card={card}
-              readiness={readiness}
-              canOpenTeamAccess={canOpenTeamAccess}
-            />
-          ),
-        )}
+      <div className="grid gap-3 lg:grid-cols-2">
+        {setupReadiness.sections.map((section) => (
+          <OwnerSetupSectionCard
+            key={section.id}
+            section={section}
+            setupContextState={setupContextState}
+            canOpenTeamAccess={canOpenTeamAccess}
+          />
+        ))}
       </div>
     </section>
   );
@@ -407,7 +455,7 @@ function ReadinessSummary({ readiness, heading, label, description, emptyBlockin
   );
 }
 
-function CompanyProfileCard({ setupContextState }) {
+function CompanyProfileCard({ setupContextState, section, statusLabel }) {
   const liveContext = setupContextState.data;
   const [values, setValues] = useState({
     name: "",
@@ -472,22 +520,34 @@ function CompanyProfileCard({ setupContextState }) {
   }
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white">
+    <section
+      className="rounded-lg border border-slate-200 bg-white"
+      aria-label="Company Profile setup section"
+    >
       <div className="border-b border-slate-200 px-5 py-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Company Profile
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Company Profile
+            </div>
+            <h2 className="mt-1 text-base font-semibold text-slate-950">
+              Current Company Identity
+            </h2>
           </div>
-          <StatusBadge status="Available" />
+          <StatusBadge status={statusLabel || "Needs attention"} />
         </div>
-        <h2 className="mt-1 text-base font-semibold text-slate-950">
-          Current Company Identity
-        </h2>
         <p className="mt-1 text-sm leading-6 text-slate-600">
           This card saves only company name, timezone, and locale through the guarded profile
           update path. Saving profile details does not finish onboarding, grant access, turn on
           modules, or change runtime authority.
         </p>
+        {section?.missingItems?.length ? (
+          <ul className="mt-3 space-y-1 text-sm leading-6 text-slate-600">
+            {section.missingItems.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        ) : null}
       </div>
 
       <form className="grid gap-4 px-5 py-4 md:grid-cols-3" onSubmit={handleSubmit}>
@@ -563,6 +623,10 @@ function CompanyProfileCard({ setupContextState }) {
 export default function OwnerSetup() {
   const setupContextState = useCompanySetupContext();
   const canReadUsers = useCan(PERMISSIONS.USERS_READ);
+  const ownerSetupReadiness = mapOwnerSetupReadiness(setupContextState.data);
+  const [setupCompleted, setSetupCompleted] = useState(false);
+  const [completingSetup, setCompletingSetup] = useState(false);
+  const [completionError, setCompletionError] = useState("");
   const liveReadiness = setupContextState.data
     ? resolveCompanyReadiness(setupContextState.data)
     : null;
@@ -576,85 +640,115 @@ export default function OwnerSetup() {
           ? "Live operational setup context loaded through the guarded read-only RPC."
           : "No live operational setup context is available. Static sample fallback remains below.";
 
+  async function handleCompleteSetup() {
+    if (!ownerSetupReadiness.minimumReady || completingSetup) return;
+
+    setCompletionError("");
+
+    try {
+      setCompletingSetup(true);
+      await completeOwnerSetup();
+      setSetupCompleted(true);
+      await setupContextState.refetch?.();
+      toast.success("Setup complete.");
+    } catch (error) {
+      const message = safeCompleteSetupError(error);
+      setCompletionError(message);
+      toast.error(message);
+    } finally {
+      setCompletingSetup(false);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-4 lg:p-6">
       <section className="rounded-lg border border-amber-200 bg-amber-50 p-5 text-amber-950">
-        <div className="text-xs font-semibold uppercase tracking-wide">Owner Setup Guidance</div>
+        <div className="text-xs font-semibold uppercase tracking-wide">Company Setup</div>
         <h1 className="mt-1 text-2xl font-semibold text-slate-950">Owner Setup</h1>
         <p className="mt-2 max-w-4xl text-sm leading-6">
-          This page helps orient company setup and operational readiness. Live setup context is
-          read-only guidance, and only the Company Profile card has a narrow guarded save path. The
-          page does not run bootstrap, persist onboarding, save broad settings, or change route,
-          permission, RLS, workflow, assignment, product-mode, or module behavior.
+          This page shows what the owner needs to review before Falcon is operational. Only the
+          Company Profile card has a narrow guarded save path; setup progress does not change
+          permissions, routes, workflow authority, assignments, product modes, or module access.
         </p>
       </section>
 
-      <section className="rounded-lg border border-slate-200 bg-white p-5">
-        <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Live operational setup context
-        </div>
-        <h2 className="mt-1 text-base font-semibold text-slate-950">Operational Setup Context</h2>
-        <p className="mt-2 text-sm leading-6 text-slate-600">{liveSetupStatusMessage}</p>
-        {liveReadiness ? (
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Live readiness
-            </span>
-            <StatusBadge status={getReadinessStatusLabel(liveReadiness)} />
-          </div>
-        ) : null}
-        {setupContextState.error ? (
-          <p className="mt-1 text-xs text-slate-500">
-            Error: {setupContextState.error.message || "Unknown setup context error"}
-          </p>
-        ) : null}
-        <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-          Operational readiness on this page is diagnostic guidance only. It does not grant access,
-          deny access, bypass permissions/RLS/RPCs, turn on product modes/modules, or expose
-          Vendor/Client live shells.
-        </p>
-      </section>
-
-      {liveReadiness ? (
-        <ReadinessSummary
-          readiness={liveReadiness}
-          label="Live operational readiness diagnostic"
-          heading="Live Operational Readiness Guidance"
-          description="This uses guarded current-company setup context with the pure readiness resolver. It is not onboarding state and not permission authority."
-          emptyBlockingLabel="No blocking items in the live read-only setup context."
+      <section aria-label="Company setup experience" className="space-y-6">
+        <SetupProgressSummary
+          setupCompleted={setupCompleted}
+          setupReadiness={ownerSetupReadiness}
+          completingSetup={completingSetup}
+          completionError={completionError}
+          onCompleteSetup={handleCompleteSetup}
         />
-      ) : null}
 
-      <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
-        <div className="space-y-6">
-          {SETUP_CARD_GROUPS.map((group) => (
-            <SetupCardGroup
-              key={group.title}
-              group={group}
-              setupContextState={setupContextState}
-              readiness={liveReadiness}
-              canOpenTeamAccess={canReadUsers.allowed}
-            />
-          ))}
-        </div>
+        <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
+          <OwnerSetupSections
+            setupReadiness={ownerSetupReadiness}
+            setupContextState={setupContextState}
+            canOpenTeamAccess={canReadUsers.allowed}
+          />
 
-        <aside className="h-fit rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="text-sm font-semibold text-slate-950">Authority Boundary</h2>
-          <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600">
-            {NO_GO_RULES.map((rule) => (
-              <li key={rule}>{rule}</li>
-            ))}
-          </ul>
-        </aside>
+          <aside className="h-fit rounded-lg border border-slate-200 bg-white p-4">
+            <h2 className="text-sm font-semibold text-slate-950">Authority Boundary</h2>
+            <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600">
+              {NO_GO_RULES.map((rule) => (
+                <li key={rule}>{rule}</li>
+              ))}
+            </ul>
+          </aside>
+        </section>
       </section>
 
-      <ReadinessSummary
-        readiness={SAMPLE_READINESS}
-        label="Static sample fallback"
-        heading="Sample Operational Readiness Checklist"
-        description="This uses a local fixture with the pure readiness resolver. It is not live operational setup context, not onboarding state, and not permission authority."
-        emptyBlockingLabel="None in this sample fixture"
-      />
+      <section aria-label="Internal Diagnostics" className="space-y-6">
+        <section className="rounded-lg border border-slate-200 bg-white p-5">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Internal Diagnostics
+            </div>
+            <StatusBadge status="Diagnostic only" />
+          </div>
+          <h2 className="mt-1 text-base font-semibold text-slate-950">
+            Operational Setup Context
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-slate-600">{liveSetupStatusMessage}</p>
+          {liveReadiness ? (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Live readiness
+              </span>
+              <StatusBadge status={getReadinessStatusLabel(liveReadiness)} />
+            </div>
+          ) : null}
+          {setupContextState.error ? (
+            <p className="mt-1 text-xs text-slate-500">
+              Error: {setupContextState.error.message || "Unknown setup context error"}
+            </p>
+          ) : null}
+          <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            Operational readiness on this page is diagnostic guidance only. It does not grant
+            access, deny access, bypass permissions/RLS/RPCs, turn on product modes/modules, or
+            expose Vendor/Client live shells.
+          </p>
+        </section>
+
+        {liveReadiness ? (
+          <ReadinessSummary
+            readiness={liveReadiness}
+            label="Live operational readiness diagnostic"
+            heading="Live Operational Readiness Guidance"
+            description="This uses guarded current-company setup context with the pure readiness resolver. It is not onboarding state and not permission authority."
+            emptyBlockingLabel="No blocking items in the live read-only setup context."
+          />
+        ) : null}
+
+        <ReadinessSummary
+          readiness={SAMPLE_READINESS}
+          label="Static sample fallback"
+          heading="Sample Operational Readiness Checklist"
+          description="This uses a local fixture with the pure readiness resolver. It is not live operational setup context, not onboarding state, and not permission authority."
+          emptyBlockingLabel="None in this sample fixture"
+        />
+      </section>
     </div>
   );
 }
