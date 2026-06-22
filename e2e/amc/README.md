@@ -153,13 +153,19 @@ It verifies:
 - the manual `Request bids` confirmation flow opens with only eligible vendors available;
 - confirming one selected eligible vendor creates one disposable bid request and one recipient row;
 - active mismatched, inactive, and suspended vendors do not receive bid request recipient rows;
-- no vendor bid response or assignment row is created by the targeted request-bids smoke.
+- the V2C request-bids branch stops with no vendor bid response or assignment row;
+- the V2D bid-response branch reuses the same disposable coverage fixture, manually requests bids
+  from the selected eligible vendor, creates a disposable public bid invitation token without email
+  delivery, submits one safe vendor bid response, and confirms the owner procurement UI shows the
+  response;
+- active mismatched, inactive, and suspended vendors still have no recipient or response;
+- the submitted bid is not selected and no assignment row is created.
 
-The vendor coverage branch is not a full AMC workflow. It does not submit bids, select bids, create
-assignments, accept work, upload reports, invoice, or pay. The request-bids smoke mutates only
-disposable bid-request, recipient, invitation, response-cleanup, and assignment-cleanup rows for
-the single coverage order `AMC-STAGING-COVERAGE-MATCH-001` unless overridden by
-`AMC_STAGING_VENDOR_COVERAGE_ORDER_NUMBER`.
+The vendor coverage branch is not a full AMC workflow. It does not select bids, create assignments,
+accept work, upload reports, invoice, or pay. The request-bids and bid-response branches mutate
+only disposable bid-request, recipient, invitation, response-cleanup, response, and
+assignment-cleanup rows for the single coverage order `AMC-STAGING-COVERAGE-MATCH-001` unless
+overridden by `AMC_STAGING_VENDOR_COVERAGE_ORDER_NUMBER`.
 
 Before running the vendor coverage smoke against hosted staging, confirm the target database has
 the Vendor Coverage Engine migrations applied through V1C:
@@ -203,6 +209,10 @@ AMC_STAGING_SMOKE_PASSWORD=<smoke-password>
 AMC_STAGING_SMOKE_BID_AMOUNT=725
 AMC_STAGING_SMOKE_BID_TURN_TIME_DAYS=6
 AMC_STAGING_SMOKE_BID_COMMENTS=AMC staging Playwright disposable token bid response.
+AMC_STAGING_VENDOR_COVERAGE_BID_EMAIL=amc.vendor.coverage.bidder+staging@example.test
+AMC_STAGING_VENDOR_COVERAGE_BID_AMOUNT=710
+AMC_STAGING_VENDOR_COVERAGE_BID_TURN_TIME_DAYS=5
+AMC_STAGING_VENDOR_COVERAGE_BID_COMMENTS=AMC vendor coverage V2D disposable public token bid response.
 E2E_AMC_PREPARE_FIXTURE=1
 AMC_STAGING_SUPABASE_SERVICE_ROLE_KEY=<staging-service-role-or-secret-key>
 AMC_SMOKE_ARTIFACT_DIR=<optional artifact directory>
@@ -254,6 +264,12 @@ npm run e2e:amc:tokens:staging
 npm run e2e:amc:client-request:staging
 npm run e2e:amc:invoice-payment:staging
 npm run e2e:amc:vendor-coverage:staging
+```
+
+Run only the targeted Vendor Coverage V2D smoke against approved staging:
+
+```sh
+E2E_BASE_URL=https://falcon-staging.therossicompany.com npm run e2e:amc:vendor-coverage:staging
 ```
 
 ## Safety Rules
