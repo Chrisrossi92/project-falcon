@@ -98,7 +98,8 @@ describe("AMC-10A/10B structured client request geography migration", () => {
   });
 
   it("exposes structured address fields in client-safe and staff-safe read models", () => {
-    expect(migrationSql).toContain("create or replace function public.rpc_client_portal_pending_order_requests()");
+    expect(migrationSql).toContain("drop function if exists public.rpc_client_portal_pending_order_requests();");
+    expect(migrationSql).toContain("create function public.rpc_client_portal_pending_order_requests()");
     expect(migrationSql).toContain("create view public.v_client_portal_order_request_staff_review");
     expect(migrationSql).toContain("property_city text");
     expect(migrationSql).toContain("property_state text");

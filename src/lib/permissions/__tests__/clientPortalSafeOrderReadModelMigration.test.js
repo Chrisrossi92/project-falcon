@@ -537,9 +537,24 @@ describe('Client Portal order request membership context migration', () => {
 });
 
 describe('Client Portal pending request visibility migration', () => {
+  it('drops any existing incompatible pending request RPC before recreating it', () => {
+    const dropFunctionIndex = pendingRequestVisibilityMigrationSql.indexOf(
+      'drop function if exists public.rpc_client_portal_pending_order_requests();',
+    );
+    const createFunctionIndex = pendingRequestVisibilityMigrationSql.indexOf(
+      'create function public.rpc_client_portal_pending_order_requests()',
+    );
+
+    expect(dropFunctionIndex).toBeGreaterThan(-1);
+    expect(createFunctionIndex).toBeGreaterThan(dropFunctionIndex);
+    expect(pendingRequestVisibilityMigrationSql).not.toContain(
+      'create or replace function public.rpc_client_portal_pending_order_requests()',
+    );
+  });
+
   it('creates a dedicated safe pending request RPC for client portal members', () => {
     expect(pendingRequestVisibilityMigrationSql).toContain(
-      'create or replace function public.rpc_client_portal_pending_order_requests()',
+      'create function public.rpc_client_portal_pending_order_requests()',
     );
     expect(pendingRequestVisibilityMigrationSql).toContain(
       'public.current_app_user_can_read_client_portal()',

@@ -1,6 +1,8 @@
 begin;
 
-create or replace function public.rpc_client_portal_pending_order_requests()
+drop function if exists public.rpc_client_portal_pending_order_requests();
+
+create function public.rpc_client_portal_pending_order_requests()
 returns table (
   request_key text,
   status text,
