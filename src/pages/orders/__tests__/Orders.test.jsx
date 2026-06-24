@@ -192,6 +192,24 @@ describe("OrdersPage historical access", () => {
     );
   });
 
+  it("keeps order detail links under the AMC alias when entered through the AMC orders alias", () => {
+    operationsModeState.operationsMode = "amc_operations";
+
+    renderPage(["/amc/orders"]);
+
+    const tableProps = tableMock.mock.calls.at(-1)[0];
+    expect(tableProps.orderDetailPathForOrder({}, "order-1")).toBe("/amc/orders/order-1");
+  });
+
+  it("keeps order detail links on compatibility paths when entered through the compatibility route", () => {
+    operationsModeState.operationsMode = "amc_operations";
+
+    renderPage(["/orders"]);
+
+    const tableProps = tableMock.mock.calls.at(-1)[0];
+    expect(tableProps.orderDetailPathForOrder({}, "order-1")).toBe("/orders/order-1");
+  });
+
   it("renders AMC Orders with procurement workspace identity copy", () => {
     operationsModeState.operationsMode = "amc_operations";
 

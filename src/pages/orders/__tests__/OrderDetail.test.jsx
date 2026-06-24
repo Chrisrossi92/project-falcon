@@ -33,6 +33,9 @@ const bidRequestsPanelRowsMock = vi.hoisted(() => []);
 const operationsModeMock = vi.hoisted(() => ({
   operationsMode: "internal_operations",
 }));
+const locationMock = vi.hoisted(() => ({
+  pathname: "/orders/order-1",
+}));
 const shellProfileMock = vi.hoisted(() => ({
   profileId: "operations",
   appContext: {},
@@ -76,6 +79,7 @@ vi.mock("react-router-dom", () => ({
   ),
   useNavigate: () => navigateMock,
   useParams: () => ({ id: "order-1" }),
+  useLocation: () => locationMock,
 }));
 
 vi.mock("@/lib/hooks/useOrder", () => ({
@@ -361,6 +365,7 @@ describe("OrderDetail site visit save", () => {
     );
     bidRequestsPanelRowsMock.splice(0, bidRequestsPanelRowsMock.length);
     operationsModeMock.operationsMode = "internal_operations";
+    locationMock.pathname = "/orders/order-1";
     Object.assign(shellProfileMock, {
       profileId: "operations",
       appContext: {},
@@ -752,6 +757,22 @@ describe("OrderDetail site visit save", () => {
     expect(screen.queryByText("Appointment scheduled")).not.toBeInTheDocument();
     expect(screen.queryByText("Recently updated")).not.toBeInTheDocument();
     expect(screen.queryByText("No files loaded")).not.toBeInTheDocument();
+  });
+
+  it("keeps the order list back link under the AMC alias when entered through an AMC order detail alias", () => {
+    locationMock.pathname = "/amc/orders/order-1";
+
+    render(<OrderDetail />);
+
+    expect(screen.getByRole("link", { name: "<- Back" })).toHaveAttribute("href", "/amc/orders");
+  });
+
+  it("keeps the order list back link on compatibility paths when entered through compatibility route", () => {
+    locationMock.pathname = "/orders/order-1";
+
+    render(<OrderDetail />);
+
+    expect(screen.getByRole("link", { name: "<- Back" })).toHaveAttribute("href", "/orders");
   });
 
   it("preserves owner/admin management surfaces while suppressing V1 assignment surfaces", () => {

@@ -1,6 +1,6 @@
 // src/pages/OrderDetail.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link, useLocation, useNavigate } from "react-router-dom";
 import GoogleMapEmbed from "@/components/maps/GoogleMapEmbed";
 import SiteVisitPicker from "@/components/dates/SiteVisitPicker";
 import OrderStatusBadge from "@/components/orders/table/OrderStatusBadge";
@@ -60,6 +60,7 @@ import { formatOperationalDate } from "@/lib/utils/dateOnly";
 import { useOperationsMode } from "@/lib/operations/OperationsModeProvider";
 import { OPERATIONS_MODES } from "@/lib/operations/operationsMode";
 import { getWorkspacePageChrome } from "@/lib/workspace/workspaceIdentity";
+import { buildOrderListPath } from "@/features/orders/orderRoutePaths";
 
 /* ---------- helpers ---------- */
 const fmtDate = (s) => (s ? new Date(s).toLocaleDateString() : "-");
@@ -1029,6 +1030,7 @@ function FilesCard({ order, orderId, canArchive, canUpload, onFilesLoaded, showR
 /* ============================== component ============================== */
 export default function OrderDetail() {
   const { id } = useParams();
+  const { pathname } = useLocation();
   const navigate = useNavigate();
 
   const { order, loading, error: loadErr, refresh } = useOrder(id);
@@ -1642,7 +1644,7 @@ export default function OrderDetail() {
               >
                 Print Packet
               </button>
-              <Link to="/orders" className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50">
+              <Link to={buildOrderListPath(pathname)} className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50">
                 {"<- Back"}
               </Link>
               {showOrderEditAction && (

@@ -135,6 +135,16 @@ export default function AppRoutes() {
           }
         />
         <Route
+          path="/amc/dashboard"
+          element={
+            <ProtectedRoute>
+              <WorkspaceRouteGuard workspace={ROUTE_WORKSPACES.AMC}>
+                <DashboardGate />
+              </WorkspaceRouteGuard>
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/my-work"
           element={
             <ProtectedRoute
@@ -151,6 +161,36 @@ export default function AppRoutes() {
         />
 
         {/* Orders */}
+        <Route
+          path="/amc/orders"
+          element={
+            <ProtectedRoute
+              requiredAnyPermissions={[
+                PERMISSIONS.ORDERS_READ_ALL,
+                PERMISSIONS.ORDERS_READ_ASSIGNED,
+              ]}
+            >
+              <WorkspaceRouteGuard workspace={ROUTE_WORKSPACES.AMC}>
+                <Orders />
+              </WorkspaceRouteGuard>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/amc/orders/:id"
+          element={
+            <ProtectedRoute
+              requiredAnyPermissions={[
+                PERMISSIONS.ORDERS_READ_ALL,
+                PERMISSIONS.ORDERS_READ_ASSIGNED,
+              ]}
+            >
+              <WorkspaceRouteGuard workspace={ROUTE_WORKSPACES.AMC}>
+                <OrderDetail />
+              </WorkspaceRouteGuard>
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/orders"
           element={

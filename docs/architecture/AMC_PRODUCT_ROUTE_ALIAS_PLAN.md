@@ -57,20 +57,56 @@ feature.
 
 The first real AMC product-local aliases are now registered:
 
+- `/amc/dashboard`
+- `/amc/orders`
+- `/amc/orders/:id`
 - `/amc/vendors`
 - `/amc/vendors/:vendorProfileId`
 - `/amc/client-requests`
 
-They reuse the same route guards and pages as the compatibility Vendor Directory routes
-(`/vendors` and `/vendors/:vendorProfileId`) and Client Requests route (`/client-requests`).
-Navigation, email, notification links, redirects, auth callbacks, and canonical `productLinks`
-live usage have not been changed. Canonical route mode remains blocked for live callers until a
-later wiring slice intentionally updates that guard.
+They reuse the same route guards and pages as the compatibility Dashboard route (`/dashboard`),
+Order routes (`/orders` and `/orders/:id`), Vendor Directory routes (`/vendors` and
+`/vendors/:vendorProfileId`), and Client Requests route (`/client-requests`). Navigation, email,
+notification links, redirects, auth callbacks, and canonical `productLinks` live usage have not
+been changed. Canonical route mode remains blocked for live callers until a later wiring slice
+intentionally updates that guard.
 
 Vendor Directory and Vendor Profile now preserve alias-local navigation inside that surface: users
 entering through `/amc/vendors` continue to profile/back links under `/amc/vendors/*`, while users
 entering through `/vendors` continue to use `/vendors/*`. This is local path-aware behavior only;
 global navigation and canonical `productLinks` mode remain unchanged and guarded.
+
+Order List and Order Detail now preserve alias-local navigation inside the order surface: users
+entering through `/amc/orders` continue to local detail/back links under `/amc/orders/*`, while
+users entering through `/orders` continue to use `/orders/*`. Global navigation, live email links,
+notification links, redirects, and canonical `productLinks` mode remain unchanged and guarded.
+
+## Active AMC Alias Status
+
+| Alias | Registered | Local path-aware navigation | Global nav wired | Email/notification wired | Canonical `productLinks` live usage | Smoke coverage needed later |
+| --- | --- | --- | --- | --- | --- | --- |
+| `/amc/dashboard` | Yes | N/A, dashboard has no local drill-down links in this slice | No | No | No | AMC dashboard browser smoke; dashboard data-scope check; Internal-mode denial check. |
+| `/amc/orders` | Yes | Yes, local order detail links remain under `/amc/orders/*` | No | No | No | AMC order list browser smoke; filters/saved views smoke; order data-scope check. |
+| `/amc/orders/:id` | Yes | Yes, local back link returns to `/amc/orders` | No | No | No | AMC order detail browser smoke; document visibility smoke; procurement panel smoke; wrong-scope denial check. |
+| `/amc/vendors` | Yes | Yes, local vendor profile links remain under `/amc/vendors/*` | No | No | No | Vendor Directory browser smoke; permission denial smoke; vendor search/filter smoke. |
+| `/amc/vendors/:vendorProfileId` | Yes | Yes, local back link returns to `/amc/vendors` | No | No | No | Vendor Profile browser smoke; contact/coverage visibility smoke; permission denial smoke. |
+| `/amc/client-requests` | Yes | N/A, no alias-local drill-down links are wired in this slice | No | No | No | Client Requests inbox smoke; review/convert smoke; portal-to-AMC isolation smoke. |
+
+Mutation/edit aliases remain deferred. In particular, `/amc/orders/:id/edit` is not registered in
+this phase. Order edit and mutation flows need a dedicated boundary review before Falcon gives AMC
+product-local mutation routes, because create/update RPC payloads, operations-scope preservation,
+workflow authority, document side effects, activity, notifications, and client/vendor visibility
+must be checked together. The existing compatibility edit route (`/orders/:id/edit`) may remain as
+is until that review produces a deliberate migration slice.
+
+Recommended next implementation options:
+
+1. Add route aliases for lower-risk read-only/shared AMC surfaces such as `/amc/activity` or
+   `/amc/calendar`, if their data scope and copy are confirmed safe.
+2. Move to route-domain/deployment planning for separate AMC entry points, auth redirects, allowed
+   URLs, and deployment/domain ownership.
+3. Run an order mutation boundary audit before considering `/amc/orders/:id/edit`,
+   `/amc/orders/new`, or other AMC product-local mutation aliases.
 
 ## Current Route Group Inventory
 

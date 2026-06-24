@@ -15,6 +15,7 @@ import { getOperationsScopeForMode } from "@/lib/operations/operationsMode";
 import { useShellProfile } from "@/lib/shell/useShellProfile";
 import { getShellWorkModeCue } from "@/lib/shell/shellWorkMode";
 import { getWorkspaceIdentity } from "@/lib/workspace/workspaceIdentity";
+import { buildOrderDetailPath } from "@/features/orders/orderRoutePaths";
 import {
   createOrderSavedView,
   deleteOrderSavedView,
@@ -465,6 +466,7 @@ function SavedViewsPanel({ filters, onApply }) {
 
 export default function OrdersPage() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const qs = useQuery();
   const { operationsMode } = useOperationsMode();
   const operationsScope = getOperationsScopeForMode(operationsMode);
@@ -638,6 +640,7 @@ export default function OrdersPage() {
         tableEyebrow={null}
         tableLabel={appraiserOrdersView ? "Assigned Orders" : "Orders"}
         tableSummary={roleFocusedOrdersView ? null : "Company order records."}
+        orderDetailPathForOrder={(_order, orderId) => buildOrderDetailPath(orderId, pathname)}
       />
     </div>
   );

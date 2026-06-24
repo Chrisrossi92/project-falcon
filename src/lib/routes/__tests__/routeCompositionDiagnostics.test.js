@@ -264,6 +264,9 @@ describe('shadow route composition diagnostics', () => {
     expect(activeRoutes).toContain('path="/vendors"');
     expect(activeRoutes).toContain('path="/vendors/:vendorProfileId"');
     expect(amcRoutePaths).toEqual([
+      '/amc/dashboard',
+      '/amc/orders',
+      '/amc/orders/:id',
       '/amc/vendors',
       '/amc/vendors/:vendorProfileId',
       '/amc/client-requests',
@@ -278,6 +281,9 @@ describe('shadow route composition diagnostics', () => {
 
     [
       ['/dashboard', operationsWorkspace, 'DashboardGate'],
+      ['/amc/dashboard', amcWorkspace, 'DashboardGate'],
+      ['/amc/orders', amcWorkspace, 'Orders'],
+      ['/amc/orders/:id', amcWorkspace, 'OrderDetail'],
       ['/orders', operationsWorkspace, 'Orders'],
       ['/orders/historical', operationsWorkspace, 'HistoricalOrders'],
       ['/orders/new', operationsWorkspace, 'NewOrder'],
@@ -305,6 +311,12 @@ describe('shadow route composition diagnostics', () => {
       expectRouteWrappedByWorkspaceGuard(activeRoutes, routePath, workspaceExpression, componentName);
     });
 
+    expect(activeRoutes).toMatch(
+      /path="\/amc\/orders"[\s\S]*requiredAnyPermissions=\{\[[\s\S]*PERMISSIONS\.ORDERS_READ_ALL[\s\S]*PERMISSIONS\.ORDERS_READ_ASSIGNED[\s\S]*\]\}/,
+    );
+    expect(activeRoutes).toMatch(
+      /path="\/amc\/orders\/:id"[\s\S]*requiredAnyPermissions=\{\[[\s\S]*PERMISSIONS\.ORDERS_READ_ALL[\s\S]*PERMISSIONS\.ORDERS_READ_ASSIGNED[\s\S]*\]\}/,
+    );
     expect(activeRoutes).toMatch(
       /path="\/amc\/client-requests"[\s\S]*requiredAnyPermissions=\{\[[\s\S]*PERMISSIONS\.CLIENT_PORTAL_ORDER_REQUESTS_READ[\s\S]*PERMISSIONS\.CLIENT_PORTAL_ORDER_REQUESTS_MANAGE[\s\S]*\]\}/,
     );

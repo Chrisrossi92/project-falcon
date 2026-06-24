@@ -143,6 +143,7 @@ export default function UnifiedOrdersTable({
   secondaryActionLinkLabel = null,
   orderDetailLinkHash = "",
   orderDetailLinkState = null,
+  orderDetailPathForOrder = null,
   onOrderChanged,
 }) {
   const { user: sessionUser } = useSession() || {};
@@ -256,6 +257,15 @@ export default function UnifiedOrdersTable({
   const [procurementSummariesByOrderId, setProcurementSummariesByOrderId] = useState({});
   const isAmcOperationsTable =
     operationsScope === OPERATIONS_MODES.AMC_OPERATIONS || mode === OPERATIONS_MODES.AMC_OPERATIONS;
+  const resolveOrderDetailPath = useCallback(
+    (order, orderPk) => {
+      const basePath = typeof orderDetailPathForOrder === "function"
+        ? orderDetailPathForOrder(order, orderPk)
+        : `/orders/${orderPk}`;
+      return `${basePath || `/orders/${orderPk}`}${orderDetailLinkHash || ""}`;
+    },
+    [orderDetailLinkHash, orderDetailPathForOrder],
+  );
   const visibleAmcOrderIds = useMemo(() => {
     if (!isAmcOperationsTable || tableLoading) return [];
 
@@ -812,6 +822,7 @@ export default function UnifiedOrdersTable({
                 isAmcOperationsTable && o?.operations_scope === OPERATIONS_MODES.AMC_OPERATIONS && orderPk
                   ? procurementSummariesByOrderId[orderPk]
                   : null;
+              const orderDetailPath = orderPk ? resolveOrderDetailPath(o, orderPk) : null;
 
               const drawerNode = (
                 <div data-no-drawer>
@@ -843,7 +854,7 @@ export default function UnifiedOrdersTable({
                               {c.cell(o)}
                               {detailLinkLabel && orderPk ? (
                                 <Link
-                                  to={`/orders/${orderPk}${orderDetailLinkHash || ""}`}
+                                  to={orderDetailPath}
                                   state={orderDetailLinkState || undefined}
                                   onClick={(event) => event.stopPropagation()}
                                   className="mt-1.5 inline-flex w-fit rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-950"
@@ -869,7 +880,7 @@ export default function UnifiedOrdersTable({
                             >
                               {primaryActionLabel ? (
                                 <Link
-                                  to={`/orders/${orderPk}${orderDetailLinkHash || ""}`}
+                                  to={orderDetailPath}
                                   state={orderDetailLinkState || undefined}
                                   onClick={(event) => event.stopPropagation()}
                                   className="inline-flex min-h-7 items-center rounded-md border border-slate-900 bg-slate-950 px-2.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-800"
@@ -879,7 +890,7 @@ export default function UnifiedOrdersTable({
                               ) : null}
                               {secondaryActionLinkLabel ? (
                                 <Link
-                                  to={`/orders/${orderPk}${orderDetailLinkHash || ""}`}
+                                  to={orderDetailPath}
                                   state={orderDetailLinkState || undefined}
                                   onClick={(event) => event.stopPropagation()}
                                   className="inline-flex min-h-7 items-center rounded-md border border-slate-200 bg-white px-2.5 text-[11px] font-semibold text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-950"
