@@ -216,6 +216,7 @@ test.describe("AMC staging direct create smoke", () => {
 
     const failedRequests = [];
     const errorResponses = [];
+    const rpcCreateOrderRequests = [];
     page.on("requestfailed", (request) => {
       failedRequests.push({
         method: request.method(),
@@ -231,6 +232,22 @@ test.describe("AMC staging direct create smoke", () => {
         });
       }
     });
+    page.on("request", (request) => {
+      if (!/\/rest\/v1\/rpc\/rpc_create_order(?:\?|$)/.test(request.url())) return;
+
+      let body = null;
+      try {
+        body = request.postDataJSON();
+      } catch {
+        body = request.postData();
+      }
+
+      rpcCreateOrderRequests.push({
+        method: request.method(),
+        url: request.url().replace(/\?.*$/, ""),
+        body,
+      });
+    });
 
     await page.getByRole("button", { name: /^Create Order$/i }).click();
     try {
@@ -239,6 +256,7 @@ test.describe("AMC staging direct create smoke", () => {
       const diagnostics = await readDirectCreateDiagnostics(page, {
         failedRequests: failedRequests.slice(0, 12),
         errorResponses: errorResponses.slice(0, 12),
+        rpcCreateOrderRequests: rpcCreateOrderRequests.slice(0, 4),
       });
       throw new Error(
         `Expected AMC direct create to redirect to /amc/orders/<uuid>, but current URL is ${page.url()}. Diagnostics: ${JSON.stringify(
@@ -254,6 +272,19 @@ test.describe("AMC staging direct create smoke", () => {
     const orderId = new URL(page.url()).pathname.split("/").pop() || "";
     expect(orderId).toMatch(UUID_REGEX);
     const order = await readOrderById(orderId);
+
+    if (order.operations_scope !== "amc_operations") {
+      throw new Error(
+        `Expected created order ${orderId} to be AMC-scoped, but got ${order.operations_scope}. RPC diagnostics: ${JSON.stringify(
+          {
+            rpcCreateOrderRequests: rpcCreateOrderRequests.slice(0, 4),
+            order,
+          },
+          null,
+          2,
+        )}`,
+      );
+    }
 
     expect(order).toMatchObject({
       operations_scope: "amc_operations",
