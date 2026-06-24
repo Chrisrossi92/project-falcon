@@ -64,6 +64,12 @@ Metadata Diagnostics page displays this metadata so operators can verify inferre
 development and QA. The output remains non-authoritative and explicitly does not control auth,
 routing, active company, data access, or legal separation.
 
+`docs/architecture/AMC_PRODUCT_ROUTE_ALIAS_PLAN.md` now defines the future product-local route
+alias strategy before any route table changes. It inventories current shared, AMC-only,
+Internal-only, Vendor Workspace, Client Portal, and public token routes; proposes additive aliases;
+and recommends a migration order that keeps compatibility paths until links, navigation,
+notifications, email, and smoke coverage are ready.
+
 ## Classification Key
 
 | Class | Meaning |
