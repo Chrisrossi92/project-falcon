@@ -119,6 +119,8 @@ async function readDirectCreateDiagnostics(page) {
       headings: textFrom("h1,h2,h3,[role='heading']", 12),
       buttons: textFrom("button", 12),
       links: textFrom("a", 12),
+      labels: textFrom("label", 20),
+      selectOptions: textFrom("select option", 30),
       scripts: attrFrom("script[src]", "src", 8),
       buildMarkers: {},
       rootHtmlSnippet: document.documentElement.outerHTML.slice(0, 800),
@@ -169,11 +171,15 @@ test.describe("AMC staging direct create smoke", () => {
     await navigateWithinAmc(page, "/amc/orders/new");
 
     await expectDirectCreateFormVisible(page);
-    await expect(page.getByText(/Select an existing client to create this order/i)).toBeVisible();
     await expect(page.getByPlaceholder("Manual client name")).toHaveCount(0);
 
     const form = page.locator("form").first();
-    await form.locator("select").nth(1).selectOption({ label: smokeClient.name });
+    const clientSelect = form.locator("select").nth(1);
+    await expect(clientSelect).toBeVisible();
+    await expect(clientSelect.locator("option", { hasText: smokeClient.name })).toHaveCount(1);
+    await page.getByRole("button", { name: /^Create Order$/i }).click();
+    await expect(page.getByText(/Select an existing client before creating this order/i)).toBeVisible();
+    await clientSelect.selectOption({ label: smokeClient.name });
     await page.getByPlaceholder("123 Main St").fill(smokeAddress);
     await form.locator("input").nth(1).fill("Columbus");
     await form.locator("input").nth(2).fill("OH");
@@ -219,6 +225,6 @@ test.describe("AMC staging direct create smoke", () => {
 
     await expect(page).toHaveURL(/\/dashboard(?:[?#].*)?$/, { timeout: 15000 });
     await expect(page.getByRole("heading", { name: /^New Order$/i })).toHaveCount(0);
-    await expect(page.getByText(/Select an existing client to create this order/i)).toHaveCount(0);
+    await expect(page.getByPlaceholder("Manual client name")).toHaveCount(0);
   });
 });
