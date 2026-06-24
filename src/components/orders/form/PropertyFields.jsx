@@ -55,6 +55,7 @@ export default function PropertyFields({ value, onChange }) {
 
       <Label>Address</Label>
       <TextInput
+        aria-label="Address"
         name="address_line1"
         placeholder="123 Main St"
         value={value.address_line1 || ""}
@@ -67,15 +68,31 @@ export default function PropertyFields({ value, onChange }) {
       <div className="mt-3 grid grid-cols-6 gap-3">
         <div className="col-span-3">
           <Label>City</Label>
-          <TextInput value={value.city || ""} onChange={(e) => onChange({ city: e.target.value })} />
+          <TextInput
+            aria-label="City"
+            name="city"
+            value={value.city || ""}
+            onChange={(e) => onChange({ city: e.target.value })}
+          />
         </div>
         <div className="col-span-1">
           <Label>State</Label>
-          <TextInput value={value.state || ""} onChange={(e) => onChange({ state: (e.target.value || "").toUpperCase() })} maxLength={2}/>
+          <TextInput
+            aria-label="State"
+            name="state"
+            value={value.state || ""}
+            onChange={(e) => onChange({ state: (e.target.value || "").toUpperCase() })}
+            maxLength={2}
+          />
         </div>
         <div className="col-span-2">
           <Label>Zip</Label>
-          <TextInput value={value.postal_code || value.zip || ""} onChange={(e) => onChange({ postal_code: e.target.value })} />
+          <TextInput
+            aria-label="Zip"
+            name="postal_code"
+            value={value.postal_code || value.zip || ""}
+            onChange={(e) => onChange({ postal_code: e.target.value })}
+          />
         </div>
       </div>
 
@@ -83,6 +100,8 @@ export default function PropertyFields({ value, onChange }) {
         <div>
           <Label>Property Type</Label>
           <select
+            aria-label="Property Type"
+            name="property_type"
             className="w-full border rounded px-2 py-1 text-sm"
             value={value.property_type || ""}
             onChange={(e) => onChange({ property_type: e.target.value })}
@@ -97,6 +116,8 @@ export default function PropertyFields({ value, onChange }) {
         <div>
           <Label>Report Type</Label>
           <select
+            aria-label="Report Type"
+            name="report_type"
             className="w-full border rounded px-2 py-1 text-sm"
             value={value.report_type || ""}
             onChange={(e) => onChange({ report_type: e.target.value })}

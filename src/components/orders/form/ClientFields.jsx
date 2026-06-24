@@ -137,6 +137,8 @@ export default function ClientFields({
 
       <Label>AMC (if applicable)</Label>
       <select
+        aria-label="AMC"
+        name="managing_amc_id"
         value={value.managing_amc_id ?? ""}
         onChange={(e) => onChange({ managing_amc_id: e.target.value || null, client_id: null })}
         className="w-full border rounded px-2 py-1 text-sm"
@@ -148,6 +150,8 @@ export default function ClientFields({
       <div className="mt-3">
         <Label>Client</Label>
         <select
+          aria-label="Client"
+          name="client_id"
           value={value.client_id ?? ""}
           onChange={(e) => onChange({ client_id: e.target.value || null, manual_client_name: "" })}
           className="w-full border rounded px-2 py-1 text-sm"

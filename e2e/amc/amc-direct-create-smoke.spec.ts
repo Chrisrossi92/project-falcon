@@ -16,6 +16,9 @@ const OWNER_EMAIL = process.env.AMC_STAGING_SMOKE_OWNER_EMAIL || "amc.smoke.owne
 const PASSWORD = process.env.AMC_STAGING_SMOKE_PASSWORD || "FalconSmoke123!";
 const SMOKE_LABEL = "AMC DIRECT CREATE SMOKE - DO NOT USE";
 const routesSource = readFileSync(resolve(process.cwd(), "src/routes/index.jsx"), "utf8");
+const UUID_PATTERN = "[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
+const UUID_REGEX = new RegExp(`^${UUID_PATTERN}$`, "i");
+const AMC_ORDER_DETAIL_URL_REGEX = new RegExp(`/amc/orders/${UUID_PATTERN}(?:[/?#].*)?$`, "i");
 
 let adminClient = null;
 let smokeClient = null;
@@ -80,6 +83,10 @@ async function seedDirectCreateFixture() {
 }
 
 async function readOrderById(orderId: string) {
+  if (!UUID_REGEX.test(orderId)) {
+    throw new Error(`Refusing to query direct-create order with non-UUID id: ${orderId}`);
+  }
+
   const { data, error } = await adminClient
     .from("orders")
     .select("id, order_number, operations_scope, client_id, property_address, city, state, postal_code, property_type, report_type, status")
@@ -89,8 +96,8 @@ async function readOrderById(orderId: string) {
   return data;
 }
 
-async function readDirectCreateDiagnostics(page) {
-  return page.evaluate(() => {
+async function readDirectCreateDiagnostics(page, extra = {}) {
+  const browserDiagnostics = await page.evaluate(() => {
     const textFrom = (selector, limit) =>
       Array.from(document.querySelectorAll(selector))
         .filter((element) => {
@@ -121,11 +128,23 @@ async function readDirectCreateDiagnostics(page) {
       links: textFrom("a", 12),
       labels: textFrom("label", 20),
       selectOptions: textFrom("select option", 30),
+      formErrors: textFrom("[role='alert'], .text-red-600, .text-red-700, .text-red-800", 12),
+      toastText: textFrom("[data-sonner-toast], [role='status'], [aria-live]", 12),
+      disabledButtons: Array.from(document.querySelectorAll("button"))
+        .filter((button) => button.disabled || button.getAttribute("aria-disabled") === "true")
+        .map((button) => (button.textContent || "").replace(/\s+/g, " ").trim())
+        .filter(Boolean)
+        .slice(0, 12),
       scripts: attrFrom("script[src]", "src", 8),
       buildMarkers: {},
       rootHtmlSnippet: document.documentElement.outerHTML.slice(0, 800),
     };
   });
+
+  return {
+    ...browserDiagnostics,
+    ...extra,
+  };
 }
 
 async function expectDirectCreateFormVisible(page) {
@@ -174,28 +193,66 @@ test.describe("AMC staging direct create smoke", () => {
     await expect(page.getByPlaceholder("Manual client name")).toHaveCount(0);
 
     const form = page.locator("form").first();
-    const clientSelect = form.locator("select").nth(1);
+    const clientSelect = form.getByLabel(/^Client$/i);
     await expect(clientSelect).toBeVisible();
     await expect(clientSelect.locator("option", { hasText: smokeClient.name })).toHaveCount(1);
     await page.getByRole("button", { name: /^Create Order$/i }).click();
     await expect(page.getByText(/Select an existing client before creating this order/i)).toBeVisible();
     await clientSelect.selectOption({ label: smokeClient.name });
     await page.getByPlaceholder("123 Main St").fill(smokeAddress);
-    await form.locator("input").nth(1).fill("Columbus");
-    await form.locator("input").nth(2).fill("OH");
-    await form.locator("input").nth(3).fill("43215");
-    await form.locator("select").nth(2).selectOption("Office");
-    await form.locator("select").nth(3).selectOption("Appraisal");
+    await form.getByLabel(/^City$/i).fill("Columbus");
+    await form.getByLabel(/^State$/i).fill("OH");
+    await form.getByLabel(/^Zip$/i).fill("43215");
+    await form.getByLabel(/^Property Type$/i).selectOption("Office");
+    await form.getByLabel(/^Report Type$/i).selectOption("Appraisal");
     await page.getByLabel("Final Due").fill(new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10));
 
-    await Promise.all([
-      page.waitForURL(/\/amc\/orders\/[^/?#]+(?:[?#].*)?$/, { timeout: 20000 }),
-      page.getByRole("button", { name: /^Create Order$/i }).click(),
-    ]);
+    await expect(page.getByPlaceholder("123 Main St")).toHaveValue(smokeAddress);
+    await expect(form.getByLabel(/^City$/i)).toHaveValue("Columbus");
+    await expect(form.getByLabel(/^State$/i)).toHaveValue("OH");
+    await expect(form.getByLabel(/^Zip$/i)).toHaveValue("43215");
+    await expect(form.getByLabel(/^Property Type$/i)).toHaveValue("Office");
+    await expect(form.getByLabel(/^Report Type$/i)).toHaveValue("Appraisal");
+
+    const failedRequests = [];
+    const errorResponses = [];
+    page.on("requestfailed", (request) => {
+      failedRequests.push({
+        method: request.method(),
+        url: request.url(),
+        failure: request.failure()?.errorText || null,
+      });
+    });
+    page.on("response", (response) => {
+      if (response.status() >= 400) {
+        errorResponses.push({
+          status: response.status(),
+          url: response.url(),
+        });
+      }
+    });
+
+    await page.getByRole("button", { name: /^Create Order$/i }).click();
+    try {
+      await page.waitForURL(AMC_ORDER_DETAIL_URL_REGEX, { timeout: 20000 });
+    } catch (error) {
+      const diagnostics = await readDirectCreateDiagnostics(page, {
+        failedRequests: failedRequests.slice(0, 12),
+        errorResponses: errorResponses.slice(0, 12),
+      });
+      throw new Error(
+        `Expected AMC direct create to redirect to /amc/orders/<uuid>, but current URL is ${page.url()}. Diagnostics: ${JSON.stringify(
+          diagnostics,
+          null,
+          2,
+        )}`,
+        { cause: error },
+      );
+    }
     await page.waitForLoadState("networkidle").catch(() => {});
 
     const orderId = new URL(page.url()).pathname.split("/").pop() || "";
-    expect(orderId).toBeTruthy();
+    expect(orderId).toMatch(UUID_REGEX);
     const order = await readOrderById(orderId);
 
     expect(order).toMatchObject({
