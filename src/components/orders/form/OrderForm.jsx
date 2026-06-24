@@ -266,6 +266,9 @@ export default function OrderForm({
       }
 
       const payload = buildOrderPayload(nextValues, { isEdit });
+      if (!isEdit && operationsScope) {
+        payload.operations_scope = operationsScope;
+      }
 
       const result = isEdit
         ? await updateOrderViaRpc(order.id, payload)
@@ -365,6 +368,5 @@ export default function OrderForm({
     </form>
   );
 }
-
 
 

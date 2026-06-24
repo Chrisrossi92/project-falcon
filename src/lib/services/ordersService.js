@@ -254,10 +254,24 @@ export async function createOrder(payload, context = {}) {
   return order;
 }
 
-export async function createOrderViaRpc(payload) {
-  const { data: order, error } = await supabase.rpc("rpc_create_order", {
-    payload,
-  });
+const ORDER_CREATE_OPERATIONS_SCOPES = new Set([
+  "internal_operations",
+  "amc_operations",
+]);
+
+export async function createOrderViaRpc(payload, options = {}) {
+  const operationsScope = options?.operationsScope ?? payload?.operations_scope ?? null;
+
+  if (operationsScope != null && !ORDER_CREATE_OPERATIONS_SCOPES.has(operationsScope)) {
+    throw new Error("Invalid order create operations scope.");
+  }
+
+  const rpcArgs = { payload };
+  if (operationsScope) {
+    rpcArgs.p_operations_scope = operationsScope;
+  }
+
+  const { data: order, error } = await supabase.rpc("rpc_create_order", rpcArgs);
   if (error) throw error;
   return order ?? null;
 }

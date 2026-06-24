@@ -94,6 +94,97 @@ describe("createOrderViaRpc", () => {
     warnSpy.mockRestore();
   });
 
+  it("keeps default create compatible by omitting the operations scope argument", async () => {
+    const payload = {
+      property_address: "1 Main St",
+    };
+    const createdOrder = {
+      id: "order-1",
+      operations_scope: "internal_operations",
+    };
+
+    supabaseMock.rpc.mockResolvedValue({ data: createdOrder, error: null });
+
+    await expect(createOrderViaRpc(payload)).resolves.toBe(createdOrder);
+
+    expect(supabaseMock.rpc).toHaveBeenCalledWith("rpc_create_order", {
+      payload,
+    });
+  });
+
+  it("passes explicit AMC operations scope when requested", async () => {
+    const payload = {
+      property_address: "1 AMC Way",
+    };
+    const createdOrder = {
+      id: "order-amc",
+      operations_scope: "amc_operations",
+    };
+
+    supabaseMock.rpc.mockResolvedValue({ data: createdOrder, error: null });
+
+    await expect(
+      createOrderViaRpc(payload, { operationsScope: "amc_operations" }),
+    ).resolves.toBe(createdOrder);
+
+    expect(supabaseMock.rpc).toHaveBeenCalledWith("rpc_create_order", {
+      payload,
+      p_operations_scope: "amc_operations",
+    });
+  });
+
+  it("derives the RPC operations scope from the payload when an intermediate caller drops options", async () => {
+    const payload = {
+      operations_scope: "amc_operations",
+      property_address: "1 AMC Way",
+    };
+    const createdOrder = {
+      id: "order-amc",
+      operations_scope: "amc_operations",
+    };
+
+    supabaseMock.rpc.mockResolvedValue({ data: createdOrder, error: null });
+
+    await expect(createOrderViaRpc(payload)).resolves.toBe(createdOrder);
+
+    expect(supabaseMock.rpc).toHaveBeenCalledWith("rpc_create_order", {
+      payload,
+      p_operations_scope: "amc_operations",
+    });
+  });
+
+  it("passes explicit Internal operations scope when requested", async () => {
+    const payload = {
+      property_address: "1 Internal Way",
+    };
+    const createdOrder = {
+      id: "order-internal",
+      operations_scope: "internal_operations",
+    };
+
+    supabaseMock.rpc.mockResolvedValue({ data: createdOrder, error: null });
+
+    await expect(
+      createOrderViaRpc(payload, { operationsScope: "internal_operations" }),
+    ).resolves.toBe(createdOrder);
+
+    expect(supabaseMock.rpc).toHaveBeenCalledWith("rpc_create_order", {
+      payload,
+      p_operations_scope: "internal_operations",
+    });
+  });
+
+  it("rejects invalid frontend operations scope before calling the RPC", async () => {
+    await expect(
+      createOrderViaRpc(
+        { property_address: "1 Main St" },
+        { operationsScope: "vendor" },
+      ),
+    ).rejects.toThrow("Invalid order create operations scope.");
+
+    expect(supabaseMock.rpc).not.toHaveBeenCalled();
+  });
+
   it("does not direct insert orders or call legacy numbering RPCs", async () => {
     supabaseMock.rpc.mockResolvedValue({
       data: { id: "order-1", order_number: "2026001" },
