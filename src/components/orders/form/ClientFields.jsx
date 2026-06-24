@@ -58,21 +58,29 @@ function normalizeClientName(name) {
   return String(name || "").trim().replace(/\s+/g, " ").toLowerCase();
 }
 
-export default function ClientFields({ value, onChange }) {
+export default function ClientFields({
+  value,
+  onChange,
+  allowInlineClientCreation = true,
+  operationsScope = null,
+}) {
   const [clients,setClients] = useState([]); const [amcs,setAmcs]=useState([]);
   const [matchingClient, setMatchingClient] = useState(null);
   const [checkingClientName, setCheckingClientName] = useState(false);
+  const canCreateInlineClient = allowInlineClientCreation === true;
   const manualClientName = String(value.manual_client_name || "").trim();
-  const needsClient = !value.client_id && !String(value.manual_client_name || "").trim();
-  const hasManualClientName = !value.client_id && manualClientName.length > 0;
+  const needsClient = !value.client_id && (!canCreateInlineClient || !String(value.manual_client_name || "").trim());
+  const hasManualClientName = canCreateInlineClient && !value.client_id && manualClientName.length > 0;
 
   useEffect(() => {
     (async () => {
-      const rows = await listOrderFormClientOptions();
+      const rows = operationsScope
+        ? await listOrderFormClientOptions({ operationsScope })
+        : await listOrderFormClientOptions();
       setClients(rows ?? []);
       setAmcs((rows || []).filter((client) => String(client.category || "").toLowerCase() === "amc"));
     })();
-  }, []);
+  }, [operationsScope]);
 
   const filteredClients = useMemo(() => {
     const nonAmc = (clients || []).filter((c) => String(c.category || "").toLowerCase() !== "amc");
@@ -99,7 +107,10 @@ export default function ClientFields({ value, onChange }) {
     setCheckingClientName(true);
     const timer = window.setTimeout(async () => {
       try {
-        const matches = await searchOrderFormClientsByName(manualClientName, 10);
+        const matches = await searchOrderFormClientsByName(
+          manualClientName,
+          operationsScope ? { limit: 10, operationsScope } : 10
+        );
         if (cancelled) return;
         const normalized = normalizeClientName(manualClientName);
         const exact = (matches || []).find(
@@ -147,28 +158,38 @@ export default function ClientFields({ value, onChange }) {
         <SelectedClientContactPreview client={selectedClient} />
       </div>
 
-      <div className="mt-2 text-[11px] text-gray-500">Or enter a manual client:</div>
-      <TextInput
-        placeholder="Manual client name"
-        value={value.manual_client_name || ""}
-        onChange={(e) => onChange({ manual_client_name: e.target.value })}
-        disabled={!!value.client_id}
-      />
-      {hasManualClientName && (
-        <div className="mt-2 space-y-2">
-          {checkingClientName && (
-            <div className="text-[11px] text-slate-500">Checking existing clients...</div>
-          )}
-          <ClientNudge show={!!matchingClient} clientName={matchingClient?.name} />
-          {!checkingClientName && !matchingClient ? (
-            <div className="text-[11px] text-slate-500">
-              Falcon will create a client record from this name when the order is created.
+      {canCreateInlineClient ? (
+        <>
+          <div className="mt-2 text-[11px] text-gray-500">Or enter a manual client:</div>
+          <TextInput
+            placeholder="Manual client name"
+            value={value.manual_client_name || ""}
+            onChange={(e) => onChange({ manual_client_name: e.target.value })}
+            disabled={!!value.client_id}
+          />
+          {hasManualClientName && (
+            <div className="mt-2 space-y-2">
+              {checkingClientName && (
+                <div className="text-[11px] text-slate-500">Checking existing clients...</div>
+              )}
+              <ClientNudge show={!!matchingClient} clientName={matchingClient?.name} />
+              {!checkingClientName && !matchingClient ? (
+                <div className="text-[11px] text-slate-500">
+                  Falcon will create a client record from this name when the order is created.
+                </div>
+              ) : null}
             </div>
-          ) : null}
+          )}
+        </>
+      ) : (
+        <div className="mt-2 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs text-slate-600">
+          Select an existing client to create this order.
         </div>
       )}
       <RecommendedCue show={needsClient}>
-        Recommended: select a client or enter a manual client name.
+        {canCreateInlineClient
+          ? "Recommended: select a client or enter a manual client name."
+          : "Required: select an existing client."}
       </RecommendedCue>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">

@@ -119,7 +119,13 @@ function getInlineClientCreateErrorMessage(error) {
   return "Falcon could not create this client.";
 }
 
-export default function OrderForm({ order, onSaved, onCancel }) {
+export default function OrderForm({
+  order,
+  onSaved,
+  onCancel,
+  operationsScope = null,
+  allowInlineClientCreation = true,
+}) {
   const navigate = useNavigate();
   const [values, setValues] = useState({});
   const [isSaving, setIsSaving] = useState(false);
@@ -128,6 +134,7 @@ export default function OrderForm({ order, onSaved, onCancel }) {
   const formTitle = isEdit ? "Edit Order" : "New Order";
   const submitLabel = isEdit ? "Save Changes" : "Create Order";
   const savingLabel = isEdit ? "Saving..." : "Creating...";
+  const canCreateInlineClient = allowInlineClientCreation === true && operationsScope !== "amc_operations";
   const statusLabel = formatStatusLabel(values.status || "new");
   const orderNumberPreview = isEdit
     ? values.order_number || "Order number unavailable"
@@ -215,13 +222,21 @@ export default function OrderForm({ order, onSaved, onCancel }) {
       };
 
       const shouldResolveManualClient =
+        canCreateInlineClient &&
         !isEdit &&
         !nextValues.client_id &&
         String(nextValues.manual_client_name || "").trim();
 
+      if (!isEdit && !canCreateInlineClient && !nextValues.client_id) {
+        throw new Error("Select an existing client before creating this order.");
+      }
+
       if (shouldResolveManualClient) {
         const manualClientName = String(nextValues.manual_client_name || "").trim();
-        const matches = await searchOrderFormClientsByName(manualClientName, 10);
+        const matches = await searchOrderFormClientsByName(
+          manualClientName,
+          operationsScope ? { limit: 10, operationsScope } : 10
+        );
         const normalizedManualName = normalizeClientName(manualClientName);
         const existingClient = (matches || []).find(
           (client) => normalizeClientName(client.name) === normalizedManualName
@@ -254,7 +269,9 @@ export default function OrderForm({ order, onSaved, onCancel }) {
 
       const result = isEdit
         ? await updateOrderViaRpc(order.id, payload)
-        : await createOrderViaRpc(payload);
+        : operationsScope
+          ? await createOrderViaRpc(payload, { operationsScope })
+          : await createOrderViaRpc(payload);
 
       if (onSaved) onSaved(result);
       else if (result?.id) navigate(`/orders/${result.id}`);
@@ -316,7 +333,13 @@ export default function OrderForm({ order, onSaved, onCancel }) {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 overflow-y-auto pr-1">
-        <ClientFields value={values} values={values} onChange={handleChange} />
+        <ClientFields
+          value={values}
+          values={values}
+          onChange={handleChange}
+          allowInlineClientCreation={canCreateInlineClient}
+          operationsScope={operationsScope}
+        />
         <PropertyFields value={values} values={values} onChange={handleChange} />
         <DatesFields value={values} values={values} onChange={handleChange} />
         <AssignmentFields
@@ -342,11 +365,6 @@ export default function OrderForm({ order, onSaved, onCancel }) {
     </form>
   );
 }
-
-
-
-
-
 
 
 

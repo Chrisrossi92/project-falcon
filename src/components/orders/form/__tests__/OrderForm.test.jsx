@@ -17,6 +17,7 @@ const orderClientOptionsMock = vi.hoisted(() => ({
   createOrderFormClient: vi.fn(),
   searchOrderFormClientsByName: vi.fn(),
 }));
+const clientFieldsMock = vi.hoisted(() => vi.fn());
 
 vi.mock("react-router-dom", () => ({
   useNavigate: () => navigateMock,
@@ -27,58 +28,66 @@ vi.mock("@/lib/services/ordersService", () => ordersServiceMock);
 vi.mock("@/features/orders/orderClientOptionsApi", () => orderClientOptionsMock);
 
 vi.mock("../ClientFields", () => ({
-  default: ({ value, onChange }) => (
-    <div>
-      <label>
-        Manual Client Name
-        <input
-          aria-label="Manual Client Name"
-          value={value.manual_client_name || ""}
-          onChange={(event) => onChange({ manual_client_name: event.target.value })}
-        />
-      </label>
-      <label>
-        AMC
-        <input
-          aria-label="AMC"
-          value={value.managing_amc_id || ""}
-          onChange={(event) => onChange({ managing_amc_id: event.target.value })}
-        />
-      </label>
-      <label>
-        Client
-        <input
-          aria-label="Client"
-          value={value.client_id || ""}
-          onChange={(event) => onChange({ client_id: event.target.value })}
-        />
-      </label>
-      <label>
-        Client Contact
-        <input
-          aria-label="Client Contact"
-          value={value.client_contact_id || ""}
-          onChange={(event) => onChange({ client_contact_id: event.target.value })}
-        />
-      </label>
-      <label>
-        Property Contact Name
-        <input
-          aria-label="Property Contact Name"
-          value={value.entry_contact_name || ""}
-          onChange={(event) => onChange({ entry_contact_name: event.target.value })}
-        />
-      </label>
-      <label>
-        Property Contact Phone
-        <input
-          aria-label="Property Contact Phone"
-          value={value.entry_contact_phone || ""}
-          onChange={(event) => onChange({ entry_contact_phone: event.target.value })}
-        />
-      </label>
-    </div>
-  ),
+  default: (props) => {
+    clientFieldsMock(props);
+    const { value, onChange, allowInlineClientCreation = true } = props;
+    return (
+      <div>
+        {allowInlineClientCreation ? (
+          <label>
+            Manual Client Name
+            <input
+              aria-label="Manual Client Name"
+              value={value.manual_client_name || ""}
+              onChange={(event) => onChange({ manual_client_name: event.target.value })}
+            />
+          </label>
+        ) : (
+          <div>Select an existing client to create this order.</div>
+        )}
+        <label>
+          AMC
+          <input
+            aria-label="AMC"
+            value={value.managing_amc_id || ""}
+            onChange={(event) => onChange({ managing_amc_id: event.target.value })}
+          />
+        </label>
+        <label>
+          Client
+          <input
+            aria-label="Client"
+            value={value.client_id || ""}
+            onChange={(event) => onChange({ client_id: event.target.value })}
+          />
+        </label>
+        <label>
+          Client Contact
+          <input
+            aria-label="Client Contact"
+            value={value.client_contact_id || ""}
+            onChange={(event) => onChange({ client_contact_id: event.target.value })}
+          />
+        </label>
+        <label>
+          Property Contact Name
+          <input
+            aria-label="Property Contact Name"
+            value={value.entry_contact_name || ""}
+            onChange={(event) => onChange({ entry_contact_name: event.target.value })}
+          />
+        </label>
+        <label>
+          Property Contact Phone
+          <input
+            aria-label="Property Contact Phone"
+            value={value.entry_contact_phone || ""}
+            onChange={(event) => onChange({ entry_contact_phone: event.target.value })}
+          />
+        </label>
+      </div>
+    );
+  },
 }));
 
 vi.mock("../AssignmentFields", () => ({
@@ -214,6 +223,7 @@ describe("OrderForm", () => {
     ordersServiceMock.updateOrderViaRpc.mockReset();
     orderClientOptionsMock.createOrderFormClient.mockReset();
     orderClientOptionsMock.searchOrderFormClientsByName.mockReset();
+    clientFieldsMock.mockReset();
   });
 
   afterEach(() => {
@@ -252,7 +262,177 @@ describe("OrderForm", () => {
         status: "new",
       }),
     );
+    expect(ordersServiceMock.createOrderViaRpc.mock.calls[0]).toHaveLength(1);
     expect(ordersServiceMock.createOrderViaRpc.mock.calls[0][0]).not.toHaveProperty("order_number");
+    expect(onSaved).toHaveBeenCalledWith(createdOrder);
+  });
+
+  it("passes explicit AMC operations scope to the create service when provided", async () => {
+    const createdOrder = {
+      id: "order-created",
+      order_number: "2026006",
+      operations_scope: "amc_operations",
+    };
+    const onSaved = vi.fn();
+    ordersServiceMock.createOrderViaRpc.mockResolvedValue(createdOrder);
+
+    render(<OrderForm operationsScope="amc_operations" onSaved={onSaved} />);
+
+    fireEvent.change(screen.getByLabelText("Client"), {
+      target: { value: "client-101" },
+    });
+    fireEvent.change(screen.getByLabelText("Property Address"), {
+      target: { value: "1 AMC Way" },
+    });
+    fireEvent.submit(screen.getByRole("button", { name: "Create Order" }).closest("form"));
+
+    await waitFor(() => {
+      expect(ordersServiceMock.createOrderViaRpc).toHaveBeenCalledTimes(1);
+    });
+
+    expect(ordersServiceMock.createOrderViaRpc).toHaveBeenCalledWith(
+      expect.objectContaining({
+        client_id: "client-101",
+        property_address: "1 AMC Way",
+        manual_client_name: null,
+        status: "new",
+      }),
+      { operationsScope: "amc_operations" },
+    );
+    expect(onSaved).toHaveBeenCalledWith(createdOrder);
+  });
+
+  it("passes explicit operations scope to ClientFields for scoped option loading", () => {
+    render(<OrderForm operationsScope="amc_operations" onSaved={vi.fn()} />);
+
+    expect(clientFieldsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operationsScope: "amc_operations",
+      }),
+    );
+  });
+
+  it("passes invalid operations scope through to the service boundary for rejection", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    ordersServiceMock.createOrderViaRpc.mockRejectedValue(
+      new Error("Invalid order create operations scope."),
+    );
+
+    try {
+      render(<OrderForm operationsScope="vendor" onSaved={vi.fn()} />);
+
+      fireEvent.change(screen.getByLabelText("Property Address"), {
+        target: { value: "1 Main St" },
+      });
+      fireEvent.submit(screen.getByRole("button", { name: "Create Order" }).closest("form"));
+
+      await waitFor(() => {
+        expect(screen.getByText("Invalid order create operations scope.")).toBeInTheDocument();
+      });
+
+      expect(ordersServiceMock.createOrderViaRpc).toHaveBeenCalledWith(
+        expect.objectContaining({
+          property_address: "1 Main St",
+          status: "new",
+        }),
+        { operationsScope: "vendor" },
+      );
+      expect(orderClientOptionsMock.createOrderFormClient).not.toHaveBeenCalled();
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+  });
+
+  it("allows inline manual client creation by default", () => {
+    render(<OrderForm onSaved={vi.fn()} />);
+
+    expect(screen.getByLabelText("Manual Client Name")).toBeInTheDocument();
+    expect(screen.queryByText("Select an existing client to create this order.")).not.toBeInTheDocument();
+  });
+
+  it("hides inline manual client creation when existing-client-only mode is enabled", () => {
+    render(<OrderForm allowInlineClientCreation={false} onSaved={vi.fn()} />);
+
+    expect(screen.queryByLabelText("Manual Client Name")).not.toBeInTheDocument();
+    expect(screen.getByText("Select an existing client to create this order.")).toBeInTheDocument();
+  });
+
+  it("treats AMC-scoped create as existing-client-only even without an explicit inline flag", () => {
+    render(<OrderForm operationsScope="amc_operations" onSaved={vi.fn()} />);
+
+    expect(screen.queryByLabelText("Manual Client Name")).not.toBeInTheDocument();
+    expect(screen.getByText("Select an existing client to create this order.")).toBeInTheDocument();
+    expect(clientFieldsMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        allowInlineClientCreation: false,
+        operationsScope: "amc_operations",
+      }),
+    );
+  });
+
+  it("requires an existing client when inline client creation is disabled", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      render(<OrderForm allowInlineClientCreation={false} onSaved={vi.fn()} />);
+
+      fireEvent.change(screen.getByLabelText("Property Address"), {
+        target: { value: "1 AMC Way" },
+      });
+      fireEvent.submit(screen.getByRole("button", { name: "Create Order" }).closest("form"));
+
+      await waitFor(() => {
+        expect(screen.getByText("Select an existing client before creating this order.")).toBeInTheDocument();
+      });
+
+      expect(orderClientOptionsMock.searchOrderFormClientsByName).not.toHaveBeenCalled();
+      expect(orderClientOptionsMock.createOrderFormClient).not.toHaveBeenCalled();
+      expect(ordersServiceMock.createOrderViaRpc).not.toHaveBeenCalled();
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+  });
+
+  it("creates AMC-scoped orders in existing-client-only mode after client selection", async () => {
+    const createdOrder = {
+      id: "order-amc-existing-client",
+      order_number: "2026007",
+      operations_scope: "amc_operations",
+    };
+    const onSaved = vi.fn();
+    ordersServiceMock.createOrderViaRpc.mockResolvedValue(createdOrder);
+
+    render(
+      <OrderForm
+        operationsScope="amc_operations"
+        allowInlineClientCreation={false}
+        onSaved={onSaved}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Client"), {
+      target: { value: "client-101" },
+    });
+    fireEvent.change(screen.getByLabelText("Property Address"), {
+      target: { value: "1 AMC Way" },
+    });
+    fireEvent.submit(screen.getByRole("button", { name: "Create Order" }).closest("form"));
+
+    await waitFor(() => {
+      expect(ordersServiceMock.createOrderViaRpc).toHaveBeenCalledTimes(1);
+    });
+
+    expect(orderClientOptionsMock.searchOrderFormClientsByName).not.toHaveBeenCalled();
+    expect(orderClientOptionsMock.createOrderFormClient).not.toHaveBeenCalled();
+    expect(ordersServiceMock.createOrderViaRpc).toHaveBeenCalledWith(
+      expect.objectContaining({
+        client_id: "client-101",
+        property_address: "1 AMC Way",
+        manual_client_name: null,
+        status: "new",
+      }),
+      { operationsScope: "amc_operations" },
+    );
     expect(onSaved).toHaveBeenCalledWith(createdOrder);
   });
 
@@ -429,6 +609,45 @@ describe("OrderForm", () => {
         manual_client_name: null,
         status: "new",
       }),
+    );
+    expect(onSaved).toHaveBeenCalledWith(createdOrder);
+  });
+
+  it("uses scoped duplicate search when Internal operations scope is explicit and inline creation is allowed", async () => {
+    const createdOrder = {
+      id: "order-created",
+      order_number: "2026008",
+      operations_scope: "internal_operations",
+    };
+    const onSaved = vi.fn();
+    orderClientOptionsMock.searchOrderFormClientsByName.mockResolvedValue([
+      { id: "client-internal-existing", name: "Internal Scoped Client" },
+    ]);
+    ordersServiceMock.createOrderViaRpc.mockResolvedValue(createdOrder);
+
+    render(<OrderForm operationsScope="internal_operations" onSaved={onSaved} />);
+
+    fireEvent.change(screen.getByLabelText("Manual Client Name"), {
+      target: { value: "Internal Scoped Client" },
+    });
+    fireEvent.submit(screen.getByRole("button", { name: "Create Order" }).closest("form"));
+
+    await waitFor(() => {
+      expect(ordersServiceMock.createOrderViaRpc).toHaveBeenCalledTimes(1);
+    });
+
+    expect(orderClientOptionsMock.searchOrderFormClientsByName).toHaveBeenCalledWith(
+      "Internal Scoped Client",
+      { limit: 10, operationsScope: "internal_operations" },
+    );
+    expect(orderClientOptionsMock.createOrderFormClient).not.toHaveBeenCalled();
+    expect(ordersServiceMock.createOrderViaRpc).toHaveBeenCalledWith(
+      expect.objectContaining({
+        client_id: "client-internal-existing",
+        manual_client_name: null,
+        status: "new",
+      }),
+      { operationsScope: "internal_operations" },
     );
     expect(onSaved).toHaveBeenCalledWith(createdOrder);
   });
