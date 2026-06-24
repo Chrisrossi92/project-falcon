@@ -154,14 +154,15 @@ const generatedCoverageRows = [
   })),
 ];
 
-function renderPage() {
+function renderPage(initialPath = "/vendors/profile-1") {
   return render(
     <MemoryRouter
-      initialEntries={["/vendors/profile-1"]}
+      initialEntries={[initialPath]}
       future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
     >
       <Routes>
         <Route path="/vendors/:vendorProfileId" element={<VendorProfilePage />} />
+        <Route path="/amc/vendors/:vendorProfileId" element={<VendorProfilePage />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -209,7 +210,7 @@ describe("VendorProfilePage", () => {
     expect(within(summary).getByText("Preferred")).toBeInTheDocument();
     expect(within(summary).getByText("Contacts")).toBeInTheDocument();
     expect(within(summary).getByText("1")).toBeInTheDocument();
-    expect(within(summary).getByText("Primary listed")).toBeInTheDocument();
+    expect(within(summary).getByText("Vendor manager listed")).toBeInTheDocument();
     expect(within(summary).getByText("Coverage")).toBeInTheDocument();
     expect(within(summary).getByText("1 Region")).toBeInTheDocument();
     expect(within(summary).getByText("Products")).toBeInTheDocument();
@@ -218,8 +219,9 @@ describe("VendorProfilePage", () => {
     expect(within(summary).getByText("Active")).toBeInTheDocument();
     expect(screen.getByText("Network: Active")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Profile" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Contacts" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Vendor Manager & Contacts" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Coverage" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Vendor Directory" })).toHaveAttribute("href", "/vendors");
     expect(screen.getByRole("heading", { name: "Tags and Notes" })).toBeInTheDocument();
     expect(screen.getByText("Operational Notes")).toBeInTheDocument();
     expect(screen.queryByText("Assignment Readiness")).toBeNull();
@@ -238,6 +240,31 @@ describe("VendorProfilePage", () => {
     expect(screen.getAllByText(/Westchester/).length).toBeGreaterThan(1);
     expect(screen.getByText("Reliable preferred panel vendor.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /create|save|assign|invite|add|delete|archive|edit/i })).toBeNull();
+  });
+
+  it("keeps the Vendor Directory back link under the AMC alias when entered through the AMC alias", async () => {
+    vendorApiState.getVendorProfileDetail.mockResolvedValue(profile);
+    vendorApiState.getVendorProfileContacts.mockResolvedValue(contacts);
+    vendorApiState.getVendorProfileServiceAreas.mockResolvedValue(serviceAreas);
+
+    renderPage("/amc/vendors/profile-1");
+
+    expect(await screen.findByRole("heading", { name: "ABC Valuation" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Vendor Directory" })).toHaveAttribute(
+      "href",
+      "/amc/vendors",
+    );
+  });
+
+  it("keeps the Vendor Directory back link on compatibility paths when entered through compatibility route", async () => {
+    vendorApiState.getVendorProfileDetail.mockResolvedValue(profile);
+    vendorApiState.getVendorProfileContacts.mockResolvedValue(contacts);
+    vendorApiState.getVendorProfileServiceAreas.mockResolvedValue(serviceAreas);
+
+    renderPage("/vendors/profile-1");
+
+    expect(await screen.findByRole("heading", { name: "ABC Valuation" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Vendor Directory" })).toHaveAttribute("href", "/vendors");
   });
 
   it("shows Edit Profile only with vendors.update permission", async () => {
@@ -470,8 +497,8 @@ describe("VendorProfilePage", () => {
     renderPage();
 
     expect(await screen.findByRole("heading", { name: "ABC Valuation" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Add Contact" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Edit Contact" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Add Vendor Contact" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Edit Vendor Contact" })).toBeNull();
 
     cleanup();
     permissionState.allowed = new Set(["vendors.contacts.manage"]);
@@ -481,11 +508,11 @@ describe("VendorProfilePage", () => {
 
     renderPage();
 
-    expect(await screen.findByRole("button", { name: "Add Contact" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Edit Contact" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Add Vendor Contact" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit Vendor Contact" })).toBeInTheDocument();
   });
 
-  it("validates Add Contact name before saving", async () => {
+  it("validates Add Vendor Contact name before saving", async () => {
     permissionState.allowed = new Set(["vendors.contacts.manage"]);
     vendorApiState.getVendorProfileDetail.mockResolvedValue(profile);
     vendorApiState.getVendorProfileContacts.mockResolvedValue(contacts);
@@ -493,11 +520,11 @@ describe("VendorProfilePage", () => {
 
     renderPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Add Contact" }));
-    const dialog = screen.getByRole("dialog", { name: "Add Contact" });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Add Contact" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Add Vendor Contact" }));
+    const dialog = screen.getByRole("dialog", { name: "Add Vendor Contact" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add Vendor Contact" }));
 
-    expect(await within(dialog).findByText("Contact name is required.")).toBeInTheDocument();
+    expect(await within(dialog).findByText("Vendor contact name is required.")).toBeInTheDocument();
     expect(vendorApiState.createVendorContact).not.toHaveBeenCalled();
   });
 
@@ -510,8 +537,8 @@ describe("VendorProfilePage", () => {
 
     renderPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Add Contact" }));
-    const dialog = screen.getByRole("dialog", { name: "Add Contact" });
+    fireEvent.click(await screen.findByRole("button", { name: "Add Vendor Contact" }));
+    const dialog = screen.getByRole("dialog", { name: "Add Vendor Contact" });
     fireEvent.change(within(dialog).getByLabelText("Name"), {
       target: { value: " Sam Contact " },
     });
@@ -524,13 +551,13 @@ describe("VendorProfilePage", () => {
     fireEvent.change(within(dialog).getByLabelText("Role label"), {
       target: { value: " Operations " },
     });
-    fireEvent.click(within(dialog).getByLabelText("Primary contact"));
+    fireEvent.click(within(dialog).getByLabelText("Primary vendor manager / signing appraiser"));
     fireEvent.click(within(dialog).getByLabelText("Assignment notifications noted for future use"));
     fireEvent.change(within(dialog).getByLabelText("Notes"), {
       target: { value: " Backup coordinator. " },
     });
 
-    fireEvent.click(within(dialog).getByRole("button", { name: "Add Contact" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add Vendor Contact" }));
 
     await waitFor(() => {
       expect(vendorApiState.createVendorContact).toHaveBeenCalledWith("profile-1", {
@@ -546,7 +573,7 @@ describe("VendorProfilePage", () => {
     await waitFor(() => {
       expect(vendorApiState.getVendorProfileContacts).toHaveBeenCalledTimes(2);
     });
-    expect(screen.queryByRole("dialog", { name: "Add Contact" })).toBeNull();
+    expect(screen.queryByRole("dialog", { name: "Add Vendor Contact" })).toBeNull();
   });
 
   it("edits a vendor contact with prefilled values", async () => {
@@ -564,12 +591,12 @@ describe("VendorProfilePage", () => {
 
     renderPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Edit Contact" }));
-    const dialog = screen.getByRole("dialog", { name: "Edit Contact" });
+    fireEvent.click(await screen.findByRole("button", { name: "Edit Vendor Contact" }));
+    const dialog = screen.getByRole("dialog", { name: "Edit Vendor Contact" });
 
     expect(within(dialog).getByLabelText("Name")).toHaveValue("Mary Jones");
     expect(within(dialog).getByLabelText("Email")).toHaveValue("mary@example.test");
-    expect(within(dialog).getByLabelText("Primary contact")).toBeChecked();
+    expect(within(dialog).getByLabelText("Primary vendor manager / signing appraiser")).toBeChecked();
     expect(within(dialog).getByLabelText("Assignment notifications noted for future use")).toBeChecked();
     expect(within(dialog).getByLabelText("Notes")).toHaveValue("Current note");
 
@@ -579,13 +606,13 @@ describe("VendorProfilePage", () => {
     fireEvent.change(within(dialog).getByLabelText("Role label"), {
       target: { value: " Lead Coordinator " },
     });
-    fireEvent.click(within(dialog).getByLabelText("Primary contact"));
+    fireEvent.click(within(dialog).getByLabelText("Primary vendor manager / signing appraiser"));
     fireEvent.click(within(dialog).getByLabelText("Assignment notifications noted for future use"));
     fireEvent.change(within(dialog).getByLabelText("Notes"), {
       target: { value: " Updated note. " },
     });
 
-    fireEvent.click(within(dialog).getByRole("button", { name: "Save Contact" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save Vendor Contact" }));
 
     await waitFor(() => {
       expect(vendorApiState.updateVendorContact).toHaveBeenCalledWith("contact-1", {
@@ -601,7 +628,7 @@ describe("VendorProfilePage", () => {
     await waitFor(() => {
       expect(vendorApiState.getVendorProfileContacts).toHaveBeenCalledTimes(2);
     });
-    expect(screen.queryByRole("dialog", { name: "Edit Contact" })).toBeNull();
+    expect(screen.queryByRole("dialog", { name: "Edit Vendor Contact" })).toBeNull();
   });
 
   it("shows contact save errors and preserves form values", async () => {
@@ -615,16 +642,16 @@ describe("VendorProfilePage", () => {
 
     renderPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Add Contact" }));
-    const dialog = screen.getByRole("dialog", { name: "Add Contact" });
+    fireEvent.click(await screen.findByRole("button", { name: "Add Vendor Contact" }));
+    const dialog = screen.getByRole("dialog", { name: "Add Vendor Contact" });
     const name = within(dialog).getByLabelText("Name");
     fireEvent.change(name, { target: { value: "Preserved Contact" } });
 
-    fireEvent.click(within(dialog).getByRole("button", { name: "Add Contact" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add Vendor Contact" }));
 
     expect(await within(dialog).findByText("You do not have permission to manage vendor contacts.")).toBeInTheDocument();
     expect(name).toHaveValue("Preserved Contact");
-    expect(screen.getByRole("dialog", { name: "Add Contact" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Add Vendor Contact" })).toBeInTheDocument();
   });
 
   it("shows contact not-found errors with a friendly message", async () => {
@@ -636,12 +663,12 @@ describe("VendorProfilePage", () => {
 
     renderPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Edit Contact" }));
-    const dialog = screen.getByRole("dialog", { name: "Edit Contact" });
+    fireEvent.click(await screen.findByRole("button", { name: "Edit Vendor Contact" }));
+    const dialog = screen.getByRole("dialog", { name: "Edit Vendor Contact" });
     const name = within(dialog).getByLabelText("Name");
     fireEvent.change(name, { target: { value: "Preserved Missing Contact" } });
 
-    fireEvent.click(within(dialog).getByRole("button", { name: "Save Contact" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save Vendor Contact" }));
 
     expect(await within(dialog).findByText("That contact could not be found or you do not have access to it.")).toBeInTheDocument();
     expect(name).toHaveValue("Preserved Missing Contact");
@@ -659,13 +686,13 @@ describe("VendorProfilePage", () => {
 
     renderPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Add Contact" }));
-    const dialog = screen.getByRole("dialog", { name: "Add Contact" });
+    fireEvent.click(await screen.findByRole("button", { name: "Add Vendor Contact" }));
+    const dialog = screen.getByRole("dialog", { name: "Add Vendor Contact" });
     fireEvent.change(within(dialog).getByLabelText("Name"), {
       target: { value: "Slow Contact" },
     });
 
-    fireEvent.click(within(dialog).getByRole("button", { name: "Add Contact" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add Vendor Contact" }));
     expect(await within(dialog).findByRole("button", { name: "Saving..." })).toBeDisabled();
     fireEvent.click(within(dialog).getByRole("button", { name: "Saving..." }));
 
@@ -673,7 +700,7 @@ describe("VendorProfilePage", () => {
 
     resolveCreate("contact-slow");
     await waitFor(() => {
-      expect(screen.queryByRole("dialog", { name: "Add Contact" })).toBeNull();
+      expect(screen.queryByRole("dialog", { name: "Add Vendor Contact" })).toBeNull();
     });
   });
 
@@ -685,7 +712,7 @@ describe("VendorProfilePage", () => {
 
     renderPage();
 
-    expect(await screen.findByRole("button", { name: "Add Contact" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Add Vendor Contact" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /delete contact|archive contact|invite|link user/i })).toBeNull();
     expect(screen.queryByRole("link", { name: /invite|link user|amc/i })).toBeNull();
   });
@@ -1213,7 +1240,7 @@ describe("VendorProfilePage", () => {
     expect(await screen.findByRole("heading", { name: "ABC Valuation" })).toBeInTheDocument();
     const summary = screen.getByLabelText("Vendor summary");
     expect(within(summary).getByText("0")).toBeInTheDocument();
-    expect(within(summary).getByText("No primary contact")).toBeInTheDocument();
+    expect(within(summary).getByText("No vendor manager")).toBeInTheDocument();
     expect(within(summary).getByText("0 Regions")).toBeInTheDocument();
     expect(within(summary).getByText("No coverage listed")).toBeInTheDocument();
     expect(within(summary).getByText("0 Products")).toBeInTheDocument();
@@ -1222,7 +1249,7 @@ describe("VendorProfilePage", () => {
     expect(screen.getAllByText("None listed").length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText("No tags listed.")).toBeInTheDocument();
     expect(screen.getByText("No internal notes listed.")).toBeInTheDocument();
-    expect(screen.getByText("No contacts listed.")).toBeInTheDocument();
+    expect(screen.getByText("No vendor manager or contacts listed.")).toBeInTheDocument();
     expect(screen.getByText("No coverage listed.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /create|save|assign|invite|add|delete|archive|edit/i })).toBeNull();
   });

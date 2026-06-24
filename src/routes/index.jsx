@@ -306,6 +306,30 @@ export default function AppRoutes() {
 
         {/* Vendors */}
         <Route
+          path="/amc/vendors"
+          element={
+            <ProtectedRoute requiredPermission={PERMISSIONS.VENDORS_READ}>
+              <WorkspaceRouteGuard workspace={ROUTE_WORKSPACES.AMC}>
+                <V1HiddenSurfaceRouteGuard>
+                  <VendorDirectoryPage />
+                </V1HiddenSurfaceRouteGuard>
+              </WorkspaceRouteGuard>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/amc/vendors/:vendorProfileId"
+          element={
+            <ProtectedRoute requiredPermission={PERMISSIONS.VENDORS_READ}>
+              <WorkspaceRouteGuard workspace={ROUTE_WORKSPACES.AMC}>
+                <V1HiddenSurfaceRouteGuard>
+                  <VendorProfilePage />
+                </V1HiddenSurfaceRouteGuard>
+              </WorkspaceRouteGuard>
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/vendors"
           element={
             <ProtectedRoute requiredPermission={PERMISSIONS.VENDORS_READ}>
@@ -331,6 +355,21 @@ export default function AppRoutes() {
         />
 
         {/* Clients (legacy admin pages) */}
+        <Route
+          path="/amc/client-requests"
+          element={
+            <ProtectedRoute
+              requiredAnyPermissions={[
+                PERMISSIONS.CLIENT_PORTAL_ORDER_REQUESTS_READ,
+                PERMISSIONS.CLIENT_PORTAL_ORDER_REQUESTS_MANAGE,
+              ]}
+            >
+              <WorkspaceRouteGuard workspace={ROUTE_WORKSPACES.AMC}>
+                <ClientOrderRequestsPage />
+              </WorkspaceRouteGuard>
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/client-requests"
           element={

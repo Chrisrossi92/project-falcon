@@ -82,6 +82,22 @@ function renderGuardedRoute(initialPath = "/assignments") {
             </V1HiddenSurfaceRouteGuard>
           }
         />
+        <Route
+          path="/amc/vendors"
+          element={
+            <V1HiddenSurfaceRouteGuard>
+              <div data-testid="hidden-surface">AMC Vendors</div>
+            </V1HiddenSurfaceRouteGuard>
+          }
+        />
+        <Route
+          path="/amc/vendors/:vendorProfileId"
+          element={
+            <V1HiddenSurfaceRouteGuard>
+              <div data-testid="hidden-surface">AMC Vendor profile</div>
+            </V1HiddenSurfaceRouteGuard>
+          }
+        />
         <Route path="/orders" element={<LocationProbe />} />
       </Routes>
     </MemoryRouter>,
@@ -142,6 +158,24 @@ describe("V1HiddenSurfaceRouteGuard", () => {
     renderGuardedRoute("/vendors/profile-1");
 
     expect(screen.getByTestId("hidden-surface")).toHaveTextContent("Vendor profile");
+    expect(screen.queryByTestId("location")).toBeNull();
+  });
+
+  it("allows the AMC Vendor Directory alias in AMC Operations mode to remain permission governed", () => {
+    operationsModeState.operationsMode = "amc_operations";
+
+    renderGuardedRoute("/amc/vendors");
+
+    expect(screen.getByTestId("hidden-surface")).toHaveTextContent("AMC Vendors");
+    expect(screen.queryByTestId("location")).toBeNull();
+  });
+
+  it("allows the AMC Vendor Profile alias in AMC Operations mode to remain permission governed", () => {
+    operationsModeState.operationsMode = "amc_operations";
+
+    renderGuardedRoute("/amc/vendors/profile-1");
+
+    expect(screen.getByTestId("hidden-surface")).toHaveTextContent("AMC Vendor profile");
     expect(screen.queryByTestId("location")).toBeNull();
   });
 

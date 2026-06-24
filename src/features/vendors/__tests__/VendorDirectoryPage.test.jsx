@@ -65,10 +65,13 @@ vi.mock("react-router-dom", async (importOriginal) => {
 
 const { default: VendorDirectoryPage } = await import("../VendorDirectoryPage.jsx");
 
-function renderPage() {
+function renderPage(initialPath = "/vendors") {
   window.localStorage.setItem("falcon.operationsMode", OPERATIONS_MODES.AMC_OPERATIONS);
   return render(
-    <MemoryRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
+    <MemoryRouter
+      initialEntries={[initialPath]}
+      future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
+    >
       <OperationsModeProvider availableOperationsModes={[OPERATIONS_MODES.AMC_OPERATIONS]}>
         <VendorDirectoryPage />
       </OperationsModeProvider>
@@ -148,6 +151,28 @@ describe("VendorDirectoryPage", () => {
     expect(screen.queryByRole("button", { name: /create|save|assign|invite|add/i })).toBeNull();
   });
 
+  it("keeps Vendor Profile links under the AMC alias when entered through the AMC alias", async () => {
+    vendorApiState.listVendorDirectory.mockResolvedValue([vendorRow]);
+
+    renderPage("/amc/vendors");
+
+    expect(await screen.findByRole("link", { name: "ABC Valuation" })).toHaveAttribute(
+      "href",
+      "/amc/vendors/profile-1",
+    );
+  });
+
+  it("keeps Vendor Profile links on compatibility paths when entered through the compatibility route", async () => {
+    vendorApiState.listVendorDirectory.mockResolvedValue([vendorRow]);
+
+    renderPage("/vendors");
+
+    expect(await screen.findByRole("link", { name: "ABC Valuation" })).toHaveAttribute(
+      "href",
+      "/vendors/profile-1",
+    );
+  });
+
   it("handles sparse read-model rows without broken detail links or summaries", async () => {
     vendorApiState.listVendorDirectory.mockResolvedValue([
       {
@@ -166,7 +191,7 @@ describe("VendorDirectoryPage", () => {
     expect(screen.queryByRole("link", { name: "Sparse Vendor" })).toBeNull();
     expect(screen.getByText("Unknown")).toBeInTheDocument();
     expect(screen.getByText(/Network:\s*Staged/)).toBeInTheDocument();
-    expect(screen.getByText("No primary contact")).toBeInTheDocument();
+    expect(screen.getByText("No vendor manager")).toBeInTheDocument();
     expect(screen.getByText("No active coverage")).toBeInTheDocument();
     expect(screen.getByText("No product summary")).toBeInTheDocument();
   });
@@ -673,10 +698,10 @@ describe("VendorDirectoryPage", () => {
     fireEvent.change(within(dialog).getByLabelText("Public phone"), {
       target: { value: "614-555-0199" },
     });
-    fireEvent.change(within(dialog).getByLabelText("Contact name"), {
+    fireEvent.change(within(dialog).getByLabelText("Vendor manager name"), {
       target: { value: "Dana Vendor" },
     });
-    fireEvent.change(within(dialog).getByLabelText("Contact email"), {
+    fireEvent.change(within(dialog).getByLabelText("Vendor manager email"), {
       target: { value: "dana@example.test" },
     });
     expect(within(dialog).getByText(/Coverage is used for directory visibility/)).toBeInTheDocument();
@@ -798,7 +823,7 @@ describe("VendorDirectoryPage", () => {
     fireEvent.change(within(dialog).getByLabelText("Website"), {
       target: { value: "   " },
     });
-    fireEvent.change(within(dialog).getByLabelText("Contact email"), {
+    fireEvent.change(within(dialog).getByLabelText("Vendor manager email"), {
       target: { value: "   " },
     });
     fireEvent.change(within(dialog).getByLabelText("Tags"), {

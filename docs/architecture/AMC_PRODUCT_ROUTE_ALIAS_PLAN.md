@@ -55,6 +55,23 @@ failing if live `src` callers opt into canonical route mode before route aliases
 The guard allows the product route/link helper modules and product-context tests to exercise the
 feature.
 
+The first real AMC product-local aliases are now registered:
+
+- `/amc/vendors`
+- `/amc/vendors/:vendorProfileId`
+- `/amc/client-requests`
+
+They reuse the same route guards and pages as the compatibility Vendor Directory routes
+(`/vendors` and `/vendors/:vendorProfileId`) and Client Requests route (`/client-requests`).
+Navigation, email, notification links, redirects, auth callbacks, and canonical `productLinks`
+live usage have not been changed. Canonical route mode remains blocked for live callers until a
+later wiring slice intentionally updates that guard.
+
+Vendor Directory and Vendor Profile now preserve alias-local navigation inside that surface: users
+entering through `/amc/vendors` continue to profile/back links under `/amc/vendors/*`, while users
+entering through `/vendors` continue to use `/vendors/*`. This is local path-aware behavior only;
+global navigation and canonical `productLinks` mode remain unchanged and guarded.
+
 ## Current Route Group Inventory
 
 | Group | Current routes | Product context | Current guard/ownership | Notes |

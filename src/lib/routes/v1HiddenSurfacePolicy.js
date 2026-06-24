@@ -9,6 +9,7 @@ export const V1_HIDDEN_ENTERPRISE_ROUTE_PREFIXES = Object.freeze([
 ]);
 
 const AMC_OPERATIONS_VENDOR_ROUTE_PREFIXES = Object.freeze([
+  "/amc/vendors",
   "/vendors",
 ]);
 

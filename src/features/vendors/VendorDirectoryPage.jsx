@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Plus, Search, X } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { useCan } from "@/lib/hooks/usePermissions";
 import { PERMISSIONS } from "@/lib/permissions/constants";
@@ -22,6 +22,7 @@ import {
 import CoverageBuilder from "./coverage/CoverageBuilder";
 import { getVendorProductTypeLabel } from "./coverage/productTypes";
 import { getVendorErrorMessage } from "./vendorErrors";
+import { buildVendorProfilePath } from "./vendorRoutePaths";
 
 const VENDOR_STATUS_OPTIONS = Object.freeze([
   { value: "", label: "All statuses" },
@@ -1444,7 +1445,7 @@ function AddVendorModal({ open, onClose, onCreated }) {
   );
 }
 
-function VendorDirectoryRow({ vendor }) {
+function VendorDirectoryRow({ vendor, currentPathname }) {
   const tags = Array.isArray(vendor.tags) ? vendor.tags.filter(Boolean) : [];
   const contact = [
     vendor.primary_contact_name,
@@ -1452,7 +1453,9 @@ function VendorDirectoryRow({ vendor }) {
     vendor.primary_contact_phone,
   ].filter(Boolean).join(" · ");
 
-  const detailPath = vendor.vendor_profile_id ? `/vendors/${vendor.vendor_profile_id}` : null;
+  const detailPath = vendor.vendor_profile_id
+    ? buildVendorProfilePath(vendor.vendor_profile_id, currentPathname)
+    : null;
 
   return (
     <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
@@ -1507,6 +1510,7 @@ function VendorDirectoryRow({ vendor }) {
 
 export default function VendorDirectoryPage() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const { operationsMode } = useOperationsMode();
   const pageChrome = getWorkspacePageChrome(operationsMode, "vendors");
   const canCreateVendor = useCan(PERMISSIONS.VENDORS_CREATE);
@@ -1547,7 +1551,7 @@ export default function VendorDirectoryPage() {
     setAddVendorOpen(false);
     await loadVendors();
     if (created?.vendor_profile_id) {
-      navigate(`/vendors/${created.vendor_profile_id}`);
+      navigate(buildVendorProfilePath(created.vendor_profile_id, pathname));
     }
   };
 
@@ -1623,6 +1627,7 @@ export default function VendorDirectoryPage() {
             <VendorDirectoryRow
               key={vendor.vendor_profile_id || `${vendor.vendor_company_id || "vendor"}-${index}`}
               vendor={vendor}
+              currentPathname={pathname}
             />
           ))}
         </section>

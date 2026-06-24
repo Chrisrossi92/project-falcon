@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Pencil, Plus, X } from "lucide-react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 
 import { useCan } from "@/lib/hooks/usePermissions";
 import { PERMISSIONS } from "@/lib/permissions/constants";
@@ -19,6 +19,7 @@ import {
 import CoverageBuilder from "./coverage/CoverageBuilder";
 import { getVendorProductTypeLabel, normalizeVendorProductType, VENDOR_PRODUCT_TYPES } from "./coverage/productTypes";
 import { getVendorErrorMessage } from "./vendorErrors";
+import { buildVendorDirectoryPath } from "./vendorRoutePaths";
 
 const VENDOR_STATUS_OPTIONS = Object.freeze([
   { value: "active", label: "Active" },
@@ -1512,6 +1513,7 @@ function ServiceAreasList({ serviceAreas, canManage = false, onEditServiceArea }
 
 export default function VendorProfilePage() {
   const { vendorProfileId } = useParams();
+  const { pathname } = useLocation();
   const canUpdateVendor = useCan(PERMISSIONS.VENDORS_UPDATE);
   const canManageContacts = useCan(PERMISSIONS.VENDORS_CONTACTS_MANAGE);
   const canManageServiceAreas = useCan(PERMISSIONS.VENDORS_SERVICE_AREAS_MANAGE);
@@ -1623,7 +1625,10 @@ export default function VendorProfilePage() {
   return (
     <main className="mx-auto grid w-full max-w-7xl gap-4 px-3 py-4 sm:px-4">
       <div className="rounded-lg border border-slate-200 bg-white px-5 py-4 shadow-sm">
-        <Link to="/vendors" className="text-sm font-medium text-slate-500 hover:text-slate-800 hover:underline">
+        <Link
+          to={buildVendorDirectoryPath(pathname)}
+          className="text-sm font-medium text-slate-500 hover:text-slate-800 hover:underline"
+        >
           Vendor Directory
         </Link>
         <div className="mt-3 flex flex-wrap items-start justify-between gap-3">

@@ -256,14 +256,18 @@ describe('shadow route composition diagnostics', () => {
     expect(matches).toEqual([]);
   });
 
-  it('keeps active dashboard routing shared and does not introduce AMC route trees', () => {
+  it('keeps active dashboard routing shared and limits AMC route aliases to approved AMC-only pages', () => {
     const activeRoutes = readFileSync('src/routes/index.jsx', 'utf8');
+    const amcRoutePaths = [...activeRoutes.matchAll(/path="(\/amc[^"]*)"/g)].map((match) => match[1]);
 
     expect(activeRoutes).toContain('path="/dashboard"');
     expect(activeRoutes).toContain('path="/vendors"');
     expect(activeRoutes).toContain('path="/vendors/:vendorProfileId"');
-    expect(activeRoutes).not.toContain('path="/amc');
-    expect(activeRoutes).not.toContain('path="/amc/');
+    expect(amcRoutePaths).toEqual([
+      '/amc/vendors',
+      '/amc/vendors/:vendorProfileId',
+      '/amc/client-requests',
+    ]);
   });
 
   it('wraps high-risk protected operation routes with workspace ownership guards', () => {
@@ -283,13 +287,16 @@ describe('shadow route composition diagnostics', () => {
       ['/assignments/:assignmentId', operationsWorkspace, 'AssignmentDetail'],
       ['/relationships', operationsWorkspace, 'RelationshipsPage'],
       ['/relationships/:relationshipId', operationsWorkspace, 'RelationshipsPage'],
-      ['/client-requests', operationsWorkspace, 'ClientOrderRequestsPage'],
+      ['/amc/client-requests', amcWorkspace, 'ClientOrderRequestsPage'],
+      ['/client-requests', amcWorkspace, 'ClientOrderRequestsPage'],
       ['/clients', operationsWorkspace, 'ClientsDashboard'],
       ['/clients/new', operationsWorkspace, 'NewClient'],
       ['/clients/profile/:clientId', operationsWorkspace, 'ClientProfile'],
       ['/clients/edit/:clientId', operationsWorkspace, 'EditClient'],
       ['/clients/cards', operationsWorkspace, 'ClientsIndex'],
       ['/clients/:id', operationsWorkspace, 'ClientDetail'],
+      ['/amc/vendors', amcWorkspace, 'VendorDirectoryPage'],
+      ['/amc/vendors/:vendorProfileId', amcWorkspace, 'VendorProfilePage'],
       ['/vendors', amcWorkspace, 'VendorDirectoryPage'],
       ['/vendors/:vendorProfileId', amcWorkspace, 'VendorProfilePage'],
       ['/users', internalWorkspace, 'UsersIndex'],
@@ -298,6 +305,9 @@ describe('shadow route composition diagnostics', () => {
       expectRouteWrappedByWorkspaceGuard(activeRoutes, routePath, workspaceExpression, componentName);
     });
 
+    expect(activeRoutes).toMatch(
+      /path="\/amc\/client-requests"[\s\S]*requiredAnyPermissions=\{\[[\s\S]*PERMISSIONS\.CLIENT_PORTAL_ORDER_REQUESTS_READ[\s\S]*PERMISSIONS\.CLIENT_PORTAL_ORDER_REQUESTS_MANAGE[\s\S]*\]\}/,
+    );
     expect(activeRoutes).toMatch(
       /path="\/client-requests"[\s\S]*requiredAnyPermissions=\{\[[\s\S]*PERMISSIONS\.CLIENT_PORTAL_ORDER_REQUESTS_READ[\s\S]*PERMISSIONS\.CLIENT_PORTAL_ORDER_REQUESTS_MANAGE[\s\S]*\]\}/,
     );
