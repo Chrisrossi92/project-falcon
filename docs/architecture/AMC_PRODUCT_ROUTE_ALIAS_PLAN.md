@@ -59,17 +59,18 @@ The first real AMC product-local aliases are now registered:
 
 - `/amc/dashboard`
 - `/amc/orders`
+- `/amc/orders/new`
 - `/amc/orders/:id`
 - `/amc/vendors`
 - `/amc/vendors/:vendorProfileId`
 - `/amc/client-requests`
 
 They reuse the same route guards and pages as the compatibility Dashboard route (`/dashboard`),
-Order routes (`/orders` and `/orders/:id`), Vendor Directory routes (`/vendors` and
-`/vendors/:vendorProfileId`), and Client Requests route (`/client-requests`). Navigation, email,
-notification links, redirects, auth callbacks, and canonical `productLinks` live usage have not
-been changed. Canonical route mode remains blocked for live callers until a later wiring slice
-intentionally updates that guard.
+Order routes (`/orders`, `/orders/new`, and `/orders/:id`), Vendor Directory routes (`/vendors`
+and `/vendors/:vendorProfileId`), and Client Requests route (`/client-requests`). Navigation,
+email, notification links, redirects, auth callbacks, workspace switcher behavior, and canonical
+`productLinks` live usage have not been changed. Canonical route mode remains blocked for live
+callers until a later wiring slice intentionally updates that guard.
 
 Vendor Directory and Vendor Profile now preserve alias-local navigation inside that surface: users
 entering through `/amc/vendors` continue to profile/back links under `/amc/vendors/*`, while users
@@ -87,17 +88,21 @@ notification links, redirects, and canonical `productLinks` mode remain unchange
 | --- | --- | --- | --- | --- | --- | --- |
 | `/amc/dashboard` | Yes | N/A, dashboard has no local drill-down links in this slice | No | No | No | AMC dashboard browser smoke; dashboard data-scope check; Internal-mode denial check. |
 | `/amc/orders` | Yes | Yes, local order detail links remain under `/amc/orders/*` | No | No | No | AMC order list browser smoke; filters/saved views smoke; order data-scope check. |
+| `/amc/orders/new` | Yes | Yes, create success redirects to `/amc/orders/:id`; fallback returns `/amc/orders` | No | No | No | AMC create smoke with existing client; scoped client picker check; Internal-mode denial check. |
 | `/amc/orders/:id` | Yes | Yes, local back link returns to `/amc/orders` | No | No | No | AMC order detail browser smoke; document visibility smoke; procurement panel smoke; wrong-scope denial check. |
 | `/amc/vendors` | Yes | Yes, local vendor profile links remain under `/amc/vendors/*` | No | No | No | Vendor Directory browser smoke; permission denial smoke; vendor search/filter smoke. |
 | `/amc/vendors/:vendorProfileId` | Yes | Yes, local back link returns to `/amc/vendors` | No | No | No | Vendor Profile browser smoke; contact/coverage visibility smoke; permission denial smoke. |
 | `/amc/client-requests` | Yes | N/A, no alias-local drill-down links are wired in this slice | No | No | No | Client Requests inbox smoke; review/convert smoke; portal-to-AMC isolation smoke. |
 
-Mutation/edit aliases remain deferred. In particular, `/amc/orders/:id/edit` is not registered in
-this phase. Order edit and mutation flows need a dedicated boundary review before Falcon gives AMC
-product-local mutation routes, because create/update RPC payloads, operations-scope preservation,
-workflow authority, document side effects, activity, notifications, and client/vendor visibility
-must be checked together. The existing compatibility edit route (`/orders/:id/edit`) may remain as
-is until that review produces a deliberate migration slice.
+Edit aliases remain deferred. In particular, `/amc/orders/:id/edit` is not registered in this
+phase. `/amc/orders/new` is registered only as an existing-client-only AMC create route through
+`AmcNewOrderPage`; it is not linked from global navigation, email, or notifications yet. Order edit
+flows still need a dedicated boundary review before Falcon gives AMC product-local edit routes,
+because update RPC payloads, operations-scope preservation, workflow authority, document side
+effects, activity, notifications, and client/vendor visibility must be checked together. The
+existing compatibility edit route (`/orders/:id/edit`) may remain as is until that review produces
+a deliberate migration slice. The current boundary audit is recorded in
+`docs/architecture/AMC_ORDER_MUTATION_BOUNDARY_AUDIT.md`.
 
 Recommended next implementation options:
 
@@ -105,8 +110,7 @@ Recommended next implementation options:
    `/amc/calendar`, if their data scope and copy are confirmed safe.
 2. Move to route-domain/deployment planning for separate AMC entry points, auth redirects, allowed
    URLs, and deployment/domain ownership.
-3. Run an order mutation boundary audit before considering `/amc/orders/:id/edit`,
-   `/amc/orders/new`, or other AMC product-local mutation aliases.
+3. Run staging smoke for `/amc/orders/new` before wiring any navigation to the new route.
 
 ## Current Route Group Inventory
 

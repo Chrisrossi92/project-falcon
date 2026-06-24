@@ -36,6 +36,7 @@ import VendorWorkspaceDashboard from "@/features/vendorWorkspace/VendorWorkspace
 import Orders from "@/pages/orders/Orders";
 import HistoricalOrders from "@/pages/orders/HistoricalOrders";
 import NewOrder from "@/pages/NewOrder";
+import AmcNewOrderPage from "@/pages/orders/AmcNewOrderPage";
 import OrderDetail from "@/pages/orders/OrderDetail";
 import EditOrder from "@/pages/orders/EditOrder";
 import Calendar from "@/pages/Calendar";
@@ -172,6 +173,16 @@ export default function AppRoutes() {
             >
               <WorkspaceRouteGuard workspace={ROUTE_WORKSPACES.AMC}>
                 <Orders />
+              </WorkspaceRouteGuard>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/amc/orders/new"
+          element={
+            <ProtectedRoute requiredPermission={PERMISSIONS.ORDERS_CREATE}>
+              <WorkspaceRouteGuard workspace={ROUTE_WORKSPACES.AMC}>
+                <AmcNewOrderPage />
               </WorkspaceRouteGuard>
             </ProtectedRoute>
           }

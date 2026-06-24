@@ -266,6 +266,7 @@ describe('shadow route composition diagnostics', () => {
     expect(amcRoutePaths).toEqual([
       '/amc/dashboard',
       '/amc/orders',
+      '/amc/orders/new',
       '/amc/orders/:id',
       '/amc/vendors',
       '/amc/vendors/:vendorProfileId',
@@ -283,6 +284,7 @@ describe('shadow route composition diagnostics', () => {
       ['/dashboard', operationsWorkspace, 'DashboardGate'],
       ['/amc/dashboard', amcWorkspace, 'DashboardGate'],
       ['/amc/orders', amcWorkspace, 'Orders'],
+      ['/amc/orders/new', amcWorkspace, 'AmcNewOrderPage'],
       ['/amc/orders/:id', amcWorkspace, 'OrderDetail'],
       ['/orders', operationsWorkspace, 'Orders'],
       ['/orders/historical', operationsWorkspace, 'HistoricalOrders'],
@@ -316,6 +318,9 @@ describe('shadow route composition diagnostics', () => {
     );
     expect(activeRoutes).toMatch(
       /path="\/amc\/orders\/:id"[\s\S]*requiredAnyPermissions=\{\[[\s\S]*PERMISSIONS\.ORDERS_READ_ALL[\s\S]*PERMISSIONS\.ORDERS_READ_ASSIGNED[\s\S]*\]\}/,
+    );
+    expect(activeRoutes).toMatch(
+      /path="\/amc\/orders\/new"[\s\S]*requiredPermission=\{PERMISSIONS\.ORDERS_CREATE\}/,
     );
     expect(activeRoutes).toMatch(
       /path="\/amc\/client-requests"[\s\S]*requiredAnyPermissions=\{\[[\s\S]*PERMISSIONS\.CLIENT_PORTAL_ORDER_REQUESTS_READ[\s\S]*PERMISSIONS\.CLIENT_PORTAL_ORDER_REQUESTS_MANAGE[\s\S]*\]\}/,

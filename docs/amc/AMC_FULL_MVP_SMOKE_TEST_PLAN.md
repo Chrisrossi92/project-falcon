@@ -14,6 +14,8 @@ vendor, borrower, lender, payment, bank, or tax data.
 Covered:
 
 - AMC order creation and workspace separation.
+- Direct AMC product-local order creation through `/amc/orders/new` with an existing AMC-visible
+  client.
 - Candidate matching and bid request workflow.
 - Authenticated Vendor Workspace bidding.
 - Assignment offer, acceptance, assigned-order execution, report upload, revision, and resubmission.
@@ -73,6 +75,45 @@ Use one clean AMC-scoped order and one vendor company for the full path.
    - Confirm it appears in AMC Operations order/dashboard views.
    - Confirm it does not appear in Internal Operations order/dashboard views.
    - Evidence: order number, operations scope, screenshot or test note.
+
+### Direct Create Browser Smoke
+
+The focused Playwright smoke for direct AMC create is:
+
+```bash
+set -a
+. ./.env.staging.local
+set +a
+E2E_BASE_URL=https://falcon-staging.therossicompany.com npm run e2e:amc:direct-create:staging
+```
+
+Smoke file:
+
+- `e2e/amc/amc-direct-create-smoke.spec.ts`
+
+Expected coverage:
+
+- log in as the disposable AMC owner/admin;
+- enter AMC Operations mode;
+- navigate directly to `/amc/orders/new`;
+- confirm manual/inline client creation is unavailable;
+- select an existing AMC-visible disposable client;
+- fill minimum order fields;
+- submit create;
+- confirm redirect to `/amc/orders/:id`;
+- confirm order detail loads;
+- confirm the created order is `amc_operations` through the staging data check;
+- confirm Internal Operations mode cannot render `/amc/orders/new`.
+
+Current execution status:
+
+- The smoke has been added.
+- A setup issue discovered during the first run was fixed: the disposable client lookup now handles
+  Falcon's global client-name uniqueness and the spec runs serially.
+- The re-run was blocked in this Codex environment because Playwright Chromium could not launch due
+  to a macOS Mach port permission denial before any page opened.
+- This means `/amc/orders/new` is not yet promoted for navigation. Re-run the command above in a
+  browser-capable local or CI environment before adding AMC New Order navigation.
 
 2. Candidate Matching
    - Open AMC order detail.
