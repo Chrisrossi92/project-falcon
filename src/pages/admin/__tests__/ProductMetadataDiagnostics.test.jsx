@@ -18,6 +18,24 @@ vi.mock("../../../features/company-setup/useCompanySetupContext.js", () => ({
   useCompanySetupContext: () => setupContextState.current,
 }));
 
+vi.mock("../../../lib/productContext/useProductContextDiagnostics.js", () => ({
+  useProductContextDiagnostics: () => ({
+    productContext: "amc",
+    productContextLabel: "Falcon AMC",
+    pathname: "/settings/product-metadata-diagnostics",
+    routeFamily: "shared_legacy",
+    source: "product_metadata_diagnostics",
+    operationsMode: "amc_operations",
+    operationsModeProvided: true,
+    diagnosticOnly: true,
+    affectsAuth: false,
+    affectsRouting: false,
+    affectsCompanyContext: false,
+    affectsDataAccess: false,
+    legalBoundary: false,
+  }),
+}));
+
 const { default: ProductMetadataDiagnostics } = await import("../ProductMetadataDiagnostics.jsx");
 
 const sourcePath = resolve(dirname(fileURLToPath(import.meta.url)), "../ProductMetadataDiagnostics.jsx");
@@ -39,6 +57,14 @@ describe("ProductMetadataDiagnostics", () => {
     expect(html).toContain("Product Metadata Diagnostics");
     expect(html).toContain("Diagnostic only");
     expect(html).toContain("read-only and non-authoritative");
+    expect(html).toContain("Product Context Diagnostics");
+    expect(html).toContain("Falcon AMC");
+    expect(html).toContain("Diagnostic only");
+    expect(html).toContain("auth=false");
+    expect(html).toContain("routing=false");
+    expect(html).toContain("company=false");
+    expect(html).toContain("data=false");
+    expect(html).toContain("legal=false");
     expect(html).toContain("Shadow Route Diagnostics");
     expect(html).toContain("Permission Metadata");
     expect(html).toContain("Billing Authority");

@@ -58,6 +58,12 @@ The message planners are descriptive only. They do not build live URLs, send ema
 notifications, write database payloads, mutate templates, call Edge Functions, or change any
 delivery behavior.
 
+`src/lib/productContext/useProductContextDiagnostics.js` now surfaces the same product-context
+diagnostics from the current pathname and `operationsMode` for read-only use. The existing Product
+Metadata Diagnostics page displays this metadata so operators can verify inferred context during
+development and QA. The output remains non-authoritative and explicitly does not control auth,
+routing, active company, data access, or legal separation.
+
 ## Classification Key
 
 | Class | Meaning |

@@ -24,6 +24,7 @@ import { PRODUCT_MODE_METADATA_LIST } from "../../lib/productModes/productModeMe
 import { PRODUCT_MODE_ORDER } from "../../lib/productModes/productModes.js";
 import { getShadowRouteCompositionDiagnostics } from "../../lib/routes/routeCompositionDiagnostics.js";
 import { getShadowUpgradePromptComposition } from "../../lib/upgrades/upgradePromptComposition.js";
+import { useProductContextDiagnostics } from "../../lib/productContext/useProductContextDiagnostics.js";
 
 const EMPTY_LABEL = "None";
 const READINESS_PREVIEW_GENERATED_AT = "2026-05-19T00:00:00.000Z";
@@ -225,6 +226,9 @@ function LaneSummary({ title, groups }) {
 export default function ProductMetadataDiagnostics() {
   const [selectedModeId, setSelectedModeId] = useState(PRODUCT_MODE_ORDER[0]);
   const setupContextState = useCompanySetupContext();
+  const productContextDiagnostics = useProductContextDiagnostics({
+    source: "product_metadata_diagnostics",
+  });
 
   const diagnostics = useMemo(() => {
     const composition = describeProductModeComposition(selectedModeId);
@@ -287,6 +291,40 @@ export default function ProductMetadataDiagnostics() {
           behavior, permissions, billing, onboarding, company settings, or module enablement.
         </p>
       </div>
+
+      <DiagnosticSection
+        title="Product Context Diagnostics"
+        description="Read-only route/runtime product-context diagnostics. This output does not control auth, routing, active company, data access, or legal separation."
+      >
+        <div className="grid gap-3 md:grid-cols-4">
+          <DiagnosticCard
+            label="Product Context"
+            value={productContextDiagnostics.productContextLabel}
+            detail={productContextDiagnostics.productContext}
+          />
+          <DiagnosticCard
+            label="Route Family"
+            value={productContextDiagnostics.routeFamily}
+            detail={productContextDiagnostics.pathname}
+          />
+          <DiagnosticCard
+            label="Operations Mode"
+            value={productContextDiagnostics.operationsMode || "Not provided"}
+            detail={productContextDiagnostics.operationsModeProvided ? "Used for diagnostic clarification only" : "Route-only inference"}
+          />
+          <DiagnosticCard
+            label="Authority"
+            value="None"
+            detail="Diagnostic only"
+          />
+        </div>
+        <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+          Product context diagnostics are non-authoritative:
+          auth={String(productContextDiagnostics.affectsAuth)}, routing={String(productContextDiagnostics.affectsRouting)},
+          company={String(productContextDiagnostics.affectsCompanyContext)}, data={String(productContextDiagnostics.affectsDataAccess)},
+          legal={String(productContextDiagnostics.legalBoundary)}.
+        </div>
+      </DiagnosticSection>
 
       <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
