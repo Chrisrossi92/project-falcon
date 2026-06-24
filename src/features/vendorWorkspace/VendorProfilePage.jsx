@@ -414,17 +414,17 @@ export default function VendorProfilePage() {
         />
       </Section>
 
-      <Section title="Contacts">
+      <Section title="Vendor Manager & Contacts">
         {primaryContact ? (
           <div className="mb-4 rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
-            <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Primary contact</div>
+            <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Primary vendor manager / signing appraiser</div>
             <div className="mt-1 text-sm font-semibold text-slate-900">{primaryContact.name || "Not provided"}</div>
             <div className="mt-1 text-sm text-slate-600">
               {[primaryContact.email, primaryContact.phone].filter(Boolean).join(" · ") || "No contact details listed"}
             </div>
           </div>
         ) : (
-          <EmptyText>No primary contact is currently listed.</EmptyText>
+          <EmptyText>No vendor manager is currently listed.</EmptyText>
         )}
         {contacts.length ? (
           <div className="grid gap-2 md:grid-cols-2">
@@ -494,7 +494,7 @@ export default function VendorProfilePage() {
             <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
               <div className="font-semibold text-slate-800">Current profile</div>
               <div className="mt-1">
-                {company.name || "Vendor company"} · {primaryContact?.name || "No primary contact"} ·{" "}
+                {company.name || "Vendor company"} · {primaryContact?.name || "No vendor manager"} ·{" "}
                 {joinList(coverage.states)}
               </div>
             </div>
@@ -513,32 +513,32 @@ export default function VendorProfilePage() {
 
             <div className="mt-5 grid gap-4 md:grid-cols-2">
               <label className="text-sm font-medium text-slate-700">
-                Primary contact name
+                Vendor manager name
                 <input
                   className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
                   name="contactName"
-                  placeholder={primaryContact?.name || "Proposed contact name"}
+                  placeholder={primaryContact?.name || "Proposed vendor manager name"}
                   value={requestForm.contactName}
                   onChange={handleRequestInput}
                 />
               </label>
               <label className="text-sm font-medium text-slate-700">
-                Primary contact email
+                Vendor manager email
                 <input
                   className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
                   name="contactEmail"
-                  placeholder={primaryContact?.email || "Proposed contact email"}
+                  placeholder={primaryContact?.email || "Proposed vendor manager email"}
                   type="email"
                   value={requestForm.contactEmail}
                   onChange={handleRequestInput}
                 />
               </label>
               <label className="text-sm font-medium text-slate-700">
-                Primary contact phone
+                Vendor manager phone
                 <input
                   className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
                   name="contactPhone"
-                  placeholder={primaryContact?.phone || "Proposed contact phone"}
+                  placeholder={primaryContact?.phone || "Proposed vendor manager phone"}
                   value={requestForm.contactPhone}
                   onChange={handleRequestInput}
                 />

@@ -39,8 +39,8 @@ Use dedicated smoke users with clearly labeled test email addresses.
 | Persona | Workspace | Required Capabilities |
 | --- | --- | --- |
 | AMC Owner/Admin | AMC Operations | Order create/read, candidate/bid workflow, assignment offer, vendor management, invoice review, billing update, document access |
-| Vendor Admin | Vendor Workspace | Vendor workspace view, bid response, assignment read/progress, document read/upload, profile read/update request, payment read, invoice submit |
-| Wrong Vendor Admin | Vendor Workspace | Same vendor permissions but different vendor company |
+| Vendor Manager | Vendor Workspace | Primary Falcon-facing vendor manager/signing appraiser; vendor workspace view, bid response, assignment read/progress, document read/upload, profile read/update request, payment read, invoice submit |
+| Wrong Vendor Manager | Vendor Workspace | Same vendor-manager permissions but different vendor company |
 | Internal Operations User | Internal Operations | Normal Internal workspace access without AMC vendor workspace data |
 
 ## Recommended Demo Data Matrix
@@ -88,7 +88,7 @@ Use one clean AMC-scoped order and one vendor company for the full path.
    - Evidence: request status and recipient count.
 
 4. Vendor Bid
-   - Log in as Vendor Admin.
+   - Log in as Vendor Manager.
    - Open `/vendor-workspace/available-work`.
    - Open Work Detail by `workKey`.
    - Submit bid with fee, turn time, proposed due date, and comments.
@@ -206,8 +206,8 @@ Environment:
 Date/time:
 Build/ref:
 AMC owner user:
-Vendor user:
-Wrong vendor user:
+Vendor manager user:
+Wrong vendor manager user:
 Happy path fixture:
 Edge fixture(s):
 

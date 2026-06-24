@@ -371,7 +371,7 @@ function formatReasonGroups(reasons = {}) {
 
 function PrimaryContact({ contact }) {
   if (!contact || Object.keys(contact).length === 0) {
-    return <div className="text-xs font-medium text-slate-400">No primary contact listed</div>;
+    return <div className="text-xs font-medium text-slate-400">No vendor manager listed</div>;
   }
 
   const details = [
@@ -382,7 +382,7 @@ function PrimaryContact({ contact }) {
 
   return (
     <div>
-      <div className="text-sm font-semibold text-slate-800">{contact.name || "Primary contact"}</div>
+      <div className="text-sm font-semibold text-slate-800">{contact.name || "Vendor manager"}</div>
       {details.length > 0 && (
         <div className="mt-1 text-xs text-slate-500">{details.join(" · ")}</div>
       )}

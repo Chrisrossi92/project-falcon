@@ -334,7 +334,7 @@ function ContactModal({ contact, mode, open, vendorProfileId, onClose, onSaved }
 
   if (!open) return null;
 
-  const title = mode === "edit" ? "Edit Contact" : "Add Contact";
+  const title = mode === "edit" ? "Edit Vendor Contact" : "Add Vendor Contact";
   const updateField = (field) => (event) => {
     const value = event.target.type === "checkbox" ? event.target.checked : event.target.value;
     setForm((current) => ({ ...current, [field]: value }));
@@ -348,7 +348,7 @@ function ContactModal({ contact, mode, open, vendorProfileId, onClose, onSaved }
     setSubmitError("");
 
     if (!textOrNull(form.name)) {
-      setFormError("Contact name is required.");
+      setFormError("Vendor contact name is required.");
       return;
     }
 
@@ -389,7 +389,7 @@ function ContactModal({ contact, mode, open, vendorProfileId, onClose, onSaved }
       >
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
           <div>
-            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Vendor Contacts</div>
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Vendor Manager Contacts</div>
             <h2 id="vendor-contact-modal-title" className="mt-1 text-xl font-semibold text-slate-950">{title}</h2>
           </div>
           <button
@@ -437,11 +437,11 @@ function ContactModal({ contact, mode, open, vendorProfileId, onClose, onSaved }
                 checked={form.isPrimary}
                 onChange={updateField("isPrimary")}
                 className="mt-1"
-                aria-label="Primary contact"
+                aria-label="Primary vendor manager / signing appraiser"
               />
               <span>
-                <span className="block font-medium text-slate-700">Primary contact</span>
-                <span className="block text-slate-500">Marks this contact as the main vendor contact.</span>
+                <span className="block font-medium text-slate-700">Primary vendor manager / signing appraiser</span>
+                <span className="block text-slate-500">Routes Falcon-facing vendor work to this contact.</span>
               </span>
             </label>
             <label className="flex items-start gap-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm">
@@ -470,7 +470,7 @@ function ContactModal({ contact, mode, open, vendorProfileId, onClose, onSaved }
             Cancel
           </button>
           <button type="submit" disabled={saving} className="inline-flex h-9 items-center justify-center rounded-md border border-slate-950 bg-slate-950 px-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60">
-            {saving ? "Saving..." : mode === "edit" ? "Save Contact" : "Add Contact"}
+            {saving ? "Saving..." : mode === "edit" ? "Save Vendor Contact" : "Add Vendor Contact"}
           </button>
         </div>
       </form>
@@ -1278,7 +1278,7 @@ function EmptyState() {
 
 function ContactsList({ contacts, canManage = false, onEditContact }) {
   const safeContacts = Array.isArray(contacts) ? contacts : [];
-  if (safeContacts.length === 0) return <div>No contacts listed.</div>;
+  if (safeContacts.length === 0) return <div>No vendor manager or contacts listed.</div>;
 
   return (
     <div className="grid gap-3">
@@ -1287,16 +1287,16 @@ function ContactsList({ contacts, canManage = false, onEditContact }) {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <div className="font-medium text-slate-900">{contact.name || "Unnamed contact"}</div>
+                <div className="font-medium text-slate-900">{contact.name || "Unnamed vendor contact"}</div>
                 {contact.is_primary && (
-                  <span className="rounded-full bg-white px-2 py-1 text-xs font-medium text-slate-600">Primary</span>
+                  <span className="rounded-full bg-white px-2 py-1 text-xs font-medium text-slate-600">Primary vendor manager</span>
                 )}
               </div>
               <div className="mt-1 text-slate-600">
                 {[contact.role_label, contact.email, contact.phone].filter(Boolean).join(" · ") || "No contact details"}
               </div>
               {contact.linked_user_display_name && (
-                <div className="mt-1 text-xs text-slate-500">Linked user: {contact.linked_user_display_name}</div>
+                <div className="mt-1 text-xs text-slate-500">Linked Falcon account: {contact.linked_user_display_name}</div>
               )}
             </div>
             {canManage && (
@@ -1305,7 +1305,7 @@ function ContactsList({ contacts, canManage = false, onEditContact }) {
                 onClick={() => onEditContact?.(contact)}
                 className="inline-flex h-8 items-center justify-center rounded-md border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"
               >
-                Edit Contact
+                Edit Vendor Contact
               </button>
             )}
           </div>
@@ -1406,7 +1406,7 @@ function buildVendorProfileSummary(profile, contacts = [], serviceAreas = []) {
     status: formatStatus(profile?.vendor_status),
     contacts: {
       value: String(safeContacts.length),
-      detail: primaryContact ? "Primary listed" : "No primary contact",
+      detail: primaryContact ? "Vendor manager listed" : "No vendor manager",
     },
     coverage: {
       value: `${coverageGroups.length} ${coverageGroups.length === 1 ? "Region" : "Regions"}`,
@@ -1681,7 +1681,7 @@ export default function VendorProfilePage() {
             </dl>
           </DetailCard>
 
-          <DetailCard title="Contacts">
+          <DetailCard title="Vendor Manager & Contacts">
             {canManageContacts.allowed && (
               <div className="mb-3">
                 <button
@@ -1690,7 +1690,7 @@ export default function VendorProfilePage() {
                   className="inline-flex h-8 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                 >
                   <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                  Add Contact
+                  Add Vendor Contact
                 </button>
               </div>
             )}

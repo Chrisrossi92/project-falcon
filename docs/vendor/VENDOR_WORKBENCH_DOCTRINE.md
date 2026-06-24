@@ -20,6 +20,21 @@ This document is doctrine/planning only. It does not add runtime routes, permiss
 changes, schema/RLS changes, token models, email behavior, vendor accounts, payment behavior,
 notifications, or UI.
 
+## 2026-06 Vendor Account Pivot
+
+Authoritative decision: [ADR: Falcon AMC Separate Product Context](../architecture/ADR_AMC_SEPARATE_PRODUCT_CONTEXT.md).
+
+Vendor Workspace remains vendor-company scoped, but Falcon AMC should not manage many individual
+appraiser logins under one vendor company for MVP. Each vendor company should have one primary
+Falcon-facing vendor manager/contact, usually the main licensed signing appraiser. That person
+accepts assignments, receives notifications, submits reports and invoices, and remains accountable
+for signing.
+
+Other vendor-side assistants or staff may help prepare reports inside the vendor firm, but Falcon
+AMC does not need to track those assistants as app users unless a later approved product slice
+introduces a specific workflow. Existing authenticated Vendor Workspace bootstrap and tokenized
+workflows remain compatibility behavior until a later slice migrates them intentionally.
+
 ## Core Principle
 
 The vendor does not care about Falcon internals.
@@ -52,7 +67,7 @@ The workspace should use direct, action-oriented language. Vendor users should s
 assignment offers, required submissions, due dates, messages, documents, invoices, and profile
 readiness. They should not see internal procurement mechanics.
 
-## Workspace Separation Doctrine
+## Product And Workspace Separation Doctrine
 
 Falcon has separate product worlds:
 
@@ -60,6 +75,11 @@ Falcon has separate product worlds:
 2. AMC Operations Workspace.
 3. Vendor Workspace.
 4. Future Client Workspace.
+
+Internal Operations and Falcon AMC are now separate account/product contexts as the long-term
+target. Vendor Workspace belongs to the Falcon AMC product context and should not depend on a shared
+Internal/AMC login. Separate domains, deployments, auth contexts, redirect URLs, and email link
+targets should be planned before production migration.
 
 Vendor notifications, navigation, dashboards, and task surfaces should not bleed into Internal or
 AMC workspace views. AMC Operations can monitor vendor work and act as coordinator, but it should
@@ -593,10 +613,11 @@ Future authenticated vendor flow:
 3. Vendor Order Detail.
 4. Submit bids, accept assignments, upload documents, manage invoices/profile.
 
-Authenticated access should be relationship/company scoped. Vendor users should see only work tied
-to vendor companies and relationships they are authorized to represent. Vendor users may eventually
-manage company profile readiness, contacts, coverage, insurance/license/compliance documents, and
-invoices.
+Authenticated access should be relationship/company scoped. The default MVP actor is the primary
+vendor manager/contact/signing appraiser for the vendor company. That vendor manager should see only
+work tied to vendor companies and relationships they are authorized to represent. Vendor managers
+may eventually manage company profile readiness, contacts, coverage, insurance/license/compliance
+documents, and invoices.
 
 Authenticated Vendor Workbench should reuse assignment packet lifecycle concepts for assignment
 offers and assigned work. It should not create a separate assignment system.

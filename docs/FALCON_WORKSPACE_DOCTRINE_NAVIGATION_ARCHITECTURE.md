@@ -12,6 +12,21 @@ navigation wiring. It does not implement permissions, backend changes, schema ch
 changes, workflow changes, AMC-7 token links, Vendor Portal behavior, notifications, or production
 data changes.
 
+## 2026-06 Superseding Product-Context Decision
+
+Authoritative decision: [ADR: Falcon AMC Separate Product Context](./architecture/ADR_AMC_SEPARATE_PRODUCT_CONTEXT.md).
+
+Internal Operations and Falcon AMC are now planned as separate account and product contexts because
+they may be owned by separate LLCs. The same-login Internal/AMC workspace switch model documented
+below is superseded as the long-term architecture. Existing workspace-switch runtime behavior is a
+compatibility bridge only and should remain stable until later slices intentionally introduce
+separate Internal and AMC entry points.
+
+`operations_scope` remains a useful compatibility and data-scoping mechanism. It is not a legal,
+auth, deployment, or ownership boundary. Future work should target separate deployments, domains,
+auth contexts, redirect URLs, environment variables, Edge Function origins, and notification/email
+link targets for Internal Operations and Falcon AMC.
+
 ## Primary Workspaces
 
 Falcon's primary workspace model is:
@@ -21,6 +36,9 @@ Falcon's primary workspace model is:
 3. Future Vendor Workspace
 
 The workspaces can share platform infrastructure, route primitives, components, permissions, order records, assignment packets, activity, files, and notification systems. They should not share stale UI state or imply that the same visible route means the same operational context.
+
+Under the 2026-06 product-context pivot, shared infrastructure means implementation reuse only. It
+does not mean one account, one deployment, one auth context, or one legal operating boundary.
 
 ## Core Doctrine
 
@@ -69,6 +87,10 @@ Dashboard design rule:
 
 Switching workspaces is a context reset, not a view filter.
 
+This rule describes the current compatibility implementation for the same-login Internal/AMC model.
+It should not be expanded as the final product boundary. Future slices should replace this boundary
+with separate entry points before removing the compatibility switch.
+
 When a user switches between Internal Operations and AMC Operations, Falcon should:
 
 - update workspace context;
@@ -83,6 +105,9 @@ This rule is intentionally stricter than a normal table filter change. It protec
 ## Dashboard Landing Rule
 
 Workspace switch should land on the workspace dashboard, not preserve the current route.
+
+This remains required while the compatibility switch exists. The long-term target is that users
+enter the correct Internal or AMC product context before reaching the dashboard.
 
 Recommended landing targets:
 
@@ -128,6 +153,9 @@ Runtime status:
 - Saved views are unchanged; workspace scoping for saved views is deferred to WS-3.4.
 
 Backend/RPC guards remain authoritative. Frontend route guards are user-experience guardrails, not security boundaries.
+
+`operations_scope` and route guards are operational safeguards only. They must not be represented as
+legal separation between Internal Operations and Falcon AMC.
 
 ## Internal Operations Workspace
 

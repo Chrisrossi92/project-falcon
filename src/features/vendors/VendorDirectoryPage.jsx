@@ -1224,7 +1224,7 @@ function AddVendorModal({ open, onClose, onCreated }) {
     ].some((value) => textOrNull(value));
     const contactName = textOrNull(form.contactName);
     if (hasContactDetail && !contactName) {
-      setFormError("Primary contact name is required when contact details are entered.");
+      setFormError("Vendor manager name is required when contact details are entered.");
       return;
     }
 
@@ -1371,22 +1371,22 @@ function AddVendorModal({ open, onClose, onCreated }) {
           </section>
 
           <section className="grid gap-3" aria-labelledby="primary-contact-section-title">
-            <h3 id="primary-contact-section-title" className="text-sm font-semibold text-slate-950">Primary contact</h3>
+            <h3 id="primary-contact-section-title" className="text-sm font-semibold text-slate-950">Primary vendor manager / signing appraiser</h3>
             <div className="grid gap-3 md:grid-cols-2">
               <label className="grid gap-1 text-sm">
-                <span className="font-medium text-slate-700">Contact name</span>
+                <span className="font-medium text-slate-700">Vendor manager name</span>
                 <input value={form.contactName} onChange={updateField("contactName")} className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100" />
               </label>
               <label className="grid gap-1 text-sm">
-                <span className="font-medium text-slate-700">Contact email</span>
+                <span className="font-medium text-slate-700">Vendor manager email</span>
                 <input value={form.contactEmail} onChange={updateField("contactEmail")} className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100" />
               </label>
               <label className="grid gap-1 text-sm">
-                <span className="font-medium text-slate-700">Contact phone</span>
+                <span className="font-medium text-slate-700">Vendor manager phone</span>
                 <input value={form.contactPhone} onChange={updateField("contactPhone")} className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100" />
               </label>
               <label className="grid gap-1 text-sm">
-                <span className="font-medium text-slate-700">Role label</span>
+                <span className="font-medium text-slate-700">Signing role label</span>
                 <input value={form.contactRoleLabel} onChange={updateField("contactRoleLabel")} className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100" />
               </label>
             </div>
@@ -1479,8 +1479,8 @@ function VendorDirectoryRow({ vendor }) {
 
       <div className="mt-4 grid gap-3 text-sm text-slate-600 md:grid-cols-3">
         <div>
-          <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Contact</div>
-          <div className="mt-1">{contact || "No primary contact"}</div>
+          <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Vendor manager</div>
+          <div className="mt-1">{contact || "No vendor manager"}</div>
         </div>
         <div>
           <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Coverage</div>

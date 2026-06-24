@@ -8,6 +8,28 @@ AMC implementation may proceed in parallel with Falcon V1.1 stabilization, but I
 
 This document is the authoritative execution plan for AMC development.
 
+## 2026-06 Architecture Pivot
+
+Authoritative decision: [ADR: Falcon AMC Separate Product Context](../architecture/ADR_AMC_SEPARATE_PRODUCT_CONTEXT.md).
+
+Falcon AMC is now planned as a separate account and product context from Internal Operations because
+the businesses may be owned by separate LLCs. The prior same-login Internal/AMC workspace-switch
+model is superseded as the long-term architecture. Existing workspace switching,
+`operations_scope` filtering, shared route primitives, and shared RPC infrastructure remain
+compatibility mechanisms until later migration slices intentionally replace them.
+
+`operations_scope` continues to protect current staging, smoke, and pilot workflows, but it is not
+a legal separation boundary. The long-term target is separate Internal and AMC entry points, which
+may become separate deployments, domains, auth contexts, redirect URLs, environment variables,
+Edge Function origins, and notification/email link targets.
+
+Vendor companies remain the assignment unit. Slice B records current schema/runtime compatibility in
+[AMC Vendor Manager Compatibility Audit](../amc/AMC_VENDOR_MANAGER_COMPATIBILITY_AUDIT.md). Falcon
+AMC should represent each vendor company with one primary Falcon-facing vendor manager/contact/signing
+appraiser for assignment acceptance, notifications, report submission, invoice submission, and
+signing accountability. Vendor-side assistants may help outside Falcon, but Falcon AMC does not need
+to manage them as individual app users for MVP.
+
 Source doctrine:
 
 - [Falcon AMC MVP Plan](./FALCON_AMC_MVP_PLAN.md)
@@ -27,11 +49,13 @@ Source doctrine:
 - [AMC-16 Permission Center Foundation](../amc/AMC_16_PERMISSION_CENTER_FOUNDATION.md)
 - [AMC-16 Permission Center Checkpoint](../amc/AMC_16_PERMISSION_CENTER_CHECKPOINT.md)
 - [AMC-17 Client Portal MVP Foundation](../amc/AMC_17_CLIENT_PORTAL_MVP_FOUNDATION.md)
+- [AMC Vendor Manager Compatibility Audit](../amc/AMC_VENDOR_MANAGER_COMPATIBILITY_AUDIT.md)
 
 ## Core Principles
 
-- One Platform.
-- Two Operational Modes.
+- Shared implementation foundations where safe.
+- Separate Internal Operations and Falcon AMC account/product contexts as the long-term target.
+- Temporary compatibility for the current same-login Internal/AMC workspace switch until replaced.
 - Shared Order Engine.
 - Shared Client Engine.
 - Shared Calendar.
@@ -39,12 +63,14 @@ Source doctrine:
 - Shared Reporting Engine.
 - Shared Permissions Engine.
 
-AMC should extend Falcon, not replace Falcon.
+AMC should reuse Falcon infrastructure where safe, but it should not depend on a shared
+Internal/AMC login as the target product boundary.
 
 Falcon workspace doctrine is locked in
 `../FALCON_WORKSPACE_DOCTRINE_NAVIGATION_ARCHITECTURE.md`. Internal Operations, AMC Operations, and
 the future Vendor Workspace are role-native workspaces. Switching workspaces is a context reset,
-not a view filter. Runtime now navigates Internal/AMC workspace switches to `/dashboard`, uses
+not a view filter. This runtime behavior is now compatibility behavior under the separate product
+context pivot. Runtime now navigates Internal/AMC workspace switches to `/dashboard`, uses
 replace navigation so the browser back button does not immediately revive the prior workspace
 route, does not preserve query/search state on workspace switch, and clears Orders URL filters when
 `operationsMode` changes while Orders is mounted. Active-mode clicks do nothing. Workspace-native
@@ -61,9 +87,13 @@ WS-3.4.
 
 ### AMC-1: Operations Command
 
-Status: foundation complete through AMC-1F mode availability permissions.
+Status: foundation complete through AMC-1F mode availability permissions. Superseded as the
+long-term account/product boundary by the 2026-06 architecture pivot; preserved temporarily for
+compatibility.
 
-Purpose: enable switching between Internal Operations and AMC Operations without leaving Falcon.
+Purpose: originally enabled switching between Internal Operations and AMC Operations without leaving
+Falcon. Future slices should replace this with separate Internal and AMC entry points instead of
+expanding same-login switching.
 
 Dependencies:
 
@@ -90,7 +120,7 @@ Testing Strategy:
 Success Criteria:
 
 - User can switch operational context without leaving Falcon.
-- Only explicitly authorized owner/admin vendor users see AMC Operations Mode.
+- Only explicitly authorized owner/admin users with AMC vendor-management permission see AMC Operations Mode.
 - Appraiser/reviewer/staff users remain in Internal Operations by default.
 - Internal Operations remains stable.
 - No vendor functionality is introduced yet.

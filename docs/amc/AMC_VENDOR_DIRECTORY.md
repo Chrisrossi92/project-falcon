@@ -4,21 +4,44 @@
 
 The AMC Vendor Directory defines the vendor data model and management doctrine for AMC MVP planning.
 
-The directory should support vendor companies first while leaving room for individual appraiser contacts and future vendor portal functionality.
+The directory should support vendor companies first with one primary Falcon-facing vendor
+manager/contact/signing appraiser for each vendor company.
 
 Coverage doctrine is maintained separately in [AMC Vendor Coverage Doctrine](./AMC_VENDOR_COVERAGE_DOCTRINE.md). Vendor Directory coverage must support both commercial and residential workflows, keep geography independent from product type, and remain informational until assignment matching is explicitly implemented.
+
+## 2026-06 Vendor Manager Pivot
+
+Authoritative decision: [ADR: Falcon AMC Separate Product Context](../architecture/ADR_AMC_SEPARATE_PRODUCT_CONTEXT.md).
+
+Compatibility audit: [AMC Vendor Manager Compatibility Audit](./AMC_VENDOR_MANAGER_COMPATIBILITY_AUDIT.md).
+
+Vendor Company remains the AMC assignment unit. Falcon AMC should not manage multiple individual
+appraiser logins under one vendor company for MVP. Each vendor company should have one primary
+Falcon-facing vendor manager/contact, usually the main licensed signing appraiser, who accepts
+assignments, receives notifications, submits reports and invoices, and is accountable for signing.
+
+Other vendor-side assistants or staff may help prepare reports within the vendor firm, but Falcon
+AMC does not need to model them as app users. Secondary contacts can remain informational for
+coordination, accounting, compliance, or manual outreach, but assignment execution should route to
+the primary vendor manager/contact unless a later approved slice adds a specific workflow.
 
 ## Vendor Company First Model
 
 Vendor Company is the primary AMC assignment unit for MVP.
 
-Individual vendor appraisers can be layered in later. Falcon should not design AMC around individual appraisers only.
+Individual vendor appraiser contacts may be recorded as supporting contact data, but Falcon should
+not design AMC around managing individual appraiser accounts under a vendor company.
 
-Vendors should be modeled primarily as companies. Vendor users are members or contacts of vendor companies, not the primary assignment object.
+Vendors should be modeled primarily as companies. The primary vendor manager/contact is the
+Falcon-facing actor for the company; authenticated vendor access and secondary contacts are not the
+primary assignment object.
 
 Falcon already has company, company relationship, and order-company assignment foundations. AMC-2 should audit and reuse those foundations before adding new vendor-specific tables.
 
-Vendor Directory work must not fork Falcon into separate AMC routes or screens. Vendor surfaces should extend the shared Falcon shell, navigation, permissions, notifications, activity, and assignment packet infrastructure.
+Vendor Directory work must remain compatible with the existing shared Falcon shell, navigation,
+permissions, notifications, activity, and assignment packet infrastructure until later slices define
+separate Falcon AMC entry points. Shared infrastructure is implementation reuse, not a shared
+Internal/AMC account boundary.
 
 ## AMC-2J Implementation Status
 
@@ -50,7 +73,7 @@ The surface still uses the shared `/vendors` and `/vendors/:vendorProfileId` rou
 
 AMC-2P adds local/demo seed data in `supabase/manual/20260601_amc_vendor_demo_seed.sql` for visual validation of the read-only Vendor Directory and Vendor Profile pages.
 
-The script uses the existing `falcon_default` owner company and creates five demo vendor companies with `amc_vendor` relationships, vendor profiles, primary contacts, service areas, product eligibility, and tags:
+The script uses the existing `falcon_default` owner company and creates five demo vendor companies with `amc_vendor` relationships, vendor profiles, primary vendor manager contacts, service areas, product eligibility, and tags:
 
 - ABC Valuation
 - Columbus Valuation Group
@@ -123,7 +146,7 @@ AMC-2W does not add mutation UI, optimistic updates, assignment candidate calls,
 
 AMC-2X adds the first owner-side create workflow to the shared `/vendors` surface.
 
-Users with `vendors.create` can open an Add Vendor modal, enter vendor company details, optional primary contact details, optional coverage, tags, default assignment instructions, and internal notes. The workflow calls `createVendorProfile` with `create_relationship: true` by default, refreshes the Vendor Directory after success, and navigates to the created Vendor Profile when the RPC returns a profile id.
+Users with `vendors.create` can open an Add Vendor modal, enter vendor company details, optional primary vendor manager details, optional coverage, tags, default assignment instructions, and internal notes. The workflow calls `createVendorProfile` with `create_relationship: true` by default, refreshes the Vendor Directory after success, and navigates to the created Vendor Profile when the RPC returns a profile id.
 
 Users with only `vendors.read` keep the read-only Vendor Directory experience and do not see Add Vendor controls.
 
@@ -306,7 +329,8 @@ AMC-4B does not add Orders, Bid History, Performance Metrics / Scores, Complianc
 Vendor Directory records should build on the existing company framework wherever possible:
 
 - Vendor companies should map to company records or company-backed vendor profile records.
-- Vendor contacts and users should attach to vendor companies.
+- Vendor contacts and any authenticated vendor access should attach to vendor companies, with one
+  primary vendor manager/contact as the Falcon-facing actor.
 - Vendor relationship status should reuse or align with company relationship lifecycle records.
 - Vendor assignment eligibility should be derived from vendor profile, relationship, coverage, compliance, and assignment state.
 - Assignment packet access remains the scoped visibility mechanism for vendor work.
@@ -319,31 +343,35 @@ Minimum vendor-company fields may include:
 
 - vendor company name
 - status
-- primary contact name
-- primary contact email
-- primary contact phone
+- primary vendor manager name
+- primary vendor manager email
+- primary vendor manager phone
 - address
 - coverage area
 - notes
 - eligible products
 - default fee expectations
 
-## Optional Individual Appraiser Contacts
+## Optional Secondary Vendor Contacts
 
-A vendor company may include optional individual appraiser contacts.
+A vendor company may include optional secondary contacts for coordination, compliance, accounting,
+or manual outreach. Those contacts are not separate assignment actors in MVP.
 
 Example:
 
 ```text
 ABC Valuation
-  |-- John Smith
-  |-- Sarah Jones
-  `-- Mike Davis
+  |-- John Smith, primary vendor manager / signing appraiser
+  |-- Sarah Jones, scheduling contact
+  `-- Mike Davis, accounting contact
 ```
 
-MVP should not require individual appraiser assignment to make vendor-company assignment useful.
+MVP should not require individual appraiser assignment or multi-user vendor team management to make
+vendor-company assignment useful.
 
-Authenticated vendor users should be treated as vendor-company members. Lightweight contacts may exist before portal access, but contacts alone should not replace the vendor company model.
+Authenticated vendor access should default to the primary vendor manager/contact for the vendor
+company. Lightweight contacts may exist before portal access, but contacts alone should not replace
+the vendor company model or imply separate Falcon-managed vendor staff accounts.
 
 ## Coverage Areas
 
