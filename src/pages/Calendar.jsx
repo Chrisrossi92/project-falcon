@@ -12,6 +12,7 @@ import WorkspaceBadge from "@/components/workspace/WorkspaceBadge";
 import supabase from "@/lib/supabaseClient";
 import { useCurrentUserAppContext } from "@/features/auth/useCurrentUserAppContext";
 import { useOperationsMode } from "@/lib/operations/OperationsModeProvider";
+import { getOperationsScopeForMode } from "@/lib/operations/operationsMode";
 import { getWorkspacePageChrome } from "@/lib/workspace/workspaceIdentity";
 import { listCompanyAssignableUsers } from "@/features/company-members/assignableUsersApi";
 import {
@@ -65,6 +66,7 @@ function activeOrdersLabel(count, loading) {
 
 export default function CalendarPage() {
   const { operationsMode } = useOperationsMode();
+  const operationsScope = getOperationsScopeForMode(operationsMode);
   const pageChrome = getWorkspacePageChrome(operationsMode, "calendar");
   const [view, setView] = useState("month"); // 'month' | '2w'
   const [weeks, setWeeks] = useState(2);
@@ -123,12 +125,17 @@ export default function CalendarPage() {
               "reviewer_id",
               "reviewer_name",
               "status",
+              "operations_scope",
               "site_visit_at",
               "review_due_at",
               "final_due_at",
               "due_date",
             ].join(", ")
           );
+
+        if (operationsScope) {
+          q = q.eq("operations_scope", operationsScope);
+        }
 
         if (isReviewer) {
           q = q.eq("reviewer_id", userId || null).eq("status", "in_review");
@@ -159,7 +166,7 @@ export default function CalendarPage() {
     return () => {
       ok = false;
     };
-  }, [appContextLoading, isAdmin, isReviewer, userId]);
+  }, [appContextLoading, isAdmin, isReviewer, operationsScope, userId]);
 
   const deriveEvents = useCallback(
     (start, end) => {

@@ -535,8 +535,8 @@ describe("OrderDetail site visit save", () => {
     expect(within(overview).getByText("Order / Client")).toBeInTheDocument();
     expect(within(overview).getByText("Client")).toBeInTheDocument();
     expect(within(overview).getByText("Acme Lending")).toBeInTheDocument();
-    expect(within(overview).getByText("AMC")).toBeInTheDocument();
-    expect(within(overview).getByText("Northstar AMC")).toBeInTheDocument();
+    expect(within(overview).queryByText("AMC")).not.toBeInTheDocument();
+    expect(within(overview).queryByText("Northstar AMC")).not.toBeInTheDocument();
     expect(within(overview).getByText("Property / Assignment")).toBeInTheDocument();
     expect(within(overview).getByText("Property Address")).toBeInTheDocument();
     expect(within(overview).getByText("100 Main St, Boston, MA 02110")).toBeInTheDocument();

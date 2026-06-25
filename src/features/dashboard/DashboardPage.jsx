@@ -849,17 +849,6 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
         />
       )}
 
-      {/* Placeholder for future review queue */}
-      {cfg.showReviewQueue && (
-        <section>
-          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide">
-            Review Queue
-          </h2>
-          <div className="rounded-xl border bg-white p-4 text-sm text-slate-500">
-            Review queue will be wired once reviewer RLS is added.
-          </div>
-        </section>
-      )}
     </div>
   );
 }
@@ -1032,7 +1021,7 @@ export function OwnerSetupDashboardPrompt({ appContext } = {}) {
   if (setupBannerDismissed) return null;
 
   const description =
-    "Diagnostic guidance only. This does not change permissions, workflow, route access, or operational visibility.";
+    "Review company setup, staff access, and readiness items before day-one operations.";
 
   return (
     <WorkspaceSurface variant="priority" className="px-4 py-3">

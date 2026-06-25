@@ -150,6 +150,8 @@ describe("CalendarPage workspace hierarchy", () => {
     });
 
     expect(query.select).toHaveBeenCalledTimes(1);
+    expect(query.select.mock.calls[0][0]).toContain("operations_scope");
+    expect(query.eq).toHaveBeenCalledWith("operations_scope", "internal_operations");
     expect(query.eq).toHaveBeenCalledWith("reviewer_id", "reviewer-1");
     expect(query.eq).toHaveBeenCalledWith("status", "in_review");
     expect(screen.getByText("Review schedule")).toBeInTheDocument();

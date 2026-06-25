@@ -23,7 +23,7 @@ const STATE_FILTERS = [
 const TYPE_FILTERS = [
   { key: "all", label: "All" },
   { key: "workflow", label: "Workflow" },
-  { key: "communication", label: "Communication / Notes" },
+  { key: "communication", label: "In-app notifications" },
   { key: "completed", label: "Completed / Cleared" },
   { key: "system", label: "System / Other" },
 ];
@@ -81,7 +81,7 @@ function typeInfoFor(notification) {
   if (/(note|communication|message|comment)/.test(value)) {
     return {
       key: "communication",
-      label: "Communication / Notes",
+      label: "In-app notifications",
       badge: "border-blue-200 bg-blue-50 text-blue-700",
       accent: "border-l-blue-500",
     };
@@ -207,7 +207,7 @@ export default function ActivityPage() {
             {pageChrome.title || "Activity"}
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            {pageChrome.description || "Your notification history, workflow updates, and communication summaries."}
+            {pageChrome.description || "Your notification history, workflow updates, and order notes."}
           </p>
         </div>
         <button
@@ -228,7 +228,7 @@ export default function ActivityPage() {
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search title, body, order number, or payload"
+              placeholder="Search notifications, notes, or order number"
               className="h-10 w-full rounded-md border border-slate-200 bg-white pl-9 pr-3 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
             />
           </label>
@@ -266,7 +266,7 @@ export default function ActivityPage() {
 
       <section className="rounded-lg border bg-white shadow-sm">
         <div className="flex items-center justify-between border-b px-4 py-3">
-          <h2 className="text-sm font-semibold text-slate-900">History</h2>
+          <h2 className="text-sm font-semibold text-slate-900">Notification history</h2>
           <span className="text-xs text-slate-500">
             {filteredItems.length} of {items.length}
           </span>

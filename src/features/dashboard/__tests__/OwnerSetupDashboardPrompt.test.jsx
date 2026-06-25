@@ -49,8 +49,9 @@ describe("OwnerSetupDashboardPrompt", () => {
       "href",
       "/settings/owner-setup",
     );
-    expect(screen.getByText(/diagnostic guidance only/i)).toBeInTheDocument();
-    expect(screen.getByText(/does not change permissions/i)).toBeInTheDocument();
+    expect(screen.getByText(/review company setup/i)).toBeInTheDocument();
+    expect(screen.queryByText(/diagnostic guidance only/i)).toBeNull();
+    expect(screen.queryByText(/does not change permissions/i)).toBeNull();
     expect(screen.queryByText(/access granted/i)).toBeNull();
     expect(screen.queryByText(/required to access/i)).toBeNull();
     expect(screen.queryByText(/unlocks features/i)).toBeNull();

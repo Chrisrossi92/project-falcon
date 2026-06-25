@@ -15,7 +15,7 @@ const LABELS = Object.fromEntries(
   NOTIFICATION_SETTINGS_EVENTS.map((event) => [event.key, event.label])
 );
 const CHANNELS = [
-  { key: "in_app", label: "Center" },
+  { key: "in_app", label: "In-app" },
   { key: "email", label: "Email" },
 ];
 

@@ -142,7 +142,7 @@ describe("NotificationBell workspace isolation", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Notifications" }));
     await screen.findByText("AMC order ready");
-    fireEvent.click(screen.getByRole("button", { name: "Mark all seen" }));
+    fireEvent.click(screen.getByRole("button", { name: "Mark all read" }));
 
     await waitFor(() => {
       expect(rpcMock).toHaveBeenCalledWith("rpc_mark_notification_read", {
@@ -172,7 +172,7 @@ describe("NotificationBell workspace isolation", () => {
         p_operations_scope: OPERATIONS_MODES.INTERNAL_OPERATIONS,
       });
     });
-    expect(screen.queryByRole("heading", { name: "Notification Center" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "In-app notifications" })).toBeNull();
   });
 
   it("keeps notification links on guarded app routes", async () => {

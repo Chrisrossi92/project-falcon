@@ -264,7 +264,7 @@ export default function NotificationBell() {
         <div className="absolute right-0 z-50 mt-2 w-[420px] max-w-[calc(100vw-1rem)] max-h-[70vh] overflow-hidden bg-white border rounded-lg shadow-lg">
           <div className="flex items-center justify-between gap-3 border-b px-3 py-2">
             <div>
-              <h3 className="font-semibold text-sm text-slate-950">Notification Center</h3>
+              <h3 className="font-semibold text-sm text-slate-950">In-app notifications</h3>
               <p className="text-xs text-slate-500">{unreadCount} unread</p>
             </div>
             <div className="flex items-center gap-2">
@@ -272,18 +272,18 @@ export default function NotificationBell() {
                 className="inline-flex h-8 items-center gap-1.5 rounded-md border px-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
                 onClick={markAllRead}
                 disabled={markingAllRead}
-                title="Mark all seen"
+                title="Mark all notifications seen"
               >
                 <CheckCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                {markingAllRead ? "Marking..." : "Mark all seen"}
+                {markingAllRead ? "Marking..." : "Mark all read"}
               </button>
               {seenQuickItems.length > 0 && (
                 <button
                   className="inline-flex h-8 items-center rounded-md border border-transparent px-2 text-xs font-medium text-slate-500 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-800"
                   onClick={dismissSeen}
-                  title="Dismiss seen notifications"
+                  title="Dismiss read notifications"
                 >
-                  Dismiss seen
+                  Dismiss read
                 </button>
               )}
               <button
@@ -365,10 +365,10 @@ export default function NotificationBell() {
                             type="button"
                             className="inline-flex h-8 items-center gap-1 rounded-md border border-slate-200 px-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
                             onClick={() => markOneRead(n)}
-                            title="Mark seen"
+                            title="Mark notification read"
                           >
                             <Check className="h-3.5 w-3.5" aria-hidden="true" />
-                            Mark seen
+                            Mark read
                           </button>
                         )}
                         <button
@@ -419,7 +419,7 @@ export default function NotificationBell() {
               className="text-xs font-medium text-slate-600 hover:text-slate-950"
               onClick={openActivity}
             >
-              View all activity
+              View notification history
             </button>
           </div>
         </div>

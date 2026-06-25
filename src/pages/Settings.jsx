@@ -164,24 +164,27 @@ export default function Settings() {
             checked={!!prefs.dnd}
             onChange={(e) => setPrefs((p) => ({ ...p, dnd: e.target.checked }))}
           />
-          Do Not Disturb
+          Pause notifications
         </label>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <label className="text-sm">
-            <div className="text-xs text-gray-500 mb-1">DND Until (ISO or empty)</div>
+            <div className="text-xs text-gray-500 mb-1">Pause until (optional)</div>
             <input
               className="w-full rounded border px-3 py-2 text-sm"
-              placeholder="2025-09-01T17:00:00Z"
+              placeholder="Example: Sep 1, 2026 at 5:00 PM"
               value={prefs.dnd_until || ""}
               onChange={(e) => setPrefs((p) => ({ ...p, dnd_until: e.target.value || null }))}
             />
+            <div className="mt-1 text-xs text-gray-500">
+              Leave blank to keep notifications paused until you turn this off.
+            </div>
           </label>
           <label className="text-sm">
-            <div className="text-xs text-gray-500 mb-1">Snooze Until (ISO or empty)</div>
+            <div className="text-xs text-gray-500 mb-1">Snooze until (optional)</div>
             <input
               className="w-full rounded border px-3 py-2 text-sm"
-              placeholder="2025-09-01T12:00:00Z"
+              placeholder="Example: Sep 1, 2026 at noon"
               value={prefs.snooze_until || ""}
               onChange={(e) => setPrefs((p) => ({ ...p, snooze_until: e.target.value || null }))}
             />
@@ -222,5 +225,4 @@ export default function Settings() {
     </div>
   );
 }
-
 

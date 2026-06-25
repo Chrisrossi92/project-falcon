@@ -39,7 +39,9 @@ export default function WorkflowNoteModal({
           disabled={busy}
         />
 
-        <div className="mt-2 text-xs text-slate-500">Attachment support coming next.</div>
+        <div className="mt-2 text-xs text-slate-500">
+          This note will be saved with the order activity history.
+        </div>
 
         <div className="mt-5 flex items-center justify-end gap-2">
           <button

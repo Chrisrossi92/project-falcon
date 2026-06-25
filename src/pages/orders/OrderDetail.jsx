@@ -1713,7 +1713,7 @@ export default function OrderDetail() {
           <div className="grid gap-3 lg:grid-cols-12">
             <OverviewSection title="Order / Client" className="lg:col-span-4">
               <SummaryField label="Client" value={clientName} />
-              <SummaryField label="AMC" value={amcName} />
+              {isAmcOrderDetail && <SummaryField label="AMC" value={amcName} />}
             </OverviewSection>
 
             <OverviewSection title="Property / Assignment" className="lg:col-span-8">

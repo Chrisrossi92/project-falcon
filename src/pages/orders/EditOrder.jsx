@@ -85,19 +85,25 @@ export default function EditOrder() {
   }, [id]);
 
   if (loading)
-    return <div className="p-4 text-sm text-gray-600">Loading…</div>;
+    return <div className="p-4 text-sm text-gray-600">Loading order details...</div>;
   if (err)
-    return <div className="p-4 text-sm text-red-600">Failed: {err}</div>;
+    return <div className="p-4 text-sm text-red-600">Order details could not be loaded. {err}</div>;
   if (!row)
     return (
       <div className="p-4 text-sm text-red-600">Order not found.</div>
     );
 
   return (
-    <div className="p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold">Edit Order</h1>
-      </div>
+    <div className="space-y-4 p-4 lg:p-6">
+      <header className="rounded-xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
+        <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+          Client Orders
+        </div>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">Edit Order</h1>
+        <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
+          Update intake details, assignment, scheduling, and internal production notes.
+        </p>
+      </header>
       <OrderForm
         order={row}
         onSaved={(updatedRow) => nav(`/orders/${updatedRow.id}`)}
@@ -105,5 +111,4 @@ export default function EditOrder() {
     </div>
   );
 }
-
 

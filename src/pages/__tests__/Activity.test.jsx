@@ -88,7 +88,7 @@ describe("Activity notification workspace isolation", () => {
 
   it("clears local activity search state and reloads on workspace switch invalidation", async () => {
     renderActivity(OPERATIONS_MODES.INTERNAL_OPERATIONS);
-    const search = await screen.findByPlaceholderText("Search title, body, order number, or payload");
+    const search = await screen.findByPlaceholderText("Search notifications, notes, or order number");
 
     fireEvent.change(search, { target: { value: "missing search" } });
     expect(screen.getByText("No matching activity found.")).toBeInTheDocument();
