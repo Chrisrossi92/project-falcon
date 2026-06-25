@@ -89,7 +89,7 @@ const TEMPLATE_LABELS: Record<string, { subject: string; body: string }> = {
   REVISIONS_REQUIRED: {
     subject: "Revisions requested for {order_summary}",
     body: [
-      "A reviewer returned this order for revisions.",
+      "A reviewer requested revisions for this order.",
       "",
       "**Order:** {order_number}",
       "**Property:** {property_address}",
@@ -98,6 +98,7 @@ const TEMPLATE_LABELS: Record<string, { subject: string; body: string }> = {
       "**Reviewer:** {reviewer_name}",
       "**Final due:** {final_due_at}",
       "",
+      "Revision note",
       "{workflow_note}",
       "",
       "**Next action:** Review the requested changes and resubmit when ready.",
@@ -653,6 +654,7 @@ function stripEmptyOptionalLines(text: string, payload: Record<string, string>) 
     .filter((line) => {
       if (line.includes("{order_url}") && !payload.order_url) return false;
       if (line.includes("{bid_invitation_url}") && !payload.bid_invitation_url) return false;
+      if (line.trim() === "Revision note" && !payload.workflow_note) return false;
       const match = line.trim().match(/^\{([^}]+)\}$/);
       if (!match) return true;
       const key = match[1].trim();
@@ -846,9 +848,20 @@ function renderFalconEmailHtml(templateName: string, subject: string, text: stri
   const detailTitle = "Order summary";
   const actionLabel = "Open Order";
   const intro = text.split("\n").find((line) => line.trim() && !line.startsWith("**")) || "";
-  const supportingMessage = templateName === "NOTE_ADDRESSED"
-    ? payload.note_preview
-    : payload.workflow_note || "";
+  const supportingMessage = templateName === "NOTE_ADDRESSED" ? payload.note_preview : payload.workflow_note || "";
+  const supportingMessageLabel = templateName === "REVISIONS_REQUIRED"
+    ? "Revision note"
+    : templateName === "NOTE_ADDRESSED"
+      ? "Note"
+      : "";
+  const supportingMessageHtml = supportingMessage
+    ? `<div style="margin:20px 0 0;padding:14px 16px;background:#f8fafc;border-left:3px solid #2563eb;font-size:15px;line-height:24px;color:#334155;">${
+        supportingMessageLabel
+          ? `<div style="margin:0 0 6px;font-size:12px;line-height:16px;color:#475569;font-weight:700;text-transform:uppercase;">${escapeHtml(supportingMessageLabel)}</div>`
+          : ""
+      }<div>${escapeHtml(supportingMessage)}</div></div>`
+    : "";
+  const actionMarginTop = templateName === "REVISIONS_REQUIRED" ? "28px" : "24px";
   const detailRows: string[] = [];
   for (let index = 0; index < details.length; index += 2) {
     const left = details[index];
@@ -887,9 +900,9 @@ function renderFalconEmailHtml(templateName: string, subject: string, text: stri
                   </tr>
                   ${detailRows.join("")}
                 </table>
-                ${supportingMessage ? `<p style="margin:20px 0 0;padding:14px 16px;background:#f8fafc;border-left:3px solid #2563eb;font-size:15px;line-height:24px;color:#334155;">${escapeHtml(supportingMessage)}</p>` : ""}
+                ${supportingMessageHtml}
                 ${templateName === "APPRAISER_ASSIGNED" ? `<p style="margin:20px 0 0;font-size:15px;line-height:24px;color:#334155;">Please coordinate access with the contact above and let us know if you have any questions.</p>` : ""}
-                ${actionUrl ? `<table role="presentation" cellspacing="0" cellpadding="0" style="margin-top:24px;"><tr><td style="border-radius:6px;background:#2563eb;"><a href="${escapeHtml(actionUrl)}" style="display:inline-block;padding:12px 18px;color:#ffffff;text-decoration:none;font-size:15px;line-height:20px;font-weight:700;">${escapeHtml(actionLabel)}</a></td></tr></table>` : ""}
+                ${actionUrl ? `<table role="presentation" cellspacing="0" cellpadding="0" style="margin-top:${actionMarginTop};"><tr><td style="border-radius:6px;background:#2563eb;"><a href="${escapeHtml(actionUrl)}" style="display:inline-block;padding:12px 18px;color:#ffffff;text-decoration:none;font-size:15px;line-height:20px;font-weight:700;">${escapeHtml(actionLabel)}</a></td></tr></table>` : ""}
               </td>
             </tr>
             <tr>

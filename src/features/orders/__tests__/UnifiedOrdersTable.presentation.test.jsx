@@ -626,6 +626,12 @@ describe("UnifiedOrdersTable presentation", () => {
     fireEvent.click(within(screen.getByRole("dialog", { name: "Request Revisions" })).getByRole("button", { name: "Request Revisions" }));
 
     await waitFor(() => expect(screen.getByText("Needs Revisions")).toBeInTheDocument());
+    expect(logNoteMock).toHaveBeenCalledWith("order-2", "Revision note:\nReady for review", {
+      metadata: {
+        workflow_event: "request_revisions",
+        notification_suppressed: true,
+      },
+    });
     expect(orderWorkflowMocks.sendOrderBackToAppraiser).toHaveBeenCalledWith("order-2", "auth-user-1", {
       noteText: "Revision note:\nReady for review",
     });

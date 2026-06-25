@@ -89,8 +89,13 @@ export async function logNote(orderId, message, options = {}) {
   if (!orderId) throw new Error("Missing orderId");
 
   const actor = options?.actor || null;
+  const metadata =
+    options?.metadata && typeof options.metadata === "object" && !Array.isArray(options.metadata)
+      ? options.metadata
+      : {};
   const details = {
     note: message,
+    ...metadata,
     ...(actor
       ? {
           actor: {
@@ -119,7 +124,6 @@ export async function logNote(orderId, message, options = {}) {
   const found = feed.find((r) => r.id === newId) || null;
   return found || { id: newId, order_id: orderId, event_type: "note", message, created_at: new Date().toISOString() };
 }
-
 
 
 

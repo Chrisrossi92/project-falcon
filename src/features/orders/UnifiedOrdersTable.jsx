@@ -401,7 +401,12 @@ export default function UnifiedOrdersTable({
         let formattedNote = "";
         if (noteText.trim()) {
           formattedNote = `Revision note:\n${noteText.trim()}`;
-          await logNote(orderPk, formattedNote);
+          await logNote(orderPk, formattedNote, {
+            metadata: {
+              workflow_event: "request_revisions",
+              notification_suppressed: true,
+            },
+          });
         }
         const updatedOrder = await sendOrderBackToAppraiser(orderPk, sessionUser?.id, {
           noteText: formattedNote || null,
