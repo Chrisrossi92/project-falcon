@@ -98,6 +98,7 @@ const { default: VendorAssignedOrderDetailPage } = await import("../VendorAssign
 const { default: VendorAssignedOrdersPage } = await import("../VendorAssignedOrdersPage.jsx");
 const { default: VendorAvailableWorkDetailPage } = await import("../VendorAvailableWorkDetailPage.jsx");
 const { default: VendorAvailableWorkPage } = await import("../VendorAvailableWorkPage.jsx");
+const { default: VendorCredentialsPage } = await import("../VendorCredentialsPage.jsx");
 const { default: VendorMyBidsPage } = await import("../VendorMyBidsPage.jsx");
 const { default: VendorPaymentsPage } = await import("../VendorPaymentsPage.jsx");
 const { default: VendorProfilePage } = await import("../VendorProfilePage.jsx");
@@ -940,7 +941,7 @@ function renderVendorWorkspace(path = "/vendor-workspace/dashboard") {
             element={<VendorWorkspacePlaceholderPage page="historicalAssignments" />}
           />
           <Route path="/vendor-workspace/documents" element={<VendorWorkspacePlaceholderPage page="documents" />} />
-          <Route path="/vendor-workspace/credentials" element={<VendorWorkspacePlaceholderPage page="credentials" />} />
+          <Route path="/vendor-workspace/credentials" element={<VendorCredentialsPage />} />
           <Route path="/vendor-workspace/assigned-orders" element={<VendorAssignedOrdersPage />} />
           <Route
             path="/vendor-workspace/assigned-orders/:assignmentWorkKey"
@@ -2018,6 +2019,62 @@ describe("Vendor Workspace hidden shell", () => {
     expect(screen.queryByRole("link", { name: "Client Portal" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Internal Operations" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Falcon AMC" })).toBeNull();
+  });
+
+  it("renders the vendor credentials read-only foundation from profile data", async () => {
+    const { container } = renderVendorWorkspace("/vendor-workspace/credentials");
+
+    expect(await screen.findByRole("heading", { name: "Credentials" })).toBeInTheDocument();
+    expect(apiMock.fetchVendorWorkspaceProfile).toHaveBeenCalled();
+    expect(screen.getByText("This page is read-only for now. Expiration reminders are planned but not active yet.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Credential Overview" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "License Status" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "E&O Insurance" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Résumé / Qualifications" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Authorized Report Signers" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Expiration Reminders" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Missing Information" })).toBeInTheDocument();
+    expect(screen.getByText("Field Partner Valuation")).toBeInTheDocument();
+    expect(screen.getAllByText("Jordan Vendor").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Current").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Credential uploads will be available in a later release.").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Expiration reminders are planned but not active yet.").length).toBeGreaterThan(0);
+    expect(container.querySelector('a[href^="/dashboard"]')).toBeNull();
+    expect(screen.queryByRole("link", { name: "Client Portal" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Internal Operations" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Falcon AMC" })).toBeNull();
+  });
+
+  it("renders honest vendor credentials empty states when structured data is unavailable", async () => {
+    apiMock.fetchVendorWorkspaceProfile.mockResolvedValueOnce({
+      ok: true,
+      profile: {
+        company: {
+          name: "Sparse Vendor",
+        },
+        status: {
+          is_active: true,
+        },
+        primary_contact: null,
+        contacts: [],
+        compliance: {
+          status: null,
+          insurance_status: null,
+          license_status: null,
+          document_count: 0,
+          last_updated_at: null,
+        },
+      },
+    });
+
+    renderVendorWorkspace("/vendor-workspace/credentials");
+
+    expect(await screen.findByRole("heading", { name: "Credentials" })).toBeInTheDocument();
+    expect(screen.getAllByText("License tracking is not configured yet.").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("E&O tracking is not configured yet.").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Credential uploads will be available in a later release.").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Authorized report signer tracking is not configured yet.").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Expiration reminders are planned but not active yet.").length).toBeGreaterThan(0);
   });
 
   it("keeps inaccessible assigned order documents as metadata with a local unavailable state", async () => {
