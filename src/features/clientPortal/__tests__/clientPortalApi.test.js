@@ -48,6 +48,7 @@ describe("clientPortalApi", () => {
 
     await expect(getClientPortalDashboard()).resolves.toEqual({
       activeOrderCount: 2,
+      completedOrderCount: 0,
       reportAvailableCount: 1,
       nextDueAt: "2026-06-15",
       recentOrders: [

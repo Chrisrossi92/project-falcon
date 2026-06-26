@@ -99,14 +99,27 @@ describe("Client Portal pages", () => {
 
     renderPortalRoutes();
 
-    expect(await screen.findByText("Welcome to your appraisal workspace")).toBeInTheDocument();
-    expect(screen.getAllByText("Request New Appraisal").length).toBeGreaterThan(0);
-    expect(screen.getByText("Active Appraisals")).toBeInTheDocument();
-    expect(screen.getByText("Completed Appraisals")).toBeInTheDocument();
+    expect(await screen.findByText("What needs attention today")).toBeInTheDocument();
+    expect(screen.getByText("Client Portal / Falcon Workspace")).toBeInTheDocument();
+    expect(screen.getAllByText("Request Appraisal").length).toBeGreaterThan(0);
+    expect(screen.getByText("Active Orders")).toBeInTheDocument();
+    expect(screen.getByText("Waiting on You")).toBeInTheDocument();
     expect(screen.getByText("Reports Ready")).toBeInTheDocument();
-    expect(screen.getByText("Next Expected Delivery")).toBeInTheDocument();
-    expect(await screen.findByText("CP-001")).toBeInTheDocument();
-    expect(screen.getByText("100 Main St")).toBeInTheDocument();
+    expect(screen.getByText("Recent Updates")).toBeInTheDocument();
+    expect(screen.getByText("Current Orders")).toBeInTheDocument();
+    expect(screen.getByText("Upcoming Due Dates")).toBeInTheDocument();
+    expect(screen.getByText("Recent Documents")).toBeInTheDocument();
+    expect(screen.getByText("Recent Activity")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "View Orders" })).toHaveAttribute("href", "/client-portal/orders");
+    expect(screen.getAllByRole("link", { name: "Request Appraisal" })[0]).toHaveAttribute(
+      "href",
+      "/client-portal/new-order",
+    );
+    expect((await screen.findAllByText("CP-001")).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("100 Main St").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("link", { name: "Vendor Workspace" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Internal Operations" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Falcon AMC" })).toBeNull();
   });
 
   it("shows submitted pending client requests on the dashboard without treating them as active orders", async () => {
@@ -136,12 +149,12 @@ describe("Client Portal pages", () => {
 
     renderPortalRoutes();
 
-    expect(await screen.findByText("Pending requests")).toBeInTheDocument();
+    expect(await screen.findByText("Submitted Requests")).toBeInTheDocument();
     expect(await screen.findByText("300 Madison Ave, Toledo OH · Toledo, OH 43604 · Lucas County")).toBeInTheDocument();
     expect(screen.getAllByText("Submitted").length).toBeGreaterThan(0);
     expect(screen.getByText("Your appraisal team is reviewing this request.")).toBeInTheDocument();
     expect(screen.getByText("Jun 20, 2026")).toBeInTheDocument();
-    expect(screen.getByText("Active Appraisals")).toBeInTheDocument();
+    expect(screen.getByText("Active Orders")).toBeInTheDocument();
     expect(screen.queryByText("CP-001")).not.toBeInTheDocument();
 
     const serialized = document.body.textContent;
@@ -636,7 +649,7 @@ describe("Client Portal pages", () => {
         },
       });
       expect(apiMock.acceptClientPortalInvitation).toHaveBeenCalledWith("raw-token");
-      expect(screen.getByText("Welcome to your appraisal workspace")).toBeInTheDocument();
+      expect(screen.getByText("What needs attention today")).toBeInTheDocument();
     });
   });
 
@@ -671,7 +684,7 @@ describe("Client Portal pages", () => {
     expect(screen.getByText("dmiller@firstamerican.com")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sign in after confirming" })).toBeInTheDocument();
     expect(apiMock.acceptClientPortalInvitation).not.toHaveBeenCalled();
-    expect(screen.queryByText("Welcome to your appraisal workspace")).not.toBeInTheDocument();
+    expect(screen.queryByText("What needs attention today")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Sign in after confirming" }));
     expect(screen.getByRole("button", { name: "Sign in and continue" })).toBeInTheDocument();
@@ -716,7 +729,7 @@ describe("Client Portal pages", () => {
         password: "DanaPassword123!",
       });
       expect(apiMock.acceptClientPortalInvitation).toHaveBeenCalledWith("raw-token");
-      expect(screen.getByText("Welcome to your appraisal workspace")).toBeInTheDocument();
+      expect(screen.getByText("What needs attention today")).toBeInTheDocument();
     });
   });
 
@@ -748,7 +761,7 @@ describe("Client Portal pages", () => {
       "The invitation could not be accepted. Try again or ask your lending team contact for a new invite.",
     );
     expect(apiMock.acceptClientPortalInvitation).toHaveBeenCalledWith("raw-token");
-    expect(screen.queryByText("Welcome to your appraisal workspace")).not.toBeInTheDocument();
+    expect(screen.queryByText("What needs attention today")).not.toBeInTheDocument();
   });
 
   it("auto-accepts a pending invite for an already authenticated client", async () => {
@@ -779,7 +792,7 @@ describe("Client Portal pages", () => {
 
     await waitFor(() => {
       expect(apiMock.acceptClientPortalInvitation).toHaveBeenCalledWith("raw-token");
-      expect(screen.getByText("Welcome to your appraisal workspace")).toBeInTheDocument();
+      expect(screen.getByText("What needs attention today")).toBeInTheDocument();
     });
   });
 });
