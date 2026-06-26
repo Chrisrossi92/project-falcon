@@ -5,12 +5,11 @@ import supabase from "@/lib/supabaseClient";
 
 const navItems = Object.freeze([
   { label: "Dashboard", path: "/vendor-workspace/dashboard", enabled: true },
+  { label: "Assignments", path: "/vendor-workspace/assigned-orders", enabled: true },
   { label: "Available Work", path: "/vendor-workspace/available-work", enabled: true },
-  { label: "My Bids", path: "/vendor-workspace/my-bids", enabled: true },
-  { label: "Assigned Orders", path: "/vendor-workspace/assigned-orders", enabled: true },
-  { label: "Documents / Tasks", enabled: false },
+  { label: "Bids", path: "/vendor-workspace/my-bids", enabled: true },
+  { label: "Coverage", path: "/vendor-workspace/profile", enabled: true },
   { label: "Payments", path: "/vendor-workspace/payments", enabled: true },
-  { label: "Profile", path: "/vendor-workspace/profile", enabled: true },
 ]);
 
 export default function VendorWorkspaceLayout() {

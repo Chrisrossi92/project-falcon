@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { submitClientPortalOrderRequest } from "@/features/clientPortal/api";
@@ -52,12 +52,27 @@ const LOAN_PURPOSE_OPTIONS = Object.freeze([
   "Other",
 ]);
 
-function Field({ children, label }) {
+function Field({ children, helper = null, label }) {
   return (
     <label className="grid gap-1 text-sm font-medium text-slate-800">
       <span>{label}</span>
       {children}
+      {helper ? <span className="text-xs font-normal leading-5 text-slate-500">{helper}</span> : null}
     </label>
+  );
+}
+
+function FormSection({ children, eyebrow, title }) {
+  return (
+    <section className="grid gap-4 rounded-lg border border-stone-200 bg-white p-5 shadow-sm" aria-label={title}>
+      <div>
+        <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+          {eyebrow}
+        </div>
+        <h2 className="mt-1 text-base font-semibold text-slate-950">{title}</h2>
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -71,6 +86,10 @@ function inputClassName(extra = "") {
 
 function resolveControlledValue(value, otherValue) {
   return value === "Other" ? otherValue : value;
+}
+
+function hasText(value) {
+  return String(value || "").trim().length > 0;
 }
 
 function orderRequestErrorMessage(error) {
@@ -119,6 +138,20 @@ export default function ClientPortalNewOrderPage() {
   const [error, setError] = useState(null);
   const [submittedRequest, setSubmittedRequest] = useState(null);
 
+  const completedRequiredCount = useMemo(() => {
+    const propertyType = resolveControlledValue(form.propertyType, form.propertyTypeOther);
+    const reportType = resolveControlledValue(form.reportType, form.reportTypeOther);
+    return [
+      form.propertyAddress,
+      form.propertyCity,
+      form.propertyState,
+      form.propertyPostalCode,
+      propertyType,
+      reportType,
+    ].filter(hasText).length;
+  }, [form]);
+  const completionPercent = Math.round((completedRequiredCount / 6) * 100);
+
   function updateField(field, value) {
     setForm((current) => ({
       ...current,
@@ -164,20 +197,40 @@ export default function ClientPortalNewOrderPage() {
       <div className="grid gap-6">
         <section className="grid gap-2">
           <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-            Order Appraisal
+            Request Appraisal
           </div>
           <h1 className="text-2xl font-semibold text-slate-950">Request submitted</h1>
           <p className="max-w-3xl text-sm leading-6 text-slate-600">
-            Your team will review and confirm the details before the appraisal moves forward.
+            Your appraisal team will review the details and confirm next steps.
           </p>
         </section>
 
-        <section className="grid gap-4 rounded-lg border border-emerald-200 bg-emerald-50 p-5">
+        <section className="grid gap-5 rounded-lg border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
           <div>
-            <h2 className="text-base font-semibold text-emerald-950">Request received</h2>
+            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">
+              Received
+            </div>
+            <h2 className="mt-1 text-lg font-semibold text-emerald-950">
+              {submittedRequest.propertyAddress || "Appraisal request"}
+            </h2>
             <p className="mt-2 text-sm leading-6 text-emerald-800">
-              We received your request for {submittedRequest.propertyAddress || "this property"}.
+              Your request is queued for review. The appraisal team will confirm scope, timing, and
+              any supporting documents needed before the appraisal moves forward.
             </p>
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="rounded-md border border-emerald-200 bg-white/70 p-3 text-sm text-emerald-900">
+              <div className="font-semibold">1. Review</div>
+              <div className="mt-1 text-xs leading-5">The request details are checked by the team.</div>
+            </div>
+            <div className="rounded-md border border-emerald-200 bg-white/70 p-3 text-sm text-emerald-900">
+              <div className="font-semibold">2. Confirmation</div>
+              <div className="mt-1 text-xs leading-5">Timing and any document needs are confirmed.</div>
+            </div>
+            <div className="rounded-md border border-emerald-200 bg-white/70 p-3 text-sm text-emerald-900">
+              <div className="font-semibold">3. Tracking</div>
+              <div className="mt-1 text-xs leading-5">Approved work appears in your portal.</div>
+            </div>
           </div>
           <div className="flex flex-wrap gap-2">
             <button
@@ -191,7 +244,7 @@ export default function ClientPortalNewOrderPage() {
               to="/client-portal/orders"
               className="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800"
             >
-              View orders
+              View appraisals
             </Link>
           </div>
         </section>
@@ -203,21 +256,34 @@ export default function ClientPortalNewOrderPage() {
     <div className="grid gap-6">
       <section className="grid gap-2">
         <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-          Order Appraisal
+          Request Appraisal
         </div>
-        <h1 className="text-2xl font-semibold text-slate-950">Request an appraisal</h1>
+        <h1 className="text-2xl font-semibold text-slate-950">Request a new appraisal</h1>
         <p className="max-w-3xl text-sm leading-6 text-slate-600">
-          Send the property and contact details your team needs to review the request.
+          Send the property, assignment, and contact details your appraisal team needs to begin review.
         </p>
       </section>
 
-      <form
-        onSubmit={handleSubmit}
-        className="grid gap-6 rounded-lg border border-stone-200 bg-white p-5"
-        aria-label="Appraisal request"
-      >
-        <section className="grid gap-4" aria-label="Property details">
-          <h2 className="text-base font-semibold text-slate-950">Property details</h2>
+      <div className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm" aria-label="Request progress">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="text-sm font-semibold text-slate-950">Request progress</div>
+            <p className="mt-1 text-xs text-slate-500">
+              {completedRequiredCount} of 6 required fields complete
+            </p>
+          </div>
+          <div className="text-sm font-semibold text-slate-700">{completionPercent}%</div>
+        </div>
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-stone-100">
+          <div
+            className="h-full rounded-full bg-slate-900 transition-all"
+            style={{ width: `${completionPercent}%` }}
+          />
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="grid gap-5" aria-label="Appraisal request">
+        <FormSection eyebrow="Step 1" title="Property">
           <Field label="Property address">
             <textarea
               required
@@ -263,7 +329,9 @@ export default function ClientPortalNewOrderPage() {
               className={inputClassName()}
             />
           </Field>
+        </FormSection>
 
+        <FormSection eyebrow="Step 2" title="Assignment Details">
           <div className="grid gap-4 md:grid-cols-2">
             <Field label="Property type">
               <select
@@ -346,11 +414,13 @@ export default function ClientPortalNewOrderPage() {
                 className={inputClassName()}
               />
             </Field>
+            <p className="-mt-3 text-xs leading-5 text-slate-500">
+              Optional. Your team will confirm feasibility.
+            </p>
           </div>
-        </section>
+        </FormSection>
 
-        <section className="grid gap-4" aria-label="Contact details">
-          <h2 className="text-base font-semibold text-slate-950">Contact details</h2>
+        <FormSection eyebrow="Step 3" title="Contacts">
           <div className="grid gap-4 md:grid-cols-2">
             <Field label="Borrower or property contact">
               <input
@@ -386,10 +456,18 @@ export default function ClientPortalNewOrderPage() {
               />
             </Field>
           </div>
-        </section>
+        </FormSection>
 
-        <section className="grid gap-4" aria-label="Instructions">
-          <h2 className="text-base font-semibold text-slate-950">Instructions</h2>
+        <FormSection eyebrow="Step 4" title="Documents">
+          <div className="rounded-md border border-stone-200 bg-stone-50 p-4 text-sm leading-6 text-slate-600">
+            Upload is not available from this portal form yet. Typical supporting documents include
+            engagement letters, purchase contracts, rent rolls, surveys, plans, prior appraisals,
+            and property contact instructions. Your appraisal team can request files after reviewing
+            the submission.
+          </div>
+        </FormSection>
+
+        <FormSection eyebrow="Step 5" title="Review">
           <Field label="Notes or special instructions">
             <textarea
               rows={4}
@@ -398,11 +476,15 @@ export default function ClientPortalNewOrderPage() {
               className={inputClassName("resize-y")}
             />
           </Field>
-          <div className="rounded-md border border-stone-200 bg-stone-50 p-3 text-sm leading-6 text-slate-600">
-            File upload is not available yet. Your team can request supporting documents after
-            reviewing the request.
+
+          <div className="rounded-md border border-stone-200 bg-stone-50 p-4">
+            <div className="text-sm font-semibold text-slate-950">Before submitting</div>
+            <p className="mt-1 text-sm leading-6 text-slate-600">
+              Confirm the property, report type, and best contact information are accurate. The
+              request will be reviewed before it becomes an active appraisal.
+            </p>
           </div>
-        </section>
+        </FormSection>
 
         {error ? (
           <p className="rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700" role="alert">
@@ -414,13 +496,13 @@ export default function ClientPortalNewOrderPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="rounded-md border border-slate-900 bg-slate-900 px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-md border border-slate-900 bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
           >
             {submitting ? "Submitting request..." : "Submit request"}
           </button>
           <Link
             to="/client-portal/orders"
-            className="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800"
+            className="rounded-md border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800"
           >
             Cancel
           </Link>

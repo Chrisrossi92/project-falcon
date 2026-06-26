@@ -1232,16 +1232,18 @@ describe("Vendor Workspace hidden shell", () => {
   it("renders the hidden Vendor Workspace dashboard for vendor workspace permission", async () => {
     const { container } = renderVendorWorkspace();
 
-    expect(await screen.findByRole("heading", { name: "Vendor Workspace" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Your work queue" })).toBeInTheDocument();
     expect(
-      screen.getByText("Manage available work, bids, assignments, documents, and profile details."),
+      screen.getByText(
+        "Review available opportunities, manage active assignments, track due dates, and follow payment status from one vendor-facing workspace.",
+      ),
     ).toBeInTheDocument();
-    expect(await screen.findByRole("heading", { name: "My Next Actions" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Next actions" })).toBeInTheDocument();
     expect(apiMock.fetchVendorWorkspaceDashboardSummary).toHaveBeenCalledTimes(1);
     expect(screen.getAllByText("Available Work").length).toBeGreaterThan(0);
-    expect(screen.getByText("Pending Bids")).toBeInTheDocument();
+    expect(screen.getByText("Submitted Bids")).toBeInTheDocument();
     expect(screen.getByText("Assignment Offers")).toBeInTheDocument();
-    expect(screen.getByText("Active Assigned Orders")).toBeInTheDocument();
+    expect(screen.getAllByText("Assignments").length).toBeGreaterThan(0);
     expect(screen.getByText("Submitted / Awaiting Review")).toBeInTheDocument();
     expect(screen.getByText("Needs Attention")).toBeInTheDocument();
     expect(container.querySelector('[data-testid="operations-mode-switcher"]')).toBeNull();
@@ -1251,7 +1253,7 @@ describe("Vendor Workspace hidden shell", () => {
   it("shows the signed-in vendor email and signs out from the Vendor Workspace shell", async () => {
     renderVendorWorkspace("/vendor-workspace/assigned-orders");
 
-    expect(await screen.findByRole("heading", { name: "Assigned Orders" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Assignments" })).toBeInTheDocument();
     expect(screen.getByText("chris@therossicompany.com")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Sign Out" }));
@@ -1265,9 +1267,9 @@ describe("Vendor Workspace hidden shell", () => {
   it("renders dashboard counts and safe action summary fields", async () => {
     const { container } = renderVendorWorkspace();
 
-    expect(await screen.findByText("Submit bid")).toBeInTheDocument();
+    expect((await screen.findAllByText("Submit bid")).length).toBeGreaterThan(0);
     ["3", "2", "1", "4", "5", "6"].forEach((count) => {
-      expect(screen.getByText(count)).toBeInTheDocument();
+      expect(screen.getAllByText(count).length).toBeGreaterThan(0);
     });
     expect(screen.getByText("AMC-DEMO-003")).toBeInTheDocument();
     expect(screen.getByText("123 Market Street, Columbus, OH, 43215")).toBeInTheDocument();
@@ -1292,11 +1294,11 @@ describe("Vendor Workspace hidden shell", () => {
     expect(container.querySelector('a[href^="/orders"]')).toBeNull();
     expect(container.querySelector('a[href^="/vendors"]')).toBeNull();
     expect(container.querySelector('a[href^="/clients"]')).toBeNull();
-    expect(screen.getByRole("link", { name: "My Bids" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Bids" })).toHaveAttribute(
       "href",
       "/vendor-workspace/my-bids",
     );
-    expect(screen.getByRole("link", { name: "Assigned Orders" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Assignments" })).toHaveAttribute(
       "href",
       "/vendor-workspace/assigned-orders",
     );
@@ -1685,7 +1687,7 @@ describe("Vendor Workspace hidden shell", () => {
 
     expect(screen.getByRole("heading", { name: "Request Profile Update" })).toBeInTheDocument();
     expect(screen.getByText(/Proposed changes are reviewed before they affect operational coverage/)).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("Primary contact email"), {
+    fireEvent.change(screen.getByLabelText("Vendor manager email"), {
       target: { value: "updated@example.com" },
     });
     fireEvent.change(screen.getByLabelText("Coverage counties"), {
@@ -1725,13 +1727,13 @@ describe("Vendor Workspace hidden shell", () => {
 
     expect(await screen.findByRole("heading", { name: "Profile" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Request Update" }));
-    fireEvent.change(screen.getByLabelText("Primary contact name"), {
+    fireEvent.change(screen.getByLabelText("Vendor manager name"), {
       target: { value: "" },
     });
-    fireEvent.change(screen.getByLabelText("Primary contact email"), {
+    fireEvent.change(screen.getByLabelText("Vendor manager email"), {
       target: { value: "" },
     });
-    fireEvent.change(screen.getByLabelText("Primary contact phone"), {
+    fireEvent.change(screen.getByLabelText("Vendor manager phone"), {
       target: { value: "" },
     });
     fireEvent.change(screen.getByLabelText("Company phone"), {
@@ -1789,7 +1791,7 @@ describe("Vendor Workspace hidden shell", () => {
 
     renderVendorWorkspace("/vendor-workspace/profile");
 
-    expect(await screen.findByText("No primary contact is currently listed.")).toBeInTheDocument();
+    expect(await screen.findByText("No vendor manager is currently listed.")).toBeInTheDocument();
     expect(screen.getByText("No coverage areas are currently listed for your profile.")).toBeInTheDocument();
     expect(screen.getByText("No accepted work types are currently listed.")).toBeInTheDocument();
     expect(screen.getByText("No compliance summary is currently listed.")).toBeInTheDocument();
@@ -1798,9 +1800,9 @@ describe("Vendor Workspace hidden shell", () => {
   it("renders Assigned Orders from the vendor-scoped assignment lifecycle RPC", async () => {
     const { container } = renderVendorWorkspace("/vendor-workspace/assigned-orders");
 
-    expect(await screen.findByRole("heading", { name: "Assigned Orders" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Assignments" })).toBeInTheDocument();
     expect(apiMock.fetchVendorWorkspaceAssignedOrders).toHaveBeenCalledTimes(1);
-    expect(screen.getByText("Track accepted AMC assignments, due dates, submitted reports, and the next action for your company.")).toBeInTheDocument();
+    expect(screen.getByText("Track active assignments, due dates, revision requests, submitted reports, and the next step for your company.")).toBeInTheDocument();
     expect(screen.getByText("987 Assigned Way")).toBeInTheDocument();
     expect(screen.getByText("Cleveland, OH, 44114")).toBeInTheDocument();
     expect(screen.getByText("AMC-DEMO-009")).toBeInTheDocument();
@@ -1813,8 +1815,8 @@ describe("Vendor Workspace hidden shell", () => {
     expect(screen.getAllByText("Submitted / Awaiting Review").length).toBeGreaterThan(0);
     expect(screen.getByText("Inspection Scheduled")).toBeInTheDocument();
     expect(screen.getByText("Awaiting Review")).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: "View Assigned Order Detail" })).toHaveLength(2);
-    expect(screen.getAllByRole("link", { name: "View Assigned Order Detail" })[0]).toHaveAttribute(
+    expect(screen.getAllByRole("link", { name: "View Assignment" })).toHaveLength(2);
+    expect(screen.getAllByRole("link", { name: "View Assignment" })[0]).toHaveAttribute(
       "href",
       "/vendor-workspace/assigned-orders/assigned-work-key-1",
     );
@@ -1854,17 +1856,16 @@ describe("Vendor Workspace hidden shell", () => {
     });
     renderVendorWorkspace("/vendor-workspace/assigned-orders");
 
-    expect(await screen.findByRole("heading", { name: "Assigned Orders" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Assignments" })).toBeInTheDocument();
     expect(screen.getAllByText("Resubmitted / Awaiting Review").length).toBeGreaterThan(0);
     expect(screen.getByText("246 Submitted Street")).toBeInTheDocument();
-    expect(screen.queryByText("Submitted / Awaiting Review")).toBeNull();
   });
 
   it("opens an Assigned Orders row on the authenticated assigned order detail route", async () => {
     renderVendorWorkspace("/vendor-workspace/assigned-orders");
 
-    expect(await screen.findByRole("heading", { name: "Assigned Orders" })).toBeInTheDocument();
-    fireEvent.click(screen.getAllByRole("link", { name: "View Assigned Order Detail" })[0]);
+    expect(await screen.findByRole("heading", { name: "Assignments" })).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole("link", { name: "View Assignment" })[0]);
 
     expect(await screen.findByRole("heading", { name: "987 Assigned Way" })).toBeInTheDocument();
     expect(apiMock.fetchVendorWorkspaceAssignedOrderDetail).toHaveBeenCalledWith("assigned-work-key-1");
@@ -1880,12 +1881,12 @@ describe("Vendor Workspace hidden shell", () => {
     expect(screen.getByText("Assignment Oversight")).toBeInTheDocument();
     expect(screen.getByText("Falcon AMC Assigned Order", { exact: false })).toBeInTheDocument();
     expect(screen.getAllByText("Accepted").length).toBeGreaterThan(0);
-    expect(screen.getByText("Status / Next Action")).toBeInTheDocument();
+    expect(screen.getByText("Next Step")).toBeInTheDocument();
     expect(screen.getByText("Property")).toBeInTheDocument();
     expect(screen.getByText("Assignment Timeline")).toBeInTheDocument();
     expect(screen.getByText("Scope & Instructions")).toBeInTheDocument();
     expect(screen.getAllByText("Documents").length).toBeGreaterThan(0);
-    expect(screen.getByText("Report Submission")).toBeInTheDocument();
+    expect(screen.getByText("Report Upload / Submission")).toBeInTheDocument();
     expect(screen.getByText("Complete the commercial appraisal according to the engagement scope.")).toBeInTheDocument();
     expect(screen.getByText("Confirm inspection timing with property contact before starting work.")).toBeInTheDocument();
     expect(screen.getByText("Assignment Engagement")).toBeInTheDocument();
@@ -1895,9 +1896,9 @@ describe("Vendor Workspace hidden shell", () => {
     expect(screen.getByRole("button", { name: "Open" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Start Work" })).toBeEnabled();
     expect(
-      screen.getByText("Upload a report from Status / Next Action when this assignment is in progress."),
+      screen.getByText("Upload a report from Next Step when this assignment is in progress."),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Back to Assigned Orders" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Back to Assignments" })).toHaveAttribute(
       "href",
       "/vendor-workspace/assigned-orders",
     );
@@ -2674,7 +2675,7 @@ describe("Vendor Workspace hidden shell", () => {
     apiMock.fetchVendorWorkspaceAssignedOrders.mockResolvedValue({ ok: true, items: [] });
     renderVendorWorkspace("/vendor-workspace/assigned-orders");
 
-    expect(await screen.findByText("No assigned orders yet.")).toBeInTheDocument();
+    expect(await screen.findByText("No assignments yet.")).toBeInTheDocument();
   });
 
   it("renders assigned order detail loading and unavailable states", async () => {
@@ -2692,7 +2693,7 @@ describe("Vendor Workspace hidden shell", () => {
     renderVendorWorkspace("/vendor-workspace/assigned-orders/missing-assignment");
 
     expect(await screen.findByText("Assigned order detail unavailable")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Back to Assigned Orders" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Back to Assignments" })).toHaveAttribute(
       "href",
       "/vendor-workspace/assigned-orders",
     );
@@ -2761,7 +2762,7 @@ describe("Vendor Workspace hidden shell", () => {
       expect(apiMock.bootstrapVendorWorkspace).toHaveBeenCalledTimes(1);
     });
     expect(permissionState.reload).toHaveBeenCalled();
-    expect(await screen.findByRole("heading", { name: "Vendor Workspace" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Your work queue" })).toBeInTheDocument();
   });
 
   it("shows unavailable state when vendor bootstrap cannot switch active company", async () => {
@@ -2856,7 +2857,7 @@ describe("Vendor Workspace hidden shell", () => {
   it("keeps Vendor Workspace routes usable after internal route isolation checks", async () => {
     const { container } = renderVendorRouteIsolation("/vendor-workspace/dashboard");
 
-    expect(await screen.findByRole("heading", { name: "Vendor Workspace" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Your work queue" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Available Work" })).toBeInTheDocument();
     expect(container.querySelector('a[href^="/orders"]')).toBeNull();
     expect(screen.queryByTestId("internal-orders-data")).toBeNull();

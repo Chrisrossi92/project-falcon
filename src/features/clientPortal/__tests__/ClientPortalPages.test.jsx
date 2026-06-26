@@ -99,12 +99,12 @@ describe("Client Portal pages", () => {
 
     renderPortalRoutes();
 
-    expect(await screen.findByText("Appraisal orders")).toBeInTheDocument();
-    expect(screen.getByText("Order Appraisal")).toBeInTheDocument();
-    expect(screen.getByText("Request an appraisal")).toBeInTheDocument();
-    expect(screen.getByText("Submit a new appraisal request for review.")).toBeInTheDocument();
-    expect(screen.getByText("Track Progress")).toBeInTheDocument();
-    expect(screen.getByText("Download Report")).toBeInTheDocument();
+    expect(await screen.findByText("Welcome to your appraisal workspace")).toBeInTheDocument();
+    expect(screen.getAllByText("Request New Appraisal").length).toBeGreaterThan(0);
+    expect(screen.getByText("Active Appraisals")).toBeInTheDocument();
+    expect(screen.getByText("Completed Appraisals")).toBeInTheDocument();
+    expect(screen.getByText("Reports Ready")).toBeInTheDocument();
+    expect(screen.getByText("Next Expected Delivery")).toBeInTheDocument();
     expect(await screen.findByText("CP-001")).toBeInTheDocument();
     expect(screen.getByText("100 Main St")).toBeInTheDocument();
   });
@@ -141,7 +141,7 @@ describe("Client Portal pages", () => {
     expect(screen.getAllByText("Submitted").length).toBeGreaterThan(0);
     expect(screen.getByText("Your appraisal team is reviewing this request.")).toBeInTheDocument();
     expect(screen.getByText("Jun 20, 2026")).toBeInTheDocument();
-    expect(screen.getByText("0 active")).toBeInTheDocument();
+    expect(screen.getByText("Active Appraisals")).toBeInTheDocument();
     expect(screen.queryByText("CP-001")).not.toBeInTheDocument();
 
     const serialized = document.body.textContent;
@@ -202,10 +202,10 @@ describe("Client Portal pages", () => {
     renderPortalRoutes("/client-portal/orders/portal-order-1");
 
     expect(await screen.findByText("CP-001")).toBeInTheDocument();
-    expect(screen.getByText("Client-safe appraisal status and report availability for this property.")).toBeInTheDocument();
+    expect(screen.getByText("Appraisal Detail")).toBeInTheDocument();
     expect(screen.getByText("Report in review")).toBeInTheDocument();
     expect(screen.getByText("The final report will be available here after it is released to your account.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Download report" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Download final report" })).toBeDisabled();
 
     const serialized = document.body.textContent;
     expect(serialized).not.toMatch(/vendor|bid|procurement|appraiser note|internal note|review chatter|assignment/i);
@@ -236,7 +236,7 @@ describe("Client Portal pages", () => {
 
     renderPortalRoutes("/client-portal/orders/portal-order-1");
 
-    fireEvent.click(await screen.findByRole("button", { name: "Download report" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Download final report" }));
 
     await waitFor(() => {
       expect(apiMock.createClientPortalReportDownloadUrl).toHaveBeenCalledWith("portal-order-1");
@@ -263,7 +263,7 @@ describe("Client Portal pages", () => {
 
     renderPortalRoutes("/client-portal/orders/portal-order-1");
 
-    fireEvent.click(await screen.findByRole("button", { name: "Download report" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Download final report" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("You cannot download this report.");
     expect(document.body.textContent).not.toMatch(/storage_bucket|storage_path|order-documents|signed_url/i);
@@ -278,8 +278,8 @@ describe("Client Portal pages", () => {
 
     renderPortalRoutes("/client-portal/new-order");
 
-    expect(screen.getByText("Request an appraisal")).toBeInTheDocument();
-    expect(screen.getByText("File upload is not available yet. Your team can request supporting documents after reviewing the request.")).toBeInTheDocument();
+    expect(screen.getByText("Request a new appraisal")).toBeInTheDocument();
+    expect(screen.getByText(/Upload is not available from this portal form yet/i)).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Property address"), {
       target: { value: "200 Oak St" },
@@ -346,7 +346,7 @@ describe("Client Portal pages", () => {
     });
 
     expect(await screen.findByText("Request submitted")).toBeInTheDocument();
-    expect(screen.getByText("Your team will review and confirm the details before the appraisal moves forward.")).toBeInTheDocument();
+    expect(screen.getByText("Your appraisal team will review the details and confirm next steps.")).toBeInTheDocument();
     expect(apiMock.getClientPortalDashboard).not.toHaveBeenCalled();
     expect(apiMock.listClientPortalOrders).not.toHaveBeenCalled();
     expect(apiMock.listClientPortalPendingOrderRequests).not.toHaveBeenCalled();
@@ -636,7 +636,7 @@ describe("Client Portal pages", () => {
         },
       });
       expect(apiMock.acceptClientPortalInvitation).toHaveBeenCalledWith("raw-token");
-      expect(screen.getByText("Appraisal orders")).toBeInTheDocument();
+      expect(screen.getByText("Welcome to your appraisal workspace")).toBeInTheDocument();
     });
   });
 
@@ -671,7 +671,7 @@ describe("Client Portal pages", () => {
     expect(screen.getByText("dmiller@firstamerican.com")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sign in after confirming" })).toBeInTheDocument();
     expect(apiMock.acceptClientPortalInvitation).not.toHaveBeenCalled();
-    expect(screen.queryByText("Appraisal orders")).not.toBeInTheDocument();
+    expect(screen.queryByText("Welcome to your appraisal workspace")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Sign in after confirming" }));
     expect(screen.getByRole("button", { name: "Sign in and continue" })).toBeInTheDocument();
@@ -716,7 +716,7 @@ describe("Client Portal pages", () => {
         password: "DanaPassword123!",
       });
       expect(apiMock.acceptClientPortalInvitation).toHaveBeenCalledWith("raw-token");
-      expect(screen.getByText("Appraisal orders")).toBeInTheDocument();
+      expect(screen.getByText("Welcome to your appraisal workspace")).toBeInTheDocument();
     });
   });
 
@@ -748,7 +748,7 @@ describe("Client Portal pages", () => {
       "The invitation could not be accepted. Try again or ask your lending team contact for a new invite.",
     );
     expect(apiMock.acceptClientPortalInvitation).toHaveBeenCalledWith("raw-token");
-    expect(screen.queryByText("Appraisal orders")).not.toBeInTheDocument();
+    expect(screen.queryByText("Welcome to your appraisal workspace")).not.toBeInTheDocument();
   });
 
   it("auto-accepts a pending invite for an already authenticated client", async () => {
@@ -779,7 +779,7 @@ describe("Client Portal pages", () => {
 
     await waitFor(() => {
       expect(apiMock.acceptClientPortalInvitation).toHaveBeenCalledWith("raw-token");
-      expect(screen.getByText("Appraisal orders")).toBeInTheDocument();
+      expect(screen.getByText("Welcome to your appraisal workspace")).toBeInTheDocument();
     });
   });
 });

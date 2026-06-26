@@ -94,7 +94,7 @@ function ErrorState({ onRetry }) {
 function EmptyState() {
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-6 text-sm text-slate-600 shadow-sm">
-      <div className="font-semibold text-slate-950">No assigned orders yet.</div>
+      <div className="font-semibold text-slate-950">No assignments yet.</div>
       <p className="mt-1">
         Accepted vendor assignments will appear here when AMC coordinators award work to your
         company.
@@ -178,7 +178,7 @@ function AssignedOrderCard({ item }) {
             to={`/vendor-workspace/assigned-orders/${encodeURIComponent(item.assignment_work_key)}`}
             className="inline-flex rounded-md border border-slate-900 bg-slate-900 px-3 py-2 text-xs font-semibold text-white"
           >
-            View Assigned Order Detail
+            View Assignment
           </Link>
         ) : (
           <button
@@ -186,7 +186,7 @@ function AssignedOrderCard({ item }) {
             disabled
             className="rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-500"
           >
-            Assignment detail unavailable
+            Assignment unavailable
           </button>
         )}
       </div>
@@ -248,10 +248,10 @@ export default function VendorAssignedOrdersPage() {
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
           Vendor Workspace
         </p>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-950">Assigned Orders</h1>
+        <h1 className="mt-2 text-2xl font-semibold text-slate-950">Assignments</h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-          Track accepted AMC assignments, due dates, submitted reports, and the next action for
-          your company.
+          Track active assignments, due dates, revision requests, submitted reports, and the next
+          step for your company.
         </p>
       </section>
 
@@ -262,10 +262,10 @@ export default function VendorAssignedOrdersPage() {
       ) : (
         <>
           <section aria-label="Assigned orders summary" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <SummaryCard label="Active" value={counts.active} />
+            <SummaryCard label="Active Assignments" value={counts.active} />
             <SummaryCard label="Due Soon" value={counts.dueSoon} />
-            <SummaryCard label="Needs Attention" value={counts.needsAttention} />
-            <SummaryCard label="Submitted" value={counts.submitted} />
+            <SummaryCard label="Revision Requested" value={items.filter((item) => item?.assignment_status === "revision_requested").length} />
+            <SummaryCard label="Submitted / Awaiting Review" value={counts.submitted} />
           </section>
 
           {items.length > 0 ? (

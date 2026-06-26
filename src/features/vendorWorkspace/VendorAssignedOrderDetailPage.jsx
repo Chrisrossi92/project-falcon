@@ -110,7 +110,7 @@ function UnavailableState({ onRetry }) {
           to="/vendor-workspace/assigned-orders"
           className="rounded-md border border-slate-900 bg-slate-900 px-3 py-2 text-xs font-semibold text-white"
         >
-          Back to Assigned Orders
+          Back to Assignments
         </Link>
         <button
           type="button"
@@ -273,67 +273,6 @@ function reportUploadErrorMessage(error, fallback) {
   );
 }
 
-function reportUploadDebugJson(value) {
-  try {
-    return JSON.stringify(value, (_key, nestedValue) => {
-      if (nestedValue instanceof Error) {
-        return {
-          name: nestedValue.name || null,
-          message: nestedValue.message || null,
-          stack: nestedValue.stack ? nestedValue.stack.split("\n").slice(0, 4).join(" | ") : null,
-        };
-      }
-      if (typeof nestedValue === "string" && nestedValue.length > 500) {
-        return `${nestedValue.slice(0, 500)}...`;
-      }
-      return nestedValue;
-    });
-  } catch (error) {
-    return `unserializable:${error?.message || String(error)}`;
-  }
-}
-
-function serializeReportUploadError(error) {
-  const cause = error?.cause || null;
-  return {
-    name: error?.name || null,
-    code: error?.code || null,
-    message: error?.message || null,
-    stack: error?.stack ? error.stack.split("\n").slice(0, 5).join(" | ") : null,
-    details: error?.details || null,
-    field_errors: error?.field_errors || null,
-    response: error?.response || null,
-    serialized_error: reportUploadDebugJson(error),
-    cause: cause
-      ? {
-          name: cause.name || null,
-          code: cause.code || null,
-          message: cause.message || null,
-          status: cause.status || cause.context?.status || null,
-        }
-      : null,
-  };
-}
-
-function formatReportUploadDebugEvent(event) {
-  const detailEntries = Object.entries(event).filter(
-    ([key, value]) =>
-      ![
-        "step",
-        "assignment_work_key_present",
-        "selected_file_name",
-        "uploaded_report_document_count",
-        "is_uploading",
-      ].includes(key) &&
-      value !== null &&
-      value !== undefined &&
-      value !== "" &&
-      (!Array.isArray(value) || value.length > 0),
-  );
-  const detailText = detailEntries.length ? `:${reportUploadDebugJson(Object.fromEntries(detailEntries))}` : "";
-  return `${event.step}(${event.uploaded_report_document_count}${detailText})`;
-}
-
 function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, onUnavailable }) {
   const [isStarting, setIsStarting] = useState(false);
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
@@ -342,20 +281,6 @@ function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, 
   const [deliveryNote, setDeliveryNote] = useState("");
   const [selectedReportFile, setSelectedReportFile] = useState(null);
   const [uploadedReportDocuments, setUploadedReportDocuments] = useState([]);
-  const [reportUploadDebugEvents, setReportUploadDebugEvents] = useState([]);
-
-  function recordReportUploadDebug(step, details = {}) {
-    const event = {
-      step,
-      assignment_work_key_present: Boolean(assignmentWorkKey),
-      selected_file_name: selectedReportFile?.name || null,
-      uploaded_report_document_count: uploadedReportDocuments.length,
-      is_uploading: isUploadingReport,
-      ...details,
-    };
-    console.log("[VendorWorkspaceReportUpload] trace", event);
-    setReportUploadDebugEvents((current) => [...current.slice(-11), event]);
-  }
 
   if (status === "accepted_not_started") {
     async function handleStartWork() {
@@ -422,58 +347,25 @@ function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, 
     const submitReportDisabled =
       isSubmittingReport || isUploadingReport || Boolean(selectedReportFile && !uploadedReportDocuments.length);
 
-    console.log("[VendorWorkspaceReportUpload] submit button state", {
-      assignment_work_key_present: Boolean(assignmentWorkKey),
-      status,
-      selected_file_name: selectedReportFile?.name || null,
-      uploaded_report_document_count: uploadedReportDocuments.length,
-      uploaded_report_document_keys: uploadedReportDocuments.map((document) => document.document_key || null),
-      is_uploading: isUploadingReport,
-      is_submitting: isSubmittingReport,
-      submit_disabled: submitReportDisabled,
-    });
-
     async function handleUploadReport() {
-      setReportUploadDebugEvents([]);
-      recordReportUploadDebug("click:entered");
-      if (isUploadingReport) {
-        recordReportUploadDebug("return:already-uploading");
-        return;
-      }
+      if (isUploadingReport) return;
 
       if (!selectedReportFile) {
-        recordReportUploadDebug("return:no-selected-file");
         setActionError(isRevisionFlow ? "Choose a revised report PDF before uploading." : "Choose a report PDF before uploading.");
         return;
       }
 
-      recordReportUploadDebug("state:set-uploading-before");
       setIsUploadingReport(true);
       setActionError("");
 
       try {
-        recordReportUploadDebug("await:create-upload-url:before", {
-          file_name: selectedReportFile.name,
-          file_size: selectedReportFile.size,
-          mime_type: selectedReportFile.type || "application/pdf",
-        });
         const prepared = await createVendorWorkspaceReportUploadUrl(assignmentWorkKey, {
           file_name: selectedReportFile.name,
           mime_type: selectedReportFile.type || "application/pdf",
           file_size: selectedReportFile.size,
           document_role: "submitted_report",
         });
-        recordReportUploadDebug("await:create-upload-url:after", {
-          prepared_ok: prepared?.ok === true,
-          has_signed_url: Boolean(prepared?.upload?.signed_url),
-          prepared_document_key: prepared?.document?.document_key || prepared?.document?.documentKey || null,
-          prepared_document_role: prepared?.document?.document_role || null,
-          prepared_category: prepared?.document?.category || null,
-        });
 
-        recordReportUploadDebug("await:signed-put:before", {
-          prepared_document_key: prepared?.document?.document_key || prepared?.document?.documentKey || null,
-        });
         const uploadResponse = await fetch(prepared.upload.signed_url, {
           method: "PUT",
           headers: {
@@ -482,40 +374,17 @@ function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, 
           },
           body: selectedReportFile,
         });
-        recordReportUploadDebug("await:signed-put:after", {
-          upload_ok: uploadResponse.ok,
-          upload_status: uploadResponse.status,
-          upload_status_text: uploadResponse.statusText || null,
-        });
 
         if (!uploadResponse.ok) {
-          recordReportUploadDebug("throw:signed-put-not-ok", {
-            upload_status: uploadResponse.status,
-            upload_status_text: uploadResponse.statusText || null,
-          });
           throw new Error("upload_failed");
         }
 
-        recordReportUploadDebug("await:register-document:before", {
-          document_key: prepared.document.document_key,
-          file_name: selectedReportFile.name,
-          file_size: selectedReportFile.size,
-          mime_type: selectedReportFile.type || "application/pdf",
-        });
         const registered = await registerVendorWorkspaceReportDocument(assignmentWorkKey, {
           document_key: prepared.document.document_key,
           file_name: selectedReportFile.name,
           mime_type: selectedReportFile.type || "application/pdf",
           file_size: selectedReportFile.size,
           document_role: "submitted_report",
-        });
-        recordReportUploadDebug("await:register-document:after", {
-          registered_ok: registered?.ok === true,
-          registered_error: registered?.error || null,
-          registered_document_key: registered?.document?.document_key || registered?.document?.documentKey || null,
-          registered_document_role: registered?.document?.document_role || null,
-          registered_category: registered?.document?.category || null,
-          field_error_keys: Object.keys(registered?.field_errors || {}),
         });
 
         const registeredDocumentKey =
@@ -524,15 +393,8 @@ function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, 
           prepared.document?.document_key ||
           prepared.document?.documentKey ||
           null;
-        recordReportUploadDebug("derive-document-key:after", {
-          registered_document_key: registeredDocumentKey,
-          registered_ok: registered?.ok === true,
-        });
 
         if (registered.ok && registeredDocumentKey) {
-          recordReportUploadDebug("merge:before", {
-            registered_document_key: registeredDocumentKey,
-          });
           const uploadedDocument = {
             ...prepared.document,
             ...registered.document,
@@ -547,45 +409,16 @@ function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, 
 
           setUploadedReportDocuments((current) => {
             const withoutDuplicate = current.filter((document) => document.document_key !== registeredDocumentKey);
-            const nextDocuments = [...withoutDuplicate, uploadedDocument];
-            console.log("[VendorWorkspaceReportUpload] merged document", {
-              assignment_work_key_present: Boolean(assignmentWorkKey),
-              document_key: registeredDocumentKey,
-              file_name: uploadedDocument.file_name || null,
-              previous_count: current.length,
-              next_count: nextDocuments.length,
-            });
-            console.log("[VendorWorkspaceReportUpload] uploadedReportDocuments length after merge", {
-              length: nextDocuments.length,
-              document_keys: nextDocuments.map((document) => document.document_key || null),
-            });
-            return nextDocuments;
+            return [...withoutDuplicate, uploadedDocument];
           });
-          recordReportUploadDebug("state:set-selected-file-null-before");
           setSelectedReportFile(null);
-          recordReportUploadDebug("return:merge-success");
           return;
         }
 
         if (registered.error === "assigned_order_unavailable") {
-          recordReportUploadDebug("return:assigned-order-unavailable");
           onUnavailable?.();
           return;
         }
-
-        recordReportUploadDebug("return:registration-rejected", {
-          registered_ok: registered?.ok === true,
-          registered_error: registered?.error || null,
-          registered_document_key: registered?.document?.document_key || registered?.document?.documentKey || null,
-          prepared_document_key: prepared?.document?.document_key || prepared?.document?.documentKey || null,
-        });
-        console.warn("[VendorWorkspaceReportUpload] registration rejected", {
-          ok: registered.ok,
-          error: registered.error || null,
-          field_errors: registered.field_errors || null,
-          has_registered_document_key: Boolean(registered.document?.document_key || registered.document?.documentKey),
-          has_prepared_document_key: Boolean(prepared.document?.document_key || prepared.document?.documentKey),
-        });
 
         setActionError(
           registered.field_errors?.document_key ||
@@ -596,27 +429,6 @@ function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, 
           "Report file could not be registered. Try again or contact the AMC coordinator.",
         );
       } catch (error) {
-        const serializedError = serializeReportUploadError(error);
-        recordReportUploadDebug("catch:upload-handler", {
-          code: error?.code || null,
-          message: error?.message || null,
-          stack: serializedError.stack,
-          details: serializedError.details,
-          response: serializedError.response,
-          serialized_error: serializedError.serialized_error,
-          cause: serializedError.cause,
-          detail_keys: error?.details && typeof error.details === "object" ? Object.keys(error.details) : [],
-          field_error_keys: error?.field_errors && typeof error.field_errors === "object" ? Object.keys(error.field_errors) : [],
-        });
-        console.warn("[VendorWorkspaceReportUpload] upload failed", {
-          code: error?.code || null,
-          message: error?.message || null,
-          stack: error?.stack || null,
-          details: error?.details || null,
-          field_errors: error?.field_errors || null,
-          response: error?.response || null,
-          serialized_error: serializedError,
-        });
         setActionError(
           reportUploadErrorMessage(
             error,
@@ -624,7 +436,6 @@ function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, 
           ),
         );
       } finally {
-        recordReportUploadDebug("finally:set-uploading-false");
         setIsUploadingReport(false);
       }
     }
@@ -753,15 +564,6 @@ function AssignmentActions({ status, assignmentWorkKey, onStarted, onSubmitted, 
             </p>
           )}
         </div>
-        <div data-testid="report-upload-debug" className="text-[10px] text-slate-500">
-          uploadedReportDocuments.length={uploadedReportDocuments.length}; selectedReportFile={selectedReportFile?.name || "none"};
-          submitDisabled={String(submitReportDisabled)}; events=
-          {reportUploadDebugEvents.length
-            ? reportUploadDebugEvents
-                .map((event) => formatReportUploadDebugEvent(event))
-                .join(" > ")
-            : "none"}
-        </div>
         <button
           type="button"
           disabled={submitReportDisabled}
@@ -812,7 +614,7 @@ function ReportSubmission({ item }) {
 
   return (
     <div className="rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-      Upload a report from Status / Next Action when this assignment is in progress.
+      Upload a report from Next Step when this assignment is in progress.
     </div>
   );
 }
@@ -890,6 +692,46 @@ export default function VendorAssignedOrderDetailPage() {
         </div>
       </section>
 
+      <Section title="Next Step">
+        <div className="grid gap-5 lg:grid-cols-[1fr_0.9fr]">
+          <div className="space-y-4">
+            <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <DetailRow label="Status" value={statusLabel} />
+              <DetailRow label="Next Action" value={item.next_action_label || "Review assignment"} />
+              <DetailRow label="Due" value={formatDate(item.due_at)} />
+              <DetailRow label="Review Due" value={formatDate(item.review_due_at)} />
+              <DetailRow label="Inspection / Appointment" value={item.inspection_status} />
+              <DetailRow label="Report State" value={item.report_submitted ? statusLabel : "Not submitted"} />
+            </dl>
+            {item.needs_attention ? (
+              <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-800">
+                Needs attention
+              </div>
+            ) : null}
+            {successMessage ? (
+              <div role="status" className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold text-emerald-800">
+                {successMessage}
+              </div>
+            ) : null}
+          </div>
+          <AssignmentActions
+            status={status}
+            assignmentWorkKey={assignmentWorkKey}
+            onStarted={(message) => {
+              setSuccessMessage(message);
+              setReloadKey((key) => key + 1);
+            }}
+            onSubmitted={(message) => {
+              setSuccessMessage(message);
+              setReloadKey((key) => key + 1);
+            }}
+            onUnavailable={() => {
+              setDetail({ ok: false, item: null, error: "assigned_order_unavailable" });
+            }}
+          />
+        </div>
+      </Section>
+
       <div className="grid gap-5 lg:grid-cols-[1.35fr_0.75fr]">
         <main className="space-y-5">
           <Section title="Property">
@@ -948,55 +790,17 @@ export default function VendorAssignedOrderDetailPage() {
             <DocumentsList documents={documents} assignmentWorkKey={assignmentWorkKey} />
           </Section>
 
-          <Section title="Report Submission">
+          <Section title="Report Upload / Submission">
             <ReportSubmission item={item} />
           </Section>
         </main>
 
         <aside className="space-y-5">
-          <Section title="Status / Next Action">
-            <div className="space-y-4">
-              <dl className="grid gap-3">
-                <DetailRow label="Status" value={statusLabel} />
-                <DetailRow label="Next Action" value={item.next_action_label || "Review assignment"} />
-                <DetailRow label="Due" value={formatDate(item.due_at)} />
-                <DetailRow label="Review Due" value={formatDate(item.review_due_at)} />
-                <DetailRow label="Inspection / Appointment" value={item.inspection_status} />
-                <DetailRow label="Report State" value={item.report_submitted ? statusLabel : "Not submitted"} />
-              </dl>
-              {item.needs_attention ? (
-                <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-800">
-                  Needs attention
-                </div>
-              ) : null}
-              {successMessage ? (
-                <div role="status" className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold text-emerald-800">
-                  {successMessage}
-                </div>
-              ) : null}
-              <AssignmentActions
-                status={status}
-                assignmentWorkKey={assignmentWorkKey}
-                onStarted={(message) => {
-                  setSuccessMessage(message);
-                  setReloadKey((key) => key + 1);
-                }}
-                onSubmitted={(message) => {
-                  setSuccessMessage(message);
-                  setReloadKey((key) => key + 1);
-                }}
-                onUnavailable={() => {
-                  setDetail({ ok: false, item: null, error: "assigned_order_unavailable" });
-                }}
-              />
-            </div>
-          </Section>
-
           <Link
             to="/vendor-workspace/assigned-orders"
             className="block rounded-md border border-slate-200 bg-white px-3 py-2 text-center text-xs font-semibold text-slate-700 shadow-sm"
           >
-            Back to Assigned Orders
+            Back to Assignments
           </Link>
         </aside>
       </div>

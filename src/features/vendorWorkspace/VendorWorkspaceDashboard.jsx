@@ -6,13 +6,13 @@ import { fetchVendorWorkspaceDashboardSummary } from "@/features/vendorWorkspace
 const dashboardCards = Object.freeze([
   {
     key: "available_work",
-    label: "Available Work",
+    label: "Available Work / Bids",
     helper: "Open opportunities awaiting a vendor response.",
     path: "/vendor-workspace/available-work",
   },
   {
     key: "pending_bids",
-    label: "Pending Bids",
+    label: "Submitted Bids",
     helper: "Submitted bids still under review.",
     path: "/vendor-workspace/my-bids",
   },
@@ -23,7 +23,7 @@ const dashboardCards = Object.freeze([
   },
   {
     key: "active_assigned_orders",
-    label: "Active Assigned Orders",
+    label: "Assignments",
     helper: "Accepted, in-progress, or revision-requested work.",
     path: "/vendor-workspace/assigned-orders",
   },
@@ -190,6 +190,83 @@ function DashboardCard({ card, count }) {
   );
 }
 
+function WorkspaceTile({ label, value, helper, path }) {
+  const content = (
+    <>
+      <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+        {label}
+      </div>
+      <div className="mt-3 text-2xl font-semibold text-slate-950">{value}</div>
+      <p className="mt-2 text-xs leading-5 text-slate-500">{helper}</p>
+    </>
+  );
+
+  if (!path) {
+    return (
+      <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        {content}
+      </article>
+    );
+  }
+
+  return (
+    <Link
+      to={path}
+      className="block rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+    >
+      {content}
+    </Link>
+  );
+}
+
+function CalendarPreview({ actions }) {
+  const datedActions = actions
+    .filter((action) => action?.due_at)
+    .slice(0, 3);
+
+  return (
+    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm" aria-label="Calendar">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-950">Calendar</h2>
+          <p className="mt-1 text-sm text-slate-500">Upcoming due dates from assigned work and active responses.</p>
+        </div>
+        <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-500">
+          Read-only
+        </span>
+      </div>
+      <div className="mt-4 grid gap-2">
+        {datedActions.length ? (
+          datedActions.map((action, index) => (
+            <div key={`${action?.label || "calendar"}-${action.due_at}-${index}`} className="rounded-md border border-slate-200 bg-slate-50 p-3">
+              <div className="text-sm font-semibold text-slate-950">{action?.label || "Vendor task"}</div>
+              <div className="mt-1 text-xs text-slate-500">{formatDueDate(action.due_at)}</div>
+            </div>
+          ))
+        ) : (
+          <div className="rounded-md border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+            No upcoming vendor calendar items are available.
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function RecentUploadsPreview() {
+  return (
+    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm" aria-label="Recent Uploads">
+      <h2 className="text-lg font-semibold text-slate-950">Recent Uploads</h2>
+      <p className="mt-1 text-sm text-slate-500">
+        Report and invoice upload history appears on assignment and payment detail cards.
+      </p>
+      <div className="mt-4 rounded-md border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+        No recent upload summary is available from the dashboard feed.
+      </div>
+    </section>
+  );
+}
+
 export default function VendorWorkspaceDashboard() {
   const [summary, setSummary] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -222,16 +299,20 @@ export default function VendorWorkspaceDashboard() {
 
   const counts = summary?.counts || {};
   const actions = Array.isArray(summary?.actions) ? summary.actions : [];
+  const assignmentsCount = Number(counts.active_assigned_orders || 0);
+  const availableAndBidsCount =
+    Number(counts.available_work || 0) + Number(counts.pending_bids || 0);
 
   return (
     <div className="space-y-6">
       <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-          Authenticated vendor access
+          Vendor Workspace
         </p>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-950">Vendor Workspace</h1>
+        <h1 className="mt-2 text-2xl font-semibold text-slate-950">Your work queue</h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-          Manage available work, bids, assignments, documents, and profile details.
+          Review available opportunities, manage active assignments, track due dates, and follow
+          payment status from one vendor-facing workspace.
         </p>
       </section>
 
@@ -241,16 +322,60 @@ export default function VendorWorkspaceDashboard() {
         <ErrorState onRetry={() => setReloadKey((key) => key + 1)} />
       ) : (
         <>
+          <section aria-label="Vendor workspace overview" className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <WorkspaceTile
+              label="Assignments"
+              value={formatCount(assignmentsCount)}
+              helper="Accepted, in-progress, revision, and submitted work."
+              path="/vendor-workspace/assigned-orders"
+            />
+            <WorkspaceTile
+              label="Calendar"
+              value={formatCount(actions.filter((action) => action?.due_at).length)}
+              helper="Upcoming due dates from current vendor work."
+            />
+            <WorkspaceTile
+              label="Recent Uploads"
+              value="View"
+              helper="Report and invoice files remain scoped to assignment/payment pages."
+            />
+            <WorkspaceTile
+              label="Coverage"
+              value="Profile"
+              helper="Review coverage, products, contacts, and profile update requests."
+              path="/vendor-workspace/profile"
+            />
+            <WorkspaceTile
+              label="Payments"
+              value={formatCount(counts.payments || 0)}
+              helper="Track invoice and payment states for eligible work."
+              path="/vendor-workspace/payments"
+            />
+            <WorkspaceTile
+              label="Available Work / Bids"
+              value={formatCount(availableAndBidsCount)}
+              helper="Open opportunities and bids under coordinator review."
+              path="/vendor-workspace/available-work"
+            />
+          </section>
+
           <section aria-label="Vendor dashboard counts" className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {dashboardCards.map((card) => (
               <DashboardCard key={card.key} card={card} count={counts[card.key]} />
             ))}
           </section>
 
+          <div className="grid gap-3 xl:grid-cols-2">
+            <CalendarPreview actions={actions} />
+            <RecentUploadsPreview />
+          </div>
+
           <section className="space-y-3" aria-label="My Next Actions">
             <div>
-              <h2 className="text-lg font-semibold text-slate-950">My Next Actions</h2>
-              <p className="mt-1 text-sm text-slate-500">Read-only summary. Action pages are coming later.</p>
+              <h2 className="text-lg font-semibold text-slate-950">Next actions</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Read-only summary of items that may need attention.
+              </p>
             </div>
 
             {actions.length > 0 ? (

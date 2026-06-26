@@ -67,6 +67,7 @@ export function normalizeClientPortalDashboard(row = {}) {
 
   return {
     activeOrderCount: Number(row.active_order_count ?? row.activeOrderCount ?? 0) || 0,
+    completedOrderCount: Number(row.completed_order_count ?? row.completedOrderCount ?? 0) || 0,
     reportAvailableCount: Number(row.report_available_count ?? row.reportAvailableCount ?? 0) || 0,
     nextDueAt: toStringOrNull(row.next_due_at ?? row.nextDueAt),
     recentOrders: recentOrders.map(normalizeClientPortalOrder).filter(Boolean),
