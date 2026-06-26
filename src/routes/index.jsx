@@ -47,6 +47,7 @@ import ClientPortalInvitationPage from "@/features/clientPortal/ClientPortalInvi
 import ClientPortalNewOrderPage from "@/features/clientPortal/ClientPortalNewOrderPage";
 import ClientPortalOrderDetailPage from "@/features/clientPortal/ClientPortalOrderDetailPage";
 import ClientPortalOrdersPage from "@/features/clientPortal/ClientPortalOrdersPage";
+import ClientPortalWorkspacePlaceholderPage from "@/features/clientPortal/ClientPortalWorkspacePlaceholderPage";
 import AssignmentsPage, { ASSIGNMENT_NAV_PERMISSIONS } from "@/features/assignments/AssignmentsPage";
 import AssignmentDetail from "@/features/assignments/AssignmentDetail";
 import RelationshipsPage, { RELATIONSHIP_NAV_PERMISSION } from "@/features/relationships/RelationshipsPage";
@@ -112,7 +113,10 @@ export default function AppRoutes() {
         <Route path="/client-portal" element={<ClientPortalDashboard />} />
         <Route path="/client-portal/orders" element={<ClientPortalOrdersPage />} />
         <Route path="/client-portal/orders/:orderId" element={<ClientPortalOrderDetailPage />} />
+        <Route path="/client-portal/historical-orders" element={<ClientPortalWorkspacePlaceholderPage page="historicalOrders" />} />
+        <Route path="/client-portal/documents" element={<ClientPortalWorkspacePlaceholderPage page="documents" />} />
         <Route path="/client-portal/new-order" element={<ClientPortalNewOrderPage />} />
+        <Route path="/client-portal/profile" element={<ClientPortalWorkspacePlaceholderPage page="profile" />} />
       </Route>
 
       {/* Authenticated area */}
