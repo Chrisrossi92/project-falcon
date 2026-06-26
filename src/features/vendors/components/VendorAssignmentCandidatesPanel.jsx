@@ -453,9 +453,9 @@ function CandidateOfferModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="vendor-offer-assignment-title"
-        className="w-full max-w-2xl rounded-lg border border-slate-200 bg-white shadow-xl"
+        className="flex max-h-[calc(100vh-4rem)] w-full max-w-5xl flex-col rounded-lg border border-slate-200 bg-white shadow-xl"
       >
-        <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
+        <div className="shrink-0 flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
           <div>
             <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Vendor offer</div>
             <h2 id="vendor-offer-assignment-title" className="mt-1 text-xl font-semibold text-slate-950">
@@ -477,93 +477,97 @@ function CandidateOfferModal({
           </button>
         </div>
 
-        <div className="grid gap-4 px-5 py-5">
-          <div className="rounded-md border border-slate-100 bg-slate-50/70 p-3">
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Vendor</div>
-            <div className="mt-1 text-base font-semibold text-slate-950">
-              {candidate.vendor_company_name || "Vendor"}
-            </div>
-            <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold text-slate-600">
-              <span className="rounded-full border border-slate-200 bg-white px-2 py-1">
-                {matchStrength}
-                {candidate.match_score !== null && candidate.match_score !== undefined
-                  ? ` · ${candidate.match_score} score`
-                  : ""}
-              </span>
-              {bestCoverageMatch && (
-                <span className="rounded-full border border-slate-200 bg-white px-2 py-1">
-                  {formatCoverageMatch(bestCoverageMatch)}
-                </span>
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:items-start">
+            <div className="grid gap-4">
+              <div className="rounded-md border border-slate-100 bg-slate-50/70 p-3">
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Vendor</div>
+                <div className="mt-1 text-base font-semibold text-slate-950">
+                  {candidate.vendor_company_name || "Vendor"}
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold text-slate-600">
+                  <span className="rounded-full border border-slate-200 bg-white px-2 py-1">
+                    {matchStrength}
+                    {candidate.match_score !== null && candidate.match_score !== undefined
+                      ? ` · ${candidate.match_score} score`
+                      : ""}
+                  </span>
+                  {bestCoverageMatch && (
+                    <span className="rounded-full border border-slate-200 bg-white px-2 py-1">
+                      {formatCoverageMatch(bestCoverageMatch)}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-md border border-blue-100 bg-blue-50/70 px-3 py-2 text-sm text-blue-900">
+                The vendor still needs to accept before work is considered assigned.
+              </div>
+
+              {error && (
+                <div role="alert" className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                  {error}
+                </div>
               )}
+
+              <label className="grid gap-1 text-sm font-semibold text-slate-700">
+                Message to vendor
+                <textarea
+                  value={note}
+                  onChange={(event) => setNote(event.target.value)}
+                  rows={4}
+                  className="rounded-md border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+                  placeholder="Optional note or assignment instructions"
+                />
+              </label>
+
+              <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+                <label className="grid gap-1 text-sm font-semibold text-slate-700">
+                  Due date
+                  <input
+                    type="datetime-local"
+                    value={dueAt}
+                    onChange={(event) => setDueAt(event.target.value)}
+                    className="rounded-md border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+                  />
+                </label>
+                <label className="grid gap-1 text-sm font-semibold text-slate-700">
+                  Review due date
+                  <input
+                    type="datetime-local"
+                    value={reviewDueAt}
+                    onChange={(event) => setReviewDueAt(event.target.value)}
+                    className="rounded-md border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+                  />
+                </label>
+                <label className="grid gap-1 text-sm font-semibold text-slate-700">
+                  Expiration date
+                  <input
+                    type="datetime-local"
+                    value={expiresAt}
+                    onChange={(event) => setExpiresAt(event.target.value)}
+                    className="rounded-md border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+                  />
+                </label>
+              </div>
             </div>
-          </div>
 
-          <div className="rounded-md border border-blue-100 bg-blue-50/70 px-3 py-2 text-sm text-blue-900">
-            The vendor still needs to accept before work is considered assigned.
-          </div>
-
-          {error && (
-            <div role="alert" className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-              {error}
-            </div>
-          )}
-
-          <label className="grid gap-1 text-sm font-semibold text-slate-700">
-            Message to vendor
-            <textarea
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-              rows={4}
-              className="rounded-md border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
-              placeholder="Optional note or assignment instructions"
+            <EngagementPackagePreview
+              order={orderSummary}
+              vendor={candidate}
+              assignment={{
+                assignmentType: "vendor_appraisal",
+                dueAt: toIsoDateTime(dueAt || orderDueAt),
+                reviewDueAt: toIsoDateTime(reviewDueAt),
+                expiresAt: toIsoDateTime(expiresAt),
+                instructions: note.trim(),
+              }}
+              attachments={orderDocuments}
             />
-          </label>
-
-          <div className="grid gap-3 sm:grid-cols-3">
-            <label className="grid gap-1 text-sm font-semibold text-slate-700">
-              Due date
-              <input
-                type="datetime-local"
-                value={dueAt}
-                onChange={(event) => setDueAt(event.target.value)}
-                className="rounded-md border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
-              />
-            </label>
-            <label className="grid gap-1 text-sm font-semibold text-slate-700">
-              Review due date
-              <input
-                type="datetime-local"
-                value={reviewDueAt}
-                onChange={(event) => setReviewDueAt(event.target.value)}
-                className="rounded-md border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
-              />
-            </label>
-            <label className="grid gap-1 text-sm font-semibold text-slate-700">
-              Expiration date
-              <input
-                type="datetime-local"
-                value={expiresAt}
-                onChange={(event) => setExpiresAt(event.target.value)}
-                className="rounded-md border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
-              />
-            </label>
           </div>
-
-          <EngagementPackagePreview
-            order={orderSummary}
-            vendor={candidate}
-            assignment={{
-              assignmentType: "vendor_appraisal",
-              dueAt: toIsoDateTime(dueAt || orderDueAt),
-              reviewDueAt: toIsoDateTime(reviewDueAt),
-              expiresAt: toIsoDateTime(expiresAt),
-              instructions: note.trim(),
-            }}
-            attachments={orderDocuments}
-          />
         </div>
 
-        <div className="flex flex-col-reverse gap-2 border-t border-slate-200 px-5 py-4 sm:flex-row sm:justify-end">
+        <div className="shrink-0 flex flex-col-reverse gap-2 border-t border-slate-200 bg-white px-5 py-4 sm:flex-row sm:justify-end">
           <button
             type="button"
             onClick={onClose}

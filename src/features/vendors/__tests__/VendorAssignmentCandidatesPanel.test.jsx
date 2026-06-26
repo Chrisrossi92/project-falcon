@@ -533,6 +533,8 @@ describe("VendorAssignmentCandidatesPanel", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Offer Assignment" }));
 
     const dialog = screen.getByRole("dialog", { name: "Offer Assignment" });
+    expect(dialog).toHaveClass("max-h-[calc(100vh-4rem)]");
+    expect(dialog).toHaveClass("max-w-5xl");
     expect(within(dialog).getAllByText("ABC Valuation").length).toBeGreaterThanOrEqual(1);
     expect(within(dialog).getByText("Strong match · 100 score")).toBeInTheDocument();
     expect(within(dialog).getByText("OH · ZIP 43215 · Commercial Appraisal · Zip")).toBeInTheDocument();
@@ -552,6 +554,8 @@ describe("VendorAssignmentCandidatesPanel", () => {
     expect(within(dialog).queryByText("relationship-1")).toBeNull();
     expect(within(dialog).queryByText("profile-1")).toBeNull();
     expect(within(dialog).queryByText("candidateSnapshot")).toBeNull();
+    expect(within(dialog).getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Send offer" })).toBeInTheDocument();
   });
 
   it("submits candidate offer with mapped payload and refresh callback", async () => {
