@@ -160,6 +160,16 @@ describe("VendorAssignmentCandidatesPanel", () => {
         orderId="order-1"
         enabled
         canOfferAssignment
+        orderSummary={{
+          order_number: "2026-100",
+          property_address: "12969 Eckel Junction Road",
+          city: "Perrysburg",
+          state: "OH",
+          postal_code: "43551",
+          property_type: "industrial",
+          report_type: "full_appraisal",
+          client_name: "Ross Bank",
+        }}
       />,
     );
 
@@ -257,7 +267,7 @@ describe("VendorAssignmentCandidatesPanel", () => {
     const dialog = screen.getByRole("dialog", { name: "Request bids" });
     expect(within(dialog).getByText("No assignment is created until a bid is selected.")).toBeInTheDocument();
     expect(within(dialog).getByText("Ask selected vendors for fee and turnaround.")).toBeInTheDocument();
-    expect(within(dialog).getByText("ABC Valuation")).toBeInTheDocument();
+    expect(within(dialog).getAllByText("ABC Valuation").length).toBeGreaterThanOrEqual(1);
     expect(within(dialog).queryByText("Central Ohio Valuation")).toBeNull();
     expect(within(dialog).getByText("Email preview")).toBeInTheDocument();
     expect(within(dialog).getByText("Bid request: 12969 Eckel Junction Road")).toBeInTheDocument();
@@ -491,17 +501,35 @@ describe("VendorAssignmentCandidatesPanel", () => {
         orderId="order-1"
         enabled
         canOfferAssignment
+        orderSummary={{
+          order_number: "2026-100",
+          property_address: "12969 Eckel Junction Road",
+          city: "Perrysburg",
+          state: "OH",
+          postal_code: "43551",
+          property_type: "industrial",
+          report_type: "full_appraisal",
+          client_name: "Ross Bank",
+        }}
       />,
     );
 
     fireEvent.click(await screen.findByRole("button", { name: "Offer Assignment" }));
 
     const dialog = screen.getByRole("dialog", { name: "Offer Assignment" });
-    expect(within(dialog).getByText("ABC Valuation")).toBeInTheDocument();
+    expect(within(dialog).getAllByText("ABC Valuation").length).toBeGreaterThanOrEqual(1);
     expect(within(dialog).getByText("Strong match · 100 score")).toBeInTheDocument();
     expect(within(dialog).getByText("OH · ZIP 43215 · Commercial Appraisal · Zip")).toBeInTheDocument();
     expect(within(dialog).getByText("This will send an assignment offer to the vendor.")).toBeInTheDocument();
     expect(within(dialog).getByText("The vendor still needs to accept before work is considered assigned.")).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Engagement package preview")).toBeInTheDocument();
+    expect(within(dialog).getByText("Engagement Letter")).toBeInTheDocument();
+    expect(within(dialog).getByText("Assignment Summary")).toBeInTheDocument();
+    expect(within(dialog).getByText("Company Guidelines")).toBeInTheDocument();
+    expect(within(dialog).getByText("Client Documents")).toBeInTheDocument();
+    expect(within(dialog).getByText("12969 Eckel Junction Road")).toBeInTheDocument();
+    expect(within(dialog).getByText("Ross Bank")).toBeInTheDocument();
+    expect(within(dialog).getByText("No client documents are currently attached to this preview.")).toBeInTheDocument();
     expect(within(dialog).queryByText("relationship-1")).toBeNull();
     expect(within(dialog).queryByText("profile-1")).toBeNull();
     expect(within(dialog).queryByText("candidateSnapshot")).toBeNull();

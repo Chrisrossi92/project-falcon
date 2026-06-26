@@ -1869,6 +1869,7 @@ export default function OrderDetail() {
                       canOfferAssignment={canOfferVendorCandidateAssignment}
                       orderDueAt={order.final_due_at ?? order.due_date ?? null}
                       orderSummary={{
+                        order_number: titleNo,
                         property_address: order.property_address || order.address,
                         address: order.address,
                         city: order.city,
@@ -1876,6 +1877,7 @@ export default function OrderDetail() {
                         postal_code: order.postal_code || order.zip,
                         property_type: order.property_type,
                         report_type: order.report_type,
+                        client_name: clientName,
                         client_due_at: order.client_due_at,
                         final_due_at: order.final_due_at,
                         due_date: order.due_date,
@@ -1932,6 +1934,7 @@ export default function OrderDetail() {
                     canOfferAssignment={canOfferVendorCandidateAssignment}
                     orderDueAt={order.final_due_at ?? order.due_date ?? null}
                     orderSummary={{
+                      order_number: titleNo,
                       property_address: order.property_address || order.address,
                       address: order.address,
                       city: order.city,
@@ -1939,6 +1942,7 @@ export default function OrderDetail() {
                       postal_code: order.postal_code || order.zip,
                       property_type: order.property_type,
                       report_type: order.report_type,
+                      client_name: clientName,
                       client_due_at: order.client_due_at,
                       final_due_at: order.final_due_at,
                       due_date: order.due_date,

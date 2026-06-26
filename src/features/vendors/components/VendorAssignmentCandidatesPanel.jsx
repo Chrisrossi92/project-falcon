@@ -3,6 +3,7 @@ import { AlertTriangle, RefreshCw, X } from "lucide-react";
 
 import { offerOrderToVendor } from "@/features/assignments/api";
 import { createOrderVendorBidRequest } from "@/features/bids/api";
+import EngagementPackagePreview from "@/features/engagementPackages/EngagementPackagePreview";
 import { listVendorAssignmentCandidates } from "../api";
 import { getVendorProductTypeLabel } from "../coverage/productTypes";
 import { getVendorErrorMessage } from "../vendorErrors";
@@ -394,6 +395,7 @@ function CandidateOfferModal({
   candidate,
   orderId,
   orderDueAt,
+  orderSummary = {},
   onClose,
   onSuccess,
 }) {
@@ -545,6 +547,18 @@ function CandidateOfferModal({
               />
             </label>
           </div>
+
+          <EngagementPackagePreview
+            order={orderSummary}
+            vendor={candidate}
+            assignment={{
+              assignmentType: "vendor_appraisal",
+              dueAt: toIsoDateTime(dueAt || orderDueAt),
+              reviewDueAt: toIsoDateTime(reviewDueAt),
+              expiresAt: toIsoDateTime(expiresAt),
+              instructions: note.trim(),
+            }}
+          />
         </div>
 
         <div className="flex flex-col-reverse gap-2 border-t border-slate-200 px-5 py-4 sm:flex-row sm:justify-end">
@@ -765,6 +779,7 @@ function CandidateCard({
   activeVendorAssignment,
   orderId,
   orderDueAt,
+  orderSummary = {},
   onOfferSuccess,
   selectable = false,
   selected = false,
@@ -935,6 +950,7 @@ function CandidateCard({
           candidate={candidate}
           orderId={orderId}
           orderDueAt={orderDueAt}
+          orderSummary={orderSummary}
           onClose={() => setOfferModalOpen(false)}
           onSuccess={async (assignmentId) => {
             setOfferModalOpen(false);
@@ -1182,6 +1198,7 @@ export default function VendorAssignmentCandidatesPanel({
               activeVendorAssignment={activeVendorAssignment}
               orderId={orderId}
               orderDueAt={orderDueAt}
+              orderSummary={orderSummary}
               onOfferSuccess={onOfferSuccess}
               selectable={selectable}
               selected={selected}
