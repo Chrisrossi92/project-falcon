@@ -189,35 +189,6 @@ export async function fetchOrdersWithFilters(filters = {}) {
 
   const source = VIEW_BY_SCOPE[scope] || DEFAULT_VIEW;
 
-  let countQuery = supabase
-    .from(source)
-    .select("*", { count: "exact", head: true });
-
-  countQuery = applyCommonFilters(countQuery, {
-    includeArchived,
-    includeRetiredLifecycle,
-    statusIn,
-    clientId,
-    appraiserId,
-    assignedAppraiserId,
-    reviewerId,
-    assignedToMeUserId,
-    inspectedAwaitingReport,
-    finalDueWithinDays,
-    dueWindow,
-    from,
-    to,
-    operationsScope,
-    search,
-  });
-
-  if (mode === "reviewerQueue") {
-    countQuery = countQuery.in("status", REVIEW_QUEUE_STATUSES);
-  }
-
-  const { count, error: countErr } = await countQuery;
-  if (countErr) console.warn("fetchOrdersWithFilters count error:", countErr?.message || countErr);
-
   const fromIdx = page * pageSize;
   const toIdx = fromIdx + pageSize - 1;
 
@@ -258,11 +229,14 @@ export async function fetchOrdersWithFilters(filters = {}) {
     dataQuery = dataQuery.in("status", REVIEW_QUEUE_STATUSES);
   }
 
-  const { data, error } = await dataQuery;
-  const derivedCount = typeof count === "number" ? count : (data ? data.length : 0);
+  const { data, error, count: dataCount } = await dataQuery;
+  const derivedCount =
+    typeof dataCount === "number"
+      ? dataCount
+      : (data ? data.length : 0);
   if (error) return { rows: [], count: derivedCount, error };
 
-  return { rows: data || [], count: derivedCount, countError: countErr || null };
+  return { rows: data || [], count: derivedCount, countError: null };
 }
 
 export async function listHistoricalOrders(filters = {}) {
