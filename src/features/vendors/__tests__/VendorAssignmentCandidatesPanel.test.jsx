@@ -543,8 +543,8 @@ describe("VendorAssignmentCandidatesPanel", () => {
     expect(within(dialog).getByText("Assignment Summary")).toBeInTheDocument();
     expect(within(dialog).getAllByText("Company Guidelines").length).toBeGreaterThanOrEqual(1);
     expect(within(dialog).getAllByText("Client Documents").length).toBeGreaterThanOrEqual(1);
-    expect(within(dialog).getByText("12969 Eckel Junction Road")).toBeInTheDocument();
-    expect(within(dialog).getByText("Ross Bank")).toBeInTheDocument();
+    expect(within(dialog).getAllByText("12969 Eckel Junction Road").length).toBeGreaterThanOrEqual(1);
+    expect(within(dialog).getAllByText("Ross Bank").length).toBeGreaterThanOrEqual(1);
     expect(within(dialog).getByRole("region", { name: "Property / Source Documents" })).toHaveTextContent("Rent Roll.pdf");
     expect(within(dialog).getByText("No client documents are currently loaded for this order.")).toBeInTheDocument();
     expect(within(dialog).queryByText("relationship-1")).toBeNull();

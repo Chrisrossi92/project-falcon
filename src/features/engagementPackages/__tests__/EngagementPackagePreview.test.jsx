@@ -24,6 +24,14 @@ describe("EngagementPackagePreview", () => {
           report_type: "full_appraisal",
           client_name: "Ross Bank",
           client_due_at: "2026-06-24T16:00:00Z",
+          notes: [
+            "Parcel number(s): 123-456-789",
+            "Interest appraised: Fee Simple",
+            "Premise / Condition: As Is",
+            "Approaches to Value: All Applicable",
+          ].join("\n"),
+          intended_use: "Loan underwriting",
+          intended_user: "Ross Bank credit committee",
         }}
         vendor={{
           vendor_company_name: "ABC Valuation",
@@ -42,20 +50,28 @@ describe("EngagementPackagePreview", () => {
     );
 
     expect(screen.getByLabelText("Engagement package preview")).toBeInTheDocument();
+    expect(screen.getByLabelText("Engagement Letter Preview")).toBeInTheDocument();
     expect(screen.getByText("Engagement Letter")).toBeInTheDocument();
     expect(screen.getByText("Assignment Summary")).toBeInTheDocument();
     expect(screen.getAllByText("Company Guidelines").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("Client Documents").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Property Information")).toBeInTheDocument();
-    expect(screen.getByText("12969 Eckel Junction Road")).toBeInTheDocument();
-    expect(screen.getByText("ABC Valuation")).toBeInTheDocument();
-    expect(screen.getByText("Ross Bank")).toBeInTheDocument();
+    expect(screen.getAllByText("12969 Eckel Junction Road").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("ABC Valuation").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("Ross Bank").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Loan underwriting")).toBeInTheDocument();
+    expect(screen.getByText("Ross Bank credit committee")).toBeInTheDocument();
+    expect(screen.getByText("123-456-789")).toBeInTheDocument();
+    expect(screen.getByText("Fee Simple")).toBeInTheDocument();
+    expect(screen.getByText("As Is")).toBeInTheDocument();
+    expect(screen.getByText("All Applicable")).toBeInTheDocument();
     expect(screen.getAllByText("Please confirm inspection availability.").length).toBeGreaterThanOrEqual(1);
   });
 
   it("uses honest empty states instead of fake attachment data", () => {
     render(<EngagementPackagePreview order={{ property_address: "100 Main Street" }} />);
 
+    expect(screen.getByLabelText("Engagement Letter Preview")).toHaveTextContent("Not provided");
     expect(screen.getByText("No company guideline documents are currently loaded for this order.")).toBeInTheDocument();
     expect(screen.getByText("No client documents are currently loaded for this order.")).toBeInTheDocument();
     expect(screen.getByText("No property or source documents are currently loaded for this order.")).toBeInTheDocument();
@@ -150,5 +166,20 @@ describe("EngagementPackagePreview", () => {
     ]);
     expect(model.sections.map((section) => section.title)).toContain("Fee");
     expect(model.sections.map((section) => section.title)).toContain("Special Instructions");
+    expect(model.letterPreview.fields.map((field) => field.label)).toEqual([
+      "Order Number",
+      "Client",
+      "Property",
+      "Vendor",
+      "Assignment Fee",
+      "Requested Delivery",
+      "Intended Use",
+      "Intended User",
+      "Parcel Number(s)",
+      "Interest Appraised",
+      "Premise / Condition",
+      "Approaches to Value",
+      "Scope Notes",
+    ]);
   });
 });

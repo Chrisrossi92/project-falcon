@@ -21,6 +21,43 @@ function DocumentChecklist({ documents }) {
   );
 }
 
+function EngagementLetterPreview({ letter }) {
+  return (
+    <section className="rounded-md border border-slate-300 bg-white p-5 shadow-sm" aria-label="Engagement Letter Preview">
+      <div className="border-b border-slate-200 pb-4">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+          Formal letter preview
+        </div>
+        <h4 className="mt-1 text-lg font-semibold text-slate-950">{letter.title}</h4>
+        <div className="mt-2 text-sm text-slate-500">{letter.dateLine}</div>
+      </div>
+
+      <div className="mt-5 space-y-4 text-sm leading-6 text-slate-700">
+        <p className="font-semibold text-slate-900">{letter.salutation}</p>
+        <p>{letter.intro}</p>
+        <p>{letter.body}</p>
+      </div>
+
+      <dl className="mt-5 grid gap-3 rounded-md border border-slate-100 bg-slate-50 p-4 sm:grid-cols-2">
+        {letter.fields.map((item) => (
+          <div key={item.label} className={item.label === "Scope Notes" ? "sm:col-span-2" : ""}>
+            <dt className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+              {item.label}
+            </dt>
+            <dd className={`mt-1 text-sm ${item.missing ? "text-slate-400" : "text-slate-800"}`}>
+              {item.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+
+      <div className="mt-5 border-t border-slate-200 pt-4 text-sm text-slate-500">
+        {letter.closing}
+      </div>
+    </section>
+  );
+}
+
 export function EngagementPackageSection({ title, items }) {
   return (
     <section className="rounded-md border border-slate-200 bg-white p-3">
@@ -125,6 +162,7 @@ export default function EngagementPackagePreview({
       </div>
 
       <div className="mt-4 grid gap-3">
+        <EngagementLetterPreview letter={model.letterPreview} />
         {model.sections.map((section) => (
           <EngagementPackageSection key={section.key} title={section.title} items={section.items} />
         ))}

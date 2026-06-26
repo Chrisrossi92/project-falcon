@@ -52,6 +52,51 @@ function firstPresent(...values) {
   return values.find((value) => value !== null && value !== undefined && String(value).trim() !== "");
 }
 
+function findInObject(source, keys = []) {
+  if (!source || typeof source !== "object") return undefined;
+
+  for (const key of keys) {
+    if (source[key] !== null && source[key] !== undefined && String(source[key]).trim() !== "") {
+      return source[key];
+    }
+  }
+
+  return undefined;
+}
+
+function findInOrder(order = {}, keys = []) {
+  return firstPresent(
+    findInObject(order, keys),
+    findInObject(order.metadata, keys),
+    findInObject(order.details, keys),
+    findInObject(order.custom_fields, keys),
+    findInObject(order.client_request, keys),
+    findInObject(order.request_metadata, keys),
+  );
+}
+
+function parseLabeledNotes(notes) {
+  const values = new Map();
+
+  for (const line of String(notes || "").split(/\r?\n/)) {
+    const match = line.match(/^\s*([^:]+?)\s*:\s*(.*?)\s*$/);
+    if (!match) continue;
+    const [, label, value] = match;
+    if (!value) continue;
+    values.set(keyOf(label), value);
+  }
+
+  return values;
+}
+
+function findInNotes(notesMap, labels = []) {
+  for (const label of labels) {
+    const value = notesMap.get(keyOf(label));
+    if (value !== null && value !== undefined && String(value).trim() !== "") return value;
+  }
+  return undefined;
+}
+
 function formatDateTime(value) {
   if (!value) return EMPTY_VALUE;
   const date = new Date(value);
@@ -207,6 +252,87 @@ function makeSection(key, title, items) {
   };
 }
 
+function buildEngagementLetterPreview({ order = {}, assignment = {}, vendor = {}, clientName, assignmentDueAt }) {
+  const notesMap = parseLabeledNotes(firstPresent(order.notes, order.special_instructions, order.assignment_notes));
+  const vendorName = firstPresent(vendor.vendor_company_name, vendor.company_name, vendor.name);
+  const propertyAddress = firstPresent(order.property_address, order.address);
+  const fee = formatMoney(
+    firstPresent(assignment.feeAmount, assignment.fee_amount, order.vendor_fee, order.appraiser_fee, order.base_fee),
+    assignment.currency || order.currency,
+  );
+  const deliveryDate = formatDateTime(assignmentDueAt);
+  const scopeNotes = firstPresent(assignment.instructions, assignment.note, order.special_instructions, order.notes);
+
+  const fields = [
+    { label: "Order Number", value: firstPresent(order.order_number, order.orderNumber) },
+    { label: "Client", value: clientName },
+    { label: "Property", value: propertyAddress },
+    { label: "Vendor", value: vendorName },
+    { label: "Assignment Fee", value: fee },
+    { label: "Requested Delivery", value: deliveryDate },
+    {
+      label: "Intended Use",
+      value: firstPresent(
+        findInOrder(order, ["intended_use", "intendedUse"]),
+        findInNotes(notesMap, ["Intended use", "Use"]),
+      ),
+    },
+    {
+      label: "Intended User",
+      value: firstPresent(
+        findInOrder(order, ["intended_user", "intendedUser"]),
+        findInNotes(notesMap, ["Intended user", "User"]),
+      ),
+    },
+    {
+      label: "Parcel Number(s)",
+      value: firstPresent(
+        findInOrder(order, ["parcel_numbers", "parcelNumbers", "parcel_number", "parcelNumber"]),
+        findInNotes(notesMap, ["Parcel number(s)", "Parcel numbers", "Parcel number"]),
+      ),
+    },
+    {
+      label: "Interest Appraised",
+      value: firstPresent(
+        findInOrder(order, ["interest_appraised", "interestAppraised"]),
+        findInNotes(notesMap, ["Interest appraised"]),
+      ),
+    },
+    {
+      label: "Premise / Condition",
+      value: firstPresent(
+        findInOrder(order, ["premise_condition", "premiseCondition", "condition"]),
+        findInNotes(notesMap, ["Premise / Condition", "Premise", "Condition"]),
+      ),
+    },
+    {
+      label: "Approaches to Value",
+      value: firstPresent(
+        findInOrder(order, ["approaches_to_value", "approachesToValue", "valuation_approaches"]),
+        findInNotes(notesMap, ["Approaches to Value", "Approaches"]),
+      ),
+    },
+    { label: "Scope Notes", value: scopeNotes },
+  ].map((item) => ({
+    ...item,
+    value: valueOrEmpty(item.value),
+    missing: valueOrEmpty(item.value) === EMPTY_VALUE,
+  }));
+
+  return {
+    title: "Engagement Letter Preview",
+    dateLine: formatDateTime(new Date().toISOString()),
+    recipient: valueOrEmpty(vendorName),
+    salutation: `To ${valueOrEmpty(vendorName)},`,
+    intro:
+      "This preview represents the engagement letter that will later be generated for the vendor assignment package.",
+    body:
+      "The assignment terms below are populated only from current order, client, vendor, and assignment data already available in Falcon.",
+    fields,
+    closing: "Prepared for review in Falcon. No signature or PDF is generated from this preview.",
+  };
+}
+
 export function buildEngagementPackagePreviewModel({
   order = {},
   assignment = {},
@@ -231,6 +357,13 @@ export function buildEngagementPackagePreviewModel({
     title: "Engagement Package Preview",
     subtitle: "Read-only package foundation for the vendor assignment.",
     documents: ENGAGEMENT_PACKAGE_DOCUMENTS,
+    letterPreview: buildEngagementLetterPreview({
+      order,
+      assignment,
+      vendor,
+      clientName,
+      assignmentDueAt,
+    }),
     sections: [
       makeSection("property-information", "Property Information", [
         { label: "Property", value: firstPresent(order.property_address, order.address) },
