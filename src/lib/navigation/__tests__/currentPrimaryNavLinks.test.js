@@ -119,7 +119,7 @@ describe('current primary nav links', () => {
     expect(pathsFor(internalLinks).some((path) => path.startsWith('/amc'))).toBe(false);
   });
 
-  it('switches AMC Operations to a vendor-centered nav slate without using amc route forks', () => {
+  it('switches AMC Operations to a vendor-centered nav slate with an AMC procurement route', () => {
     const permissions = {
       canReadAllClients: true,
       canReadAssignedClients: true,
@@ -148,7 +148,7 @@ describe('current primary nav links', () => {
       'Client Requests',
     ]);
     expect(pathsFor(amcLinks)).toEqual([
-      '/orders',
+      '/amc/orders',
       '/calendar',
       '/vendors',
       '/clients',
@@ -160,7 +160,7 @@ describe('current primary nav links', () => {
     expect(amcLinks.every((link) => link.operationsMode === OPERATIONS_MODES.AMC_OPERATIONS)).toBe(
       true,
     );
-    expect(pathsFor(amcLinks).some((path) => path.startsWith('/amc'))).toBe(false);
+    expect(amcLinks.find((link) => link.id === 'orders')?.path).toBe('/amc/orders');
   });
 
   it('requires vendor read visibility input before showing Vendors in AMC Operations', () => {

@@ -3,7 +3,7 @@ import {
   getCurrentLiveNavigationEntry,
 } from './currentNavigationRegistry.js';
 import { getWorkspaceNavigationDefinition } from './workspaceNavigationDefinitions.js';
-import { normalizeOperationsMode } from '../operations/operationsMode.js';
+import { OPERATIONS_MODES, normalizeOperationsMode } from '../operations/operationsMode.js';
 import { PERMISSIONS } from '../permissions/constants.js';
 import { getWorkspaceNavigationLabel } from '../workspace/workspaceIdentity.js';
 
@@ -117,7 +117,9 @@ export const getCurrentPrimaryNavLinks = (permissions = {}, options = {}) => {
     }
 
     const entry = requireCurrentPrimaryEntry(entryId);
-    const path = resolvePrimaryPath(entry, permissions);
+    const path = entry.id === 'orders' && operationsMode === OPERATIONS_MODES.AMC_OPERATIONS
+      ? '/amc/orders'
+      : resolvePrimaryPath(entry, permissions);
 
     if (!path) {
       return [];

@@ -9,11 +9,13 @@ import { ROUTE_WORKSPACE_GROUPS, ROUTE_WORKSPACES } from "@/routes/workspaceRout
 
 const operationsModeState = vi.hoisted(() => ({
   operationsMode: "internal_operations",
+  setOperationsMode: vi.fn(),
 }));
 
 vi.mock("@/lib/operations/OperationsModeProvider", () => ({
   useOperationsMode: () => ({
     operationsMode: operationsModeState.operationsMode,
+    setOperationsMode: operationsModeState.setOperationsMode,
   }),
 }));
 
@@ -64,6 +66,14 @@ function renderWorkspaceRoutes(initialPath) {
           }
         />
         <Route
+          path="/amc/orders"
+          element={
+            <WorkspaceRouteGuard workspace={ROUTE_WORKSPACES.AMC}>
+              <div data-testid="amc-orders-route">AMC Orders</div>
+            </WorkspaceRouteGuard>
+          }
+        />
+        <Route
           path="/orders"
           element={
             <WorkspaceRouteGuard workspace={ROUTE_WORKSPACE_GROUPS.OPERATIONS}>
@@ -98,6 +108,7 @@ function renderWorkspaceRoutes(initialPath) {
 describe("WorkspaceRouteGuard", () => {
   beforeEach(() => {
     operationsModeState.operationsMode = OPERATIONS_MODES.INTERNAL_OPERATIONS;
+    operationsModeState.setOperationsMode.mockReset();
   });
 
   afterEach(() => {
@@ -180,6 +191,14 @@ describe("WorkspaceRouteGuard", () => {
     expect(screen.getByTestId("location")).toHaveTextContent("/dashboard");
     expect(screen.getByTestId("redirect-state")).toHaveTextContent('"expectedWorkspace":"amc"');
     expect(screen.getByTestId("redirect-state")).toHaveTextContent('"selectedWorkspace":"internal"');
+  });
+
+  it("adopts AMC Operations for explicit AMC-owned deep links instead of redirecting to Internal dashboard", () => {
+    renderWorkspaceRoutes("/amc/orders");
+
+    expect(operationsModeState.setOperationsMode).toHaveBeenCalledWith(OPERATIONS_MODES.AMC_OPERATIONS);
+    expect(screen.queryByTestId("amc-orders-route")).toBeNull();
+    expect(screen.queryByTestId("location")).toBeNull();
   });
 
   it("renders shared operations-owned order routes in Internal Operations", () => {

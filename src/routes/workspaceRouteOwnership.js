@@ -32,6 +32,19 @@ export function getRouteWorkspaceForOperationsMode(operationsMode) {
   return OPERATIONS_MODE_ROUTE_WORKSPACES[operationsMode] || ROUTE_WORKSPACES.INTERNAL;
 }
 
+export function getOperationsModeForRouteWorkspace(routeWorkspace) {
+  if (routeWorkspace === ROUTE_WORKSPACES.AMC) return OPERATIONS_MODES.AMC_OPERATIONS;
+  if (routeWorkspace === ROUTE_WORKSPACES.INTERNAL) return OPERATIONS_MODES.INTERNAL_OPERATIONS;
+  return null;
+}
+
+export function getExplicitRouteWorkspaceForPathname(pathname) {
+  if (typeof pathname !== "string") return null;
+  if (pathname === "/amc" || pathname.startsWith("/amc/")) return ROUTE_WORKSPACES.AMC;
+  if (pathname === "/dashboard") return ROUTE_WORKSPACES.INTERNAL;
+  return null;
+}
+
 export function isRouteWorkspaceAllowed(routeWorkspace, operationsMode) {
   if (!routeWorkspace || routeWorkspace === ROUTE_WORKSPACES.PUBLIC) return true;
   const explicitDashboardPath = typeof window !== "undefined" ? window.location?.pathname : null;

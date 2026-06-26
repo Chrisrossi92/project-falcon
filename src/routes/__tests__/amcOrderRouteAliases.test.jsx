@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const operationsModeState = vi.hoisted(() => ({
   operationsMode: "amc_operations",
+  setOperationsMode: vi.fn(),
 }));
 
 vi.mock("@/layout/Layout", async () => {
@@ -39,6 +40,7 @@ vi.mock("@/lib/hooks/usePermissions", () => ({
 vi.mock("@/lib/operations/OperationsModeProvider", () => ({
   useOperationsMode: () => ({
     operationsMode: operationsModeState.operationsMode,
+    setOperationsMode: operationsModeState.setOperationsMode,
     operationsModeLabel:
       operationsModeState.operationsMode === "amc_operations"
         ? "AMC Operations"
@@ -63,7 +65,7 @@ vi.mock("@/pages/orders/AmcNewOrderPage", () => ({
 }));
 
 vi.mock("@/pages/orders/OrderDetail", () => ({
-  default: () => {
+  default: function MockOrderDetail() {
     const { id } = useParams();
     return <div data-testid="order-detail-page">Order Detail {id}</div>;
   },
@@ -92,6 +94,7 @@ function renderAppRoute(path) {
 describe("AMC Order route aliases", () => {
   beforeEach(() => {
     operationsModeState.operationsMode = "amc_operations";
+    operationsModeState.setOperationsMode.mockReset();
   });
 
   afterEach(() => {
@@ -156,24 +159,29 @@ describe("AMC Order route aliases", () => {
     expect(internalCreateIndex).toBeLessThan(internalDetailIndex);
   });
 
-  it("blocks AMC order aliases from rendering order pages in Internal Operations mode", () => {
+  it("adopts AMC mode for AMC order aliases when the stored mode is stale Internal Operations", () => {
     operationsModeState.operationsMode = "internal_operations";
 
     renderAppRoute("/amc/orders");
 
     expect(screen.queryByTestId("orders-page")).toBeNull();
-    expect(screen.getByTestId("location")).toHaveTextContent("/dashboard");
+    expect(screen.getByTestId("location")).toHaveTextContent("/amc/orders");
+    expect(operationsModeState.setOperationsMode).toHaveBeenCalledWith("amc_operations");
 
     cleanup();
+    operationsModeState.setOperationsMode.mockReset();
     renderAppRoute("/amc/orders/order-1");
 
     expect(screen.queryByTestId("order-detail-page")).toBeNull();
-    expect(screen.getByTestId("location")).toHaveTextContent("/dashboard");
+    expect(screen.getByTestId("location")).toHaveTextContent("/amc/orders/order-1");
+    expect(operationsModeState.setOperationsMode).toHaveBeenCalledWith("amc_operations");
 
     cleanup();
+    operationsModeState.setOperationsMode.mockReset();
     renderAppRoute("/amc/orders/new");
 
     expect(screen.queryByTestId("amc-new-order-page")).toBeNull();
-    expect(screen.getByTestId("location")).toHaveTextContent("/dashboard");
+    expect(screen.getByTestId("location")).toHaveTextContent("/amc/orders/new");
+    expect(operationsModeState.setOperationsMode).toHaveBeenCalledWith("amc_operations");
   });
 });
