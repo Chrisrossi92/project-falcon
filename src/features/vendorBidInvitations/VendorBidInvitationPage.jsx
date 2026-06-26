@@ -3,11 +3,13 @@ import { useParams } from "react-router-dom";
 
 import { readOrderVendorBidInvitation, submitOrderVendorBidInvitation } from "@/features/bids/api";
 
-const unavailableTitle = "This bid invitation is unavailable.";
+const unavailableTitle = "This bid invitation is no longer available.";
 const unavailableMessage =
-  "The link may be expired, revoked, already submitted, or no longer open. Contact the AMC coordinator for a new invitation.";
+  "Please contact the assigning office if you believe this is an error.";
 const expiredTitle = "This bid invitation has expired.";
 const expiredMessage = "Please contact the assigning office if you believe this is an error.";
+const submittedTitle = "This bid has already been submitted.";
+const submittedMessage = "The assigning office has received a bid response for this invitation.";
 
 function formatDateTime(value) {
   if (!value) return "Not provided";
@@ -107,6 +109,19 @@ function ExpiredState() {
   );
 }
 
+function SubmittedState() {
+  return (
+    <PublicShell>
+      <div className="mx-auto flex min-h-[50vh] max-w-lg items-center">
+        <section className="w-full rounded-lg border border-emerald-200 bg-white p-6 shadow-sm">
+          <div className="text-lg font-semibold text-slate-950">{submittedTitle}</div>
+          <p className="mt-3 text-sm leading-6 text-slate-600">{submittedMessage}</p>
+        </section>
+      </div>
+    </PublicShell>
+  );
+}
+
 function DetailItem({ label, value }) {
   return (
     <div>
@@ -159,6 +174,24 @@ function isExpiredInvitation(payload = {}) {
   if (Number.isNaN(expiresAtDate.getTime())) return false;
 
   return expiresAtDate <= new Date();
+}
+
+function resolveClosedInvitationState(payload = {}) {
+  const error = String(payload.error || "").trim().toLowerCase();
+  const status = String(payload.status || payload.invitation?.status || "").trim().toLowerCase();
+  const reason = String(payload.reason || "").trim().toLowerCase();
+
+  if (error === "bid_invitation_expired" || status === "expired" || reason === "expired") {
+    return "expired";
+  }
+  if (
+    error === "bid_invitation_already_submitted" ||
+    status === "submitted" ||
+    reason === "already_submitted"
+  ) {
+    return "submitted";
+  }
+  return "unavailable";
 }
 
 function SubmitBidPanel({ token, vendor, onUnavailable }) {
@@ -470,7 +503,7 @@ export default function VendorBidInvitationPage() {
       .then((payload) => {
         if (cancelled) return;
         if (!payload?.ok) {
-          setState({ status: payload?.error === "bid_invitation_expired" ? "expired" : "unavailable", payload });
+          setState({ status: resolveClosedInvitationState(payload), payload });
           return;
         }
         setState({ status: isExpiredInvitation(payload) ? "expired" : "valid", payload });
@@ -487,6 +520,7 @@ export default function VendorBidInvitationPage() {
 
   if (state.status === "loading") return <LoadingState />;
   if (state.status === "expired") return <ExpiredState />;
+  if (state.status === "submitted") return <SubmittedState />;
   if (state.status !== "valid") return <UnavailableState />;
 
   return (

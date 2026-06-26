@@ -115,8 +115,8 @@ describe("VendorBidInvitationPage", () => {
 
     renderPage();
 
-    expect(await screen.findByText("This bid invitation is unavailable.")).not.toBeNull();
-    expect(screen.getByText(/The link may be expired, revoked, already submitted/)).not.toBeNull();
+    expect(await screen.findByText("This bid invitation is no longer available.")).not.toBeNull();
+    expect(screen.getByText("Please contact the assigning office if you believe this is an error.")).not.toBeNull();
   });
 
   it("renders an expired state and hides submit when expiration data is expired", async () => {
@@ -138,13 +138,34 @@ describe("VendorBidInvitationPage", () => {
     expect(apiMock.submitOrderVendorBidInvitation).not.toHaveBeenCalled();
   });
 
+  it("renders an already-submitted state and hides submit for submitted token responses", async () => {
+    apiMock.readOrderVendorBidInvitation.mockResolvedValue({
+      ok: false,
+      error: "bid_invitation_already_submitted",
+      status: "submitted",
+      reason: "already_submitted",
+      invitation: {
+        status: "submitted",
+        can_submit: false,
+        submitted_at: "2026-06-28T16:00:00.000Z",
+      },
+    });
+
+    renderPage();
+
+    expect(await screen.findByText("This bid has already been submitted.")).not.toBeNull();
+    expect(screen.getByText("The assigning office has received a bid response for this invitation.")).not.toBeNull();
+    expect(screen.queryByRole("button", { name: "Submit Bid" })).toBeNull();
+    expect(apiMock.submitOrderVendorBidInvitation).not.toHaveBeenCalled();
+  });
+
   it("renders the unavailable state for transport errors", async () => {
     apiMock.readOrderVendorBidInvitation.mockRejectedValue(new Error("network failed"));
 
     renderPage();
 
-    expect(await screen.findByText("This bid invitation is unavailable.")).not.toBeNull();
-    expect(screen.getByText(/Contact the AMC coordinator for a new invitation/)).not.toBeNull();
+    expect(await screen.findByText("This bid invitation is no longer available.")).not.toBeNull();
+    expect(screen.getByText("Please contact the assigning office if you believe this is an error.")).not.toBeNull();
   });
 
   it("renders valid vendor, order, and bid request fields", async () => {
@@ -289,7 +310,7 @@ describe("VendorBidInvitationPage", () => {
     fireEvent.change(screen.getByLabelText("Turn time days"), { target: { value: "5" } });
     fireEvent.click(screen.getByRole("button", { name: "Submit Bid" }));
 
-    expect(await screen.findByText("This bid invitation is unavailable.")).not.toBeNull();
+    expect(await screen.findByText("This bid invitation is no longer available.")).not.toBeNull();
     expect(screen.queryByLabelText("Fee amount")).toBeNull();
   });
 
