@@ -51,6 +51,8 @@ describe("EngagementPackagePreview", () => {
 
     expect(screen.getByLabelText("Engagement package preview")).toBeInTheDocument();
     expect(screen.getByLabelText("Engagement Letter Preview")).toBeInTheDocument();
+    expect(screen.getByLabelText("Package Readiness")).toBeInTheDocument();
+    expect(screen.getByText("This checklist is informational and does not block assignment.")).toBeInTheDocument();
     expect(screen.getByText("Engagement Letter")).toBeInTheDocument();
     expect(screen.getByText("Assignment Summary")).toBeInTheDocument();
     expect(screen.getAllByText("Company Guidelines").length).toBeGreaterThanOrEqual(1);
@@ -66,6 +68,70 @@ describe("EngagementPackagePreview", () => {
     expect(screen.getByText("As Is")).toBeInTheDocument();
     expect(screen.getByText("All Applicable")).toBeInTheDocument();
     expect(screen.getAllByText("Please confirm inspection availability.").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("renders readiness states from available package data", () => {
+    render(
+      <EngagementPackagePreview
+        order={{
+          order_number: "2026-100",
+          property_address: "12969 Eckel Junction Road",
+          client_name: "Ross Bank",
+        }}
+        vendor={{
+          vendor_company_name: "ABC Valuation",
+        }}
+        assignment={{
+          dueAt: "2026-06-20T16:00:00Z",
+          feeAmount: 2500,
+          instructions: "Call before inspection.",
+        }}
+        attachments={[
+          {
+            id: "guidelines-1",
+            title: "Continental Vendor Guidelines.pdf",
+            category: "company_guidelines",
+          },
+          {
+            id: "source-1",
+            title: "Rent Roll.xlsx",
+            category: "source_documents",
+          },
+        ]}
+      />,
+    );
+
+    const readiness = screen.getByLabelText("Package Readiness");
+    expect(readiness).toHaveTextContent("Property address");
+    expect(readiness).toHaveTextContent("Ready");
+    expect(readiness).toHaveTextContent("Assignment fee");
+    expect(readiness).toHaveTextContent("$2,500.00");
+    expect(readiness).toHaveTextContent("Company guidelines");
+    expect(readiness).toHaveTextContent("1 attached");
+    expect(readiness).toHaveTextContent("Client/source documents");
+    expect(readiness).toHaveTextContent("1 attached");
+    expect(readiness).toHaveTextContent("Special instructions");
+    expect(readiness).toHaveTextContent("Call before inspection.");
+  });
+
+  it("shows missing and optional readiness states without blocking the preview", () => {
+    render(<EngagementPackagePreview order={{ property_address: "100 Main Street" }} />);
+
+    const readiness = screen.getByLabelText("Package Readiness");
+    expect(readiness).toHaveTextContent("Client name");
+    expect(readiness).toHaveTextContent("Missing client name");
+    expect(readiness).toHaveTextContent("Vendor selected");
+    expect(readiness).toHaveTextContent("Missing selected vendor");
+    expect(readiness).toHaveTextContent("Assignment fee");
+    expect(readiness).toHaveTextContent("Missing assignment fee");
+    expect(readiness).toHaveTextContent("Company guidelines");
+    expect(readiness).toHaveTextContent("No company guidelines attached");
+    expect(readiness).toHaveTextContent("Client/source documents");
+    expect(readiness).toHaveTextContent("No client or source documents loaded");
+    expect(readiness).toHaveTextContent("Special instructions");
+    expect(readiness).toHaveTextContent("No special instructions provided");
+    expect(readiness).toHaveTextContent("Optional");
+    expect(screen.getByLabelText("Engagement Letter Preview")).toBeInTheDocument();
   });
 
   it("uses honest empty states instead of fake attachment data", () => {
@@ -166,6 +232,22 @@ describe("EngagementPackagePreview", () => {
     ]);
     expect(model.sections.map((section) => section.title)).toContain("Fee");
     expect(model.sections.map((section) => section.title)).toContain("Special Instructions");
+    expect(model.readinessChecklist).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: "property-address",
+          status: "ready",
+        }),
+        expect.objectContaining({
+          key: "company-guidelines",
+          status: "missing",
+        }),
+        expect.objectContaining({
+          key: "client-source-documents",
+          status: "ready",
+        }),
+      ]),
+    );
     expect(model.letterPreview.fields.map((field) => field.label)).toEqual([
       "Order Number",
       "Client",

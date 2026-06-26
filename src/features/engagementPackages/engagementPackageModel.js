@@ -240,6 +240,81 @@ function buildDocumentSections(documents) {
   return sections;
 }
 
+function hasValue(value) {
+  return value !== null && value !== undefined && String(value).trim() !== "" && valueOrEmpty(value) !== EMPTY_VALUE;
+}
+
+function makeReadinessItem(key, label, value, missingText, { optional = false } = {}) {
+  const ready = hasValue(value);
+  return {
+    key,
+    label,
+    status: ready ? "ready" : optional ? "optional" : "missing",
+    value: ready ? valueOrEmpty(value) : missingText,
+  };
+}
+
+function documentsInSection(documentSections, sectionKey) {
+  return documentSections.find((section) => section.key === sectionKey)?.documents || [];
+}
+
+function buildPackageReadinessChecklist({
+  order = {},
+  assignment = {},
+  vendor = {},
+  clientName,
+  assignmentDueAt,
+  documentSections = [],
+  letterPreview,
+} = {}) {
+  const propertyAddress = firstPresent(order.property_address, order.address);
+  const vendorName = firstPresent(vendor.vendor_company_name, vendor.company_name, vendor.name);
+  const assignmentFee = firstPresent(
+    assignment.feeAmount,
+    assignment.fee_amount,
+    order.vendor_fee,
+    order.appraiser_fee,
+    order.base_fee,
+  );
+  const assignmentFeeLabel = hasValue(assignmentFee) ? formatMoney(assignmentFee, assignment.currency || order.currency) : "";
+  const assignmentDueAtLabel = hasValue(assignmentDueAt) ? formatDateTime(assignmentDueAt) : "";
+  const instructions = firstPresent(assignment.instructions, assignment.note, order.special_instructions, order.assignment_notes);
+  const companyGuidelines = documentsInSection(documentSections, "company-guidelines");
+  const clientSourceDocuments = [
+    ...documentsInSection(documentSections, "client-documents"),
+    ...documentsInSection(documentSections, "property-source-documents"),
+  ];
+
+  return [
+    makeReadinessItem("property-address", "Property address", propertyAddress, "Missing property address"),
+    makeReadinessItem("client-name", "Client name", clientName, "Missing client name"),
+    makeReadinessItem("vendor-selected", "Vendor selected", vendorName, "Missing selected vendor"),
+    makeReadinessItem("assignment-fee", "Assignment fee", assignmentFeeLabel, "Missing assignment fee"),
+    makeReadinessItem("due-date", "Due date", assignmentDueAtLabel, "Missing due date"),
+    makeReadinessItem("engagement-letter", "Engagement letter preview", letterPreview?.title, "Preview unavailable"),
+    makeReadinessItem(
+      "company-guidelines",
+      "Company guidelines",
+      companyGuidelines.length ? `${companyGuidelines.length} attached` : "",
+      "No company guidelines attached",
+    ),
+    makeReadinessItem(
+      "client-source-documents",
+      "Client/source documents",
+      clientSourceDocuments.length ? `${clientSourceDocuments.length} attached` : "",
+      "No client or source documents loaded",
+      { optional: true },
+    ),
+    makeReadinessItem(
+      "special-instructions",
+      "Special instructions",
+      instructions,
+      "No special instructions provided",
+      { optional: true },
+    ),
+  ];
+}
+
 function makeSection(key, title, items) {
   return {
     key,
@@ -352,17 +427,28 @@ export function buildEngagementPackagePreviewModel({
   const reviewDueAt = firstPresent(assignment.reviewDueAt, assignment.review_due_at, order.review_due_at);
   const expirationAt = firstPresent(assignment.expiresAt, assignment.expires_at);
   const packageDocuments = normalizeDocuments(attachments, order);
+  const documentSections = buildDocumentSections(packageDocuments);
+  const letterPreview = buildEngagementLetterPreview({
+    order,
+    assignment,
+    vendor,
+    clientName,
+    assignmentDueAt,
+  });
 
   return {
     title: "Engagement Package Preview",
     subtitle: "Read-only package foundation for the vendor assignment.",
     documents: ENGAGEMENT_PACKAGE_DOCUMENTS,
-    letterPreview: buildEngagementLetterPreview({
+    letterPreview,
+    readinessChecklist: buildPackageReadinessChecklist({
       order,
       assignment,
       vendor,
       clientName,
       assignmentDueAt,
+      documentSections,
+      letterPreview,
     }),
     sections: [
       makeSection("property-information", "Property Information", [
@@ -405,7 +491,7 @@ export function buildEngagementPackagePreviewModel({
         { label: "Notes", value: firstPresent(assignment.instructions, assignment.note, order.assignment_notes) },
       ]),
     ],
-    documentSections: buildDocumentSections(packageDocuments),
+    documentSections,
     attachments: packageDocuments,
     emptyAttachmentText: NO_DOCUMENTS_TEXT,
   };
