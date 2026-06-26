@@ -22,6 +22,15 @@ const shellProfileState = vi.hoisted(() => ({
 const operationsModeState = vi.hoisted(() => ({
   operationsMode: "internal_operations",
 }));
+const activeCurrentStatuses = [
+  "new",
+  "in_progress",
+  "in_review",
+  "needs_revisions",
+  "review_cleared",
+  "pending_final_approval",
+  "ready_for_client",
+];
 
 vi.mock("@/components/orders/NewOrderButton", () => ({
   default: () => <a href="/orders/new">New Order</a>,
@@ -143,6 +152,35 @@ describe("OrdersPage historical access", () => {
     expect(screen.getByTestId("orders-table")).toBeInTheDocument();
   });
 
+  it("defaults to active statuses while preserving the explicit Completed status view", () => {
+    renderPage();
+
+    expect(tableMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        filters: expect.objectContaining({
+          statusIn: activeCurrentStatuses,
+          orderBy: "created_at",
+        }),
+      }),
+    );
+    expect(screen.queryByText(/^Status:/)).not.toBeInTheDocument();
+
+    cleanup();
+    tableMock.mockClear();
+
+    renderPage(["/orders?status=completed"]);
+
+    expect(tableMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        filters: expect.objectContaining({
+          statusIn: ["completed"],
+          orderBy: "created_at",
+        }),
+      }),
+    );
+    expect(screen.getByText("Status: Completed")).toBeInTheDocument();
+  });
+
   it("renders the polished Orders hierarchy without changing table behavior", () => {
     renderPage();
 
@@ -162,7 +200,8 @@ describe("OrdersPage historical access", () => {
       expect.objectContaining({
         filters: expect.objectContaining({
           search: "",
-          statusIn: [],
+          statusIn: activeCurrentStatuses,
+          orderBy: "created_at",
           queueId: "",
         }),
         rowsOverride: null,
@@ -357,7 +396,7 @@ describe("OrdersPage historical access", () => {
           appraiserId: "",
           reviewerId: "",
           assignedToMe: false,
-          statusIn: [],
+          statusIn: activeCurrentStatuses,
         }),
         tableLabel: "Orders",
         tableSummary: null,
@@ -550,7 +589,7 @@ describe("OrdersPage historical access", () => {
       expect(tableMock).toHaveBeenLastCalledWith(
         expect.objectContaining({
           filters: expect.objectContaining({
-            statusIn: [],
+            statusIn: activeCurrentStatuses,
             search: "",
             reviewerId: "",
             dueWindow: "",
@@ -608,7 +647,7 @@ describe("OrdersPage historical access", () => {
     expect(tableMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
         filters: expect.objectContaining({
-          statusIn: [],
+          statusIn: activeCurrentStatuses,
           search: "",
           clientId: "",
           appraiserId: "",

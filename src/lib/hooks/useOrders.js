@@ -9,7 +9,7 @@ import { applyOperationalOrderUserNamesToRows } from "@/lib/utils/userDisplayNam
 const DEFAULT_FILTERS = {
   page: 0,
   pageSize: 15,
-  orderBy: "order_number",
+  orderBy: "created_at",
   ascending: false,
   search: "",
   statusIn: [],
@@ -105,7 +105,7 @@ export function useOrders(initialSeed = {}, options = {}) {
           to: filters.to || null,
           page: filters.page || 0,
           pageSize: filters.pageSize || 15,
-          orderBy: filters.orderBy || "order_number",
+          orderBy: filters.orderBy || "created_at",
           ascending: filters.ascending ?? false,
           mode,
           scope,
@@ -185,7 +185,7 @@ export function useOrdersSummary(
           ...filters,
           page: 0,
           pageSize: 1000, // pull enough to compute aggregates client-side
-          orderBy: filters.orderBy || "order_number",
+          orderBy: filters.orderBy || "created_at",
           ascending: filters.ascending ?? false,
           scope,
           operationsScope,

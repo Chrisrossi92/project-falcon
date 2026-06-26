@@ -5,8 +5,19 @@ import { listCompanyAssignableAppraisers } from "@/features/company-members/assi
 import { listOrderFilterClients } from "@/features/orders/orderFilterOptionsApi";
 import { operationalUserName } from "@/lib/utils/userDisplayName";
 
+const ACTIVE_STATUS_FILTER_KEY = "__active";
+const ACTIVE_CURRENT_STATUSES = Object.freeze([
+  "new",
+  "in_progress",
+  "in_review",
+  "needs_revisions",
+  "review_cleared",
+  "pending_final_approval",
+  "ready_for_client",
+]);
+
 const STATUS = [
-  ["", "All"],
+  [ACTIVE_STATUS_FILTER_KEY, "Active"],
   ["new", "New"],
   ["in_progress", "In progress"],
   ["in_review", "In review"],
@@ -65,8 +76,18 @@ export default function OrdersFilters({
   const set = (patch) => onChange?.({ ...v, ...patch });
 
   // helper: convert single status to statusIn array for the table
-  const isActive = (key) => (v.statusIn?.[0] || "") === key;
-  const setStatus = (key) => set({ statusIn: key ? [key] : [] });
+  const isDefaultActiveStatusFilter = (statusIn = []) =>
+    Array.isArray(statusIn) &&
+    statusIn.length === ACTIVE_CURRENT_STATUSES.length &&
+    ACTIVE_CURRENT_STATUSES.every((status) => statusIn.includes(status));
+  const isActive = (key) =>
+    key === ACTIVE_STATUS_FILTER_KEY
+      ? isDefaultActiveStatusFilter(v.statusIn)
+      : v.statusIn?.length === 1 && v.statusIn[0] === key;
+  const setStatus = (key) =>
+    set({
+      statusIn: key === ACTIVE_STATUS_FILTER_KEY ? [...ACTIVE_CURRENT_STATUSES] : [key],
+    });
   const controlClass =
     "h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 shadow-sm transition focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100";
   const surfaceSpacing = compact ? "space-y-1.5 rounded-2xl p-2.5" : "space-y-3 rounded-2xl p-3";
@@ -181,9 +202,9 @@ export default function OrdersFilters({
           const active = isActive(key);
           return (
             <button
-              key={key || "_all"}
+              key={key}
               type="button"
-              onClick={() => setStatus(active ? "" : key)}
+              onClick={() => setStatus(active ? ACTIVE_STATUS_FILTER_KEY : key)}
               className={
                 "rounded-full border px-2.5 py-1.5 text-xs font-semibold shadow-sm transition " +
                 (active

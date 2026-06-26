@@ -164,7 +164,7 @@ export default function UnifiedOrdersTable({
     const base = {
       page: appliedFilters.page || 0,
       pageSize: appliedFilters.pageSize || pageSize,
-      orderBy: appliedFilters.orderBy || "order_number",
+      orderBy: appliedFilters.orderBy || "created_at",
       ascending: appliedFilters.ascending ?? false,
       search: appliedFilters.search || "",
       statusIn: appliedFilters.statusIn || [],

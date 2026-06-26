@@ -3,6 +3,7 @@ import supabase from "@/lib/supabaseClient";
 
 const ACTIVE_VIEW = "v_orders_active_frontend_v4";
 const REPORT_WRITING_STATUSES = ["new", "in_progress", "needs_revisions"];
+const KPI_ROW_LIMIT = 2000;
 
 function applyScope(
   q,
@@ -22,13 +23,43 @@ function applyScope(
   return q;
 }
 
-async function countWithScope(scope, mutator) {
-  let q = supabase.from(ACTIVE_VIEW).select("*", { count: "exact", head: true });
+function normalizeStatus(value) {
+  return String(value || "").toLowerCase().trim();
+}
+
+function readDueDate(order) {
+  return order?.final_due_date || order?.final_due_at || order?.due_date || null;
+}
+
+function isBetween(value, startIso, endIso) {
+  if (!value) return false;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) && time >= new Date(startIso).getTime() && time <= new Date(endIso).getTime();
+}
+
+function isBefore(value, endIso) {
+  if (!value) return false;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) && time < new Date(endIso).getTime();
+}
+
+function hasPastSiteVisit(order, nowIso) {
+  const value = order?.site_visit_date || order?.site_visit_at || null;
+  return Boolean(value) && isBefore(value, nowIso);
+}
+
+async function fetchActiveRowsWithScope(scope) {
+  let q = supabase
+    .from(ACTIVE_VIEW)
+    .select(
+      "id,status,final_due_date,final_due_at,due_date,site_visit_date,site_visit_at,operations_scope,appraiser_id,reviewer_id,client_id",
+      { count: "exact" },
+    )
+    .range(0, KPI_ROW_LIMIT - 1);
   q = applyScope(q, scope);
-  if (mutator) q = mutator(q);
-  const { count, error } = await q;
+  const { data, count, error } = await q;
   if (error) throw error;
-  return count || 0;
+  return { rows: data || [], count: count || 0 };
 }
 
 export async function fetchDashboardKpis(scope = {}) {
@@ -48,53 +79,19 @@ export async function fetchDashboardKpis(scope = {}) {
   const clientDueIso = clientDueLimit.toISOString();
   const nowIso = new Date().toISOString();
 
-  const [
-    total_active,
-    in_progress,
-    due_in_7,
-    inspected_awaiting_report,
-    due_to_client_2,
-    in_review,
-    needs_revisions,
-    overdue,
-  ] = await Promise.all([
-    countWithScope(baseScope),
-    countWithScope(baseScope, (q) => q.eq("status", "in_progress")),
-    countWithScope(baseScope, (q) =>
-      q
-        .gte("final_due_date", nowIso)
-        .lte("final_due_date", dueIso)
-        .not("final_due_date", "is", null)
-    ),
-    countWithScope(baseScope, (q) =>
-      q
-        .in("status", REPORT_WRITING_STATUSES)
-        .lte("site_visit_date", nowIso)
-        .not("site_visit_date", "is", null)
-    ),
-    countWithScope(baseScope, (q) =>
-      q
-        .gte("final_due_date", nowIso)
-        .lte("final_due_date", clientDueIso)
-        .not("final_due_date", "is", null)
-    ),
-    countWithScope(baseScope, (q) => q.eq("status", "in_review")),
-    countWithScope(baseScope, (q) => q.eq("status", "needs_revisions")),
-    countWithScope(baseScope, (q) =>
-      q
-        .lt("final_due_date", nowIso)
-        .not("final_due_date", "is", null)
-    ),
-  ]);
+  const { rows, count } = await fetchActiveRowsWithScope(baseScope);
+  const byStatus = (status) => rows.filter((row) => normalizeStatus(row.status) === status).length;
 
   return {
-    total_active,
-    in_progress,
-    due_in_7,
-    inspected_awaiting_report,
-    due_to_client_2,
-    in_review,
-    needs_revisions,
-    overdue,
+    total_active: count,
+    in_progress: byStatus("in_progress"),
+    due_in_7: rows.filter((row) => isBetween(readDueDate(row), nowIso, dueIso)).length,
+    inspected_awaiting_report: rows.filter(
+      (row) => REPORT_WRITING_STATUSES.includes(normalizeStatus(row.status)) && hasPastSiteVisit(row, nowIso),
+    ).length,
+    due_to_client_2: rows.filter((row) => isBetween(readDueDate(row), nowIso, clientDueIso)).length,
+    in_review: byStatus("in_review"),
+    needs_revisions: byStatus("needs_revisions"),
+    overdue: rows.filter((row) => isBefore(readDueDate(row), nowIso)).length,
   };
 }

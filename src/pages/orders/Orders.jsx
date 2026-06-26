@@ -22,6 +22,28 @@ import {
   listOrderSavedViews,
 } from "@/lib/api/orderSavedViews";
 
+const ACTIVE_CURRENT_STATUSES = Object.freeze([
+  "new",
+  "in_progress",
+  "in_review",
+  "needs_revisions",
+  "review_cleared",
+  "pending_final_approval",
+  "ready_for_client",
+]);
+
+function defaultOrderStatusFilter() {
+  return [...ACTIVE_CURRENT_STATUSES];
+}
+
+function isDefaultActiveStatusFilter(statusIn = []) {
+  return (
+    Array.isArray(statusIn) &&
+    statusIn.length === ACTIVE_CURRENT_STATUSES.length &&
+    ACTIVE_CURRENT_STATUSES.every((status) => statusIn.includes(status))
+  );
+}
+
 function useQuery() {
   const { search } = useLocation();
   return useMemo(() => new URLSearchParams(search), [search]);
@@ -29,7 +51,7 @@ function useQuery() {
 
 function readFilters(qs) {
   const status = qs.get("status") || "";
-  const statusIn = status ? [status] : [];
+  const statusIn = status ? [status] : defaultOrderStatusFilter();
   return {
     search: qs.get("q") || "",
     clientId: qs.get("clientId") || "",
@@ -42,14 +64,16 @@ function readFilters(qs) {
     statusIn,
     page: Math.max(0, parseInt(qs.get("page") || "0", 10)),
     pageSize: Math.max(10, parseInt(qs.get("pageSize") || "15", 10)),
-    orderBy: "order_number",
+    orderBy: "created_at",
     ascending: false,
   };
 }
 
 function writeFilters(navigate, next) {
   const qs = new URLSearchParams();
-  if (next.statusIn?.length) qs.set("status", next.statusIn[0]);
+  if (next.statusIn?.length === 1 && !isDefaultActiveStatusFilter(next.statusIn)) {
+    qs.set("status", next.statusIn[0]);
+  }
   if (next.appraiserId) qs.set("appraiserId", next.appraiserId);
   if (next.reviewerId) qs.set("reviewerId", next.reviewerId);
   if (next.assignedToMe) qs.set("myWork", "1");
@@ -97,13 +121,13 @@ function formatDueLabel(value) {
 
 function buildActiveFilterChips(filters) {
   const chips = [];
-  const status = filters.statusIn?.[0] || "";
+  const status = filters.statusIn?.length === 1 ? filters.statusIn[0] : "";
 
   if (status) {
     chips.push({
       key: "status",
       label: `Status: ${labelForStatus(status)}`,
-      clearPatch: { statusIn: [] },
+      clearPatch: { statusIn: defaultOrderStatusFilter() },
     });
   }
 
@@ -289,7 +313,7 @@ function savedViewFiltersToOrdersFilters(savedFilters, currentFilters) {
 
   return {
     ...currentFilters,
-    statusIn: filters.status ? [filters.status] : [],
+    statusIn: filters.status ? [filters.status] : defaultOrderStatusFilter(),
     search: filters.q || "",
     clientId: filters.clientId || "",
     appraiserId: filters.appraiserId || "",
@@ -524,6 +548,9 @@ export default function OrdersPage() {
 
   function onChange(patch) {
     const next = { ...filters, ...patch, page: 0 };
+    if (patch.statusIn && Array.isArray(patch.statusIn) && patch.statusIn.length === 0) {
+      next.statusIn = defaultOrderStatusFilter();
+    }
     if (next.assignedToMe) {
       next.appraiserId = "";
       next.reviewerId = "";

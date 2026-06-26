@@ -17,11 +17,25 @@ function createBuilder({ table, columns, options }) {
     lt: vi.fn(() => builder),
     lte: vi.fn(() => builder),
     not: vi.fn(() => builder),
+    range: vi.fn(() => builder),
     then: (resolve, reject) => Promise.resolve(builder.result).then(resolve, reject),
   };
 
   builders.push(builder);
-  builder.result = { count: builders.length, error: null };
+  builder.result = {
+    data: [
+      { id: "order-1", status: "in_progress", final_due_date: "2099-01-02T00:00:00.000Z" },
+      { id: "order-2", status: "in_review", final_due_date: "2000-01-02T00:00:00.000Z" },
+      {
+        id: "order-3",
+        status: "needs_revisions",
+        final_due_date: "2099-01-03T00:00:00.000Z",
+        site_visit_date: "2000-01-01T00:00:00.000Z",
+      },
+    ],
+    count: 3,
+    error: null,
+  };
   return builder;
 }
 
@@ -44,18 +58,20 @@ describe("fetchDashboardKpis", () => {
   it("uses the active order view for governed operational KPI counts", async () => {
     const result = await fetchDashboardKpis();
 
-    expect(builders).toHaveLength(8);
+    expect(builders).toHaveLength(1);
     expect(builders.every((builder) => builder.table === "v_orders_active_frontend_v4")).toBe(true);
-    expect(builders.every((builder) => builder.options?.head === true)).toBe(true);
+    expect(builders[0].options).toEqual({ count: "exact" });
+    expect(builders[0].options?.head).toBeUndefined();
+    expect(builders[0].range).toHaveBeenCalledWith(0, 1999);
     expect(result).toEqual({
-      total_active: 1,
-      in_progress: 2,
-      due_in_7: 3,
-      inspected_awaiting_report: 4,
-      due_to_client_2: 5,
-      in_review: 6,
-      needs_revisions: 7,
-      overdue: 8,
+      total_active: 3,
+      in_progress: 1,
+      due_in_7: 0,
+      inspected_awaiting_report: 1,
+      due_to_client_2: 0,
+      in_review: 1,
+      needs_revisions: 1,
+      overdue: 1,
     });
   });
 
@@ -64,10 +80,7 @@ describe("fetchDashboardKpis", () => {
 
     expect(builders[0].eq).toHaveBeenCalledWith("appraiser_id", "appraiser-1");
     expect(builders[0].in).toHaveBeenCalledWith("status", ["new", "in_progress"]);
-    expect(builders[5].eq).toHaveBeenCalledWith("status", "in_review");
-    expect(builders[6].eq).toHaveBeenCalledWith("status", "needs_revisions");
-    expect(builders[7].lt).toHaveBeenCalledWith("final_due_date", expect.any(String));
-    expect(builders[7].not).toHaveBeenCalledWith("final_due_date", "is", null);
+    expect(builders[0].eq).not.toHaveBeenCalledWith("reviewer_id", expect.anything());
     expect(supabaseMock.rpc).not.toHaveBeenCalled();
   });
 
