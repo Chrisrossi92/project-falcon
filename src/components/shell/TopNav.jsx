@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { flushSync } from "react-dom";
 import { NavLink, Link, useNavigate, useLocation } from "react-router-dom";
 import falconWordmark from "@/assets/branding/falcon-wordmark-dark-shell.png";
 import supabase from "@/lib/supabaseClient";
@@ -104,6 +105,10 @@ const DEFAULT_DESKTOP_SECTION_STYLE = Object.freeze({
 
 const WORKSPACE_DASHBOARD_PATH = "/dashboard";
 
+function dashboardPathForOperationsMode(mode) {
+  return mode === OPERATIONS_MODES.AMC_OPERATIONS ? "/amc/dashboard" : WORKSPACE_DASHBOARD_PATH;
+}
+
 function BrandWordmark({ shellModeCue, className = "" }) {
   return (
     <Link
@@ -147,8 +152,10 @@ function OperationalModeContext({ shellModeCue, appContext, workspaceIdentity, p
     if (mode === operationsMode) return;
 
     resetWorkspaceSwitchState({ fromMode: operationsMode, toMode: mode });
-    setOperationsMode(mode);
-    navigate(WORKSPACE_DASHBOARD_PATH, { replace: true });
+    flushSync(() => {
+      setOperationsMode(mode);
+    });
+    navigate(dashboardPathForOperationsMode(mode), { replace: true });
   }, [navigate, operationsMode, setOperationsMode]);
 
   return (

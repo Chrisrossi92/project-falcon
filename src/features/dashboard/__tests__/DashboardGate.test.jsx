@@ -104,9 +104,33 @@ function renderDashboardGateInRouter() {
 
 function renderDashboardGate() {
   return render(
-    <OperationsModeProvider>
-      <DashboardGate />
-    </OperationsModeProvider>,
+    <MemoryRouter
+      initialEntries={["/dashboard"]}
+      future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
+    >
+      <OperationsModeProvider>
+        <Routes>
+          <Route path="/dashboard" element={<DashboardGate />} />
+          <Route path="/amc/dashboard" element={<DashboardGate />} />
+        </Routes>
+      </OperationsModeProvider>
+    </MemoryRouter>,
+  );
+}
+
+function renderDashboardGateAt(path) {
+  return render(
+    <MemoryRouter
+      initialEntries={[path]}
+      future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
+    >
+      <OperationsModeProvider>
+        <Routes>
+          <Route path="/dashboard" element={<DashboardGate />} />
+          <Route path="/amc/dashboard" element={<DashboardGate />} />
+        </Routes>
+      </OperationsModeProvider>
+    </MemoryRouter>,
   );
 }
 
@@ -160,11 +184,27 @@ describe("DashboardGate current dashboard resolution helper migration", () => {
     expect(dashboardProps.assignment).toHaveLength(0);
   });
 
-  it("passes AMC operations mode through without changing dashboard authority", () => {
+  it("defaults the Internal dashboard route to Internal Operations even with stale AMC storage", () => {
     window.localStorage.setItem(OPERATIONS_MODE_STORAGE_KEY, OPERATIONS_MODES.AMC_OPERATIONS);
     permissionState.permissionKeys = [PERMISSIONS.ORDERS_READ_ASSIGNED];
 
     renderDashboardGate();
+
+    expect(screen.getByTestId("order-dashboard")).toBeInTheDocument();
+    expect(screen.queryByTestId("assignment-dashboard")).toBeNull();
+    expect(dashboardProps.order.length).toBeGreaterThanOrEqual(1);
+    expect(dashboardProps.order.at(-1).operationsMode).toBe(OPERATIONS_MODES.INTERNAL_OPERATIONS);
+    expect(dashboardProps.order.at(-1).operationsModeLabel).toBe("Internal Operations");
+    expect(window.localStorage.getItem(OPERATIONS_MODE_STORAGE_KEY)).toBe(
+      OPERATIONS_MODES.INTERNAL_OPERATIONS,
+    );
+  });
+
+  it("preserves AMC Operations on the AMC dashboard route", () => {
+    window.localStorage.setItem(OPERATIONS_MODE_STORAGE_KEY, OPERATIONS_MODES.AMC_OPERATIONS);
+    permissionState.permissionKeys = [PERMISSIONS.ORDERS_READ_ASSIGNED];
+
+    renderDashboardGateAt("/amc/dashboard");
 
     expect(screen.getByTestId("order-dashboard")).toBeInTheDocument();
     expect(screen.queryByTestId("assignment-dashboard")).toBeNull();

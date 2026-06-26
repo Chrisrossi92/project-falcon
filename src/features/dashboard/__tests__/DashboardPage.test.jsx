@@ -786,7 +786,7 @@ describe("DashboardPage operational polish", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows Owner Setup guidance when persisted setup state has no banner dismissal", async () => {
+  it("keeps Owner Setup guidance off the demo dashboard surface", () => {
     permissionState.settingsView = true;
     ownerSetupStateApiMock.getOwnerSetupState.mockResolvedValue({
       state_exists: false,
@@ -796,12 +796,9 @@ describe("DashboardPage operational polish", () => {
 
     renderDashboard(operationsShell, { operationsMode: OPERATIONS_MODES.INTERNAL_OPERATIONS });
 
-    expect(await screen.findByText("Owner Setup Guidance")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Review Owner Setup" })).toHaveAttribute(
-      "href",
-      "/settings/owner-setup",
-    );
-    expect(ownerSetupStateApiMock.getOwnerSetupState).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText("Owner Setup Guidance")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Review Owner Setup" })).not.toBeInTheDocument();
+    expect(ownerSetupStateApiMock.getOwnerSetupState).not.toHaveBeenCalled();
     expect(calendarMock).toHaveBeenLastCalledWith(
       expect.objectContaining({ orders: summaryState.current.ordersRows }),
     );
@@ -820,11 +817,11 @@ describe("DashboardPage operational polish", () => {
     await waitFor(() => {
       expect(screen.queryByText("Owner Setup Guidance")).not.toBeInTheDocument();
     });
-    expect(ownerSetupStateApiMock.getOwnerSetupState).toHaveBeenCalledTimes(1);
+    expect(ownerSetupStateApiMock.getOwnerSetupState).not.toHaveBeenCalled();
     expect(screen.getByText("Calendar")).toBeInTheDocument();
   });
 
-  it("keeps Owner Setup guidance visible when setup-state RPC fails", async () => {
+  it("does not call owner setup readiness from the demo dashboard surface", () => {
     permissionState.settingsView = true;
     ownerSetupStateApiMock.getOwnerSetupState.mockRejectedValue(
       Object.assign(new Error("owner_setup_state_read_permission_required"), { code: "42501" }),
@@ -832,12 +829,9 @@ describe("DashboardPage operational polish", () => {
 
     renderDashboard(operationsShell, { operationsMode: OPERATIONS_MODES.INTERNAL_OPERATIONS });
 
-    expect(await screen.findByText("Owner Setup Guidance")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Review Owner Setup" })).toHaveAttribute(
-      "href",
-      "/settings/owner-setup",
-    );
-    expect(ownerSetupStateApiMock.getOwnerSetupState).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText("Owner Setup Guidance")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Review Owner Setup" })).not.toBeInTheDocument();
+    expect(ownerSetupStateApiMock.getOwnerSetupState).not.toHaveBeenCalled();
   });
 
   it("filters the existing dashboard rows when a status card is selected and cleared", () => {

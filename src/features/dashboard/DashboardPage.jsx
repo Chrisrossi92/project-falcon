@@ -638,8 +638,6 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
         </div>
       </WorkspaceSurface>
 
-      <OwnerSetupDashboardPrompt appContext={appContext} />
-
       <ClientRequestWorkspaceRedirectBanner />
 
       <ClientRequestDashboardAlert operationsMode={operationsMode} />

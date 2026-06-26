@@ -1,10 +1,12 @@
-import { Navigate } from "react-router-dom";
+import { useEffect } from "react";
+import { Navigate, useLocation } from "react-router-dom";
 
 import AssignmentDashboardPage from "@/features/dashboard/AssignmentDashboardPage";
 import DashboardPage from "@/features/dashboard/DashboardPage";
 import { AssignmentState, LoadingState } from "@/features/assignments/AssignmentPrimitives";
 import { useEffectivePermissions } from "@/lib/hooks/usePermissions";
 import { useOperationsMode } from "@/lib/operations/OperationsModeProvider";
+import { OPERATIONS_MODES } from "@/lib/operations/operationsMode";
 import { isClientOnlyPortalAccess } from "@/lib/permissions/clientPortalAccess";
 import { useShellProfile } from "@/lib/shell/useShellProfile";
 import {
@@ -15,15 +17,30 @@ import {
 
 export const ORDER_DASHBOARD_PERMISSIONS = CURRENT_ORDER_DASHBOARD_PERMISSIONS;
 
+function resolveDashboardOperationsModeForRoute(pathname, operationsMode) {
+  if (pathname === "/dashboard") return OPERATIONS_MODES.INTERNAL_OPERATIONS;
+  if (pathname === "/amc/dashboard") return OPERATIONS_MODES.AMC_OPERATIONS;
+  return operationsMode;
+}
+
 export default function DashboardGate() {
   const permissions = useEffectivePermissions();
-  const { operationsMode, operationsModeLabel } = useOperationsMode();
+  const { operationsMode, operationsModeLabel, setOperationsMode } = useOperationsMode();
+  const location = useLocation();
   const shellProfilePresentation = useShellProfile();
+  const routeOperationsMode = resolveDashboardOperationsModeForRoute(location.pathname, operationsMode);
+
+  useEffect(() => {
+    if (location.pathname === "/dashboard" && operationsMode !== routeOperationsMode) {
+      setOperationsMode(routeOperationsMode);
+    }
+  }, [location.pathname, operationsMode, routeOperationsMode, setOperationsMode]);
+
   const dashboardResolution = resolveCurrentDashboard({
     loading: permissions.loading,
     error: permissions.error,
     permissionKeys: permissions.permissionKeys,
-    operationsMode,
+    operationsMode: routeOperationsMode,
   });
 
   if (dashboardResolution.state === CURRENT_DASHBOARD_RESOLUTION_STATES.LOADING) {

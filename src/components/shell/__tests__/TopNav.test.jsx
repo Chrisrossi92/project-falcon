@@ -200,7 +200,7 @@ describe("TopNav desktop operational spine navigation", () => {
       "Falcon AMC Environment",
     );
     expect(window.localStorage.getItem(OPERATIONS_MODE_STORAGE_KEY)).toBe("amc_operations");
-    expect(screen.getByTestId("current-path")).toHaveTextContent("/dashboard");
+    expect(screen.getByTestId("current-path")).toHaveTextContent("/amc/dashboard");
     expect(screen.getByTestId("current-search")).toHaveTextContent("");
     expect(screen.getByTestId("current-navigation-type")).toHaveTextContent("REPLACE");
     expect(desktopLinks(container).map((link) => link.textContent)).toEqual([
@@ -230,7 +230,7 @@ describe("TopNav desktop operational spine navigation", () => {
 
       fireEvent.click(within(desktopContext).getByRole("button", { name: "Falcon AMC" }));
 
-      expect(screen.getByTestId("current-path")).toHaveTextContent("/dashboard");
+      expect(screen.getByTestId("current-path")).toHaveTextContent("/amc/dashboard");
       expect(screen.getByTestId("current-search")).toHaveTextContent("");
       expect(screen.getByTestId("current-navigation-type")).toHaveTextContent("REPLACE");
       expect(window.localStorage.getItem(OPERATIONS_MODE_STORAGE_KEY)).toBe("amc_operations");
