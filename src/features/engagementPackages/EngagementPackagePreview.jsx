@@ -41,22 +41,49 @@ export function EngagementPackageSection({ title, items }) {
   );
 }
 
-function AttachmentsSection({ attachments, emptyText }) {
+function DocumentMetadataList({ documents, emptyText }) {
+  if (documents.length === 0) {
+    return <p className="mt-3 rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-500">{emptyText}</p>;
+  }
+
+  return (
+    <ul className="mt-3 grid gap-2">
+      {documents.map((document) => (
+        <li key={document.id} className="rounded-md bg-slate-50 px-3 py-2">
+          <div className="flex items-start justify-between gap-3">
+            <span className="min-w-0 text-sm font-medium text-slate-800">{document.name}</span>
+            <span className="shrink-0 text-xs font-semibold text-slate-500">{document.type}</span>
+          </div>
+          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
+            {document.visibilityScope !== "Not provided" && <span>{document.visibilityScope}</span>}
+            {document.uploadedAt !== "Not provided" && <span>Uploaded {document.uploadedAt}</span>}
+            {document.size && <span>{document.size}</span>}
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function DocumentSections({ sections }) {
   return (
     <section className="rounded-md border border-slate-200 bg-white p-3">
-      <h4 className="text-sm font-semibold text-slate-950">Attachments</h4>
-      {attachments.length > 0 ? (
-        <ul className="mt-3 grid gap-2">
-          {attachments.map((attachment) => (
-            <li key={attachment.id} className="flex items-start justify-between gap-3 rounded-md bg-slate-50 px-3 py-2">
-              <span className="text-sm font-medium text-slate-800">{attachment.name}</span>
-              <span className="text-xs font-semibold text-slate-500">{attachment.type}</span>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="mt-3 rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-500">{emptyText}</p>
-      )}
+      <h4 className="text-sm font-semibold text-slate-950">Package Documents</h4>
+      <div className="mt-3 grid gap-3">
+        {sections.map((section) => (
+          <section key={section.key} aria-label={section.title} className="rounded-md border border-slate-100 bg-white p-3">
+            <div className="flex items-center justify-between gap-3">
+              <h5 className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+                {section.title}
+              </h5>
+              <span className="text-xs font-medium text-slate-400">
+                {section.documents.length} {section.documents.length === 1 ? "document" : "documents"}
+              </span>
+            </div>
+            <DocumentMetadataList documents={section.documents} emptyText={section.emptyText} />
+          </section>
+        ))}
+      </div>
     </section>
   );
 }
@@ -101,9 +128,8 @@ export default function EngagementPackagePreview({
         {model.sections.map((section) => (
           <EngagementPackageSection key={section.key} title={section.title} items={section.items} />
         ))}
-        <AttachmentsSection attachments={model.attachments} emptyText={model.emptyAttachmentText} />
+        <DocumentSections sections={model.documentSections} />
       </div>
     </section>
   );
 }
-

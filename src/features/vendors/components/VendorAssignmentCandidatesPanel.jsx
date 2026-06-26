@@ -396,6 +396,7 @@ function CandidateOfferModal({
   orderId,
   orderDueAt,
   orderSummary = {},
+  orderDocuments = [],
   onClose,
   onSuccess,
 }) {
@@ -558,6 +559,7 @@ function CandidateOfferModal({
               expiresAt: toIsoDateTime(expiresAt),
               instructions: note.trim(),
             }}
+            attachments={orderDocuments}
           />
         </div>
 
@@ -780,6 +782,7 @@ function CandidateCard({
   orderId,
   orderDueAt,
   orderSummary = {},
+  orderDocuments = [],
   onOfferSuccess,
   selectable = false,
   selected = false,
@@ -951,6 +954,7 @@ function CandidateCard({
           orderId={orderId}
           orderDueAt={orderDueAt}
           orderSummary={orderSummary}
+          orderDocuments={orderDocuments}
           onClose={() => setOfferModalOpen(false)}
           onSuccess={async (assignmentId) => {
             setOfferModalOpen(false);
@@ -969,6 +973,7 @@ export default function VendorAssignmentCandidatesPanel({
   canOfferAssignment = false,
   orderDueAt = null,
   orderSummary = {},
+  orderDocuments = [],
   onOfferSuccess,
   onBidRequestSuccess,
   className = "",
@@ -1199,6 +1204,7 @@ export default function VendorAssignmentCandidatesPanel({
               orderId={orderId}
               orderDueAt={orderDueAt}
               orderSummary={orderSummary}
+              orderDocuments={orderDocuments}
               onOfferSuccess={onOfferSuccess}
               selectable={selectable}
               selected={selected}

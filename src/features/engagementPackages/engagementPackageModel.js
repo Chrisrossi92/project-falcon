@@ -1,4 +1,5 @@
 const EMPTY_VALUE = "Not provided";
+const NO_DOCUMENTS_TEXT = "No documents are currently loaded for this package section.";
 
 export const ENGAGEMENT_PACKAGE_DOCUMENTS = [
   {
@@ -39,6 +40,14 @@ function humanize(value) {
     .join(" ");
 }
 
+function keyOf(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
 function firstPresent(...values) {
   return values.find((value) => value !== null && value !== undefined && String(value).trim() !== "");
 }
@@ -67,6 +76,14 @@ function formatMoney(amount, currency = "USD") {
   }).format(numericAmount);
 }
 
+function formatFileSize(value) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return null;
+  const size = Number(value);
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(size >= 10 * 1024 ? 0 : 1)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(size >= 10 * 1024 * 1024 ? 0 : 1)} MB`;
+}
+
 function formatLocation(order = {}) {
   const city = firstPresent(order.city, order.property_city);
   const state = firstPresent(order.state, order.property_state);
@@ -75,7 +92,50 @@ function formatLocation(order = {}) {
   return valueOrEmpty(locality);
 }
 
-function normalizeAttachments(attachments, order = {}) {
+function documentCategoryKey(document) {
+  return keyOf(firstPresent(document?.category, document?.document_type, document?.type));
+}
+
+function documentSectionKey(document) {
+  const category = documentCategoryKey(document);
+
+  if (["company_guidelines", "company_guideline", "guidelines", "guideline"].includes(category)) {
+    return "company-guidelines";
+  }
+
+  if ([
+    "client_documents",
+    "client_document",
+    "client_uploads",
+    "client_upload",
+    "borrower_documents",
+    "borrower_document",
+    "borrower_uploads",
+    "borrower_upload",
+    "engagement",
+    "engagement_documents",
+    "engagement_document",
+  ].includes(category)) {
+    return "client-documents";
+  }
+
+  if ([
+    "source_documents",
+    "source_document",
+    "property_media",
+    "property_photos",
+    "property_photo",
+    "property_documents",
+    "property_document",
+    "media",
+  ].includes(category)) {
+    return "property-source-documents";
+  }
+
+  return "other-attachments";
+}
+
+function normalizeDocuments(attachments, order = {}) {
   const source = Array.isArray(attachments)
     ? attachments
     : Array.isArray(order.attachments)
@@ -85,12 +145,54 @@ function normalizeAttachments(attachments, order = {}) {
         : [];
 
   return source
-    .map((attachment, index) => ({
-      id: attachment?.id || attachment?.document_id || attachment?.name || `attachment-${index}`,
-      name: valueOrEmpty(attachment?.name || attachment?.file_name || attachment?.title),
-      type: valueOrEmpty(attachment?.document_type || attachment?.type || attachment?.category),
+    .filter((document) => keyOf(document?.status) !== "archived")
+    .map((document, index) => ({
+      id: document?.id || document?.document_id || document?.document_key || document?.name || `document-${index}`,
+      name: valueOrEmpty(document?.title || document?.name || document?.file_name),
+      type: humanize(firstPresent(document?.category, document?.document_type, document?.type)),
+      visibilityScope: humanize(document?.visibility_scope),
+      uploadedAt: formatDateTime(document?.created_at || document?.uploaded_at),
+      size: formatFileSize(document?.file_size || document?.size),
+      sectionKey: documentSectionKey(document),
     }))
-    .filter((attachment) => attachment.name !== EMPTY_VALUE || attachment.type !== EMPTY_VALUE);
+    .filter((document) => document.name !== EMPTY_VALUE || document.type !== EMPTY_VALUE);
+}
+
+function buildDocumentSections(documents) {
+  const sections = [
+    {
+      key: "company-guidelines",
+      title: "Company Guidelines",
+      emptyText: "No company guideline documents are currently loaded for this order.",
+      documents: [],
+    },
+    {
+      key: "client-documents",
+      title: "Client Documents",
+      emptyText: "No client documents are currently loaded for this order.",
+      documents: [],
+    },
+    {
+      key: "property-source-documents",
+      title: "Property / Source Documents",
+      emptyText: "No property or source documents are currently loaded for this order.",
+      documents: [],
+    },
+    {
+      key: "other-attachments",
+      title: "Other Attachments",
+      emptyText: "No other attachments are currently loaded for this order.",
+      documents: [],
+    },
+  ];
+  const sectionByKey = new Map(sections.map((section) => [section.key, section]));
+
+  for (const document of documents) {
+    const section = sectionByKey.get(document.sectionKey) || sectionByKey.get("other-attachments");
+    section.documents.push(document);
+  }
+
+  return sections;
 }
 
 function makeSection(key, title, items) {
@@ -123,7 +225,7 @@ export function buildEngagementPackagePreviewModel({
   const assignmentDueAt = firstPresent(assignment.dueAt, assignment.due_at, order.final_due_at, order.due_date);
   const reviewDueAt = firstPresent(assignment.reviewDueAt, assignment.review_due_at, order.review_due_at);
   const expirationAt = firstPresent(assignment.expiresAt, assignment.expires_at);
-  const packageAttachments = normalizeAttachments(attachments, order);
+  const packageDocuments = normalizeDocuments(attachments, order);
 
   return {
     title: "Engagement Package Preview",
@@ -170,8 +272,8 @@ export function buildEngagementPackagePreviewModel({
         { label: "Notes", value: firstPresent(assignment.instructions, assignment.note, order.assignment_notes) },
       ]),
     ],
-    attachments: packageAttachments,
-    emptyAttachmentText: "No client documents are currently attached to this preview.",
+    documentSections: buildDocumentSections(packageDocuments),
+    attachments: packageDocuments,
+    emptyAttachmentText: NO_DOCUMENTS_TEXT,
   };
 }
-

@@ -170,6 +170,14 @@ describe("VendorAssignmentCandidatesPanel", () => {
           report_type: "full_appraisal",
           client_name: "Ross Bank",
         }}
+        orderDocuments={[
+          {
+            id: "doc-1",
+            title: "Rent Roll.pdf",
+            category: "source_documents",
+            visibility_scope: "assigned",
+          },
+        ]}
       />,
     );
 
@@ -511,6 +519,14 @@ describe("VendorAssignmentCandidatesPanel", () => {
           report_type: "full_appraisal",
           client_name: "Ross Bank",
         }}
+        orderDocuments={[
+          {
+            id: "doc-1",
+            title: "Rent Roll.pdf",
+            category: "source_documents",
+            visibility_scope: "assigned",
+          },
+        ]}
       />,
     );
 
@@ -525,11 +541,12 @@ describe("VendorAssignmentCandidatesPanel", () => {
     expect(within(dialog).getByLabelText("Engagement package preview")).toBeInTheDocument();
     expect(within(dialog).getByText("Engagement Letter")).toBeInTheDocument();
     expect(within(dialog).getByText("Assignment Summary")).toBeInTheDocument();
-    expect(within(dialog).getByText("Company Guidelines")).toBeInTheDocument();
-    expect(within(dialog).getByText("Client Documents")).toBeInTheDocument();
+    expect(within(dialog).getAllByText("Company Guidelines").length).toBeGreaterThanOrEqual(1);
+    expect(within(dialog).getAllByText("Client Documents").length).toBeGreaterThanOrEqual(1);
     expect(within(dialog).getByText("12969 Eckel Junction Road")).toBeInTheDocument();
     expect(within(dialog).getByText("Ross Bank")).toBeInTheDocument();
-    expect(within(dialog).getByText("No client documents are currently attached to this preview.")).toBeInTheDocument();
+    expect(within(dialog).getByRole("region", { name: "Property / Source Documents" })).toHaveTextContent("Rent Roll.pdf");
+    expect(within(dialog).getByText("No client documents are currently loaded for this order.")).toBeInTheDocument();
     expect(within(dialog).queryByText("relationship-1")).toBeNull();
     expect(within(dialog).queryByText("profile-1")).toBeNull();
     expect(within(dialog).queryByText("candidateSnapshot")).toBeNull();
@@ -546,6 +563,13 @@ describe("VendorAssignmentCandidatesPanel", () => {
         enabled
         canOfferAssignment
         orderDueAt="2026-06-10T12:00:00.000Z"
+        orderDocuments={[
+          {
+            id: "doc-1",
+            title: "Rent Roll.pdf",
+            category: "source_documents",
+          },
+        ]}
         onOfferSuccess={handleOfferSuccess}
       />,
     );
@@ -577,6 +601,8 @@ describe("VendorAssignmentCandidatesPanel", () => {
     await waitFor(() => {
       expect(handleOfferSuccess).toHaveBeenCalledWith("assignment-1");
     });
+    expect(assignmentApiState.offerOrderToVendor.mock.calls[0][0]).not.toHaveProperty("orderDocuments");
+    expect(assignmentApiState.offerOrderToVendor.mock.calls[0][0]).not.toHaveProperty("attachments");
     expect(screen.queryByRole("dialog", { name: "Offer Assignment" })).toBeNull();
   });
 

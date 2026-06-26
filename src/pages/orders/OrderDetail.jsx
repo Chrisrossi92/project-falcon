@@ -1882,6 +1882,7 @@ export default function OrderDetail() {
                         final_due_at: order.final_due_at,
                         due_date: order.due_date,
                       }}
+                      orderDocuments={orderFilesLoaded ? orderFiles : []}
                       onOfferSuccess={async () => {
                         success("Assignment offer sent.");
                         await loadOwnerAssignments();
@@ -1947,6 +1948,7 @@ export default function OrderDetail() {
                       final_due_at: order.final_due_at,
                       due_date: order.due_date,
                     }}
+                    orderDocuments={orderFilesLoaded ? orderFiles : []}
                     onOfferSuccess={async () => {
                       success("Assignment offer sent.");
                       await loadOwnerAssignments();
