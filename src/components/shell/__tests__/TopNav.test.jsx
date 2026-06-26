@@ -130,11 +130,8 @@ const openMobileNav = (container) => {
   return navs[navs.length - 1];
 };
 
-const mobileWorkspaceLauncherLinks = (mobileNav) =>
-  within(mobileNav).getAllByRole("link").slice(0, 4);
-
 const mobileNavigationLinks = (mobileNav) =>
-  within(mobileNav).getAllByRole("link").slice(4);
+  within(mobileNav).getAllByRole("link");
 
 describe("TopNav desktop operational spine navigation", () => {
   beforeEach(() => {
@@ -176,36 +173,64 @@ describe("TopNav desktop operational spine navigation", () => {
     );
   });
 
-  it("renders workspace launcher links and switches to Falcon AMC before opening its dashboard", () => {
+  it("does not render the demo workspace launcher in the desktop sidebar by default", () => {
     shellProfileState.appContext = { is_owner: true };
     permissionState.allowed = new Set([PERMISSIONS.VENDORS_READ]);
     const { container } = renderTopNav();
-    const launcher = container.querySelector('aside [aria-label="Workspace launcher"]');
+    const desktopContext = container.querySelector('aside [data-testid="operations-mode-switcher"]');
 
-    expect(within(launcher).getByRole("link", { name: "Internal Operations" })).toHaveAttribute(
-      "href",
-      "/dashboard",
-    );
-    expect(within(launcher).getByRole("link", { name: "Falcon AMC" })).toHaveAttribute(
-      "href",
-      "/amc/dashboard",
-    );
-    expect(within(launcher).getByRole("link", { name: "Client Portal" })).toHaveAttribute(
-      "href",
-      "/client-portal",
-    );
-    expect(within(launcher).getByRole("link", { name: "Vendor Workspace" })).toHaveAttribute(
-      "href",
-      "/vendor-workspace/dashboard",
-    );
+    expect(container.querySelector('aside [aria-label="Workspace launcher"]')).toBeNull();
+    expect(within(desktopContext).getByRole("button", { name: "Continental Internal Operations" })).toBeInTheDocument();
+    expect(within(desktopContext).getByRole("button", { name: "Falcon AMC" })).toBeInTheDocument();
+    expect(container.querySelector('aside')).not.toHaveTextContent("Open Workspace");
+    expect(container.querySelector('aside')).not.toHaveTextContent("Client Portal");
+    expect(container.querySelector('aside')).not.toHaveTextContent("Vendor Workspace");
+  });
 
-    fireEvent.click(within(launcher).getByRole("link", { name: "Falcon AMC" }));
+  it("does not expose cross-portal links from the operational shell", () => {
+    permissionState.allowed = new Set([
+      PERMISSIONS.CLIENT_PORTAL_DASHBOARD_VIEW,
+      PERMISSIONS.CLIENT_PORTAL_ORDERS_READ,
+      PERMISSIONS.VENDOR_WORKSPACE_VIEW,
+      PERMISSIONS.VENDOR_ASSIGNMENTS_READ,
+      PERMISSIONS.VENDOR_PROFILE_READ,
+    ]);
 
-    expect(window.localStorage.getItem(OPERATIONS_MODE_STORAGE_KEY)).toBe("amc_operations");
-    expect(within(launcher).getByRole("link", { name: "Falcon AMC" })).toHaveAttribute(
-      "href",
-      "/amc/dashboard",
-    );
+    const { container } = renderTopNav();
+    const aside = container.querySelector("aside");
+    const mobileNav = openMobileNav(container);
+
+    expect(aside).not.toHaveTextContent("Client Portal");
+    expect(aside).not.toHaveTextContent("Vendor Workspace");
+    expect(within(mobileNav).queryByRole("link", { name: "Client Portal" })).toBeNull();
+    expect(within(mobileNav).queryByRole("link", { name: "Vendor Workspace" })).toBeNull();
+  });
+
+  it("does not show Vendor Workspace as a shortcut for a client portal user", () => {
+    permissionState.allowed = new Set([
+      PERMISSIONS.CLIENT_PORTAL_DASHBOARD_VIEW,
+      PERMISSIONS.CLIENT_PORTAL_ORDERS_READ,
+    ]);
+
+    const { container } = renderTopNav();
+    const mobileNav = openMobileNav(container);
+
+    expect(container.querySelector("aside")).not.toHaveTextContent("Vendor Workspace");
+    expect(within(mobileNav).queryByRole("link", { name: "Vendor Workspace" })).toBeNull();
+  });
+
+  it("does not show Client Portal as a shortcut for a vendor workspace user", () => {
+    permissionState.allowed = new Set([
+      PERMISSIONS.VENDOR_WORKSPACE_VIEW,
+      PERMISSIONS.VENDOR_ASSIGNMENTS_READ,
+      PERMISSIONS.VENDOR_PROFILE_READ,
+    ]);
+
+    const { container } = renderTopNav();
+    const mobileNav = openMobileNav(container);
+
+    expect(container.querySelector("aside")).not.toHaveTextContent("Client Portal");
+    expect(within(mobileNav).queryByRole("link", { name: "Client Portal" })).toBeNull();
   });
 
   it("switches Continental Internal Operations to Falcon AMC and resets order detail to the dashboard", () => {
@@ -576,10 +601,6 @@ describe("TopNav desktop operational spine navigation", () => {
     const links = within(mobileNav).getAllByRole("link");
 
     expect(links.map((link) => link.textContent)).toEqual([
-      "Internal Operations",
-      "Falcon AMC",
-      "Client Portal",
-      "Vendor Workspace",
       "Procurement",
       "Assignment Oversight",
       "Vendor Network",
@@ -587,16 +608,14 @@ describe("TopNav desktop operational spine navigation", () => {
       "Settings",
     ]);
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
-      "/dashboard",
-      "/amc/dashboard",
-      "/client-portal",
-      "/vendor-workspace/dashboard",
       "/orders",
       "/calendar",
       "/vendors",
       "/clients",
       "/settings",
     ]);
+    expect(within(mobileNav).queryByRole("link", { name: "Client Portal" })).toBeNull();
+    expect(within(mobileNav).queryByRole("link", { name: "Vendor Workspace" })).toBeNull();
     expect(within(mobileNav).queryByRole("link", { name: "Staff Assignments" })).toBeNull();
     expect(within(mobileNav).queryByRole("link", { name: "Relationships" })).toBeNull();
     expect(within(mobileNav).queryByRole("link", { name: "Staff Directory" })).toBeNull();
@@ -874,13 +893,6 @@ describe("TopNav desktop operational spine navigation", () => {
     const { container } = renderTopNav();
     const mobileNav = openMobileNav(container);
     const links = mobileNavigationLinks(mobileNav);
-
-    expect(mobileWorkspaceLauncherLinks(mobileNav).map((link) => link.textContent)).toEqual([
-      "Internal Operations",
-      "Falcon AMC",
-      "Client Portal",
-      "Vendor Workspace",
-    ]);
 
     expect(links.map((link) => link.textContent)).toEqual([
       "Client Orders",
