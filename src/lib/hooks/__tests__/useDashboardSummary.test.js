@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  DASHBOARD_ACTIVE_STATUSES,
   deriveDashboardRoleFlags,
   deriveDashboardTableFilters,
   deriveReviewerHybridAppraisalFilters,
@@ -93,6 +94,18 @@ describe("deriveDashboardRoleFlags", () => {
       assignedAppraiserId: "pam-user",
       statusIn: ["new", "in_progress", "needs_revisions"],
     });
+  });
+
+  it("defines the owner/admin broad active status set used by dashboard reads", () => {
+    expect(DASHBOARD_ACTIVE_STATUSES).toEqual([
+      "new",
+      "in_progress",
+      "in_review",
+      "needs_revisions",
+      "review_cleared",
+      "pending_final_approval",
+      "ready_for_client",
+    ]);
   });
 
   it("does not mix secondary appraiser work into reviewer-primary dashboard filters", () => {

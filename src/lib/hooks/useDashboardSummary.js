@@ -19,6 +19,23 @@ export const APPRAISER_DASHBOARD_STATUSES = Object.freeze([
   ORDER_STATUS.NEEDS_REVISIONS,
 ]);
 
+export const DASHBOARD_ACTIVE_STATUSES = Object.freeze([
+  ORDER_STATUS.NEW,
+  ORDER_STATUS.IN_PROGRESS,
+  ORDER_STATUS.IN_REVIEW,
+  ORDER_STATUS.NEEDS_REVISIONS,
+  ORDER_STATUS.REVIEW_CLEARED,
+  ORDER_STATUS.PENDING_FINAL_APPROVAL,
+  ORDER_STATUS.READY_FOR_CLIENT,
+]);
+
+function withDefaultActiveStatuses(filters = {}) {
+  return {
+    ...filters,
+    statusIn: filters.statusIn?.length ? filters.statusIn : [...DASHBOARD_ACTIVE_STATUSES],
+  };
+}
+
 function deriveLensRole(context) {
   const primaryRole = String(context?.primary_role_key || "").toLowerCase();
   const firstRole = String(context?.role_keys?.[0] || "").toLowerCase();
@@ -130,6 +147,7 @@ export function useDashboardSummary({ operationsMode = null, refreshKey = 0 } = 
   const tableFilters = useMemo(() => {
     return deriveDashboardTableFilters({ appContext, userId: publicUserId, user });
   }, [appContext, publicUserId, user]);
+  const activeTableFilters = useMemo(() => withDefaultActiveStatuses(tableFilters), [tableFilters]);
   const reviewerHybridAppraisalFilters = useMemo(() => {
     return deriveReviewerHybridAppraisalFilters({ appContext, userId: publicUserId });
   }, [appContext, publicUserId]);
@@ -137,15 +155,15 @@ export function useDashboardSummary({ operationsMode = null, refreshKey = 0 } = 
   const hasIdForRole =
     (!isAppraiser || Boolean(tableFilters.appraiserId || tableFilters.assignedAppraiserId)) &&
     (!isReviewer || Boolean(tableFilters.reviewerId));
-  const summary = useOrdersSummary(tableFilters, {
+  const summary = useOrdersSummary(activeTableFilters, {
     enabled: hasIdForRole && !userLoading && !appContextLoading,
-    scope: "dashboard",
+    scope: "orders",
     operationsScope,
     refreshKey,
   });
   const reviewerHybridAppraisalSummary = useOrdersSummary(reviewerHybridAppraisalFilters || {}, {
     enabled: Boolean(reviewerHybridAppraisalFilters) && !userLoading && !appContextLoading,
-    scope: "dashboard",
+    scope: "orders",
     operationsScope,
     refreshKey,
   });
@@ -156,7 +174,7 @@ export function useDashboardSummary({ operationsMode = null, refreshKey = 0 } = 
       appraiserId: isAppraiser ? tableFilters.appraiserId || null : null,
       clientId: role === "client" ? (user?.client_id || user?.managing_amc_id || null) : null,
       managingAmcId: role === "client" ? user?.managing_amc_id || null : null,
-      statusIn: tableFilters.statusIn || [],
+      statusIn: activeTableFilters.statusIn || [],
       operationsScope,
     },
     { enabled: hasIdForRole && !userLoading && !appContextLoading }
@@ -186,12 +204,13 @@ export function useDashboardSummary({ operationsMode = null, refreshKey = 0 } = 
       dueToClient2: kpis.due_to_client_2 ?? 0,
     },
     ordersRows: summary.rows,
+    ordersRowsError: summary.error,
     reviewerHybridAppraisal: {
       count: reviewerHybridAppraisalSummary.count,
       rows: reviewerHybridAppraisalSummary.rows,
       filters: reviewerHybridAppraisalFilters,
     },
-    tableFilters,
+    tableFilters: activeTableFilters,
     reviews: {
       count: 0, // placeholder for future reviewer stats
     },

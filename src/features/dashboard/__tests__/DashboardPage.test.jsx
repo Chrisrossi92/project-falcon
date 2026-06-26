@@ -370,7 +370,7 @@ describe("DashboardPage operational polish", () => {
     expect(tableMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
         rowsOverride: summaryState.current.ordersRows,
-        scope: "dashboard",
+        scope: "orders",
       }),
     );
   });
@@ -964,7 +964,7 @@ describe("DashboardPage operational polish", () => {
         mode: undefined,
         role: "appraiser",
         rowsOverride: summaryState.current.ordersRows,
-        scope: "dashboard",
+        scope: "orders",
       }),
     );
   });
@@ -1025,7 +1025,7 @@ describe("DashboardPage operational polish", () => {
         mode: "reviewerQueue",
         reviewerId: "reviewer-1",
         rowsOverride: summaryState.current.ordersRows,
-        scope: "dashboard",
+        scope: "orders",
       }),
     );
 
@@ -1251,7 +1251,7 @@ describe("DashboardPage operational polish", () => {
         mode: "reviewerQueue",
         reviewerId: "owner-reviewer-1",
         rowsOverride: summaryState.current.ordersRows,
-        scope: "dashboard",
+        scope: "orders",
       }),
     );
   });

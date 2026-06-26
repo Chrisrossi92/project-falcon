@@ -353,6 +353,7 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
     loading: summaryLoading,
     tableFilters,
     ordersRows,
+    ordersRowsError,
     userId,
     appContext,
     reviewerHybridAppraisal,
@@ -494,6 +495,7 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
       (order) => normalizeOrderStatus(order?.status_normalized || order?.status) === statusFilter,
     );
   }, [patchedOrdersRows, statusFilter]);
+  const dashboardRowsOverride = ordersRowsError ? null : filteredOrdersRows;
   const amcDashboardOrderIds = useMemo(() => {
     if (!isAmcOperationsDashboard) return [];
     return [
@@ -807,9 +809,9 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
               reviewerId={selectedDashboardReviewerId}
               filters={appliedFilters}
               operationsScope={summary.operationsScope}
-              rowsOverride={filteredOrdersRows}
+              rowsOverride={dashboardRowsOverride}
               pageSize={10}
-              scope="dashboard"
+              scope="orders"
               onOrderDatesChanged={() => setDashboardRefreshKey((key) => key + 1)}
               onOrderChanged={handleDashboardOrderChanged}
             />

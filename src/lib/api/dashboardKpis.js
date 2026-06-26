@@ -1,7 +1,16 @@
 // src/lib/api/dashboardKpis.js
 import supabase from "@/lib/supabaseClient";
 
-const ACTIVE_VIEW = "v_orders_active_frontend_v4";
+const DASHBOARD_ORDERS_VIEW = "v_orders_frontend_v4";
+const DASHBOARD_ACTIVE_STATUSES = Object.freeze([
+  "new",
+  "in_progress",
+  "in_review",
+  "needs_revisions",
+  "review_cleared",
+  "pending_final_approval",
+  "ready_for_client",
+]);
 const REPORT_WRITING_STATUSES = ["new", "in_progress", "needs_revisions"];
 const KPI_ROW_LIMIT = 2000;
 
@@ -50,7 +59,7 @@ function hasPastSiteVisit(order, nowIso) {
 
 async function fetchActiveRowsWithScope(scope) {
   let q = supabase
-    .from(ACTIVE_VIEW)
+    .from(DASHBOARD_ORDERS_VIEW)
     .select(
       "id,status,final_due_date,final_due_at,due_date,site_visit_date,site_visit_at,operations_scope,appraiser_id,reviewer_id,client_id",
       { count: "exact" },
@@ -67,7 +76,7 @@ export async function fetchDashboardKpis(scope = {}) {
     reviewerId: scope.reviewerId || null,
     appraiserId: scope.appraiserId || null,
     clientId: scope.clientId || scope.managingAmcId || null,
-    statusIn: scope.statusIn || [],
+    statusIn: scope.statusIn?.length ? scope.statusIn : DASHBOARD_ACTIVE_STATUSES,
     operationsScope: scope.operationsScope || null,
   };
 
