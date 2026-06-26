@@ -6,6 +6,8 @@ import { readOrderVendorBidInvitation, submitOrderVendorBidInvitation } from "@/
 const unavailableTitle = "This bid invitation is unavailable.";
 const unavailableMessage =
   "The link may be expired, revoked, already submitted, or no longer open. Contact the AMC coordinator for a new invitation.";
+const expiredTitle = "This bid invitation has expired.";
+const expiredMessage = "Please contact the assigning office if you believe this is an error.";
 
 function formatDateTime(value) {
   if (!value) return "Not provided";
@@ -92,6 +94,19 @@ function UnavailableState() {
   );
 }
 
+function ExpiredState() {
+  return (
+    <PublicShell>
+      <div className="mx-auto flex min-h-[50vh] max-w-lg items-center">
+        <section className="w-full rounded-lg border border-amber-200 bg-white p-6 shadow-sm">
+          <div className="text-lg font-semibold text-slate-950">{expiredTitle}</div>
+          <p className="mt-3 text-sm leading-6 text-slate-600">{expiredMessage}</p>
+        </section>
+      </div>
+    </PublicShell>
+  );
+}
+
 function DetailItem({ label, value }) {
   return (
     <div>
@@ -120,7 +135,7 @@ function FieldError({ errors, name }) {
 function SubmittedConfirmation({ result }) {
   return (
     <section className="rounded-lg border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
-      <div className="text-base font-semibold text-emerald-950">Your bid has been submitted.</div>
+      <div className="text-base font-semibold text-emerald-950">Thank you for submitting your bid.</div>
       {result?.submitted_at && (
         <p className="mt-2 text-sm leading-6 text-emerald-800">Submitted {formatDateTime(result.submitted_at)}</p>
       )}
@@ -129,6 +144,21 @@ function SubmittedConfirmation({ result }) {
       </p>
     </section>
   );
+}
+
+function isExpiredInvitation(payload = {}) {
+  const invitation = payload.invitation || {};
+  const status = String(invitation.status || payload.status || "").trim().toLowerCase();
+
+  if (status === "expired" || status === "bid_invitation_expired") return true;
+
+  const expiresAt = invitation.expires_at || invitation.expiresAt || payload.expires_at || payload.expiresAt;
+  if (!expiresAt) return false;
+
+  const expiresAtDate = new Date(expiresAt);
+  if (Number.isNaN(expiresAtDate.getTime())) return false;
+
+  return expiresAtDate <= new Date();
 }
 
 function SubmitBidPanel({ token, vendor, onUnavailable }) {
@@ -439,7 +469,11 @@ export default function VendorBidInvitationPage() {
     readOrderVendorBidInvitation(token)
       .then((payload) => {
         if (cancelled) return;
-        setState({ status: payload?.ok ? "valid" : "unavailable", payload });
+        if (!payload?.ok) {
+          setState({ status: payload?.error === "bid_invitation_expired" ? "expired" : "unavailable", payload });
+          return;
+        }
+        setState({ status: isExpiredInvitation(payload) ? "expired" : "valid", payload });
       })
       .catch(() => {
         if (cancelled) return;
@@ -452,6 +486,7 @@ export default function VendorBidInvitationPage() {
   }, [token]);
 
   if (state.status === "loading") return <LoadingState />;
+  if (state.status === "expired") return <ExpiredState />;
   if (state.status !== "valid") return <UnavailableState />;
 
   return (

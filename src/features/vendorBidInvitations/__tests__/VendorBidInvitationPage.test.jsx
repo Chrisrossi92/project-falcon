@@ -37,7 +37,7 @@ const validPayload = {
   access_mode: "token_invitation",
   invitation: {
     status: "available_to_bid",
-    expires_at: "2026-06-05T16:00:00.000Z",
+    expires_at: "2026-07-05T16:00:00.000Z",
     sent_to_email: "vendor@example.test",
     can_submit: true,
     invitation_id: "hidden-invitation-id",
@@ -69,9 +69,9 @@ const validPayload = {
   },
   bid_request: {
     request_message: "Please provide fee and turn time.",
-    response_due_at: "2026-06-05T16:00:00.000Z",
-    desired_vendor_due_at: "2026-06-08T20:00:00.000Z",
-    client_due_at: "2026-06-10T20:00:00.000Z",
+    response_due_at: "2026-07-05T16:00:00.000Z",
+    desired_vendor_due_at: "2026-07-08T20:00:00.000Z",
+    client_due_at: "2026-07-10T20:00:00.000Z",
     status: "open",
     bid_request_id: "hidden-bid-request-id",
   },
@@ -117,6 +117,25 @@ describe("VendorBidInvitationPage", () => {
 
     expect(await screen.findByText("This bid invitation is unavailable.")).not.toBeNull();
     expect(screen.getByText(/The link may be expired, revoked, already submitted/)).not.toBeNull();
+  });
+
+  it("renders an expired state and hides submit when expiration data is expired", async () => {
+    apiMock.readOrderVendorBidInvitation.mockResolvedValue({
+      ...validPayload,
+      invitation: {
+        ...validPayload.invitation,
+        status: "expired",
+        expires_at: "2026-06-01T16:00:00.000Z",
+        can_submit: false,
+      },
+    });
+
+    renderPage();
+
+    expect(await screen.findByText("This bid invitation has expired.")).not.toBeNull();
+    expect(screen.getByText("Please contact the assigning office if you believe this is an error.")).not.toBeNull();
+    expect(screen.queryByRole("button", { name: "Submit Bid" })).toBeNull();
+    expect(apiMock.submitOrderVendorBidInvitation).not.toHaveBeenCalled();
   });
 
   it("renders the unavailable state for transport errors", async () => {
@@ -214,7 +233,7 @@ describe("VendorBidInvitationPage", () => {
       });
     });
 
-    expect(await screen.findByText("Your bid has been submitted.")).not.toBeNull();
+    expect(await screen.findByText("Thank you for submitting your bid.")).not.toBeNull();
     expect(screen.queryByRole("button", { name: "Submit Bid" })).toBeNull();
   });
 
@@ -232,7 +251,7 @@ describe("VendorBidInvitationPage", () => {
     expect((await screen.findByRole("button", { name: "Submitting..." })).disabled).toBe(true);
 
     deferred.resolve({ ok: true, submitted_at: "2026-06-03T16:00:00.000Z" });
-    expect(await screen.findByText("Your bid has been submitted.")).not.toBeNull();
+    expect(await screen.findByText("Thank you for submitting your bid.")).not.toBeNull();
   });
 
   it("shows backend field errors for invalid bid submission payloads", async () => {
