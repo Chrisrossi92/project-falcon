@@ -36,6 +36,27 @@ function ReadinessStatus({ status }) {
   );
 }
 
+function InsightStatus({ status }) {
+  const labels = {
+    ready: "Ready",
+    missing: "Missing",
+    warning: "Review",
+    info: "Info",
+  };
+  const classes = {
+    ready: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    missing: "border-amber-200 bg-amber-50 text-amber-700",
+    warning: "border-amber-200 bg-amber-50 text-amber-700",
+    info: "border-blue-200 bg-blue-50 text-blue-700",
+  };
+
+  return (
+    <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${classes[status] || classes.info}`}>
+      {labels[status] || "Info"}
+    </span>
+  );
+}
+
 function PackageReadinessChecklist({ items }) {
   return (
     <section className="rounded-md border border-slate-200 bg-white p-3" aria-label="Package Readiness">
@@ -60,6 +81,41 @@ function PackageReadinessChecklist({ items }) {
           </li>
         ))}
       </ul>
+    </section>
+  );
+}
+
+function AssignmentIntelligencePanel({ intelligence }) {
+  return (
+    <section className="rounded-md border border-slate-200 bg-white p-3" aria-label="Assignment Intelligence">
+      <div>
+        <h4 className="text-sm font-semibold text-slate-950">{intelligence.title}</h4>
+        <p className="mt-1 text-xs leading-5 text-slate-500">{intelligence.subtitle}</p>
+      </div>
+      <div className="mt-3 grid gap-2">
+        {intelligence.groups.map((group) => (
+          <section key={group.key} className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h5 className="text-sm font-semibold text-slate-900">{group.title}</h5>
+                <p className="mt-0.5 text-xs text-slate-500">{group.summary}</p>
+              </div>
+              <InsightStatus status={group.status} />
+            </div>
+            <ul className="mt-2 grid gap-1.5">
+              {group.items.map((item) => (
+                <li key={item.key} className="rounded-md bg-white px-2.5 py-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-xs font-semibold text-slate-700">{item.label}</span>
+                    <InsightStatus status={item.status} />
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">{item.reason}</p>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </div>
     </section>
   );
 }
@@ -206,6 +262,7 @@ export default function EngagementPackagePreview({
 
       <div className="mt-4 grid gap-3">
         <PackageReadinessChecklist items={model.readinessChecklist} />
+        <AssignmentIntelligencePanel intelligence={model.assignmentIntelligence} />
         <EngagementLetterPreview letter={model.letterPreview} />
         {model.sections.map((section) => (
           <EngagementPackageSection key={section.key} title={section.title} items={section.items} />

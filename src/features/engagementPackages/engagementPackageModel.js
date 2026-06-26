@@ -110,6 +110,12 @@ function formatDateTime(value) {
   }).format(date);
 }
 
+function parseDate(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 function formatMoney(amount, currency = "USD") {
   if (amount === null || amount === undefined || amount === "") return EMPTY_VALUE;
   const numericAmount = Number(amount);
@@ -315,6 +321,158 @@ function buildPackageReadinessChecklist({
   ];
 }
 
+function makeIntelligenceItem(key, label, status, reason) {
+  return {
+    key,
+    label,
+    status,
+    reason,
+  };
+}
+
+function buildAssignmentIntelligence({
+  order = {},
+  vendor = {},
+  assignmentDueAt,
+  documentSections = [],
+  readinessChecklist = [],
+} = {}) {
+  const readyCount = readinessChecklist.filter((item) => item.status === "ready").length;
+  const missingRequiredItems = readinessChecklist.filter((item) => item.status === "missing");
+  const companyGuidelines = documentsInSection(documentSections, "company-guidelines");
+  const clientDocuments = documentsInSection(documentSections, "client-documents");
+  const sourceDocuments = documentsInSection(documentSections, "property-source-documents");
+  const vendorName = firstPresent(vendor.vendor_company_name, vendor.company_name, vendor.name);
+  const clientDueAt = firstPresent(
+    order.client_due_at,
+    order.clientDueAt,
+    order.final_due_at,
+    order.expected_completion_date,
+    order.due_date,
+  );
+  const assignmentDueDate = parseDate(assignmentDueAt);
+  const clientDueDate = parseDate(clientDueAt);
+  const licenseExpiration = firstPresent(
+    vendor.license_expires_at,
+    vendor.license_expiration,
+    vendor.license_expiration_date,
+    vendor.appraiser_license_expires_at,
+  );
+  const insuranceExpiration = firstPresent(
+    vendor.eo_expires_at,
+    vendor.eo_expiration,
+    vendor.e_o_expiration,
+    vendor.insurance_expires_at,
+    vendor.insurance_expiration,
+  );
+  const credentialDetails = [
+    licenseExpiration ? `License expires ${formatDateTime(licenseExpiration)}` : null,
+    insuranceExpiration ? `E&O expires ${formatDateTime(insuranceExpiration)}` : null,
+  ].filter(Boolean);
+  const documentCount = companyGuidelines.length + clientDocuments.length + sourceDocuments.length;
+
+  let timelineStatus = "ready";
+  let timelineReason = `Vendor due date is set for ${formatDateTime(assignmentDueAt)}.`;
+  if (!assignmentDueAt) {
+    timelineStatus = "missing";
+    timelineReason = "Vendor due date is missing, so Falcon cannot compare assignment timing.";
+  } else if (assignmentDueDate && clientDueDate && assignmentDueDate > clientDueDate) {
+    timelineStatus = "warning";
+    timelineReason = `Vendor due date ${formatDateTime(assignmentDueAt)} is after the client expected date ${formatDateTime(clientDueAt)}.`;
+  } else if (assignmentDueDate && clientDueDate) {
+    timelineReason = `Vendor due date ${formatDateTime(assignmentDueAt)} is on or before the client expected date ${formatDateTime(clientDueAt)}.`;
+  } else {
+    timelineReason = `Vendor due date is set for ${formatDateTime(assignmentDueAt)}. Client expected date is not available in the current order data.`;
+  }
+
+  const packageHealthItems = missingRequiredItems.length > 0
+    ? missingRequiredItems.map((item) => makeIntelligenceItem(
+      item.key,
+      item.label,
+      "warning",
+      `${item.value}. This appears because the package readiness checklist does not have this required value.`,
+    ))
+    : [
+      makeIntelligenceItem(
+        "required-package-items",
+        "Required package items",
+        "ready",
+        "No required readiness gaps were found in the current package data.",
+      ),
+    ];
+
+  return {
+    title: "Assignment Intelligence",
+    subtitle: "Explainable, read-only checks from the current package preview data.",
+    groups: [
+      {
+        key: "package-health",
+        title: "Package Health",
+        status: missingRequiredItems.length > 0 ? "warning" : "ready",
+        summary: `${readyCount} of ${readinessChecklist.length} ready`,
+        items: packageHealthItems,
+      },
+      {
+        key: "timeline-risk",
+        title: "Timeline Risk",
+        status: timelineStatus,
+        summary: timelineStatus === "missing" ? "Missing due date" : timelineStatus === "warning" ? "Review timing" : "Low risk",
+        items: [
+          makeIntelligenceItem("vendor-due-date", "Vendor due date", timelineStatus, timelineReason),
+        ],
+      },
+      {
+        key: "vendor-readiness",
+        title: "Vendor Readiness",
+        status: vendorName ? "ready" : "missing",
+        summary: vendorName ? "Vendor selected" : "Missing vendor",
+        items: [
+          makeIntelligenceItem(
+            "vendor-selected",
+            "Vendor selected",
+            vendorName ? "ready" : "missing",
+            vendorName
+              ? `${vendorName} is selected for this offer.`
+              : "No vendor is selected, so Falcon cannot prepare a vendor-specific assignment package.",
+          ),
+          makeIntelligenceItem(
+            "credential-data",
+            "Credential data",
+            credentialDetails.length > 0 ? "ready" : "info",
+            credentialDetails.length > 0
+              ? credentialDetails.join(" · ")
+              : "Credential data not available yet in the current vendor candidate data.",
+          ),
+        ],
+      },
+      {
+        key: "package-documents",
+        title: "Package Documents",
+        status: companyGuidelines.length > 0 ? "ready" : "warning",
+        summary: `${documentCount} package document${documentCount === 1 ? "" : "s"}`,
+        items: [
+          makeIntelligenceItem(
+            "company-guidelines",
+            "Company guidelines",
+            companyGuidelines.length > 0 ? "ready" : "warning",
+            companyGuidelines.length > 0
+              ? `${companyGuidelines.length} company guideline document${companyGuidelines.length === 1 ? "" : "s"} loaded from package documents.`
+              : "No company guideline documents are loaded in the current package document groups.",
+          ),
+          makeIntelligenceItem(
+            "client-source-documents",
+            "Client/source documents",
+            clientDocuments.length + sourceDocuments.length > 0 ? "ready" : "info",
+            clientDocuments.length + sourceDocuments.length > 0
+              ? `${clientDocuments.length + sourceDocuments.length} client or source document${clientDocuments.length + sourceDocuments.length === 1 ? "" : "s"} loaded from package documents.`
+              : "No client or source documents are loaded in the current package document groups.",
+          ),
+        ],
+      },
+    ],
+  };
+}
+
 function makeSection(key, title, items) {
   return {
     key,
@@ -435,20 +593,28 @@ export function buildEngagementPackagePreviewModel({
     clientName,
     assignmentDueAt,
   });
+  const readinessChecklist = buildPackageReadinessChecklist({
+    order,
+    assignment,
+    vendor,
+    clientName,
+    assignmentDueAt,
+    documentSections,
+    letterPreview,
+  });
 
   return {
     title: "Engagement Package Preview",
     subtitle: "Read-only package foundation for the vendor assignment.",
     documents: ENGAGEMENT_PACKAGE_DOCUMENTS,
     letterPreview,
-    readinessChecklist: buildPackageReadinessChecklist({
+    readinessChecklist,
+    assignmentIntelligence: buildAssignmentIntelligence({
       order,
-      assignment,
       vendor,
-      clientName,
       assignmentDueAt,
       documentSections,
-      letterPreview,
+      readinessChecklist,
     }),
     sections: [
       makeSection("property-information", "Property Information", [

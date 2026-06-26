@@ -52,6 +52,7 @@ describe("EngagementPackagePreview", () => {
     expect(screen.getByLabelText("Engagement package preview")).toBeInTheDocument();
     expect(screen.getByLabelText("Engagement Letter Preview")).toBeInTheDocument();
     expect(screen.getByLabelText("Package Readiness")).toBeInTheDocument();
+    expect(screen.getByLabelText("Assignment Intelligence")).toBeInTheDocument();
     expect(screen.getByText("This checklist is informational and does not block assignment.")).toBeInTheDocument();
     expect(screen.getByText("Engagement Letter")).toBeInTheDocument();
     expect(screen.getByText("Assignment Summary")).toBeInTheDocument();
@@ -68,6 +69,95 @@ describe("EngagementPackagePreview", () => {
     expect(screen.getByText("As Is")).toBeInTheDocument();
     expect(screen.getByText("All Applicable")).toBeInTheDocument();
     expect(screen.getAllByText("Please confirm inspection availability.").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("renders assignment intelligence with package health, timeline, vendor, and document reasons", () => {
+    render(
+      <EngagementPackagePreview
+        order={{
+          order_number: "2026-100",
+          property_address: "12969 Eckel Junction Road",
+          client_name: "Ross Bank",
+          client_due_at: "2026-06-24T16:00:00Z",
+        }}
+        vendor={{
+          vendor_company_name: "ABC Valuation",
+        }}
+        assignment={{
+          dueAt: "2026-06-20T16:00:00Z",
+          feeAmount: 2500,
+          instructions: "Call before inspection.",
+        }}
+        attachments={[
+          {
+            id: "guidelines-1",
+            title: "Continental Vendor Guidelines.pdf",
+            category: "company_guidelines",
+          },
+          {
+            id: "source-1",
+            title: "Rent Roll.xlsx",
+            category: "source_documents",
+          },
+        ]}
+      />,
+    );
+
+    const intelligence = screen.getByLabelText("Assignment Intelligence");
+    expect(intelligence).toHaveTextContent("Explainable, read-only checks from the current package preview data.");
+    expect(intelligence).toHaveTextContent("Package Health");
+    expect(intelligence).toHaveTextContent("9 of 9 ready");
+    expect(intelligence).toHaveTextContent("No required readiness gaps were found in the current package data.");
+    expect(intelligence).toHaveTextContent("Timeline Risk");
+    expect(intelligence).toHaveTextContent("Low risk");
+    expect(intelligence).toHaveTextContent("is on or before the client expected date");
+    expect(intelligence).toHaveTextContent("Vendor Readiness");
+    expect(intelligence).toHaveTextContent("ABC Valuation is selected for this offer.");
+    expect(intelligence).toHaveTextContent("Credential data not available yet in the current vendor candidate data.");
+    expect(intelligence).toHaveTextContent("Package Documents");
+    expect(intelligence).toHaveTextContent("2 package documents");
+    expect(intelligence).toHaveTextContent("1 company guideline document loaded from package documents.");
+    expect(intelligence).toHaveTextContent("1 client or source document loaded from package documents.");
+  });
+
+  it("explains missing assignment intelligence items without disabling preview content", () => {
+    render(<EngagementPackagePreview order={{ property_address: "100 Main Street" }} />);
+
+    const intelligence = screen.getByLabelText("Assignment Intelligence");
+    expect(intelligence).toHaveTextContent("Package Health");
+    expect(intelligence).toHaveTextContent("2 of 9 ready");
+    expect(intelligence).toHaveTextContent("Missing client name");
+    expect(intelligence).toHaveTextContent("This appears because the package readiness checklist does not have this required value.");
+    expect(intelligence).toHaveTextContent("Timeline Risk");
+    expect(intelligence).toHaveTextContent("Missing due date");
+    expect(intelligence).toHaveTextContent("Vendor due date is missing, so Falcon cannot compare assignment timing.");
+    expect(intelligence).toHaveTextContent("Vendor Readiness");
+    expect(intelligence).toHaveTextContent("Missing vendor");
+    expect(intelligence).toHaveTextContent("No vendor is selected, so Falcon cannot prepare a vendor-specific assignment package.");
+    expect(intelligence).toHaveTextContent("No company guideline documents are loaded in the current package document groups.");
+    expect(intelligence).toHaveTextContent("No client or source documents are loaded in the current package document groups.");
+    expect(screen.getByLabelText("Engagement Letter Preview")).toBeInTheDocument();
+  });
+
+  it("warns when vendor due date is after the client expected date", () => {
+    render(
+      <EngagementPackagePreview
+        order={{
+          property_address: "100 Main Street",
+          client_name: "Ross Bank",
+          client_due_at: "2026-06-20T16:00:00Z",
+        }}
+        vendor={{ vendor_company_name: "ABC Valuation" }}
+        assignment={{
+          dueAt: "2026-06-24T16:00:00Z",
+          feeAmount: 2500,
+        }}
+      />,
+    );
+
+    const intelligence = screen.getByLabelText("Assignment Intelligence");
+    expect(intelligence).toHaveTextContent("Review timing");
+    expect(intelligence).toHaveTextContent("is after the client expected date");
   });
 
   it("renders readiness states from available package data", () => {
@@ -245,6 +335,22 @@ describe("EngagementPackagePreview", () => {
         expect.objectContaining({
           key: "client-source-documents",
           status: "ready",
+        }),
+      ]),
+    );
+    expect(model.assignmentIntelligence.groups).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: "package-health",
+          summary: "4 of 9 ready",
+        }),
+        expect.objectContaining({
+          key: "timeline-risk",
+          status: "missing",
+        }),
+        expect.objectContaining({
+          key: "package-documents",
+          summary: "1 package document",
         }),
       ]),
     );

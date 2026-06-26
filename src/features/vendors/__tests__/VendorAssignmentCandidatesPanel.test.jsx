@@ -540,6 +540,7 @@ describe("VendorAssignmentCandidatesPanel", () => {
     expect(within(dialog).getByText("The vendor still needs to accept before work is considered assigned.")).toBeInTheDocument();
     expect(within(dialog).getByLabelText("Engagement package preview")).toBeInTheDocument();
     expect(within(dialog).getByLabelText("Package Readiness")).toHaveTextContent("This checklist is informational and does not block assignment.");
+    expect(within(dialog).getByLabelText("Assignment Intelligence")).toHaveTextContent("Explainable, read-only checks from the current package preview data.");
     expect(within(dialog).getByText("Engagement Letter")).toBeInTheDocument();
     expect(within(dialog).getByText("Assignment Summary")).toBeInTheDocument();
     expect(within(dialog).getAllByText("Company Guidelines").length).toBeGreaterThanOrEqual(1);
