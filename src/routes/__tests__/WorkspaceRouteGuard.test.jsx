@@ -88,6 +88,7 @@ function renderWorkspaceRoutes(initialPath) {
           }
         />
         <Route path="/dashboard" element={<LocationProbe />} />
+        <Route path="/amc/dashboard" element={<LocationProbe />} />
         <Route path="/client-portal" element={<LocationProbe />} />
       </Routes>
     </MemoryRouter>,
@@ -109,7 +110,7 @@ describe("WorkspaceRouteGuard", () => {
     renderWorkspaceRoutes("/users");
 
     expect(screen.queryByTestId("internal-route")).toBeNull();
-    expect(screen.getByTestId("location")).toHaveTextContent("/dashboard");
+    expect(screen.getByTestId("location")).toHaveTextContent("/amc/dashboard");
     expect(screen.getByTestId("navigation-type")).toHaveTextContent("REPLACE");
     expect(screen.getByTestId("redirect-state")).toHaveTextContent('"expectedWorkspace":"internal"');
     expect(screen.getByTestId("redirect-state")).toHaveTextContent('"selectedWorkspace":"amc"');
@@ -131,7 +132,7 @@ describe("WorkspaceRouteGuard", () => {
     renderWorkspaceRoutes("/users");
 
     expect(screen.queryByText("Users")).not.toBeInTheDocument();
-    expect(screen.getByTestId("location")).toHaveTextContent("/dashboard");
+    expect(screen.getByTestId("location")).toHaveTextContent("/amc/dashboard");
   });
 
   it("does not render an unsupported workspace-owned page from an operations context", () => {

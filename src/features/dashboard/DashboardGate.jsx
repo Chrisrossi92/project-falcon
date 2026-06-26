@@ -7,7 +7,10 @@ import { AssignmentState, LoadingState } from "@/features/assignments/Assignment
 import { useEffectivePermissions } from "@/lib/hooks/usePermissions";
 import { useOperationsMode } from "@/lib/operations/OperationsModeProvider";
 import { OPERATIONS_MODES } from "@/lib/operations/operationsMode";
-import { isClientOnlyPortalAccess } from "@/lib/permissions/clientPortalAccess";
+import {
+  isClientOnlyPortalAccess,
+  isVendorOnlyPortalAccess,
+} from "@/lib/permissions/clientPortalAccess";
 import { useShellProfile } from "@/lib/shell/useShellProfile";
 import {
   CURRENT_DASHBOARD_RESOLUTION_STATES,
@@ -31,7 +34,10 @@ export default function DashboardGate() {
   const routeOperationsMode = resolveDashboardOperationsModeForRoute(location.pathname, operationsMode);
 
   useEffect(() => {
-    if (location.pathname === "/dashboard" && operationsMode !== routeOperationsMode) {
+    if (
+      ["/dashboard", "/amc/dashboard"].includes(location.pathname)
+      && operationsMode !== routeOperationsMode
+    ) {
       setOperationsMode(routeOperationsMode);
     }
   }, [location.pathname, operationsMode, routeOperationsMode, setOperationsMode]);
@@ -49,6 +55,10 @@ export default function DashboardGate() {
 
   if (isClientOnlyPortalAccess(permissions.permissionKeys)) {
     return <Navigate to="/client-portal" replace />;
+  }
+
+  if (isVendorOnlyPortalAccess(permissions.permissionKeys)) {
+    return <Navigate to="/vendor-workspace/dashboard" replace />;
   }
 
   if (dashboardResolution.state === CURRENT_DASHBOARD_RESOLUTION_STATES.ORDER_DASHBOARD) {

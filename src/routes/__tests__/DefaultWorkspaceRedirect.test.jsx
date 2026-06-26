@@ -53,6 +53,7 @@ function renderRedirect() {
         <Route path="/" element={<DefaultWorkspaceRedirect />} />
         <Route path="/dashboard" element={<LocationProbe />} />
         <Route path="/client-portal" element={<LocationProbe />} />
+        <Route path="/vendor-workspace/dashboard" element={<LocationProbe />} />
         <Route path="/my-work" element={<LocationProbe />} />
       </Routes>
     </MemoryRouter>,
@@ -106,6 +107,18 @@ describe("DefaultWorkspaceRedirect", () => {
     renderRedirect();
 
     expect(screen.getByTestId("location")).toHaveTextContent("/client-portal");
+  });
+
+  it("routes vendor-only portal users to the Vendor Workspace by default", () => {
+    permissionState.permissionKeys = [
+      PERMISSIONS.VENDOR_WORKSPACE_VIEW,
+      PERMISSIONS.VENDOR_ASSIGNMENTS_READ,
+      PERMISSIONS.VENDOR_PROFILE_READ,
+    ];
+
+    renderRedirect();
+
+    expect(screen.getByTestId("location")).toHaveTextContent("/vendor-workspace/dashboard");
   });
 
   it("keeps users with operational and client access on the operational default", () => {

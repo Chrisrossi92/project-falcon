@@ -130,6 +130,12 @@ const openMobileNav = (container) => {
   return navs[navs.length - 1];
 };
 
+const mobileWorkspaceLauncherLinks = (mobileNav) =>
+  within(mobileNav).getAllByRole("link").slice(0, 4);
+
+const mobileNavigationLinks = (mobileNav) =>
+  within(mobileNav).getAllByRole("link").slice(4);
+
 describe("TopNav desktop operational spine navigation", () => {
   beforeEach(() => {
     window.localStorage.clear();
@@ -167,6 +173,38 @@ describe("TopNav desktop operational spine navigation", () => {
     );
     expect(container.querySelector('aside [data-testid="workspace-identity-title"]')).toHaveTextContent(
       "Continental Internal Operations",
+    );
+  });
+
+  it("renders workspace launcher links and switches to Falcon AMC before opening its dashboard", () => {
+    shellProfileState.appContext = { is_owner: true };
+    permissionState.allowed = new Set([PERMISSIONS.VENDORS_READ]);
+    const { container } = renderTopNav();
+    const launcher = container.querySelector('aside [aria-label="Workspace launcher"]');
+
+    expect(within(launcher).getByRole("link", { name: "Internal Operations" })).toHaveAttribute(
+      "href",
+      "/dashboard",
+    );
+    expect(within(launcher).getByRole("link", { name: "Falcon AMC" })).toHaveAttribute(
+      "href",
+      "/amc/dashboard",
+    );
+    expect(within(launcher).getByRole("link", { name: "Client Portal" })).toHaveAttribute(
+      "href",
+      "/client-portal",
+    );
+    expect(within(launcher).getByRole("link", { name: "Vendor Workspace" })).toHaveAttribute(
+      "href",
+      "/vendor-workspace/dashboard",
+    );
+
+    fireEvent.click(within(launcher).getByRole("link", { name: "Falcon AMC" }));
+
+    expect(window.localStorage.getItem(OPERATIONS_MODE_STORAGE_KEY)).toBe("amc_operations");
+    expect(within(launcher).getByRole("link", { name: "Falcon AMC" })).toHaveAttribute(
+      "href",
+      "/amc/dashboard",
     );
   });
 
@@ -538,6 +576,10 @@ describe("TopNav desktop operational spine navigation", () => {
     const links = within(mobileNav).getAllByRole("link");
 
     expect(links.map((link) => link.textContent)).toEqual([
+      "Internal Operations",
+      "Falcon AMC",
+      "Client Portal",
+      "Vendor Workspace",
       "Procurement",
       "Assignment Oversight",
       "Vendor Network",
@@ -545,6 +587,10 @@ describe("TopNav desktop operational spine navigation", () => {
       "Settings",
     ]);
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "/dashboard",
+      "/amc/dashboard",
+      "/client-portal",
+      "/vendor-workspace/dashboard",
       "/orders",
       "/calendar",
       "/vendors",
@@ -827,7 +873,14 @@ describe("TopNav desktop operational spine navigation", () => {
 
     const { container } = renderTopNav();
     const mobileNav = openMobileNav(container);
-    const links = within(mobileNav).getAllByRole("link");
+    const links = mobileNavigationLinks(mobileNav);
+
+    expect(mobileWorkspaceLauncherLinks(mobileNav).map((link) => link.textContent)).toEqual([
+      "Internal Operations",
+      "Falcon AMC",
+      "Client Portal",
+      "Vendor Workspace",
+    ]);
 
     expect(links.map((link) => link.textContent)).toEqual([
       "Client Orders",
@@ -854,7 +907,7 @@ describe("TopNav desktop operational spine navigation", () => {
 
     const { container } = renderTopNav();
     const mobileNav = openMobileNav(container);
-    const links = within(mobileNav).getAllByRole("link");
+    const links = mobileNavigationLinks(mobileNav);
 
     expect(links.map((link) => link.textContent)).toEqual([
       "My Work",
@@ -876,7 +929,7 @@ describe("TopNav desktop operational spine navigation", () => {
 
     const { container } = renderTopNav();
     const mobileNav = openMobileNav(container);
-    const links = within(mobileNav).getAllByRole("link");
+    const links = mobileNavigationLinks(mobileNav);
 
     expect(links.map((link) => link.textContent)).toEqual([
       "Staff Assignments",
@@ -904,7 +957,7 @@ describe("TopNav desktop operational spine navigation", () => {
 
     const { container } = renderTopNav();
     const mobileNav = openMobileNav(container);
-    const links = within(mobileNav).getAllByRole("link");
+    const links = mobileNavigationLinks(mobileNav);
 
     expect(links.map((link) => link.textContent)).toEqual([
       "Client Orders",

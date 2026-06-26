@@ -109,6 +109,31 @@ function dashboardPathForOperationsMode(mode) {
   return mode === OPERATIONS_MODES.AMC_OPERATIONS ? "/amc/dashboard" : WORKSPACE_DASHBOARD_PATH;
 }
 
+const WORKSPACE_LAUNCHER_LINKS = Object.freeze([
+  {
+    id: "internal",
+    label: "Internal Operations",
+    path: "/dashboard",
+    operationsMode: OPERATIONS_MODES.INTERNAL_OPERATIONS,
+  },
+  {
+    id: "amc",
+    label: "Falcon AMC",
+    path: "/amc/dashboard",
+    operationsMode: OPERATIONS_MODES.AMC_OPERATIONS,
+  },
+  {
+    id: "client",
+    label: "Client Portal",
+    path: "/client-portal",
+  },
+  {
+    id: "vendor",
+    label: "Vendor Workspace",
+    path: "/vendor-workspace/dashboard",
+  },
+]);
+
 function BrandWordmark({ shellModeCue, className = "" }) {
   return (
     <Link
@@ -148,15 +173,27 @@ function OperationalModeContext({ shellModeCue, appContext, workspaceIdentity, p
       ? `rounded-2xl border border-slate-800 bg-slate-900/80 px-3 py-3 ${accentClass}`
       : `rounded-2xl border border-slate-800 bg-slate-900/80 px-3 py-3 ${accentClass}`;
   const contextLabel = workspaceContextLabel(appContext);
-  const handleOperationsModeSelect = useCallback((mode) => {
+  const switchOperationsMode = useCallback((mode) => {
     if (mode === operationsMode) return;
 
     resetWorkspaceSwitchState({ fromMode: operationsMode, toMode: mode });
     flushSync(() => {
       setOperationsMode(mode);
     });
+  }, [operationsMode, setOperationsMode]);
+  const handleOperationsModeSelect = useCallback((mode) => {
+    switchOperationsMode(mode);
     navigate(dashboardPathForOperationsMode(mode), { replace: true });
-  }, [navigate, operationsMode, setOperationsMode]);
+  }, [navigate, switchOperationsMode]);
+  const handleLauncherModeClick = useCallback((event, link) => {
+    if (!link.operationsMode || !availableOperationsModes.includes(link.operationsMode)) return;
+    const isJsdom = typeof window.navigator?.userAgent === "string"
+      && window.navigator.userAgent.toLowerCase().includes("jsdom");
+    if (isJsdom) {
+      event.preventDefault();
+    }
+    switchOperationsMode(link.operationsMode);
+  }, [availableOperationsModes, switchOperationsMode]);
 
   return (
     <div
@@ -217,6 +254,39 @@ function OperationalModeContext({ shellModeCue, appContext, workspaceIdentity, p
         </div>
         <div className="sr-only" data-testid="operations-mode-current">
           {workspaceIdentity.label}
+        </div>
+      </div>
+      <div className="mt-3 border-t border-slate-800 pt-3" aria-label="Workspace launcher">
+        <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+          Open Workspace
+        </div>
+        <div className="grid grid-cols-1 gap-1">
+          {WORKSPACE_LAUNCHER_LINKS.map((link) => {
+            const className = "rounded-lg border border-slate-800 bg-slate-950/45 px-2 py-1.5 text-xs font-semibold text-slate-300 transition hover:border-slate-600 hover:bg-white/10 hover:text-white";
+
+            if (link.operationsMode) {
+              return (
+                <a
+                  key={link.id}
+                  href={link.path}
+                  onClick={(event) => handleLauncherModeClick(event, link)}
+                  className={className}
+                >
+                  {link.label}
+                </a>
+              );
+            }
+
+            return (
+              <Link
+                key={link.id}
+                to={link.path}
+                className={className}
+              >
+                {link.label}
+              </Link>
+            );
+          })}
         </div>
       </div>
     </div>

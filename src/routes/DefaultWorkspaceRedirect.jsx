@@ -2,7 +2,10 @@ import { Navigate } from "react-router-dom";
 
 import { useEffectivePermissions } from "@/lib/hooks/usePermissions";
 import { PERMISSIONS } from "@/lib/permissions/constants";
-import { isClientOnlyPortalAccess } from "@/lib/permissions/clientPortalAccess";
+import {
+  isClientOnlyPortalAccess,
+  isVendorOnlyPortalAccess,
+} from "@/lib/permissions/clientPortalAccess";
 import { useShellProfile } from "@/lib/shell/useShellProfile";
 
 export default function DefaultWorkspaceRedirect() {
@@ -20,6 +23,10 @@ export default function DefaultWorkspaceRedirect() {
 
   if (isClientOnlyPortalAccess(permissions.permissionKeys)) {
     return <Navigate to="/client-portal" replace />;
+  }
+
+  if (isVendorOnlyPortalAccess(permissions.permissionKeys)) {
+    return <Navigate to="/vendor-workspace/dashboard" replace />;
   }
 
   if (shellProfileId === "my_work" && canReadOrders) {

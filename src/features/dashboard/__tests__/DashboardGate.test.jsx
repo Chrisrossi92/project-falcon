@@ -95,6 +95,7 @@ function renderDashboardGateInRouter() {
         <Routes>
           <Route path="/dashboard" element={<DashboardGate />} />
           <Route path="/client-portal" element={<LocationProbe />} />
+          <Route path="/vendor-workspace/dashboard" element={<LocationProbe />} />
           <Route path="/my-work" element={<LocationProbe />} />
         </Routes>
       </OperationsModeProvider>
@@ -289,6 +290,21 @@ describe("DashboardGate current dashboard resolution helper migration", () => {
     renderDashboardGateInRouter();
 
     expect(screen.getByTestId("location")).toHaveTextContent("/client-portal");
+    expect(screen.queryByTestId("order-dashboard")).toBeNull();
+    expect(screen.queryByTestId("assignment-dashboard")).toBeNull();
+    expect(screen.queryByTestId("assignment-state")).toBeNull();
+  });
+
+  it("redirects vendor-only portal users away from Operations Dashboard", () => {
+    permissionState.permissionKeys = [
+      PERMISSIONS.VENDOR_WORKSPACE_VIEW,
+      PERMISSIONS.VENDOR_ASSIGNMENTS_READ,
+      PERMISSIONS.VENDOR_PROFILE_READ,
+    ];
+
+    renderDashboardGateInRouter();
+
+    expect(screen.getByTestId("location")).toHaveTextContent("/vendor-workspace/dashboard");
     expect(screen.queryByTestId("order-dashboard")).toBeNull();
     expect(screen.queryByTestId("assignment-dashboard")).toBeNull();
     expect(screen.queryByTestId("assignment-state")).toBeNull();

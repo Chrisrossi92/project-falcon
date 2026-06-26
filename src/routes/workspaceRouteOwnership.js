@@ -10,7 +10,7 @@ export const ROUTE_WORKSPACES = Object.freeze({
 
 export const ROUTE_WORKSPACE_DASHBOARDS = Object.freeze({
   [ROUTE_WORKSPACES.INTERNAL]: "/dashboard",
-  [ROUTE_WORKSPACES.AMC]: "/dashboard",
+  [ROUTE_WORKSPACES.AMC]: "/amc/dashboard",
   [ROUTE_WORKSPACES.VENDOR]: "/vendor-workspace/dashboard",
   [ROUTE_WORKSPACES.CLIENT]: "/client-portal",
   [ROUTE_WORKSPACES.PUBLIC]: "/",
@@ -34,6 +34,14 @@ export function getRouteWorkspaceForOperationsMode(operationsMode) {
 
 export function isRouteWorkspaceAllowed(routeWorkspace, operationsMode) {
   if (!routeWorkspace || routeWorkspace === ROUTE_WORKSPACES.PUBLIC) return true;
+  const explicitDashboardPath = typeof window !== "undefined" ? window.location?.pathname : null;
+  if (routeWorkspace === ROUTE_WORKSPACES.INTERNAL && explicitDashboardPath === "/dashboard") {
+    return true;
+  }
+  if (routeWorkspace === ROUTE_WORKSPACES.AMC && explicitDashboardPath === "/amc/dashboard") {
+    return true;
+  }
+
   if (Array.isArray(routeWorkspace)) {
     return routeWorkspace.includes(getRouteWorkspaceForOperationsMode(operationsMode));
   }
