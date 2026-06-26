@@ -33,6 +33,7 @@ import VendorMyBidsPage from "@/features/vendorWorkspace/VendorMyBidsPage";
 import VendorPaymentsPage from "@/features/vendorWorkspace/VendorPaymentsPage";
 import VendorWorkspaceProfilePage from "@/features/vendorWorkspace/VendorProfilePage";
 import VendorWorkspaceDashboard from "@/features/vendorWorkspace/VendorWorkspaceDashboard";
+import VendorWorkspacePlaceholderPage from "@/features/vendorWorkspace/VendorWorkspacePlaceholderPage";
 import Orders from "@/pages/orders/Orders";
 import HistoricalOrders from "@/pages/orders/HistoricalOrders";
 import NewOrder from "@/pages/NewOrder";
@@ -98,6 +99,9 @@ export default function AppRoutes() {
         <Route path="/vendor-workspace/my-bids" element={<VendorMyBidsPage />} />
         <Route path="/vendor-workspace/assigned-orders" element={<VendorAssignedOrdersPage />} />
         <Route path="/vendor-workspace/assigned-orders/:assignmentWorkKey" element={<VendorAssignedOrderDetailPage />} />
+        <Route path="/vendor-workspace/historical-assignments" element={<VendorWorkspacePlaceholderPage page="historicalAssignments" />} />
+        <Route path="/vendor-workspace/documents" element={<VendorWorkspacePlaceholderPage page="documents" />} />
+        <Route path="/vendor-workspace/credentials" element={<VendorWorkspacePlaceholderPage page="credentials" />} />
         <Route path="/vendor-workspace/payments" element={<VendorPaymentsPage />} />
         <Route path="/vendor-workspace/profile" element={<VendorWorkspaceProfilePage />} />
       </Route>

@@ -102,6 +102,7 @@ const { default: VendorMyBidsPage } = await import("../VendorMyBidsPage.jsx");
 const { default: VendorPaymentsPage } = await import("../VendorPaymentsPage.jsx");
 const { default: VendorProfilePage } = await import("../VendorProfilePage.jsx");
 const { default: VendorWorkspaceDashboard } = await import("../VendorWorkspaceDashboard.jsx");
+const { default: VendorWorkspacePlaceholderPage } = await import("../VendorWorkspacePlaceholderPage.jsx");
 
 const availableWorkDetailSource = readFileSync(
   resolve(process.cwd(), "src/features/vendorWorkspace/VendorAvailableWorkDetailPage.jsx"),
@@ -934,6 +935,12 @@ function renderVendorWorkspace(path = "/vendor-workspace/dashboard") {
           <Route path="/vendor-workspace/my-bids" element={<VendorMyBidsPage />} />
           <Route path="/vendor-workspace/payments" element={<VendorPaymentsPage />} />
           <Route path="/vendor-workspace/profile" element={<VendorProfilePage />} />
+          <Route
+            path="/vendor-workspace/historical-assignments"
+            element={<VendorWorkspacePlaceholderPage page="historicalAssignments" />}
+          />
+          <Route path="/vendor-workspace/documents" element={<VendorWorkspacePlaceholderPage page="documents" />} />
+          <Route path="/vendor-workspace/credentials" element={<VendorWorkspacePlaceholderPage page="credentials" />} />
           <Route path="/vendor-workspace/assigned-orders" element={<VendorAssignedOrdersPage />} />
           <Route
             path="/vendor-workspace/assigned-orders/:assignmentWorkKey"
@@ -1240,7 +1247,7 @@ describe("Vendor Workspace hidden shell", () => {
     ).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Next actions" })).toBeInTheDocument();
     expect(apiMock.fetchVendorWorkspaceDashboardSummary).toHaveBeenCalledTimes(1);
-    expect(screen.getAllByText("Available Work").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Available Work / Bids").length).toBeGreaterThan(0);
     expect(screen.getByText("Submitted Bids")).toBeInTheDocument();
     expect(screen.getByText("Assignment Offers")).toBeInTheDocument();
     expect(screen.getAllByText("Assignments").length).toBeGreaterThan(0);
@@ -1248,6 +1255,38 @@ describe("Vendor Workspace hidden shell", () => {
     expect(screen.getByText("Needs Attention")).toBeInTheDocument();
     expect(container.querySelector('[data-testid="operations-mode-switcher"]')).toBeNull();
     expect(screen.queryByText("Operations Command")).toBeNull();
+    expect(screen.getByRole("navigation", { name: "Vendor workspace sections" })).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "Vendor workspace mobile sections" })).toBeInTheDocument();
+    expect(screen.getAllByRole("img", { name: "Falcon" })).toHaveLength(2);
+    expect(screen.getByText("Assignments, coverage, and credentials")).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "Dashboard" })[0]).toHaveAttribute(
+      "href",
+      "/vendor-workspace/dashboard",
+    );
+    expect(screen.getAllByRole("link", { name: "Current Assignments" })[0]).toHaveAttribute(
+      "href",
+      "/vendor-workspace/assigned-orders",
+    );
+    expect(screen.getAllByRole("link", { name: "Historical Assignments" })[0]).toHaveAttribute(
+      "href",
+      "/vendor-workspace/historical-assignments",
+    );
+    expect(screen.getAllByRole("link", { name: "Documents" })[0]).toHaveAttribute(
+      "href",
+      "/vendor-workspace/documents",
+    );
+    expect(screen.getAllByRole("link", { name: "Credentials" })[0]).toHaveAttribute(
+      "href",
+      "/vendor-workspace/credentials",
+    );
+    expect(screen.getAllByRole("link", { name: "Coverage/Profile" })[0]).toHaveAttribute(
+      "href",
+      "/vendor-workspace/profile",
+    );
+    expect(screen.queryByRole("link", { name: "Client Portal" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Internal Operations" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Falcon AMC" })).toBeNull();
+    expect(screen.queryByText("Open Workspace")).toBeNull();
   });
 
   it("shows the signed-in vendor email and signs out from the Vendor Workspace shell", async () => {
@@ -1294,18 +1333,13 @@ describe("Vendor Workspace hidden shell", () => {
     expect(container.querySelector('a[href^="/orders"]')).toBeNull();
     expect(container.querySelector('a[href^="/vendors"]')).toBeNull();
     expect(container.querySelector('a[href^="/clients"]')).toBeNull();
-    expect(screen.getByRole("link", { name: "Bids" })).toHaveAttribute(
-      "href",
-      "/vendor-workspace/my-bids",
-    );
-    expect(screen.getByRole("link", { name: "Assignments" })).toHaveAttribute(
+    expect(screen.getAllByRole("link", { name: "Current Assignments" })[0]).toHaveAttribute(
       "href",
       "/vendor-workspace/assigned-orders",
     );
-    expect(screen.getByRole("link", { name: "Payments" })).toHaveAttribute(
-      "href",
-      "/vendor-workspace/payments",
-    );
+    expect(screen.queryByRole("link", { name: "Client Portal" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Internal Operations" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Falcon AMC" })).toBeNull();
     expect(container.querySelector('a[href="/vendor-workspace/assigned-orders"]')).not.toBeNull();
   });
 
@@ -1953,6 +1987,20 @@ describe("Vendor Workspace hidden shell", () => {
       expect(screen.queryByText(hiddenText)).toBeNull();
     });
     expect(container.querySelector('a[href^="/orders"]')).toBeNull();
+  });
+
+  it("renders read-only placeholder sections for future vendor workspace areas", async () => {
+    renderVendorWorkspace("/vendor-workspace/documents");
+
+    expect(await screen.findByRole("heading", { name: "Documents" })).toBeInTheDocument();
+    expect(screen.getByText("Vendor-safe assignment documents, report packages, and shared files will be organized here in a future workspace slice.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Back to Dashboard" })).toHaveAttribute(
+      "href",
+      "/vendor-workspace/dashboard",
+    );
+    expect(screen.queryByRole("link", { name: "Client Portal" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Internal Operations" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Falcon AMC" })).toBeNull();
   });
 
   it("keeps inaccessible assigned order documents as metadata with a local unavailable state", async () => {
@@ -2832,33 +2880,39 @@ describe("Vendor Workspace hidden shell", () => {
     async (path) => {
       renderVendorRouteIsolation(path);
 
-      expect(await screen.findByTestId("location")).toHaveTextContent("/dashboard");
-      expect(screen.getByText("Dashboard unavailable")).toBeInTheDocument();
+      expect(await screen.findByRole("heading", { name: "Your work queue" })).toBeInTheDocument();
+      expect(screen.getAllByRole("link", { name: "Dashboard" })[0]).toHaveAttribute(
+        "href",
+        "/vendor-workspace/dashboard",
+      );
       expect(screen.queryByTestId("internal-orders-data")).toBeNull();
       expect(screen.queryByTestId("internal-order-detail-data")).toBeNull();
       expect(screen.queryByText("Internal / AMC orders data")).toBeNull();
       expect(screen.queryByText("Internal / AMC order detail data")).toBeNull();
-      expect(screen.queryByRole("heading", { name: "Vendor Workspace" })).toBeNull();
-      expect(apiMock.fetchVendorWorkspaceDashboardSummary).not.toHaveBeenCalled();
+      expect(screen.queryByRole("link", { name: "Internal Operations" })).toBeNull();
+      expect(screen.queryByRole("link", { name: "Falcon AMC" })).toBeNull();
     },
   );
 
   it("renders a safe unavailable dashboard for vendor direct navigation to /dashboard", async () => {
     renderVendorRouteIsolation("/dashboard");
 
-    expect(await screen.findByTestId("location")).toHaveTextContent("/dashboard");
-    expect(screen.getByText("Dashboard unavailable")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Your work queue" })).toBeInTheDocument();
     expect(screen.queryByTestId("internal-orders-data")).toBeNull();
     expect(screen.queryByTestId("internal-order-detail-data")).toBeNull();
     expect(screen.queryByRole("heading", { name: "Operations Dashboard" })).toBeNull();
-    expect(screen.queryByRole("heading", { name: "Vendor Workspace" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Internal Operations" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Falcon AMC" })).toBeNull();
   });
 
   it("keeps Vendor Workspace routes usable after internal route isolation checks", async () => {
     const { container } = renderVendorRouteIsolation("/vendor-workspace/dashboard");
 
     expect(await screen.findByRole("heading", { name: "Your work queue" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Available Work" })).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "Current Assignments" })[0]).toHaveAttribute(
+      "href",
+      "/vendor-workspace/assigned-orders",
+    );
     expect(container.querySelector('a[href^="/orders"]')).toBeNull();
     expect(screen.queryByTestId("internal-orders-data")).toBeNull();
     expect(screen.queryByTestId("internal-order-detail-data")).toBeNull();
