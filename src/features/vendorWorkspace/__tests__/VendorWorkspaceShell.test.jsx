@@ -1247,6 +1247,11 @@ describe("Vendor Workspace hidden shell", () => {
     ).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Next actions" })).toBeInTheDocument();
     expect(apiMock.fetchVendorWorkspaceDashboardSummary).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("region", { name: "Vendor workspace overview" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Vendor dashboard counts" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Calendar" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Recent Uploads" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "My Next Actions" })).toBeInTheDocument();
     expect(screen.getAllByText("Available Work / Bids").length).toBeGreaterThan(0);
     expect(screen.getByText("Submitted Bids")).toBeInTheDocument();
     expect(screen.getByText("Assignment Offers")).toBeInTheDocument();
@@ -1282,6 +1287,18 @@ describe("Vendor Workspace hidden shell", () => {
     expect(screen.getAllByRole("link", { name: "Coverage/Profile" })[0]).toHaveAttribute(
       "href",
       "/vendor-workspace/profile",
+    );
+    expect(screen.getAllByRole("link", { name: "Available Work / Bids 5 Open opportunities and bids under coordinator review." })[0]).toHaveAttribute(
+      "href",
+      "/vendor-workspace/available-work",
+    );
+    expect(screen.getByRole("link", { name: "Submitted Bids Submitted bids still under review. Open 2" })).toHaveAttribute(
+      "href",
+      "/vendor-workspace/my-bids",
+    );
+    expect(screen.getByRole("link", { name: "Payments 0 Track invoice and payment states for eligible work." })).toHaveAttribute(
+      "href",
+      "/vendor-workspace/payments",
     );
     expect(screen.queryByRole("link", { name: "Client Portal" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Internal Operations" })).toBeNull();

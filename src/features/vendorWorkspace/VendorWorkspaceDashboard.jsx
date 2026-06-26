@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
+import {
+  WorkspaceDashboardHeader,
+  WorkspaceEmptyState,
+  WorkspaceSection,
+  WorkspaceSummaryCard,
+  WorkspaceSummaryCards,
+} from "@/components/dashboard/WorkspaceDashboard";
 import { fetchVendorWorkspaceDashboardSummary } from "@/features/vendorWorkspace/api.js";
 
 const dashboardCards = Object.freeze([
@@ -81,7 +88,7 @@ function getOrderLine(order = {}) {
 
 function LoadingState() {
   return (
-    <section aria-label="Loading Vendor Workspace dashboard" className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+    <WorkspaceSummaryCards label="Loading Vendor Workspace dashboard" columns="xl:grid-cols-3">
       {dashboardCards.map((card) => (
         <article key={card.key} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div className="h-3 w-28 rounded bg-slate-200" />
@@ -89,7 +96,7 @@ function LoadingState() {
           <div className="mt-4 h-3 w-full rounded bg-slate-100" />
         </article>
       ))}
-    </section>
+    </WorkspaceSummaryCards>
   );
 }
 
@@ -191,31 +198,13 @@ function DashboardCard({ card, count }) {
 }
 
 function WorkspaceTile({ label, value, helper, path }) {
-  const content = (
-    <>
-      <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-        {label}
-      </div>
-      <div className="mt-3 text-2xl font-semibold text-slate-950">{value}</div>
-      <p className="mt-2 text-xs leading-5 text-slate-500">{helper}</p>
-    </>
-  );
-
-  if (!path) {
-    return (
-      <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-        {content}
-      </article>
-    );
-  }
-
   return (
-    <Link
+    <WorkspaceSummaryCard
+      label={label}
+      value={value}
+      helper={helper}
       to={path}
-      className="block rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
-    >
-      {content}
-    </Link>
+    />
   );
 }
 
@@ -225,16 +214,17 @@ function CalendarPreview({ actions }) {
     .slice(0, 3);
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm" aria-label="Calendar">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold text-slate-950">Calendar</h2>
-          <p className="mt-1 text-sm text-slate-500">Upcoming due dates from assigned work and active responses.</p>
-        </div>
+    <WorkspaceSection
+      title="Calendar"
+      subtitle="Upcoming due dates from assigned work and active responses."
+      label="Calendar"
+      className="p-5"
+      action={(
         <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-500">
           Read-only
         </span>
-      </div>
+      )}
+    >
       <div className="mt-4 grid gap-2">
         {datedActions.length ? (
           datedActions.map((action, index) => (
@@ -244,26 +234,25 @@ function CalendarPreview({ actions }) {
             </div>
           ))
         ) : (
-          <div className="rounded-md border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
-            No upcoming vendor calendar items are available.
-          </div>
+          <WorkspaceEmptyState>No upcoming vendor calendar items are available.</WorkspaceEmptyState>
         )}
       </div>
-    </section>
+    </WorkspaceSection>
   );
 }
 
 function RecentUploadsPreview() {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm" aria-label="Recent Uploads">
-      <h2 className="text-lg font-semibold text-slate-950">Recent Uploads</h2>
-      <p className="mt-1 text-sm text-slate-500">
-        Report and invoice upload history appears on assignment and payment detail cards.
-      </p>
-      <div className="mt-4 rounded-md border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
-        No recent upload summary is available from the dashboard feed.
+    <WorkspaceSection
+      title="Recent Uploads"
+      subtitle="Report and invoice upload history appears on assignment and payment detail cards."
+      label="Recent Uploads"
+      className="p-5"
+    >
+      <div className="mt-4">
+        <WorkspaceEmptyState>No recent upload summary is available from the dashboard feed.</WorkspaceEmptyState>
       </div>
-    </section>
+    </WorkspaceSection>
   );
 }
 
@@ -305,16 +294,11 @@ export default function VendorWorkspaceDashboard() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-          Vendor Workspace
-        </p>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-950">Your work queue</h1>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-          Review available opportunities, manage active assignments, track due dates, and follow
-          payment status from one vendor-facing workspace.
-        </p>
-      </section>
+      <WorkspaceDashboardHeader
+        label="Vendor Workspace"
+        title="Your work queue"
+        subtitle="Review available opportunities, manage active assignments, track due dates, and follow payment status from one vendor-facing workspace."
+      />
 
       {isLoading ? (
         <LoadingState />
@@ -322,7 +306,7 @@ export default function VendorWorkspaceDashboard() {
         <ErrorState onRetry={() => setReloadKey((key) => key + 1)} />
       ) : (
         <>
-          <section aria-label="Vendor workspace overview" className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <WorkspaceSummaryCards label="Vendor workspace overview" columns="xl:grid-cols-3">
             <WorkspaceTile
               label="Assignments"
               value={formatCount(assignmentsCount)}
@@ -357,27 +341,25 @@ export default function VendorWorkspaceDashboard() {
               helper="Open opportunities and bids under coordinator review."
               path="/vendor-workspace/available-work"
             />
-          </section>
+          </WorkspaceSummaryCards>
 
-          <section aria-label="Vendor dashboard counts" className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <WorkspaceSummaryCards label="Vendor dashboard counts" columns="xl:grid-cols-3">
             {dashboardCards.map((card) => (
               <DashboardCard key={card.key} card={card} count={counts[card.key]} />
             ))}
-          </section>
+          </WorkspaceSummaryCards>
 
           <div className="grid gap-3 xl:grid-cols-2">
             <CalendarPreview actions={actions} />
             <RecentUploadsPreview />
           </div>
 
-          <section className="space-y-3" aria-label="My Next Actions">
-            <div>
-              <h2 className="text-lg font-semibold text-slate-950">Next actions</h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Read-only summary of items that may need attention.
-              </p>
-            </div>
-
+          <WorkspaceSection
+            title="Next actions"
+            subtitle="Read-only summary of items that may need attention."
+            label="My Next Actions"
+            className="space-y-3"
+          >
             {actions.length > 0 ? (
               <div className="grid gap-3 xl:grid-cols-2">
                 {actions.map((action, index) => (
@@ -388,11 +370,11 @@ export default function VendorWorkspaceDashboard() {
                 ))}
               </div>
             ) : (
-              <div className="rounded-lg border border-slate-200 bg-white p-5 text-sm text-slate-600 shadow-sm">
+              <WorkspaceEmptyState className="rounded-lg bg-white p-5 text-slate-600 shadow-sm">
                 No vendor action items need attention right now.
-              </div>
+              </WorkspaceEmptyState>
             )}
-          </section>
+          </WorkspaceSection>
         </>
       )}
     </div>
