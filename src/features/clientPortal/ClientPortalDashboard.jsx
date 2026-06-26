@@ -2,6 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import {
+  WorkspaceDashboardHeader,
+  WorkspaceEmptyState,
+  WorkspaceQuickActions,
+  WorkspaceSection,
+  WorkspaceSummaryCard,
+  WorkspaceSummaryCards,
+} from "@/components/dashboard/WorkspaceDashboard";
+import {
   getClientPortalDashboard,
   listClientPortalPendingOrderRequests,
 } from "@/features/clientPortal/api";
@@ -24,18 +32,6 @@ function PortalError() {
       Order tracking is not available yet for this portal session. Your appraisal team can confirm
       status while client portal read access is being enabled.
     </div>
-  );
-}
-
-function KpiCard({ label, value, helper }) {
-  return (
-    <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-        {label}
-      </div>
-      <div className="mt-3 text-2xl font-semibold text-slate-950">{value}</div>
-      <p className="mt-2 text-xs leading-5 text-slate-500">{helper}</p>
-    </article>
   );
 }
 
@@ -124,78 +120,64 @@ export default function ClientPortalDashboard() {
 
   return (
     <div className="grid gap-6">
-      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-100 bg-slate-50 px-6 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-          Client Portal / Falcon Workspace
-        </div>
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-          <div className="p-6">
-            <h1 className="text-2xl font-semibold text-slate-950">What needs attention today</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-              Track active appraisals, due dates, released reports, and requests your appraisal team
-              is reviewing.
-            </p>
-          </div>
-          <div className="px-6 pb-6 lg:p-6">
-            <Link
-              to="/client-portal/new-order"
-              className="inline-flex w-fit rounded-md border border-slate-900 bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
-            >
-              Request Appraisal
-            </Link>
-          </div>
-        </div>
-      </section>
+      <WorkspaceDashboardHeader
+        label="Client Portal / Falcon Workspace"
+        title="What needs attention today"
+        subtitle="Track active appraisals, due dates, released reports, and requests your appraisal team is reviewing."
+        action={(
+          <Link
+            to="/client-portal/new-order"
+            className="inline-flex w-fit rounded-md border border-slate-900 bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+          >
+            Request Appraisal
+          </Link>
+        )}
+      />
 
-      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4" aria-label="Client portal summary">
-        <KpiCard
+      <WorkspaceSummaryCards label="Client portal summary">
+        <WorkspaceSummaryCard
           label="Active Orders"
           value={loading ? "Loading" : dashboard.activeOrderCount.toLocaleString()}
           helper="Appraisals currently moving through production."
         />
-        <KpiCard
+        <WorkspaceSummaryCard
           label="Waiting on You"
           value={loading ? "Loading" : waitingOnClientCount.toLocaleString()}
           helper="Orders with client-facing action or information signals."
         />
-        <KpiCard
+        <WorkspaceSummaryCard
           label="Reports Ready"
           value={loading ? "Loading" : reportReadyCount.toLocaleString()}
           helper="Released final reports available for download."
         />
-        <KpiCard
+        <WorkspaceSummaryCard
           label="Recent Updates"
           value={loading ? "Loading" : (orders.length + pendingRequests.length).toLocaleString()}
           helper="Recent orders and submitted appraisal requests."
         />
-      </section>
+      </WorkspaceSummaryCards>
 
       {error && <PortalError />}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(22rem,0.8fr)]">
-        <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm" aria-label="Current orders">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-base font-semibold text-slate-950">Current Orders</h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Client-safe status, expected delivery, and report availability.
-              </p>
-            </div>
+        <WorkspaceSection
+          title="Current Orders"
+          subtitle="Client-safe status, expected delivery, and report availability."
+          label="Current orders"
+          action={(
             <Link
               to="/client-portal/orders"
               className="inline-flex w-fit rounded-md border border-slate-900 bg-slate-900 px-3 py-2 text-sm font-semibold text-white"
             >
               View Orders
             </Link>
-          </div>
-
+          )}
+        >
           <div className="mt-4 grid gap-3">
             {loading ? (
               <div className="text-sm text-slate-500">Loading orders...</div>
             ) : orders.length === 0 ? (
-              <div className="rounded-md border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
-                No client portal orders are available yet.
-              </div>
+              <WorkspaceEmptyState>No client portal orders are available yet.</WorkspaceEmptyState>
             ) : (
               orders.slice(0, 4).map((order) => (
                 <Link
@@ -222,21 +204,19 @@ export default function ClientPortalDashboard() {
               ))
             )}
           </div>
-        </section>
+        </WorkspaceSection>
 
         <div className="grid gap-6">
-          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm" aria-label="Upcoming due dates">
-            <h2 className="text-base font-semibold text-slate-950">Upcoming Due Dates</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Earliest visible delivery dates from your current appraisal list.
-            </p>
+          <WorkspaceSection
+            title="Upcoming Due Dates"
+            subtitle="Earliest visible delivery dates from your current appraisal list."
+            label="Upcoming due dates"
+          >
             <div className="mt-4 grid gap-2">
               {loading ? (
                 <div className="text-sm text-slate-500">Loading due dates...</div>
               ) : upcomingOrders.length === 0 ? (
-                <div className="rounded-md border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
-                  No upcoming due dates are available yet.
-                </div>
+                <WorkspaceEmptyState>No upcoming due dates are available yet.</WorkspaceEmptyState>
               ) : (
                 upcomingOrders.map((order) => (
                   <Link
@@ -253,51 +233,40 @@ export default function ClientPortalDashboard() {
                 ))
               )}
             </div>
-          </section>
+          </WorkspaceSection>
 
-          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm" aria-label="Quick actions">
-            <h2 className="text-base font-semibold text-slate-950">Quick Actions</h2>
-            <div className="mt-4 grid gap-3">
-              <Link
-                to="/client-portal/new-order"
-                className="rounded-lg border border-slate-900 bg-slate-900 px-4 py-3 text-sm font-semibold text-white"
-              >
-                Request Appraisal
-              </Link>
-              <Link
-                to="/client-portal/orders"
-                className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800"
-              >
-                Review Current Orders
-              </Link>
-            </div>
-          </section>
+          <WorkspaceSection title="Quick Actions" label="Quick actions">
+            <WorkspaceQuickActions
+              actions={[
+                { label: "Request Appraisal", to: "/client-portal/new-order", variant: "primary" },
+                { label: "Review Current Orders", to: "/client-portal/orders" },
+              ]}
+            />
+          </WorkspaceSection>
         </div>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-3">
-        <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm" aria-label="Submitted requests">
-          <h2 className="text-base font-semibold text-slate-950">Submitted Requests</h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Requests your appraisal team is reviewing before they become active orders.
-          </p>
+        <WorkspaceSection
+          title="Submitted Requests"
+          subtitle="Requests your appraisal team is reviewing before they become active orders."
+          label="Submitted requests"
+        >
           <div className="mt-4">
             <ClientPortalPendingRequests requests={pendingRequests} loading={loading} limit={3} />
           </div>
-        </section>
+        </WorkspaceSection>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm" aria-label="Recent documents">
-          <h2 className="text-base font-semibold text-slate-950">Recent Documents</h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Released reports appear here when they are available for download.
-          </p>
+        <WorkspaceSection
+          title="Recent Documents"
+          subtitle="Released reports appear here when they are available for download."
+          label="Recent documents"
+        >
           <div className="mt-4 grid gap-2">
             {loading ? (
               <div className="text-sm text-slate-500">Loading documents...</div>
             ) : readyReports.length === 0 ? (
-              <div className="rounded-md border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
-                No released reports are available yet.
-              </div>
+              <WorkspaceEmptyState>No released reports are available yet.</WorkspaceEmptyState>
             ) : (
               readyReports.map((order) => (
                 <Link
@@ -311,20 +280,18 @@ export default function ClientPortalDashboard() {
               ))
             )}
           </div>
-        </section>
+        </WorkspaceSection>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm" aria-label="Recent activity">
-          <h2 className="text-base font-semibold text-slate-950">Recent Activity</h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Client-safe order movement from the current portal read model.
-          </p>
+        <WorkspaceSection
+          title="Recent Activity"
+          subtitle="Client-safe order movement from the current portal read model."
+          label="Recent activity"
+        >
           <div className="mt-4 grid gap-2">
             {loading ? (
               <div className="text-sm text-slate-500">Loading activity...</div>
             ) : recentUpdates.length === 0 && pendingRequests.length === 0 ? (
-              <div className="rounded-md border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
-                No recent activity is available yet.
-              </div>
+              <WorkspaceEmptyState>No recent activity is available yet.</WorkspaceEmptyState>
             ) : (
               <>
                 {recentUpdates.map((order) => (
@@ -344,7 +311,7 @@ export default function ClientPortalDashboard() {
               </>
             )}
           </div>
-        </section>
+        </WorkspaceSection>
       </div>
     </div>
   );
