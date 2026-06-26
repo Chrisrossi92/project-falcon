@@ -346,9 +346,13 @@ describe("Client Portal pages", () => {
         propertyState: "OH",
         propertyPostalCode: "43604",
         propertyCounty: "Lucas",
+        parcelNumbers: "",
         propertyType: "Office",
         reportType: "Full Appraisal",
         loanPurpose: "Purchase",
+        interestAppraised: "",
+        premiseCondition: "",
+        approachesToValue: "All Applicable",
         requestedDueDate: "2026-06-20",
         borrowerContactName: "Borrower Name",
         clientContactName: "Avery Client",
@@ -366,6 +370,24 @@ describe("Client Portal pages", () => {
     expect(apiMock.getClientPortalOrderDetail).not.toHaveBeenCalled();
 
     expect(document.body.textContent).not.toMatch(/vendor|appraiser|procurement|assignment|fee|margin/i);
+  });
+
+  it("renders the appraisal scope fields with safe defaults", () => {
+    renderPortalRoutes("/client-portal/new-order");
+
+    expect(screen.getByLabelText(/Parcel number/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Interest Appraised")).toBeInTheDocument();
+    expect(screen.getByLabelText("Premise / Condition")).toBeInTheDocument();
+    expect(screen.getByLabelText("Approaches to Value")).toHaveValue("All Applicable");
+    expect(screen.getByRole("option", { name: "Fee Simple" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Leased Fee" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Leasehold" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "As Is" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "As Complete" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Sales Comparison" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Income" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Cost" })).toBeInTheDocument();
+    expect(screen.getByText(/Upload is not available from this portal form yet/i)).toBeInTheDocument();
   });
 
   it("submits the filled production pilot order request fields to the API wrapper", async () => {
@@ -394,6 +416,18 @@ describe("Client Portal pages", () => {
     });
     fireEvent.change(screen.getByLabelText("Report type"), {
       target: { value: "Full Appraisal" },
+    });
+    fireEvent.change(screen.getByLabelText(/Parcel number/), {
+      target: { value: "12-34567, 12-34568" },
+    });
+    fireEvent.change(screen.getByLabelText("Interest Appraised"), {
+      target: { value: "Leased Fee" },
+    });
+    fireEvent.change(screen.getByLabelText("Premise / Condition"), {
+      target: { value: "As Complete" },
+    });
+    fireEvent.change(screen.getByLabelText("Approaches to Value"), {
+      target: { value: "Income" },
     });
     fireEvent.change(screen.getByLabelText("Loan purpose"), {
       target: { value: "Refinance" },
@@ -426,9 +460,13 @@ describe("Client Portal pages", () => {
         propertyState: "OH",
         propertyPostalCode: "43604",
         propertyCounty: "",
+        parcelNumbers: "12-34567, 12-34568",
         propertyType: "Office",
         reportType: "Full Appraisal",
         loanPurpose: "Refinance",
+        interestAppraised: "Leased Fee",
+        premiseCondition: "As Complete",
+        approachesToValue: "Income",
         requestedDueDate: "2026-06-20",
         borrowerContactName: "John Smith",
         clientContactName: "Abby Meneses",

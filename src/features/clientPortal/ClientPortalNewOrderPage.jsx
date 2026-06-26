@@ -9,12 +9,16 @@ const initialForm = Object.freeze({
   propertyState: "",
   propertyPostalCode: "",
   propertyCounty: "",
+  parcelNumbers: "",
   propertyType: "",
   propertyTypeOther: "",
   reportType: "",
   reportTypeOther: "",
   loanPurpose: "",
   loanPurposeOther: "",
+  interestAppraised: "",
+  premiseCondition: "",
+  approachesToValue: "All Applicable",
   requestedDueDate: "",
   borrowerContactName: "",
   clientContactName: "",
@@ -52,6 +56,26 @@ const LOAN_PURPOSE_OPTIONS = Object.freeze([
   "Other",
 ]);
 
+const INTEREST_APPRAISED_OPTIONS = Object.freeze([
+  "Fee Simple",
+  "Leased Fee",
+  "Leasehold",
+  "Other",
+]);
+
+const PREMISE_CONDITION_OPTIONS = Object.freeze([
+  "As Is",
+  "As Complete",
+]);
+
+const APPROACHES_TO_VALUE_OPTIONS = Object.freeze([
+  "All Applicable",
+  "Sales Comparison",
+  "Income",
+  "Cost",
+  "Other",
+]);
+
 function Field({ children, helper = null, label }) {
   return (
     <label className="grid gap-1 text-sm font-medium text-slate-800">
@@ -64,7 +88,7 @@ function Field({ children, helper = null, label }) {
 
 function FormSection({ children, eyebrow, title }) {
   return (
-    <section className="grid gap-4 rounded-lg border border-stone-200 bg-white p-5 shadow-sm" aria-label={title}>
+    <section className="grid gap-3 rounded-lg border border-stone-200 bg-white p-4 shadow-sm" aria-label={title}>
       <div>
         <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
           {eyebrow}
@@ -173,9 +197,13 @@ export default function ClientPortalNewOrderPage() {
         propertyState: form.propertyState,
         propertyPostalCode: form.propertyPostalCode,
         propertyCounty: form.propertyCounty,
+        parcelNumbers: form.parcelNumbers,
         propertyType: resolveControlledValue(form.propertyType, form.propertyTypeOther),
         reportType: resolveControlledValue(form.reportType, form.reportTypeOther),
         loanPurpose: resolveControlledValue(form.loanPurpose, form.loanPurposeOther),
+        interestAppraised: form.interestAppraised,
+        premiseCondition: form.premiseCondition,
+        approachesToValue: form.approachesToValue,
         requestedDueDate: form.requestedDueDate,
         borrowerContactName: form.borrowerContactName,
         clientContactName: form.clientContactName,
@@ -253,7 +281,7 @@ export default function ClientPortalNewOrderPage() {
   }
 
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-5">
       <section className="grid gap-2">
         <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
           Request Appraisal
@@ -264,7 +292,7 @@ export default function ClientPortalNewOrderPage() {
         </p>
       </section>
 
-      <div className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm" aria-label="Request progress">
+      <div className="rounded-lg border border-stone-200 bg-white p-3 shadow-sm" aria-label="Request progress">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="text-sm font-semibold text-slate-950">Request progress</div>
@@ -282,7 +310,7 @@ export default function ClientPortalNewOrderPage() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="grid gap-5" aria-label="Appraisal request">
+      <form onSubmit={handleSubmit} className="grid gap-4" aria-label="Appraisal request">
         <FormSection eyebrow="Step 1" title="Property">
           <Field label="Property address">
             <textarea
@@ -327,6 +355,18 @@ export default function ClientPortalNewOrderPage() {
               value={form.propertyCounty}
               onChange={(event) => updateField("propertyCounty", event.target.value)}
               className={inputClassName()}
+            />
+          </Field>
+
+          <Field
+            label="Parcel number(s)"
+            helper="Enter one or more parcel numbers, separated by commas or line breaks."
+          >
+            <textarea
+              rows={2}
+              value={form.parcelNumbers}
+              onChange={(event) => updateField("parcelNumbers", event.target.value)}
+              className={inputClassName("resize-y")}
             />
           </Field>
         </FormSection>
@@ -384,6 +424,50 @@ export default function ClientPortalNewOrderPage() {
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
+            <Field label="Interest Appraised">
+              <select
+                value={form.interestAppraised}
+                onChange={(event) => updateField("interestAppraised", event.target.value)}
+                className={inputClassName()}
+              >
+                <option value="">Select interest...</option>
+                {INTEREST_APPRAISED_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Premise / Condition">
+              <select
+                value={form.premiseCondition}
+                onChange={(event) => updateField("premiseCondition", event.target.value)}
+                className={inputClassName()}
+              >
+                <option value="">Select premise...</option>
+                {PREMISE_CONDITION_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label="Approaches to Value">
+              <select
+                value={form.approachesToValue}
+                onChange={(event) => updateField("approachesToValue", event.target.value)}
+                className={inputClassName()}
+              >
+                {APPROACHES_TO_VALUE_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </Field>
             <Field label="Loan purpose">
               <select
                 value={form.loanPurpose}
@@ -406,6 +490,9 @@ export default function ClientPortalNewOrderPage() {
                 />
               ) : null}
             </Field>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
             <Field label="Requested due date">
               <input
                 type="date"
@@ -414,7 +501,7 @@ export default function ClientPortalNewOrderPage() {
                 className={inputClassName()}
               />
             </Field>
-            <p className="-mt-3 text-xs leading-5 text-slate-500">
+            <p className="self-end text-xs leading-5 text-slate-500">
               Optional. Your team will confirm feasibility.
             </p>
           </div>

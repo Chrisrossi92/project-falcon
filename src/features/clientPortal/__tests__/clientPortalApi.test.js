@@ -170,6 +170,10 @@ describe("clientPortalApi", () => {
         propertyType: "Condo",
         reportType: "Full appraisal",
         loanPurpose: "Purchase",
+        parcelNumbers: "12-34567, 12-34568",
+        interestAppraised: "Fee Simple",
+        premiseCondition: "As Is",
+        approachesToValue: "All Applicable",
         requestedDueDate: "2026-06-20",
         borrowerContactName: "Borrower Name",
         clientContactName: "Avery Client",
@@ -205,7 +209,15 @@ describe("clientPortalApi", () => {
       p_client_contact_name: "Avery Client",
       p_client_contact_phone: "555-0100",
       p_client_contact_email: "avery@example.test",
-      p_notes: "Gate code available.",
+      p_notes: [
+        "Gate code available.",
+        "",
+        "Additional appraisal request details:",
+        "Parcel number(s): 12-34567, 12-34568",
+        "Interest appraised: Fee Simple",
+        "Premise / Condition: As Is",
+        "Approaches to Value: All Applicable",
+      ].join("\n"),
     });
   });
 

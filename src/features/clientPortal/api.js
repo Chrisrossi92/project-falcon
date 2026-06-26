@@ -19,6 +19,25 @@ const toBoolean = (value) => value === true || value === "true";
 
 const firstPresent = (...values) => values.find((value) => value !== null && value !== undefined);
 
+function composeClientRequestNotes(values = {}) {
+  const notes = toStringOrNull(values.notes);
+  const intakeDetails = [
+    ["Parcel number(s)", toStringOrNull(values.parcelNumbers)],
+    ["Interest appraised", toStringOrNull(values.interestAppraised)],
+    ["Premise / Condition", toStringOrNull(values.premiseCondition)],
+    ["Approaches to Value", toStringOrNull(values.approachesToValue)],
+  ].filter(([, value]) => value);
+
+  if (!intakeDetails.length) return notes;
+
+  const intakeNotes = [
+    "Additional appraisal request details:",
+    ...intakeDetails.map(([label, value]) => `${label}: ${value}`),
+  ].join("\n");
+
+  return [notes, intakeNotes].filter(Boolean).join("\n\n");
+}
+
 export function normalizeClientPortalOrder(row = {}) {
   const orderKey = toStringOrNull(row.order_key ?? row.orderKey ?? row.portal_order_key);
 
@@ -242,7 +261,7 @@ export async function submitClientPortalOrderRequest(values = {}) {
     p_client_contact_name: toStringOrNull(values.clientContactName),
     p_client_contact_phone: toStringOrNull(values.clientContactPhone),
     p_client_contact_email: toStringOrNull(values.clientContactEmail),
-    p_notes: toStringOrNull(values.notes),
+    p_notes: composeClientRequestNotes(values),
   });
 
   if (error) throw error;
