@@ -1196,6 +1196,11 @@ export default function OrderDetail() {
     !order?.is_archived &&
     !TERMINAL_STATUS_OVERRIDE_BLOCKLIST.has(normalizedOrderStatus) &&
     permissions.hasPermission(PERMISSIONS.WORKFLOW_OVERRIDE_STATUS);
+  const hasMoreOrderActions =
+    canArchiveThisOrder ||
+    canCancelThisOrder ||
+    canVoidThisOrder ||
+    canOverrideOrderStatus;
   const smartActionRole = isOwnerAdminStaffAppraisalShell
     ? "admin"
     : isReviewerReviewWorkspace
@@ -1533,12 +1538,12 @@ export default function OrderDetail() {
               </p>
             ) : null}
           </div>
-          <div className="flex w-full flex-col gap-2 md:w-auto md:min-w-[320px] md:items-end">
+          <div className="flex w-full flex-col gap-2 md:w-auto md:min-w-[360px] md:items-end">
             <section
               aria-label="Recommended workflow action"
-              className="w-full rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-slate-800 shadow-sm md:max-w-[380px]"
+              className="w-full rounded-lg border border-sky-200 bg-sky-50 px-3 py-2.5 text-sm text-slate-800 shadow-sm md:max-w-[420px]"
             >
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-[11px] font-semibold uppercase tracking-wide text-sky-700">
                     Recommended next step
@@ -1568,54 +1573,45 @@ export default function OrderDetail() {
                 )}
               </div>
             </section>
-            <div className="flex flex-wrap items-center justify-end gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-2">
+            <div className="flex flex-wrap items-center justify-end gap-2 rounded-lg border border-slate-200 bg-white/85 p-2 shadow-sm">
               {canOfferAssignment && (
                 <button
                   type="button"
                   onClick={() => setOfferAssignmentOpen(true)}
-                  className="px-3 py-1.5 border border-slate-950 bg-slate-950 text-white rounded text-sm font-semibold hover:bg-slate-800"
+                  className="rounded border border-slate-950 bg-slate-950 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-800"
                 >
                   Offer Assignment
                 </button>
               )}
-              {canArchiveThisOrder && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setArchiveError("");
-                    setArchiveConfirmOpen(true);
-                  }}
-                  className="px-3 py-1.5 border border-amber-300 bg-amber-50 text-amber-800 rounded text-sm font-semibold hover:bg-amber-100"
+              {showOrderEditAction && (
+                <Link
+                  to={`/orders/${order.id}/edit`}
+                  className="rounded border px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
                 >
-                  Archive order
-                </button>
+                  Edit
+                </Link>
               )}
-              {canCancelThisOrder && (
-                <button
-                  type="button"
-                  onClick={() => openLifecycleAction("cancel")}
-                  className={LIFECYCLE_ACTION_COPY.cancel.buttonClass}
-                >
-                  Cancel order
-                </button>
-              )}
-              {canVoidThisOrder && (
-                <button
-                  type="button"
-                  onClick={() => openLifecycleAction("void")}
-                  className={LIFECYCLE_ACTION_COPY.void.buttonClass}
-                >
-                  Void order
-                </button>
-              )}
-              {canOverrideOrderStatus && (
+              <button
+                type="button"
+                onClick={() => setPrintPacketOpen(true)}
+                className="rounded border px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                Print Packet
+              </button>
+              <Link
+                to={buildOrderListPath(pathname)}
+                className="rounded border px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                {"<- Back"}
+              </Link>
+              {hasMoreOrderActions && (
                 <div className="relative">
                   <button
                     type="button"
                     onClick={() => setMoreActionsOpen((value) => !value)}
                     aria-expanded={moreActionsOpen}
                     aria-haspopup="menu"
-                    className="px-3 py-1.5 border rounded text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                    className="rounded border px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
                   >
                     More actions
                   </button>
@@ -1623,34 +1619,64 @@ export default function OrderDetail() {
                     <div
                       role="menu"
                       aria-label="More order actions"
-                      className="absolute right-0 top-full z-20 mt-2 w-48 rounded-md border border-slate-200 bg-white p-1 shadow-lg"
+                      className="absolute right-0 top-full z-20 mt-2 w-52 rounded-md border border-slate-200 bg-white p-1 shadow-lg"
                     >
-                      <button
-                        type="button"
-                        role="menuitem"
-                        onClick={openStatusOverride}
-                        className="w-full rounded px-3 py-2 text-left text-sm font-medium text-slate-800 hover:bg-slate-50"
-                      >
-                        Override status
-                      </button>
+                      {canArchiveThisOrder && (
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setMoreActionsOpen(false);
+                            setArchiveError("");
+                            setArchiveConfirmOpen(true);
+                          }}
+                          className="w-full rounded px-3 py-2 text-left text-sm font-medium text-amber-800 hover:bg-amber-50"
+                        >
+                          Archive order
+                        </button>
+                      )}
+                      {canCancelThisOrder && (
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setMoreActionsOpen(false);
+                            openLifecycleAction("cancel");
+                          }}
+                          className="w-full rounded px-3 py-2 text-left text-sm font-medium text-rose-800 hover:bg-rose-50"
+                        >
+                          Cancel order
+                        </button>
+                      )}
+                      {canVoidThisOrder && (
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setMoreActionsOpen(false);
+                            openLifecycleAction("void");
+                          }}
+                          className="w-full rounded px-3 py-2 text-left text-sm font-medium text-slate-800 hover:bg-slate-50"
+                        >
+                          Void order
+                        </button>
+                      )}
+                      {canOverrideOrderStatus && (
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setMoreActionsOpen(false);
+                            openStatusOverride();
+                          }}
+                          className="w-full rounded px-3 py-2 text-left text-sm font-medium text-slate-800 hover:bg-slate-50"
+                        >
+                          Override status
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
-              )}
-              <button
-                type="button"
-                onClick={() => setPrintPacketOpen(true)}
-                className="px-3 py-1.5 border rounded text-sm font-semibold text-gray-700 hover:bg-gray-50"
-              >
-                Print Packet
-              </button>
-              <Link to={buildOrderListPath(pathname)} className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50">
-                {"<- Back"}
-              </Link>
-              {showOrderEditAction && (
-                <Link to={`/orders/${order.id}/edit`} className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50">
-                  Edit
-                </Link>
               )}
             </div>
           </div>

@@ -436,6 +436,16 @@ describe("OrderDetail site visit save", () => {
     cleanup();
   });
 
+  const openMoreOrderActions = () => {
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+    return screen.getByRole("menu", { name: "More order actions" });
+  };
+
+  const clickMoreOrderAction = (name) => {
+    const menu = openMoreOrderActions();
+    fireEvent.click(within(menu).getByRole("menuitem", { name }));
+  };
+
   it("renders Internal order detail chrome for Continental production records", async () => {
     operationsModeMock.operationsMode = "internal_operations";
     orderMock.operations_scope = "internal_operations";
@@ -790,7 +800,8 @@ describe("OrderDetail site visit save", () => {
     expect(screen.queryByTestId("assignments-panel")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Operational context controls")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Edit" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Archive order" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "More actions" })).toBeInTheDocument();
+    expect(within(openMoreOrderActions()).getByRole("menuitem", { name: "Archive order" })).toBeInTheDocument();
   });
 
   it("shows a primary recommended workflow action for a normal guided transition", async () => {
@@ -2190,7 +2201,7 @@ describe("OrderDetail site visit save", () => {
 
     render(<OrderDetail />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Archive order" }));
+    clickMoreOrderAction("Archive order");
 
     const dialog = screen.getByRole("dialog", { name: "Archive order" });
     expect(within(dialog).getAllByText("Archive order")).toHaveLength(2);
@@ -2209,7 +2220,7 @@ describe("OrderDetail site visit save", () => {
 
     render(<OrderDetail />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Archive order" }));
+    clickMoreOrderAction("Archive order");
     const dialog = screen.getByRole("dialog", { name: "Archive order" });
     fireEvent.change(within(dialog).getByLabelText("Reason for archive (optional)"), {
       target: { value: "Duplicate request" },
@@ -2234,7 +2245,7 @@ describe("OrderDetail site visit save", () => {
 
     render(<OrderDetail />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Archive order" }));
+    clickMoreOrderAction("Archive order");
     const dialog = screen.getByRole("dialog", { name: "Archive order" });
     fireEvent.click(within(dialog).getByRole("button", { name: "Archive order" }));
 
@@ -2255,20 +2266,23 @@ describe("OrderDetail site visit save", () => {
 
     expect(screen.queryByRole("button", { name: "Cancel order" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Void order" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "More actions" })).not.toBeInTheDocument();
     cleanup();
 
     permissionKeysMock.push("orders.cancel");
     render(<OrderDetail />);
 
-    expect(screen.getByRole("button", { name: "Cancel order" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Void order" })).not.toBeInTheDocument();
+    let menu = openMoreOrderActions();
+    expect(within(menu).getByRole("menuitem", { name: "Cancel order" })).toBeInTheDocument();
+    expect(within(menu).queryByRole("menuitem", { name: "Void order" })).not.toBeInTheDocument();
     cleanup();
 
     permissionKeysMock.splice(0, permissionKeysMock.length, "orders.void");
     render(<OrderDetail />);
 
-    expect(screen.queryByRole("button", { name: "Cancel order" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Void order" })).toBeInTheDocument();
+    menu = openMoreOrderActions();
+    expect(within(menu).queryByRole("menuitem", { name: "Cancel order" })).not.toBeInTheDocument();
+    expect(within(menu).getByRole("menuitem", { name: "Void order" })).toBeInTheDocument();
   });
 
   it("shows cancel confirmation doctrine copy and requires a trimmed reason", async () => {
@@ -2276,7 +2290,7 @@ describe("OrderDetail site visit save", () => {
 
     render(<OrderDetail />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Cancel order" }));
+    clickMoreOrderAction("Cancel order");
 
     const dialog = screen.getByRole("dialog", { name: "Cancel order" });
     expect(within(dialog).getAllByText("Cancel order")).toHaveLength(2);
@@ -2308,7 +2322,7 @@ describe("OrderDetail site visit save", () => {
 
     render(<OrderDetail />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Void order" }));
+    clickMoreOrderAction("Void order");
 
     const dialog = screen.getByRole("dialog", { name: "Void order" });
     expect(within(dialog).getAllByText("Void order")).toHaveLength(2);
@@ -2341,7 +2355,7 @@ describe("OrderDetail site visit save", () => {
 
     render(<OrderDetail />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Cancel order" }));
+    clickMoreOrderAction("Cancel order");
     const dialog = screen.getByRole("dialog", { name: "Cancel order" });
     fireEvent.change(within(dialog).getByLabelText("Reason for cancellation"), {
       target: { value: "Client withdrew" },
