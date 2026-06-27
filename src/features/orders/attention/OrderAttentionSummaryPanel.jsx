@@ -38,7 +38,9 @@ export default function OrderAttentionSummaryPanel({
       <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="text-sm font-semibold text-slate-950">{title}</h2>
-          <p className="mt-0.5 text-xs leading-5 text-slate-500">{description}</p>
+          {description ? (
+            <p className="mt-0.5 text-xs leading-5 text-slate-500">{description}</p>
+          ) : null}
         </div>
         <span className="w-fit rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
           Derived

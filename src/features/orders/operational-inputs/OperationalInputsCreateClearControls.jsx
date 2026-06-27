@@ -52,6 +52,7 @@ export default function OperationalInputsCreateClearControls({
   orderId,
   inputs = [],
   onChanged,
+  compact = false,
   className = "",
 } = {}) {
   const { success, error: toastError } = useToast();
@@ -87,6 +88,82 @@ export default function OperationalInputsCreateClearControls({
 
   if (!orderId) return null;
 
+  const updateControl = (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="w-fit border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
+          disabled={disabled}
+        >
+          {submittingId ? "Updating..." : "Update context"}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuPortal>
+        <DropdownMenuContent side="bottom" align="end" sideOffset={6} className="z-50">
+          {INPUT_ACTIONS.map((action) => (
+            <DropdownMenuItem
+              key={action.id}
+              disabled={disabled}
+              onClick={() =>
+                runAction(action.id, () =>
+                  createOrderOperationalInput(orderId, action.id),
+                )
+              }
+            >
+              {action.label}
+            </DropdownMenuItem>
+          ))}
+          {activeInputs.length > 0 && (
+            <div className="my-1 border-t border-slate-100" aria-hidden="true" />
+          )}
+          {activeInputs.map((input) => (
+            <DropdownMenuItem
+              key={`clear-${input.id}`}
+              disabled={disabled}
+              onClick={() =>
+                runAction(`clear-${input.id}`, () => clearOrderOperationalInput(input.id))
+              }
+            >
+              Clear operational context: {input.label}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenuPortal>
+    </DropdownMenu>
+  );
+
+  if (compact) {
+    return (
+      <div
+        aria-label="Operational context controls"
+        className={`rounded-lg border border-slate-200 bg-white/80 px-3 py-2 ${className}`.trim()}
+      >
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              Operational context
+            </div>
+            <div className="mt-0.5 text-xs leading-5 text-slate-600">
+              {activeInputs.length > 0
+                ? activeInputs.map((input) => input.label).join(", ")
+                : "No temporary context set."}
+            </div>
+          </div>
+          {updateControl}
+        </div>
+
+        {errorMessage && (
+          <div className="mt-2 rounded-md border border-rose-100 bg-white px-3 py-2 text-xs leading-5 text-rose-700">
+            {errorMessage}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <WorkspaceSurface
       variant="action"
@@ -101,50 +178,7 @@ export default function OperationalInputsCreateClearControls({
           </p>
         </div>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="w-fit border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
-              disabled={disabled}
-            >
-              {submittingId ? "Updating..." : "Update context"}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuPortal>
-            <DropdownMenuContent side="bottom" align="end" sideOffset={6} className="z-50">
-              {INPUT_ACTIONS.map((action) => (
-                <DropdownMenuItem
-                  key={action.id}
-                  disabled={disabled}
-                  onClick={() =>
-                    runAction(action.id, () =>
-                      createOrderOperationalInput(orderId, action.id),
-                    )
-                  }
-                >
-                  {action.label}
-                </DropdownMenuItem>
-              ))}
-              {activeInputs.length > 0 && (
-                <div className="my-1 border-t border-slate-100" aria-hidden="true" />
-              )}
-              {activeInputs.map((input) => (
-                <DropdownMenuItem
-                  key={`clear-${input.id}`}
-                  disabled={disabled}
-                  onClick={() =>
-                    runAction(`clear-${input.id}`, () => clearOrderOperationalInput(input.id))
-                  }
-                >
-                  Clear operational context: {input.label}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenuPortal>
-        </DropdownMenu>
+        {updateControl}
       </div>
 
       {errorMessage && (

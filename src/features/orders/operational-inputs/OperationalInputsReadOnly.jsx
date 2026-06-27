@@ -43,6 +43,37 @@ export default function OperationalInputsReadOnly({
 
   if (loading || error || rows.length === 0) return null;
 
+  if (compact) {
+    return (
+      <div
+        aria-label="Operational status evidence"
+        className={`rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 text-slate-700 ${className}`.trim()}
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+            Context
+          </span>
+          {rows.map((row) => (
+            <span
+              key={row.id}
+              className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs font-medium text-slate-700"
+            >
+              {row.label}
+              {row.actorRole ? ` · ${row.actorRole}` : ""}
+            </span>
+          ))}
+        </div>
+        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs leading-5 text-slate-500">
+          {rows.map((row) => (
+            <span key={`${row.id}-meta`}>
+              {row.createdAt ? `Added ${row.createdAt}` : row.expiresAt ? `Fresh until ${row.expiresAt}` : "Temporary context"}
+            </span>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <WorkspaceSurface
       variant="evidence"

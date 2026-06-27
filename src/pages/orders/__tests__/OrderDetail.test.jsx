@@ -453,11 +453,10 @@ describe("OrderDetail site visit save", () => {
     render(<OrderDetail />);
 
     expect(screen.getByText("Internal")).toBeInTheDocument();
-    expect(screen.getByText("Internal Order Detail")).toBeInTheDocument();
-    expect(screen.getByText("Continental Internal Order 2026001")).toBeInTheDocument();
-    expect(
-      screen.getByText("Internal appraisal production record scoped to Continental workflow, review, and client delivery."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Order Detail")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Order 2026001" })).toBeInTheDocument();
+    expect(screen.getAllByText("Acme Lending").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("100 Main St, Boston, MA 02110").length).toBeGreaterThan(0);
     expect(document.getElementById("amc-procurement")).toBeNull();
   });
 
@@ -468,11 +467,9 @@ describe("OrderDetail site visit save", () => {
     render(<OrderDetail />);
 
     expect(screen.getByTestId("workspace-identity-badge")).toHaveTextContent("AMC");
-    expect(screen.getByText("AMC Order Detail")).toBeInTheDocument();
-    expect(screen.getByText("Falcon AMC Order 2026001")).toBeInTheDocument();
-    expect(
-      screen.getByText("Falcon AMC procurement record scoped to vendor assignment, client services, and payment oversight."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Order Detail")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Order 2026001" })).toBeInTheDocument();
+    expect(screen.getAllByText("Acme Lending").length).toBeGreaterThan(0);
   });
 
   it("saves the site visit through the RPC-backed wrapper and refreshes", async () => {
@@ -584,7 +581,7 @@ describe("OrderDetail site visit save", () => {
     expect(screen.queryByText("Activity / Communication History")).not.toBeInTheDocument();
     const attention = screen.getByLabelText("Order attention summary");
     expect(attention).toBeInTheDocument();
-    expect(screen.getByText("Attention Summary")).toBeInTheDocument();
+    expect(screen.getByText("Needs Attention")).toBeInTheDocument();
     expect(attention.compareDocumentPosition(overview)).toBe(DOCUMENT_POSITION_FOLLOWING);
   });
 
@@ -644,21 +641,16 @@ describe("OrderDetail site visit save", () => {
 
     const evidence = screen.getByLabelText("Operational status evidence");
     const overview = screen.getByLabelText("Operational Overview");
-    expect(within(evidence).getByText("Operational Context")).toBeInTheDocument();
+    expect(within(evidence).getByText("Context")).toBeInTheDocument();
     expect(evidence.compareDocumentPosition(overview)).toBe(DOCUMENT_POSITION_FOLLOWING);
-    expect(within(evidence).getByText("Inspection scheduled")).toBeInTheDocument();
-    expect(within(evidence).getByText("Evidence")).toBeInTheDocument();
-    expect(within(evidence).getByText("Appraiser")).toBeInTheDocument();
-    expect(
-      within(evidence).getByText("Inspection window confirmed with the property contact."),
-    ).toBeInTheDocument();
+    expect(evidence).toHaveTextContent("Inspection scheduled");
+    expect(evidence).toHaveTextContent("Appraiser");
     expect(within(evidence).queryByRole("button")).not.toBeInTheDocument();
     expect(within(evidence).queryByRole("textbox")).not.toBeInTheDocument();
 
     const controls = screen.getByLabelText("Operational context controls");
-    expect(
-      within(controls).getByText("Adds temporary context. This does not change lifecycle status."),
-    ).toBeInTheDocument();
+    expect(within(controls).getByText("Operational context")).toBeInTheDocument();
+    expect(within(controls).getByText("Inspection scheduled")).toBeInTheDocument();
     fireEvent.click(within(controls).getByRole("button", { name: "Update context" }));
     fireEvent.click(screen.getByRole("button", { name: "Mark report on track" }));
 
@@ -809,9 +801,9 @@ describe("OrderDetail site visit save", () => {
 
     render(<OrderDetail />);
 
-    const recommendation = screen.getByLabelText("Recommended workflow action");
-    expect(within(recommendation).getByText("Recommended next step")).toBeInTheDocument();
-    expect(within(recommendation).getByText("Internal workflow guidance")).toBeInTheDocument();
+    const recommendation = screen.getByLabelText("Smart Action");
+    expect(within(recommendation).getByText("Smart Action")).toBeInTheDocument();
+    expect(within(recommendation).getByText("Internal workflow")).toBeInTheDocument();
 
     fireEvent.click(within(recommendation).getByRole("button", { name: "Send to Review" }));
 
@@ -831,24 +823,24 @@ describe("OrderDetail site visit save", () => {
     orderMock.status = "completed";
 
     render(<OrderDetail />);
-    expect(within(screen.getByLabelText("Recommended workflow action")).getByText("No guided action")).toBeInTheDocument();
+    expect(within(screen.getByLabelText("Smart Action")).getByText("No guided action")).toBeInTheDocument();
     cleanup();
 
     orderMock.status = "new";
     orderMock.is_archived = true;
     render(<OrderDetail />);
-    expect(within(screen.getByLabelText("Recommended workflow action")).getByText("No guided action")).toBeInTheDocument();
+    expect(within(screen.getByLabelText("Smart Action")).getByText("No guided action")).toBeInTheDocument();
     cleanup();
 
     orderMock.is_archived = false;
     orderMock.status = "cancelled";
     render(<OrderDetail />);
-    expect(within(screen.getByLabelText("Recommended workflow action")).getByText("No guided action")).toBeInTheDocument();
+    expect(within(screen.getByLabelText("Smart Action")).getByText("No guided action")).toBeInTheDocument();
     cleanup();
 
     orderMock.status = "voided";
     render(<OrderDetail />);
-    expect(within(screen.getByLabelText("Recommended workflow action")).getByText("No guided action")).toBeInTheDocument();
+    expect(within(screen.getByLabelText("Smart Action")).getByText("No guided action")).toBeInTheDocument();
   });
 
   it("keeps override out of smart recommendations while preserving owner/admin More actions", () => {
@@ -856,7 +848,7 @@ describe("OrderDetail site visit save", () => {
 
     render(<OrderDetail />);
 
-    const recommendation = screen.getByLabelText("Recommended workflow action");
+    const recommendation = screen.getByLabelText("Smart Action");
     expect(within(recommendation).queryByText("Override status")).not.toBeInTheDocument();
     expect(within(recommendation).getByRole("button", { name: "Send to Review" })).toBeInTheDocument();
 
@@ -872,9 +864,7 @@ describe("OrderDetail site visit save", () => {
     render(<OrderDetail />);
 
     expect(
-      within(screen.getByLabelText("Recommended workflow action")).getByText(
-        "Falcon AMC workflow guidance",
-      ),
+      within(screen.getByLabelText("Smart Action")).getByText("Falcon AMC workflow"),
     ).toBeInTheDocument();
   });
 

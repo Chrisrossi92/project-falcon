@@ -59,7 +59,6 @@ import { formatPhoneForDisplay } from "@/lib/utils/phoneFormat";
 import { formatOperationalDate } from "@/lib/utils/dateOnly";
 import { useOperationsMode } from "@/lib/operations/OperationsModeProvider";
 import { OPERATIONS_MODES } from "@/lib/operations/operationsMode";
-import { getWorkspacePageChrome } from "@/lib/workspace/workspaceIdentity";
 import { buildOrderListPath } from "@/features/orders/orderRoutePaths";
 
 /* ---------- helpers ---------- */
@@ -1076,7 +1075,6 @@ export default function OrderDetail() {
   const [appraiserName, setAppraiserName] = useState("-");
   const orderId = order?.id;
   const orderOperationsScope = order?.operations_scope;
-  const orderDetailChrome = getWorkspacePageChrome(operationsMode, "orderDetail");
   const orderWorkspaceRedirect = useMemo(
     () => (orderId ? resolveOrderWorkspaceRedirect(orderOperationsScope, operationsMode) : null),
     [operationsMode, orderId, orderOperationsScope],
@@ -1511,45 +1509,65 @@ export default function OrderDetail() {
       <div className="space-y-4 print:hidden">
         {/* Operational overview */}
         <WorkspaceSurface variant="primary" className="p-4">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="min-w-0">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0 flex-1">
             <div className="mb-2 flex flex-wrap items-center gap-2">
               <WorkspaceBadge operationsMode={operationsMode} />
               <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                {orderDetailChrome.eyebrow || "Order Detail"}
+                Order Detail
               </span>
             </div>
-            <div className="text-lg font-semibold flex items-center gap-3">
-              <span>{orderDetailChrome.title || "Order"} {titleNo}</span>
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-xl font-semibold text-slate-950">Order {titleNo}</h1>
               <OrderStatusBadge status={order.status} />
               <button
                 type="button"
                 onClick={copyNo}
                 title="Copy order number"
-                className="text-xs rounded border px-1.5 py-0.5 text-gray-500 hover:bg-gray-50"
+                className="rounded border px-1.5 py-0.5 text-xs text-gray-500 hover:bg-gray-50"
               >
                 Copy
               </button>
             </div>
-            <div className="text-xs text-gray-500">Created {fmtDateTime(order.created_at)}</div>
-            {orderDetailChrome.description ? (
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                {orderDetailChrome.description}
-              </p>
-            ) : null}
+            <div className="mt-3 grid gap-2 text-sm text-slate-700 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="min-w-0">
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                  Client
+                </div>
+                <div className="truncate font-medium text-slate-950">{clientName || "-"}</div>
+              </div>
+              <div className="min-w-0 sm:col-span-2 xl:col-span-1">
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                  Property
+                </div>
+                <div className="truncate font-medium text-slate-950">{propertyAddress || "-"}</div>
+              </div>
+              <div className="min-w-0">
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                  Property Type
+                </div>
+                <div className="truncate font-medium text-slate-950">{order.property_type || "-"}</div>
+              </div>
+              <div className="min-w-0">
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                  Created
+                </div>
+                <div className="truncate font-medium text-slate-950">{fmtDateTime(order.created_at)}</div>
+              </div>
+            </div>
           </div>
           <div className="flex w-full flex-col gap-2 md:w-auto md:min-w-[360px] md:items-end">
             <section
-              aria-label="Recommended workflow action"
+              aria-label="Smart Action"
               className="w-full rounded-lg border border-sky-200 bg-sky-50 px-3 py-2.5 text-sm text-slate-800 shadow-sm md:max-w-[420px]"
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-[11px] font-semibold uppercase tracking-wide text-sky-700">
-                    Recommended next step
+                    Smart Action
                   </div>
                   <div className="mt-1 text-xs text-slate-600">
-                    {smartActionWorkspaceLabel} workflow guidance
+                    {smartActionWorkspaceLabel} workflow
                   </div>
                   {smartActionError ? (
                     <div className="mt-2 text-xs font-medium text-rose-700">{smartActionError}</div>
@@ -1573,6 +1591,24 @@ export default function OrderDetail() {
                 )}
               </div>
             </section>
+            {showDerivedContextSurfaces && (
+              <>
+                <OperationalInputsReadOnly
+                  inputs={operationalInputs}
+                  loading={operationalInputsLoading}
+                  error={operationalInputsError}
+                  compact
+                  className="w-full md:max-w-[420px]"
+                />
+                <OperationalInputsCreateClearControls
+                  orderId={order.id}
+                  inputs={operationalInputs}
+                  onChanged={refreshOperationalInputs}
+                  compact
+                  className="w-full md:max-w-[420px]"
+                />
+              </>
+            )}
             <div className="flex flex-wrap items-center justify-end gap-2 rounded-lg border border-slate-200 bg-white/85 p-2 shadow-sm">
               {canOfferAssignment && (
                 <button
@@ -1710,24 +1746,10 @@ export default function OrderDetail() {
           <OrderAttentionSummaryPanel
             order={order}
             documents={orderFilesLoaded ? orderFiles : null}
+            title="Needs Attention"
+            description=""
             className="mt-4"
           />
-        )}
-        {showDerivedContextSurfaces && (
-          <>
-            <OperationalInputsCreateClearControls
-              orderId={order.id}
-              inputs={operationalInputs}
-              onChanged={refreshOperationalInputs}
-              className="mt-3"
-            />
-            <OperationalInputsReadOnly
-              inputs={operationalInputs}
-              loading={operationalInputsLoading}
-              error={operationalInputsError}
-              className="mt-3"
-            />
-          </>
         )}
         <div
           className="mt-4 border-t border-gray-100 pt-4"
