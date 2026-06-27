@@ -541,8 +541,16 @@ describe("VendorAssignmentCandidatesPanel", () => {
     expect(within(dialog).getByText("This will send an assignment offer to the vendor.")).toBeInTheDocument();
     expect(within(dialog).getByText("The vendor still needs to accept before work is considered assigned.")).toBeInTheDocument();
     expect(within(dialog).getByLabelText("Engagement package preview")).toBeInTheDocument();
-    expect(within(dialog).getByLabelText("Package Readiness")).toHaveTextContent("This checklist is informational and does not block assignment.");
-    expect(within(dialog).getByLabelText("Assignment Intelligence")).toHaveTextContent("Explainable, read-only checks from the current package preview data.");
+    expect(within(dialog).getByLabelText("Assignment steps")).toHaveTextContent("Vendor selected");
+    expect(within(dialog).getByLabelText("Assignment steps")).toHaveTextContent("Assignment terms");
+    expect(within(dialog).getByLabelText("Assignment steps")).toHaveTextContent("Package ready");
+    expect(within(dialog).getByLabelText("Package Readiness")).toHaveTextContent("Engagement letter");
+    expect(within(dialog).getByLabelText("Package Readiness")).toHaveTextContent("Assignment summary");
+    expect(within(dialog).getByLabelText("Package Readiness")).not.toHaveTextContent("Property address");
+    expect(within(dialog).getByLabelText("Package Readiness")).not.toHaveTextContent("Client name");
+    expect(within(dialog).getByLabelText("Assignment Intelligence")).toHaveTextContent("Exception-only guidance from the current package preview data.");
+    expect(within(dialog).getByLabelText("Assignment Intelligence")).toHaveTextContent("Missing company guidelines");
+    expect(within(dialog).getByLabelText("Assignment Intelligence")).not.toHaveTextContent("Vendor Readiness");
     expect(within(dialog).getByText("Engagement Letter")).toBeInTheDocument();
     expect(within(dialog).getByText("Assignment Summary")).toBeInTheDocument();
     expect(within(dialog).getAllByText("Company Guidelines").length).toBeGreaterThanOrEqual(1);

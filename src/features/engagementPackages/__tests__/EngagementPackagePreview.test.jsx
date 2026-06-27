@@ -11,7 +11,7 @@ describe("EngagementPackagePreview", () => {
     cleanup();
   });
 
-  it("renders the reusable package documents and core order sections", () => {
+  it("renders compact steps, assignment terms, readiness, and collapsed package details", () => {
     render(
       <EngagementPackagePreview
         order={{
@@ -44,34 +44,31 @@ describe("EngagementPackagePreview", () => {
           assignmentType: "vendor_appraisal",
           dueAt: "2026-06-20T16:00:00Z",
           reviewDueAt: "2026-06-22T16:00:00Z",
+          expiresAt: "2026-06-18T16:00:00Z",
           instructions: "Please confirm inspection availability.",
         }}
       />,
     );
 
     expect(screen.getByLabelText("Engagement package preview")).toBeInTheDocument();
+    expect(screen.getByLabelText("Assignment steps")).toHaveTextContent("Vendor selected");
+    expect(screen.getByLabelText("Assignment steps")).toHaveTextContent("Assignment terms");
+    expect(screen.getByLabelText("Assignment steps")).toHaveTextContent("Package ready");
+    expect(screen.getByLabelText("Assignment Terms")).toHaveTextContent("Vendor due date");
+    expect(screen.getByLabelText("Assignment Terms")).toHaveTextContent("Review buffer");
+    expect(screen.getByLabelText("Assignment Terms")).toHaveTextContent("target 3 business days");
+    expect(screen.getByLabelText("Assignment Terms")).toHaveTextContent("Client delivery preview");
+    expect(screen.getByLabelText("Assignment Terms")).toHaveTextContent("Offer response window");
+    expect(screen.getByLabelText("Assignment Terms")).toHaveTextContent("Please confirm inspection availability.");
+    expect(screen.getByLabelText("Package Readiness")).toHaveTextContent("Engagement letter");
+    expect(screen.getByLabelText("Package Readiness")).toHaveTextContent("Assignment summary");
+    expect(screen.getByLabelText("Package Readiness")).toHaveTextContent("Company guidelines");
+    expect(screen.getByLabelText("Package Readiness")).toHaveTextContent("Client/source documents");
     expect(screen.getByLabelText("Engagement Letter Preview")).toBeInTheDocument();
-    expect(screen.getByLabelText("Package Readiness")).toBeInTheDocument();
-    expect(screen.getByLabelText("Assignment Intelligence")).toBeInTheDocument();
-    expect(screen.getByText("This checklist is informational and does not block assignment.")).toBeInTheDocument();
-    expect(screen.getByText("Engagement Letter")).toBeInTheDocument();
-    expect(screen.getByText("Assignment Summary")).toBeInTheDocument();
-    expect(screen.getAllByText("Company Guidelines").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText("Client Documents").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText("Property Information")).toBeInTheDocument();
-    expect(screen.getAllByText("12969 Eckel Junction Road").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText("ABC Valuation").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText("Ross Bank").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText("Loan underwriting")).toBeInTheDocument();
-    expect(screen.getByText("Ross Bank credit committee")).toBeInTheDocument();
-    expect(screen.getByText("123-456-789")).toBeInTheDocument();
-    expect(screen.getByText("Fee Simple")).toBeInTheDocument();
-    expect(screen.getByText("As Is")).toBeInTheDocument();
-    expect(screen.getByText("All Applicable")).toBeInTheDocument();
-    expect(screen.getAllByText("Please confirm inspection availability.").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Assignment summary details")).toBeInTheDocument();
   });
 
-  it("renders assignment intelligence with package health, timeline, vendor, and document reasons", () => {
+  it("shows no exception guidance when package artifacts and timing are acceptable", () => {
     render(
       <EngagementPackagePreview
         order={{
@@ -84,7 +81,7 @@ describe("EngagementPackagePreview", () => {
           vendor_company_name: "ABC Valuation",
         }}
         assignment={{
-          dueAt: "2026-06-20T16:00:00Z",
+          dueAt: "2026-06-18T16:00:00Z",
           feeAmount: 2500,
           instructions: "Call before inspection.",
         }}
@@ -104,42 +101,14 @@ describe("EngagementPackagePreview", () => {
     );
 
     const intelligence = screen.getByLabelText("Assignment Intelligence");
-    expect(intelligence).toHaveTextContent("Explainable, read-only checks from the current package preview data.");
-    expect(intelligence).toHaveTextContent("Package Health");
-    expect(intelligence).toHaveTextContent("9 of 9 ready");
-    expect(intelligence).toHaveTextContent("No required readiness gaps were found in the current package data.");
-    expect(intelligence).toHaveTextContent("Timeline Risk");
-    expect(intelligence).toHaveTextContent("Low risk");
-    expect(intelligence).toHaveTextContent("is on or before the client expected date");
-    expect(intelligence).toHaveTextContent("Vendor Readiness");
-    expect(intelligence).toHaveTextContent("ABC Valuation is selected for this offer.");
-    expect(intelligence).toHaveTextContent("Credential data not available yet in the current vendor candidate data.");
-    expect(intelligence).toHaveTextContent("Package Documents");
-    expect(intelligence).toHaveTextContent("2 package documents");
-    expect(intelligence).toHaveTextContent("1 company guideline document loaded from package documents.");
-    expect(intelligence).toHaveTextContent("1 client or source document loaded from package documents.");
+    expect(intelligence).toHaveTextContent("Exception-only guidance from the current package preview data.");
+    expect(intelligence).toHaveTextContent("No assignment risks detected.");
+    expect(intelligence).not.toHaveTextContent("Package Health");
+    expect(intelligence).not.toHaveTextContent("Vendor Readiness");
+    expect(intelligence).not.toHaveTextContent("Ready");
   });
 
-  it("explains missing assignment intelligence items without disabling preview content", () => {
-    render(<EngagementPackagePreview order={{ property_address: "100 Main Street" }} />);
-
-    const intelligence = screen.getByLabelText("Assignment Intelligence");
-    expect(intelligence).toHaveTextContent("Package Health");
-    expect(intelligence).toHaveTextContent("2 of 9 ready");
-    expect(intelligence).toHaveTextContent("Missing client name");
-    expect(intelligence).toHaveTextContent("This appears because the package readiness checklist does not have this required value.");
-    expect(intelligence).toHaveTextContent("Timeline Risk");
-    expect(intelligence).toHaveTextContent("Missing due date");
-    expect(intelligence).toHaveTextContent("Vendor due date is missing, so Falcon cannot compare assignment timing.");
-    expect(intelligence).toHaveTextContent("Vendor Readiness");
-    expect(intelligence).toHaveTextContent("Missing vendor");
-    expect(intelligence).toHaveTextContent("No vendor is selected, so Falcon cannot prepare a vendor-specific assignment package.");
-    expect(intelligence).toHaveTextContent("No company guideline documents are loaded in the current package document groups.");
-    expect(intelligence).toHaveTextContent("No client or source documents are loaded in the current package document groups.");
-    expect(screen.getByLabelText("Engagement Letter Preview")).toBeInTheDocument();
-  });
-
-  it("warns when vendor due date is after the client expected date", () => {
+  it("shows exception guidance for missing documents and due-date issues only", () => {
     render(
       <EngagementPackagePreview
         order={{
@@ -156,11 +125,17 @@ describe("EngagementPackagePreview", () => {
     );
 
     const intelligence = screen.getByLabelText("Assignment Intelligence");
-    expect(intelligence).toHaveTextContent("Review timing");
+    expect(intelligence).toHaveTextContent("Missing company guidelines");
+    expect(intelligence).toHaveTextContent("No company guideline documents are loaded in the current package document groups.");
+    expect(intelligence).toHaveTextContent("Missing client/source documents");
+    expect(intelligence).toHaveTextContent("No client or source documents are loaded in the current package document groups.");
+    expect(intelligence).toHaveTextContent("Due date after client delivery");
     expect(intelligence).toHaveTextContent("is after the client expected date");
+    expect(intelligence).not.toHaveTextContent("ABC Valuation is selected for this offer.");
+    expect(screen.getByLabelText("Engagement Letter Preview")).toBeInTheDocument();
   });
 
-  it("renders readiness states from available package data", () => {
+  it("renders compact readiness without obvious address, client, and vendor checklist cards", () => {
     render(
       <EngagementPackagePreview
         order={{
@@ -192,36 +167,15 @@ describe("EngagementPackagePreview", () => {
     );
 
     const readiness = screen.getByLabelText("Package Readiness");
-    expect(readiness).toHaveTextContent("Property address");
-    expect(readiness).toHaveTextContent("Ready");
-    expect(readiness).toHaveTextContent("Assignment fee");
-    expect(readiness).toHaveTextContent("$2,500.00");
+    expect(readiness).toHaveTextContent("4 of 4 complete");
+    expect(readiness).toHaveTextContent("Engagement letter");
+    expect(readiness).toHaveTextContent("Assignment summary");
     expect(readiness).toHaveTextContent("Company guidelines");
-    expect(readiness).toHaveTextContent("1 attached");
     expect(readiness).toHaveTextContent("Client/source documents");
-    expect(readiness).toHaveTextContent("1 attached");
-    expect(readiness).toHaveTextContent("Special instructions");
-    expect(readiness).toHaveTextContent("Call before inspection.");
-  });
-
-  it("shows missing and optional readiness states without blocking the preview", () => {
-    render(<EngagementPackagePreview order={{ property_address: "100 Main Street" }} />);
-
-    const readiness = screen.getByLabelText("Package Readiness");
-    expect(readiness).toHaveTextContent("Client name");
-    expect(readiness).toHaveTextContent("Missing client name");
-    expect(readiness).toHaveTextContent("Vendor selected");
-    expect(readiness).toHaveTextContent("Missing selected vendor");
-    expect(readiness).toHaveTextContent("Assignment fee");
-    expect(readiness).toHaveTextContent("Missing assignment fee");
-    expect(readiness).toHaveTextContent("Company guidelines");
-    expect(readiness).toHaveTextContent("No company guidelines attached");
-    expect(readiness).toHaveTextContent("Client/source documents");
-    expect(readiness).toHaveTextContent("No client or source documents loaded");
-    expect(readiness).toHaveTextContent("Special instructions");
-    expect(readiness).toHaveTextContent("No special instructions provided");
-    expect(readiness).toHaveTextContent("Optional");
-    expect(screen.getByLabelText("Engagement Letter Preview")).toBeInTheDocument();
+    expect(readiness).not.toHaveTextContent("Property address");
+    expect(readiness).not.toHaveTextContent("Client name");
+    expect(readiness).not.toHaveTextContent("Vendor selected");
+    expect(readiness).not.toHaveTextContent("Assignment fee");
   });
 
   it("uses honest empty states instead of fake attachment data", () => {
@@ -232,7 +186,6 @@ describe("EngagementPackagePreview", () => {
     expect(screen.getByText("No client documents are currently loaded for this order.")).toBeInTheDocument();
     expect(screen.getByText("No property or source documents are currently loaded for this order.")).toBeInTheDocument();
     expect(screen.getByText("No other attachments are currently loaded for this order.")).toBeInTheDocument();
-    expect(screen.getAllByText("Not provided").length).toBeGreaterThan(0);
   });
 
   it("renders package document sections from existing order document metadata", () => {
@@ -320,37 +273,29 @@ describe("EngagementPackagePreview", () => {
         type: "Client Document",
       }),
     ]);
-    expect(model.sections.map((section) => section.title)).toContain("Fee");
-    expect(model.sections.map((section) => section.title)).toContain("Special Instructions");
-    expect(model.readinessChecklist).toEqual(
+    expect(model.progressSteps.map((step) => step.key)).toEqual([
+      "vendor-selected",
+      "assignment-terms",
+      "package-ready",
+    ]);
+    expect(model.readinessChecklist.map((item) => item.key)).toEqual([
+      "engagement-letter",
+      "assignment-summary",
+      "company-guidelines",
+      "client-source-documents",
+    ]);
+    expect(model.readinessSummary).toEqual({
+      readyCount: 3,
+      totalCount: 4,
+      percent: 75,
+    });
+    expect(model.assignmentIntelligence.warnings).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({
-          key: "property-address",
-          status: "ready",
-        }),
         expect.objectContaining({
           key: "company-guidelines",
-          status: "missing",
         }),
         expect.objectContaining({
-          key: "client-source-documents",
-          status: "ready",
-        }),
-      ]),
-    );
-    expect(model.assignmentIntelligence.groups).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          key: "package-health",
-          summary: "4 of 9 ready",
-        }),
-        expect.objectContaining({
-          key: "timeline-risk",
-          status: "missing",
-        }),
-        expect.objectContaining({
-          key: "package-documents",
-          summary: "1 package document",
+          key: "vendor-due-date",
         }),
       ]),
     );

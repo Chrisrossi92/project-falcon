@@ -21,6 +21,67 @@ function DocumentChecklist({ documents }) {
   );
 }
 
+function StepStatus({ complete }) {
+  return (
+    <span
+      className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
+        complete
+          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+          : "border-amber-200 bg-amber-50 text-amber-700"
+      }`}
+    >
+      {complete ? "Complete" : "Needs input"}
+    </span>
+  );
+}
+
+function AssignmentStepSummary({ steps }) {
+  return (
+    <section className="rounded-md border border-slate-200 bg-white p-3" aria-label="Assignment steps">
+      <h4 className="text-sm font-semibold text-slate-950">Assignment steps</h4>
+      <div className="mt-3 grid gap-2 md:grid-cols-3">
+        {steps.map((step) => (
+          <div key={step.key} className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold text-slate-800">{step.label}</span>
+              <StepStatus complete={step.complete} />
+            </div>
+            <p className="mt-1 truncate text-xs text-slate-500" title={step.detail}>{step.detail}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function AssignmentTermsSummary({ terms }) {
+  const rows = [
+    ["Vendor due date", terms.vendorDueDate],
+    ["Review buffer", `${terms.reviewBuffer} · target ${terms.reviewBufferTarget}`],
+    ["Client delivery preview", terms.clientDeliveryDate],
+    ["Offer response window", `${terms.responseWindow} · ${terms.responseWindowOptions}`],
+    ["Message to vendor", terms.messageToVendor],
+  ];
+
+  return (
+    <section className="rounded-md border border-slate-200 bg-white p-3" aria-label="Assignment Terms">
+      <h4 className="text-sm font-semibold text-slate-950">Assignment Terms</h4>
+      <dl className="mt-3 grid gap-x-4 gap-y-2 sm:grid-cols-2">
+        {rows.map(([label, value]) => (
+          <div key={label} className={label === "Message to vendor" ? "sm:col-span-2" : ""}>
+            <dt className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+              {label}
+            </dt>
+            <dd className={`mt-0.5 text-sm ${value === "Not provided" || value === "Not set" ? "text-slate-400" : "text-slate-800"}`}>
+              {value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
 function ReadinessStatus({ status }) {
   const label = status === "ready" ? "Ready" : status === "optional" ? "Optional" : "Missing";
   const classes = {
@@ -36,41 +97,21 @@ function ReadinessStatus({ status }) {
   );
 }
 
-function InsightStatus({ status }) {
-  const labels = {
-    ready: "Ready",
-    missing: "Missing",
-    warning: "Review",
-    info: "Info",
-  };
-  const classes = {
-    ready: "border-emerald-200 bg-emerald-50 text-emerald-700",
-    missing: "border-amber-200 bg-amber-50 text-amber-700",
-    warning: "border-amber-200 bg-amber-50 text-amber-700",
-    info: "border-blue-200 bg-blue-50 text-blue-700",
-  };
-
-  return (
-    <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${classes[status] || classes.info}`}>
-      {labels[status] || "Info"}
-    </span>
-  );
-}
-
-function PackageReadinessChecklist({ items }) {
+function PackageReadinessChecklist({ items, summary }) {
   return (
     <section className="rounded-md border border-slate-200 bg-white p-3" aria-label="Package Readiness">
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h4 className="text-sm font-semibold text-slate-950">Package Readiness</h4>
-          <p className="mt-1 text-xs leading-5 text-slate-500">
-            This checklist is informational and does not block assignment.
-          </p>
+          <p className="mt-1 text-xs leading-5 text-slate-500">Package artifacts only. Assignment sends remain unchanged.</p>
         </div>
+        <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700">
+          {summary.readyCount} of {summary.totalCount} complete · {summary.percent}%
+        </span>
       </div>
-      <ul className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+      <ul className="mt-3 grid gap-2 sm:grid-cols-2">
         {items.map((item) => (
-          <li key={item.key} className="flex items-start justify-between gap-3 rounded-md bg-slate-50 px-2.5 py-2">
+          <li key={item.key} className="flex items-center justify-between gap-3 rounded-md bg-slate-50 px-2.5 py-2">
             <div className="min-w-0">
               <div className="text-sm font-medium text-slate-800">{item.label}</div>
               <div className={`mt-0.5 text-xs ${item.status === "missing" ? "text-amber-700" : "text-slate-500"}`}>
@@ -88,42 +129,45 @@ function PackageReadinessChecklist({ items }) {
 function AssignmentIntelligencePanel({ intelligence }) {
   return (
     <section className="rounded-md border border-slate-200 bg-white p-3" aria-label="Assignment Intelligence">
-      <div>
-        <h4 className="text-sm font-semibold text-slate-950">{intelligence.title}</h4>
-        <p className="mt-1 text-xs leading-5 text-slate-500">{intelligence.subtitle}</p>
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h4 className="text-sm font-semibold text-slate-950">{intelligence.title}</h4>
+          <p className="mt-1 text-xs leading-5 text-slate-500">{intelligence.subtitle}</p>
+        </div>
+        <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${
+          intelligence.status === "ready"
+            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+            : "border-amber-200 bg-amber-50 text-amber-700"
+        }`}>
+          {intelligence.summary}
+        </span>
       </div>
-      <div className="mt-3 grid gap-2 xl:grid-cols-2">
-        {intelligence.groups.map((group) => (
-          <section key={group.key} className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h5 className="text-sm font-semibold text-slate-900">{group.title}</h5>
-                <p className="mt-0.5 text-xs text-slate-500">{group.summary}</p>
-              </div>
-              <InsightStatus status={group.status} />
-            </div>
-            <ul className="mt-2 grid gap-1.5">
-              {group.items.map((item) => (
-                <li key={item.key} className="rounded-md bg-white px-2.5 py-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="text-xs font-semibold text-slate-700">{item.label}</span>
-                    <InsightStatus status={item.status} />
-                  </div>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">{item.reason}</p>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))}
-      </div>
+      {intelligence.warnings.length === 0 ? (
+        <p className="mt-3 rounded-md bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
+          No assignment risks detected.
+        </p>
+      ) : (
+        <ul className="mt-3 grid gap-2">
+          {intelligence.warnings.map((item) => (
+            <li key={item.key} className="rounded-md border border-amber-100 bg-amber-50 px-3 py-2">
+              <div className="text-sm font-semibold text-amber-900">{item.label}</div>
+              <p className="mt-1 text-xs leading-5 text-amber-800">{item.reason}</p>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
 
 function EngagementLetterPreview({ letter }) {
   return (
-    <section className="rounded-md border border-slate-300 bg-white p-4 shadow-sm" aria-label="Engagement Letter Preview">
-      <div className="border-b border-slate-200 pb-3">
+    <details className="rounded-md border border-slate-300 bg-white p-4 shadow-sm" aria-label="Engagement Letter Preview">
+      <summary className="cursor-pointer text-sm font-semibold text-slate-950">
+        Engagement Letter Preview
+        <span className="ml-2 text-xs font-medium text-slate-500">Expand formal letter</span>
+      </summary>
+      <div className="mt-3 border-t border-slate-200 pt-3">
         <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
           Formal letter preview
         </div>
@@ -153,7 +197,7 @@ function EngagementLetterPreview({ letter }) {
       <div className="mt-4 border-t border-slate-200 pt-3 text-sm text-slate-500">
         {letter.closing}
       </div>
-    </section>
+    </details>
   );
 }
 
@@ -261,13 +305,22 @@ export default function EngagementPackagePreview({
       </div>
 
       <div className="mt-4 grid gap-3">
-        <PackageReadinessChecklist items={model.readinessChecklist} />
+        <AssignmentStepSummary steps={model.progressSteps} />
+        <AssignmentTermsSummary terms={model.assignmentTerms} />
+        <PackageReadinessChecklist items={model.readinessChecklist} summary={model.readinessSummary} />
         <AssignmentIntelligencePanel intelligence={model.assignmentIntelligence} />
         <EngagementLetterPreview letter={model.letterPreview} />
-        {model.sections.map((section) => (
-          <EngagementPackageSection key={section.key} title={section.title} items={section.items} />
-        ))}
-        <DocumentSections sections={model.documentSections} />
+        <details className="rounded-md border border-slate-200 bg-white p-3">
+          <summary className="cursor-pointer text-sm font-semibold text-slate-950">
+            Assignment summary details
+          </summary>
+          <div className="mt-3 grid gap-3">
+            {model.sections.map((section) => (
+              <EngagementPackageSection key={section.key} title={section.title} items={section.items} />
+            ))}
+            <DocumentSections sections={model.documentSections} />
+          </div>
+        </details>
       </div>
     </section>
   );

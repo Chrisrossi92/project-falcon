@@ -116,6 +116,31 @@ function parseDate(value) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+function isBusinessDay(date) {
+  const day = date.getDay();
+  return day !== 0 && day !== 6;
+}
+
+function countBusinessDaysBetween(startDate, endDate) {
+  if (!(startDate instanceof Date) || !(endDate instanceof Date) || startDate >= endDate) return 0;
+  const cursor = new Date(startDate);
+  cursor.setDate(cursor.getDate() + 1);
+  let count = 0;
+
+  while (cursor <= endDate) {
+    if (isBusinessDay(cursor)) count += 1;
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return count;
+}
+
+function isExpiredDate(value) {
+  const date = parseDate(value);
+  if (!date) return false;
+  return date < new Date();
+}
+
 function formatMoney(amount, currency = "USD") {
   if (amount === null || amount === undefined || amount === "") return EMPTY_VALUE;
   const numericAmount = Number(amount);
@@ -265,26 +290,9 @@ function documentsInSection(documentSections, sectionKey) {
 }
 
 function buildPackageReadinessChecklist({
-  order = {},
-  assignment = {},
-  vendor = {},
-  clientName,
-  assignmentDueAt,
   documentSections = [],
   letterPreview,
 } = {}) {
-  const propertyAddress = firstPresent(order.property_address, order.address);
-  const vendorName = firstPresent(vendor.vendor_company_name, vendor.company_name, vendor.name);
-  const assignmentFee = firstPresent(
-    assignment.feeAmount,
-    assignment.fee_amount,
-    order.vendor_fee,
-    order.appraiser_fee,
-    order.base_fee,
-  );
-  const assignmentFeeLabel = hasValue(assignmentFee) ? formatMoney(assignmentFee, assignment.currency || order.currency) : "";
-  const assignmentDueAtLabel = hasValue(assignmentDueAt) ? formatDateTime(assignmentDueAt) : "";
-  const instructions = firstPresent(assignment.instructions, assignment.note, order.special_instructions, order.assignment_notes);
   const companyGuidelines = documentsInSection(documentSections, "company-guidelines");
   const clientSourceDocuments = [
     ...documentsInSection(documentSections, "client-documents"),
@@ -292,12 +300,8 @@ function buildPackageReadinessChecklist({
   ];
 
   return [
-    makeReadinessItem("property-address", "Property address", propertyAddress, "Missing property address"),
-    makeReadinessItem("client-name", "Client name", clientName, "Missing client name"),
-    makeReadinessItem("vendor-selected", "Vendor selected", vendorName, "Missing selected vendor"),
-    makeReadinessItem("assignment-fee", "Assignment fee", assignmentFeeLabel, "Missing assignment fee"),
-    makeReadinessItem("due-date", "Due date", assignmentDueAtLabel, "Missing due date"),
-    makeReadinessItem("engagement-letter", "Engagement letter preview", letterPreview?.title, "Preview unavailable"),
+    makeReadinessItem("engagement-letter", "Engagement letter", letterPreview?.title, "Preview unavailable"),
+    makeReadinessItem("assignment-summary", "Assignment summary", "Ready", "Summary unavailable"),
     makeReadinessItem(
       "company-guidelines",
       "Company guidelines",
@@ -309,14 +313,6 @@ function buildPackageReadinessChecklist({
       "Client/source documents",
       clientSourceDocuments.length ? `${clientSourceDocuments.length} attached` : "",
       "No client or source documents loaded",
-      { optional: true },
-    ),
-    makeReadinessItem(
-      "special-instructions",
-      "Special instructions",
-      instructions,
-      "No special instructions provided",
-      { optional: true },
     ),
   ];
 }
@@ -338,11 +334,9 @@ function buildAssignmentIntelligence({
   readinessChecklist = [],
 } = {}) {
   const readyCount = readinessChecklist.filter((item) => item.status === "ready").length;
-  const missingRequiredItems = readinessChecklist.filter((item) => item.status === "missing");
   const companyGuidelines = documentsInSection(documentSections, "company-guidelines");
   const clientDocuments = documentsInSection(documentSections, "client-documents");
   const sourceDocuments = documentsInSection(documentSections, "property-source-documents");
-  const vendorName = firstPresent(vendor.vendor_company_name, vendor.company_name, vendor.name);
   const clientDueAt = firstPresent(
     order.client_due_at,
     order.clientDueAt,
@@ -352,6 +346,7 @@ function buildAssignmentIntelligence({
   );
   const assignmentDueDate = parseDate(assignmentDueAt);
   const clientDueDate = parseDate(clientDueAt);
+  const warnings = [];
   const licenseExpiration = firstPresent(
     vendor.license_expires_at,
     vendor.license_expiration,
@@ -365,111 +360,77 @@ function buildAssignmentIntelligence({
     vendor.insurance_expires_at,
     vendor.insurance_expiration,
   );
-  const credentialDetails = [
-    licenseExpiration ? `License expires ${formatDateTime(licenseExpiration)}` : null,
-    insuranceExpiration ? `E&O expires ${formatDateTime(insuranceExpiration)}` : null,
-  ].filter(Boolean);
-  const documentCount = companyGuidelines.length + clientDocuments.length + sourceDocuments.length;
 
-  let timelineStatus = "ready";
-  let timelineReason = `Vendor due date is set for ${formatDateTime(assignmentDueAt)}.`;
-  if (!assignmentDueAt) {
-    timelineStatus = "missing";
-    timelineReason = "Vendor due date is missing, so Falcon cannot compare assignment timing.";
-  } else if (assignmentDueDate && clientDueDate && assignmentDueDate > clientDueDate) {
-    timelineStatus = "warning";
-    timelineReason = `Vendor due date ${formatDateTime(assignmentDueAt)} is after the client expected date ${formatDateTime(clientDueAt)}.`;
-  } else if (assignmentDueDate && clientDueDate) {
-    timelineReason = `Vendor due date ${formatDateTime(assignmentDueAt)} is on or before the client expected date ${formatDateTime(clientDueAt)}.`;
-  } else {
-    timelineReason = `Vendor due date is set for ${formatDateTime(assignmentDueAt)}. Client expected date is not available in the current order data.`;
+  if (companyGuidelines.length === 0) {
+    warnings.push(makeIntelligenceItem(
+      "company-guidelines",
+      "Missing company guidelines",
+      "warning",
+      "No company guideline documents are loaded in the current package document groups.",
+    ));
   }
 
-  const packageHealthItems = missingRequiredItems.length > 0
-    ? missingRequiredItems.map((item) => makeIntelligenceItem(
-      item.key,
-      item.label,
+  if (clientDocuments.length + sourceDocuments.length === 0) {
+    warnings.push(makeIntelligenceItem(
+      "client-source-documents",
+      "Missing client/source documents",
       "warning",
-      `${item.value}. This appears because the package readiness checklist does not have this required value.`,
-    ))
-    : [
-      makeIntelligenceItem(
-        "required-package-items",
-        "Required package items",
-        "ready",
-        "No required readiness gaps were found in the current package data.",
-      ),
-    ];
+      "No client or source documents are loaded in the current package document groups.",
+    ));
+  }
+
+  if (!assignmentDueAt) {
+    warnings.push(makeIntelligenceItem(
+      "vendor-due-date",
+      "Missing vendor due date",
+      "warning",
+      "Vendor due date is missing, so Falcon cannot compare assignment timing.",
+    ));
+  } else if (assignmentDueDate && clientDueDate && assignmentDueDate > clientDueDate) {
+    warnings.push(makeIntelligenceItem(
+      "vendor-due-date-after-client",
+      "Due date after client delivery",
+      "warning",
+      `Vendor due date ${formatDateTime(assignmentDueAt)} is after the client expected date ${formatDateTime(clientDueAt)}.`,
+    ));
+  } else if (assignmentDueDate && clientDueDate) {
+    const businessDayBuffer = countBusinessDaysBetween(assignmentDueDate, clientDueDate);
+    if (businessDayBuffer < 3) {
+      warnings.push(makeIntelligenceItem(
+        "review-buffer",
+        "Review buffer under 3 business days",
+        "warning",
+        `Current timing leaves ${businessDayBuffer} business day${businessDayBuffer === 1 ? "" : "s"} between vendor due date and client delivery preview.`,
+      ));
+    }
+  }
+
+  if (isExpiredDate(licenseExpiration)) {
+    warnings.push(makeIntelligenceItem(
+      "license-expired",
+      "License expiration",
+      "warning",
+      `Vendor license expiration appears past due: ${formatDateTime(licenseExpiration)}.`,
+    ));
+  }
+
+  if (isExpiredDate(insuranceExpiration)) {
+    warnings.push(makeIntelligenceItem(
+      "insurance-expired",
+      "E&O expiration",
+      "warning",
+      `Vendor E&O expiration appears past due: ${formatDateTime(insuranceExpiration)}.`,
+    ));
+  }
 
   return {
     title: "Assignment Intelligence",
-    subtitle: "Explainable, read-only checks from the current package preview data.",
-    groups: [
-      {
-        key: "package-health",
-        title: "Package Health",
-        status: missingRequiredItems.length > 0 ? "warning" : "ready",
-        summary: `${readyCount} of ${readinessChecklist.length} ready`,
-        items: packageHealthItems,
-      },
-      {
-        key: "timeline-risk",
-        title: "Timeline Risk",
-        status: timelineStatus,
-        summary: timelineStatus === "missing" ? "Missing due date" : timelineStatus === "warning" ? "Review timing" : "Low risk",
-        items: [
-          makeIntelligenceItem("vendor-due-date", "Vendor due date", timelineStatus, timelineReason),
-        ],
-      },
-      {
-        key: "vendor-readiness",
-        title: "Vendor Readiness",
-        status: vendorName ? "ready" : "missing",
-        summary: vendorName ? "Vendor selected" : "Missing vendor",
-        items: [
-          makeIntelligenceItem(
-            "vendor-selected",
-            "Vendor selected",
-            vendorName ? "ready" : "missing",
-            vendorName
-              ? `${vendorName} is selected for this offer.`
-              : "No vendor is selected, so Falcon cannot prepare a vendor-specific assignment package.",
-          ),
-          makeIntelligenceItem(
-            "credential-data",
-            "Credential data",
-            credentialDetails.length > 0 ? "ready" : "info",
-            credentialDetails.length > 0
-              ? credentialDetails.join(" · ")
-              : "Credential data not available yet in the current vendor candidate data.",
-          ),
-        ],
-      },
-      {
-        key: "package-documents",
-        title: "Package Documents",
-        status: companyGuidelines.length > 0 ? "ready" : "warning",
-        summary: `${documentCount} package document${documentCount === 1 ? "" : "s"}`,
-        items: [
-          makeIntelligenceItem(
-            "company-guidelines",
-            "Company guidelines",
-            companyGuidelines.length > 0 ? "ready" : "warning",
-            companyGuidelines.length > 0
-              ? `${companyGuidelines.length} company guideline document${companyGuidelines.length === 1 ? "" : "s"} loaded from package documents.`
-              : "No company guideline documents are loaded in the current package document groups.",
-          ),
-          makeIntelligenceItem(
-            "client-source-documents",
-            "Client/source documents",
-            clientDocuments.length + sourceDocuments.length > 0 ? "ready" : "info",
-            clientDocuments.length + sourceDocuments.length > 0
-              ? `${clientDocuments.length + sourceDocuments.length} client or source document${clientDocuments.length + sourceDocuments.length === 1 ? "" : "s"} loaded from package documents.`
-              : "No client or source documents are loaded in the current package document groups.",
-          ),
-        ],
-      },
-    ],
+    subtitle: "Exception-only guidance from the current package preview data.",
+    summary: warnings.length > 0 ? `${warnings.length} item${warnings.length === 1 ? "" : "s"} to review` : "No assignment risks detected.",
+    status: warnings.length > 0 ? "warning" : "ready",
+    readyCount,
+    totalCount: readinessChecklist.length,
+    warnings,
   };
 }
 
@@ -482,6 +443,28 @@ function makeSection(key, title, items) {
       value: valueOrEmpty(value),
       missing: valueOrEmpty(value) === EMPTY_VALUE,
     })),
+  };
+}
+
+function buildAssignmentTermsSummary({ order = {}, assignment = {}, assignmentDueAt, expirationAt } = {}) {
+  const clientDeliveryAt = firstPresent(order.client_due_at, order.clientDueAt, order.final_due_at, order.due_date);
+  const assignmentDueDate = parseDate(assignmentDueAt);
+  const clientDeliveryDate = parseDate(clientDeliveryAt);
+  const reviewBufferDays = assignmentDueDate && clientDeliveryDate
+    ? countBusinessDaysBetween(assignmentDueDate, clientDeliveryDate)
+    : null;
+  const responseWindowLabel = expirationAt ? "Custom" : "Not set";
+
+  return {
+    vendorDueDate: formatDateTime(assignmentDueAt),
+    reviewBuffer: reviewBufferDays === null
+      ? "3 business days recommended"
+      : `${reviewBufferDays} business day${reviewBufferDays === 1 ? "" : "s"} before client delivery`,
+    reviewBufferTarget: "3 business days",
+    clientDeliveryDate: formatDateTime(clientDeliveryAt),
+    responseWindow: responseWindowLabel,
+    responseWindowOptions: "24 hours / 48 hours / Custom",
+    messageToVendor: valueOrEmpty(firstPresent(assignment.instructions, assignment.note)),
   };
 }
 
@@ -594,14 +577,13 @@ export function buildEngagementPackagePreviewModel({
     assignmentDueAt,
   });
   const readinessChecklist = buildPackageReadinessChecklist({
-    order,
-    assignment,
-    vendor,
-    clientName,
-    assignmentDueAt,
     documentSections,
     letterPreview,
   });
+  const readinessReadyCount = readinessChecklist.filter((item) => item.status === "ready").length;
+  const readinessTotalCount = readinessChecklist.length;
+  const vendorName = firstPresent(vendor.vendor_company_name, vendor.company_name, vendor.name);
+  const assignmentMessage = firstPresent(assignment.instructions, assignment.note);
 
   return {
     title: "Engagement Package Preview",
@@ -609,6 +591,37 @@ export function buildEngagementPackagePreviewModel({
     documents: ENGAGEMENT_PACKAGE_DOCUMENTS,
     letterPreview,
     readinessChecklist,
+    readinessSummary: {
+      readyCount: readinessReadyCount,
+      totalCount: readinessTotalCount,
+      percent: readinessTotalCount > 0 ? Math.round((readinessReadyCount / readinessTotalCount) * 100) : 0,
+    },
+    progressSteps: [
+      {
+        key: "vendor-selected",
+        label: "Vendor selected",
+        complete: hasValue(vendorName),
+        detail: hasValue(vendorName) ? valueOrEmpty(vendorName) : "Choose a vendor",
+      },
+      {
+        key: "assignment-terms",
+        label: "Assignment terms",
+        complete: hasValue(assignmentDueAt) || hasValue(assignmentMessage),
+        detail: hasValue(assignmentDueAt) ? `Due ${formatDateTime(assignmentDueAt)}` : "Add due date or message",
+      },
+      {
+        key: "package-ready",
+        label: "Package ready",
+        complete: readinessReadyCount === readinessTotalCount,
+        detail: `${readinessReadyCount} of ${readinessTotalCount} complete`,
+      },
+    ],
+    assignmentTerms: buildAssignmentTermsSummary({
+      order,
+      assignment,
+      assignmentDueAt,
+      expirationAt,
+    }),
     assignmentIntelligence: buildAssignmentIntelligence({
       order,
       vendor,
