@@ -3,6 +3,11 @@ import { useEffect, useState } from "react";
 import { WorkspaceSurface } from "@/components/workspace/WorkspaceSurface";
 import { listCompanyAssignableAppraisers } from "@/features/company-members/assignableUsersApi";
 import { listOrderFilterClients } from "@/features/orders/orderFilterOptionsApi";
+import {
+  falconInteractionClasses,
+  falconInteractionClassNames,
+  falconInteractionStyles,
+} from "@/lib/ui/falconInteractions";
 import { operationalUserName } from "@/lib/utils/userDisplayName";
 
 const ACTIVE_STATUS_FILTER_KEY = "__active";
@@ -44,6 +49,8 @@ const DUE = [
   ["next_week", "Next week"],
   ["overdue", "Overdue"],
 ];
+
+const filterControlStyle = falconInteractionStyles();
 
 export default function OrdersFilters({
   value,
@@ -88,13 +95,17 @@ export default function OrdersFilters({
     set({
       statusIn: key === ACTIVE_STATUS_FILTER_KEY ? [...ACTIVE_CURRENT_STATUSES] : [key],
     });
-  const controlClass =
-    "h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 shadow-sm transition focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100";
+  const controlClass = [
+    "h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 shadow-sm",
+    "focus:border-slate-400 focus:ring-slate-100",
+    falconInteractionClasses.transition,
+    falconInteractionClasses.focusVisibleRing,
+  ].join(" ");
   const surfaceSpacing = compact ? "space-y-1.5 rounded-2xl p-2.5" : "space-y-3 rounded-2xl p-3";
   const headerSpacing = compact
     ? "flex flex-wrap items-start justify-between gap-1 pb-0"
     : "flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-3";
-  const rowSpacing = compact ? "flex flex-wrap items-center gap-2" : "flex flex-wrap items-center gap-3";
+  const rowSpacing = compact ? "flex flex-wrap items-stretch gap-2 sm:items-center" : "flex flex-wrap items-stretch gap-3 sm:items-center";
   const chipSpacing = compact
     ? "flex flex-wrap items-center gap-1.5"
     : "flex flex-wrap items-center gap-2";
@@ -111,7 +122,7 @@ export default function OrdersFilters({
           </div>
         ) : null}
         {actions ? (
-          <div aria-label="Orders filter utilities" className="flex shrink-0 flex-wrap items-center gap-2">
+          <div aria-label="Orders filter utilities" className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
             {actions}
           </div>
         ) : null}
@@ -119,7 +130,7 @@ export default function OrdersFilters({
 
       <div className={rowSpacing}>
         {showMyWorkFilter ? (
-          <div role="group" aria-label="Orders assignment scope" className="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1">
+          <div role="group" aria-label="Orders assignment scope" className="flex w-full items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1 sm:w-auto">
             {[
               ["", "All visible"],
               ["my_work", "My Work"],
@@ -136,12 +147,16 @@ export default function OrdersFilters({
                         : { assignedToMe: false, page: 0 },
                     )
                   }
-                  className={
-                    "h-7 rounded-md px-2.5 text-xs font-semibold transition " +
-                    (active
-                      ? "bg-white text-slate-950 shadow-sm ring-1 ring-slate-200"
-                      : "text-slate-500 hover:bg-white/70 hover:text-slate-800")
-                  }
+                  style={filterControlStyle}
+                  className={falconInteractionClassNames("quietSecondaryAction", {
+                    selected: active,
+                    className: [
+                      "h-7 rounded-md border-transparent px-2.5 text-xs font-semibold shadow-none",
+                      active
+                        ? "border-slate-200 bg-white text-slate-950 ring-1 ring-slate-200"
+                        : "bg-transparent text-slate-500 hover:bg-white/70 hover:text-slate-800",
+                    ],
+                  })}
                 >
                   {label}
                 </button>
@@ -152,17 +167,19 @@ export default function OrdersFilters({
 
         <input
           aria-label={searchLabel}
-          className={`${controlClass} w-full md:w-[360px]`}
+          className={`${controlClass} w-full sm:min-w-[18rem] md:w-[360px]`}
+          style={filterControlStyle}
           placeholder="Order # / Title / Address"
           value={v.search ?? ""}
           onChange={(e) => set({ search: e.target.value, page: 0 })}
         />
 
-        <div className="flex min-w-[13rem] items-center gap-2">
+        <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto sm:min-w-[13rem]">
           <label htmlFor="orders-filter-client" className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Client</label>
           <select
             id="orders-filter-client"
-            className={`${controlClass} min-w-[10rem]`}
+            className={`${controlClass} min-w-0 flex-1 sm:min-w-[10rem]`}
+            style={filterControlStyle}
             value={v.clientId ?? ""}
             onChange={(e) => set({ clientId: e.target.value, page: 0 })}
           >
@@ -176,11 +193,12 @@ export default function OrdersFilters({
         </div>
 
         {showAppraiserFilter ? (
-          <div className="flex min-w-[13rem] items-center gap-2">
+          <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto sm:min-w-[13rem]">
             <label htmlFor="orders-filter-appraiser" className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Appraiser</label>
             <select
               id="orders-filter-appraiser"
-              className={`${controlClass} min-w-[10rem]`}
+              className={`${controlClass} min-w-0 flex-1 sm:min-w-[10rem]`}
+              style={filterControlStyle}
               value={v.appraiserId ?? ""}
               onChange={(e) => set({ appraiserId: e.target.value, page: 0 })}
             >
@@ -205,12 +223,16 @@ export default function OrdersFilters({
               key={key}
               type="button"
               onClick={() => setStatus(active ? ACTIVE_STATUS_FILTER_KEY : key)}
-              className={
-                "rounded-full border px-2.5 py-1.5 text-xs font-semibold shadow-sm transition " +
-                (active
-                  ? "border-slate-800 bg-slate-900 text-white ring-1 ring-slate-800"
-                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900")
-              }
+              style={filterControlStyle}
+              className={falconInteractionClassNames("quietSecondaryAction", {
+                selected: active,
+                className: [
+                  "rounded-full px-2.5 py-1.5 text-xs font-semibold shadow-sm",
+                  active
+                    ? "border-slate-900 bg-slate-900 text-white ring-1 ring-slate-900"
+                    : "text-slate-600",
+                ],
+              })}
             >
               {label}
             </button>
@@ -220,11 +242,12 @@ export default function OrdersFilters({
 
       {/* Priority + Due */}
       <div className={rowSpacing}>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto">
           <label htmlFor="orders-filter-priority" className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Priority</label>
           <select
             id="orders-filter-priority"
-            className={controlClass}
+            className={`${controlClass} min-w-0 flex-1 sm:flex-none`}
+            style={filterControlStyle}
             value={v.priority ?? ""}
             onChange={(e) => set({ priority: e.target.value, page: 0 })}
           >
@@ -236,11 +259,12 @@ export default function OrdersFilters({
           </select>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto">
           <label htmlFor="orders-filter-due" className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Due</label>
           <select
             id="orders-filter-due"
-            className={controlClass}
+            className={`${controlClass} min-w-0 flex-1 sm:flex-none`}
+            style={filterControlStyle}
             value={v.dueWindow ?? ""}
             onChange={(e) => set({ dueWindow: e.target.value, page: 0 })}
           >

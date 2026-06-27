@@ -184,6 +184,7 @@ describe("OrdersPage historical access", () => {
   it("renders the polished Orders hierarchy without changing table behavior", () => {
     renderPage();
 
+    expect(screen.getByLabelText("Orders page")).toHaveAttribute("data-motion-reduced");
     expect(screen.getByRole("heading", { name: "Orders" })).toBeInTheDocument();
     expect(screen.getByText("Internal")).toBeInTheDocument();
     expect(screen.getByText("Client Orders")).toBeInTheDocument();
@@ -617,6 +618,10 @@ describe("OrdersPage historical access", () => {
     expect(screen.getByText("Due: Overdue")).toBeInTheDocument();
     expect(screen.getByText("Queue: Unassigned Orders (derived)")).toBeInTheDocument();
     expect(screen.queryByText("Queue-derived view: Unassigned Orders.")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Remove Status: In Review filter" }).className).toContain(
+      "focus-visible:ring-2",
+    );
+    expect(screen.getByRole("button", { name: "Clear Filters" }).className).toContain("focus-visible:ring-2");
   });
 
   it("removes a chip through the governed Orders filter URL path", () => {
@@ -683,6 +688,30 @@ describe("OrdersPage historical access", () => {
     expect(savedViewsApiMock.listOrderSavedViews).not.toHaveBeenCalled();
   });
 
+  it("uses shared saved-view loading and empty states without changing the panel trigger", async () => {
+    const pendingLoad = new Promise(() => {});
+    savedViewsApiMock.listOrderSavedViews.mockReturnValue(pendingLoad);
+
+    renderPage();
+
+    const trigger = screen.getByRole("button", { name: "Saved Views" });
+    expect(trigger.className).toContain("focus-visible:ring-2");
+
+    fireEvent.click(trigger);
+
+    expect(screen.getByText("Loading saved views")).toBeInTheDocument();
+    expect(screen.getByText("Loading saved views...")).toBeInTheDocument();
+
+    cleanup();
+    savedViewsApiMock.listOrderSavedViews.mockResolvedValue([]);
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Saved Views" }));
+
+    expect(await screen.findByText("No saved views yet.")).toBeInTheDocument();
+    expect(screen.getByText("Save the current filters when this view is useful again.")).toBeInTheDocument();
+  });
+
   it("loads and renders saved views in a compact secondary panel", async () => {
     savedViewsApiMock.listOrderSavedViews.mockResolvedValue([
       { id: "view-1", name: "Review queue", filters: { status: "in_review" } },
@@ -693,7 +722,9 @@ describe("OrdersPage historical access", () => {
     fireEvent.click(screen.getByRole("button", { name: "Saved Views" }));
 
     expect(savedViewsApiMock.listOrderSavedViews).toHaveBeenCalledTimes(1);
-    expect(await screen.findByRole("button", { name: "Review queue" })).toBeInTheDocument();
+    const savedViewButton = await screen.findByRole("button", { name: "Review queue" });
+    expect(savedViewButton).toBeInTheDocument();
+    expect(savedViewButton.className).toContain("focus-visible:ring-2");
     expect(screen.getByText("Personal URL presets for this Orders queue.")).toBeInTheDocument();
   });
 
@@ -779,7 +810,10 @@ describe("OrdersPage historical access", () => {
     fireEvent.click(screen.getByRole("button", { name: "Saved Views" }));
     expect(await screen.findByRole("button", { name: "Review queue" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    const deleteButton = screen.getByRole("button", { name: "Delete" });
+    expect(deleteButton.className).toContain("text-rose-700");
+
+    fireEvent.click(deleteButton);
 
     await waitFor(() => {
       expect(savedViewsApiMock.deleteOrderSavedView).toHaveBeenCalledWith("view-1");
@@ -803,7 +837,9 @@ describe("OrdersPage historical access", () => {
     fireEvent.click(screen.getByRole("button", { name: "Saved Views" }));
     fireEvent.click(await screen.findByRole("button", { name: "Unsafe view" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("Saved view contains unsupported filters.");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveAttribute("data-state-tone", "error");
+    expect(alert).toHaveTextContent("Saved view contains unsupported filters.");
     expect(tableMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
         filters: expect.objectContaining({

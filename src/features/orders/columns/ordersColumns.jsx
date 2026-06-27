@@ -28,9 +28,9 @@ const dueDateTone = (d) => {
 };
 
 const DueDateLine = ({ label, value }) => (
-  <div className="flex items-center justify-between gap-2 whitespace-nowrap rounded-lg bg-slate-50/70 px-2 py-1">
+  <div className="flex items-center justify-between gap-2 whitespace-nowrap rounded-lg border border-slate-100 bg-white px-2 py-1 shadow-[0_1px_0_rgba(15,23,42,0.03)]">
     <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">{label}</span>
-    <span className={`text-[12px] font-semibold tabular-nums ${dueDateTone(value)}`}>{fmtDate(value)}</span>
+    <span className={`text-[12.5px] font-bold tabular-nums ${dueDateTone(value)}`}>{fmtDate(value)}</span>
   </div>
 );
 
@@ -48,12 +48,12 @@ const cityLine = (r) => {
 
 const orderCell = (o) => (
   <div className="text-sm">
-    <div className="font-medium leading-tight">
+    <div className="font-semibold leading-tight text-slate-700">
       {o?.id ? (
         <Link
           to={`/orders/${o.id}`}
           onClick={(e) => e.stopPropagation()}
-          className="hover:underline"
+          className="underline-offset-2 hover:underline"
         >
           {o.order_number ?? o.id?.slice(0, 8) ?? "–"}
         </Link>
@@ -69,8 +69,8 @@ const orderCell = (o) => (
 
 const clientCell = (o) => (
   <div className="text-sm truncate">
-    <div className="font-medium truncate">{o.client_name ?? "–"}</div>
-    <div className="text-xs text-muted-foreground truncate">{o.appraiser_name ?? "–"}</div>
+    <div className="font-semibold text-slate-900 truncate">{o.client_name ?? "–"}</div>
+    <div className="mt-0.5 text-xs font-medium text-slate-500 truncate">{o.appraiser_name ?? "–"}</div>
   </div>
 );
 
@@ -88,17 +88,17 @@ const propertySummaryCell = (o) => {
 
   return (
     <div className="min-w-0 text-sm">
-      <div className="truncate font-medium text-slate-900" title={o.address_line1 || ""}>
+      <div className="truncate text-[15px] font-semibold leading-5 text-slate-950" title={o.address_line1 || ""}>
         {o.address_line1 || "-"}
       </div>
-      <div className="mt-1 truncate text-xs text-slate-500" title={location}>
+      <div className="mt-0.5 truncate text-xs font-medium text-slate-500" title={location}>
         {location || "-"}
       </div>
-      <div className="mt-2 flex min-w-0 flex-wrap gap-1.5">
-        <span className="max-w-full truncate rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+      <div className="mt-1.5 flex min-w-0 flex-wrap gap-1.5">
+        <span className="max-w-full truncate rounded-full border border-slate-100 bg-slate-50/60 px-2 py-0.5 text-[10.5px] font-medium text-slate-500">
           {propertyType}
         </span>
-        <span className="max-w-full truncate rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-medium text-slate-500">
+        <span className="max-w-full truncate rounded-full border border-slate-100 bg-white/70 px-2 py-0.5 text-[10.5px] font-medium text-slate-400">
           {reportType}
         </span>
       </div>
@@ -123,12 +123,12 @@ const propertyReportColumnBase = {
 };
 
 const feeOnlyCell = (o) => (
-  <div className="text-sm whitespace-nowrap font-medium">{money(pickFee(o))}</div>
+  <div className="whitespace-nowrap text-sm font-semibold tabular-nums text-slate-600">{money(pickFee(o))}</div>
 );
 
 const dashboardFeeCell = (o) => (
   <div className="text-center">
-    <div className="text-sm font-semibold tabular-nums text-slate-900">{money(pickFee(o))}</div>
+    <div className="text-sm font-semibold tabular-nums text-slate-700">{money(pickFee(o))}</div>
   </div>
 );
 
@@ -142,7 +142,7 @@ const datesColumnBase = {
     const fin = order?.final_due_at ?? order?.final_due_date ?? order?.due_date ?? null;
     return (
       <div className="space-y-1.5 text-[12px] leading-tight">
-        <div className="flex items-center justify-between gap-2 whitespace-nowrap rounded-lg bg-slate-50/70 px-2 py-1" title={site || ""}>
+        <div className="flex items-center justify-between gap-2 whitespace-nowrap rounded-lg bg-slate-50/60 px-2 py-1" title={site || ""}>
           <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Site</span>
           {isAppraiser && onSetSiteVisit ? (
             <SiteVisitPicker
@@ -152,15 +152,15 @@ const datesColumnBase = {
               displayFormatter={site ? formatCompactSiteVisit : undefined}
               buttonClassName={
                 site
-                  ? "h-6 rounded-full px-2 text-[12px] font-semibold tabular-nums text-slate-700 underline-offset-2 hover:bg-slate-100 hover:underline focus-visible:ring-slate-300"
+                  ? "h-6 rounded-full px-2 text-[12px] font-semibold tabular-nums text-slate-600 underline-offset-2 hover:bg-slate-100 hover:underline focus-visible:ring-slate-300"
                   : "h-6 rounded-full px-2 text-[12px] font-medium"
               }
               onChange={(iso) => onSetSiteVisit(order, iso)}
             />
           ) : site ? (
-            <span className="text-[12px] font-semibold text-slate-700 tabular-nums">{fmtDate(site)}</span>
+            <span className="text-[12px] font-semibold text-slate-600 tabular-nums">{fmtDate(site)}</span>
           ) : (
-            <span className="text-[12px] font-semibold text-slate-500">Not set</span>
+            <span className="text-[12px] font-medium text-slate-500">Not set</span>
           )}
         </div>
         <DueDateLine label="Review" value={rev} />

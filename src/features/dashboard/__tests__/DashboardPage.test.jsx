@@ -325,9 +325,17 @@ describe("DashboardPage operational polish", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Company")).toBeInTheDocument();
     expect(screen.getByText("Falcon Appraisals")).toBeInTheDocument();
+    expect(screen.getByText("Falcon Appraisals").closest("[data-motion-interactive]")).toHaveAttribute(
+      "data-motion-interactive",
+      "false",
+    );
     expect(screen.getByTestId("workspace-identity-badge")).toHaveTextContent("Internal");
     expect(screen.getByText("Environment")).toBeInTheDocument();
     expect(screen.getByText("Continental Internal Operations")).toBeInTheDocument();
+    expect(screen.getByText("Continental Internal Operations").closest("[data-motion-reduced]")).toHaveAttribute(
+      "data-motion-reduced",
+      "false",
+    );
 
     const calendarHeading = screen.getByText("Calendar");
     const ordersHeading = screen.getByText("Active Worklist");
@@ -373,6 +381,25 @@ describe("DashboardPage operational polish", () => {
         scope: "orders",
       }),
     );
+  });
+
+  it("uses the shared skeleton for the dashboard count loading state", () => {
+    summaryState.current = buildSummary({
+      loading: true,
+      orders: {
+        ...buildSummary().orders,
+        count: 0,
+      },
+    });
+
+    renderDashboard(operationsShell, { operationsMode: OPERATIONS_MODES.INTERNAL_OPERATIONS });
+
+    expect(screen.getByText("Active")).toBeInTheDocument();
+
+    const skeleton = screen.getByRole("status", { name: "Active loading" });
+    expect(skeleton).toHaveAttribute("data-state-skeleton", "true");
+    expect(skeleton).toHaveClass("bg-white/35");
+    expect(skeleton).toHaveStyle({ width: "3rem", height: "1.5rem" });
   });
 
   it("shows a Client Requests dashboard alert for pending AMC portal requests", async () => {
@@ -505,7 +532,9 @@ describe("DashboardPage operational polish", () => {
     expect(screen.getByText("Pipeline Orders")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Appraisal Production Dashboard", level: 1 })).toBeNull();
 
-    expect(await screen.findByRole("region", { name: "AMC procurement pipeline" })).toBeInTheDocument();
+    const pipelineRegion = await screen.findByRole("region", { name: "AMC procurement pipeline" });
+    expect(pipelineRegion).toBeInTheDocument();
+    expect(within(pipelineRegion).getByRole("list")).toHaveAttribute("data-motion-reduced", "false");
     await waitFor(() =>
       expect(bidsApiMock.fetchAmcOrderProcurementSummaries).toHaveBeenCalledWith([
         "needs-bids",
@@ -661,9 +690,16 @@ describe("DashboardPage operational polish", () => {
     );
 
     const selectBidButton = screen.getByRole("button", { name: /select bid/i });
+    expect(selectBidButton).toHaveAttribute("data-interaction-selected", "false");
+    expect(selectBidButton).toHaveAttribute("data-interaction-disabled", "false");
+    expect(selectBidButton).toHaveClass("focus-visible:ring-2", "active:scale-[var(--falcon-interaction-press-scale)]");
     fireEvent.click(selectBidButton);
 
-    expect(selectBidButton).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /select bid/i })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /select bid/i })).toHaveAttribute(
+      "data-interaction-selected",
+      "true",
+    );
     await waitFor(() =>
       expect(findAttentionTableCall()).toEqual(
         expect.objectContaining({
@@ -732,6 +768,10 @@ describe("DashboardPage operational polish", () => {
       ]),
     );
     expect(screen.getByRole("button", { name: /all attention/i })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /all attention/i })).toHaveAttribute(
+      "data-interaction-selected",
+      "true",
+    );
   });
 
   it("shows an empty selected-stage state when an AMC pipeline stage has no rows", async () => {

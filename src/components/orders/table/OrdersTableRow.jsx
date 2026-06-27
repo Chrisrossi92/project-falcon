@@ -1,6 +1,9 @@
 // src/components/orders/table/OrdersTableRow.jsx
-import React from "react";
 import OrderRowNextStep from "@/features/orders/attention/OrderRowNextStep";
+import {
+  falconInteractionClassNames,
+  falconInteractionStyles,
+} from "@/lib/ui/falconInteractions";
 import { formatOperationalDate } from "@/lib/utils/dateOnly";
 
 const INTERACTIVE_TAGS = new Set([
@@ -26,6 +29,8 @@ const money = (n) =>
 const fmt = (d) => {
   return formatOperationalDate(d, "—");
 };
+
+const rowInteractionStyle = falconInteractionStyles();
 
 function DefaultCells({ order }) {
   // Normalize common field names from your views
@@ -140,14 +145,18 @@ export default function OrdersTableRow({
         }}
         role="row"
         aria-expanded={isOpen ? "true" : "false"}
-        className={[
-          "group cursor-pointer select-none border-b border-slate-100/80 transition-all duration-150 ease-out",
-          isOpen
-            ? "bg-slate-50 shadow-[inset_3px_0_0_rgba(15,23,42,0.45)]"
-            : "hover:-translate-y-px hover:bg-slate-50/80 hover:shadow-[inset_3px_0_0_rgba(15,23,42,0.22),0_8px_20px_rgba(15,23,42,0.04)] active:translate-y-0",
-          "px-5",
-          className,
-        ].join(" ")}
+        data-orders-row-expanded={isOpen ? "true" : "false"}
+        style={rowInteractionStyle}
+        className={falconInteractionClassNames("row", {
+          selected: isOpen,
+          className: [
+            "group cursor-pointer select-none border-b border-slate-100/80 px-5",
+            isOpen
+              ? "shadow-[inset_3px_0_0_rgba(15,23,42,0.42)]"
+              : "hover:shadow-[inset_3px_0_0_rgba(15,23,42,0.18)]",
+            className,
+          ],
+        })}
       >
         {renderCells ? renderCells(order) : <DefaultCells order={order} />}
         <OrderRowNextStep order={order} />
@@ -157,10 +166,10 @@ export default function OrdersTableRow({
         <div
           role="region"
           aria-label="Order inline details"
-          className="border-b border-slate-100 bg-slate-50/80 px-5 pb-4 pt-0 transition-all duration-200 ease-out"
+          className="border-b border-slate-100 bg-slate-50/80 px-3 pb-4 pt-0 transition-all duration-200 ease-out sm:px-5"
         >
           <div
-            className="origin-top rounded-b-xl rounded-t-none border border-t-0 border-slate-200/80 bg-white p-3 shadow-[0_14px_28px_rgba(15,23,42,0.06)] transition-all duration-200 ease-out"
+            className="origin-top rounded-b-xl rounded-t-none border border-t-0 border-slate-200/80 bg-white p-2.5 shadow-[0_14px_28px_rgba(15,23,42,0.06)] transition-all duration-200 ease-out sm:p-3"
             data-no-drawer
           >
             {drawer}
@@ -170,9 +179,6 @@ export default function OrdersTableRow({
     </>
   );
 }
-
-
-
 
 
 

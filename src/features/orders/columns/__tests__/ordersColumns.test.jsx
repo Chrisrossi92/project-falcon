@@ -15,6 +15,15 @@ function renderDatesCell(order, onSetSiteVisit = vi.fn()) {
   };
 }
 
+function renderColumnCell(columnKey, order = {}) {
+  const column = getColumnsForRole("owner").find((item) => item.key === columnKey);
+
+  return {
+    column,
+    ...render(column.cell(order)),
+  };
+}
+
 describe("ordersColumns date cell", () => {
   afterEach(() => {
     cleanup();
@@ -67,5 +76,54 @@ describe("ordersColumns date cell", () => {
     expect(screen.getByText("6/3/2026")).toBeInTheDocument();
     expect(screen.queryByText("5/31/2026")).not.toBeInTheDocument();
     expect(screen.queryByText("6/2/2026")).not.toBeInTheDocument();
+  });
+});
+
+describe("ordersColumns table hierarchy", () => {
+  afterEach(() => {
+    cleanup();
+  });
+
+  it("keeps the visible Orders columns while tuning scan hierarchy", () => {
+    const columns = getColumnsForRole("owner");
+
+    expect(columns.map((column) => column.key)).toEqual([
+      "order",
+      "client",
+      "propertySummary",
+      "fee",
+      "actions",
+      "dates",
+    ]);
+  });
+
+  it("emphasizes primary scan targets and mutes supporting metadata", () => {
+    const order = {
+      id: "order-1",
+      order_number: "2026001",
+      client_name: "Acme Lending",
+      appraiser_name: "Avery Appraiser",
+      address_line1: "123 Main Street",
+      city: "Denver",
+      state: "CO",
+      postal_code: "80202",
+      property_type: "Retail",
+      report_type: "Narrative",
+      base_fee: 1450,
+    };
+
+    const { unmount: unmountClient } = renderColumnCell("client", order);
+    expect(screen.getByText("Acme Lending").className).toContain("font-semibold");
+    expect(screen.getByText("Avery Appraiser").className).toContain("text-slate-500");
+    unmountClient();
+
+    const { unmount: unmountProperty } = renderColumnCell("propertySummary", order);
+    expect(screen.getByText("123 Main Street").className).toContain("text-slate-950");
+    expect(screen.getByText("Denver, CO 80202").className).toContain("text-slate-500");
+    expect(screen.getByText("Narrative").className).toContain("text-slate-400");
+    unmountProperty();
+
+    renderColumnCell("fee", order);
+    expect(screen.getByText("$1,450").className).toContain("text-slate-600");
   });
 });

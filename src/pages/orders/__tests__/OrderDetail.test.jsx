@@ -44,6 +44,11 @@ const shellProfileMock = vi.hoisted(() => ({
 }));
 const toastSuccessMock = vi.hoisted(() => vi.fn());
 const toastErrorMock = vi.hoisted(() => vi.fn());
+const useOrderStateMock = vi.hoisted(() => ({
+  loading: false,
+  error: null,
+  order: null,
+}));
 const orderMock = vi.hoisted(() => ({
   id: "order-1",
   order_number: "2026001",
@@ -84,9 +89,9 @@ vi.mock("react-router-dom", () => ({
 
 vi.mock("@/lib/hooks/useOrder", () => ({
   default: () => ({
-    order: { ...orderMock },
-    loading: false,
-    error: null,
+    order: useOrderStateMock.order === null ? { ...orderMock } : useOrderStateMock.order,
+    loading: useOrderStateMock.loading,
+    error: useOrderStateMock.error,
     refresh: refreshMock,
   }),
 }));
@@ -303,6 +308,11 @@ describe("OrderDetail site visit save", () => {
       access_notes: "Unsupported V1 access text",
       notes: "Inspection access confirmed. Bring gate code and call contact on arrival.",
     });
+    Object.assign(useOrderStateMock, {
+      loading: false,
+      error: null,
+      order: null,
+    });
     refreshMock.mockReset();
     navigateMock.mockReset();
     updateSiteVisitAtViaRpcMock.mockReset();
@@ -446,6 +456,41 @@ describe("OrderDetail site visit save", () => {
     fireEvent.click(within(menu).getByRole("menuitem", { name }));
   };
 
+  it("renders the shared top-level loading state without order content", () => {
+    useOrderStateMock.loading = true;
+
+    render(<OrderDetail />);
+
+    expect(screen.getAllByRole("status", { name: "Loading content" }).length).toBeGreaterThan(0);
+    expect(screen.getByText("Loading order")).toBeInTheDocument();
+    expect(screen.getByText("Loading...")).toBeInTheDocument();
+    expect(screen.getByLabelText("Order detail loading")).toHaveAttribute(
+      "data-motion-reduced",
+      "false",
+    );
+    expect(screen.queryByText("Order 2026001")).not.toBeInTheDocument();
+  });
+
+  it("renders the shared top-level load error state with the existing message", () => {
+    useOrderStateMock.error = new Error("load failed");
+
+    render(<OrderDetail />);
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Failed to load order.");
+    expect(screen.getByText("Failed to load order")).toBeInTheDocument();
+    expect(screen.queryByText("Order 2026001")).not.toBeInTheDocument();
+  });
+
+  it("renders the shared top-level not-found state with the existing message", () => {
+    useOrderStateMock.order = undefined;
+
+    render(<OrderDetail />);
+
+    expect(screen.getByText("Order not found")).toBeInTheDocument();
+    expect(screen.getByText("Order not found.")).toBeInTheDocument();
+    expect(screen.queryByText("Order 2026001")).not.toBeInTheDocument();
+  });
+
   it("renders Internal order detail chrome for Continental production records", async () => {
     operationsModeMock.operationsMode = "internal_operations";
     orderMock.operations_scope = "internal_operations";
@@ -454,9 +499,15 @@ describe("OrderDetail site visit save", () => {
 
     expect(screen.getByText("Internal")).toBeInTheDocument();
     expect(screen.getByText("Order Detail")).toBeInTheDocument();
+    expect(screen.getByLabelText("Order detail")).toHaveAttribute("data-motion-reduced", "false");
     expect(screen.getByRole("heading", { name: "Order 2026001" })).toBeInTheDocument();
     expect(screen.getAllByText("Acme Lending").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("100 Main St, Boston, MA 02110").length).toBeGreaterThan(0);
+    const propertyAddress = screen.getAllByText("100 Main St, Boston, MA 02110")[0];
+    expect(propertyAddress).toHaveClass("text-lg", "font-semibold");
+    expect(screen.getAllByText("Review Due").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Final Due").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Avery Appraiser").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Riley Reviewer").length).toBeGreaterThan(0);
     expect(document.getElementById("amc-procurement")).toBeNull();
   });
 
@@ -541,12 +592,14 @@ describe("OrderDetail site visit save", () => {
 
     expect(within(overview).getByText("Order / Client")).toBeInTheDocument();
     expect(within(overview).getByText("Client")).toBeInTheDocument();
-    expect(within(overview).getByText("Acme Lending")).toBeInTheDocument();
+    expect(within(overview).getByText("Acme Lending")).toHaveClass("text-slate-500");
     expect(within(overview).queryByText("AMC")).not.toBeInTheDocument();
     expect(within(overview).queryByText("Northstar AMC")).not.toBeInTheDocument();
     expect(within(overview).getByText("Property / Assignment")).toBeInTheDocument();
     expect(within(overview).getByText("Property Address")).toBeInTheDocument();
-    expect(within(overview).getByText("100 Main St, Boston, MA 02110")).toBeInTheDocument();
+    expect(within(overview).getByText("100 Main St, Boston, MA 02110")).toHaveClass(
+      "text-slate-500",
+    );
     expect(within(overview).getByText("Property Type")).toBeInTheDocument();
     expect(within(overview).getByText("Report Type")).toBeInTheDocument();
     expect(within(overview).getByText("Schedule")).toBeInTheDocument();
@@ -556,9 +609,9 @@ describe("OrderDetail site visit save", () => {
     expect(within(overview).getByText("Updated")).toBeInTheDocument();
     expect(within(overview).getByText("Team / Fees")).toBeInTheDocument();
     expect(within(overview).getByText("Appraiser")).toBeInTheDocument();
-    expect(within(overview).getByText("Avery Appraiser")).toBeInTheDocument();
+    expect(within(overview).getByText("Avery Appraiser")).toHaveClass("text-slate-500");
     expect(within(overview).getByText("Reviewer")).toBeInTheDocument();
-    expect(within(overview).getByText("Riley Reviewer")).toBeInTheDocument();
+    expect(within(overview).getByText("Riley Reviewer")).toHaveClass("text-slate-500");
     expect(within(overview).getByText("Property Contact")).toBeInTheDocument();
     expect(within(overview).getByText("Contact")).toBeInTheDocument();
     expect(within(overview).getByText("Casey Contact")).toBeInTheDocument();
@@ -732,7 +785,7 @@ describe("OrderDetail site visit save", () => {
     expect(screen.getByLabelText("Order Summary")).toBeInTheDocument();
     expect(screen.queryByLabelText("Operational Overview")).not.toBeInTheDocument();
     expect(screen.getByText("Schedule")).toBeInTheDocument();
-    expect(screen.getByText("Review Due")).toBeInTheDocument();
+    expect(screen.getAllByText("Review Due").length).toBeGreaterThan(0);
     expect(screen.getByText("Contacts / Map")).toBeInTheDocument();
     expect(screen.getByText("Activity")).toBeInTheDocument();
     expect(screen.getByTestId("activity-log")).toBeInTheDocument();
@@ -791,9 +844,16 @@ describe("OrderDetail site visit save", () => {
     expect(screen.queryByRole("button", { name: "Offer Assignment" })).not.toBeInTheDocument();
     expect(screen.queryByTestId("assignments-panel")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Operational context controls")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Edit" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "More actions" })).toBeInTheDocument();
-    expect(within(openMoreOrderActions()).getByRole("menuitem", { name: "Archive order" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Edit" })).toHaveClass("focus-visible:ring-2");
+    expect(screen.getByLabelText("Secondary order actions")).toHaveClass("bg-slate-50/70");
+    const moreActions = screen.getByRole("button", { name: "More actions" });
+    expect(moreActions).toHaveClass("focus-visible:ring-2");
+    const menu = openMoreOrderActions();
+    expect(moreActions).toHaveAttribute("aria-expanded", "true");
+    expect(moreActions).toHaveClass("ring-2");
+    expect(within(menu).getByRole("menuitem", { name: "Archive order" })).toHaveClass(
+      "focus-visible:ring-2",
+    );
   });
 
   it("shows a primary recommended workflow action for a normal guided transition", async () => {
@@ -802,8 +862,16 @@ describe("OrderDetail site visit save", () => {
     render(<OrderDetail />);
 
     const recommendation = screen.getByLabelText("Smart Action");
+    expect(recommendation).toHaveClass("shadow-md", "ring-sky-100");
     expect(within(recommendation).getByText("Smart Action")).toBeInTheDocument();
     expect(within(recommendation).getByText("Internal workflow")).toBeInTheDocument();
+    expect(within(recommendation).getByRole("button", { name: "Send to Review" })).toHaveClass(
+      "min-h-10",
+      "text-sm",
+    );
+    expect(screen.getByLabelText("Secondary order actions")).toContainElement(
+      screen.getByRole("button", { name: "Print Packet" }),
+    );
 
     fireEvent.click(within(recommendation).getByRole("button", { name: "Send to Review" }));
 
@@ -907,6 +975,7 @@ describe("OrderDetail site visit save", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: "Override status" }));
 
     const dialog = screen.getByRole("dialog", { name: "Override status" });
+    expect(dialog).toHaveClass("rounded-xl", "shadow-2xl");
     expect(within(dialog).getByText(/owner\/admin override changes the order workflow status/i)).toBeInTheDocument();
     expect(within(dialog).getByText(/will be recorded in activity/i)).toBeInTheDocument();
     expect(within(dialog).getByText("Workspace:")).toBeInTheDocument();
@@ -1031,7 +1100,7 @@ describe("OrderDetail site visit save", () => {
       expect(toastErrorMock).toHaveBeenCalledWith("status_override_noop");
     });
     expect(screen.getByRole("dialog", { name: "Override status" })).toBeInTheDocument();
-    expect(within(screen.getByRole("dialog", { name: "Override status" })).getByText("status_override_noop")).toBeInTheDocument();
+    expect(within(screen.getByRole("dialog", { name: "Override status" })).getByRole("alert")).toHaveTextContent("status_override_noop");
     expect(refreshMock).not.toHaveBeenCalled();
   });
 
@@ -1088,7 +1157,9 @@ describe("OrderDetail site visit save", () => {
     render(<OrderDetail />);
 
     const eligibleVendors = screen.getByLabelText("Eligible vendors");
+    expect(within(eligibleVendors).getByText("Loading eligible vendors")).toBeInTheDocument();
     expect(within(eligibleVendors).getByText("Loading eligible vendors...")).toBeInTheDocument();
+    expect(within(eligibleVendors).getAllByRole("status", { name: "Loading content" }).length).toBeGreaterThan(0);
 
     await waitFor(() => {
       expect(getMatchingVendorsForOrderMock).toHaveBeenCalledWith("order-1");
@@ -1113,6 +1184,7 @@ describe("OrderDetail site visit save", () => {
 
     const eligibleVendors = screen.getByLabelText("Eligible vendors");
     expect(await within(eligibleVendors).findByText("No eligible vendors matched this order's normalized coverage.")).toBeInTheDocument();
+    expect(within(eligibleVendors).getByText("No eligible vendors matched")).toBeInTheDocument();
     expect(within(eligibleVendors).queryByRole("button", { name: "Request bids" })).not.toBeInTheDocument();
   });
 
@@ -1126,6 +1198,7 @@ describe("OrderDetail site visit save", () => {
 
     const eligibleVendors = screen.getByLabelText("Eligible vendors");
     expect(await within(eligibleVendors).findByText("Eligible vendor matching could not load.")).toBeInTheDocument();
+    expect(within(eligibleVendors).getByRole("alert")).toHaveTextContent("Eligible vendor matching could not load.");
     expect(within(eligibleVendors).queryByRole("button", { name: /request bids|bulk|bid/i })).not.toBeInTheDocument();
     expect(within(eligibleVendors).queryByRole("link", { name: /request bids|bulk|bid/i })).not.toBeInTheDocument();
   });
@@ -1195,6 +1268,7 @@ describe("OrderDetail site visit save", () => {
     fireEvent.click(await within(eligibleVendors).findByRole("button", { name: "Request bids" }));
 
     const dialog = screen.getByRole("dialog", { name: "Request bids from eligible vendors" });
+    expect(dialog.firstElementChild).toHaveClass("rounded-xl", "shadow-2xl");
     expect(within(dialog).getByText(/Bid requests will be sent only after you confirm/i)).toBeInTheDocument();
     expect(within(dialog).getByLabelText(/Franklin Commercial Valuation/i)).toBeChecked();
     expect(within(dialog).getByLabelText(/Lucas Review Group/i)).toBeChecked();
@@ -1293,6 +1367,7 @@ describe("OrderDetail site visit save", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Send bid requests" }));
 
     expect(await within(dialog).findByText("duplicate open recipient")).toBeInTheDocument();
+    expect(within(dialog).getByRole("alert")).toHaveTextContent("duplicate open recipient");
     expect(screen.getByRole("dialog", { name: "Request bids from eligible vendors" })).toBeInTheDocument();
     expect(refreshMock).not.toHaveBeenCalled();
   });
@@ -1746,7 +1821,12 @@ describe("OrderDetail site visit save", () => {
     expect(screen.queryByText("Dates")).not.toBeInTheDocument();
     expect(screen.queryByText("People / Fees")).not.toBeInTheDocument();
     expect(within(detailBody).getByText("Activity")).toBeInTheDocument();
+    expect(within(detailBody).getByText("Recent order movement and communication history.")).toBeInTheDocument();
     expect(within(detailBody).getByText("Contacts / Map")).toBeInTheDocument();
+    expect(
+      within(detailBody).getByText("Location and contact reference for scheduling and field work."),
+    ).toBeInTheDocument();
+    expect(within(detailBody).getByText("100 Main St")).toHaveClass("text-gray-700");
     expect(within(detailBody).getByText("Property Contact")).toBeInTheDocument();
     expect(within(detailBody).getByText("Contact Phone")).toBeInTheDocument();
     expect(within(supportBody).getByLabelText("Order files")).toBeInTheDocument();
@@ -1767,6 +1847,7 @@ describe("OrderDetail site visit save", () => {
 
     expect(within(supportBody).getByLabelText("Order files")).toBe(files);
     expect(notes).toBeInTheDocument();
+    expect(within(notes).getByText("Operational notes retained as supporting context.")).toBeInTheDocument();
     expect(listOrderDocumentsMock).toHaveBeenCalledWith("order-1");
     expect(within(files).getByText("Files")).toBeInTheDocument();
     expect(within(files).getByLabelText("Engagement files").parentElement).toHaveClass(
@@ -1853,6 +1934,46 @@ describe("OrderDetail site visit save", () => {
     expect(within(files).queryByRole("button", { name: "Archive" })).not.toBeInTheDocument();
   });
 
+  it("renders a shared loading state while order files load", async () => {
+    let resolveFiles;
+    listOrderDocumentsMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveFiles = resolve;
+        }),
+    );
+
+    render(<OrderDetail />);
+
+    const files = await screen.findByLabelText("Order files");
+
+    expect(within(files).getByText("Loading files")).toBeInTheDocument();
+    expect(within(files).getByText("Loading files...")).toBeInTheDocument();
+    expect(within(files).getAllByRole("status", { name: "Loading content" }).length).toBeGreaterThan(
+      0,
+    );
+
+    resolveFiles([]);
+    await waitFor(() => {
+      expect(within(files).queryByText("Loading files...")).not.toBeInTheDocument();
+    });
+  });
+
+  it("renders a shared error state when order files are unavailable", async () => {
+    listOrderDocumentsMock.mockRejectedValueOnce(new Error("Files failed"));
+
+    render(<OrderDetail />);
+
+    const files = await screen.findByLabelText("Order files");
+
+    await waitFor(() => {
+      expect(within(files).getByRole("alert")).toHaveTextContent("Files unavailable.");
+    });
+    expect(within(files).getByText("Files unavailable")).toBeInTheDocument();
+    expect(within(files).queryByRole("button", { name: "Download" })).not.toBeInTheDocument();
+    expect(within(files).getByLabelText("Choose order file")).toBeInTheDocument();
+  });
+
   it("does not expose unsafe document storage or signed URL internals", async () => {
     listOrderDocumentsMock.mockResolvedValueOnce([
       {
@@ -1887,7 +2008,13 @@ describe("OrderDetail site visit save", () => {
     render(<OrderDetail />);
 
     const files = await screen.findByLabelText("Order files");
-    fireEvent.click(within(files).getByRole("button", { name: "Download" }));
+    const download = within(files).getByRole("button", { name: "Download" });
+    expect(download).toHaveClass("focus-visible:ring-2");
+    expect(download).toHaveStyle({
+      "--falcon-interaction-duration": "140ms",
+    });
+
+    fireEvent.click(download);
 
     await waitFor(() => {
       expect(createOrderDocumentDownloadUrlMock).toHaveBeenCalledWith("doc-1");
@@ -1955,6 +2082,32 @@ describe("OrderDetail site visit save", () => {
       expect(within(files).getByText("Upload complete")).toBeInTheDocument();
     });
     expect(listOrderDocumentsMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("renders upload failures with the shared file error state", async () => {
+    uploadOrderDocumentMock.mockRejectedValueOnce(new Error("Upload failed"));
+
+    render(<OrderDetail />);
+
+    const files = await screen.findByLabelText("Order files");
+    const input = within(files).getByLabelText("Choose order file");
+    const file = new File(["lease"], "Lease.pdf", { type: "application/pdf" });
+
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await waitFor(() => {
+      expect(uploadOrderDocumentMock).toHaveBeenCalledWith({
+        orderId: "order-1",
+        file,
+        category: "engagement",
+        title: "Lease.pdf",
+        visibilityScope: "internal",
+      });
+    });
+    await waitFor(() => {
+      expect(within(files).getByRole("alert")).toHaveTextContent("Upload failed");
+    });
+    expect(listOrderDocumentsMock).toHaveBeenCalledTimes(1);
   });
 
   it("uploads a dropped order file through the upload helper", async () => {
@@ -2194,6 +2347,7 @@ describe("OrderDetail site visit save", () => {
     clickMoreOrderAction("Archive order");
 
     const dialog = screen.getByRole("dialog", { name: "Archive order" });
+    expect(dialog).toHaveClass("rounded-xl", "shadow-2xl");
     expect(within(dialog).getAllByText("Archive order")).toHaveLength(2);
     expect(
       within(dialog).getByText(
@@ -2245,10 +2399,8 @@ describe("OrderDetail site visit save", () => {
     expect(toastErrorMock).toHaveBeenCalledWith("Could not archive order. No changes were made.");
     expect(refreshMock).not.toHaveBeenCalled();
     expect(
-      within(screen.getByRole("dialog", { name: "Archive order" })).getByText(
-        "Could not archive order. No changes were made.",
-      ),
-    ).toBeInTheDocument();
+      within(screen.getByRole("dialog", { name: "Archive order" })).getByRole("alert"),
+    ).toHaveTextContent("Could not archive order. No changes were made.");
   });
 
   it("shows cancel and void actions only with matching lifecycle permissions", () => {
@@ -2283,6 +2435,7 @@ describe("OrderDetail site visit save", () => {
     clickMoreOrderAction("Cancel order");
 
     const dialog = screen.getByRole("dialog", { name: "Cancel order" });
+    expect(dialog).toHaveClass("rounded-xl", "shadow-2xl");
     expect(within(dialog).getAllByText("Cancel order")).toHaveLength(2);
     expect(
       within(dialog).getByText(
@@ -2358,10 +2511,8 @@ describe("OrderDetail site visit save", () => {
     expect(toastErrorMock).toHaveBeenCalledWith("Could not cancel order. No changes were made.");
     expect(refreshMock).not.toHaveBeenCalled();
     expect(
-      within(screen.getByRole("dialog", { name: "Cancel order" })).getByText(
-        "Could not cancel order. No changes were made.",
-      ),
-    ).toBeInTheDocument();
+      within(screen.getByRole("dialog", { name: "Cancel order" })).getByRole("alert"),
+    ).toHaveTextContent("Could not cancel order. No changes were made.");
   });
 
   it("hides cancel and void actions after terminal lifecycle state", () => {

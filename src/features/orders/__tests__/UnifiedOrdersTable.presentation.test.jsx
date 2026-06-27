@@ -396,7 +396,9 @@ describe("UnifiedOrdersTable presentation", () => {
     const { container } = renderTable();
 
     expect(screen.getByText("Loading")).toBeInTheDocument();
-    expect(container.querySelectorAll(".animate-pulse")).toHaveLength(2);
+    expect(screen.getByText("Loading orders")).toBeInTheDocument();
+    expect(screen.getByText("Loading orders...")).toBeInTheDocument();
+    expect(container.querySelectorAll('[data-state-skeleton="true"]')).toHaveLength(6);
   });
 
   it("shows a saved site visit optimistically and keeps the server-confirmed date", async () => {

@@ -100,7 +100,8 @@ describe("OrderDrawerContent presentation", () => {
   it("renders a lean secondary-context drawer after existing drawer fetches", async () => {
     renderDrawer({ orderId: "order-1" });
 
-    expect(screen.getByRole("status")).toHaveTextContent("Loading order details...");
+    expect(screen.getByText("Loading order details")).toBeInTheDocument();
+    expect(screen.getByText("Loading order details...")).toBeInTheDocument();
 
     expect(await screen.findByText("Activity")).toBeInTheDocument();
     expect(screen.queryByText("Order 2026001")).not.toBeInTheDocument();
@@ -140,10 +141,9 @@ describe("OrderDrawerContent presentation", () => {
     renderDrawer({ orderId: "order-1" });
 
     const evidence = await screen.findByLabelText("Operational status evidence");
-    expect(within(evidence).getByText("Operational Context")).toBeInTheDocument();
-    expect(within(evidence).getByText("Waiting on client")).toBeInTheDocument();
-    expect(within(evidence).getByText("Admin")).toBeInTheDocument();
-    expect(within(evidence).getByText("Client is gathering the missing lease.")).toBeInTheDocument();
+    expect(within(evidence).getByText("Context")).toBeInTheDocument();
+    expect(evidence).toHaveTextContent("Waiting on client");
+    expect(evidence).toHaveTextContent("Admin");
     expect(within(evidence).queryByRole("button")).not.toBeInTheDocument();
   });
 
@@ -151,6 +151,7 @@ describe("OrderDrawerContent presentation", () => {
     renderDrawer({});
 
     expect(screen.getByText("No order selected.")).toBeInTheDocument();
+    expect(screen.getByText("Expand an order row to review supporting context.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /archive|cancel|void/i })).not.toBeInTheDocument();
   });
 
@@ -163,6 +164,7 @@ describe("OrderDrawerContent presentation", () => {
     await waitFor(() => {
       expect(screen.getByRole("alert")).toHaveTextContent("Order details could not load.");
     });
+    expect(screen.getByRole("alert")).toHaveAttribute("data-state-tone", "error");
     expect(screen.getByRole("alert")).toHaveTextContent("Permission denied");
   });
 });

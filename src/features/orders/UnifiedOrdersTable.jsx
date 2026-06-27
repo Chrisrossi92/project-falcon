@@ -10,6 +10,12 @@ import OrdersTableRow from "@/components/orders/table/OrdersTableRow";
 import OrdersTablePagination from "@/components/orders/table/OrdersTablePagination";
 import OrderStatusBadge from "@/components/orders/table/OrderStatusBadge";
 import OrderDrawerContent from "@/components/orders/drawer/OrderDrawerContent";
+import {
+  FalconEmptyState,
+  FalconErrorState,
+  FalconLoadingState,
+  FalconSkeleton,
+} from "@/components/state";
 import { workspaceSurfaceClassNames } from "@/components/workspace/WorkspaceSurface";
 import { updateSiteVisitAt } from "@/lib/api/orders";
 import {
@@ -711,7 +717,7 @@ export default function UnifiedOrdersTable({
         style={style}
       >
         <div className="border-b border-slate-200 bg-white px-4 py-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-start justify-between gap-3 sm:items-center">
             <div className="min-w-0">
               {tableEyebrow ? (
                 <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">{tableEyebrow}</div>
@@ -732,16 +738,19 @@ export default function UnifiedOrdersTable({
               </div>
               {tableSummary ? <p className="mt-1 text-xs text-slate-500">{tableSummary}</p> : null}
             </div>
-            <div className="text-xs font-medium text-slate-500">
+            <div className="shrink-0 text-xs font-medium text-slate-500">
               Page {tableFilters.page + 1} of {totalPages}
             </div>
           </div>
         </div>
 
       {tableError && (
-        <div role="alert" className="border-b border-rose-100 bg-rose-50 px-4 py-4">
-          <div className="text-sm font-semibold text-rose-800">Orders could not load.</div>
-          <div className="mt-1 text-sm text-rose-700">{tableError.message}</div>
+        <div className="border-b border-rose-100 bg-rose-50/40 px-4 py-4">
+          <FalconErrorState
+            className="px-3 py-3"
+            title="Orders could not load."
+            description={tableError.message}
+          />
         </div>
       )}
 
@@ -761,8 +770,8 @@ export default function UnifiedOrdersTable({
                 <p className="mt-0.5 max-w-3xl text-xs leading-5 text-slate-400">{activeQueue.explanation}</p>
               ) : null}
             </div>
-            <div className="flex shrink-0 flex-col items-end gap-2">
-              <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-right shadow-sm">
+            <div className="flex w-full shrink-0 flex-row flex-wrap items-center gap-2 sm:w-auto sm:flex-col sm:items-end">
+              <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-left shadow-sm sm:text-right">
                 <div className="text-xl font-semibold leading-none tracking-tight text-slate-950">{activeQueue.count ?? tableCount ?? 0}</div>
                 <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
                   active match{(activeQueue.count ?? tableCount ?? 0) === 1 ? "" : "es"}
@@ -783,7 +792,7 @@ export default function UnifiedOrdersTable({
       )}
 
       {/* header */}
-      <div className="overflow-hidden">
+      <div className="overflow-x-auto overflow-y-hidden">
         <div
           className="sticky top-0 z-10 border-b border-slate-200/80 bg-slate-50/95 px-3 py-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 shadow-[0_1px_0_rgba(15,23,42,0.04)] backdrop-blur"
           style={{ display: "grid", gridTemplateColumns: template, columnGap: ".25rem", minWidth: tableMinWidth, width: tableWidth }}
@@ -798,26 +807,33 @@ export default function UnifiedOrdersTable({
         {/* rows */}
         <div className="bg-white" style={{ minWidth: tableMinWidth, width: tableWidth }}>
           {tableLoading ? (
-            [...Array(tableFilters.pageSize || pageSize)].map((_, i) => (
-              <div key={i} className="border-b border-slate-100/80 px-4 py-3 sm:px-5">
-                <div className="flex animate-pulse items-center gap-3">
-                  <div className="h-8 w-28 rounded-lg bg-slate-100" />
-                  <div className="h-8 min-w-0 flex-1 rounded-lg bg-slate-100" />
-                  <div className="hidden h-8 w-32 rounded-lg bg-slate-100 sm:block" />
+            <FalconLoadingState
+              className="rounded-none border-0 border-b border-slate-100 bg-white px-0 py-0 shadow-none"
+              title="Loading orders"
+              description="Loading orders..."
+            >
+              {[...Array(tableFilters.pageSize || pageSize)].map((_, i) => (
+                <div key={i} className="border-b border-slate-100/80 px-4 py-3 sm:px-5">
+                  <div className="flex items-center gap-3">
+                    <FalconSkeleton height="2rem" width="7rem" />
+                    <FalconSkeleton className="min-w-0 flex-1" height="2rem" />
+                    <FalconSkeleton className="hidden sm:block" height="2rem" width="8rem" />
+                  </div>
                 </div>
-              </div>
-            ))
+              ))}
+            </FalconLoadingState>
           ) : !displayData?.length ? (
             <div className="px-5 py-12 text-center">
-              <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-500">
-                0
-              </div>
-              <div className="mt-3 text-sm font-semibold text-slate-800">
-                {emptyStateTitle}
-              </div>
-              <div className="mx-auto mt-1 max-w-md text-sm text-slate-500">
-                {emptyStateDescription}
-              </div>
+              <FalconEmptyState
+                className="mx-auto max-w-xl"
+                title={emptyStateTitle}
+                description={emptyStateDescription}
+                icon={
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-500">
+                    0
+                  </span>
+                }
+              />
             </div>
           ) : (
             displayData.map((o, idx) => {
@@ -841,7 +857,7 @@ export default function UnifiedOrdersTable({
                   order={o}
                   isOpen={expandedId === rowKey}
                   onToggle={() => setExpandedId((x) => (x === rowKey ? null : rowKey))}
-                  className="py-3.5"
+                  className="py-3 sm:py-3.5"
                   renderCells={() => (
                     <div
                       className="items-start text-sm leading-5 text-slate-800"
@@ -947,7 +963,7 @@ export default function UnifiedOrdersTable({
       </div>
 
       {/* footer */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200/80 bg-slate-50/80 px-4 py-3 text-xs text-slate-600">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-t border-slate-200/80 bg-slate-50/80 px-4 py-3 text-xs text-slate-600 sm:items-center">
         <div className="font-medium">
           Page {tableFilters.page + 1} / {totalPages} — {tableCount || 0} total
         </div>

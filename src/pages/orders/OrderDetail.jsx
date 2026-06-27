@@ -13,6 +13,19 @@ import useOrderOperationalInputs from "@/features/orders/operational-inputs/useO
 import ReviewContextSummary from "@/features/orders/review/ReviewContextSummary";
 import WorkspaceBadge from "@/components/workspace/WorkspaceBadge";
 import { WorkspaceSurface } from "@/components/workspace/WorkspaceSurface";
+import { FalconPageMotion } from "@/components/motion";
+import {
+  FalconEmptyState,
+  FalconErrorState,
+  FalconLoadingState,
+  FalconSkeleton,
+  FalconSuccessState,
+  FalconUpdatingIndicator,
+} from "@/components/state";
+import {
+  falconInteractionClassNames,
+  falconInteractionStyles,
+} from "@/lib/ui/falconInteractions";
 import useOrder from "@/lib/hooks/useOrder";
 import { useEffectivePermissions } from "@/lib/hooks/usePermissions";
 import { useToast } from "@/lib/hooks/useToast";
@@ -60,6 +73,7 @@ import { formatOperationalDate } from "@/lib/utils/dateOnly";
 import { useOperationsMode } from "@/lib/operations/OperationsModeProvider";
 import { OPERATIONS_MODES } from "@/lib/operations/operationsMode";
 import { buildOrderListPath } from "@/features/orders/orderRoutePaths";
+import { cn } from "@/lib/utils";
 
 /* ---------- helpers ---------- */
 const fmtDate = (s) => (s ? new Date(s).toLocaleDateString() : "-");
@@ -146,6 +160,44 @@ const LIFECYCLE_HISTORY_NOTICE = Object.freeze({
       "This order is preserved for history. It is hidden from active operational queues and voiding does not delete the order, release the order number, or remove documents/activity.",
   },
 });
+const orderInteractionStyle = falconInteractionStyles();
+
+function orderSecondaryActionClassName(className, options = {}) {
+  return falconInteractionClassNames("quietSecondaryAction", {
+    ...options,
+    className: cn("rounded px-3 py-1.5 text-sm font-semibold", className),
+  });
+}
+
+function orderPrimaryActionClassName(className, options = {}) {
+  return orderSecondaryActionClassName(
+    cn("border-slate-900 bg-slate-900 text-white hover:bg-slate-800 hover:text-white", className),
+    options,
+  );
+}
+
+function orderSkyActionClassName(className, options = {}) {
+  return orderSecondaryActionClassName(
+    cn("border-sky-700 bg-sky-700 text-white hover:bg-sky-800 hover:text-white", className),
+    options,
+  );
+}
+
+function orderMenuItemClassName(className, options = {}) {
+  return falconInteractionClassNames("row", {
+    ...options,
+    className: cn("w-full rounded px-3 py-2 text-left text-sm font-medium", className),
+  });
+}
+
+const orderDialogPanelClassName =
+  "w-full rounded-xl border border-slate-200 bg-white p-4 shadow-2xl";
+const orderDialogTitleClassName = "text-lg font-semibold text-slate-950";
+const orderDialogDescriptionClassName = "mt-2 text-sm leading-6 text-slate-600";
+const orderDialogActionsClassName =
+  "mt-5 flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4";
+const orderDialogInputClassName =
+  "mt-2 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500 disabled:bg-slate-50 disabled:text-slate-500";
 const STATUS_OVERRIDE_TARGETS = Object.freeze([
   { value: "new", label: "New" },
   { value: "in_progress", label: "In progress" },
@@ -361,7 +413,7 @@ function EligibleVendorsPanel({
   }
 
   return (
-    <section aria-label="Eligible vendors" className="rounded-md border border-slate-200 bg-white p-3 shadow-sm">
+    <section aria-label="Eligible vendors" className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold text-slate-950">Eligible vendors</h2>
@@ -373,7 +425,8 @@ function EligibleVendorsPanel({
           <button
             type="button"
             onClick={openRequestBidsModal}
-            className="rounded border border-slate-900 bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-800"
+            style={orderInteractionStyle}
+            className={orderPrimaryActionClassName()}
           >
             Request bids
           </button>
@@ -382,13 +435,26 @@ function EligibleVendorsPanel({
 
       <div className="mt-3 text-sm text-slate-600">
         {loading ? (
-          <div>Loading eligible vendors...</div>
+          <FalconLoadingState
+            title="Loading eligible vendors"
+            description="Loading eligible vendors..."
+          >
+            <div className="space-y-2">
+              <FalconSkeleton height="0.75rem" width="72%" />
+              <FalconSkeleton height="0.75rem" width="56%" />
+            </div>
+          </FalconLoadingState>
         ) : loadError ? (
-          <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-amber-800">
-            Eligible vendor matching could not load.
-          </div>
+          <FalconErrorState
+            title="Eligible vendor matching unavailable"
+            description="Eligible vendor matching could not load."
+          />
         ) : rows.length === 0 ? (
-          <div>No eligible vendors matched this order&apos;s normalized coverage.</div>
+          <FalconEmptyState
+            className="text-left"
+            title="No eligible vendors matched"
+            description="No eligible vendors matched this order's normalized coverage."
+          />
         ) : (
           <div className="grid gap-2">
             {rows.map((vendor) => {
@@ -396,7 +462,7 @@ function EligibleVendorsPanel({
               const companyName = vendorCompanyNameOf(vendor);
 
               return (
-                <article key={key} className="rounded-md border border-slate-100 bg-slate-50 p-3">
+                <article key={key} className="rounded-md border border-slate-100 bg-slate-50/70 p-3">
                   <div className="font-medium text-slate-950">{companyName}</div>
                   <dl className="mt-2 grid gap-2 text-xs text-slate-600 sm:grid-cols-2">
                     <div>
@@ -434,26 +500,27 @@ function EligibleVendorsPanel({
           aria-labelledby="eligible-vendor-bid-request-title"
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
         >
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-md bg-white p-4 shadow-xl">
-            <div className="flex items-start justify-between gap-3">
+          <div className={cn(orderDialogPanelClassName, "max-h-[90vh] max-w-2xl overflow-y-auto")}>
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
               <div>
-                <h3 id="eligible-vendor-bid-request-title" className="text-base font-semibold text-slate-950">
+                <h3 id="eligible-vendor-bid-request-title" className={orderDialogTitleClassName}>
                   Request bids from eligible vendors
                 </h3>
-                <p className="mt-1 text-sm text-slate-600">
+                <p className={orderDialogDescriptionClassName}>
                   Bid requests will be sent only after you confirm this action. Matching is deterministic coverage matching, not a score or recommendation.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={closeRequestBidsModal}
-                className="rounded border border-slate-200 px-2 py-1 text-sm text-slate-600 hover:bg-slate-50"
+                style={orderInteractionStyle}
+                className={orderSecondaryActionClassName("px-2 py-1 font-medium text-slate-600")}
               >
                 Close
               </button>
             </div>
 
-            <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900">
               Confirm the selected vendors before sending. This will create bid request recipient records; it will not create an assignment.
             </div>
 
@@ -465,7 +532,11 @@ function EligibleVendorsPanel({
                 return (
                   <label
                     key={vendorProfileId}
-                    className="flex gap-3 rounded-md border border-slate-200 p-3 text-sm"
+                    style={orderInteractionStyle}
+                    className={falconInteractionClassNames("row", {
+                      selected,
+                      className: "flex gap-3 rounded-md border border-slate-200 p-3 text-sm",
+                    })}
                   >
                     <input
                       type="checkbox"
@@ -493,7 +564,7 @@ function EligibleVendorsPanel({
                   value={requestMessage}
                   onChange={(event) => setRequestMessage(event.target.value)}
                   rows={4}
-                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                  className={orderDialogInputClassName}
                   placeholder={`Please provide a fee and timing for order ${order?.order_number || ""}.`}
                 />
               </label>
@@ -503,7 +574,7 @@ function EligibleVendorsPanel({
                   type="date"
                   value={responseDueDate}
                   onChange={(event) => setResponseDueDate(event.target.value)}
-                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                  className={orderDialogInputClassName}
                 />
               </label>
               <label>
@@ -512,7 +583,7 @@ function EligibleVendorsPanel({
                   type="date"
                   value={vendorDueDate}
                   onChange={(event) => setVendorDueDate(event.target.value)}
-                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                  className={orderDialogInputClassName}
                 />
               </label>
               <label>
@@ -521,22 +592,21 @@ function EligibleVendorsPanel({
                   type="date"
                   value={clientDueDate}
                   onChange={(event) => setClientDueDate(event.target.value)}
-                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                  className={orderDialogInputClassName}
                 />
               </label>
             </div>
 
             {submitError && (
-              <div className="mt-4 rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
-                {submitError}
-              </div>
+              <FalconErrorState className="mt-4 px-3 py-2 text-sm" title={submitError} description="" />
             )}
 
-            <div className="mt-5 flex justify-end gap-2">
+            <div className={orderDialogActionsClassName}>
               <button
                 type="button"
                 onClick={closeRequestBidsModal}
-                className="rounded border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                style={orderInteractionStyle}
+                className={orderSecondaryActionClassName("border-slate-300 text-slate-700")}
               >
                 Cancel
               </button>
@@ -544,7 +614,10 @@ function EligibleVendorsPanel({
                 type="button"
                 onClick={submitBidRequest}
                 disabled={!canSubmitBidRequest}
-                className="rounded border border-slate-900 bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                style={orderInteractionStyle}
+                className={orderPrimaryActionClassName(null, {
+                  disabled: !canSubmitBidRequest,
+                })}
               >
                 {submitting ? "Sending..." : "Send bid requests"}
               </button>
@@ -570,16 +643,53 @@ function resolveOrderWorkspaceRedirect(orderOperationsScope, operationsMode) {
   };
 }
 
-function SummaryField({ label, value, children }) {
+function HeaderContextField({ label, value, className = "", muted = false }) {
+  return (
+    <div className={cn("min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2", className)}>
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+        {label}
+      </div>
+      <div
+        className={cn(
+          "mt-1 truncate text-sm font-semibold",
+          muted ? "text-slate-500" : "text-slate-950",
+        )}
+        title={value || "-"}
+      >
+        {value || "-"}
+      </div>
+    </div>
+  );
+}
+
+function DetailSectionHeading({ title, description }) {
+  return (
+    <div className="mb-3">
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+        {title}
+      </div>
+      {description ? <div className="mt-1 text-xs leading-5 text-slate-500">{description}</div> : null}
+    </div>
+  );
+}
+
+function SummaryField({ label, value, children, tone = "default" }) {
+  const muted = tone === "muted";
+
   return (
     <div className="min-w-0">
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
         {label}
       </div>
       {children ? (
-        <div className="mt-1 text-sm font-medium text-gray-900">{children}</div>
+        <div className={cn("mt-1 text-sm font-medium", muted ? "text-slate-500" : "text-slate-900")}>
+          {children}
+        </div>
       ) : (
-        <div className="mt-1 truncate text-sm font-medium text-gray-900" title={value || "-"}>
+        <div
+          className={cn("mt-1 truncate text-sm font-medium", muted ? "text-slate-500" : "text-slate-900")}
+          title={value || "-"}
+        >
           {value || "-"}
         </div>
       )}
@@ -589,8 +699,8 @@ function SummaryField({ label, value, children }) {
 
 function OverviewSection({ title, children, className = "" }) {
   return (
-    <WorkspaceSurface variant="evidence" className={`bg-white p-3 ${className}`}>
-      <div className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+    <WorkspaceSurface variant="evidence" className={`bg-white/95 p-3 ${className}`}>
+      <div className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
         {title}
       </div>
       <div className="grid gap-3 sm:grid-cols-2">{children}</div>
@@ -619,7 +729,7 @@ function BidStatusSummaryCard({ summary, activeVendorAssignment, order }) {
   return (
     <section
       aria-label="AMC bid status"
-      className="mt-4 rounded-md border border-slate-200 bg-white p-3 shadow-sm"
+      className="mt-4 rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
     >
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div className="min-w-0">
@@ -630,7 +740,7 @@ function BidStatusSummaryCard({ summary, activeVendorAssignment, order }) {
             <span className={`inline-flex rounded-full border px-2 py-1 text-xs font-semibold ${toneClass}`}>
               {summary.label}
             </span>
-            <span className="text-sm text-slate-500">
+            <span className="rounded-full border border-slate-100 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-500">
               {summary.contactedCount} contacted / {summary.respondedCount} responded
             </span>
           </div>
@@ -646,7 +756,10 @@ function BidStatusSummaryCard({ summary, activeVendorAssignment, order }) {
             {assignmentPacketPath && (
               <Link
                 to={assignmentPacketPath}
-                className="mt-2 inline-flex h-8 items-center justify-center rounded-md border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                style={orderInteractionStyle}
+                className={orderSecondaryActionClassName(
+                  "mt-2 inline-flex h-8 items-center justify-center rounded-md px-2.5 text-xs text-slate-700",
+                )}
               >
                 Open Packet
               </Link>
@@ -655,7 +768,7 @@ function BidStatusSummaryCard({ summary, activeVendorAssignment, order }) {
         )}
       </div>
 
-      <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="mt-3 grid gap-3 border-t border-slate-100 pt-3 sm:grid-cols-2 lg:grid-cols-5">
         <SummaryField label={feeLabel} value={feeValue} />
         <SummaryField label="Turn Time" value={turnTimeValue || "-"} />
         <SummaryField label="Selected Vendor" value={summary.selectedVendorName || "-"} />
@@ -686,6 +799,28 @@ function VendorAssignmentSummaryCard({ assignment, summary }) {
       <SummaryField label="Vendor Due" value={formatOperationalDate(vendorDueAt)} />
       <SummaryField label="Accepted On" value={formatOperationalDate(assignment?.accepted_at)} />
     </OverviewSection>
+  );
+}
+
+function OrderDetailLoadingState() {
+  return (
+    <FalconPageMotion className="space-y-4 p-4 print:p-0" aria-label="Order detail loading">
+      <FalconLoadingState title="Loading order" description="Loading...">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
+          <div className="space-y-3">
+            <FalconSkeleton width="9rem" height="0.75rem" />
+            <FalconSkeleton width="16rem" height="1.75rem" />
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+              <FalconSkeleton height="2.75rem" />
+              <FalconSkeleton height="2.75rem" />
+              <FalconSkeleton height="2.75rem" />
+              <FalconSkeleton height="2.75rem" />
+            </div>
+          </div>
+          <FalconSkeleton height="5.5rem" />
+        </div>
+      </FalconLoadingState>
+    </FalconPageMotion>
   );
 }
 
@@ -833,16 +968,16 @@ function FilesCard({ order, orderId, canArchive, canUpload, onFilesLoaded, showR
   return (
     <WorkspaceSurface
       as="div"
-      variant="secondary"
-      className="bg-white p-3"
+      variant="evidence"
+      className="bg-white/95 p-3"
       aria-label="Order files"
     >
       <div className="flex items-center justify-between gap-3">
-        <div className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold">
+        <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
           Files
         </div>
         {!loading && !error && (
-          <div className="text-[11px] text-gray-500">
+          <div className="text-[11px] text-slate-500">
             {files.length} {files.length === 1 ? "file" : "files"}
           </div>
         )}
@@ -868,7 +1003,11 @@ function FilesCard({ order, orderId, canArchive, canUpload, onFilesLoaded, showR
               type="button"
               onClick={() => setArchiveCandidate(null)}
               disabled={busyId === archiveCandidate.id}
-              className="rounded border border-amber-300 bg-white px-2 py-1 text-xs font-medium text-amber-900 hover:bg-amber-100 disabled:opacity-50"
+              style={orderInteractionStyle}
+              className={orderSecondaryActionClassName(
+                "border-amber-300 px-2 py-1 text-xs text-amber-900 hover:bg-amber-100 hover:text-amber-950",
+                { disabled: busyId === archiveCandidate.id },
+              )}
             >
               Cancel
             </button>
@@ -876,7 +1015,11 @@ function FilesCard({ order, orderId, canArchive, canUpload, onFilesLoaded, showR
               type="button"
               onClick={handleArchive}
               disabled={busyId === archiveCandidate.id}
-              className="rounded border border-amber-700 bg-amber-700 px-2 py-1 text-xs font-semibold text-white hover:bg-amber-800 disabled:opacity-50"
+              style={orderInteractionStyle}
+              className={orderPrimaryActionClassName(
+                "border-amber-700 bg-amber-700 px-2 py-1 text-xs hover:bg-amber-800 hover:text-white",
+                { disabled: busyId === archiveCandidate.id },
+              )}
             >
               {busyId === archiveCandidate.id ? "Archiving..." : "Archive file"}
             </button>
@@ -925,25 +1068,51 @@ function FilesCard({ order, orderId, canArchive, canUpload, onFilesLoaded, showR
             Drop a file here
           </div>
           {(uploading || uploadStatus) && (
-            <div
-              className={`mt-2 text-xs ${
-                uploading ? "text-gray-600" : uploadError ? "text-amber-700" : "text-emerald-700"
-              }`}
-            >
-              {uploadStatus}
+            <div className="mt-2">
+              {uploading ? (
+                <FalconUpdatingIndicator label={uploadStatus || "Uploading"} />
+              ) : uploadError ? (
+                <FalconErrorState
+                  className="px-3 py-2 text-xs"
+                  title={uploadStatus || "Upload failed"}
+                  description=""
+                />
+              ) : (
+                <FalconSuccessState
+                  className="px-3 py-2 text-xs"
+                  title={uploadStatus || "Upload complete"}
+                  description=""
+                />
+              )}
             </div>
           )}
         </div>
       )}
 
       {loading ? (
-        <div className="mt-3 text-sm text-gray-500">Loading files...</div>
+        <FalconLoadingState
+          className="mt-3"
+          title="Loading files"
+          description="Loading files..."
+        >
+          <div className="space-y-2">
+            <FalconSkeleton height="0.75rem" width="60%" />
+            <FalconSkeleton height="0.75rem" width="82%" />
+            <FalconSkeleton height="0.75rem" width="48%" />
+          </div>
+        </FalconLoadingState>
       ) : error ? (
-        <div className="mt-3 text-sm text-amber-700">Files unavailable.</div>
+        <FalconErrorState
+          className="mt-3"
+          title="Files unavailable"
+          description="Files unavailable."
+        />
       ) : latestFiles.length === 0 ? (
-        <div className="mt-3 rounded border border-gray-100 bg-gray-50 px-3 py-3 text-sm text-gray-500">
-          No files uploaded yet.
-        </div>
+        <FalconEmptyState
+          className="mt-3 text-left"
+          title="No files uploaded yet"
+          description="No files uploaded yet."
+        />
       ) : (
         <div className="mt-3 max-h-96 space-y-3 overflow-y-auto pr-1">
           {groupedFiles.map((group) => (
@@ -997,7 +1166,10 @@ function FilesCard({ order, orderId, canArchive, canUpload, onFilesLoaded, showR
                               type="button"
                               onClick={() => handleDownload(document)}
                               disabled={isBusy}
-                              className="rounded border px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                              style={orderInteractionStyle}
+                              className={orderSecondaryActionClassName("px-2 py-1 text-xs", {
+                                disabled: isBusy,
+                              })}
                             >
                               Download
                             </button>
@@ -1007,7 +1179,10 @@ function FilesCard({ order, orderId, canArchive, canUpload, onFilesLoaded, showR
                               type="button"
                               onClick={() => setArchiveCandidate(document)}
                               disabled={isBusy}
-                              className="rounded border px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                              style={orderInteractionStyle}
+                              className={orderSecondaryActionClassName("px-2 py-1 text-xs", {
+                                disabled: isBusy,
+                              })}
                             >
                               Archive
                             </button>
@@ -1497,71 +1672,93 @@ export default function OrderDetail() {
     window.print();
   }
 
-  if (loading) return <div className="p-4 text-sm">Loading...</div>;
-  if (loadErr) return <div className="p-4 text-sm text-rose-600">Failed to load order.</div>;
-  if (!order) return <div className="p-4 text-sm text-amber-700">Order not found.</div>;
+  if (loading) return <OrderDetailLoadingState />;
+  if (loadErr) {
+    return (
+      <FalconPageMotion className="p-4 print:p-0">
+        <FalconErrorState title="Failed to load order" description="Failed to load order." />
+      </FalconPageMotion>
+    );
+  }
+  if (!order) {
+    return (
+      <FalconPageMotion className="p-4 print:p-0">
+        <FalconEmptyState title="Order not found" description="Order not found." />
+      </FalconPageMotion>
+    );
+  }
   if (orderWorkspaceRedirect) {
-    return <div className="p-4 text-sm text-slate-600">Switching workspace...</div>;
+    return (
+      <FalconPageMotion className="p-4 print:p-0">
+        <FalconLoadingState title="Switching workspace" description="Switching workspace..." />
+      </FalconPageMotion>
+    );
   }
 
   return (
-    <div className="p-4 space-y-4 print:p-0">
+    <FalconPageMotion className="p-4 space-y-4 print:p-0" aria-label="Order detail">
       <div className="space-y-4 print:hidden">
         {/* Operational overview */}
         <WorkspaceSurface variant="primary" className="p-4">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0 flex-1">
-            <div className="mb-2 flex flex-wrap items-center gap-2">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
               <WorkspaceBadge operationsMode={operationsMode} />
               <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
                 Order Detail
               </span>
             </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-xl font-semibold text-slate-950">Order {titleNo}</h1>
-              <OrderStatusBadge status={order.status} />
-              <button
-                type="button"
-                onClick={copyNo}
-                title="Copy order number"
-                className="rounded border px-1.5 py-0.5 text-xs text-gray-500 hover:bg-gray-50"
-              >
-                Copy
-              </button>
-            </div>
-            <div className="mt-3 grid gap-2 text-sm text-slate-700 sm:grid-cols-2 xl:grid-cols-4">
-              <div className="min-w-0">
-                <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                  Client
-                </div>
-                <div className="truncate font-medium text-slate-950">{clientName || "-"}</div>
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="text-2xl font-semibold tracking-normal text-slate-950">
+                  Order {titleNo}
+                </h1>
+                <OrderStatusBadge status={order.status} />
+                <button
+                  type="button"
+                  onClick={copyNo}
+                  title="Copy order number"
+                  style={orderInteractionStyle}
+                  className={orderSecondaryActionClassName("px-1.5 py-0.5 text-xs text-gray-500")}
+                >
+                  Copy
+                </button>
               </div>
-              <div className="min-w-0 sm:col-span-2 xl:col-span-1">
+              <div>
                 <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                   Property
                 </div>
-                <div className="truncate font-medium text-slate-950">{propertyAddress || "-"}</div>
-              </div>
-              <div className="min-w-0">
-                <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                  Property Type
+                <div
+                  className="mt-1 max-w-4xl text-lg font-semibold leading-snug text-slate-950"
+                  title={propertyAddress || "-"}
+                >
+                  {propertyAddress || "-"}
                 </div>
-                <div className="truncate font-medium text-slate-950">{order.property_type || "-"}</div>
-              </div>
-              <div className="min-w-0">
-                <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                  Created
+                <div className="mt-1 flex flex-wrap gap-2 text-xs text-slate-500">
+                  <span>{order.property_type || "-"}</span>
+                  <span aria-hidden="true">/</span>
+                  <span>{order.report_type || "-"}</span>
                 </div>
-                <div className="truncate font-medium text-slate-950">{fmtDateTime(order.created_at)}</div>
               </div>
+            </div>
+            <div className="mt-4 grid gap-2 text-sm text-slate-700 sm:grid-cols-2 xl:grid-cols-3">
+              <HeaderContextField label="Client" value={clientName} />
+              <HeaderContextField label="Review Due" value={formatOperationalDate(reviewDateOf(order))} />
+              <HeaderContextField
+                label="Final Due"
+                value={formatOperationalDate(order.final_due_at ?? order.due_date)}
+              />
+              <HeaderContextField label="Appraiser" value={appraiserName} />
+              <HeaderContextField label="Reviewer" value={order.reviewer_name || "-"} />
+              <HeaderContextField label="Created" value={fmtDateTime(order.created_at)} muted />
             </div>
           </div>
           <div className="flex w-full flex-col gap-2 md:w-auto md:min-w-[360px] md:items-end">
             <section
               aria-label="Smart Action"
-              className="w-full rounded-lg border border-sky-200 bg-sky-50 px-3 py-2.5 text-sm text-slate-800 shadow-sm md:max-w-[420px]"
+              className="w-full rounded-xl border border-sky-300 bg-sky-50 px-4 py-3 text-sm text-slate-800 shadow-md ring-1 ring-sky-100 md:max-w-[440px]"
             >
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                   <div className="text-[11px] font-semibold uppercase tracking-wide text-sky-700">
                     Smart Action
@@ -1578,14 +1775,17 @@ export default function OrderDetail() {
                     type="button"
                     onClick={primarySmartAction.onClick}
                     disabled={primarySmartAction.disabled || Boolean(smartActionSubmitting)}
-                    className="shrink-0 rounded-md border border-sky-700 bg-sky-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-60"
+                    style={orderInteractionStyle}
+                    className={orderSkyActionClassName("min-h-10 shrink-0 rounded-lg px-4 py-2 text-sm shadow-sm", {
+                      disabled: primarySmartAction.disabled || Boolean(smartActionSubmitting),
+                    })}
                   >
                     {smartActionSubmitting === primarySmartAction.id
                       ? "Working..."
                       : primarySmartAction.label}
                   </button>
                 ) : (
-                  <div className="shrink-0 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-500">
+                  <div className="shrink-0 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500">
                     No guided action
                   </div>
                 )}
@@ -1609,12 +1809,20 @@ export default function OrderDetail() {
                 />
               </>
             )}
-            <div className="flex flex-wrap items-center justify-end gap-2 rounded-lg border border-slate-200 bg-white/85 p-2 shadow-sm">
+            <div
+              aria-label="Secondary order actions"
+              className="flex flex-wrap items-center justify-start gap-1.5 rounded-lg border border-slate-200 bg-slate-50/70 p-1.5 sm:justify-end"
+            >
               {canOfferAssignment && (
                 <button
                   type="button"
                   onClick={() => setOfferAssignmentOpen(true)}
-                  className="rounded border border-slate-950 bg-slate-950 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-800"
+                  style={orderInteractionStyle}
+                  className={
+                    primarySmartAction
+                      ? orderSecondaryActionClassName("border-slate-300 text-slate-700")
+                      : orderPrimaryActionClassName("border-slate-950 bg-slate-950")
+                  }
                 >
                   Offer Assignment
                 </button>
@@ -1622,7 +1830,8 @@ export default function OrderDetail() {
               {showOrderEditAction && (
                 <Link
                   to={`/orders/${order.id}/edit`}
-                  className="rounded border px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                  style={orderInteractionStyle}
+                  className={orderSecondaryActionClassName("px-2.5 py-1 text-xs text-slate-600")}
                 >
                   Edit
                 </Link>
@@ -1630,13 +1839,15 @@ export default function OrderDetail() {
               <button
                 type="button"
                 onClick={() => setPrintPacketOpen(true)}
-                className="rounded border px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                style={orderInteractionStyle}
+                className={orderSecondaryActionClassName("px-2.5 py-1 text-xs text-slate-600")}
               >
                 Print Packet
               </button>
               <Link
                 to={buildOrderListPath(pathname)}
-                className="rounded border px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                style={orderInteractionStyle}
+                className={orderSecondaryActionClassName("px-2.5 py-1 text-xs text-slate-600")}
               >
                 {"<- Back"}
               </Link>
@@ -1647,7 +1858,10 @@ export default function OrderDetail() {
                     onClick={() => setMoreActionsOpen((value) => !value)}
                     aria-expanded={moreActionsOpen}
                     aria-haspopup="menu"
-                    className="rounded border px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                    style={orderInteractionStyle}
+                    className={orderSecondaryActionClassName("px-2.5 py-1 text-xs text-slate-600", {
+                      selected: moreActionsOpen,
+                    })}
                   >
                     More actions
                   </button>
@@ -1666,7 +1880,10 @@ export default function OrderDetail() {
                             setArchiveError("");
                             setArchiveConfirmOpen(true);
                           }}
-                          className="w-full rounded px-3 py-2 text-left text-sm font-medium text-amber-800 hover:bg-amber-50"
+                          style={orderInteractionStyle}
+                          className={orderMenuItemClassName(
+                            "text-amber-800 hover:bg-amber-50 hover:text-amber-900",
+                          )}
                         >
                           Archive order
                         </button>
@@ -1679,7 +1896,10 @@ export default function OrderDetail() {
                             setMoreActionsOpen(false);
                             openLifecycleAction("cancel");
                           }}
-                          className="w-full rounded px-3 py-2 text-left text-sm font-medium text-rose-800 hover:bg-rose-50"
+                          style={orderInteractionStyle}
+                          className={orderMenuItemClassName(
+                            "text-rose-800 hover:bg-rose-50 hover:text-rose-900",
+                          )}
                         >
                           Cancel order
                         </button>
@@ -1692,7 +1912,8 @@ export default function OrderDetail() {
                             setMoreActionsOpen(false);
                             openLifecycleAction("void");
                           }}
-                          className="w-full rounded px-3 py-2 text-left text-sm font-medium text-slate-800 hover:bg-slate-50"
+                          style={orderInteractionStyle}
+                          className={orderMenuItemClassName("text-slate-800")}
                         >
                           Void order
                         </button>
@@ -1705,7 +1926,8 @@ export default function OrderDetail() {
                             setMoreActionsOpen(false);
                             openStatusOverride();
                           }}
-                          className="w-full rounded px-3 py-2 text-left text-sm font-medium text-slate-800 hover:bg-slate-50"
+                          style={orderInteractionStyle}
+                          className={orderMenuItemClassName("text-slate-800")}
                         >
                           Override status
                         </button>
@@ -1760,23 +1982,27 @@ export default function OrderDetail() {
           </div>
           <div className="grid gap-3 lg:grid-cols-12">
             <OverviewSection title="Order / Client" className="lg:col-span-4">
-              <SummaryField label="Client" value={clientName} />
+              <SummaryField label="Client" value={clientName} tone="muted" />
               {isAmcOrderDetail && <SummaryField label="AMC" value={amcName} />}
             </OverviewSection>
 
             <OverviewSection title="Property / Assignment" className="lg:col-span-8">
-              <SummaryField label="Property Address" value={propertyAddress} />
-              <SummaryField label="Property Type" value={order.property_type} />
-              <SummaryField label="Report Type" value={order.report_type} />
+              <SummaryField label="Property Address" value={propertyAddress} tone="muted" />
+              <SummaryField label="Property Type" value={order.property_type} tone="muted" />
+              <SummaryField label="Report Type" value={order.report_type} tone="muted" />
             </OverviewSection>
 
             <OverviewSection title="Schedule" className="lg:col-span-7">
               <SummaryField label="Site Visit">
                 <SiteVisitPicker value={order.site_visit_at} onChange={saveAppt} />
               </SummaryField>
-              <SummaryField label="Review Due" value={formatOperationalDate(reviewDateOf(order))} />
-              <SummaryField label="Final Due" value={formatOperationalDate(order.final_due_at ?? order.due_date)} />
-              <SummaryField label="Updated" value={fmtDateTime(order.updated_at)} />
+              <SummaryField label="Review Due" value={formatOperationalDate(reviewDateOf(order))} tone="muted" />
+              <SummaryField
+                label="Final Due"
+                value={formatOperationalDate(order.final_due_at ?? order.due_date)}
+                tone="muted"
+              />
+              <SummaryField label="Updated" value={fmtDateTime(order.updated_at)} tone="muted" />
             </OverviewSection>
 
             {isAmcOrderDetail ? (
@@ -1786,8 +2012,8 @@ export default function OrderDetail() {
               />
             ) : (
               <OverviewSection title="Team / Fees" className="lg:col-span-5">
-                <SummaryField label="Appraiser" value={appraiserName} />
-                <SummaryField label="Reviewer" value={order.reviewer_name || "-"} />
+                <SummaryField label="Appraiser" value={appraiserName} tone="muted" />
+                <SummaryField label="Reviewer" value={order.reviewer_name || "-"} tone="muted" />
                 <SummaryField label="Split %" value={order.split_pct != null ? `${order.split_pct}` : "-"} />
                 <SummaryField label="Base Fee" value={money(order.base_fee)} />
                 <SummaryField label="Appraiser Fee" value={money(order.appraiser_fee)} />
@@ -1805,10 +2031,11 @@ export default function OrderDetail() {
         {/* Detail body */}
         <div className="grid grid-cols-12 gap-4 items-start" aria-label="Order detail body">
         <div className="col-span-12 lg:col-span-7">
-          <WorkspaceSurface variant="primary" className="p-3">
-            <div className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-2">
-              Activity
-            </div>
+          <WorkspaceSurface variant="evidence" className="bg-white/95 p-3">
+            <DetailSectionHeading
+              title="Activity"
+              description="Recent order movement and communication history."
+            />
             {!isReviewerReviewWorkspace && (
               <ReviewContextSummary
                 order={order}
@@ -1821,23 +2048,26 @@ export default function OrderDetail() {
         </div>
 
         <div className="col-span-12 lg:col-span-5">
-          <WorkspaceSurface variant="secondary" className="bg-white p-3">
-            <div className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-2">Contacts / Map</div>
+          <WorkspaceSurface variant="evidence" className="bg-white/95 p-3">
+            <DetailSectionHeading
+              title="Contacts / Map"
+              description="Location and contact reference for scheduling and field work."
+            />
 
-            <div className="mb-3 text-sm">
+            <div className="mb-3 rounded-md border border-slate-100 bg-slate-50/40 p-2 text-sm">
               <div className="text-xs text-gray-500 mb-0.5">Address</div>
-              <div className="text-gray-800">{addr1 || "-"}</div>
+              <div className="text-gray-700">{addr1 || "-"}</div>
               <div className="text-xs text-gray-500">{addr2 || "-"}</div>
             </div>
 
-            <div className="mb-3 grid gap-2 rounded-md border border-slate-100 bg-slate-50/50 p-2 text-sm sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+            <div className="mb-3 grid gap-2 rounded-md border border-slate-100 bg-slate-50/40 p-2 text-sm sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
               <div>
                 <div className="text-xs text-gray-500 mb-0.5">Property Contact</div>
-                <div className="text-gray-800">{contactName || "-"}</div>
+                <div className="text-gray-700">{contactName || "-"}</div>
               </div>
               <div>
                 <div className="text-xs text-gray-500 mb-0.5">Contact Phone</div>
-                <div className="text-gray-800">{contactPhone || "-"}</div>
+                <div className="text-gray-700">{contactPhone || "-"}</div>
               </div>
             </div>
 
@@ -1868,10 +2098,11 @@ export default function OrderDetail() {
           </div>
 
           <div className="col-span-12 lg:col-span-5">
-            <WorkspaceSurface variant="evidence" className="bg-white p-3" aria-label="Order notes">
-              <div className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-2">
-                Notes
-              </div>
+            <WorkspaceSurface variant="evidence" className="bg-white/95 p-3" aria-label="Order notes">
+              <DetailSectionHeading
+                title="Notes"
+                description="Operational notes retained as supporting context."
+              />
               <div className="max-h-72 overflow-y-auto rounded-md border border-slate-100 bg-slate-50/40 p-3 text-sm text-gray-800 whitespace-pre-wrap">
                 {order.notes || "-"}
               </div>
@@ -2075,29 +2306,31 @@ export default function OrderDetail() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="order-print-packet-title"
-            className="mx-auto max-w-5xl rounded-lg border bg-white shadow-xl print:max-w-none print:border-0 print:shadow-none"
+            className="mx-auto max-w-5xl rounded-xl border border-slate-200 bg-white shadow-2xl print:max-w-none print:border-0 print:shadow-none"
           >
-            <div className="flex items-center justify-between gap-3 border-b px-4 py-3 print:hidden">
+            <div className="flex flex-col gap-3 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between print:hidden">
               <div>
-                <div id="order-print-packet-title" className="text-base font-semibold text-gray-950">
+                <div id="order-print-packet-title" className={orderDialogTitleClassName}>
                   Print Packet
                 </div>
-                <div className="text-xs text-gray-500">
+                <div className="mt-1 text-xs text-gray-500">
                   Read-only internal summary. Browser print handles output.
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   onClick={handlePrintPacket}
-                  className="rounded border border-slate-900 bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-800"
+                  style={orderInteractionStyle}
+                  className={orderPrimaryActionClassName()}
                 >
                   Print
                 </button>
                 <button
                   type="button"
                   onClick={() => setPrintPacketOpen(false)}
-                  className="rounded border px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+                  style={orderInteractionStyle}
+                  className={orderSecondaryActionClassName("font-medium text-gray-700")}
                 >
                   Close
                 </button>
@@ -2126,31 +2359,31 @@ export default function OrderDetail() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="archive-order-title"
-            className="w-full max-w-md rounded-lg border bg-white p-4 shadow-xl"
+            className={cn(orderDialogPanelClassName, "max-w-md")}
           >
-            <div id="archive-order-title" className="text-base font-semibold text-gray-950">
+            <div id="archive-order-title" className={orderDialogTitleClassName}>
               {ARCHIVE_ORDER_COPY.title}
             </div>
-            <p className="mt-2 text-sm leading-6 text-gray-700">{ARCHIVE_ORDER_COPY.warning}</p>
+            <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900">
+              {ARCHIVE_ORDER_COPY.warning}
+            </p>
 
-            <label className="mt-4 block text-sm font-medium text-gray-700">
+            <label className="mt-4 block text-sm font-medium text-slate-700">
               {ARCHIVE_ORDER_COPY.reasonLabel}
               <textarea
                 value={archiveReason}
                 onChange={(event) => setArchiveReason(event.target.value)}
                 disabled={archiveSubmitting}
                 rows={3}
-                className="mt-2 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500 disabled:bg-gray-50 disabled:text-gray-500"
+                className={orderDialogInputClassName}
               />
             </label>
 
             {archiveError && (
-              <div className="mt-3 rounded border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                {archiveError}
-              </div>
+              <FalconErrorState className="mt-3 px-3 py-2 text-sm" title={archiveError} description="" />
             )}
 
-            <div className="mt-5 flex justify-end gap-2">
+            <div className={orderDialogActionsClassName}>
               <button
                 type="button"
                 onClick={() => {
@@ -2159,7 +2392,10 @@ export default function OrderDetail() {
                   setArchiveError("");
                 }}
                 disabled={archiveSubmitting}
-                className="rounded border px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                style={orderInteractionStyle}
+                className={orderSecondaryActionClassName("font-medium text-gray-700", {
+                  disabled: archiveSubmitting,
+                })}
               >
                 Cancel
               </button>
@@ -2167,7 +2403,11 @@ export default function OrderDetail() {
                 type="button"
                 onClick={handleArchiveOrder}
                 disabled={archiveSubmitting}
-                className="rounded border border-amber-700 bg-amber-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-amber-800 disabled:opacity-50"
+                style={orderInteractionStyle}
+                className={orderPrimaryActionClassName(
+                  "border-amber-700 bg-amber-700 hover:bg-amber-800 hover:text-white",
+                  { disabled: archiveSubmitting },
+                )}
               >
                 {archiveSubmitting ? "Archiving..." : ARCHIVE_ORDER_COPY.confirmLabel}
               </button>
@@ -2185,12 +2425,12 @@ export default function OrderDetail() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="order-status-override-title"
-            className="w-full max-w-md rounded-lg border bg-white p-4 shadow-xl"
+            className={cn(orderDialogPanelClassName, "max-w-md")}
           >
-            <div id="order-status-override-title" className="text-base font-semibold text-gray-950">
+            <div id="order-status-override-title" className={orderDialogTitleClassName}>
               Override status
             </div>
-            <p className="mt-2 text-sm leading-6 text-gray-700">
+            <p className={orderDialogDescriptionClassName}>
               This owner/admin override changes the order workflow status outside the suggested path.
               The reason is required and will be recorded in activity.
             </p>
@@ -2206,7 +2446,7 @@ export default function OrderDetail() {
               </div>
             </div>
 
-            <label className="mt-4 block text-sm font-medium text-gray-700">
+            <label className="mt-4 block text-sm font-medium text-slate-700">
               Target status
               <select
                 value={statusOverrideTarget}
@@ -2215,7 +2455,7 @@ export default function OrderDetail() {
                   setStatusOverrideError("");
                 }}
                 disabled={statusOverrideSubmitting}
-                className="mt-2 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500 disabled:bg-gray-50 disabled:text-gray-500"
+                className={cn(orderDialogInputClassName, "bg-white")}
               >
                 <option value="">Select status</option>
                 {STATUS_OVERRIDE_TARGETS.map((target) => (
@@ -2226,7 +2466,7 @@ export default function OrderDetail() {
               </select>
             </label>
 
-            <label className="mt-4 block text-sm font-medium text-gray-700">
+            <label className="mt-4 block text-sm font-medium text-slate-700">
               Override reason
               <textarea
                 value={statusOverrideReason}
@@ -2237,22 +2477,23 @@ export default function OrderDetail() {
                 disabled={statusOverrideSubmitting}
                 rows={3}
                 required
-                className="mt-2 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500 disabled:bg-gray-50 disabled:text-gray-500"
+                className={orderDialogInputClassName}
               />
             </label>
 
             {statusOverrideError && (
-              <div className="mt-3 rounded border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                {statusOverrideError}
-              </div>
+              <FalconErrorState className="mt-3 px-3 py-2 text-sm" title={statusOverrideError} description="" />
             )}
 
-            <div className="mt-5 flex justify-end gap-2">
+            <div className={orderDialogActionsClassName}>
               <button
                 type="button"
                 onClick={closeStatusOverride}
                 disabled={statusOverrideSubmitting}
-                className="rounded border px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                style={orderInteractionStyle}
+                className={orderSecondaryActionClassName("font-medium text-gray-700", {
+                  disabled: statusOverrideSubmitting,
+                })}
               >
                 Cancel
               </button>
@@ -2260,7 +2501,10 @@ export default function OrderDetail() {
                 type="button"
                 onClick={handleStatusOverride}
                 disabled={!canSubmitStatusOverride}
-                className="rounded border border-slate-900 bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                style={orderInteractionStyle}
+                className={orderPrimaryActionClassName(null, {
+                  disabled: !canSubmitStatusOverride,
+                })}
               >
                 {statusOverrideSubmitting ? "Overriding..." : "Override status"}
               </button>
@@ -2278,14 +2522,16 @@ export default function OrderDetail() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="order-lifecycle-action-title"
-            className="w-full max-w-md rounded-lg border bg-white p-4 shadow-xl"
+            className={cn(orderDialogPanelClassName, "max-w-md")}
           >
-            <div id="order-lifecycle-action-title" className="text-base font-semibold text-gray-950">
+            <div id="order-lifecycle-action-title" className={orderDialogTitleClassName}>
               {lifecycleCopy.title}
             </div>
-            <p className="mt-2 text-sm leading-6 text-gray-700">{lifecycleCopy.warning}</p>
+            <p className="mt-3 rounded-md border border-rose-200 bg-rose-50 p-3 text-sm leading-6 text-rose-900">
+              {lifecycleCopy.warning}
+            </p>
 
-            <label className="mt-4 block text-sm font-medium text-gray-700">
+            <label className="mt-4 block text-sm font-medium text-slate-700">
               {lifecycleCopy.reasonLabel}
               <textarea
                 value={lifecycleReason}
@@ -2296,22 +2542,23 @@ export default function OrderDetail() {
                 disabled={lifecycleSubmitting}
                 rows={3}
                 required
-                className="mt-2 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500 disabled:bg-gray-50 disabled:text-gray-500"
+                className={orderDialogInputClassName}
               />
             </label>
 
             {lifecycleError && (
-              <div className="mt-3 rounded border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                {lifecycleError}
-              </div>
+              <FalconErrorState className="mt-3 px-3 py-2 text-sm" title={lifecycleError} description="" />
             )}
 
-            <div className="mt-5 flex justify-end gap-2">
+            <div className={orderDialogActionsClassName}>
               <button
                 type="button"
                 onClick={closeLifecycleAction}
                 disabled={lifecycleSubmitting}
-                className="rounded border px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                style={orderInteractionStyle}
+                className={orderSecondaryActionClassName("font-medium text-gray-700", {
+                  disabled: lifecycleSubmitting,
+                })}
               >
                 Cancel
               </button>
@@ -2319,7 +2566,10 @@ export default function OrderDetail() {
                 type="button"
                 onClick={handleLifecycleAction}
                 disabled={lifecycleSubmitting || !lifecycleReasonTrimmed}
-                className={lifecycleCopy.confirmClass}
+                style={orderInteractionStyle}
+                className={orderPrimaryActionClassName(lifecycleCopy.confirmClass, {
+                  disabled: lifecycleSubmitting || !lifecycleReasonTrimmed,
+                })}
               >
                 {lifecycleSubmitting ? lifecycleCopy.pendingLabel : lifecycleCopy.confirmLabel}
               </button>
@@ -2327,6 +2577,6 @@ export default function OrderDetail() {
           </div>
         </div>
       )}
-    </div>
+    </FalconPageMotion>
   );
 }

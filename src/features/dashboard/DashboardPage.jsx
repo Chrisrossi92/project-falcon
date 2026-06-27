@@ -15,6 +15,14 @@ import {
 import { listClientOrderRequestsForReview } from "@/features/clientRequests/api";
 import WorkspaceBadge from "@/components/workspace/WorkspaceBadge";
 import {
+  FalconCardMotion,
+  FalconListItemMotion,
+  FalconListMotion,
+  FalconPageMotion,
+} from "@/components/motion";
+import { FalconInteractiveSurface } from "@/components/interaction";
+import { FalconSkeleton } from "@/components/state";
+import {
   WorkspaceSurface,
   workspaceSurfaceClassNames,
 } from "@/components/workspace/WorkspaceSurface";
@@ -254,32 +262,31 @@ function AmcPipelineCommandStrip({ stages, selectedStageId, onSelectStage, onSho
             Work that needs bids, response decisions, offers, progress tracking, or report review.
           </p>
         </div>
-        <button
+        <FalconInteractiveSurface
+          as="button"
           type="button"
           aria-pressed={allSelected}
+          selected={allSelected}
+          recipe="quietSecondaryAction"
           onClick={onShowAllAttention}
-          className={
-            "inline-flex min-h-8 items-center justify-center rounded-md border px-3 text-xs font-semibold transition " +
-            (allSelected
-              ? "border-slate-900 bg-slate-950 text-white"
-              : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-950")
-          }
+          className="inline-flex min-h-8 items-center justify-center rounded-md px-3 text-xs font-semibold"
         >
           All attention
-        </button>
+        </FalconInteractiveSurface>
       </div>
-      <div role="list" className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
+      <FalconListMotion role="list" className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
         {stages.map((stage) => {
           const selected = selectedStageId === stage.id;
           return (
-            <div key={stage.id} role="listitem">
-              <button
+            <FalconListItemMotion key={stage.id} role="listitem">
+              <FalconInteractiveSurface
+                as="button"
                 type="button"
                 aria-pressed={selected}
+                selected={selected}
                 onClick={() => onSelectStage(stage.id)}
                 className={
-                  `flex min-h-16 w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left transition ${stage.tone} ` +
-                  (selected ? "ring-2 ring-slate-900 ring-offset-1" : "hover:border-slate-400")
+                  `flex min-h-16 w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left ${stage.tone}`
                 }
               >
                 <span className="min-w-0">
@@ -291,11 +298,11 @@ function AmcPipelineCommandStrip({ stages, selectedStageId, onSelectStage, onSho
                 <span className="text-2xl font-semibold leading-none tracking-tight tabular-nums">
                   {stage.count || 0}
                 </span>
-              </button>
-            </div>
+              </FalconInteractiveSurface>
+            </FalconListItemMotion>
           );
         })}
-      </div>
+      </FalconListMotion>
     </WorkspaceSurface>
   );
 }
@@ -590,7 +597,7 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
   };
 
   return (
-    <div className="space-y-5">
+    <FalconPageMotion className="space-y-5">
       <WorkspaceSurface
         variant="primary"
         className="bg-white/95 px-4 py-4 shadow-[0_16px_36px_rgba(15,23,42,0.07)] sm:px-5"
@@ -611,32 +618,41 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
             </h1>
             <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">{subtitle}</p>
           </div>
-          <div className="grid gap-2 sm:grid-cols-3 lg:min-w-[420px]">
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+          <FalconListMotion className="grid gap-2 sm:grid-cols-3 lg:min-w-[420px]">
+            <FalconCardMotion className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
               <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                 Company
               </div>
               <div className="mt-1 truncate text-sm font-semibold text-slate-950">
                 {companyLabel}
               </div>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+            </FalconCardMotion>
+            <FalconCardMotion className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
               <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                 {dashboardStatLabel}
               </div>
               <div className="mt-1 truncate text-sm font-semibold text-slate-950">
                 {dashboardStatValue}
               </div>
-            </div>
-            <div className="rounded-xl border border-slate-900 bg-slate-950 px-3 py-2 text-white">
+            </FalconCardMotion>
+            <FalconCardMotion className="rounded-xl border border-slate-900 bg-slate-950 px-3 py-2 text-white">
               <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-300">
                 {activeCountLabel}
               </div>
               <div className="mt-1 text-2xl font-semibold leading-none tracking-tight tabular-nums">
-                {loading ? "-" : ordersCount}
+                {loading ? (
+                  <FalconSkeleton
+                    aria-label={`${activeCountLabel} loading`}
+                    className="bg-white/35"
+                    height="1.5rem"
+                    width="3rem"
+                  />
+                ) : (
+                  ordersCount
+                )}
               </div>
-            </div>
-          </div>
+            </FalconCardMotion>
+          </FalconListMotion>
         </div>
       </WorkspaceSurface>
 
@@ -849,7 +865,7 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
         />
       )}
 
-    </div>
+    </FalconPageMotion>
   );
 }
 
