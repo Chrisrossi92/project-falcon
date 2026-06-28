@@ -119,7 +119,9 @@ describe("CalendarPage workspace hierarchy", () => {
     expect(screen.getByLabelText("Current calendar view")).toBeInTheDocument();
     expect(screen.getByText("All schedule")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Schedule Board" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Calendar schedule board and selected day details")).toBeInTheDocument();
+    const scheduleLayout = screen.getByLabelText("Calendar schedule board and selected day details");
+    expect(scheduleLayout).toBeInTheDocument();
+    expect(scheduleLayout).toHaveClass("space-y-4");
     expect(screen.getByText("Month calendar")).toBeInTheDocument();
     expect(screen.getByTestId("calendar-filters")).toHaveTextContent("month / all");
     expect(screen.getByTestId("calendar-legend")).toBeInTheDocument();

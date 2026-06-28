@@ -1,5 +1,4 @@
 // src/components/calendar/EventChip.jsx
-import React from "react";
 
 function normalizeType(t) {
   const s = (t || "").toString().toLowerCase();
@@ -39,7 +38,7 @@ function pressureFor(type, start) {
   return "normal";
 }
 
-function chipClasses(type, pressure) {
+function chipClasses(type) {
   switch (type) {
     case "site":
       return "border-slate-200 bg-slate-50/80 text-slate-700 hover:border-slate-300 hover:bg-slate-50";
@@ -52,7 +51,7 @@ function chipClasses(type, pressure) {
   }
 }
 
-function labelClasses(type, pressure) {
+function labelClasses(type) {
   if (type === "review") return "text-amber-700";
   if (type === "final") return "text-blue-700";
   return "text-slate-500";
@@ -62,13 +61,13 @@ function urgencyMarker(pressure) {
   if (pressure === "overdue") {
     return {
       label: "Late",
-      className: "border-rose-200 bg-rose-50 text-rose-700",
+      className: "border-rose-200/70 bg-rose-50/70 text-rose-600",
     };
   }
   if (pressure === "today") {
     return {
       label: "Today",
-      className: "border-amber-200 bg-amber-50 text-amber-700",
+      className: "border-amber-200/70 bg-amber-50/70 text-amber-700",
     };
   }
   return null;
@@ -98,34 +97,28 @@ function eventPlace(event) {
   ).trim();
 }
 
+function eventClient(event) {
+  return (event?.clientName || event?.client_name || "").trim();
+}
+
 function roleNeedsOwnerContext(role) {
   return ["admin", "owner", "reviewer"].includes(String(role || "").toLowerCase());
 }
 
-function displayParts({ event, type, pressure, role, compact }) {
+function displayContent({ event, type, role, compact, orderRef }) {
   const ownerContext = roleNeedsOwnerContext(role);
   const place = eventPlace(event);
   const appraiser = compact ? compactName(event?.appraiserName || event?.appraiser_name || "") : (event?.appraiserName || event?.appraiser_name || "");
-  const owner = appraiser || (ownerContext ? "Unassigned" : "");
-  const lateKind = type === "review" ? "Review" : type === "final" ? "Final" : labelFor(type);
+  const client = eventClient(event);
+  const owner = ownerContext ? appraiser || "Unassigned" : "";
+  const order = orderRef ? `#${orderRef}` : "";
+  const primary = [type === "site" ? eventTime(event) : "", place || order].filter(Boolean).join(" · ");
+  const context = [owner, client].filter(Boolean).join(" · ");
 
-  if (pressure === "overdue") {
-    return ownerContext
-      ? [lateKind, owner, place].filter(Boolean)
-      : [`${lateKind} due`, place].filter(Boolean);
-  }
-
-  if (type === "site") {
-    return ownerContext
-      ? [eventTime(event), owner, place].filter(Boolean)
-      : [eventTime(event), place].filter(Boolean);
-  }
-
-  if (ownerContext) {
-    return [owner, place].filter(Boolean);
-  }
-
-  return ["due", place].filter(Boolean);
+  return {
+    context,
+    primary: primary || order || labelFor(type),
+  };
 }
 
 export default function EventChip({ event, compact = true, role = "appraiser", onClick }) {
@@ -134,8 +127,8 @@ export default function EventChip({ event, compact = true, role = "appraiser", o
   const pressure = pressureFor(type, event?.start);
   const marker = urgencyMarker(pressure);
   const orderRef = event?.orderNumber || event?.order_number || event?.order_no || event?.orderId || event?.order_id;
-  const parts = displayParts({ event, type, pressure, role, compact });
-  const text = parts.length ? parts.join(" · ") : (orderRef ? `Order ${orderRef}` : "Event");
+  const { primary, context } = displayContent({ event, type, role, compact, orderRef });
+  const text = [primary, context].filter(Boolean).join(" · ");
   const titleText = [
     event?.orderNumber || event?.order_number || event?.order_no ? `Order ${event.orderNumber || event.order_number || event.order_no}` : "",
     event?.clientName || event?.client_name || "",
@@ -147,7 +140,7 @@ export default function EventChip({ event, compact = true, role = "appraiser", o
     <span className="group relative block max-w-full">
       <button
         type="button"
-        className={`flex max-w-full min-w-0 items-center overflow-hidden rounded-md border text-left shadow-[0_1px_0_rgba(15,23,42,0.03)] transition ${chipClasses(type, pressure)} ${
+        className={`flex max-w-full min-w-0 items-center overflow-hidden rounded-md border text-left shadow-[0_1px_0_rgba(15,23,42,0.03)] transition ${chipClasses(type)} ${
           compact ? "gap-1 px-1.5 py-[2px] text-[11px] leading-4" : "gap-2 px-2 py-1 text-xs leading-5"
         }`}
         onClick={(clickEvent) => {
@@ -156,27 +149,32 @@ export default function EventChip({ event, compact = true, role = "appraiser", o
         }}
         title={titleText}
       >
-        <span className={`shrink-0 font-semibold uppercase tracking-[0.08em] ${compact ? "text-[9px]" : "text-[10px]"} ${labelClasses(type, pressure)}`}>
+        <span className={`shrink-0 font-semibold uppercase tracking-[0.08em] ${compact ? "text-[9px]" : "text-[10px]"} ${labelClasses(type)}`}>
           {label}
         </span>
         {marker && (
-          <span className={`shrink-0 rounded-full border px-1 py-0 text-[9px] font-semibold uppercase tracking-[0.06em] leading-3 ${marker.className}`}>
+          <span className={`shrink-0 rounded-full border px-1 py-0 text-[8px] font-semibold uppercase tracking-[0.04em] leading-3 ${marker.className}`}>
             {marker.label}
           </span>
         )}
-        <span className="min-w-0 truncate">{text}</span>
+        <span className="min-w-0 truncate font-medium text-slate-800">{primary}</span>
+        {context ? (
+          <span className={`min-w-0 truncate text-slate-500 ${compact ? "hidden xl:inline" : "inline"}`}>
+            {context}
+          </span>
+        ) : null}
       </button>
       <span
         aria-hidden="true"
-        className={`pointer-events-none absolute bottom-[calc(100%+6px)] left-0 z-50 hidden max-w-[18rem] items-center rounded-lg border px-2.5 py-1.5 text-left shadow-[0_14px_32px_rgba(15,23,42,0.18)] opacity-0 ring-1 ring-white/90 transition duration-150 group-hover:flex group-hover:-translate-y-0.5 group-hover:opacity-100 group-focus-within:flex group-focus-within:-translate-y-0.5 group-focus-within:opacity-100 ${chipClasses(type, pressure)} ${
+        className={`pointer-events-none absolute bottom-[calc(100%+6px)] left-0 z-50 hidden max-w-[18rem] items-center rounded-lg border px-2.5 py-1.5 text-left shadow-[0_14px_32px_rgba(15,23,42,0.18)] opacity-0 ring-1 ring-white/90 transition duration-150 group-hover:flex group-hover:-translate-y-0.5 group-hover:opacity-100 group-focus-within:flex group-focus-within:-translate-y-0.5 group-focus-within:opacity-100 ${chipClasses(type)} ${
           compact ? "gap-1.5 text-[11px] leading-4" : "gap-2 text-xs leading-5"
         }`}
       >
-        <span className={`shrink-0 font-semibold uppercase tracking-[0.08em] ${compact ? "text-[9px]" : "text-[10px]"} ${labelClasses(type, pressure)}`}>
+        <span className={`shrink-0 font-semibold uppercase tracking-[0.08em] ${compact ? "text-[9px]" : "text-[10px]"} ${labelClasses(type)}`}>
           {label}
         </span>
         {marker && (
-          <span className={`shrink-0 rounded-full border px-1 py-0 text-[9px] font-semibold uppercase tracking-[0.06em] leading-3 ${marker.className}`}>
+          <span className={`shrink-0 rounded-full border px-1 py-0 text-[8px] font-semibold uppercase tracking-[0.04em] leading-3 ${marker.className}`}>
             {marker.label}
           </span>
         )}

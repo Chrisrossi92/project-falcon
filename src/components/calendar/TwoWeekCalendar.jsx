@@ -133,7 +133,11 @@ export default function TwoWeekCalendar({
                 {list.slice(0, 4).map(ev => (
                   <EventChip key={ev.id} event={ev} compact={compact} role={role} onClick={() => onEventClick?.(ev)} />
                 ))}
-                {list.length > 4 && <div className="text-[11px] text-slate-500">+{list.length-4} more</div>}
+                {list.length > 4 && (
+                  <div className="w-fit rounded-full bg-slate-50 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+                    +{list.length-4} more events
+                  </div>
+                )}
               </div>
             </div>
           );

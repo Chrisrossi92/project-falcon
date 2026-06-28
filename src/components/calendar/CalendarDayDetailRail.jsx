@@ -104,7 +104,7 @@ export default function CalendarDayDetailRail({
 
   return (
     <aside
-      className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ring-1 ring-slate-100 lg:sticky lg:top-6"
+      className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ring-1 ring-slate-100"
       aria-labelledby="calendar-day-detail-heading"
     >
       <div className="flex items-start justify-between gap-3">

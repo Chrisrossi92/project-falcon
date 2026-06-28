@@ -504,6 +504,71 @@ Recommended Slice 2 direction:
 - If capacity cue density fails browser QA, run a narrow Calendar Capacity Cue Tuning slice before
   broader navigation/filter polish.
 
+### Premium Experience Sprint 5C: Calendar Slice 2 - Calendar-First Layout
+
+Status: Complete.
+
+Scope:
+
+- Made the Calendar grid the primary visual anchor by removing the persistent right-sidebar layout.
+- Let the schedule board use the full available content width so month and two-week views have more
+  horizontal breathing room.
+- Moved the existing selected-day details below the schedule board as supporting context.
+- Preserved selected-day state, selected-day event grouping, order-opening actions, event
+  derivation, data fetching, route behavior, permissions, schemas, RPCs, and workflows.
+
+Layout decision:
+
+- The default Calendar experience should be calendar-first. The grid should carry schedule scanning
+  and capacity judgment; selected-day detail should support inspection after the user chooses a day.
+- The right-sidebar rail pattern is deferred and rejected as the default layout for this surface
+  because it competes with the schedule board for horizontal space. A side-by-side detail treatment
+  may be reconsidered later only for a dedicated wide-screen planning mode.
+
+Future zoom / detail philosophy:
+
+- Month view = capacity cues plus compressed events.
+- Two-week view = capacity cues plus abbreviated event context.
+- Week view = richer event context when a dedicated week surface exists.
+- Day view = full detail cards and operational context when a dedicated day surface exists.
+
+Implementation notes:
+
+- This slice intentionally did not redesign event cards, capacity cues, navigation controls,
+  selected-day grouping, or event type hierarchy.
+- Future navigation and filter interaction polish should proceed from this calendar-first layout
+  instead of restoring the persistent detail sidebar.
+
+### Premium Experience Sprint 5D: Calendar Slice 3 - Event Visibility And Overflow Tuning
+
+Status: Complete.
+
+Scope:
+
+- Tuned compact event chips so the visible label focuses on the property/order identifier instead
+  of repeating event type or due-state words already carried by the chip prefix.
+- Kept event type recognition as the leading scan cue.
+- Preserved `Late` and `Today` urgency markers while reducing their visual weight so they do not
+  overpower the property label.
+- Made overflow summaries read as `+N more events` in a quieter pill treatment.
+- Preserved event date logic, selected-day logic, event click/open behavior, data fetching, routes,
+  permissions, schemas, RPCs, and workflows.
+
+Event visibility tiers:
+
+- Always visible: event type, compact property/order identifier, and late/today marker when
+  applicable.
+- Visible when room allows: assigned user and client context.
+- Detail-only: notes, fees, operational signals, and fuller metadata remain in selected-day detail
+  or future day/detail cards.
+
+Implementation notes:
+
+- Month and two-week views remain compressed scanning surfaces, not full event-detail surfaces.
+- Capacity cues and event chips are still both visible; this slice only reduced competing chip text
+  and overflow noise.
+- Dedicated day view, week view, richer event cards, and full metadata presentation remain deferred.
+
 ## Dashboard Experience Notes
 
 ### Premium Experience Sprint 4B: Dashboard Slice A - Workspace Identity
@@ -590,7 +655,51 @@ Validation:
 - Targeted eslint.
 - `git diff --check`.
 
-### Slice 2: Navigation And Filter Interaction Polish
+### Slice 2: Calendar-First Layout
+
+Status: Complete in Premium Experience Sprint 5C.
+
+Goal: make the schedule board the primary visual anchor while keeping selected-day details
+available below the calendar.
+
+Scope:
+
+- Remove the persistent right-sidebar layout for selected-day details.
+- Let the Calendar grid use the full available page width.
+- Render selected-day details below the board as supporting context.
+- Preserve selected-day behavior, event rendering, order-opening actions, data fetching, route
+  behavior, permissions, schemas, RPCs, and workflows.
+
+Validation:
+
+- Focused Calendar page tests.
+- Calendar selected-day detail tests.
+- Calendar capacity tests.
+- Targeted eslint.
+- `git diff --check`.
+
+### Slice 3: Event Visibility And Overflow Tuning
+
+Status: Complete in Premium Experience Sprint 5D.
+
+Goal: make visible calendar events easier to absorb at a glance after the grid became the primary
+visual anchor.
+
+Scope:
+
+- Tune compact event chip labels without changing event logic.
+- Preserve late/today markers and event click behavior.
+- Keep overflow summaries understandable.
+- Keep selected-day detail as the place for fuller context.
+
+Validation:
+
+- Focused event chip and calendar grid presentation tests.
+- Calendar page, selected-day detail, and capacity tests.
+- Targeted eslint.
+- `git diff --check`.
+
+### Slice 4: Navigation And Filter Interaction Polish
 
 Goal: make existing calendar controls feel consistent with Falcon's shared interaction system.
 
@@ -608,7 +717,7 @@ Validation:
 - Targeted eslint.
 - `git diff --check`.
 
-### Slice 3: Day Cell And Event Chip Baseline
+### Slice 5: Day Cell And Event Chip Baseline
 
 Goal: improve scanability and interaction clarity for existing clickable day/event surfaces.
 
@@ -626,7 +735,7 @@ Validation:
 - Targeted eslint.
 - `git diff --check`.
 
-### Slice 4: Selected-Day Rail Polish
+### Slice 6: Selected-Day Detail Polish
 
 Goal: make selected-day detail easier to scan while preserving grouping and actions.
 
@@ -644,7 +753,7 @@ Validation:
 - Targeted eslint.
 - `git diff --check`.
 
-### Slice 5: Responsive And Overflow Review
+### Slice 7: Responsive And Overflow Review
 
 Goal: make the existing calendar strategy less fragile on narrower widths.
 
@@ -665,7 +774,7 @@ Validation:
 - Targeted eslint if code changes.
 - `git diff --check`.
 
-### Slice 6: Visual QA And Final Consistency Review
+### Slice 8: Visual QA And Final Consistency Review
 
 Goal: verify Calendar polish across representative states before treating it as the schedule
 surface pattern.

@@ -359,7 +359,7 @@ export default function CalendarPage() {
       )}
 
       <section
-        className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]"
+        className="space-y-4"
         aria-label="Calendar schedule board and selected day details"
       >
         <WorkspaceSection

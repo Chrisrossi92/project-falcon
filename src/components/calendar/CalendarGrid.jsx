@@ -115,7 +115,9 @@ export default function CalendarGrid({
                   />
                 ))}
                 {dayEvents.length > 3 && (
-                  <div className="text-[11px] text-muted-foreground">+{dayEvents.length - 3} more</div>
+                  <div className="w-fit rounded-full bg-slate-50 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+                    +{dayEvents.length - 3} more events
+                  </div>
                 )}
               </div>
             </div>
