@@ -384,6 +384,7 @@ export default function CalendarPage() {
                   events={monthEvents}
                   onPrev={() => setAnchor(new Date(anchor.getFullYear(), anchor.getMonth() - 1, 1))}
                   onNext={() => setAnchor(new Date(anchor.getFullYear(), anchor.getMonth() + 1, 1))}
+                  onToday={() => setAnchor(new Date())}
                   onSelectOrder={openOrder}
                   onSelectDay={setSelectedDay}
                   selectedDay={selectedDay}

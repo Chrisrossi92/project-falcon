@@ -3,6 +3,7 @@ import {
   formatCalendarEventTime,
   normalizeCalendarEventType,
 } from "@/lib/calendar/normalizeCalendarEvent";
+import { classifyCalendarDayCapacity } from "@/lib/calendar/calendarCapacity";
 
 const TYPE_LABELS = {
   site: "Site visits",
@@ -11,11 +12,28 @@ const TYPE_LABELS = {
   other: "Other",
 };
 
+const TYPE_SHORT_LABELS = {
+  site: "Site",
+  review: "Review",
+  final: "Final",
+  other: "Event",
+};
+
 const TYPE_STYLES = {
   site: "border-slate-200 bg-slate-50 text-slate-700",
   review: "border-amber-100 bg-amber-50/70 text-amber-800",
   final: "border-blue-100 bg-blue-50/70 text-blue-800",
   other: "border-slate-200 bg-white text-slate-700",
+};
+
+const DETAIL_GROUP_ORDER = ["final", "review", "site", "other"];
+
+const CAPACITY_STYLES = {
+  open: "border-slate-200 bg-slate-50/80 text-slate-600",
+  light: "border-emerald-100 bg-emerald-50/70 text-emerald-800",
+  steady: "border-blue-100 bg-blue-50/70 text-blue-800",
+  heavy: "border-amber-100 bg-amber-50/70 text-amber-800",
+  overloaded: "border-rose-100 bg-rose-50/70 text-rose-800",
 };
 
 function startOfDay(value) {
@@ -63,6 +81,38 @@ function totalLabel(total) {
   return `${total} ${total === 1 ? "event" : "events"}`;
 }
 
+function countPhrase(count, singular, plural = `${singular}s`) {
+  if (!count) return "";
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function joinPhrases(parts) {
+  const values = parts.filter(Boolean);
+  if (values.length <= 1) return values[0] || "";
+  if (values.length === 2) return `${values[0]} and ${values[1]}`;
+  return `${values.slice(0, -1).join(", ")}, and ${values[values.length - 1]}`;
+}
+
+function capacityReason(groups) {
+  const parts = [
+    countPhrase(groups.site.length, "site visit"),
+    countPhrase(groups.review.length, "review handoff"),
+    countPhrase(groups.final.length, "client due date"),
+    countPhrase(groups.other.length, "other event"),
+  ];
+  return joinPhrases(parts);
+}
+
+function capacityExplanation(capacity, groups, total) {
+  if (total === 0) {
+    return "Open capacity because no operational events are scheduled for this day.";
+  }
+
+  const reason = capacityReason(groups);
+  if (!reason) return `${capacity.label} because ${totalLabel(total)} are scheduled.`;
+  return `${capacity.label} because of ${reason}.`;
+}
+
 function daySignals(groups) {
   const notes = [];
   if (groups.final.length >= 3) {
@@ -101,6 +151,9 @@ export default function CalendarDayDetailRail({
   const total = events.length;
   const totalText = totalLabel(total);
   const aggregateSignals = daySignals(groups);
+  const capacity = classifyCalendarDayCapacity(events);
+  const capacityStyle = CAPACITY_STYLES[capacity.id] || CAPACITY_STYLES.open;
+  const explanation = capacityExplanation(capacity, groups, total);
 
   return (
     <aside
@@ -129,12 +182,29 @@ export default function CalendarDayDetailRail({
         </span>
       </div>
 
-      <div className="mt-4 grid grid-cols-3 gap-2" aria-label="Selected day event counts">
-        {["site", "review", "final"].map((type) => (
+      <div
+        className={`mt-4 rounded-xl border px-3 py-2.5 ${capacityStyle}`}
+        aria-label={`Selected day capacity: ${capacity.label}`}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] opacity-70">
+            Capacity read
+          </div>
+          <div className="text-xs font-semibold">
+            {capacity.label}
+          </div>
+        </div>
+        <p className="mt-1.5 text-xs leading-5 text-slate-600">
+          {explanation}
+        </p>
+      </div>
+
+      <div className="mt-3 grid grid-cols-3 gap-2" aria-label="Selected day event counts">
+        {["final", "review", "site"].map((type) => (
           <div key={type} className={`rounded-lg border px-2.5 py-2 ${TYPE_STYLES[type]}`}>
             <div className="text-lg font-semibold leading-none">{counts[type]}</div>
             <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.08em]">
-              {type === "site" ? "Site" : type === "review" ? "Review" : "Final"}
+              {TYPE_SHORT_LABELS[type]}
             </div>
           </div>
         ))}
@@ -167,16 +237,18 @@ export default function CalendarDayDetailRail({
       )}
 
       <div className="mt-4 space-y-4">
-        {["site", "review", "final", "other"].map((type) => {
+        {DETAIL_GROUP_ORDER.map((type) => {
           const list = groups[type];
           if (!list.length) return null;
           return (
-            <section key={type} className="space-y-2">
-              <div className="flex items-center justify-between">
+            <section key={type} className="space-y-2 rounded-xl border border-slate-100 bg-slate-50/40 p-2.5">
+              <div className="flex items-center justify-between gap-3">
                 <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
                   {TYPE_LABELS[type]}
                 </h3>
-                <span className="text-xs text-slate-400">{list.length}</span>
+                <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-500">
+                  {list.length}
+                </span>
               </div>
 
               <div className="space-y-2">
@@ -193,8 +265,8 @@ export default function CalendarDayDetailRail({
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] ${TYPE_STYLES[type]}`}>
-                              {type === "site" ? "Site" : type === "review" ? "Review" : type === "final" ? "Final" : "Event"}
+                            <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                              {TYPE_SHORT_LABELS[type]}
                             </span>
                             {time && <span className="text-xs text-slate-500">{time}</span>}
                           </div>

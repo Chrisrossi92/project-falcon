@@ -85,6 +85,7 @@ export default function MonthsCalendar({
       events={filtered}
       onPrev={() => changeAnchor(new Date(activeAnchor.getFullYear(), activeAnchor.getMonth() - 1, 1))}
       onNext={() => changeAnchor(new Date(activeAnchor.getFullYear(), activeAnchor.getMonth() + 1, 1))}
+      onToday={() => changeAnchor(new Date())}
       onSelectOrder={(orderId) => { if (orderId) window.open(`/orders/${orderId}`, "_self"); }}
       onSelectEvent={(event) => {
         if (onEventClick) onEventClick(event);

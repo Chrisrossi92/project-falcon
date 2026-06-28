@@ -2,6 +2,7 @@
 import { useMemo } from "react";
 import CalendarDayCapacity from "@/components/calendar/CalendarDayCapacity";
 import EventChip from "@/components/calendar/EventChip";
+import { classifyCalendarDayCapacity } from "@/lib/calendar/calendarCapacity";
 
 function startOfMonth(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
 function endOfMonth(d)   { return new Date(d.getFullYear(), d.getMonth() + 1, 0); }
@@ -19,10 +20,26 @@ function addVisibleDays(d, n, showWeekends) {
   return x;
 }
 
+function capacityCellClasses(capacityId) {
+  switch (capacityId) {
+    case "light":
+      return "bg-emerald-50/20 before:bg-emerald-300/60";
+    case "steady":
+      return "bg-sky-50/30 before:bg-sky-300/70";
+    case "heavy":
+      return "bg-amber-50/40 shadow-[inset_0_1px_0_rgba(251,191,36,0.18)] before:bg-amber-300";
+    case "overloaded":
+      return "bg-rose-50/45 shadow-[inset_0_1px_0_rgba(251,113,133,0.2)] before:bg-rose-300";
+    default:
+      return "bg-white before:bg-transparent";
+  }
+}
+
 export default function CalendarGrid({
   anchor,               // Date (any day in current month)
   events = [],          // [{orderId, orderNo, type, start, address}]
   onPrev, onNext,       // () => void
+  onToday,              // () => void
   onSelectOrder,        // (orderId) => void
   onSelectEvent,        // (event) => void
   onSelectDay,          // (date) => void
@@ -53,12 +70,55 @@ export default function CalendarGrid({
   return (
     <div className="space-y-3">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <button className="border rounded px-2 py-1 text-sm" onClick={onPrev}>Prev</button>
-        <div className="text-lg font-semibold">
-          {anchor.toLocaleString(undefined, { month: "long", year: "numeric" })}
+      <div
+        className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-2 shadow-[0_1px_0_rgba(15,23,42,0.03)]"
+        aria-label="Calendar navigation"
+      >
+        <div className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-[0_1px_0_rgba(15,23,42,0.03)]">
+          <button
+            type="button"
+            className="min-h-9 rounded-md px-2.5 py-1.5 text-sm font-semibold text-slate-500 transition hover:bg-slate-50 hover:text-slate-900 active:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+            onClick={onPrev}
+            aria-label="Previous period"
+          >
+            <span aria-hidden="true">{"<-"}</span>
+            <span className="sr-only">Previous</span>
+          </button>
+          <div className="h-5 w-px bg-slate-200" aria-hidden="true" />
+          <button
+            type="button"
+            className="min-h-9 rounded-md border border-slate-900 bg-slate-900 px-4 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:border-slate-800 hover:bg-slate-800 active:bg-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+            onClick={onToday}
+          >
+            Today
+          </button>
+          <div className="h-5 w-px bg-slate-200" aria-hidden="true" />
+          <button
+            type="button"
+            className="min-h-9 rounded-md px-2.5 py-1.5 text-sm font-semibold text-slate-500 transition hover:bg-slate-50 hover:text-slate-900 active:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+            onClick={onNext}
+            aria-label="Next period"
+          >
+            <span aria-hidden="true">{"->"}</span>
+            <span className="sr-only">Next</span>
+          </button>
         </div>
-        <button className="border rounded px-2 py-1 text-sm" onClick={onNext}>Next</button>
+
+        <div className="min-w-0 flex-1 px-1 text-center sm:px-4">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+            You are viewing
+          </div>
+          <div className="truncate text-2xl font-semibold leading-7 tracking-tight text-slate-950">
+            {anchor.toLocaleString(undefined, { month: "long", year: "numeric" })}
+          </div>
+        </div>
+
+        <div
+          className="hidden rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-500 shadow-[0_1px_0_rgba(15,23,42,0.03)] sm:block"
+          aria-hidden="true"
+        >
+          Month
+        </div>
       </div>
 
       {/* Weekday row */}
@@ -78,9 +138,11 @@ export default function CalendarGrid({
             day.getDate() === selectedDay.getDate();
           const key = new Date(day.getFullYear(), day.getMonth(), day.getDate()).toDateString();
           const dayEvents = eventsByDay.get(key) || [];
+          const capacity = classifyCalendarDayCapacity(dayEvents);
           return (
             <div
               key={idx}
+              data-calendar-cell-capacity={capacity.id}
               role={onSelectDay ? "button" : undefined}
               tabIndex={onSelectDay ? 0 : undefined}
               onClick={() => onSelectDay?.(new Date(day))}
@@ -92,10 +154,11 @@ export default function CalendarGrid({
                 }
               }}
               className={
-                "min-h-[110px] border -m-[0.5px] p-1 transition md:p-2 " +
+                "relative min-h-[110px] border -m-[0.5px] overflow-hidden p-1 transition before:absolute before:inset-x-0 before:top-0 before:h-1 before:content-[''] md:p-2 " +
+                capacityCellClasses(capacity.id) + " " +
                 (onSelectDay ? "cursor-pointer hover:bg-slate-50 " : "") +
                 (isSelected ? "relative z-[1] bg-blue-50/40 ring-1 ring-inset ring-blue-200 " : "") +
-                (isOtherMonth ? "bg-gray-50 text-gray-400" : "bg-white")
+                (isOtherMonth ? "bg-gray-50 text-gray-400 before:bg-slate-200/70" : "")
               }
             >
               <div className="text-xs md:text-[13px] font-medium">{day.getDate()}</div>

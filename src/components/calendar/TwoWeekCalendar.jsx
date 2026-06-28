@@ -1,12 +1,28 @@
 import { useEffect, useMemo, useState } from "react";
 import CalendarDayCapacity from "@/components/calendar/CalendarDayCapacity";
 import EventChip from "@/components/calendar/EventChip";
+import { classifyCalendarDayCapacity } from "@/lib/calendar/calendarCapacity";
 
 function startOfWeek(d) { const x=new Date(d); const day=x.getDay(); x.setDate(x.getDate()-day); x.setHours(0,0,0,0); return x; }
 function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
 function sameDate(a,b){ return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate(); }
 
 const WD = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+function capacityCellClasses(capacityId) {
+  switch (capacityId) {
+    case "light":
+      return "bg-emerald-50/20 before:bg-emerald-300/60";
+    case "steady":
+      return "bg-sky-50/30 before:bg-sky-300/70";
+    case "heavy":
+      return "bg-amber-50/40 shadow-[inset_0_1px_0_rgba(251,191,36,0.18)] before:bg-amber-300";
+    case "overloaded":
+      return "bg-rose-50/45 shadow-[inset_0_1px_0_rgba(251,113,133,0.2)] before:bg-rose-300";
+    default:
+      return "bg-white before:bg-transparent";
+  }
+}
 
 export default function TwoWeekCalendar({
   getEvents,                 // (start, end) => Promise<events[]>
@@ -88,15 +104,55 @@ export default function TwoWeekCalendar({
   return (
     <div className="space-y-2">
       {/* NEW: pager/header ABOVE calendar */}
-      <div className="sticky top-0 z-[1] flex items-center justify-between rounded-lg border border-slate-200 bg-white/95 px-2 py-1.5 backdrop-blur">
-        <button className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900" onClick={() => setAnchor(addDays(anchor, -(showWeekends?7:5)))}>Prev</button>
-        <div className="flex items-center gap-2 text-center">
-          <button className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50" onClick={() => setAnchor(startOfWeek(new Date()))}>Today</button>
-          <div className="text-sm text-slate-500">
+      <div
+        className="sticky top-0 z-[1] flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50/95 p-2 shadow-[0_1px_0_rgba(15,23,42,0.03)] backdrop-blur"
+        aria-label="Calendar navigation"
+      >
+        <div className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-[0_1px_0_rgba(15,23,42,0.03)]">
+          <button
+            type="button"
+            className="min-h-9 rounded-md px-2.5 py-1.5 text-sm font-semibold text-slate-500 transition hover:bg-slate-50 hover:text-slate-900 active:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+            onClick={() => setAnchor(addDays(anchor, -(showWeekends?7:5)))}
+            aria-label="Previous period"
+          >
+            <span aria-hidden="true">{"<-"}</span>
+            <span className="sr-only">Previous</span>
+          </button>
+          <div className="h-5 w-px bg-slate-200" aria-hidden="true" />
+          <button
+            type="button"
+            className="min-h-9 rounded-md border border-slate-900 bg-slate-900 px-4 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:border-slate-800 hover:bg-slate-800 active:bg-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+            onClick={() => setAnchor(startOfWeek(new Date()))}
+          >
+            Today
+          </button>
+          <div className="h-5 w-px bg-slate-200" aria-hidden="true" />
+          <button
+            type="button"
+            className="min-h-9 rounded-md px-2.5 py-1.5 text-sm font-semibold text-slate-500 transition hover:bg-slate-50 hover:text-slate-900 active:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+            onClick={() => setAnchor(addDays(anchor, (showWeekends?7:5)))}
+            aria-label="Next period"
+          >
+            <span aria-hidden="true">{"->"}</span>
+            <span className="sr-only">Next</span>
+          </button>
+        </div>
+
+        <div className="min-w-0 flex-1 px-1 text-center sm:px-4">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+            You are viewing
+          </div>
+          <div className="truncate text-xl font-semibold leading-7 tracking-tight text-slate-950">
             {days[0]?.toLocaleDateString()} – {days[days.length-1]?.toLocaleDateString()}
           </div>
         </div>
-        <button className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900" onClick={() => setAnchor(addDays(anchor, (showWeekends?7:5)))}>Next</button>
+
+        <div
+          className="hidden rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-500 shadow-[0_1px_0_rgba(15,23,42,0.03)] sm:block"
+          aria-hidden="true"
+        >
+          {weeks || 2} weeks
+        </div>
       </div>
 
       {/* Weekday header */}
@@ -112,9 +168,11 @@ export default function TwoWeekCalendar({
           const list = (byDay.get(d.toDateString()) || []).sort((a,b)=>new Date(a.start)-new Date(b.start));
           const isToday = sameDate(d, new Date());
           const isSelected = selectedDay && sameDate(d, selectedDay);
+          const capacity = classifyCalendarDayCapacity(list);
           return (
             <div
               key={i}
+              data-calendar-cell-capacity={capacity.id}
               role={onSelectDay ? "button" : undefined}
               tabIndex={onSelectDay ? 0 : undefined}
               onClick={() => onSelectDay?.(new Date(d))}
@@ -125,7 +183,7 @@ export default function TwoWeekCalendar({
                   onSelectDay(new Date(d));
                 }
               }}
-              className={`min-h-[140px] border border-slate-100 -m-[0.5px] p-1 transition md:p-2 ${onSelectDay ? "cursor-pointer hover:bg-slate-50" : ""} ${isToday ? "bg-amber-50/30 ring-1 ring-inset ring-amber-100" : ""} ${isSelected ? "relative z-[1] bg-blue-50/40 ring-1 ring-inset ring-blue-200" : ""}`}
+              className={`relative min-h-[140px] border border-slate-100 -m-[0.5px] overflow-hidden p-1 transition before:absolute before:inset-x-0 before:top-0 before:h-1 before:content-[''] md:p-2 ${capacityCellClasses(capacity.id)} ${onSelectDay ? "cursor-pointer hover:bg-slate-50" : ""} ${isToday ? "bg-amber-50/30 ring-1 ring-inset ring-amber-100" : ""} ${isSelected ? "relative z-[1] bg-blue-50/40 ring-1 ring-inset ring-blue-200" : ""}`}
             >
               <div className={`text-[11px] font-semibold md:text-xs ${isToday ? "text-amber-800" : "text-slate-600"}`}>{d.getDate()}</div>
               <CalendarDayCapacity events={list} />
