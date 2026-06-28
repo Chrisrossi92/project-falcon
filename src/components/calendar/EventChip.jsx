@@ -166,19 +166,23 @@ export default function EventChip({ event, compact = true, role = "appraiser", o
       </button>
       <span
         aria-hidden="true"
-        className={`pointer-events-none absolute bottom-[calc(100%+6px)] left-0 z-[90] hidden max-w-[18rem] items-center rounded-lg border px-2.5 py-1.5 text-left shadow-[0_14px_32px_rgba(15,23,42,0.18)] opacity-0 ring-1 ring-white/90 transition duration-150 group-hover:flex group-hover:-translate-y-0.5 group-hover:opacity-100 group-focus-within:flex group-focus-within:-translate-y-0.5 group-focus-within:opacity-100 ${chipClasses(type)} ${
-          compact ? "gap-1.5 text-[11px] leading-4" : "gap-2 text-xs leading-5"
+        className={`pointer-events-none absolute bottom-[calc(100%+6px)] left-0 z-[90] hidden w-max max-w-[20rem] flex-col items-start rounded-lg border border-slate-800 bg-slate-950 px-2.5 py-2 text-left text-white shadow-[0_14px_32px_rgba(15,23,42,0.22)] opacity-0 ring-1 ring-white/10 transition duration-150 group-hover:flex group-hover:-translate-y-0.5 group-hover:opacity-100 group-focus-within:flex group-focus-within:-translate-y-0.5 group-focus-within:opacity-100 ${
+          compact ? "gap-1 text-[11px] leading-4" : "gap-1.5 text-xs leading-5"
         }`}
       >
-        <span className={`shrink-0 font-semibold uppercase tracking-[0.08em] ${compact ? "text-[9px]" : "text-[10px]"} ${labelClasses(type)}`}>
-          {label}
-        </span>
-        {marker && (
-          <span className={`shrink-0 rounded-full border px-1 py-0 text-[8px] font-semibold uppercase tracking-[0.04em] leading-3 ${marker.className}`}>
-            {marker.label}
+        <span className="flex max-w-full items-center gap-1.5">
+          <span className={`shrink-0 font-semibold uppercase tracking-[0.08em] text-slate-300 ${compact ? "text-[9px]" : "text-[10px]"}`}>
+            {label}
           </span>
-        )}
-        <span className="min-w-0 whitespace-nowrap">{text}</span>
+          {marker && (
+            <span className={`shrink-0 rounded-full border px-1 py-0 text-[8px] font-semibold uppercase tracking-[0.04em] leading-3 ${marker.className}`}>
+              {marker.label}
+            </span>
+          )}
+        </span>
+        <span className="block max-w-full whitespace-normal break-words text-slate-100">
+          {text}
+        </span>
       </span>
     </span>
   );

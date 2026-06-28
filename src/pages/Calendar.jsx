@@ -181,7 +181,11 @@ export default function CalendarPage() {
       if (selectedEnd > end) end = selectedEnd;
     }
 
-    return { start, end };
+    return {
+      start,
+      end,
+      predicate: buildCalendarDatePredicate(start, end),
+    };
   }, [anchor, selectedDay, twoWeekAnchor, view, weeks]);
 
   useEffect(() => {
@@ -218,7 +222,7 @@ export default function CalendarPage() {
               "due_date",
             ].join(", ")
           )
-          .or(buildCalendarDatePredicate(calendarQueryRange.start, calendarQueryRange.end));
+          .or(calendarQueryRange.predicate);
 
         if (operationsScope) {
           q = q.eq("operations_scope", operationsScope);
@@ -233,17 +237,20 @@ export default function CalendarPage() {
         const { data, error } = await q;
         if (error) throw error;
 
-        let rows = data || [];
+        const rows = data || [];
+        if (ok) {
+          setOrders(rows);
+          setLoading(false);
+        }
+
         if (rows.some((row) => row?.appraiser_id || row?.reviewer_id)) {
           try {
             const users = await listCompanyAssignableUsers("all");
-            rows = applyOperationalOrderUserNamesToRows(rows, users);
+            if (ok) setOrders(applyOperationalOrderUserNamesToRows(rows, users));
           } catch (nameError) {
             console.warn("[CalendarPage] failed to load operational user names", nameError);
           }
         }
-
-        if (ok) setOrders(rows);
       } catch (e) {
         if (ok) setError(calendarLoadErrorMessage(e));
       } finally {
@@ -253,7 +260,7 @@ export default function CalendarPage() {
     return () => {
       ok = false;
     };
-  }, [appContextLoading, calendarQueryRange.end, calendarQueryRange.start, isAdmin, isReviewer, operationsScope, userId]);
+  }, [appContextLoading, calendarQueryRange.predicate, isAdmin, isReviewer, operationsScope, userId]);
 
   const deriveEvents = useCallback(
     (start, end) => {
@@ -290,6 +297,11 @@ export default function CalendarPage() {
   const applyCalendarFocus = useCallback(
     (list) => filterByLens(list),
     [filterByLens]
+  );
+
+  const getTwoWeekEvents = useCallback(
+    async (start, end) => applyCalendarFocus(deriveEvents(start, end)),
+    [applyCalendarFocus, deriveEvents]
   );
 
   const monthEvents = useMemo(() => {
@@ -478,7 +490,7 @@ export default function CalendarPage() {
                 />
               ) : (
                 <TwoWeekCalendar
-                  getEvents={async (start, end) => applyCalendarFocus(deriveEvents(start, end))}
+                  getEvents={getTwoWeekEvents}
                   anchor={twoWeekAnchor}
                   onAnchorChange={setTwoWeekAnchor}
                   weeks={weeks}

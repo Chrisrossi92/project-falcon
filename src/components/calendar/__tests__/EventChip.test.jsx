@@ -57,4 +57,28 @@ describe("EventChip", () => {
 
     expect(onClick).toHaveBeenCalledTimes(1);
   });
+
+  it("contains long hover text inside a wrapping tooltip", () => {
+    const { container } = render(
+      <EventChip
+        event={{
+          type: "site",
+          orderId: "order-1",
+          orderNumber: "26003",
+          address: "12345 Very Long Property Name With Suite Details And Extended Location Context",
+          clientName: "Long Client Name Lending Group",
+          appraiserName: "Avery Longlastname",
+          start: "2099-05-22T10:00:00",
+        }}
+        role="owner"
+      />,
+    );
+
+    const tooltip = container.querySelector("[aria-hidden='true']");
+    expect(tooltip).toHaveClass("max-w-[20rem]");
+    expect(tooltip).toHaveClass("bg-slate-950");
+
+    const tooltipText = tooltip.querySelector(".whitespace-normal.break-words");
+    expect(tooltipText).toBeInTheDocument();
+  });
 });
