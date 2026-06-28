@@ -2493,7 +2493,10 @@ Backfill:
 
 ### Goal
 
-Build first-run company setup and onboarding experience.
+Build first-run company setup and onboarding experience. Owner Setup V2 strategy is now anchored in
+`docs/setup/OWNER_SETUP_V2_STRATEGY.md`: Company Setup answers what must be done before Falcon is
+operational, tutorials teach role/workspace behavior separately, and internal diagnostics remain a
+support/admin surface rather than the dominant onboarding experience.
 
 ### Why It Matters
 
@@ -2528,7 +2531,13 @@ company_workflow_settings or settings JSON
 
 ### App Changes
 
-Build wizard:
+Future slices should follow the Owner Setup V2 separation before adding a wizard or setup flow:
+
+1. Company Setup for company-level operational readiness.
+2. Tutorial / Guided Learning for user-level proficiency.
+3. Internal Diagnostics for raw readiness evidence and support/admin troubleshooting.
+
+Possible setup sections:
 
 1. Company profile
 2. Order numbering
@@ -2539,6 +2548,10 @@ Build wizard:
 7. Add clients
 8. Sample data
 9. Review and launch
+
+Tutorial completion, optional settings, sample data, and diagnostic-only readiness checks should
+not block minimum company readiness unless a future slice explicitly maps them to an owner-actionable
+required setup step.
 
 ### Validation Checklist
 

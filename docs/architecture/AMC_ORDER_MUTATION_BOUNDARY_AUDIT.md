@@ -33,8 +33,9 @@ The mutation aliases below remain deferred:
 The existing compatibility mutation routes may remain available while Falcon reviews and tests the
 mutation boundary. Product-local AMC mutation routes should be introduced only after RPC payloads,
 operations-scope preservation, permission checks, activity, documents, notifications, client
-visibility, and vendor visibility are proven together. The new create alias must remain unlinked
-from global navigation, email, and notifications until staging smoke evidence is current.
+visibility, and vendor visibility are proven together. The new create alias has passed direct
+staging smoke and must remain unlinked from email and notifications. Global navigation remains
+unchanged until the next navigation-specific wiring slice adds route/link tests.
 
 ## Classification Key
 
@@ -59,7 +60,7 @@ Risk levels:
 
 | Surface | Current route/component/RPC | Permissions observed | Operations-scope assumptions | Classification | Risk | AMC alias recommendation | Tests/smokes needed before aliases |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| New order form | `/orders/new`; `NewOrderPage`; `OrderForm`; `createOrderViaRpc`; RPC `rpc_create_order` | Route requires `orders.create`; form can create/find client through `createOrderFormClient` and client option APIs | Payload does not visibly pass product route context; backend must derive company/current context and assign/preserve `operations_scope` correctly | Shared operations-scope-sensitive | Dangerous | Defer `/amc/orders/new` | RPC payload tests proving AMC mode creates `operations_scope = amc_operations`; wrong-company denial; client creation/attachment rules; activity/notification review; staging create smoke for Internal and AMC. |
+| New order form | `/orders/new`; `/amc/orders/new`; `NewOrderPage`; `AmcNewOrderPage`; `OrderForm`; `createOrderViaRpc`; RPC `rpc_create_order` | Route requires `orders.create`; AMC route is guarded to AMC Operations mode; AMC wrapper disables inline/manual client creation and requires an existing AMC-visible client | AMC wrapper explicitly passes `operationsScope="amc_operations"` and create service sends `p_operations_scope: "amc_operations"`; compatibility `/orders/new` keeps omitted-scope Internal behavior | Shared operations-scope-sensitive | Medium after direct-create smoke; dangerous if manual client creation or broad edit semantics are added without audit | `/amc/orders/new` registered and staging-smoke passed; keep global nav unwired until navigation/link tests pass | Preserve existing-client-only AMC create; keep create-side activity/email/notification fanout unchanged; add navigation/link tests before wiring AMC New Order navigation; rerun staging direct-create smoke after navigation wiring. |
 | Edit order form | `/orders/:id/edit`; `EditOrder`; `OrderForm`; `updateOrderViaRpc`; RPC `rpc_update_order` | Route requires `orders.update.all`; form edits client, AMC, contact, appraiser, reviewer, fees, property, dates, notes | Fetches from `v_orders_frontend_v4` and `orders`; update payload does not visibly include product route context; backend must reject wrong scope and preserve scope | Shared operations-scope-sensitive | Dangerous | Defer `/amc/orders/:id/edit` | RPC update tests for scope preservation; wrong-scope denial; Internal-vs-AMC field matrix; assignment/reviewer/appraiser updates; fee and due-date update smoke; activity audit. |
 | Inline site visit update | `OrderDetail`; `SiteVisitPicker`; `updateSiteVisitAtViaRpc`; RPC `rpc_update_order` | Visible based on detail surface permissions and workspace shell; ultimately backend-owned by `rpc_update_order` | Mutates a date field on the order; should preserve existing order scope and reject wrong workspace/company | Shared operations-scope-sensitive | Medium | Allow existing detail route behavior; do not create edit alias based on this alone | Focused site-visit RPC tests for AMC order; wrong-scope denial; calendar event side-effect review through `updateSiteVisitAt` compatibility helper if used elsewhere. |
 | Smart workflow actions | `OrderDetail`; `getSmartOrderActions`; `sendOrderToReview`, `sendOrderBackToAppraiser`, `markReadyForClient`, `completeOrder`; RPC `rpc_transition_order_status` | Workflow permissions such as `workflow.status.submit_to_review`, `workflow.status.request_revisions`, `workflow.status.ready_for_client`, `workflow.status.complete` | Status transition must validate current order visibility, actor authority, workflow state, and order scope | Shared operations-scope-sensitive | High | Keep on existing detail compatibility and read alias only; do not use mutation alias until tested | Internal and AMC workflow transition tests; assignment/client visibility effects; notification/activity payload tests; wrong-scope denial. |
@@ -130,15 +131,18 @@ compatibility route context, not safe to expose through new AMC product-local mu
 
 ## Field Matrix Recommendation
 
-`/amc/orders/new` should not be registered in the immediate next slice. It may be allowed soon only
-after a small create-order proof slice verifies:
+`/amc/orders/new` is registered and doc-locked after focused local route/unit/RPC coverage and the
+approved AMC staging direct-create smoke passed. The route remains existing-client-only and is not
+yet linked from global navigation, email, notifications, workspace switching, or live canonical
+`productLinks`.
+
+The locked direct-create contract verifies:
 
 1. `rpc_create_order` creates AMC orders with the intended `operations_scope`.
-2. `client_id`, `client_contact_id`, `manual_client_name`, and `managing_amc_id` behavior is
-   product-safe.
-3. Submitted `status`, assignment, fee, split, and note fields are either constrained or removed
-   from the AMC create surface.
-4. Create-side activity and notification behavior is documented and tested.
+2. Existing AMC-visible client selection is required for AMC direct create.
+3. Inline/manual client creation remains disabled for AMC direct create.
+4. Submitted create scope is explicit through `p_operations_scope = 'amc_operations'`.
+5. Create-side activity, email, notification, and live product-link behavior remains unchanged.
 
 `/amc/orders/:id/edit` should not be allowed soon. The current edit form is too broad for a first
 AMC mutation alias because it combines internal staffing, compensation-like fields, client/contact
@@ -209,8 +213,8 @@ The AMC create route uses `AmcNewOrderPage`, which passes explicit AMC scope.
 Form status: `OrderForm` now accepts an optional `operationsScope` prop. When omitted, it preserves
 the existing create path and calls `createOrderViaRpc(payload)` with one argument. When an explicit
 caller passes `operationsScope="amc_operations"`, create submit forwards
-`{ operationsScope: 'amc_operations' }` to the service. No registered route currently passes this
-prop. `/orders/new` continues not to pass this prop.
+`{ operationsScope: 'amc_operations' }` to the service. `/amc/orders/new` passes this prop through
+`AmcNewOrderPage`; `/orders/new` continues not to pass this prop.
 
 Existing-client-only status: `OrderForm` now also accepts `allowInlineClientCreation`, defaulting
 to `true` for existing Internal create behavior. A future AMC create wrapper can pass
@@ -256,10 +260,9 @@ Answer to the audit questions:
 - **Are client options filtered by current company?** Yes.
 - **Are client options filtered by `operations_scope`?** Yes, when an explicit operations scope is
   passed. The compatibility path remains unfiltered by design.
-- **Can AMC create see Internal-only clients today?** The future AMC wrapper passes
-  `operationsScope="amc_operations"` through `OrderForm` into the picker helpers, so the intended
-  wrapper path is scope-filtered. The route remains unregistered until migration replay and route
-  smoke prove that behavior in an environment.
+- **Can AMC create see Internal-only clients today?** The AMC wrapper passes
+  `operationsScope="amc_operations"` through `OrderForm` into the picker helpers, so the wrapper
+  path is scope-filtered. Direct-create staging smoke has passed for the existing-client-only path.
 - **Can contacts bleed across clients/companies?** The option payload itself appears limited to
   contact fields on the returned current-company client row; it does not perform a broad contact
   join. Separate client contact selection still needs its own scope review before route exposure.
@@ -268,17 +271,18 @@ Answer to the audit questions:
   authority.
 - **Does the RPC need a new optional `p_operations_scope` parameter?** Implemented.
 
-Risk level: **Medium** for registering `/amc/orders/new` next. The picker contract is now
-product-scope aware, but the migration has not been replayed in this slice and the route remains
-unregistered.
+Risk level: **Low/Medium** for the registered, existing-client-only `/amc/orders/new` route after
+direct-create smoke. Risk increases if manual client creation, email/notification links, live
+canonical `productLinks`, or edit aliases are added without separate audit coverage.
 
-Required contract before AMC direct create:
+Required contract before broader AMC create promotion:
 
-1. Replay the create-order and picker migrations locally/staging before route exposure.
-2. Add route-level tests/smokes proving `AmcNewOrderPage` uses scoped picker options and creates
-   `amc_operations` orders with an existing selected client.
-3. Keep inline manual client creation disabled for AMC direct create.
-4. Keep `/amc/orders/new` unregistered until migration replay and route tests pass.
+1. Keep inline manual client creation disabled for AMC direct create.
+2. Add navigation/link tests proving AMC New Order navigation uses `/amc/orders/new` and Internal
+   New Order navigation still uses `/orders/new`.
+3. Rerun direct-create staging smoke after navigation wiring.
+4. Keep email, notification, workspace switcher, and live canonical `productLinks` behavior
+   unchanged until separate wiring slices prove those boundaries.
 
 ## Manual Client Creation Scope Boundary
 
@@ -324,7 +328,8 @@ Required contract before AMC direct create:
 3. AMC create must either require selecting an existing AMC-visible client or create a new
    AMC-scoped client relationship explicitly.
 4. Any `managing_amc_id` attachment must be validated against the requested operations scope.
-5. Tests must prove `/amc/orders/new` remains unregistered until this seam is resolved.
+5. Tests must prove `/amc/orders/new` keeps inline/manual client creation disabled until this seam
+   is resolved.
 
 Recommended next implementation: make `createOrderFormClient` explicitly scope-aware by adding an
 optional `operationsScope` argument and updating the narrow order-form client-create RPC to persist
@@ -469,17 +474,17 @@ Add focused source or integration tests proving:
 
 | Candidate alias | Decision | Reason |
 | --- | --- | --- |
-| `/amc/orders/new` | Registered for guarded validation | Backend scope support, attachment-scope guards, service opt-in, explicit `OrderForm` scope prop, existing-client-only form mode, AMC wrapper, and scope-aware client picker support now exist. Navigation/email/notification links remain unwired until staging smoke evidence proves the path. |
+| `/amc/orders/new` | Registered; direct-create staging smoke passed | Backend scope support, attachment-scope guards, service opt-in, explicit `OrderForm` scope prop, existing-client-only form mode, AMC wrapper, and scope-aware client picker support now exist. Staging direct-create smoke passed with 2 tests. Global navigation, email, notification, and live canonical `productLinks` behavior remain unwired. |
 | `/amc/orders/:id/edit` | Deferred | `OrderForm` updates many fields through `rpc_update_order`, including internal staffing, compensation-like fields, contacts, dates, notes, and the adjacent order-number override shell. Field-level guards or product-specific edit surfaces are required first. |
 | `/amc/orders/:id` | Already registered as read alias with local navigation | Detail page contains mutations, but alias was added as a render/read entry point using existing guards. Before expanding mutation routes, each detail mutation needs smoke coverage. |
 | `/amc/client-requests` | Already registered | AMC-native intake review route. Conversion remains high-risk but belongs to client request flow, not order edit alias readiness. |
 
 ## Required Test And Smoke Coverage Before AMC Mutation Aliases
 
-Before registering `/amc/orders/new` or `/amc/orders/:id/edit`, add or confirm:
+Before broader AMC mutation promotion or `/amc/orders/:id/edit`, add or confirm:
 
-1. `rpc_create_order` tests proving AMC mode creates AMC-scoped orders and rejects wrong-company
-   or wrong-product attempts.
+1. Navigation/link tests proving AMC New Order uses `/amc/orders/new` and Internal New Order still
+   uses `/orders/new`.
 2. `rpc_update_order` tests proving `operations_scope` cannot be changed or lost through edit
    payloads.
 3. Field-level tests for appraiser, reviewer, managing AMC, client, contact, fee, due date, site
@@ -507,3 +512,13 @@ Before registering `/amc/orders/new` or `/amc/orders/:id/edit`, add or confirm:
   before product-local mutation aliases are introduced?
 - What notifications/emails fire from create, update, assignment, bid, document, and lifecycle
   mutations, and which product base URL should each use after delivery links become product-aware?
+
+## Next Session Gameplan
+
+1. Wire the AMC "New Order" navigation/button to `/amc/orders/new`.
+2. Add route/link tests proving AMC navigation uses `/amc/orders/new` while Internal navigation
+   still uses `/orders/new`.
+3. Rerun direct-create staging smoke:
+   `E2E_BASE_URL=https://falcon-staging.therossicompany.com npm run e2e:amc:direct-create:staging`.
+4. Consider canonical `productLinks` opt-in only after navigation proves stable.
+5. Defer `/amc/orders/:id/edit` until the update RPC mutation-boundary audit is complete.

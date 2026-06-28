@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
+import { PortalPageShell } from "@/components/portal";
 import { fetchVendorWorkspaceAssignedOrders } from "@/features/vendorWorkspace/api.js";
 
 const statusLabels = Object.freeze({
@@ -243,18 +244,11 @@ export default function VendorAssignedOrdersPage() {
   }), [items]);
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-          Vendor Workspace
-        </p>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-950">Assignments</h1>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-          Track active assignments, due dates, revision requests, submitted reports, and the next
-          step for your company.
-        </p>
-      </section>
-
+    <PortalPageShell
+      label="Vendor Workspace"
+      title="Assignments"
+      description="Track active assignments, due dates, revision requests, submitted reports, and the next step for your company."
+    >
       {isLoading ? (
         <LoadingState />
       ) : error ? (
@@ -279,6 +273,6 @@ export default function VendorAssignedOrdersPage() {
           )}
         </>
       )}
-    </div>
+    </PortalPageShell>
   );
 }

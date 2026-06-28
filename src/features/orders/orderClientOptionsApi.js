@@ -7,6 +7,7 @@ function normalizeClientOption(row = {}) {
     category: row.category,
     amc_id: row.amc_id,
     is_merged: row.is_merged,
+    operations_scope: row.operations_scope || null,
     contact_name_1: row.contact_name,
     contact_email_1: row.contact_email,
     contact_phone_1: row.contact_phone,
@@ -21,6 +22,7 @@ function normalizeClientSearchResult(row = {}) {
     status: row.status,
     is_merged: row.is_merged,
     merged_into_id: row.merged_into_id,
+    operations_scope: row.operations_scope || null,
   };
 }
 
@@ -34,17 +36,29 @@ function normalizeCreatedClient(row = {}) {
   };
 }
 
-export async function listOrderFormClientOptions() {
-  const { data, error } = await supabase.rpc("rpc_order_form_client_options");
+export async function listOrderFormClientOptions({ operationsScope = null } = {}) {
+  const { data, error } = operationsScope
+    ? await supabase.rpc("rpc_order_form_client_options", { p_operations_scope: operationsScope })
+    : await supabase.rpc("rpc_order_form_client_options");
   if (error) throw error;
   return Array.isArray(data) ? data.map(normalizeClientOption) : [];
 }
 
-export async function searchOrderFormClientsByName(search, limit = 5) {
-  const { data, error } = await supabase.rpc("rpc_order_form_client_name_search", {
+export async function searchOrderFormClientsByName(search, limitOrOptions = 5) {
+  const options = typeof limitOrOptions === "object" && limitOrOptions !== null
+    ? limitOrOptions
+    : { limit: limitOrOptions };
+  const limit = options.limit ?? 5;
+  const operationsScope = options.operationsScope ?? null;
+  const rpcArgs = {
     p_search: search,
     p_limit: limit,
-  });
+  };
+  if (operationsScope) {
+    rpcArgs.p_operations_scope = operationsScope;
+  }
+
+  const { data, error } = await supabase.rpc("rpc_order_form_client_name_search", rpcArgs);
   if (error) throw error;
   return Array.isArray(data) ? data.map(normalizeClientSearchResult) : [];
 }

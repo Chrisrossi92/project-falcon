@@ -51,7 +51,7 @@ unchanged.
 | Activity entries | **READY** | The create RPC does not insert activity or activity-log rows. This avoids unsafe payload/link behavior for the first direct create alias. | If create activity is later required, add backend-owned activity with safe product-scoped payload tests. |
 | Post-create redirects | **READY** | `AmcNewOrderPage` redirects successful creates to `/amc/orders/:id` and falls back to `/amc/orders`. Both target aliases are already registered. | Keep global navigation unchanged until smoke passes. |
 | Order detail routes | **READY** | `/amc/orders` and `/amc/orders/:id` are registered with AMC workspace guards and local path-aware order navigation. Internal mode does not render the AMC order aliases under existing tests. | Run browser smoke after route registration to verify detail load, document visibility, and procurement panels with a created AMC order. |
-| `/amc/orders/new` route readiness | **READY FOR GUARDED ROUTE VALIDATION** | Frontend mechanics, picker scope, backend attachment scope guards, and focused route/render/create-path tests now exist. The route is registered behind the AMC workspace guard and create permission. | Keep navigation/email/notification links unwired until staging smoke evidence is current. |
+| `/amc/orders/new` route readiness | **READY FOR GUARDED ROUTE VALIDATION** | Frontend mechanics, picker scope, backend attachment scope guards, focused route/render/create-path tests, and direct-create staging smoke now pass. The route is registered behind the AMC workspace guard and create permission. | Keep email/notification links unwired; add navigation only in a separate tested slice and rerun direct-create smoke afterward. |
 
 ## Evidence Reviewed
 
@@ -231,7 +231,7 @@ procurement/execution loop, but it is not a browser-level `/amc/orders/new` dire
 
 ## Direct Create Browser Smoke
 
-Status: **Smoke added; local execution blocked by Playwright Chromium launch permissions.**
+Status: **Passed on approved AMC staging. Milestone locked.**
 
 Smoke file:
 
@@ -267,32 +267,49 @@ The smoke covers:
 - database verification that the created order is `amc_operations`;
 - Internal Operations mode denial for `/amc/orders/new`.
 
-Execution result in this Codex environment:
+Confirmed execution:
 
-- Initial run found and fixed a smoke setup issue: the disposable client lookup now respects the
-  global client-name uniqueness constraint and the spec runs serially.
-- Re-run was blocked before browser navigation because Playwright Chromium failed to launch with a
-  macOS Mach port permission denial:
-  `bootstrap_check_in org.chromium.Chromium.MachPortRendezvousServer... Permission denied (1100)`.
-- Because no browser page opened, this is not evidence that `/amc/orders/new` passed direct-create
-  smoke.
+```bash
+E2E_BASE_URL=https://falcon-staging.therossicompany.com npm run e2e:amc:direct-create:staging
+```
+
+Result: **2 passed**.
+
+Confirmed milestone:
+
+- `/amc/orders/new` is registered.
+- `/amc/orders/new` renders only in AMC Operations mode.
+- `/amc/orders/new` does not render in Internal Operations mode.
+- The route uses `AmcNewOrderPage`.
+- `AmcNewOrderPage` disables inline/manual client creation.
+- AMC create requires selecting an existing AMC-visible client.
+- The create path sends `p_operations_scope: "amc_operations"` to `rpc_create_order`.
+- The created order has `operations_scope = amc_operations`.
+- Successful create redirects to `/amc/orders/:id`.
+- Local route/unit/RPC tests and staging direct-create smoke passed.
 
 Decision impact:
 
-- `/amc/orders/new` remains registered for guarded validation only.
-- Do not wire AMC New Order navigation yet.
-- Re-run the command above in a browser-capable local/CI environment before promoting navigation.
+- `/amc/orders/new` is safe as a direct URL guarded by AMC Operations mode and existing
+  permissions.
+- Global navigation is **not** yet linked to `/amc/orders/new`.
+- Inline/manual client creation remains disabled for AMC create.
+- `/amc/orders/:id/edit` remains deferred until the update RPC mutation-boundary audit is
+  complete.
+- Email, notification, and live canonical `productLinks` behavior remain unchanged.
 
 ## Decision
 
-`/amc/orders/new` is registered for guarded validation. Do **not** wire it into navigation, email,
-notifications, or workspace switching until direct-create browser smoke passes.
+`/amc/orders/new` direct-create is doc-locked as passed on AMC staging. Keep the route available
+as a guarded direct URL, but do **not** wire email, notification links, workspace switching, or live
+canonical `productLinks` to it in this milestone.
 
-The safest next implementation slice is direct-create browser smoke and promotion preparation:
+Next-session gameplan:
 
-- verify/replay the create and client-picker migrations in a safe target if local replay remains
-  unavailable;
-- add or run a browser/direct-create smoke for `/amc/orders/new` with an existing AMC-visible
-  client;
-- keep global navigation, email, notification links, and workspace switcher behavior unchanged;
-- wire navigation to the new route only after direct-create smoke evidence is current.
+1. Wire the AMC "New Order" navigation/button to `/amc/orders/new`.
+2. Add route/link tests proving AMC navigation uses `/amc/orders/new` while Internal navigation
+   still uses `/orders/new`.
+3. Rerun the direct-create staging smoke:
+   `E2E_BASE_URL=https://falcon-staging.therossicompany.com npm run e2e:amc:direct-create:staging`.
+4. Consider canonical `productLinks` opt-in only after navigation proves stable.
+5. Defer `/amc/orders/:id/edit` until the update RPC mutation-boundary audit is complete.

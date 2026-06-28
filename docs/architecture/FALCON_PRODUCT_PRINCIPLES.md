@@ -11,6 +11,8 @@ notification, email, deployment, or data changes.
 
 Companion documents:
 
+- `docs/architecture/FALCON_EXPERIENCE_FRAMEWORK.md` defines the shared platform experience system
+  across Internal Operations, Falcon AMC, Client Portal, and Vendor Workspace.
 - `docs/architecture/FALCON_INFORMATION_ARCHITECTURE_AND_UX_GUIDE.md` defines the page hierarchy
   and layout philosophy.
 - `docs/architecture/FALCON_PAGE_INVENTORY.md` maintains the canonical inventory of primary pages.
@@ -118,6 +120,8 @@ When new features are added:
 
 - Update `docs/architecture/FALCON_PAGE_INVENTORY.md` when page ownership, purpose, visibility,
   smart actions, or implementation status changes.
+- Update `docs/architecture/FALCON_EXPERIENCE_FRAMEWORK.md` when shared platform experience,
+  loading, state, shell, portal unification, or command-center standards change.
 - Update this document when Falcon's product philosophy changes.
 - Update `docs/architecture/FALCON_INFORMATION_ARCHITECTURE_AND_UX_GUIDE.md` when layout,
   hierarchy, or UX philosophy changes.

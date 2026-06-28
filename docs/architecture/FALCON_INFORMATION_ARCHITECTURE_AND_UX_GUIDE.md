@@ -12,25 +12,30 @@ RPCs, permissions, emails, notifications, or UI components.
 
 ## Companion Documents
 
-Falcon's product architecture documentation is organized as five living documents:
+Falcon's product architecture documentation is organized as six living documents:
 
-1. `docs/architecture/FALCON_INFORMATION_ARCHITECTURE_AND_UX_GUIDE.md`
+1. `docs/architecture/FALCON_EXPERIENCE_FRAMEWORK.md` defines the shared platform experience system
+   across Internal Operations, Falcon AMC, Client Portal, Vendor Workspace, loading, state, shell,
+   portal unification, and future command-center expectations.
+2. `docs/architecture/FALCON_INFORMATION_ARCHITECTURE_AND_UX_GUIDE.md`
    defines the canonical UX philosophy, page hierarchy, visibility rules, and layout principles.
-2. `docs/architecture/FALCON_PAGE_INVENTORY.md` maintains the canonical inventory of primary pages,
+3. `docs/architecture/FALCON_PAGE_INVENTORY.md` maintains the canonical inventory of primary pages,
    including purpose, users, visible information, progressive disclosure, smart actions, future
    intelligence opportunities, and implementation status.
-3. `docs/architecture/FALCON_PRODUCT_PRINCIPLES.md` defines the permanent product philosophy behind
+4. `docs/architecture/FALCON_PRODUCT_PRINCIPLES.md` defines the permanent product philosophy behind
    Falcon's decisions, including simplicity, explainable intelligence, calm interfaces, automation,
    and human control.
-4. `docs/architecture/FALCON_MOTION_AND_INTERACTION_GUIDE.md` defines how Falcon uses motion,
+5. `docs/architecture/FALCON_MOTION_AND_INTERACTION_GUIDE.md` defines how Falcon uses motion,
    transitions, microinteractions, and progressive disclosure to clarify state without slowing work.
-5. `docs/architecture/FALCON_DESIGN_SYSTEM.md` defines Falcon's visual language, including page
+6. `docs/architecture/FALCON_DESIGN_SYSTEM.md` defines Falcon's visual language, including page
    structure, cards, buttons, badges, typography, spacing, tables, drawers, modals, and empty
    states.
 
 The documents work together in this order:
 
 ```text
+Experience Framework
+↓
 UX Guide
 ↓
 Page Inventory
@@ -42,12 +47,14 @@ Motion And Interaction Guide
 Design System
 ```
 
-Future UI work should consult all five before implementation. When new features are added, update
+Future UI work should consult all six before implementation. When new features are added, update
 the Page Inventory. If product philosophy changes, update Product Principles. If layout or
 information hierarchy philosophy changes, update this UX Guide. If interaction timing,
 microinteraction behavior, Framer Motion usage, or animation patterns change, update the Motion And
 Interaction Guide. If visual language, component categories, button hierarchy, cards, badges,
-spacing, or responsive design philosophy changes, update the Design System.
+spacing, or responsive design philosophy changes, update the Design System. If shared platform
+experience, loading, state, shell, portal unification, or command-center standards change, update
+the Experience Framework.
 
 These documents are living architecture, not one-time planning documents.
 

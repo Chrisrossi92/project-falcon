@@ -107,13 +107,22 @@ Expected coverage:
 
 Current execution status:
 
-- The smoke has been added.
-- A setup issue discovered during the first run was fixed: the disposable client lookup now handles
-  Falcon's global client-name uniqueness and the spec runs serially.
-- The re-run was blocked in this Codex environment because Playwright Chromium could not launch due
-  to a macOS Mach port permission denial before any page opened.
-- This means `/amc/orders/new` is not yet promoted for navigation. Re-run the command above in a
-  browser-capable local or CI environment before adding AMC New Order navigation.
+- The direct-create staging smoke passed with result **2 passed**.
+- The passing command was:
+  `E2E_BASE_URL=https://falcon-staging.therossicompany.com npm run e2e:amc:direct-create:staging`.
+- `/amc/orders/new` is registered and safe as a guarded direct URL.
+- `/amc/orders/new` renders only in AMC Operations mode and does not render in Internal Operations
+  mode.
+- The route uses `AmcNewOrderPage`.
+- Inline/manual client creation remains disabled for AMC create.
+- AMC direct create requires selecting an existing AMC-visible client.
+- The create path sends `p_operations_scope: "amc_operations"` to `rpc_create_order`.
+- The created order has `operations_scope = amc_operations`.
+- Successful create redirects to `/amc/orders/:id`.
+- Global navigation is not yet linked to `/amc/orders/new`.
+- Email, notification, and live canonical `productLinks` behavior remain unchanged.
+- `/amc/orders/:id/edit` remains deferred until the update RPC mutation-boundary audit is complete.
+- Rerun the direct-create staging smoke after AMC New Order navigation is wired.
 
 2. Candidate Matching
    - Open AMC order detail.
@@ -308,6 +317,16 @@ git diff --check
 
 Add SQL/RPC targeted tests for any future defect found during manual execution before closing that
 defect.
+
+## Next Session Gameplan
+
+1. Wire the AMC "New Order" navigation/button to `/amc/orders/new`.
+2. Add route/link tests proving AMC navigation uses `/amc/orders/new` while Internal navigation
+   still uses `/orders/new`.
+3. Rerun direct-create staging smoke:
+   `E2E_BASE_URL=https://falcon-staging.therossicompany.com npm run e2e:amc:direct-create:staging`.
+4. Consider canonical `productLinks` opt-in only after navigation proves stable.
+5. Defer `/amc/orders/:id/edit` until the update RPC mutation-boundary audit is complete.
 
 ## Pass / Fail Criteria
 

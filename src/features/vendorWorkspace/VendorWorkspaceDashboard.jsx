@@ -2,12 +2,12 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import {
-  WorkspaceDashboardHeader,
   WorkspaceEmptyState,
   WorkspaceSection,
   WorkspaceSummaryCard,
   WorkspaceSummaryCards,
 } from "@/components/dashboard/WorkspaceDashboard";
+import { PortalPageShell } from "@/components/portal";
 import { fetchVendorWorkspaceDashboardSummary } from "@/features/vendorWorkspace/api.js";
 
 const dashboardCards = Object.freeze([
@@ -293,13 +293,11 @@ export default function VendorWorkspaceDashboard() {
     Number(counts.available_work || 0) + Number(counts.pending_bids || 0);
 
   return (
-    <div className="space-y-6">
-      <WorkspaceDashboardHeader
-        label="Vendor Workspace"
-        title="Your work queue"
-        subtitle="Review available opportunities, manage active assignments, track due dates, and follow payment status from one vendor-facing workspace."
-      />
-
+    <PortalPageShell
+      label="Vendor Workspace"
+      title="Your work queue"
+      description="Review available opportunities, manage active assignments, track due dates, and follow payment status from one vendor-facing workspace."
+    >
       {isLoading ? (
         <LoadingState />
       ) : error ? (
@@ -377,6 +375,6 @@ export default function VendorWorkspaceDashboard() {
           </WorkspaceSection>
         </>
       )}
-    </div>
+    </PortalPageShell>
   );
 }

@@ -2718,20 +2718,25 @@ describe("Vendor Workspace hidden shell", () => {
     const loadingView = renderVendorWorkspace("/vendor-workspace/available-work");
 
     expect(await screen.findByLabelText("Loading available work")).toBeInTheDocument();
+    expect(screen.getByText("Loading bid opportunities available to your company.")).toBeInTheDocument();
     loadingView.unmount();
 
     apiMock.fetchVendorWorkspaceAvailableWork.mockRejectedValue(new Error("available work failed"));
     const errorView = renderVendorWorkspace("/vendor-workspace/available-work");
 
     expect(await screen.findByText("Available work unavailable")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Falcon could not refresh available bid opportunities for this vendor workspace.",
+    );
     expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
     errorView.unmount();
 
     apiMock.fetchVendorWorkspaceAvailableWork.mockResolvedValue({ ok: true, items: [] });
     renderVendorWorkspace("/vendor-workspace/available-work");
 
+    expect(await screen.findByText("No available work right now")).toBeInTheDocument();
     expect(
-      await screen.findByText("No available work is waiting for your review. New bid opportunities will appear here when an AMC coordinator sends them to your company."),
+      screen.getByText("No available work is waiting for your review. New bid opportunities will appear here when an AMC coordinator sends them to your company."),
     ).toBeInTheDocument();
   });
 

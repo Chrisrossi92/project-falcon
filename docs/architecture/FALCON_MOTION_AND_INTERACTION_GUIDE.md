@@ -14,6 +14,8 @@ deployments.
 
 Companion documents:
 
+- `docs/architecture/FALCON_EXPERIENCE_FRAMEWORK.md` defines the shared platform experience system
+  and the cross-workspace loading, state, shell, and portal expectations that motion supports.
 - `docs/architecture/FALCON_INFORMATION_ARCHITECTURE_AND_UX_GUIDE.md` defines the page hierarchy
   and layout philosophy.
 - `docs/architecture/FALCON_PAGE_INVENTORY.md` maintains the canonical inventory of primary pages.

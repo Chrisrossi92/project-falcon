@@ -30,6 +30,8 @@
     "deploy:preflight:staging": "FALCON_DEPLOY_TARGET=staging node scripts/deployment-preflight.mjs",
     "deploy:preflight:production-readonly": "FALCON_DEPLOY_TARGET=production-readonly node scripts/deployment-preflight.mjs",
     "deploy:preflight:production-release": "FALCON_DEPLOY_TARGET=production-release node scripts/deployment-preflight.mjs",
+    "historical-import:plan": "node scripts/historical-import/plan-historical-import.mjs",
+    "historical-import:generate-sql": "node scripts/historical-import/generate-historical-import-sql.mjs",
     "audit:static": "node scripts/check-exports.mjs && node scripts/check-routes.mjs && madge --circular src",
     "audit:db": "node scripts/check-tables.mjs",
     "audit": "npm run audit:static && npm run audit:db",

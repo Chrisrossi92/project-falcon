@@ -88,7 +88,7 @@ notification links, redirects, and canonical `productLinks` mode remain unchange
 | --- | --- | --- | --- | --- | --- | --- |
 | `/amc/dashboard` | Yes | N/A, dashboard has no local drill-down links in this slice | No | No | No | AMC dashboard browser smoke; dashboard data-scope check; Internal-mode denial check. |
 | `/amc/orders` | Yes | Yes, local order detail links remain under `/amc/orders/*` | No | No | No | AMC order list browser smoke; filters/saved views smoke; order data-scope check. |
-| `/amc/orders/new` | Yes | Yes, create success redirects to `/amc/orders/:id`; fallback returns `/amc/orders` | No | No | No | AMC create smoke with existing client; scoped client picker check; Internal-mode denial check. |
+| `/amc/orders/new` | Yes | Yes, create success redirects to `/amc/orders/:id`; fallback returns `/amc/orders` | No | No | No | Direct-create staging smoke passed with an existing AMC-visible client; rerun after navigation wiring. |
 | `/amc/orders/:id` | Yes | Yes, local back link returns to `/amc/orders` | No | No | No | AMC order detail browser smoke; document visibility smoke; procurement panel smoke; wrong-scope denial check. |
 | `/amc/vendors` | Yes | Yes, local vendor profile links remain under `/amc/vendors/*` | No | No | No | Vendor Directory browser smoke; permission denial smoke; vendor search/filter smoke. |
 | `/amc/vendors/:vendorProfileId` | Yes | Yes, local back link returns to `/amc/vendors` | No | No | No | Vendor Profile browser smoke; contact/coverage visibility smoke; permission denial smoke. |
@@ -104,13 +104,30 @@ existing compatibility edit route (`/orders/:id/edit`) may remain as is until th
 a deliberate migration slice. The current boundary audit is recorded in
 `docs/architecture/AMC_ORDER_MUTATION_BOUNDARY_AUDIT.md`.
 
+Direct-create milestone status:
+
+- `/amc/orders/new` is registered and uses `AmcNewOrderPage`.
+- The route renders only in AMC Operations mode and does not render in Internal Operations mode.
+- Inline/manual client creation remains disabled for AMC create.
+- AMC direct create requires selecting an existing AMC-visible client.
+- Create sends `p_operations_scope: "amc_operations"` to `rpc_create_order`.
+- The created order has `operations_scope = amc_operations`.
+- Successful create redirects to `/amc/orders/:id`.
+- Staging direct-create smoke passed:
+  `E2E_BASE_URL=https://falcon-staging.therossicompany.com npm run e2e:amc:direct-create:staging`
+  with result **2 passed**.
+- Email, notification, and live canonical `productLinks` behavior remain unchanged.
+- `/amc/orders/:id/edit` remains deferred until the update RPC mutation-boundary audit is complete.
+
 Recommended next implementation options:
 
 1. Add route aliases for lower-risk read-only/shared AMC surfaces such as `/amc/activity` or
    `/amc/calendar`, if their data scope and copy are confirmed safe.
 2. Move to route-domain/deployment planning for separate AMC entry points, auth redirects, allowed
    URLs, and deployment/domain ownership.
-3. Run staging smoke for `/amc/orders/new` before wiring any navigation to the new route.
+3. Wire the AMC "New Order" navigation/button to `/amc/orders/new` with route/link tests proving
+   Internal navigation still uses `/orders/new`, then rerun direct-create staging smoke.
+4. Consider live canonical `productLinks` opt-in only after navigation proves stable.
 
 ## Current Route Group Inventory
 
@@ -213,6 +230,8 @@ Recommended next implementation options:
 4. Update navigation in product-context-aware mode.
    - Internal and AMC navigation should choose aliases only after alias routes have render tests.
    - Keep current paths available.
+   - Next slice: route AMC "New Order" navigation/button to `/amc/orders/new` while Internal
+     navigation continues to use `/orders/new`.
 
 5. Update notification/email dry-run mappers.
    - Compare planned alias URL with existing URL.
@@ -251,11 +270,21 @@ smaller blast radius than shared `/dashboard` or `/orders`.
 
 ## Explicit Non-Goals
 
-- No route changes in this planning slice.
+- No additional route changes in this planning slice.
 - No redirect changes.
 - No auth/session changes.
 - No workspace switcher changes.
-- No navigation changes.
+- No navigation changes in this doc-lock slice.
 - No email or notification link changes.
 - No Supabase migrations or RLS changes.
 - No Edge Function, Vercel, CSP, or environment changes.
+
+## Next Session Gameplan
+
+1. Wire the AMC "New Order" navigation/button to `/amc/orders/new`.
+2. Add route/link tests proving AMC navigation uses `/amc/orders/new` while Internal navigation
+   still uses `/orders/new`.
+3. Rerun direct-create staging smoke:
+   `E2E_BASE_URL=https://falcon-staging.therossicompany.com npm run e2e:amc:direct-create:staging`.
+4. Consider canonical `productLinks` opt-in only after navigation proves stable.
+5. Defer `/amc/orders/:id/edit` until the update RPC mutation-boundary audit is complete.

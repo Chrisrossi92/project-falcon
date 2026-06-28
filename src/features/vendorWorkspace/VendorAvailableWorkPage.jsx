@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
+import {
+  FalconEmptyState,
+  FalconErrorState,
+  FalconLoadingState,
+  FalconSkeleton,
+} from "@/components/state";
+import { PortalPageShell } from "@/components/portal";
 import { fetchVendorWorkspaceAvailableWork } from "@/features/vendorWorkspace/api.js";
 
 const statusLabels = Object.freeze({
@@ -40,45 +47,54 @@ function getPropertyLine(order = {}) {
 
 function LoadingState() {
   return (
-    <section aria-label="Loading available work" className="grid gap-3 lg:grid-cols-2">
-      {[0, 1, 2, 3].map((item) => (
-        <article key={item} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="h-3 w-28 rounded bg-slate-200" />
-          <div className="mt-4 h-5 w-56 rounded bg-slate-200" />
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            <div className="h-10 rounded bg-slate-100" />
-            <div className="h-10 rounded bg-slate-100" />
-            <div className="h-10 rounded bg-slate-100" />
-            <div className="h-10 rounded bg-slate-100" />
-          </div>
-        </article>
-      ))}
-    </section>
+    <FalconLoadingState
+      aria-label="Loading available work"
+      className="rounded-xl"
+      title="Loading available work"
+      description="Loading bid opportunities available to your company."
+    >
+      <div className="grid gap-3 lg:grid-cols-2">
+        {[0, 1, 2, 3].map((item) => (
+          <article key={item} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <FalconSkeleton aria-label="Loading opportunity owner" height="0.75rem" width="7rem" />
+            <FalconSkeleton className="mt-4" aria-label="Loading opportunity property" height="1.25rem" width="14rem" />
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <FalconSkeleton height="2.5rem" />
+              <FalconSkeleton height="2.5rem" />
+              <FalconSkeleton height="2.5rem" />
+              <FalconSkeleton height="2.5rem" />
+            </div>
+          </article>
+        ))}
+      </div>
+    </FalconLoadingState>
   );
 }
 
 function ErrorState({ onRetry }) {
   return (
-    <section className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
-      <div className="font-semibold">Available work unavailable</div>
-      <p className="mt-1">Available work could not be loaded.</p>
-      <button
-        type="button"
-        onClick={onRetry}
-        className="mt-3 rounded-md border border-rose-300 bg-white px-3 py-1.5 text-xs font-semibold text-rose-800"
-      >
-        Retry
-      </button>
-    </section>
+    <FalconErrorState
+      title="Available work unavailable"
+      description="Falcon could not refresh available bid opportunities for this vendor workspace."
+      action={(
+        <button
+          type="button"
+          onClick={onRetry}
+          className="rounded-md border border-rose-300 bg-white px-3 py-1.5 text-xs font-semibold text-rose-800 hover:border-rose-400 hover:bg-rose-50"
+        >
+          Retry
+        </button>
+      )}
+    />
   );
 }
 
 function EmptyState() {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-6 text-sm text-slate-600 shadow-sm">
-      No available work is waiting for your review. New bid opportunities will appear here when an
-      AMC coordinator sends them to your company.
-    </section>
+    <FalconEmptyState
+      title="No available work right now"
+      description="No available work is waiting for your review. New bid opportunities will appear here when an AMC coordinator sends them to your company."
+    />
   );
 }
 
@@ -211,18 +227,11 @@ export default function VendorAvailableWorkPage() {
   const items = Array.isArray(availableWork?.items) ? availableWork.items : [];
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-          Vendor Workspace
-        </p>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-950">Available Work</h1>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-          Review bid opportunities available to your company, then open Work Detail to submit a bid
-          or pass on the opportunity.
-        </p>
-      </section>
-
+    <PortalPageShell
+      label="Vendor Workspace"
+      title="Available Work"
+      description="Review bid opportunities available to your company, then open Work Detail to submit a bid or pass on the opportunity."
+    >
       {isLoading ? (
         <LoadingState />
       ) : error ? (
@@ -236,6 +245,6 @@ export default function VendorAvailableWorkPage() {
       ) : (
         <EmptyState />
       )}
-    </div>
+    </PortalPageShell>
   );
 }

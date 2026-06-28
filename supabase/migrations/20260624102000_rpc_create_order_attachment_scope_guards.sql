@@ -36,7 +36,18 @@ begin
   end if;
 
   if v_operations_scope not in ('internal_operations', 'amc_operations') then
-    raise exception 'invalid_order_operations_scope'
+    raise exception 'invalid_order_operations_scogit status
+git add src/components/calendar/CalendarGrid.jsx \
+  src/components/calendar/TwoWeekCalendar.jsx \
+  src/components/calendar/CalendarFiltersBar.jsx \
+  src/components/calendar/CalendarDayDetailRail.jsx \
+  src/components/calendar/__tests__/CalendarDayDetailRail.test.jsx \
+  src/pages/Calendar.jsx \
+  src/components/calendar/MonthsCalendar.jsx
+
+git commit -m "polish calendar premium experience"
+
+git pushpe'
       using errcode = '22023';
   end if;
 

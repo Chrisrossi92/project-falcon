@@ -11,6 +11,8 @@ removed, renamed, split, consolidated, or materially redesigned.
 
 Companion documents:
 
+- `docs/architecture/FALCON_EXPERIENCE_FRAMEWORK.md` defines the shared platform experience system
+  across Internal Operations, Falcon AMC, Client Portal, and Vendor Workspace.
 - `docs/architecture/FALCON_INFORMATION_ARCHITECTURE_AND_UX_GUIDE.md` defines the page hierarchy
   and layout philosophy.
 - `docs/architecture/FALCON_PRODUCT_PRINCIPLES.md` defines the permanent product philosophy behind
@@ -19,6 +21,8 @@ Companion documents:
   microinteraction, and animation philosophy.
 - `docs/architecture/FALCON_DESIGN_SYSTEM.md` defines Falcon's visual language and reusable design
   categories.
+- `docs/architecture/FALCON_PORTAL_SHELL_UNIFICATION_AUDIT.md` audits Client Portal and Vendor
+  Workspace shell alignment against Falcon's internal premium shell.
 
 ## Inventory Maintenance Rules
 
@@ -29,6 +33,8 @@ Companion documents:
   collapsible sections, or microinteractions.
 - Consult the design system when a page introduces or changes visual hierarchy, card types, button
   hierarchy, badges, tables, drawers, modals, wizards, empty states, icons, or responsive behavior.
+- Consult the experience framework when a page affects shared loading, state feedback, page
+  transitions, shell behavior, portal unification, or future command-center expectations.
 - Keep implementation status factual and current.
 - Do not use this inventory to approve runtime, schema, permission, deployment, notification, or
   email changes by implication. Those changes still require their own design and governance work.
