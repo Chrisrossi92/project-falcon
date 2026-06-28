@@ -1,5 +1,6 @@
 // src/components/calendar/CalendarGrid.jsx
-import React, { useMemo } from "react";
+import { useMemo } from "react";
+import CalendarDayCapacity from "@/components/calendar/CalendarDayCapacity";
 import EventChip from "@/components/calendar/EventChip";
 
 function startOfMonth(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
@@ -98,6 +99,7 @@ export default function CalendarGrid({
               }
             >
               <div className="text-xs md:text-[13px] font-medium">{day.getDate()}</div>
+              <CalendarDayCapacity events={dayEvents} />
 
               <div className="mt-1 space-y-1">
                 {dayEvents.slice(0, 3).map((ev) => (

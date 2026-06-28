@@ -151,6 +151,7 @@ describe("TopNav desktop operational spine navigation", () => {
   });
 
   it("renders the current operations mode in the desktop shell context", () => {
+    shellProfileState.appContext = { company_name: "Continental Valuation" };
     const { container } = renderTopNav();
     const desktopContext = container.querySelector('aside [data-testid="operations-mode-switcher"]');
 
@@ -165,11 +166,11 @@ describe("TopNav desktop operational spine navigation", () => {
     expect(within(desktopContext).getByTestId("operations-mode-selected-label")).toHaveTextContent(
       "Continental Internal Operations",
     );
-    expect(container.querySelector('aside [data-testid="workspace-identity-badge"]')).toHaveTextContent(
-      "Internal",
+    expect(container.querySelector('aside [data-testid="company-identity-name"]')).toHaveTextContent(
+      "Continental Valuation",
     );
     expect(container.querySelector('aside [data-testid="workspace-identity-title"]')).toHaveTextContent(
-      "Continental Internal Operations",
+      "Internal",
     );
   });
 
@@ -256,11 +257,11 @@ describe("TopNav desktop operational spine navigation", () => {
     expect(within(desktopContext).getByTestId("operations-mode-selected-label")).toHaveTextContent(
       "Falcon AMC",
     );
-    expect(container.querySelector('aside [data-testid="workspace-identity-badge"]')).toHaveTextContent(
-      "AMC",
+    expect(container.querySelector('aside [data-testid="company-identity-name"]')).toHaveTextContent(
+      "Falcon",
     );
     expect(container.querySelector('aside [data-testid="workspace-identity-title"]')).toHaveTextContent(
-      "Falcon AMC Environment",
+      "AMC",
     );
     expect(window.localStorage.getItem(OPERATIONS_MODE_STORAGE_KEY)).toBe("amc_operations");
     expect(screen.getByTestId("current-path")).toHaveTextContent("/amc/dashboard");

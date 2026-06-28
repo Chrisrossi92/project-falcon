@@ -76,12 +76,12 @@ function renderCalendar({ context, rows = [] } = {}) {
     },
   });
 
-  render(
+  const rendered = render(
     <OperationsModeProvider>
       <CalendarPage />
     </OperationsModeProvider>,
   );
-  return query;
+  return Object.assign(query, rendered);
 }
 
 describe("CalendarPage workspace hierarchy", () => {
@@ -97,7 +97,7 @@ describe("CalendarPage workspace hierarchy", () => {
   });
 
   it("renders the standalone scheduling workspace hierarchy without changing the calendar surface", async () => {
-    renderCalendar({
+    const { container } = renderCalendar({
       rows: [
         {
           id: "order-1",
@@ -110,6 +110,7 @@ describe("CalendarPage workspace hierarchy", () => {
     });
 
     expect(screen.getByRole("heading", { name: "Internal Production Calendar" })).toBeInTheDocument();
+    expect(container.firstChild).toHaveAttribute("data-motion-reduced", "false");
     expect(screen.getByText("Review Workflow")).toBeInTheDocument();
     expect(screen.getByLabelText("Calendar workspace context")).toBeInTheDocument();
     expect(screen.getByText("Falcon Appraisals")).toBeInTheDocument();

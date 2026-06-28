@@ -126,4 +126,16 @@ describe("ordersColumns table hierarchy", () => {
     renderColumnCell("fee", order);
     expect(screen.getByText("$1,450").className).toContain("text-slate-600");
   });
+
+  it("corrects the legacy Oofice property-type typo in visible chips", () => {
+    renderColumnCell("propertySummary", {
+      id: "order-1",
+      address_line1: "123 Main Street",
+      property_type: "Oofice",
+      report_type: "Narrative",
+    });
+
+    expect(screen.getByText("Office")).toBeInTheDocument();
+    expect(screen.queryByText("Oofice")).not.toBeInTheDocument();
+  });
 });

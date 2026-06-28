@@ -319,9 +319,9 @@ describe("DashboardPage operational polish", () => {
     renderDashboard(operationsShell, { operationsMode: OPERATIONS_MODES.INTERNAL_OPERATIONS });
 
     expect(screen.getByText("Operations Command")).toBeInTheDocument();
-    expect(screen.getByText("Appraisal Production Dashboard")).toBeInTheDocument();
+    expect(screen.getByText("Production Dashboard")).toBeInTheDocument();
     expect(
-      screen.getByText("Track active work, review handoffs, due pressure, and workflow coordination."),
+      screen.getByText("Active work, review handoffs, and due pressure."),
     ).toBeInTheDocument();
     expect(screen.getByText("Company")).toBeInTheDocument();
     expect(screen.getByText("Falcon Appraisals")).toBeInTheDocument();
@@ -338,7 +338,7 @@ describe("DashboardPage operational polish", () => {
     );
 
     const calendarHeading = screen.getByText("Calendar");
-    const ordersHeading = screen.getByText("Active Worklist");
+    const ordersHeading = screen.getByText("Active Orders");
     const statusHeading = screen.getByText("Status");
 
     expect(statusHeading).toBeInTheDocument();
@@ -378,9 +378,13 @@ describe("DashboardPage operational polish", () => {
     expect(tableMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
         rowsOverride: summaryState.current.ordersRows,
+        rowClassNameForOrder: expect.any(Function),
         scope: "orders",
       }),
     );
+    expect(tableMock.mock.lastCall[0].rowClassNameForOrder({}, 0)).toContain("bg-white");
+    expect(tableMock.mock.lastCall[0].rowClassNameForOrder({}, 1)).toContain("bg-slate-50/35");
+    expect(tableMock.mock.lastCall[0].rowClassNameForOrder({}, 1)).toContain("border-slate-200/80");
   });
 
   it("uses the shared skeleton for the dashboard count loading state", () => {
@@ -519,18 +523,18 @@ describe("DashboardPage operational polish", () => {
     renderDashboard(operationsShell, { operationsMode: OPERATIONS_MODES.AMC_OPERATIONS });
 
     expect(
-      screen.getByRole("heading", { name: "Falcon AMC Dashboard", level: 1 }),
+      screen.getByRole("heading", { name: "AMC Dashboard", level: 1 }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Track procurement queues, vendor response, client orders, and SLA pressure.",
+        "Procurement queues, vendor responses, and SLA pressure.",
       ),
     ).toBeInTheDocument();
     expect(screen.getByTestId("workspace-identity-badge")).toHaveTextContent("AMC");
     expect(screen.getByText("Environment")).toBeInTheDocument();
     expect(screen.getByText("Falcon AMC")).toBeInTheDocument();
     expect(screen.getByText("Pipeline Orders")).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Appraisal Production Dashboard", level: 1 })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Production Dashboard", level: 1 })).toBeNull();
 
     const pipelineRegion = await screen.findByRole("region", { name: "AMC procurement pipeline" });
     expect(pipelineRegion).toBeInTheDocument();
@@ -549,9 +553,9 @@ describe("DashboardPage operational polish", () => {
       expect(screen.getAllByText(label).length).toBeGreaterThan(0);
     }
     expect(screen.getAllByText("AMC Attention Queue").length).toBeGreaterThan(0);
-    expect(screen.getByText("Procurement and execution work with an owner-side next action.")).toBeInTheDocument();
+    expect(screen.getByText("Owner-side procurement and execution actions.")).toBeInTheDocument();
     expect(screen.queryByRole("group", { name: /status filters/i })).not.toBeInTheDocument();
-    expect(screen.queryByText("Active Worklist")).not.toBeInTheDocument();
+    expect(screen.queryByText("Active Orders")).not.toBeInTheDocument();
     expect(screen.queryByText("Active orders")).not.toBeInTheDocument();
     expect(screen.queryByText("Order records in this view.")).not.toBeInTheDocument();
 
@@ -574,7 +578,7 @@ describe("DashboardPage operational polish", () => {
             expect.objectContaining({ id: "review" }),
           ],
           tableLabel: "AMC Attention Queue",
-          tableSummary: "Procurement and execution items needing owner/admin review.",
+          tableSummary: "Needs owner/admin review.",
           primaryActionLinkLabelForOrder: expect.any(Function),
           secondaryActionLinkLabel: "Open Order",
           orderDetailLinkHash: "#amc-procurement",
@@ -819,10 +823,10 @@ describe("DashboardPage operational polish", () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "My Work preview" })).not.toBeInTheDocument();
     expect(
-      screen.getByText("Calendar, active orders, and workflow handoffs for the current company."),
+      screen.getByText("Active orders, schedule pressure, and workflow handoffs."),
     ).toBeInTheDocument();
     expect(
-      screen.queryByText("Track active work, review handoffs, due pressure, and workflow coordination."),
+      screen.queryByText("Active work, review handoffs, and due pressure."),
     ).not.toBeInTheDocument();
   });
 
@@ -983,7 +987,7 @@ describe("DashboardPage operational polish", () => {
     expect(
       screen.getByRole("heading", { name: "Operations Dashboard", level: 1 }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Calendar context, assigned orders, and revision follow-up.")).toBeInTheDocument();
+    expect(screen.getByText("Assigned orders, schedule pressure, and revisions.")).toBeInTheDocument();
     expect(screen.getAllByText("Appraiser")).toHaveLength(2);
     expect(screen.getByText("My Assignments")).toBeInTheDocument();
     const myWorkPreview = screen.getByRole("region", { name: "My Work summary" });
@@ -1041,7 +1045,7 @@ describe("DashboardPage operational polish", () => {
       screen.getByRole("heading", { name: "Pam's Reviews", level: 1 }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Active review work, revision follow-up, and calendar context for your queue."),
+      screen.getByText("Review work, revisions, and schedule pressure."),
     ).toBeInTheDocument();
     expect(screen.getByText("Reviewer")).toBeInTheDocument();
     expect(screen.getByText("My Review Work")).toBeInTheDocument();
@@ -1278,7 +1282,7 @@ describe("DashboardPage operational polish", () => {
       screen.getByRole("heading", { name: "Operations Dashboard", level: 1 }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Calendar, active orders, and workflow handoffs for the current company."),
+      screen.getByText("Active orders, schedule pressure, and workflow handoffs."),
     ).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "My Work preview" })).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Review Queue preview" })).not.toBeInTheDocument();

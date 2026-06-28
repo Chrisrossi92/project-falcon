@@ -411,7 +411,168 @@ pattern.
 
 ## Implementation Roadmap
 
+## Calendar Slice Completion Notes
+
+### Premium Experience Sprint 5A: Calendar Slice 1 - Capacity Planner Foundation
+
+Status: Complete.
+
+Scope:
+
+- Wrapped the standalone Calendar page in `FalconPageMotion`.
+- Replaced the existing top-level loading and error presentation with Falcon shared state
+  primitives while preserving the existing active-order query, role scoping, operations-mode
+  scoping, event derivation, and calendar layout.
+- Added presentation-only day capacity classification in `src/lib/calendar/calendarCapacity.js`.
+- Added subtle day capacity labels and tracks to the month and two-week day cells while keeping
+  existing event chips, overflow counts, day selection, and order-opening behavior intact.
+
+Capacity classification rules:
+
+- Site visit / inspection events weigh `3`.
+- Review due events weigh `2`.
+- Client due / final due events weigh `2`.
+- Other events weigh `1`.
+- Score `0` maps to `Open Capacity`.
+- Scores `1-2` map to `Light`.
+- Scores `3-4` map to `Steady`.
+- Scores `5-7` map to `Heavy`.
+- Scores `8+` map to `Overloaded`.
+
+Implementation notes:
+
+- This is a presentation-only prototype for judging whether Calendar should evolve into a
+  capacity-planning surface.
+- No backend capacity logic, event date logic, event source, filter behavior, route, permission,
+  schema, RPC, or workflow behavior changed.
+- Existing events remain visible; the capacity cue supplements the schedule rather than replacing
+  it.
+- Empty visible day cells now have an intentional `Open Capacity` cue where the cell has no events.
+
+### Premium Experience Sprint 5B: Calendar Capacity Visual QA Attempt
+
+Status: Blocked by authentication.
+
+Goal:
+
+- Review the new capacity cues in real month and two-week Calendar views before expanding Calendar
+  polish.
+
+Browser availability:
+
+- Local Vite server started successfully at `http://127.0.0.1:5173/` after local network
+  permission was granted for the QA attempt.
+- The in-app browser opened `http://127.0.0.1:5173/calendar`.
+- Falcon rendered the unauthenticated sign-in screen:
+  - Page title: `Falcon - Continental Internal Operations`
+  - Visible state: `Sign in to Falcon`
+- No authenticated Calendar UI rendered in the in-app browser, so the capacity cues were not
+  visually reviewed.
+- During local server shutdown, Vite/Tailwind emitted the known ambiguity warning for
+  `ease-[${EASING}]`. This matches the shared QA guide's known blocker note and was not treated as
+  a Calendar visual pass or failure.
+
+Requested states not visually verified:
+
+- Month view with mostly empty days.
+- Month view with mixed light, steady, and heavy days.
+- Two-week view with mixed event density.
+- Day with inspections.
+- Day with review due dates.
+- Day with client due dates.
+- Empty / open-capacity days.
+- Narrow / tablet width.
+
+Fixes made:
+
+- None. Authentication blocked access to the Calendar UI, so no visual regression was confirmed and
+  no class-only cue adjustments were made.
+
+Capacity direction:
+
+- The capacity planner concept remains code/test reviewed but not visually approved.
+- Do not expand capacity treatment beyond the current month and two-week day-cell cue until an
+  authenticated browser pass confirms that `Open Capacity`, `Light`, `Steady`, `Heavy`, and
+  `Overloaded` improve scanability without making the calendar feel busy.
+- If authenticated QA shows clutter, the first follow-up should be class-only cue tuning: reduce
+  label contrast, reduce bar contrast, or hide the `Open Capacity` label in empty month cells.
+
+Recommended Slice 2 direction:
+
+- After authenticated capacity QA is completed, continue with the planned Navigation And Filter
+  Interaction Polish slice.
+- If capacity cue density fails browser QA, run a narrow Calendar Capacity Cue Tuning slice before
+  broader navigation/filter polish.
+
+## Dashboard Experience Notes
+
+### Premium Experience Sprint 4B: Dashboard Slice A - Workspace Identity
+
+Status: Complete.
+
+Scope:
+
+- Simplified the left shell workspace identity so the active company and workspace are the primary
+  read.
+- Added a reusable `CompanyIdentity` container for future white-label branding.
+- Prepared the identity mark to support uploaded company logos with contained, centered artwork for
+  square, horizontal, tall, or missing-logo cases.
+- Preserved the existing Internal / AMC operations selector and company/workspace switching
+  behavior.
+
+Implementation notes:
+
+- The visual identity now favors `Company Name` and `Workspace Name` instead of repeating
+  environment labels, badges, and shell descriptors in the same stack.
+- When no logo is available, the identity surface shows a polished company-initial placeholder.
+- Future company logo upload, storage, permissions, database fields, and branding RPCs remain
+  deferred and were not implemented in this slice.
+
+### Premium Experience Sprint 4C: Dashboard Slice B - Active Orders Surface Refinement
+
+Status: Complete.
+
+Scope:
+
+- Corrected the legacy `Oofice` property-type display typo to render as `Office` in visible
+  property summary chips.
+- Improved dashboard Active Orders row separation with a faint alternating row background and
+  clearer divider treatment.
+- Kept row density, table structure, actions, data, sorting, filtering, pagination, routes,
+  permissions, schemas, RPCs, and workflows unchanged.
+
+Implementation notes:
+
+- The row separation approach stays table-like and subtle rather than card-heavy.
+- Passive table cells remain passive; existing row and nested action interaction behavior is
+  preserved.
+- Conveyor, marquee, auto-scroll, or other animated table treatments are deferred and rejected for
+  this slice because they would reduce scanability and introduce motion that does not clarify state.
+
+### Premium Experience Sprint 4D: Dashboard Slice C - Header Copy Simplification
+
+Status: Complete.
+
+Scope:
+
+- Shortened dashboard titles and subtitles so the page reads with more confidence and less repeated
+  explanation.
+- Reduced helper copy around procurement, attention queues, and the default dashboard table while
+  preserving due-pressure and workflow-state context.
+- Kept dashboard data, actions, routes, permissions, schemas, RPCs, filters, and workflows
+  unchanged.
+
+Implementation notes:
+
+- Internal operations now uses `Production Dashboard` with a shorter due-pressure subtitle.
+- AMC operations now uses `AMC Dashboard` and shorter procurement queue language.
+- The dashboard Active Orders table no longer repeats generic table-summary copy.
+- Useful operational context remains where it clarifies due pressure, attention queues, or current
+  workflow state.
+
 ### Slice 1: State And Page Foundation
+
+Status: Complete in Premium Experience Sprint 5A.
 
 Goal: adopt shared page motion and state primitives without changing event logic.
 

@@ -151,6 +151,7 @@ export default function UnifiedOrdersTable({
   orderDetailLinkState = null,
   orderDetailPathForOrder = null,
   onOrderChanged,
+  rowClassNameForOrder = null,
 }) {
   const { user: sessionUser } = useSession() || {};
   const { toast } = useToast();
@@ -839,6 +840,10 @@ export default function UnifiedOrdersTable({
             displayData.map((o, idx) => {
               const rowKey = o.order_id || o.id || o.order_number || `row-${tableFilters?.page ?? 0}-${idx}`;
               const orderPk = orderPkOf(o);
+              const rowClassName =
+                typeof rowClassNameForOrder === "function"
+                  ? rowClassNameForOrder(o, idx)
+                  : rowClassNameForOrder;
               const procurementSummary =
                 isAmcOperationsTable && o?.operations_scope === OPERATIONS_MODES.AMC_OPERATIONS && orderPk
                   ? procurementSummariesByOrderId[orderPk]
@@ -857,7 +862,7 @@ export default function UnifiedOrdersTable({
                   order={o}
                   isOpen={expandedId === rowKey}
                   onToggle={() => setExpandedId((x) => (x === rowKey ? null : rowKey))}
-                  className="py-3 sm:py-3.5"
+                  className={`py-3 sm:py-3.5 ${rowClassName || ""}`}
                   renderCells={() => (
                     <div
                       className="items-start text-sm leading-5 text-slate-800"

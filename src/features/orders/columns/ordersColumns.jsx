@@ -46,6 +46,12 @@ const cityLine = (r) => {
   return (left + (z ? ` ${z}` : "")).trim();
 };
 
+const displayPropertyType = (value) => {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  return text.toLowerCase() === "oofice" ? "Office" : text;
+};
+
 const orderCell = (o) => (
   <div className="text-sm">
     <div className="font-semibold leading-tight text-slate-700">
@@ -82,7 +88,7 @@ const addressCell = (o) => (
 );
 
 const propertySummaryCell = (o) => {
-  const propertyType = o?.property_type || "Property type not set";
+  const propertyType = displayPropertyType(o?.property_type) || "Property type not set";
   const reportType = o?.report_type || "Report type not set";
   const location = cityLine(o);
 
@@ -111,7 +117,7 @@ const propertyReportColumnBase = {
   width: "200px",
   header: () => "Property / Report",
   cell: (order) => {
-    const propertyType = order?.property_type || "–";
+    const propertyType = displayPropertyType(order?.property_type) || "–";
     const reportType = order?.report_type || "–";
     return (
       <div className="flex flex-col">

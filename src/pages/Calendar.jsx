@@ -7,8 +7,9 @@ import CalendarGrid from "@/components/calendar/CalendarGrid";
 import CalendarDayDetailRail from "@/components/calendar/CalendarDayDetailRail";
 import { WorkspaceContextTile } from "@/components/workspace/WorkspaceContext";
 import { WorkspaceSection } from "@/components/workspace/WorkspaceSection";
-import { WorkspaceErrorState, WorkspaceLoadingState } from "@/components/workspace/WorkspaceState";
 import WorkspaceBadge from "@/components/workspace/WorkspaceBadge";
+import { FalconPageMotion } from "@/components/motion";
+import { FalconErrorState, FalconLoadingState, FalconSkeleton } from "@/components/state";
 import supabase from "@/lib/supabaseClient";
 import { useCurrentUserAppContext } from "@/features/auth/useCurrentUserAppContext";
 import { useOperationsMode } from "@/lib/operations/OperationsModeProvider";
@@ -243,7 +244,7 @@ export default function CalendarPage() {
   }, []);
 
   return (
-    <div className="space-y-4 p-4 lg:p-6">
+    <FalconPageMotion className="space-y-4 p-4 lg:p-6">
       <section
         className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm ring-1 ring-slate-100 lg:px-6"
         aria-labelledby="calendar-workspace-heading"
@@ -336,16 +337,23 @@ export default function CalendarPage() {
       </section>
 
       {loading && (
-        <WorkspaceLoadingState
-          message="Loading active schedule..."
+        <FalconLoadingState
+          title="Loading active schedule"
+          description="Loading active schedule..."
           className="rounded-xl"
-        />
+        >
+          <div className="grid gap-2 sm:grid-cols-3">
+            <FalconSkeleton height="2rem" />
+            <FalconSkeleton height="2rem" />
+            <FalconSkeleton height="2rem" />
+          </div>
+        </FalconLoadingState>
       )}
 
       {error && (
-        <WorkspaceErrorState
-          message={error}
-          tone="red"
+        <FalconErrorState
+          title="Calendar could not load."
+          description={error}
           className="rounded-xl"
         />
       )}
@@ -404,6 +412,6 @@ export default function CalendarPage() {
           onOpenOrder={openOrder}
         />
       </section>
-    </div>
+    </FalconPageMotion>
   );
 }

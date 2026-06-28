@@ -22,9 +22,9 @@ describe("workspaceIdentity", () => {
     expect(identity.documentTitle).toBe("Falcon - Continental Internal Operations");
     expect(identity.shellCueLabel).toBe("Operations Command");
     expect(identity.shellCueDescription).toBe("Internal appraisal operations");
-    expect(identity.dashboardTitle).toBe("Appraisal Production Dashboard");
+    expect(identity.dashboardTitle).toBe("Production Dashboard");
     expect(identity.dashboardSubtitle).toBe(
-      "Track active work, review handoffs, due pressure, and workflow coordination.",
+      "Active work, review handoffs, and due pressure.",
     );
     expect(identity.dashboardStatLabel).toBe("Environment");
     expect(identity.dashboardStatValue).toBe("Continental Internal Operations");
@@ -59,9 +59,9 @@ describe("workspaceIdentity", () => {
     expect(identity.documentTitle).toBe("Falcon - Falcon AMC");
     expect(identity.shellCueLabel).toBe("Procurement Command");
     expect(identity.shellCueDescription).toBe("Vendor procurement and AMC operations");
-    expect(identity.dashboardTitle).toBe("Falcon AMC Dashboard");
+    expect(identity.dashboardTitle).toBe("AMC Dashboard");
     expect(identity.dashboardSubtitle).toBe(
-      "Track procurement queues, vendor response, client orders, and SLA pressure.",
+      "Procurement queues, vendor responses, and SLA pressure.",
     );
     expect(identity.dashboardStatLabel).toBe("Environment");
     expect(identity.dashboardStatValue).toBe("Falcon AMC");

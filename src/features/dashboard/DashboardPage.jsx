@@ -88,7 +88,7 @@ function roleContextLabel({ isAdmin, isReviewer, role }) {
 }
 
 const REVIEWER_DASHBOARD_SUBTITLE =
-  "Active review work, revision follow-up, and calendar context for your queue.";
+  "Review work, revisions, and schedule pressure.";
 
 const REVIEWER_STATUS_FILTERS = Object.freeze([
   {
@@ -259,7 +259,7 @@ function AmcPipelineCommandStrip({ stages, selectedStageId, onSelectStage, onSho
             Procurement Pipeline
           </h2>
           <p className="mt-1 text-sm text-slate-600">
-            Work that needs bids, response decisions, offers, progress tracking, or report review.
+            Bids, offers, progress, and report review.
           </p>
         </div>
         <FalconInteractiveSurface
@@ -334,15 +334,15 @@ function resolveDashboardPresentation({
         "Operations Dashboard",
       subtitle:
         workspaceIdentity.dashboardSubtitle ||
-        "Track active work, review handoffs, due pressure, and workflow coordination.",
+        "Active work, review handoffs, and due pressure.",
     };
   }
 
   return {
     title: "Operations Dashboard",
     subtitle: isAdmin
-      ? "Calendar, active orders, and workflow handoffs for the current company."
-      : "Calendar context, assigned orders, and revision follow-up.",
+      ? "Active orders, schedule pressure, and workflow handoffs."
+      : "Assigned orders, schedule pressure, and revisions.",
   };
 }
 
@@ -470,7 +470,7 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
     [dashboardOrderPatches, ordersRows],
   );
   const dashboardTableTitle = isAdmin
-    ? "Active Worklist"
+    ? "Active Orders"
     : isReviewer
       ? activeReviewerWorkLens === "appraisal"
         ? "My Appraisal Work"
@@ -503,6 +503,14 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
     );
   }, [patchedOrdersRows, statusFilter]);
   const dashboardRowsOverride = ordersRowsError ? null : filteredOrdersRows;
+  const dashboardActiveOrderRowClassName = useCallback(
+    (_order, index) =>
+      [
+        "border-slate-200/80",
+        index % 2 === 0 ? "bg-white" : "bg-slate-50/35",
+      ].join(" "),
+    [],
+  );
   const amcDashboardOrderIds = useMemo(() => {
     if (!isAmcOperationsDashboard) return [];
     return [
@@ -678,7 +686,7 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
                 <p className="mt-1 text-sm text-slate-600">
                   {selectedAmcPipelineStage
                     ? `Showing: ${selectedAmcPipelineStage.label}`
-                    : "Procurement and execution work with an owner-side next action."}
+                    : "Owner-side procurement and execution actions."}
                 </p>
               </div>
               <div className="text-sm text-slate-500">
@@ -700,7 +708,7 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
               tableSummary={
                 selectedAmcPipelineStage
                   ? `Showing: ${selectedAmcPipelineStage.label}`
-                  : "Procurement and execution items needing owner/admin review."
+                  : "Needs owner/admin review."
               }
               emptyTitle={
                 selectedAmcPipelineStage
@@ -710,7 +718,7 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
               emptyDescription={
                 selectedAmcPipelineStage
                   ? "Use All attention to return to owner-side next actions."
-                  : "Orders waiting on vendor responses or already in progress stay out of this attention list."
+                  : "Waiting and in-progress orders stay out of this attention list."
               }
               primaryActionLinkLabelForOrder={amcAttentionActionLabelForOrder}
               secondaryActionLinkLabel="Open Order"
@@ -828,6 +836,8 @@ export default function DashboardPage({ shellProfilePresentation, operationsMode
               rowsOverride={dashboardRowsOverride}
               pageSize={10}
               scope="orders"
+              tableSummary=""
+              rowClassNameForOrder={dashboardActiveOrderRowClassName}
               onOrderDatesChanged={() => setDashboardRefreshKey((key) => key + 1)}
               onOrderChanged={handleDashboardOrderChanged}
             />

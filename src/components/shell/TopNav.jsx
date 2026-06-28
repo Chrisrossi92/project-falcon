@@ -6,7 +6,7 @@ import supabase from "@/lib/supabaseClient";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import CommandPalette from "@/components/nav/CommandPalette";
 import AvatarBadge from "@/components/ui/AvatarBadge";
-import WorkspaceBadge from "@/components/workspace/WorkspaceBadge";
+import CompanyIdentity from "@/components/workspace/CompanyIdentity";
 import { useEffectivePermissions } from "@/lib/hooks/usePermissions";
 import { getCurrentPrimaryNavLinks } from "@/lib/navigation/currentPrimaryNavLinks";
 import { getCurrentShellMobileNavigationLinks } from "@/lib/navigation/currentShellMobileNavigationLinks";
@@ -135,6 +135,15 @@ function workspaceContextLabel(appContext) {
   );
 }
 
+function workspaceLogoUrl(appContext) {
+  return identityValue(
+    appContext?.company_logo_url,
+    appContext?.companyLogoUrl,
+    appContext?.company_logo,
+    appContext?.logo_url,
+  );
+}
+
 function OperationalModeContext({ shellModeCue, appContext, workspaceIdentity, placement = "rail" }) {
   const navigate = useNavigate();
   const {
@@ -166,30 +175,21 @@ function OperationalModeContext({ shellModeCue, appContext, workspaceIdentity, p
       className={placementClass}
       aria-label="Operational mode"
     >
-      <div className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-        {contextLabel}
-      </div>
+      <CompanyIdentity
+        companyName={contextLabel}
+        workspaceName={workspaceIdentity.shortLabel || workspaceIdentity.label}
+        logoUrl={workspaceLogoUrl(appContext)}
+      />
       <div
-        className="mt-0.5 truncate text-sm font-semibold text-slate-100"
+        className="sr-only"
         data-testid="shell-work-mode"
         title={shellModeCue.context}
       >
         {shellModeCue.label}
       </div>
-      <div className="mt-2 flex items-center justify-between gap-2">
-        <WorkspaceBadge operationsMode={operationsMode} className="shrink-0" />
-        <span
-          className="min-w-0 truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500"
-          data-testid="workspace-identity-title"
-        >
-          {workspaceIdentity.environmentLabel}
-        </span>
-      </div>
       <div className="mt-3" aria-label="Operating environment" data-testid="operations-mode-switcher">
-        <div className="mb-1 flex items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-          <span className="truncate">Environment</span>
+        <div className="sr-only">
           <span
-            className="truncate text-slate-300"
             data-testid="operations-mode-selected-label"
           >
             {workspaceIdentity.label}

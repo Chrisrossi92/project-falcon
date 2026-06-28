@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import CalendarDayCapacity from "@/components/calendar/CalendarDayCapacity";
 import EventChip from "@/components/calendar/EventChip";
 
 function startOfWeek(d) { const x=new Date(d); const day=x.getDay(); x.setDate(x.getDate()-day); x.setHours(0,0,0,0); return x; }
@@ -45,7 +46,7 @@ export default function TwoWeekCalendar({
       catch { if (ok) setEvents([]); }
     })();
     return () => { ok = false; };
-  }, [range.start.getTime(), range.end.getTime(), getEvents]);
+  }, [range, getEvents]);
 
   // Bucket events by visible day
   const byDay = useMemo(() => {
@@ -127,6 +128,7 @@ export default function TwoWeekCalendar({
               className={`min-h-[140px] border border-slate-100 -m-[0.5px] p-1 transition md:p-2 ${onSelectDay ? "cursor-pointer hover:bg-slate-50" : ""} ${isToday ? "bg-amber-50/30 ring-1 ring-inset ring-amber-100" : ""} ${isSelected ? "relative z-[1] bg-blue-50/40 ring-1 ring-inset ring-blue-200" : ""}`}
             >
               <div className={`text-[11px] font-semibold md:text-xs ${isToday ? "text-amber-800" : "text-slate-600"}`}>{d.getDate()}</div>
+              <CalendarDayCapacity events={list} />
               <div className="mt-1 space-y-1">
                 {list.slice(0, 4).map(ev => (
                   <EventChip key={ev.id} event={ev} compact={compact} role={role} onClick={() => onEventClick?.(ev)} />
