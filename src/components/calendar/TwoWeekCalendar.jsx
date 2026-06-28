@@ -27,6 +27,8 @@ function capacityCellClasses(capacityId) {
 export default function TwoWeekCalendar({
   getEvents,                 // (start, end) => Promise<events[]>
   onEventClick,
+  anchor: controlledAnchor,
+  onAnchorChange,
   weeks = 2,
   showWeekdayHeader = true,
   showWeekends = true,
@@ -36,7 +38,12 @@ export default function TwoWeekCalendar({
   selectedDay,
   onSelectDay,
 }) {
-  const [anchor, setAnchor] = useState(() => startOfWeek(new Date()));
+  const [internalAnchor, setInternalAnchor] = useState(() => startOfWeek(new Date()));
+  const anchor = controlledAnchor || internalAnchor;
+  const setAnchor = (nextAnchor) => {
+    if (onAnchorChange) onAnchorChange(nextAnchor);
+    else setInternalAnchor(nextAnchor);
+  };
   const daysPerRow = showWeekends ? 7 : 5;
 
   // Visible day sequence
@@ -163,7 +170,7 @@ export default function TwoWeekCalendar({
       )}
 
       {/* Grid */}
-      <div className={"grid overflow-hidden rounded-lg border border-slate-200 bg-white " + (showWeekends ? "grid-cols-7" : "grid-cols-5")}>
+      <div className={"grid rounded-lg border border-slate-200 bg-white " + (showWeekends ? "grid-cols-7" : "grid-cols-5")}>
         {days.map((d, i) => {
           const list = (byDay.get(d.toDateString()) || []).sort((a,b)=>new Date(a.start)-new Date(b.start));
           const isToday = sameDate(d, new Date());
@@ -183,7 +190,7 @@ export default function TwoWeekCalendar({
                   onSelectDay(new Date(d));
                 }
               }}
-              className={`relative min-h-[140px] border border-slate-100 -m-[0.5px] overflow-hidden p-1 transition before:absolute before:inset-x-0 before:top-0 before:h-1 before:content-[''] md:p-2 ${capacityCellClasses(capacity.id)} ${onSelectDay ? "cursor-pointer hover:bg-slate-50" : ""} ${isToday ? "bg-amber-50/30 ring-1 ring-inset ring-amber-100" : ""} ${isSelected ? "relative z-[1] bg-blue-50/40 ring-1 ring-inset ring-blue-200" : ""}`}
+              className={`relative min-h-[140px] border border-slate-100 -m-[0.5px] p-1 transition before:absolute before:inset-x-0 before:top-0 before:h-1 before:content-[''] hover:z-20 focus-within:z-20 md:p-2 ${capacityCellClasses(capacity.id)} ${onSelectDay ? "cursor-pointer hover:bg-slate-50" : ""} ${isToday ? "bg-amber-50/30 ring-1 ring-inset ring-amber-100" : ""} ${isSelected ? "relative z-[1] bg-blue-50/40 ring-1 ring-inset ring-blue-200" : ""}`}
             >
               <div className={`text-[11px] font-semibold md:text-xs ${isToday ? "text-amber-800" : "text-slate-600"}`}>{d.getDate()}</div>
               <CalendarDayCapacity events={list} />

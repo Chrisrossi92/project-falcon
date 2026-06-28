@@ -53,8 +53,19 @@ vi.mock("@/components/calendar/CalendarDayDetailRail", () => ({
 function createQuery(data = []) {
   const query = {
     select: vi.fn(() => query),
+    or: vi.fn(() => query),
     eq: vi.fn(() => query),
     then: (resolve, reject) => Promise.resolve({ data, error: null }).then(resolve, reject),
+  };
+  return query;
+}
+
+function createErrorQuery(error) {
+  const query = {
+    select: vi.fn(() => query),
+    or: vi.fn(() => query),
+    eq: vi.fn(() => query),
+    then: (resolve, reject) => Promise.resolve({ data: null, error }).then(resolve, reject),
   };
   return query;
 }
@@ -154,9 +165,43 @@ describe("CalendarPage workspace hierarchy", () => {
 
     expect(query.select).toHaveBeenCalledTimes(1);
     expect(query.select.mock.calls[0][0]).toContain("operations_scope");
+    expect(query.or).toHaveBeenCalledTimes(1);
+    expect(query.or.mock.calls[0][0]).toContain("site_visit_at.gte");
+    expect(query.or.mock.calls[0][0]).toContain("review_due_at.gte");
+    expect(query.or.mock.calls[0][0]).toContain("final_due_at.gte");
+    expect(query.or.mock.calls[0][0]).toContain("due_date.gte");
     expect(query.eq).toHaveBeenCalledWith("operations_scope", "internal_operations");
     expect(query.eq).toHaveBeenCalledWith("reviewer_id", "reviewer-1");
     expect(query.eq).toHaveBeenCalledWith("status", "in_review");
     expect(screen.getByText("Review schedule")).toBeInTheDocument();
+  });
+
+  it("shows a graceful calendar timeout message", async () => {
+    const query = createErrorQuery({
+      code: "57014",
+      message: "canceling statement due to statement timeout",
+    });
+    supabaseMock.from.mockReturnValue(query);
+    appContextMock.mockReturnValue({
+      loading: false,
+      context: {
+        user_id: "owner-1",
+        company_name: "Falcon Appraisals",
+        is_owner: true,
+        is_admin_role: true,
+        is_reviewer_role: false,
+        is_appraiser_role: false,
+        primary_role_key: "owner",
+        role_keys: ["owner"],
+      },
+    });
+
+    render(
+      <OperationsModeProvider>
+        <CalendarPage />
+      </OperationsModeProvider>,
+    );
+
+    expect(await screen.findByText("Calendar data took too long to load. Refresh or narrow the view and try again.")).toBeInTheDocument();
   });
 });

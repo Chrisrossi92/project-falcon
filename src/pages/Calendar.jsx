@@ -29,6 +29,68 @@ function sameId(a, b) {
   return String(a) === String(b);
 }
 
+function startOfWeek(date) {
+  const value = new Date(date);
+  const day = value.getDay();
+  value.setDate(value.getDate() - day);
+  value.setHours(0, 0, 0, 0);
+  return value;
+}
+
+function addDays(date, days) {
+  const value = new Date(date);
+  value.setDate(value.getDate() + days);
+  return value;
+}
+
+function startOfMonth(date) {
+  const value = new Date(date.getFullYear(), date.getMonth(), 1);
+  value.setHours(0, 0, 0, 0);
+  return value;
+}
+
+function endOfMonth(date) {
+  const value = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
+  return value;
+}
+
+function startOfDay(date) {
+  const value = new Date(date);
+  value.setHours(0, 0, 0, 0);
+  return value;
+}
+
+function endOfDay(date) {
+  const value = new Date(date);
+  value.setHours(23, 59, 59, 999);
+  return value;
+}
+
+function dateOnly(value) {
+  return value.toISOString().slice(0, 10);
+}
+
+function buildCalendarDatePredicate(start, end) {
+  const startIso = start.toISOString();
+  const endIso = end.toISOString();
+  const startDate = dateOnly(start);
+  const endDate = dateOnly(end);
+
+  return [
+    `and(site_visit_at.gte.${startIso},site_visit_at.lte.${endIso})`,
+    `and(review_due_at.gte.${startIso},review_due_at.lte.${endIso})`,
+    `and(final_due_at.gte.${startIso},final_due_at.lte.${endIso})`,
+    `and(due_date.gte.${startDate},due_date.lte.${endDate})`,
+  ].join(",");
+}
+
+function calendarLoadErrorMessage(error) {
+  if (error?.code === "57014" || /statement timeout/i.test(error?.message || "")) {
+    return "Calendar data took too long to load. Refresh or narrow the view and try again.";
+  }
+  return error?.message || "Failed to load calendar";
+}
+
 const LENS_LABELS = {
   all: "All schedule",
   mine: "My work",
@@ -76,6 +138,7 @@ export default function CalendarPage() {
   const [lens, setLens] = useState("all");
 
   const [anchor, setAnchor] = useState(new Date());
+  const [twoWeekAnchor, setTwoWeekAnchor] = useState(() => startOfWeek(new Date()));
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -98,6 +161,28 @@ export default function CalendarPage() {
     : appContext?.is_appraiser_role
     ? "appraiser"
     : String(appContext?.primary_role_key || appContext?.role_keys?.[0] || "appraiser").toLowerCase();
+
+  const calendarQueryRange = useMemo(() => {
+    let start;
+    let end;
+
+    if (view === "month") {
+      start = addDays(startOfMonth(anchor), -7);
+      end = endOfDay(addDays(endOfMonth(anchor), 7));
+    } else {
+      start = startOfDay(twoWeekAnchor);
+      end = endOfDay(addDays(twoWeekAnchor, Math.max(1, weeks || 2) * 7 - 1));
+    }
+
+    if (selectedDay) {
+      const selectedStart = startOfDay(selectedDay);
+      const selectedEnd = endOfDay(selectedDay);
+      if (selectedStart < start) start = selectedStart;
+      if (selectedEnd > end) end = selectedEnd;
+    }
+
+    return { start, end };
+  }, [anchor, selectedDay, twoWeekAnchor, view, weeks]);
 
   useEffect(() => {
     if (appContextLoading) return;
@@ -132,7 +217,8 @@ export default function CalendarPage() {
               "final_due_at",
               "due_date",
             ].join(", ")
-          );
+          )
+          .or(buildCalendarDatePredicate(calendarQueryRange.start, calendarQueryRange.end));
 
         if (operationsScope) {
           q = q.eq("operations_scope", operationsScope);
@@ -159,7 +245,7 @@ export default function CalendarPage() {
 
         if (ok) setOrders(rows);
       } catch (e) {
-        if (ok) setError(e?.message || "Failed to load calendar");
+        if (ok) setError(calendarLoadErrorMessage(e));
       } finally {
         if (ok) setLoading(false);
       }
@@ -167,7 +253,7 @@ export default function CalendarPage() {
     return () => {
       ok = false;
     };
-  }, [appContextLoading, isAdmin, isReviewer, operationsScope, userId]);
+  }, [appContextLoading, calendarQueryRange.end, calendarQueryRange.start, isAdmin, isReviewer, operationsScope, userId]);
 
   const deriveEvents = useCallback(
     (start, end) => {
@@ -393,6 +479,8 @@ export default function CalendarPage() {
               ) : (
                 <TwoWeekCalendar
                   getEvents={async (start, end) => applyCalendarFocus(deriveEvents(start, end))}
+                  anchor={twoWeekAnchor}
+                  onAnchorChange={setTwoWeekAnchor}
                   weeks={weeks}
                   showWeekends={showWeekends}
                   showWeekdayHeader

@@ -129,7 +129,7 @@ export default function CalendarGrid({
       </div>
 
       {/* 6x7 grid */}
-      <div className={`grid grid-rows-6 border rounded overflow-hidden bg-white ${showWeekends ? "grid-cols-7" : "grid-cols-5"}`}>
+      <div className={`grid grid-rows-6 rounded border bg-white ${showWeekends ? "grid-cols-7" : "grid-cols-5"}`}>
         {month.cells.map((day, idx) => {
           const isOtherMonth = day.getMonth() !== anchor.getMonth();
           const isSelected = selectedDay &&
@@ -154,7 +154,7 @@ export default function CalendarGrid({
                 }
               }}
               className={
-                "relative min-h-[110px] border -m-[0.5px] overflow-hidden p-1 transition before:absolute before:inset-x-0 before:top-0 before:h-1 before:content-[''] md:p-2 " +
+                "relative min-h-[110px] border -m-[0.5px] p-1 transition before:absolute before:inset-x-0 before:top-0 before:h-1 before:content-[''] hover:z-20 focus-within:z-20 md:p-2 " +
                 capacityCellClasses(capacity.id) + " " +
                 (onSelectDay ? "cursor-pointer hover:bg-slate-50 " : "") +
                 (isSelected ? "relative z-[1] bg-blue-50/40 ring-1 ring-inset ring-blue-200 " : "") +

@@ -137,7 +137,7 @@ export default function EventChip({ event, compact = true, role = "appraiser", o
   ].filter(Boolean).join(" · ") || text;
 
   return (
-    <span className="group relative block max-w-full">
+    <span className="group relative z-10 block max-w-full hover:z-[80] focus-within:z-[80]">
       <button
         type="button"
         className={`flex max-w-full min-w-0 items-center overflow-hidden rounded-md border text-left shadow-[0_1px_0_rgba(15,23,42,0.03)] transition ${chipClasses(type)} ${
@@ -166,7 +166,7 @@ export default function EventChip({ event, compact = true, role = "appraiser", o
       </button>
       <span
         aria-hidden="true"
-        className={`pointer-events-none absolute bottom-[calc(100%+6px)] left-0 z-50 hidden max-w-[18rem] items-center rounded-lg border px-2.5 py-1.5 text-left shadow-[0_14px_32px_rgba(15,23,42,0.18)] opacity-0 ring-1 ring-white/90 transition duration-150 group-hover:flex group-hover:-translate-y-0.5 group-hover:opacity-100 group-focus-within:flex group-focus-within:-translate-y-0.5 group-focus-within:opacity-100 ${chipClasses(type)} ${
+        className={`pointer-events-none absolute bottom-[calc(100%+6px)] left-0 z-[90] hidden max-w-[18rem] items-center rounded-lg border px-2.5 py-1.5 text-left shadow-[0_14px_32px_rgba(15,23,42,0.18)] opacity-0 ring-1 ring-white/90 transition duration-150 group-hover:flex group-hover:-translate-y-0.5 group-hover:opacity-100 group-focus-within:flex group-focus-within:-translate-y-0.5 group-focus-within:opacity-100 ${chipClasses(type)} ${
           compact ? "gap-1.5 text-[11px] leading-4" : "gap-2 text-xs leading-5"
         }`}
       >
