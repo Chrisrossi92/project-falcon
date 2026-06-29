@@ -1249,16 +1249,20 @@ describe("Vendor Workspace hidden shell", () => {
     expect(await screen.findByRole("heading", { name: "Next actions" })).toBeInTheDocument();
     expect(apiMock.fetchVendorWorkspaceDashboardSummary).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("region", { name: "Vendor workspace overview" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Vendor dashboard counts" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Primary Work" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Your Pipeline" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Scheduling Awareness" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Calendar" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Business Management" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Business management cards" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Recent Uploads" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "My Next Actions" })).toBeInTheDocument();
-    expect(screen.getAllByText("Available Work / Bids").length).toBeGreaterThan(0);
-    expect(screen.getByText("Submitted Bids")).toBeInTheDocument();
-    expect(screen.getByText("Assignment Offers")).toBeInTheDocument();
+    expect(screen.getByText("Offers")).toBeInTheDocument();
+    expect(screen.getByText("Available")).toBeInTheDocument();
+    expect(screen.getByText("Submitted")).toBeInTheDocument();
     expect(screen.getAllByText("Assignments").length).toBeGreaterThan(0);
-    expect(screen.getByText("Submitted / Awaiting Review")).toBeInTheDocument();
-    expect(screen.getByText("Needs Attention")).toBeInTheDocument();
+    expect(screen.getByText("Due / Revisions")).toBeInTheDocument();
+    expect(screen.getByText("Submitted Reports")).toBeInTheDocument();
     expect(container.querySelector('[data-testid="operations-mode-switcher"]')).toBeNull();
     expect(screen.queryByText("Operations Command")).toBeNull();
     expect(screen.getByRole("navigation", { name: "Vendor workspace sections" })).toBeInTheDocument();
@@ -1289,11 +1293,11 @@ describe("Vendor Workspace hidden shell", () => {
       "href",
       "/vendor-workspace/profile",
     );
-    expect(screen.getAllByRole("link", { name: "Available Work / Bids 5 Open opportunities and bids under coordinator review." })[0]).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Available Open 3 Open opportunities awaiting a vendor response." })).toHaveAttribute(
       "href",
       "/vendor-workspace/available-work",
     );
-    expect(screen.getByRole("link", { name: "Submitted Bids Submitted bids still under review. Open 2" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Submitted Open 2 Submitted bids still under review." })).toHaveAttribute(
       "href",
       "/vendor-workspace/my-bids",
     );
@@ -1329,11 +1333,12 @@ describe("Vendor Workspace hidden shell", () => {
       expect(screen.getAllByText(count).length).toBeGreaterThan(0);
     });
     expect(screen.getByText("AMC-DEMO-003")).toBeInTheDocument();
-    expect(screen.getByText("123 Market Street, Columbus, OH, 43215")).toBeInTheDocument();
+    expect(screen.getAllByText("123 Market Street, Columbus, OH, 43215").length).toBeGreaterThan(0);
     expect(screen.getByText("Commercial Appraisal")).toBeInTheDocument();
     expect(screen.getByText("Office")).toBeInTheDocument();
     expect(screen.getByText("Continental AMC")).toBeInTheDocument();
-    expect(screen.getByText("Due soon")).toBeInTheDocument();
+    expect(screen.getAllByText("Due soon").length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: "Upcoming Schedule" })).toBeInTheDocument();
 
     [
       "order-id-1",

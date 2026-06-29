@@ -10,23 +10,23 @@ import {
 import { PortalPageShell } from "@/components/portal";
 import { fetchVendorWorkspaceDashboardSummary } from "@/features/vendorWorkspace/api.js";
 
-const dashboardCards = Object.freeze([
+const pipelineStages = Object.freeze([
+  {
+    key: "assignment_offers",
+    label: "Offers",
+    helper: "Awards waiting for acceptance or decline.",
+  },
   {
     key: "available_work",
-    label: "Available Work / Bids",
+    label: "Available",
     helper: "Open opportunities awaiting a vendor response.",
     path: "/vendor-workspace/available-work",
   },
   {
     key: "pending_bids",
-    label: "Submitted Bids",
+    label: "Submitted",
     helper: "Submitted bids still under review.",
     path: "/vendor-workspace/my-bids",
-  },
-  {
-    key: "assignment_offers",
-    label: "Assignment Offers",
-    helper: "Awards waiting for acceptance or decline.",
   },
   {
     key: "active_assigned_orders",
@@ -35,16 +35,25 @@ const dashboardCards = Object.freeze([
     path: "/vendor-workspace/assigned-orders",
   },
   {
+    key: "needs_attention",
+    label: "Due / Revisions",
+    helper: "Due soon, overdue, or waiting on vendor action.",
+  },
+  {
     key: "submitted_awaiting_review",
-    label: "Submitted / Awaiting Review",
+    label: "Submitted Reports",
     helper: "Reports submitted to the coordinator.",
     path: "/vendor-workspace/assigned-orders",
   },
-  {
-    key: "needs_attention",
-    label: "Needs Attention",
-    helper: "Due soon, overdue, or waiting on vendor action.",
-  },
+]);
+
+const loadingCards = Object.freeze([
+  "available_work",
+  "active_assigned_orders",
+  "assignment_offers",
+  "needs_attention",
+  "pending_bids",
+  "submitted_awaiting_review",
 ]);
 
 const priorityLabels = Object.freeze({
@@ -77,6 +86,38 @@ function formatDueDate(value) {
   }).format(date);
 }
 
+function formatAgendaDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Scheduled";
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const target = new Date(date);
+  target.setHours(0, 0, 0, 0);
+
+  const dayDelta = Math.round((target.getTime() - today.getTime()) / 86_400_000);
+
+  if (dayDelta === 0) return "Today";
+  if (dayDelta === 1) return "Tomorrow";
+
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  }).format(date);
+}
+
+function formatAgendaTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+}
+
 function getOrderLine(order = {}) {
   return [
     order.property_address,
@@ -86,11 +127,24 @@ function getOrderLine(order = {}) {
   ].filter(Boolean).join(", ");
 }
 
+function getAgendaItems(actions) {
+  return actions
+    .filter((action) => action?.due_at)
+    .map((action, index) => ({
+      action,
+      date: new Date(action.due_at),
+      key: `${action?.kind || "schedule"}-${action?.label || "item"}-${action.due_at}-${index}`,
+    }))
+    .filter((item) => !Number.isNaN(item.date.getTime()))
+    .sort((left, right) => left.date.getTime() - right.date.getTime())
+    .slice(0, 5);
+}
+
 function LoadingState() {
   return (
     <WorkspaceSummaryCards label="Loading Vendor Workspace dashboard" columns="xl:grid-cols-3">
-      {dashboardCards.map((card) => (
-        <article key={card.key} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      {loadingCards.map((cardKey) => (
+        <article key={cardKey} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div className="h-3 w-28 rounded bg-slate-200" />
           <div className="mt-4 h-8 w-16 rounded bg-slate-200" />
           <div className="mt-4 h-3 w-full rounded bg-slate-100" />
@@ -161,28 +215,26 @@ function ActionCard({ action }) {
   );
 }
 
-function DashboardCard({ card, count }) {
+function PipelineStage({ stage, count }) {
   const content = (
     <>
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className="text-sm font-semibold text-slate-950">{card.label}</h2>
-          <p className="mt-2 text-xs leading-5 text-slate-500">{card.helper}</p>
-        </div>
-        <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-500">
-          {card.path ? "Open" : "Read-only"}
+        <h3 className="text-sm font-semibold text-slate-950">{stage.label}</h3>
+        <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+          {stage.path ? "Open" : "Status"}
         </span>
       </div>
-      <div className="mt-5 text-3xl font-semibold text-slate-950">
+      <div className="mt-4 text-3xl font-semibold text-slate-950">
         {formatCount(count)}
       </div>
+      <p className="mt-2 text-xs leading-5 text-slate-500">{stage.helper}</p>
     </>
   );
 
-  if (card.path) {
+  if (stage.path) {
     return (
       <Link
-        to={card.path}
+        to={stage.path}
         className="block rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
       >
         {content}
@@ -194,6 +246,35 @@ function DashboardCard({ card, count }) {
     <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
       {content}
     </article>
+  );
+}
+
+function PipelineOverview({ counts }) {
+  return (
+    <section
+      className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+      aria-labelledby="vendor-pipeline-heading"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 id="vendor-pipeline-heading" className="text-base font-semibold text-slate-950">
+            Your Pipeline
+          </h2>
+          <p className="mt-1 text-sm leading-6 text-slate-600">
+            A compact view of where vendor work currently sits.
+          </p>
+        </div>
+        <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-500">
+          Live summary
+        </span>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {pipelineStages.map((stage) => (
+          <PipelineStage key={stage.key} stage={stage} count={counts[stage.key]} />
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -209,32 +290,53 @@ function WorkspaceTile({ label, value, helper, path }) {
 }
 
 function CalendarPreview({ actions }) {
-  const datedActions = actions
-    .filter((action) => action?.due_at)
-    .slice(0, 3);
+  const agendaItems = getAgendaItems(actions);
 
   return (
     <WorkspaceSection
-      title="Calendar"
-      subtitle="Upcoming due dates from assigned work and active responses."
+      title="Upcoming Schedule"
+      subtitle="A compact agenda for appointments, due dates, and assignment milestones already visible to this workspace."
       label="Calendar"
-      className="p-5"
+      className="p-4"
       action={(
         <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-500">
-          Read-only
+          Agenda
         </span>
       )}
     >
-      <div className="mt-4 grid gap-2">
-        {datedActions.length ? (
-          datedActions.map((action, index) => (
-            <div key={`${action?.label || "calendar"}-${action.due_at}-${index}`} className="rounded-md border border-slate-200 bg-slate-50 p-3">
-              <div className="text-sm font-semibold text-slate-950">{action?.label || "Vendor task"}</div>
-              <div className="mt-1 text-xs text-slate-500">{formatDueDate(action.due_at)}</div>
-            </div>
-          ))
+      <div className="mt-4">
+        {agendaItems.length ? (
+          <ol className="divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white">
+            {agendaItems.map(({ action, key }) => {
+              const order = action?.order || {};
+              const orderLine = getOrderLine(order);
+              return (
+                <li key={key} className="grid gap-3 p-3 sm:grid-cols-[7rem_minmax(0,1fr)]">
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                      {formatAgendaDate(action.due_at)}
+                    </div>
+                    <div className="mt-1 text-sm font-semibold text-slate-950">
+                      {formatAgendaTime(action.due_at)}
+                    </div>
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-slate-950">
+                      {action?.label || "Vendor task"}
+                    </div>
+                    <div className="mt-1 truncate text-xs text-slate-600">
+                      {orderLine || order.order_number || "Assignment details pending"}
+                    </div>
+                    <div className="mt-1 text-xs text-slate-500">
+                      {action?.priority ? priorityLabels[action.priority] || action.priority : "Scheduled"}
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
         ) : (
-          <WorkspaceEmptyState>No upcoming vendor calendar items are available.</WorkspaceEmptyState>
+          <WorkspaceEmptyState>No upcoming appointments or due dates.</WorkspaceEmptyState>
         )}
       </div>
     </WorkspaceSection>
@@ -288,9 +390,6 @@ export default function VendorWorkspaceDashboard() {
 
   const counts = summary?.counts || {};
   const actions = Array.isArray(summary?.actions) ? summary.actions : [];
-  const assignmentsCount = Number(counts.active_assigned_orders || 0);
-  const availableAndBidsCount =
-    Number(counts.available_work || 0) + Number(counts.pending_bids || 0);
 
   return (
     <PortalPageShell
@@ -304,74 +403,81 @@ export default function VendorWorkspaceDashboard() {
         <ErrorState onRetry={() => setReloadKey((key) => key + 1)} />
       ) : (
         <>
-          <WorkspaceSummaryCards label="Vendor workspace overview" columns="xl:grid-cols-3">
-            <WorkspaceTile
-              label="Assignments"
-              value={formatCount(assignmentsCount)}
-              helper="Accepted, in-progress, revision, and submitted work."
-              path="/vendor-workspace/assigned-orders"
-            />
-            <WorkspaceTile
-              label="Calendar"
-              value={formatCount(actions.filter((action) => action?.due_at).length)}
-              helper="Upcoming due dates from current vendor work."
-            />
-            <WorkspaceTile
-              label="Recent Uploads"
-              value="View"
-              helper="Report and invoice files remain scoped to assignment/payment pages."
-            />
-            <WorkspaceTile
-              label="Coverage"
-              value="Profile"
-              helper="Review coverage, products, contacts, and profile update requests."
-              path="/vendor-workspace/profile"
-            />
-            <WorkspaceTile
-              label="Payments"
-              value={formatCount(counts.payments || 0)}
-              helper="Track invoice and payment states for eligible work."
-              path="/vendor-workspace/payments"
-            />
-            <WorkspaceTile
-              label="Available Work / Bids"
-              value={formatCount(availableAndBidsCount)}
-              helper="Open opportunities and bids under coordinator review."
-              path="/vendor-workspace/available-work"
-            />
-          </WorkspaceSummaryCards>
+          <WorkspaceSection
+            title="Primary Work"
+            subtitle="Pipeline position and next actions shape today's queue."
+            label="Vendor workspace overview"
+            className="p-5"
+          >
+            <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(22rem,0.8fr)]">
+              <PipelineOverview counts={counts} />
 
-          <WorkspaceSummaryCards label="Vendor dashboard counts" columns="xl:grid-cols-3">
-            {dashboardCards.map((card) => (
-              <DashboardCard key={card.key} card={card} count={counts[card.key]} />
-            ))}
-          </WorkspaceSummaryCards>
-
-          <div className="grid gap-3 xl:grid-cols-2">
-            <CalendarPreview actions={actions} />
-            <RecentUploadsPreview />
-          </div>
+              <WorkspaceSection
+                title="Next actions"
+                subtitle="Read-only summary of items that may need attention."
+                label="My Next Actions"
+                className="space-y-3 bg-slate-50/80"
+              >
+                {actions.length > 0 ? (
+                  <div className="grid gap-3">
+                    {actions.map((action, index) => (
+                      <ActionCard
+                        key={`${action?.kind || "action"}-${action?.label || "item"}-${action?.due_at || index}`}
+                        action={action}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <WorkspaceEmptyState className="rounded-lg bg-white p-5 text-slate-600 shadow-sm">
+                    No vendor action items need attention right now.
+                  </WorkspaceEmptyState>
+                )}
+              </WorkspaceSection>
+            </div>
+          </WorkspaceSection>
 
           <WorkspaceSection
-            title="Next actions"
-            subtitle="Read-only summary of items that may need attention."
-            label="My Next Actions"
-            className="space-y-3"
+            title="Scheduling Awareness"
+            subtitle="Compact schedule space for upcoming appointments and due dates."
+            label="Scheduling Awareness"
+            className="p-5"
           >
-            {actions.length > 0 ? (
-              <div className="grid gap-3 xl:grid-cols-2">
-                {actions.map((action, index) => (
-                  <ActionCard
-                    key={`${action?.kind || "action"}-${action?.label || "item"}-${action?.due_at || index}`}
-                    action={action}
-                  />
-                ))}
+            <div className="mt-4">
+              <CalendarPreview actions={actions} />
+            </div>
+          </WorkspaceSection>
+
+          <WorkspaceSection
+            title="Business Management"
+            subtitle="Administrative tools stay available without competing with today's work queue."
+            label="Business Management"
+            className="p-5"
+          >
+            <div className="mt-4 grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+              <WorkspaceSummaryCards label="Business management cards" columns="xl:grid-cols-2">
+                <WorkspaceTile
+                  label="Payments"
+                  value={formatCount(counts.payments || 0)}
+                  helper="Track invoice and payment states for eligible work."
+                  path="/vendor-workspace/payments"
+                />
+                <WorkspaceTile
+                  label="Coverage"
+                  value="Profile"
+                  helper="Review coverage, products, contacts, and profile update requests."
+                  path="/vendor-workspace/profile"
+                />
+                <WorkspaceTile
+                  label="Recent Uploads"
+                  value="View"
+                  helper="Report and invoice files remain scoped to assignment/payment pages."
+                />
+              </WorkspaceSummaryCards>
+
+              <div className="grid gap-3">
+                <RecentUploadsPreview />
               </div>
-            ) : (
-              <WorkspaceEmptyState className="rounded-lg bg-white p-5 text-slate-600 shadow-sm">
-                No vendor action items need attention right now.
-              </WorkspaceEmptyState>
-            )}
+            </div>
           </WorkspaceSection>
         </>
       )}
